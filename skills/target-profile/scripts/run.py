@@ -342,6 +342,9 @@ def main() -> int:
             args=args, sub_results=sub_results, gate_action=gate_action,
             recommendation_gate=recommendation_gate, confidence_tier=confidence_tier,
             deciding_axis=deciding_axis, validation_summary=validation_summary,
+            # subtype-first-class-evidence (Option A): populate context.subgroup_spec + the
+            # subtype_resolved block ONLY when the run is subtype-scoped (byte-stable default).
+            subtypes=subtypes, subtype_facet=subtype_facet,
         )
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
         print(f"Recommendation: {gate_action or '(no gate fired)'}")

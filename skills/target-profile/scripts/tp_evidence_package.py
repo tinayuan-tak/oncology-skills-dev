@@ -185,9 +185,87 @@ def _validation_summary_from_sub_results(sub_results: dict) -> dict:
     return validation_summary
 
 
+# --- Subtype-resolved evidence block (subtype-first-class-evidence spec, Option A, WS1) ------------
+# Makes the per-stratum subtype SIGNALS machine-readable in the evidence package so the cross-evidence
+# integrator can later reason at subtype resolution — WITHOUT changing the spine's deliberate
+# "subtype = context, not a gate" treatment (the block is verdict-inert; agent consumption is WS4).
+# Two subtype-grain cards carry per_subgroup_metrics in target-profile's fan-out; the cross-axis
+# convergence blob (_subtype_facet) — previously computed but DROPPED from the package (it rode only
+# to nomination.json) — is embedded here too. The block is emitted ONLY under --subtypes; a default
+# (no-strata) run gets None (no key added → byte-stable).
+_SUBTYPE_STRAT_CARDS = [
+    ("dependency", "subgroup-stratified-dependency"),
+    ("mutation_frequency", "subgroup-stratified-mutation-frequency"),
+]
+# per_subgroup_metrics bookkeeping keys → everything else on a row is the axis metric (effect-size).
+_SUBTYPE_BOOKKEEPING = {"stratum", "subgroup_id", "subgroup_label", "subgroup",
+                        "subgroup_n", "subgroup_n_floor_met", "evidence_state", "source_cohort"}
+_SUBTYPE_RESOLVED_DISCLAIMER = (
+    "SOFT integrator context, NOT a gate (subtype-first-class-evidence, Option A): per-stratum "
+    "subtype SIGNALS surfaced machine-readable for the cross-evidence integrator. The deterministic "
+    "spine is UNCHANGED — subtype cards stay verdict-inert, the negative-selection "
+    "subtype_specific_non_dependence->hold is preserved, and NO positive subtype signal here enters "
+    "the hard gate. Subtype never raises certainty beyond what a stratum's n supports; a stratum with "
+    "subgroup_n_floor_met=false carries NO weight (absence-discipline at stratum grain)."
+)
+
+
+def _subtype_resolved_block(sub_results: dict, subtypes: list,
+                            subtype_facet: Optional[dict]) -> dict:
+    """Assemble the first-class `subtype_resolved` evidence block. Per requested stratum: the
+    per-axis per_subgroup_metrics projection (evidence_state + subgroup_n + n-floor-met + the
+    effect-size metric) from the dependency + mutation-frequency subtype-grain cards, PLUS the
+    cross-axis convergence facet (`_subtype_facet`). Deterministic, additive, verdict-inert.
+
+    Absence is HONEST: a stratum/axis with no per_subgroup_metrics row contributes nothing; a row
+    below its n-floor is carried with subgroup_n_floor_met=false so a consumer must not credit it.
+    Called ONLY when subtypes were requested (byte-stable default otherwise)."""
+    # subtype cards resolve under SUBTYPE_SHORT in production (composed inline in tp_fanout); tolerate
+    # the per-gate short too (matches synthetic test fixtures) — mirrors _subtype_facet's lookup.
+    from tp_fanout import SUBTYPE_SHORT  # local import: avoid an import cycle at module load
+    from tp_facets import _first_card_per_subgroup, _subtype_stratum_key
+
+    per_stratum_map: dict = {}
+    available: set = set()
+    for axis, card_id in _SUBTYPE_STRAT_CARDS:
+        rows: list = []
+        for _src in (SUBTYPE_SHORT, axis):
+            r = sub_results.get(_src)
+            if r:
+                rows = _first_card_per_subgroup(r, card_id)
+                if rows:
+                    break
+        for rec in rows:
+            st = _subtype_stratum_key(rec)
+            if not st:
+                continue
+            available.add(st)
+            rec_block = per_stratum_map.setdefault(st, {"stratum": st, "axes": {}})
+            metric = {k: v for k, v in rec.items()
+                      if k not in _SUBTYPE_BOOKKEEPING and v is not None}
+            rec_block["axes"][axis] = {
+                "evidence_state": rec.get("evidence_state"),
+                "subgroup_n": rec.get("subgroup_n"),
+                "subgroup_n_floor_met": rec.get("subgroup_n_floor_met"),
+                "metric": metric,
+            }
+    block = {
+        "schema_version": 1,
+        "requested_strata": list(subtypes),
+        "available_strata": sorted(available),
+        "per_stratum": [per_stratum_map[s] for s in sorted(per_stratum_map)],
+        "_disclaimer": _SUBTYPE_RESOLVED_DISCLAIMER,
+    }
+    if subtype_facet is not None:
+        block["convergence_facet"] = subtype_facet
+    return block
+
+
 def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[str],
                             recommendation_gate: dict, confidence_tier: dict,
-                            deciding_axis: dict, validation_summary: dict) -> Path:
+                            deciding_axis: dict, validation_summary: dict,
+                            subtypes: Optional[list] = None,
+                            subtype_facet: Optional[dict] = None) -> Path:
     """Assemble + write evidence_package.json around target-profile's composed verdict.
 
     Reuses the shared normalizers (`_envelope_card_present`, `_availability_state_for`) and writer
@@ -284,10 +362,14 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         "sub_verdicts": sub_verdicts,
     }
 
+    # subgroup_spec: STOP hardcoding null (subtype-first-class-evidence, Option A). Record the
+    # requested strata when the run was subtype-scoped (--subtypes); a default (no-strata) run keeps
+    # None, so the envelope stays BYTE-STABLE. The schema's context.subgroup_spec accepts null | 'all'
+    # | list-of-strings.
     input_context = {
         "target_symbol": args.target,
         "indication": args.indication,
-        "subgroup_spec": None,
+        "subgroup_spec": (list(subtypes) if subtypes else None),
         # The evidence_package schema's governance.data_mode enum is {latest_approved, pinned,
         # exploratory} — target-profile's internal "live_latest" is not a member. A live, unpinned,
         # non-concurrence-reviewed composed run IS exploratory (mirrors the dispatcher subskill
@@ -313,6 +395,12 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         # OFF for compose-dashboard (its envelope byte-golden is unchanged).
         refine_product_id_staleness=True,
     )
+    # First-class subtype_resolved block (subtype-first-class-evidence, Option A). Attached ONLY under
+    # --subtypes; a default run adds no key, so the envelope is byte-identical. Added AFTER assembly
+    # (not via the shared writer) to keep this change entirely within skills/target-profile/ — the
+    # shared envelope.py is owned by a sibling PR (#463). Verdict-inert; the spine is untouched.
+    if subtypes:
+        ep["subtype_resolved"] = _subtype_resolved_block(sub_results, subtypes, subtype_facet)
     # target-profile reads live + has no target-level applies_when gating; keep its governance
     # `_note` annotation off the envelope (it is a nomination.json/provenance detail).
     out_path = args.out / "evidence_package.json"
@@ -340,6 +428,7 @@ __all__ = [
     '_framework_version',
     '_load_figure_registry',
     '_validate_evidence_package',
+    '_subtype_resolved_block',
     '_validation_summary_from_sub_results',
     '_write_evidence_package',
 ]
