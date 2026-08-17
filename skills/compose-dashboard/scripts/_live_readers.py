@@ -108,8 +108,19 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
                 "log2_fc": None, "q_value": None,
                 "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
                 "n_tumor": None, "n_adjacent": None,
+                "gtex_log2_fc": None, "gtex_q_value": None,
                 "_data_note": f"target {target!r} not present in coadread-dge-df06320 DGE table",
             }
+        # Supplementary GTEx contrast for the tri-group DISPLAY only. The COADREAD verdict stays on
+        # the legacy adjacent product above (byte-stable); cell C comes from the sensitivity product.
+        # Best-effort — a missing sensitivity product just leaves the GTEx column blank.
+        try:
+            _sen = dge_module.read_tumor_vs_normal_sensitivity_gene_row(target, indication)
+        except Exception:  # noqa: BLE001 — supplementary display read; never break the verdict path
+            _sen = None
+        if _sen is not None:
+            summary.setdefault("gtex_log2_fc", _sen.get("log2fc_cell_c"))
+            summary.setdefault("gtex_q_value", _sen.get("q_value_cell_c"))
         return summary
 
     # All other indications: the four-cell sensitivity product, cell A = tumor-vs-adjacent.
@@ -119,6 +130,7 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
             "log2_fc": None, "q_value": None,
             "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
             "n_tumor": None, "n_adjacent": None,
+            "gtex_log2_fc": None, "gtex_q_value": None,
             # NOTE: deliberately NO descriptive_stats_unavailable flag on this TOTAL no-data branch —
             # the whole read is absent (log2_fc=None + _data_note), so the flag would be redundant AND
             # would break the skip_if_no_data guard, which keys "no data" on `_data_note present AND all
@@ -145,6 +157,12 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
         "log2_fc": log2_fc,
         "q_value": q_value,
         "expression_call_class": _classify(log2_fc, q_value),
+        # GTEx-normal contrast (cell C of the same sensitivity product) surfaced ALONGSIDE the
+        # adjacent contrast so the DEG card shows tumor vs adjacent-normal AND vs GTEx-normal.
+        # DISPLAY-ONLY / VERDICT-INERT: no rule keys on these; expression_call_class (cell A) is
+        # unchanged, so presence_verdict is byte-stable (Phase-A/Phase-B boundary preserved).
+        "gtex_log2_fc": sen.get("log2fc_cell_c"),
+        "gtex_q_value": sen.get("q_value_cell_c"),
         "tumor_mean_tpm": None, "adjacent_mean_tpm": None,   # not carried by sensitivity product
         "n_tumor": None, "n_adjacent": None,
         # 2026-08-13 multi-pair review (finding #3-adjacent): the sensitivity product carries only the

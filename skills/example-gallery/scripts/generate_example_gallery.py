@@ -191,11 +191,15 @@ def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Pa
 CARD_DISPLAY = {
     "cellline-rna-distribution": {
         "title": "Cell-line RNA distribution", "headline": "expression_class",
+        # pan-cancer DepMap panel by design (no single indication) → provenance = panel size / lineages
         "metrics": [("median_log2tpm_panel", "Median log2TPM"), ("allgene_percentile", "All-gene %ile"),
-                    ("fraction_expressed", "Fraction expressed"), ("control_position_class", "vs controls")]},
+                    ("fraction_expressed", "Fraction expressed"), ("control_position_class", "vs controls"),
+                    ("n_cell_lines_evaluated", "n cell lines"), ("n_lineages_evaluated", "n lineages")]},
     "tumor-rna-vs-adjacent": {
-        "title": "Tumor vs adjacent-normal RNA (DEG)", "headline": "expression_call_class",
-        "metrics": [("log2_fc", "log2 fold-change"), ("q_value", "q-value"),
+        "title": "Tumor vs normal RNA (DEG: adjacent + GTEx)", "headline": "expression_call_class",
+        # adjacent contrast (cell A, drives the call) + GTEx contrast (cell C, display-only) side by side
+        "metrics": [("log2_fc", "log2FC vs adjacent"), ("q_value", "q vs adjacent"),
+                    ("gtex_log2_fc", "log2FC vs GTEx"), ("gtex_q_value", "q vs GTEx"),
                     ("n_tumor", "n tumor"), ("n_adjacent", "n adjacent")]},
     "tumor-protein-abundance-cptac": {
         "title": "Tumor protein abundance (CPTAC)", "headline": "protein_expression_class",
@@ -212,7 +216,9 @@ CARD_DISPLAY = {
     "tumor-rna-distribution": {
         "title": "Tumor RNA distribution (per-sample)", "headline": "tumor_expression_class",
         "metrics": [("median_log2tpm", "Median log2TPM"), ("allgene_percentile", "All-gene %ile"),
-                    ("control_position_class", "vs controls")]},
+                    ("control_position_class", "vs controls"),
+                    ("n_tumor_samples", "n tumor (TCGA)"), ("studies", "TCGA studies"),
+                    ("matched_normal_tissue", "Normal (GTEx)"), ("n_normal_samples", "n normal")]},
     "tumor-rna-distribution-by-subtype": {
         # headline = the subtype VERDICT (pan_subtype_uniform / subtype_enriched / …), not the
         # effect-size adjective — that's the field the framework's subgroup-analysis constraint fires on.
@@ -230,7 +236,11 @@ CARD_DISPLAY = {
         "metrics": [("rna_protein_r", "RNA-protein r"), ("n_paired_models", "n paired models")]},
     "tumor-scrna-celltype-expression": {
         "title": "Single-cell per-compartment presence", "headline": "sc_expression_class",
-        "metrics": [("malignant_detection_fraction", "Malignant detection"),
+        # provenance FIRST so it's clear the read is indication-specific (atlas + donor/dataset counts)
+        "metrics": [("indication", "Indication"), ("product_id", "Atlas"),
+                    ("malignant_n_donors", "Malignant donors"), ("n_datasets", "Datasets"),
+                    ("n_donor_groups", "Donor groups"),
+                    ("malignant_detection_fraction", "Malignant detection"),
                     ("top_microenvironment_compartment", "Top microenv. compartment"),
                     ("n_compartments_measured", "Compartments measured")]},
     "normal-tissue-liability": {

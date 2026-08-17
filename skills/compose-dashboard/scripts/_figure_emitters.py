@@ -143,16 +143,15 @@ def _emit_tumor_vs_normal_selectivity(
 def _emit_expression_tumor_vs_adjacent(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit tumor-vs-adjacent compound figure (box+strip + DGE-stats callout).
+    """Emit the DEG figure showing tumor vs adjacent-normal AND tumor vs GTEx-normal.
 
-    Pulls per-sample log2(CPM+1) from recount3 at emit-time via
-    dge_deseq2.read.read_per_sample_expression_tumor_vs_adjacent. First call
-    per (target, indication) takes ~10-20s (streams two ~50MB gzipped counts
-    files from S3); subsequent lookups in the same process are hot-cached at
-    the Ensembl-ID-map level.
-
-    Placeholder rendered when the indication has no recount3 study mapping,
-    or the target's HGNC symbol doesn't resolve to an Ensembl ID.
+    Prefers the 3-group panel from the 4-cell sensitivity product (adjacent = cell A, GTEx =
+    cell C) via the shared emit_tumor_vs_normal_selectivity_4panel machinery, so the DEG card
+    co-shows all three groups (tumor / TCGA-adjacent / GTEx-normal). Falls back to the legacy
+    2-group tumor-vs-adjacent compound when no sensitivity product exists for the indication
+    (e.g. a target absent from the product, or an indication whose product is not yet built).
+    Per-sample log2(CPM+1) streams from recount3 at emit-time (~10-30s first call per
+    (target, indication)); a missing recount3 mapping renders a placeholder.
     """
     if _has_live_read_error(summary):
         return []
@@ -161,11 +160,40 @@ def _emit_expression_tumor_vs_adjacent(
     from methods.dge_deseq2 import emit as dge_emit
 
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Preferred: 3-group panel from the 4-cell sensitivity product (cell A = adjacent, cell C = GTEx).
+    try:
+        sens = dge_read.read_tumor_vs_normal_sensitivity_gene_row(target, indication)
+    except Exception:  # noqa: BLE001
+        sens = None
+    if sens is not None:
+        try:
+            per_sample = dge_read.read_per_sample_expression_all_three_groups(
+                target=target, indication=indication,
+            )
+        except Exception:  # noqa: BLE001
+            per_sample = None
+        dge_emit.emit_tumor_vs_normal_selectivity_4panel(
+            sensitivity_summary=sens, per_sample_data=per_sample,
+            target=target, indication=indication,
+            out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
+        )
+        figures = [
+            {"id": "tumor_vs_normal_3group",
+             "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
+             "type": "box_forest_sensitivity_panel", "primary": True},
+        ]
+        figures += _plotly_from(dge_emit, "emit_plotly_specs", per_sample,
+                                _dge_cell_contrasts(sens), target, indication,
+                                out_dir, TARGET_CONTRACTS, "tumor_vs_normal")
+        return figures
+
+    # Fallback: legacy 2-group compound (adjacent only).
     try:
         per_sample = dge_read.read_per_sample_expression_tumor_vs_adjacent(
             target=target, indication=indication,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         per_sample = None
     dge_emit.emit_tumor_vs_adjacent_compound(
         summary=summary, per_sample_data=per_sample,
@@ -177,9 +205,6 @@ def _emit_expression_tumor_vs_adjacent(
          "path": "figure_tumor_vs_adjacent_compound.svg",
          "type": "violin_paired_with_significance", "primary": True},
     ]
-    # Interactive twin — same per_sample_data + the single tumor-vs-adjacent contrast the SVG
-    # callout reports (log2_fc / q_value from the SAME summary). basename keys the output so it
-    # can't collide with the 3-group selectivity card in the same package dir.
     contrasts = []
     if summary.get("log2_fc") is not None:
         contrasts = [{"label": "tumor vs adj-normal",

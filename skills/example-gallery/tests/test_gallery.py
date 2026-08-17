@@ -284,3 +284,39 @@ def test_render_from_existing_graceful_on_missing_decision(tmp_path):
     rc = G._render_from_existing([str(tmp_path / "does-not-exist")], out, interactive=False)
     assert rc == 0                                       # no raise
     assert (out / "index.html").exists()                 # index still written (row marked NO decision.json)
+
+
+# --- provenance surfacing in card metrics (WS-A) ----------------------------
+
+def test_scrna_card_surfaces_indication_and_atlas_provenance(tmp_path):
+    """The single-cell card must render its indication + atlas + donor/dataset provenance so a
+    reader can see the read is indication-specific (not generic)."""
+    decision = {
+        "skill": "tumor-presence", "target": "CEACAM5", "indication": "NSCLC",
+        "headline": {"presence_verdict": "tumor_broadly_expressed"},
+        "cards": [{"card_id": "tumor-scrna-celltype-expression",
+                   "summary": {"sc_expression_class": "malignant_subset_detected",
+                               "indication": "NSCLC",
+                               "product_id": "sc-pseudobulk-tumor-luca-nsclc-v1",
+                               "malignant_n_donors": 115, "n_datasets": 14, "n_donor_groups": 146,
+                               "malignant_detection_fraction": 0.182}}],
+    }
+    page = G.render_page(decision, tmp_path, fig_map={}, interactive=False)
+    assert "Indication" in page and "NSCLC" in page
+    assert "Atlas" in page and "sc-pseudobulk-tumor-luca-nsclc-v1" in page
+    assert "Malignant donors" in page and "115" in page
+
+
+def test_deg_card_surfaces_gtex_contrast_when_present(tmp_path):
+    """The DEG card must co-show the GTEx contrast (display-only) alongside the adjacent contrast."""
+    decision = {
+        "skill": "tumor-presence", "target": "CEACAM5", "indication": "LUAD",
+        "headline": {"presence_verdict": "tumor_broadly_expressed"},
+        "cards": [{"card_id": "tumor-rna-vs-adjacent",
+                   "summary": {"expression_call_class": "modest_upregulation",
+                               "log2_fc": 0.8, "q_value": 1e-4,
+                               "gtex_log2_fc": 3.1, "gtex_q_value": 1e-20}}],
+    }
+    page = G.render_page(decision, tmp_path, fig_map={}, interactive=False)
+    assert "log2FC vs adjacent" in page
+    assert "log2FC vs GTEx" in page and "3.1" in page
