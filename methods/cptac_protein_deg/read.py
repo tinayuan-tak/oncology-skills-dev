@@ -595,12 +595,27 @@ _HPA_ENRICHED_P33 = 8.05e5
 _HPA_ENRICHED_P66 = 7.43e6
 
 # HPA breadth class → IHC anchor class (the weaker fallback when tissue-of-origin has no enriched
-# numeric intensity). Broad presence ~= medium abundance; restricted ~= low; absent ~= not_detected.
+# numeric intensity). Broad/moderate/restricted NORMAL presence is a defensible order-of-magnitude
+# proxy for baseline tissue-of-origin abundance (present at medium/low). But NORMAL-tissue ABSENCE
+# (`not_detected_in_normal`) is DELIBERATELY OMITTED here: normal-tissue absence says NOTHING about
+# TUMOR abundance — it is precisely the signature of an ideal tumor-restricted antigen (DLL3, MAGE-A,
+# tumor-specific neoantigens). Mapping it to `not_detected` previously mis-anchored those antigens as
+# tumor-absent (~3e2 copies/cell) AND — via hpa_ihc_intensity_class=not_detected → the surface
+# `ihc-not-detected-killer` rung — false-killed the composed modality verdict to `neither_viable`
+# (S1-2, cards review 2026-08-17; live-verified on DLL3/LUAD, an approved tarlatamab/Rova-T antigen).
+# So normal-absence now ABSTAINS: `.get(breadth, "unmeasured")` returns `unmeasured` → no killer, and
+# `_hpa_cptac_estimate` degrades to an honest grade-E `_empty_density` (a real tumor density comes from
+# the CPTAC tumor measurement / the Tier-1 absolute-density ladder, not from a normal-tissue-absence
+# inference). NOTE: with this omission the tissue_specific path only ever yields low/medium/high, so
+# `hpa_ihc_intensity_class` is never `not_detected` — the `ihc-not-detected-killer` rung is now
+# unreachable from HPA breadth (its only prior trigger was this false-kill). A GENUINE "antigen absent
+# in the tumor too" kill belongs on the CPTAC-measured `protein_expression_class=not_detected` signal
+# (absence in BOTH tumor + normal arms), tracked separately (G8-S2-3).
 _BREADTH_TO_IHC_CLASS = {
     "broad_normal_expression":      "medium",
     "moderate_normal_expression":   "low",
     "restricted_normal_expression": "low",
-    "not_detected_in_normal":       "not_detected",
+    # "not_detected_in_normal": intentionally absent → abstains to "unmeasured" (see comment above).
 }
 
 _TCE_VIABILITY_COPIES = 1000.0        # Slaga 2018 Sci Transl Med

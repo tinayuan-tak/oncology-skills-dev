@@ -131,13 +131,19 @@ def test_low_anchor_straddles_tce_threshold(monkeypatch):
     assert d["is_adc_high_payload_viable"] is False
 
 
-def test_not_detected_maps_very_low(monkeypatch):
+def test_normal_absence_abstains_not_tumor_absent(monkeypatch):
+    # S1-2 (cards review 2026-08-17): normal-tissue ABSENCE (`not_detected_in_normal`) is the ideal
+    # tumor-restricted-antigen profile (DLL3), NOT evidence of tumor absence. It must ABSTAIN
+    # (unmeasured / grade-E), never anchor a tumor `not_detected` — which previously mis-set a very-low
+    # copies/cell AND fired the surface `ihc-not-detected-killer` → false `neither_viable`.
+    # (Was: test_not_detected_maps_very_low, which pinned the buggy `not_detected` → low mapping.)
     _patch_hpa(monkeypatch, breadth="not_detected_in_normal", specific=[])
     _patch_cptac(monkeypatch, cls="not_significant", effect=0.0)
     d = r.read_abundance_density_summary("X", "COAD")
-    assert d["hpa_ihc_intensity_class"] == "not_detected"
-    # center 3e2, shift 1 → 300/cell → very_low? no: 100 <= 300 < 1000 → low
-    assert d["surface_density_class"] == "low"
+    assert d["hpa_ihc_intensity_class"] == "unmeasured"       # abstain — never a tumor not_detected
+    assert d["hpa_ihc_intensity_class"] != "not_detected"     # the killer trigger must not be produced
+    assert d["surface_density_class"] == "unmeasured"         # honest grade-E, no fabricated number
+    assert d["density_evidence_level"] == "E"
     assert d["is_tce_viable"] is False
 
 
