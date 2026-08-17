@@ -1102,6 +1102,7 @@ def _render_target_profile_html(
     card_figures: Optional[dict] = None,
     figures_dir: Optional[Path] = None,
     presence_only: bool = False,
+    presence_facet: Optional[dict] = None,
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1154,6 +1155,24 @@ def _render_target_profile_html(
                  f" · confidence <span class=pill>{_esc(_val('confidence'))}</span> {checked}"
                  f" <span style='opacity:.7;font-size:12px'>· AI-generated</span></div>"
                  "</header>")
+
+    # --- Presence × Context hero (deterministic VIEW) ----------------------
+    # Renders tumor-presence's cross-modal reconciliation (presence_facet.presence_verdict_by_modality)
+    # as a compact state-matrix: measurement layers × sample contexts, PRESENCE block + normal-tissue
+    # WINDOW block. Rendered INLINE from the facet (no figure-file dependency); DISPLAY-ONLY (order-
+    # preserving tiers, off-scale for unmeasured/comparator cells, never a verdict input). Placed high
+    # so the one-word presence verdict is never read without its cross-modal decomposition.
+    if presence_facet and presence_facet.get("presence_verdict_by_modality"):
+        try:
+            from _skills_common.presence_matrix import render_presence_matrix_svg
+            _hero_svg = render_presence_matrix_svg(presence_facet, target, indication)
+            p.append("<section id=s-presence-matrix class=det>"
+                     "<span class=tag>Deterministic VIEW — not a score</span>"
+                     "<h2>Presence × context <span class=n>— where RNA / protein / single-cell "
+                     "agree or disagree, framed against normal tissue</span></h2>"
+                     f"{_hero_svg}</section>")
+        except Exception:  # noqa: BLE001 — an aggregate figure must never break the report
+            pass
 
     # --- Gate sections declarative list (SINGLE SOURCE for both the left nav AND the section
     # render loop below — so the nav can never drift out of sync with what actually renders). Each

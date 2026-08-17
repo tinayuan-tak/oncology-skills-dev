@@ -121,6 +121,7 @@ def _render_target_profile_md(
     composite_figure_relpath: Optional[str] = None,
     deciding_axis: Optional[dict] = None,
     ordinal_matrix: Optional[dict] = None,
+    presence_facet: Optional[dict] = None,
 ) -> str:
     """Render target_profile.md with clearly-tagged LLM sections + per-phase
     evidence tables + risk-by-category summary + deciding-axis routing + the
@@ -224,6 +225,35 @@ def _render_target_profile_md(
             verdict_str, driving_rule = v
             lines.append(f"| {short} | `{verdict_str}` | `{driving_rule}` |")
     lines.append("")
+
+    # --- Presence × context (deterministic VIEW from tumor-presence) -------
+    # The per-(measurement, sample_context) reconciliation BEHIND the collapsed presence verdict —
+    # surfaced so a reader sees cross-modal tension (RNA-high/protein-absent; tumor-high/normal-high)
+    # the one-word verdict hides. DISPLAY-ONLY (the normal column is a safety COMPARATOR; the safety
+    # verdict is owned by on-target-safety-liability). md gets the table; the html report gets the SVG.
+    pvm = (presence_facet or {}).get("presence_verdict_by_modality") or {}
+    if pvm:
+        lines.append("## Presence × context *(deterministic VIEW — not a score)*")
+        lines.append("")
+        lines.append("| Measurement / context | Sub-verdict | Evidence |")
+        lines.append("|---|---|---|")
+        for key, b in pvm.items():
+            if not isinstance(b, dict):
+                continue
+            lines.append(f"| {key} | `{b.get('verdict')}` | {b.get('evidence_state')} |")
+        lines.append("")
+        if presence_facet.get("cell_line_vs_tumor_discordant"):
+            lines.append(f"> ⚠ {presence_facet.get('presence_interpretation_note')}")
+            lines.append("")
+        _pq = presence_facet.get("bulk_rna_proxy_quality")
+        if _pq:
+            lines.append(f"RNA→protein proxy quality: `{_pq}` "
+                         f"(source: {presence_facet.get('bulk_rna_proxy_quality_source')}). "
+                         f"Normal-tissue comparator (window framing — safety verdict owned by "
+                         f"on-target-safety-liability): HPA-IHC "
+                         f"`{presence_facet.get('normal_tissue_ihc_breadth_class')}`, scRNA-normal "
+                         f"`{presence_facet.get('sc_normal_expression_class')}`.")
+            lines.append("")
 
     # --- Ordinal evidence matrix (deterministic VIEW; gate × modality) -----
     if ordinal_matrix:

@@ -410,6 +410,7 @@ def main() -> int:
         composite_figure_relpath=composite_rel,
         deciding_axis=deciding_axis,
         ordinal_matrix=ordinal_matrix,
+        presence_facet=presence_facet,
     )
     (args.out / "target_profile.md").write_text(md)
 
@@ -423,6 +424,7 @@ def main() -> int:
             scorecard=scorecard, composite_svg_path=composite_svg,
             catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
             card_figures=card_figures, figures_dir=figures_dir,
+            presence_facet=presence_facet,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
