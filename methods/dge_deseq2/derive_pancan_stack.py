@@ -85,6 +85,7 @@ _UNION_COLUMNS = [
 # appear). Add a new entry here if a merged-parent indication ever lands alongside its children.
 _COMPOSITE_INDICATIONS = {
     "COADREAD": {"COAD", "READ"},
+    "NSCLC": {"LUAD", "LUSC"},   # pooled NSCLC; drop from breadth roll-up when LUAD+LUSC present
 }
 
 

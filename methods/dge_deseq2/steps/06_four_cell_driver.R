@@ -89,7 +89,27 @@ deseq2_fit <- function(mat, cd) {
   cd$group <- factor(cd$group, levels = c("normal", "tumor"))
   mat <- prefilter(mat)
   storage.mode(mat) <- "integer"
-  dds <- DESeqDataSetFromMatrix(countData = mat, colData = cd, design = ~ group)
+  # Study covariate for POOLED multi-study indications (e.g. NSCLC = LUAD+LUSC): adjust the
+  # tumor-vs-normal effect for study/histology so a pooled contrast is not confounded by the
+  # LUAD-vs-LUSC mix. Applied ONLY when BOTH groups span >1 study level — i.e. the adjacent
+  # contrasts (cells A/B), where tumor AND adjacent-normal each include both studies, so the
+  # design is full-rank. NOT applied to the GTEx contrast (cell C): GTEx normal is a single
+  # study confined to group=normal, so `study` there is confounded with `group` (rank-deficient)
+  # and must stay ~ group. Single-study indications keep ~ group exactly → existing products are
+  # byte-identical (and are never rebuilt here regardless). The group coefficient name is
+  # unchanged (group is the last term), so lfcShrink(coef="group_tumor_vs_normal") is unaffected.
+  use_study <- ("study" %in% colnames(cd)) &&
+    min(tapply(as.character(cd$study), cd$group,
+               function(s) length(unique(s)))) > 1
+  if (use_study) {
+    cd$study <- factor(cd$study)
+    design <- ~ study + group
+    message(sprintf("[06_four_cell]   study-adjusted design (~ study + group); %d studies",
+                    nlevels(cd$study)))
+  } else {
+    design <- ~ group
+  }
+  dds <- DESeqDataSetFromMatrix(countData = mat, colData = cd, design = design)
   dds <- DESeq(dds, parallel = TRUE, quiet = TRUE, sfType = "poscounts")
   res_un <- results(dds, contrast = c("group", "tumor", "normal"), alpha = 0.05)
   res <- lfcShrink(dds, coef = "group_tumor_vs_normal", type = "apeglm",

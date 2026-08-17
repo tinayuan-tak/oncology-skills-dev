@@ -245,6 +245,7 @@ INDICATION_TO_TCGA_STUDIES = {
     "COADREAD": ["COAD", "READ"],
     "COAD": ["COAD"],
     "READ": ["READ"],
+    "NSCLC": ["LUAD", "LUSC"],   # composite: pooled LUAD+LUSC (study-adjusted DGE, see 06_four_cell_driver.R)
     "LUAD": ["LUAD"],
     "LUSC": ["LUSC"],
     "BRCA": ["BRCA"],
@@ -896,7 +897,7 @@ def _comparator_concordance(row: dict) -> str:
 # GTEx indication → tissue-of-origin (mirrors dge_tcga_gtex_precompute.cli).
 INDICATION_TO_GTEX_TISSUE = {
     "COADREAD": "COLON", "COAD": "COLON", "READ": "COLON",
-    "LUAD": "LUNG", "LUSC": "LUNG",
+    "NSCLC": "LUNG", "LUAD": "LUNG", "LUSC": "LUNG",
     "BRCA": "BREAST",
     "PAAD": "PANCREAS", "PDAC": "PANCREAS",
     "SKCM": "SKIN",
