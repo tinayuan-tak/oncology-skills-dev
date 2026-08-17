@@ -224,3 +224,63 @@ def test_synthesize_retry_without_flag(tmp_path, monkeypatch):
     assert dec is not None and dec["skill"] == "genomic-alteration-profile"
     assert any("--synthesize" in c for c in calls)       # first attempt had it
     assert any("--synthesize" not in c for c in calls)   # retry dropped it
+
+
+# --- render-from-existing-dir mode (no skill re-run) -------------------------
+
+import json as _json  # noqa: E402
+
+
+def _make_existing_run(tmp_path):
+    """A minimal already-populated data-package: decision.json + figures/cards/<cid>/figure.svg (+twin)."""
+    run = tmp_path / "EPCAM-COADREAD"
+    (run / "figures" / "cards" / "tumor-rna-distribution").mkdir(parents=True)
+    svg = run / "figures" / "cards" / "tumor-rna-distribution" / "figure_expression_distribution.svg"
+    svg.write_text('<svg viewBox="0 0 10 10"><rect/></svg>')
+    svg.with_suffix(".plotly.json").write_text('{"data":[],"layout":{}}')  # interactive twin
+    # a second card with only an SVG (no twin)
+    (run / "figures" / "cards" / "cellline-rna-distribution").mkdir(parents=True)
+    (run / "figures" / "cards" / "cellline-rna-distribution" / "figure_density_expression.svg").write_text(
+        '<svg viewBox="0 0 10 10"><rect/></svg>')
+    (run / "decision.json").write_text(_json.dumps(_decision()))
+    return run
+
+
+def test_fig_map_from_existing_reconstructs_descriptors(tmp_path):
+    run = _make_existing_run(tmp_path)
+    fm = G.fig_map_from_existing(run)
+    assert set(fm) == {"tumor-rna-distribution", "cellline-rna-distribution"}
+    trd = fm["tumor-rna-distribution"][0]
+    # path is relative to run_dir and points under figures/cards/
+    assert trd["path"] == "figures/cards/tumor-rna-distribution/figure_expression_distribution.svg"
+    assert trd["dynamic"] is True                       # .plotly.json twin present
+    # the SVG-only card carries no dynamic flag
+    assert "dynamic" not in fm["cellline-rna-distribution"][0]
+
+
+def test_fig_map_from_existing_empty_when_no_figures(tmp_path):
+    run = tmp_path / "no-figs"
+    run.mkdir()
+    (run / "decision.json").write_text(_json.dumps(_decision()))
+    assert G.fig_map_from_existing(run) == {}
+
+
+def test_render_from_existing_writes_dashboard_and_index(tmp_path):
+    run = _make_existing_run(tmp_path)
+    out = tmp_path / "gallery"
+    rc = G._render_from_existing([str(run)], out, interactive=False)
+    assert rc == 0
+    # dashboard.html written BESIDE the package + a gallery copy + index
+    dash = run / "dashboard.html"
+    assert dash.exists()
+    page = dash.read_text()
+    assert "lineage_restricted" in page and "<svg" in page      # verdict + inlined figure
+    assert (out / "index.html").exists()
+    assert (out / "tumor-presence__CEACAM5__COADREAD.html").exists()
+
+
+def test_render_from_existing_graceful_on_missing_decision(tmp_path):
+    out = tmp_path / "g"
+    rc = G._render_from_existing([str(tmp_path / "does-not-exist")], out, interactive=False)
+    assert rc == 0                                       # no raise
+    assert (out / "index.html").exists()                 # index still written (row marked NO decision.json)

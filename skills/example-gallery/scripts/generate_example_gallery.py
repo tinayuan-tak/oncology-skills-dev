@@ -761,6 +761,81 @@ def _load_config(path: Optional[str], skill, target, indication) -> list[dict]:
     raise SystemExit("provide --config, or --skill + --target")
 
 
+def fig_map_from_existing(run_dir: Path) -> dict:
+    """Reconstruct the {card_id: [descriptors]} fig_map from an ALREADY-populated data-package —
+    figures/cards/<card_id>/figure_*.svg (+ optional .plotly.json twin) — WITHOUT re-running the
+    skill or re-invoking the emitters. This is the render-from-existing-dir path: it consumes the
+    exact package published to skill-runs (produced by `run.py --figures`), so the HTML never drifts
+    from the deterministic run it depicts. Descriptor `path` is relative to run_dir, matching what
+    _card_figures_html expects (run_dir / path)."""
+    fig_map: dict = {}
+    base = run_dir / "figures" / "cards"
+    if not base.is_dir():
+        return fig_map
+    for card_dir in sorted(p for p in base.iterdir() if p.is_dir()):
+        descs = []
+        for svg in sorted(card_dir.glob("*.svg")):
+            d = {"id": svg.stem, "path": svg.relative_to(run_dir).as_posix(), "primary": True}
+            if svg.with_suffix(".plotly.json").exists():
+                d["dynamic"] = True          # interactive twin available
+            descs.append(d)
+        if descs:
+            fig_map[card_dir.name] = descs
+    return fig_map
+
+
+def _verdict_label(skill: str, decision: dict) -> str:
+    h = decision.get("headline", {}) or {}
+    v = (h.get("presence_verdict") or h.get("verdict")
+         or next((vv for k, vv in h.items() if k.endswith("_verdict")), None))
+    if v:
+        return v
+    return "descriptive" if skill == "target-intrinsic" else "profile (see cards)"
+
+
+def _write_index(out: Path, index_rows: list, interactive: bool) -> None:
+    tr = "".join(
+        f"<tr><td>{_esc(s)}</td><td>{_esc(t)}</td><td>{_esc(i)}</td><td>{_esc(v)}</td>"
+        f"<td>{'<a href=\"'+_esc(f)+'\">view</a>' if f else '—'}</td></tr>"
+        for s, t, i, v, f in index_rows)
+    idx = (f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Subskill example gallery</title>'
+           f'<style>{_CSS}</style></head><body><div class="wrap"><h1>Subskill example gallery</h1>'
+           f'<p class="sub">{len(index_rows)} example run(s)'
+           + (' · interactive' if interactive else ' · static') + '</p>'
+           f'<table class="idx"><thead><tr><th>skill</th><th>target</th><th>indication</th>'
+           f'<th>verdict</th><th></th></tr></thead><tbody>{tr}</tbody></table></div></body></html>')
+    (out / "index.html").write_text(idx)
+    print(f"[gallery] index.html written → {out}/index.html", file=sys.stderr)
+
+
+def _render_from_existing(run_dirs: list, out: Path, interactive: bool) -> int:
+    """Render HTML from EXISTING data-package dirs (no skill re-run). Writes <run_dir>/dashboard.html
+    beside each package (so a publisher can upload it in place) AND a copy + gallery index.html at
+    --out. Returns an exit code."""
+    out.mkdir(parents=True, exist_ok=True)
+    index_rows = []
+    for d in run_dirs:
+        run_dir = Path(d)
+        dec_path = run_dir / "decision.json"
+        if not dec_path.exists():
+            print(f"[gallery] --from-run-dir: no decision.json in {run_dir}", file=sys.stderr)
+            index_rows.append(("?", str(run_dir), "—", "NO decision.json", None))
+            continue
+        decision = json.loads(dec_path.read_text())
+        skill = decision.get("skill"); target = decision.get("target")
+        indication = decision.get("indication")
+        fig_map = fig_map_from_existing(run_dir)
+        page = render_page(decision, run_dir, fig_map, interactive)
+        (run_dir / "dashboard.html").write_text(page)          # co-located with the package
+        fname = _slug(skill, target, indication or "target") + ".html"
+        (out / fname).write_text(page)                          # gallery copy
+        index_rows.append((skill, target, indication or "target-grain",
+                           _verdict_label(skill, decision), fname))
+        print(f"[gallery] {run_dir}/dashboard.html ({len(fig_map)} cards w/ figures)", file=sys.stderr)
+    _write_index(out, index_rows, interactive)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--config", default=None, help="examples.yaml (list of {skill,target,indication})")
@@ -774,7 +849,17 @@ def main(argv=None) -> int:
     ap.add_argument("--synthesize", action="store_true",
                     help="pass --synthesize to each subskill so the page includes the LLM relevance "
                          "narrative (needs Bedrock; degrades to a note if unavailable)")
+    ap.add_argument("--from-run-dir", action="append", default=None,
+                    help="Render HTML from an EXISTING data-package dir (decision.json + figures/) "
+                         "WITHOUT re-running the skill; writes <run_dir>/dashboard.html + a gallery "
+                         "copy/index at --out. Repeatable. Ignores --synthesize (uses the package's "
+                         "existing llm_synthesis). This is the render-from-existing path used to layer "
+                         "HTML onto already-published skill-runs packages.")
     args = ap.parse_args(argv)
+
+    # render-from-existing mode: no skill re-run, no emitters — consume packages as-is.
+    if args.from_run_dir:
+        return _render_from_existing(args.from_run_dir, args.out, args.interactive)
 
     args.out.mkdir(parents=True, exist_ok=True)
     emit_figures = _load_emit_figures_for_card()
@@ -814,19 +899,7 @@ def main(argv=None) -> int:
         index_rows.append((skill, target, indication or "target-grain", verdict, fname))
         print(f"[gallery] wrote {fname} ({len(fig_map)} cards with figures)", file=sys.stderr)
 
-    # index.html
-    tr = "".join(
-        f"<tr><td>{_esc(s)}</td><td>{_esc(t)}</td><td>{_esc(i)}</td><td>{_esc(v)}</td>"
-        f"<td>{'<a href=\"'+_esc(f)+'\">view</a>' if f else '—'}</td></tr>"
-        for s, t, i, v, f in index_rows)
-    idx = (f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Subskill example gallery</title>'
-           f'<style>{_CSS}</style></head><body><div class="wrap"><h1>Subskill example gallery</h1>'
-           f'<p class="sub">{len(index_rows)} example run(s)'
-           + (' · interactive' if args.interactive else ' · static') + '</p>'
-           f'<table class="idx"><thead><tr><th>skill</th><th>target</th><th>indication</th>'
-           f'<th>verdict</th><th></th></tr></thead><tbody>{tr}</tbody></table></div></body></html>')
-    (args.out / "index.html").write_text(idx)
-    print(f"[gallery] index.html written → {args.out}/index.html", file=sys.stderr)
+    _write_index(args.out, index_rows, args.interactive)
     return 0
 
 
