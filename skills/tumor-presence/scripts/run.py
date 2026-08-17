@@ -70,6 +70,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.presence_matrix import emit_presence_matrix
 
 
 SKILL_NAME = "tumor-presence"
@@ -94,8 +95,11 @@ SKILL_VERSION = "1.7.0"   # 2026-08-14 — F RE-ANCHOR (VERDICT-MOVING, backtest
 CARDS = [
     "cellline-rna-distribution",
     "tumor-rna-vs-adjacent",
-    "tumor-protein-abundance-cptac",           # Layer 6c addition
-    "cellline-protein-abundance",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
+    "tumor-protein-abundance-cptac",           # Layer 6c — bulk_protein_ms x tumor. WHOLE-CELL-LYSATE
+                                        # TMT-MS: measures protein PRODUCED (all compartments), NOT
+                                        # surface-accessible protein. "protein_present" ≠ surface antigen.
+    "cellline-protein-abundance",        # E3b — bulk_protein_ms x cell_line (Gygi WHOLE-CELL-LYSATE TMT-MS;
+                                        # total protein produced, not surface-localized)
     "tumor-elevation-breadth",          # Slice B3 — pan-cancer K-of-N tumor-elevation (target-grain)
     "tumor-rna-distribution",    # Q1 (expression-extraction plan) — per-sample TUMOR RNA
                                         # distribution (bulk_rna x tumor); the per-sample companion to
@@ -803,6 +807,49 @@ def _headline(cards, fired, verdict_pair):
     }
 
 
+# ---------------------------------------------------------------------------
+# CROSS-MODAL RECONCILIATION FACET (2026-08-17 presence-audit follow-up).
+# ---------------------------------------------------------------------------
+# The composed target-profile fan-out captures each sub-skill's `_verdict()` (the one collapsed
+# string) + raw card summaries, but NOT the sub-skill's `_headline()` reconciliation. For
+# tumor-presence that dropped the single most decision-relevant object the skill produces — the
+# per-(measurement, sample_context) sub-verdict MATRIX that makes cross-modal tension legible
+# (RNA-high / protein-absent; tumor-high / normal-tissue-high). This left the downstream LLM
+# synthesis re-deriving that tension from raw numbers instead of being handed the deterministic
+# answer. `_synthesis_facet` is the uniform opt-in the fan-out looks for (mirrors `_verdict`): it
+# returns a COMPACT, verdict-INERT reconciliation block for the synthesis prompt. It reuses
+# `_headline` (single source of truth) and selects the reconciliation-relevant fields. It NEVER
+# moves the verdict; presence stays out of target-profile's `_SHORT_TO_GATE`.
+_SYNTHESIS_FACET_KEYS = (
+    "presence_verdict", "driving_rule_id",
+    "presence_verdict_by_modality",       # the 7-bucket cross-modal matrix (the key object)
+    "headline_lens", "cell_line_vs_tumor_discordant", "presence_interpretation_note",
+    # RNA-as-protein-proxy quality (both arms, side-by-side) — qualifies an RNA-only presence claim
+    "bulk_rna_proxy_quality", "bulk_rna_proxy_quality_source",
+    "rna_as_biomarker", "rna_protein_r",
+    "rna_as_biomarker_tumor", "rna_protein_r_tumor",
+    # NORMAL-TISSUE comparators — FRAMING for the therapeutic window (verdict owned by
+    # on-target-safety-liability; surfaced here so the reasoner weighs presence AGAINST the window).
+    "normal_tissue_ihc_breadth_class", "normal_tissue_ihc_essential_flag",
+    "sc_normal_expression_class", "sc_normal_max_det_cell_type", "sc_normal_max_det_fraction",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT cross-modal reconciliation block for the composed target-profile
+    synthesis prompt. Reuses `_headline` (single source of truth) and returns the reconciliation-
+    relevant subset. Never moves the verdict; safe to omit (fan-out treats absence as no-facet)."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = (
+        "Deterministic cross-modal reconciliation from tumor-presence (a FACET, not a gate; "
+        "presence is verdict-inert to the nomination spine). Read presence_verdict_by_modality "
+        "for cross-modal tension (RNA-high/protein-absent; tumor-high/normal-high). The normal_* "
+        "fields are safety COMPARATORS (window framing); the safety verdict is owned by "
+        "on-target-safety-liability.")
+    return facet
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,
@@ -812,4 +859,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Skill-level hero graphic (opt-in --figures): the Presence × Context matrix over the
+        # computed presence_verdict_by_modality. ADDITIVE / display-only (see presence_matrix.py).
+        skill_figures_fn=emit_presence_matrix,
     ))

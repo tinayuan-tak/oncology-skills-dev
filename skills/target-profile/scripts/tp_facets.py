@@ -436,6 +436,20 @@ def _biomarker_facet(sub_results: dict) -> dict:
     }
 
 
+# --- PRESENCE cross-modal reconciliation facet -------------------------------------------------
+# tumor-presence emits a per-(measurement, sample_context) sub-verdict MATRIX + proxy-quality +
+# normal-tissue comparators via its `_synthesis_facet` (carried by the fan-out as
+# sub_results['expression']['synthesis_facet']). This thin reader surfaces it as a first-class
+# facet for the synthesis prompt + evidence package — parallel to _biomarker_facet / _subtype_facet.
+# VERDICT-INERT: presence is deliberately absent from _SHORT_TO_GATE, so this never moves the
+# nomination. Its value: the LLM reasons over the deterministic cross-modal reconciliation (where
+# RNA / protein / single-cell / normal-comparator AGREE or CONFLICT) instead of re-deriving it from
+# raw card numbers. Returns None when tumor-presence is absent / supplied no facet.
+def _presence_facet(sub_results: dict) -> Optional[dict]:
+    expr = (sub_results or {}).get("expression") or {}
+    return expr.get("synthesis_facet")
+
+
 # --- SUBTYPE convergence facet (capstone Part 3c integration layer) ----------------------------
 # The cross-card per-molecular-subtype convergence the capstone owed. Where _biomarker_facet
 # converges SCALAR biomarker roles, this converges the PER-STRATUM panoramas: the three
@@ -1063,6 +1077,7 @@ __all__ = [
     '_addressable_population_class',
     '_addressable_population_facet',
     '_biomarker_facet',
+    '_presence_facet',
     '_biomarker_quantitative',
     '_classify_biomarker_best_roles',
     '_cv',

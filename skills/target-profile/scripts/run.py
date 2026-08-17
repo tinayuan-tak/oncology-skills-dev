@@ -57,7 +57,7 @@ from tp_gates import (               # names main() calls directly
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _addressable_population_facet, _biomarker_facet, _deciding_axis, _fragility_facet,
-    _heterogeneity_facet, _ordinal_matrix, _subtype_facet,
+    _heterogeneity_facet, _ordinal_matrix, _presence_facet, _subtype_facet,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import _SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool, _build_user_prompt
@@ -189,6 +189,14 @@ def main() -> int:
     # emitted in nomination.json. One-directional — informs confidence, never mints a nominate.
     subtype_facet = _subtype_facet(sub_results, indication=args.indication)
 
+    # Presence cross-modal reconciliation facet (2026-08-17): tumor-presence's own deterministic
+    # per-(measurement, sample_context) presence matrix + RNA→protein proxy-quality + normal-tissue
+    # comparators, carried through the fan-out via its _synthesis_facet hook. Previously the fan-out
+    # captured only tumor-presence's collapsed one-word verdict, so the synthesis had to re-derive the
+    # cross-modal tension (RNA-high/protein-absent; tumor-high/normal-high) from raw card numbers. This
+    # hands the reasoner the skill's computed reconciliation. VERDICT-INERT (presence ∉ _SHORT_TO_GATE).
+    presence_facet = _presence_facet(sub_results)
+
     # Fragility facet (2026-08-12): verdict-inert flip-stability — the quantitative "how solid is this
     # call?" scalar. Worst-case single-rule flip-fragility over the decision-relevant axes (+ a
     # coverage floor for blind axes), computed by re-running the deterministic resolver over perturbed
@@ -230,6 +238,7 @@ def main() -> int:
             ordinal_matrix=ordinal_matrix,
             biomarker_facet=biomarker_facet,
             subtype_facet=subtype_facet,
+            presence_facet=presence_facet,
             axis_info=axis_info,
         )
         llm_output = synthesize_structured(
@@ -466,6 +475,12 @@ def main() -> int:
         # convergence (expression / dependency / mutation-frequency). A FACET (not a gate) — defines
         # patient-selection strata + informs confidence; never mints a nominate.
         "subtype_facet": subtype_facet,
+        # Presence cross-modal reconciliation facet (2026-08-17): tumor-presence's per-modality
+        # presence matrix + RNA→protein proxy-quality + normal-tissue comparators. A FACET (not a
+        # gate) — surfaces cross-modal tension the one-word presence verdict hides + frames tumor
+        # presence against the normal-tissue window. Presence ∉ _SHORT_TO_GATE, so it never moves
+        # the recommendation. None when tumor-presence supplied no facet.
+        "presence_facet": presence_facet,
         # Fragility facet (verdict-inert flip-stability): worst-case single-rule flip-fragility over the
         # decision-relevant axes + a `contested` flag (declarative threshold). A structural sensitivity
         # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or

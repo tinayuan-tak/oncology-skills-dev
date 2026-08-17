@@ -275,6 +275,7 @@ def _build_user_prompt(
     ordinal_matrix: Optional[dict] = None,
     biomarker_facet: Optional[dict] = None,
     subtype_facet: Optional[dict] = None,
+    presence_facet: Optional[dict] = None,
     axis_info: Optional[dict] = None,
 ) -> str:
     """Compose the user-message text: biology-axis governance + sub-verdicts + modality-scoped
@@ -311,6 +312,45 @@ def _build_user_prompt(
     lines.append("")
     if ordinal_matrix is not None:
         lines.extend(_render_matrix_slice_for_prompt(ordinal_matrix))
+    if presence_facet is not None:
+        pf = presence_facet
+        lines.append("")
+        lines.append("### Presence cross-modal reconciliation facet (deterministic; a FACET, not a gate)")
+        lines.append("Per-(measurement, sample_context) presence sub-verdicts — the decomposition "
+                     "BEHIND the one-word presence verdict. Read the DISAGREEMENTS across rows: an "
+                     "RNA-high / protein-absent split, or a tumor-present / normal-tissue-present "
+                     "split, is the decision-relevant tension (modality choice; therapeutic window).")
+        pvm = pf.get("presence_verdict_by_modality") or {}
+        if pvm:
+            lines.append("| measurement / context | sub-verdict | evidence |")
+            lines.append("|---|---|---|")
+            for key, b in pvm.items():
+                if not isinstance(b, dict):
+                    continue
+                lines.append(f"| {key} | `{b.get('verdict')}` | {b.get('evidence_state')} |")
+        lines.append(f"- collapsed presence verdict: `{pf.get('presence_verdict')}` "
+                     f"(headline lens: {pf.get('headline_lens')})")
+        if pf.get("cell_line_vs_tumor_discordant"):
+            lines.append(f"- ⚠ cell-line-vs-tumor DISCORDANT: {pf.get('presence_interpretation_note')}")
+        # RNA-as-protein-proxy quality (both arms, side-by-side) — qualifies an RNA-only presence claim.
+        lines.append(f"- RNA→protein proxy quality: `{pf.get('bulk_rna_proxy_quality')}` "
+                     f"(source: {pf.get('bulk_rna_proxy_quality_source')}; cell-line arm "
+                     f"{pf.get('rna_as_biomarker')} r={pf.get('rna_protein_r')}, tumor arm "
+                     f"{pf.get('rna_as_biomarker_tumor')} r={pf.get('rna_protein_r_tumor')}). "
+                     f"A poor/partial proxy means RNA presence needs protein confirmation before a "
+                     f"biologics read.")
+        # NORMAL-TISSUE comparators — window FRAMING (safety verdict owned by on-target-safety-liability).
+        lines.append(f"- normal-tissue comparators (WINDOW framing, NOT the safety verdict): "
+                     f"HPA-IHC breadth `{pf.get('normal_tissue_ihc_breadth_class')}` "
+                     f"(essential-tissue flag: {pf.get('normal_tissue_ihc_essential_flag')}); "
+                     f"scRNA-normal `{pf.get('sc_normal_expression_class')}` "
+                     f"(max in {pf.get('sc_normal_max_det_cell_type')} @ "
+                     f"{pf.get('sc_normal_max_det_fraction')}).")
+        lines.append("  NOTE: presence is VERDICT-INERT to the nomination gate — this facet does NOT "
+                     "move the recommendation. Its role is to surface cross-modal tension the "
+                     "one-word presence verdict hides, and to frame tumor presence AGAINST the "
+                     "normal-tissue window (the therapeutic-window verdict is owned by "
+                     "on-target-safety-liability / tumor-selectivity, weighed via their sub-verdicts).")
     if biomarker_facet is not None:
         bf = biomarker_facet
         lines.append("")

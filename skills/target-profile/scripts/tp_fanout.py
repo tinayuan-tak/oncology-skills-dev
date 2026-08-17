@@ -37,6 +37,10 @@ _FANOUT_MAX_WORKERS = int(os.environ.get("TARGET_PROFILE_FANOUT_WORKERS",
 # --- Sub-skill orchestration ------------------------------------------------
 
 _SUBSKILL_FN_CACHE: dict = {}
+# Module cache populated by _load_sub_skill_verdict_fn (prewarm runs it first, single-threaded), so
+# the OPTIONAL _synthesis_facet loader below reads the SAME already-exec'd module — no second
+# importlib.exec_module / sys.path race in the concurrent pool.
+_SUBSKILL_MODULE_CACHE: dict = {}
 
 
 def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
@@ -59,9 +63,26 @@ def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    _SUBSKILL_MODULE_CACHE[skill_dir_name] = module
     fn = getattr(module, "_verdict", None) or getattr(module, "_snapshot", None)
     _SUBSKILL_FN_CACHE[skill_dir_name] = fn
     return fn
+
+
+def _load_sub_skill_facet_fn(skill_dir_name: str) -> Any:
+    """Return a sub-skill's OPTIONAL `_synthesis_facet(cards, fired, verdict_pair) -> dict`, or None.
+
+    This is the uniform opt-in a sub-skill uses to hand the composed synthesis its own DETERMINISTIC
+    cross-modal reconciliation (e.g. tumor-presence's per-modality presence matrix + proxy-quality +
+    normal comparators) — so the LLM reasons over the skill's computed reconciliation instead of
+    re-deriving it from raw card numbers. Reads the module cached by _load_sub_skill_verdict_fn
+    (prewarmed single-threaded), so no sub-skill without the hook pays any cost and the concurrent
+    pool never re-execs a module. VERDICT-INERT: the facet never enters `fired` or the resolver."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    return getattr(module, "_synthesis_facet", None) if module is not None else None
 
 
 def _prewarm_sub_skill_imports() -> None:
@@ -539,11 +560,25 @@ def _run_sub_skills(target: str, indication: str,
                                      card_id_filter=SUB_SKILL_CARDS[skill_dir]))
         verdict_fn = _load_sub_skill_verdict_fn(skill_dir)
         verdict_pair = verdict_fn(fired) if verdict_fn else None
+        # OPTIONAL deterministic cross-modal reconciliation facet (2026-08-17). Best-effort +
+        # VERDICT-INERT: a sub-skill that exposes _synthesis_facet hands the composed synthesis its
+        # own reconciliation (e.g. tumor-presence's per-modality matrix); absence / failure → None,
+        # never touching verdict/fired/cards. Only tumor-presence supplies it today.
+        _facet_fn = _load_sub_skill_facet_fn(skill_dir)
+        synthesis_facet = None
+        if _facet_fn is not None:
+            try:
+                synthesis_facet = _facet_fn(cards, fired, verdict_pair)
+            except Exception:  # noqa: BLE001 — a facet must never break the fan-out
+                synthesis_facet = None
         return short, {
             "skill_dir": skill_dir,
             "cards": cards,
             "fired": fired,
             "verdict": verdict_pair,  # (str, driving_rule_id) or None
+            # Deterministic cross-modal reconciliation for the synthesis prompt (None for every
+            # sub-skill except tumor-presence). ADDITIVE / verdict-inert — see _load_sub_skill_facet_fn.
+            "synthesis_facet": synthesis_facet,
             # Stage 1b: the SAME sub-verdict, carried in the shared CompositionResult type (the
             # foundation the later --emit evidence-package stage consumes). ADDITIVE — wraps the
             # already-decided verdict_pair (post-resolver logic preserved); verdict/fired/cards and
@@ -615,6 +650,7 @@ __all__ = [
     '_SHORT_TO_GATE',
     '_SUBSKILL_FN_CACHE',
     '_load_sub_skill_verdict_fn',
+    '_load_sub_skill_facet_fn',
     '_prewarm_sub_skill_imports',
     '_run_sub_skills',
     '_skipped_synthesis_output',

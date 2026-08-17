@@ -404,6 +404,7 @@ def run_wired_skill(
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
     extra_axes: Optional[list[str]] = None,
     verdict_cards: Optional[list[str]] = None,
+    skill_figures_fn: Optional[Callable[[dict, Path], list]] = None,
     argv: Optional[list[str]] = None,
 ) -> int:
     """Run a wired compositional skill end-to-end.
@@ -444,6 +445,11 @@ def run_wired_skill(
             is byte-identical (resolve_verdict_for_gate ignores fired rules no rung references) while
             the verdict-inert enrichment reads are skipped. Default None ⇒ --verdict-only reads ALL
             cards (a complete no-op). A guard test enforces verdict_cards ⊆ cards.
+        skill_figures_fn: OPTIONAL (decision, figures_dir) -> list[Path] emitter for a skill-level
+            AGGREGATE figure (e.g. tumor-presence's Presence x Context hero matrix). Invoked ONLY
+            under --figures, AFTER the deterministic decision is composed, reading the already-
+            computed `decision` (no S3). PURELY ADDITIVE + best-effort: a failure degrades to
+            no-figure and never touches the verdict spine. Default None => no skill-level figure.
         argv: optional argv override (for tests / programmatic invocation).
 
     Returns:
@@ -756,6 +762,19 @@ def run_wired_skill(
     if args.figures:
         _n_figs = _emit_card_figures(emitted_cards, args.out, args.target, _indication)
         print(f"  --figures: emitted {_n_figs} figure(s) → {Path(args.out) / 'figures'}")
+        # OPT-IN skill-level AGGREGATE figure (--figures): a skill may supply skill_figures_fn to
+        # emit a hero graphic that reads the already-computed `decision` (e.g. tumor-presence's
+        # Presence × Context matrix over headline.presence_verdict_by_modality). PURELY ADDITIVE and
+        # best-effort — reads no S3, decision.json is byte-identical whether or not it runs, and a
+        # failure degrades to no-figure (never breaks the deterministic spine).
+        if skill_figures_fn is not None:
+            try:
+                _skill_figs = skill_figures_fn(decision, Path(args.out) / "figures") or []
+                if _skill_figs:
+                    print(f"  --figures: emitted {len(_skill_figs)} skill-level figure(s)")
+            except Exception as e:  # noqa: BLE001 — an aggregate figure must never break the run
+                print(f"[dispatcher] --figures: skill-level figure emission failed "
+                      f"({type(e).__name__}: {e}); skipped.", file=sys.stderr)
 
     # Stamp total wall-clock (read + compute + optional synthesis + figures) BEFORE write_package
     # serializes the decision — write time itself is not a data-access signal.

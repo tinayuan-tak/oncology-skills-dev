@@ -12,8 +12,8 @@ description: |
       - cellline-rna-distribution        cell-line RNA (pan-cancer TPM distribution)
       - tumor-rna-vs-adjacent            tumor RNA-seq DEG vs paired-adjacent
       - tumor-rna-distribution           per-sample tumor RNA distribution
-      - tumor-protein-abundance-cptac    tumor protein abundance (CPTAC per-cohort)
-      - cellline-protein-abundance       cell-line protein (DepMap/Gygi TMT-MS)
+      - tumor-protein-abundance-cptac    tumor WHOLE-CELL-LYSATE protein abundance (CPTAC per-cohort, TMT-MS)
+      - cellline-protein-abundance       cell-line WHOLE-CELL-LYSATE protein abundance (DepMap/Gygi TMT-MS)
       - tumor-elevation-breadth          pan-cancer K-of-N tumor-elevation (target-grain)
       - tumor-scrna-celltype-expression  single-cell per-compartment tumor presence
 
@@ -75,6 +75,15 @@ composition:
   # pattern is surfaced side-by-side, never averaged. tumor_elevation_breadth is the
   # DERIVED target-grain roll-up over tumor_protein_abundance (breadth over indications
   # for one target). expression_purity_confound is an additive, verdict-inert render facet.
+  #
+  # MEASUREMENT SCOPE (objective-declaration discipline): the protein layers (CPTAC + DepMap/Gygi)
+  # quantify WHOLE-CELL-LYSATE protein by TMT-MS — i.e. whether the protein is PRODUCED, aggregated
+  # over all subcellular compartments. They do NOT measure plasma-membrane / surface-accessible
+  # protein. This skill therefore answers "is the target PRESENT at RNA / total-protein / single-cell
+  # level", NOT "is it a surface-accessible antigen at a dosable density". Surface topology, absolute
+  # antigen density, and shed-ectodomain liability are DISTINCT questions owned by surface-modality-fit
+  # (and on-target-safety-liability); do not read a `protein_present` sub-verdict as a surface-antigen
+  # readiness call.
   measurement_types_pulled:
     - cell_line_rna_expression
     - tumor_vs_adjacent_expression
