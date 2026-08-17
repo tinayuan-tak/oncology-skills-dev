@@ -83,6 +83,18 @@ _GATE_ACTION_RANK = {"veto": 2, "hold": 1}
 # so a degraded/missing vocab cannot shrink the gating-axis set and re-open the hole.
 _GATING_AXES: frozenset[str] = frozenset({"dependency", "safety", "subtype_fit"})
 
+# OPT-IN-BY-SCOPE gating axes: gating (a fired verdict forces a hold/veto) BUT
+# ONE-DIRECTIONAL and only in scope when the run requests it. subtype_fit fires
+# `subtype_specific_non_dependence` ONLY on a MEASURED, floor-cleared, not-dependent
+# QUERIED stratum (see tp_fanout._subtype_verdict); it enters sub_results ONLY under
+# --subtypes. Its SILENCE is therefore the dormant/OK state — NOT a coverage gap that
+# could hide a kill. So when such an axis produced no verdict it must NOT be labelled
+# `blind` in the hard-gate status block: the cross-evidence integrator's fail-closed
+# ceiling treats a blind gated axis as a veto, which would wrongly DECLINE every target
+# on the (default) no-subtypes path. Distinguish scope-foreclosed (axis absent → not
+# requested) from evaluated-but-dormant (requested, positive/None verdict).
+_SCOPE_OPTIN_GATING_AXES: frozenset[str] = frozenset({"subtype_fit"})
+
 # The COMPLETE recognized verdict vocabulary each gating axis can legitimately emit
 # (mirrors resolvers/{dependency,safety}.resolver.yaml + the subtype panorama). A verdict
 # on a gating axis OUTSIDE this set is treated as unrecognized (a possible renamed kill) and
@@ -408,6 +420,13 @@ def _hard_gates_status(
             status = "fired"
         elif (short, verdict) in suppressed_pairs:
             status = "suppressed"
+        elif blind and short in _SCOPE_OPTIN_GATING_AXES:
+            # One-directional, opt-in-by-scope gate produced no verdict. NOT a coverage gap
+            # (its silence is the OK state) — so never `blind` (which the integrator ceiling
+            # fail-closes on). `excluded` = scope-foreclosed (axis absent → --subtypes not
+            # requested this run); `latent` = requested but no negative stratum fired. Both are
+            # no-veto in the ceiling, mirroring surface_modality's excluded_modality_scoped.
+            status = "excluded" if short not in sub_results else "latent"
         elif blind:
             status = "blind"
         elif matched and disposition == "excluded_modality_scoped":

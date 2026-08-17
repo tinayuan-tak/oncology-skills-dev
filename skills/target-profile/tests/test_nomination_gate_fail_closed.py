@@ -141,12 +141,48 @@ def test_hard_gates_enumerates_complete_declared_set_with_status():
     # statuses are correct for this run
     assert by_pair[("dependency", "pan_essential_killer")]["status"] == "fired"
     assert by_pair[("surface_modality", "neither_viable")]["status"] == "excluded"
-    # a declared gate on an axis with no verdict this run → blind (never silently dropped)
-    assert by_pair[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "blind"
+    # subtype_fit is an OPT-IN-BY-SCOPE, one-directional gate: absent from sub_results here
+    # (no --subtypes) → the axis is NOT in scope, a scope-foreclosure, NOT a coverage gap.
+    # It must be `excluded` (no-veto in the integrator ceiling), NEVER `blind` — else the
+    # fail-closed ceiling would wrongly decline every target on the default no-subtypes path.
+    assert by_pair[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "excluded"
     # a declared gate whose axis emitted a DIFFERENT verdict → latent (evaluated, dormant)
     assert by_pair[("safety", "highly_constrained_safety_concern")]["status"] == "latent"
     assert {r["status"] for r in hg} <= {"fired", "suppressed", "excluded", "opposing",
                                          "blind", "latent"}
+
+
+def test_subtype_fit_absent_is_scope_excluded_not_blind():
+    """REGRESSION (measurement-surfaced): with no --subtypes, subtype_fit is absent from
+    sub_results. It must be `excluded` (scope-foreclosed), never `blind`, so the cross-evidence
+    integrator's fail-closed ceiling does NOT blanket-veto approved targets (KRAS/EGFR/BRAF/ERBB2
+    all read gate_ceiling=declined ONLY because of a spuriously-blind subtype_fit)."""
+    sr = _sub("dependency", "lineage_selective", "lineage-selective")   # no subtype_fit key
+    _a, hits, supp = tp._gate_recommendation(sr)
+    hg = {(r["short"], r["verdict"]): r for r in tp._hard_gates_status(sr, hits, supp)}
+    assert hg[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "excluded"
+
+
+def test_subtype_fit_present_but_positive_is_latent_not_blind():
+    """--subtypes requested, but the queried stratum is positive (a POSITIVE finding yields a
+    None verdict, per tp_fanout._subtype_verdict). The axis WAS evaluated → `latent` (dormant),
+    still no veto — never `blind`."""
+    sr = {**_sub("dependency", "lineage_selective", "d"),
+          "subtype_fit": {"verdict": None, "scope_subtypes": ["MSI"]}}   # requested, no negative fire
+    _a, hits, supp = tp._gate_recommendation(sr)
+    hg = {(r["short"], r["verdict"]): r for r in tp._hard_gates_status(sr, hits, supp)}
+    assert hg[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "latent"
+
+
+def test_genuinely_blind_non_optin_gating_axis_still_blind():
+    """The opt-in carve-out is NARROW: a NON-opt-in gating axis (dependency) that is truly absent
+    from a run is still `blind` — the fail-closed-on-genuine-coverage-gap semantics are preserved
+    for dependency/safety, where absence really could hide a kill."""
+    sr = _sub("safety", "moderately_constrained_safety")   # dependency ABSENT
+    _a, hits, supp = tp._gate_recommendation(sr)
+    hg = {(r["short"], r["verdict"]): r for r in tp._hard_gates_status(sr, hits, supp)}
+    assert hg[("dependency", "pan_essential_killer")]["status"] == "blind"
+    assert hg[("dependency", "non_dependent")]["status"] == "blind"
 
 
 def test_hard_gates_flags_fail_closed_fire():
