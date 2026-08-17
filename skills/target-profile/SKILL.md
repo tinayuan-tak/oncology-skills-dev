@@ -65,6 +65,7 @@ composition:
     - copy-number-distribution                 # 2026-07-14 CN axis wired
     - fusion-rearrangement-landscape           # LIVE (tcga-fusion-consensus-v1); additive signal-only
     - co-mutation-and-mutual-exclusivity       # (differentiation-landscape)
+    - pathway-node-leverage                    # WS3 (differentiation-landscape): comparative node-leverage; verdict-inert soft context
     # Phase D (mechanism)
     - signaling-network-mechanism              # Layer 6h addition (Phase D)
     # Phase F (tractability-small-molecule: chemical-genetic)

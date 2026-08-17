@@ -310,6 +310,11 @@ SUB_SKILL_CARDS = {
         "precog-prognostic-association",     # 2026-08-11 REVIEW FIX (facet-drop): PRECOG prognostic
                                              # meta-Z corroboration. In differentiation-landscape CARDS,
                                              # composed under no entry → dropped. VERDICT-INERT render facet.
+        "pathway-node-leverage",             # WS3 (2026-08-17): COMPARATIVE node-leverage. In
+                                             # differentiation-landscape CARDS; composed here so the fanout
+                                             # does not silently drop it. VERDICT-INERT (soft axis_fit signals
+                                             # + fired_rule_ids for the hypothesis agent; feeds NO resolver →
+                                             # nomination byte-stable, axis_fit is not gate-consumed).
     ],
     "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",

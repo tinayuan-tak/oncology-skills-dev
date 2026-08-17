@@ -41,6 +41,11 @@ CARDS = [
                                          # The better-powered pan-cancer CORROBORATION of the single-cohort
                                          # expression-clinical-association card above. ADDITIVE, VERDICT-INERT
                                          # (no resolver rung; differentiation verdict byte-stable). reads precog_prognostic.
+    "pathway-node-leverage",             # WS3 (2026-08-17): COMPARATIVE node-leverage — is the target the best
+                                         # NODE to hit in its complex/pathway neighbourhood, or dominated? ADDITIVE,
+                                         # VERDICT-INERT (its rules emit soft axis_fit signals + fired_rule_ids for
+                                         # the cross-evidence hypothesis agent; feed NO resolver → differentiation
+                                         # verdict byte-stable). reads node_leverage_class + evidence_scope.
 ]
 
 QUESTION = ("What genes co-occur with or are mutually exclusive to "
@@ -101,6 +106,12 @@ def _headline(cards, fired, verdict_pair):
                                                  "pan_cancer_meta_z"),
         "precog_indication_approx":         get_card_field(cards, "precog-prognostic-association",
                                                  "precog_indication_approx"),
+        # WS3 comparative node-leverage (soft/verdict-inert differentiation context; feeds NO resolver —
+        # its axis_fit signals + fired_rule_ids are consumed by the cross-evidence hypothesis agent):
+        "node_leverage_class":              get_card_field(cards, "pathway-node-leverage",
+                                                 "node_leverage_class"),
+        "node_leverage_evidence_scope":     get_card_field(cards, "pathway-node-leverage",
+                                                 "evidence_scope"),
     }
 
 
