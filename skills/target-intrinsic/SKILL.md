@@ -15,9 +15,16 @@ description: |
   Invoked with --target ALONE (no --indication). A FOCUSED subskill (like
   tumor-presence) giving a standalone portfolio-triage view — "is this target
   worth an indication deep-dive at all?" Its cards feed the indication-scoped
-  skills at the CARD level (shared dispatcher); a bundle-level reuse by
-  target-profile (compute-once) is a documented future optimization, NOT yet
-  wired (target-intrinsic is not in target-profile's sub-skill fan-out).
+  skills at the CARD level (shared dispatcher). As of WS1 (2026-08-17) it is ALSO
+  composed into target-profile's sub-skill fan-out as a GATELESS descriptive PEER
+  (short `target_intrinsic`): the fan-out reads its target-intrinsic-EXCLUSIVE cards
+  so the indication-independent target biology reaches the cross-evidence integrator
+  (sub_verdicts render + LLM synthesis) as a first-class input. Because this skill
+  has synthesis:none (no verdict) AND is deliberately absent from target-profile's
+  `_SHORT_TO_GATE`, its verdict is None and it drives NO gate — it can never gate or
+  lift a nomination (the descriptive contract holds structurally). A bundle-level
+  compute-once reuse remains a future optimization; the fan-out composes at the CARD
+  level (its non-exclusive cards are read under their existing sub-skill lenses).
 
   DESCRIPTIVE, not nominating (synthesis: none, no verdict): target-intrinsic
   evidence informs confidence/context but never mints a recommendation —
@@ -138,13 +145,19 @@ portfolio-triage dossier and (b) is the intended home for the target-intrinsic
 bundle so target-profile can eventually compute it ONCE instead of re-deriving
 per indication.
 
-NOTE (2026-08-11): (b) is aspirational — target-intrinsic is NOT yet in
-target-profile's sub-skill fan-out (`SUB_SKILLS` in target-profile/scripts/run.py),
-so the composed skill still re-derives these cards inside its indication-scoped
-sub-skills. The reuse that DOES exist today is at the CARD level: the same live
-readers / CARD_DISPATCHERS back both this skill and the indication-scoped ones,
-so there is no computation drift. Bundle-level compute-once reuse is a tracked
-future optimization.
+NOTE (updated WS1, 2026-08-17): target-intrinsic IS now in target-profile's
+sub-skill fan-out (`SUB_SKILLS` / `SUB_SKILL_CARDS` in
+target-profile/scripts/tp_fanout.py) as a GATELESS descriptive peer — but the
+fan-out composes only its target-intrinsic-EXCLUSIVE cards (target-identity-summary,
+target-development-level, protein-domains-class, domain-modality-relevance,
+ppi-interactome, gene-ontology-annotation, reactome-pathway-membership). Its OTHER
+cards (gnomAD/P5 safety, surfaceome/structure/shed/normal-tissue, signaling-network,
+paralog-buffering) are already composed under the indication-scoped sub-skills, so
+they are read there — not re-read under target_intrinsic (no double-read). This is
+still CARD-level composition (not the aspirational bundle-level compute-once reuse):
+the same live readers / CARD_DISPATCHERS back both this skill and the composed
+sub-skills, so there is no computation drift. Bundle-level compute-once reuse remains
+a tracked future optimization.
 
 ## Invocation
 

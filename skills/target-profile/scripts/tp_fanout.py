@@ -107,6 +107,20 @@ SUB_SKILLS = [
     ("tractability-small-molecule",    "tractability_sm"),     # split (SM half)
     ("surface-modality-fit",           "surface_modality"),    # split (biologics half)
     ("on-target-safety-liability",     "safety"),
+    ("target-intrinsic",               "target_intrinsic"),    # GATELESS descriptive PEER (WS1, 2026-08-17): the
+                                                               # indication-INDEPENDENT target biology dossier composed as a
+                                                               # first-class fan-out input (not a side-channel), so the
+                                                               # cross-evidence integrator (LLM synthesis) + sub_verdicts render
+                                                               # see it. DESCRIPTIVE: target-intrinsic/run.py has synthesis:none
+                                                               # → NO _verdict/_snapshot → verdict_fn is None → verdict=None; and
+                                                               # it is DELIBERATELY absent from _SHORT_TO_GATE → gate=None. So its
+                                                               # CompositionResult primary is None → it contributes ONLY to
+                                                               # sub_verdicts + the LLM synthesis context, NEVER the recommendation
+                                                               # gate/positive-tier/deciding-axis. This is the framework's FIRST
+                                                               # verdict=None gateless short (`expression`/`combinatorial_dependency`
+                                                               # are gateless but DO emit a verdict); the must-not-gate requirement
+                                                               # is satisfied STRUCTURALLY (verdict=None + gate=None), so
+                                                               # overall_recommendation + confidence stay byte-identical.
 ]
 
 # Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
@@ -378,6 +392,27 @@ SUB_SKILL_CARDS = {
         "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving; safety.resolver 1.3.0)
         "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving; safety.resolver 1.3.0)
         "clinvar-pathogenicity-safety",   # P5 follow-on — ClinVar germline-pathogenic (4th corroborating leg; verdict-moving)
+    ],
+    "target-intrinsic": [                 # GATELESS descriptive dossier (WS1, 2026-08-17). Compose ONLY the
+                                          # target-intrinsic-EXCLUSIVE cards — the ones NOT already composed under
+                                          # another sub-skill's lens. target-intrinsic's OTHER 12 cards
+                                          # (gnomad-lof-constraint + the P5 safety legs → on-target-safety-liability;
+                                          # surfaceome-family-classification + structure-features-static +
+                                          # shed-ectodomain-liability + normal-tissue-liability → surface-modality-fit;
+                                          # signaling-network-mechanism → mechanism-and-pharmacology; paralog-buffering →
+                                          # functional-requirement) are DELIBERATELY not re-listed here — re-adding them
+                                          # would double-read those cards, and the composer drop-guard/reverse-guard are
+                                          # already satisfied because they are HOME cards of target-intrinsic composed
+                                          # SOMEWHERE. No gate is scoped to this entry (target_intrinsic ∉ _SHORT_TO_GATE),
+                                          # so the resolver-dependency guard does not apply — these cards fire only their
+                                          # own descriptive/verdict-inert rules (if any) and never a nomination rung.
+        "target-identity-summary",           # canonical id / family / aliases (also read standalone by the emitter for hgnc_id)
+        "target-development-level",           # Pharos/IDG TDL druggability/novelty tier (Tclin/Tchem/Tbio/Tdark)
+        "protein-domains-class",              # UniProt FT DOMAIN architecture + keyword protein class
+        "domain-modality-relevance",          # interpretive domain→modality facet (inhibitor_sufficient vs removal_required)
+        "ppi-interactome",                    # STRING functional network + CORUM complex membership
+        "gene-ontology-annotation",           # GO BP/MF/CC term membership
+        "reactome-pathway-membership",        # Reactome pathway/geneset membership + top-level rollup
     ],
 }
 

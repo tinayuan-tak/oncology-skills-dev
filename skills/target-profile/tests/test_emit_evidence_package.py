@@ -139,6 +139,41 @@ def test_gateless_expression_kept_without_gate_block(tmp_path, monkeypatch):
     assert "expression" not in all_block_gates
 
 
+def test_none_verdict_gateless_short_in_evidence_package(tmp_path, monkeypatch):
+    """WS1 (2026-08-17): the --emit evidence-package emitter must tolerate a verdict=None GATELESS
+    short (target-intrinsic — synthesis:none, no gate). It contributes NO gate block but appears in
+    sub_verdicts with verdict=None/gate=None, and the envelope stays schema-valid."""
+    monkeypatch.setattr(tp_evidence_package, "resolve_cards",
+                        lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)])
+    sub_results = {
+        "dependency": _sub("pan-cancer-crispr-dependency-distribution", "dep-01", "dependency",
+                           ("selective_dependency", "dep-01")),
+        # gateless + NO verdict (gate=None, verdict_pair=None) — the target-intrinsic pattern
+        "target_intrinsic": _sub("protein-domains-class", "ti-01", None, None),
+    }
+    args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)
+    ep_path = tp._write_evidence_package(
+        args=args, sub_results=sub_results, gate_action="nominate",
+        recommendation_gate={"fired": True, "forced_recommendation": "nominate"},
+        confidence_tier={"tier": "high"},
+        deciding_axis={"basis": "gate_fired",
+                       "deciding_axis": {"short": "dependency", "gate": "dependency"},
+                       "routing": "decided by gate dependency"},
+        validation_summary={"n_cards_attempted": 2, "n_cards_passed": 2,
+                            "n_cards_passed_with_warnings": 0, "n_cards_failed": 0,
+                            "n_cards_excluded_by_applies_when": 0})
+    ep = json.loads(Path(ep_path).read_text())
+    schema = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
+    errors = [e.message for e in Draft202012Validator(schema).iter_errors(ep)]
+    assert errors == [], f"evidence_package failed schema validation with a None-verdict gateless short: {errors}"
+    ti = ep["synthesis"]["sub_verdicts"]["target_intrinsic"]
+    assert ti["verdict"] is None and ti["gate"] is None       # descriptive, non-gating
+    # never appears as a gate block
+    all_block_gates = ({ep["synthesis"]["primary_gate_verdict"]["gate"]}
+                       | {b["gate"] for b in ep["synthesis"]["additional_gate_verdicts"]})
+    assert "target_intrinsic" not in all_block_gates
+
+
 def test_envelope_is_llm_free(tmp_path, monkeypatch):
     ep = _build_ep(tmp_path, monkeypatch)
     blob = json.dumps(ep)

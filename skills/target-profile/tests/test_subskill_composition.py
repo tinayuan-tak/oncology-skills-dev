@@ -113,3 +113,86 @@ def test_attach_is_byte_additive_raw_fired_untouched(monkeypatch):
     assert raw_emitted == ["r-b", "r-a", "r-b"] * 3           # 3 fan-out axes, order + dups kept
     assert raw_emitted != r["composition"].fired_rule_ids     # sorted-set convention differs
     assert r["composition"].fired_rule_ids == ["r-a", "r-b"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WS1 (2026-08-17): target-intrinsic composed as a GATELESS descriptive PEER.
+# It is the framework's FIRST verdict=None gateless short (`expression` /
+# `combinatorial_dependency` are gateless but DO emit a verdict). These guards pin
+# BOTH the structural gateless guarantee AND that the None-verdict gateless short is
+# tolerated by every downstream consumer (gate assembly, positive-tier, LLM synthesis
+# prompt-builder) — and, critically, is NON-GATING (recommendation + confidence
+# byte-identical whether or not it is present).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_target_intrinsic_is_a_gateless_peer_in_the_roster():
+    """Structural must-not-gate guarantee: target_intrinsic is in the fan-out roster but
+    deliberately absent from _SHORT_TO_GATE (→ gate=None), and target-intrinsic's run.py exposes no
+    _verdict/_snapshot (synthesis:none → verdict_fn None → verdict=None)."""
+    shorts = {short for _, short in tp_fanout.SUB_SKILLS}
+    assert "target_intrinsic" in shorts
+    assert "target_intrinsic" not in tp_fanout._SHORT_TO_GATE
+    # the real loader returns None for a descriptive skill (no verdict function) — this is what makes
+    # the composed verdict None (not a faked None).
+    assert tp_fanout._load_sub_skill_verdict_fn("target-intrinsic") is None
+
+
+def _fake_loader_target_intrinsic_none(short_dir):
+    """Like _install_fakes' loader but returns None for target-intrinsic (a descriptive skill has no
+    verdict fn) — so the fan-out produces verdict=None for target_intrinsic exactly as in production."""
+    if short_dir == "target-intrinsic":
+        return None
+    return lambda fired: (f"verdict::{short_dir}", "drv-01")
+
+
+def test_gateless_none_verdict_short_has_no_primary_and_no_verdict(monkeypatch):
+    _install_fakes(monkeypatch)
+    monkeypatch.setattr(tp_fanout, "_load_sub_skill_verdict_fn", _fake_loader_target_intrinsic_none)
+    results = tp._run_sub_skills("KRAS", "COADREAD")
+
+    r = results["target_intrinsic"]
+    assert r["verdict"] is None                              # no verdict function → None
+    assert r["composition"].primary_gate_verdict is None     # gateless → empty primary
+    assert isinstance(r["composition"], CompositionResult)
+    # its cards/fired audit trail is still carried (descriptive evidence reaches the integrator)
+    assert r["composition"].fired_rule_ids == ["r-a", "r-b"]
+
+
+def _gateless_none_entry():
+    """A minimal sub_result for the target_intrinsic gateless None-verdict short."""
+    fired = [{"rule_id": "ti-01", "card_id": "protein-domains-class", "field": "class", "value": "kinase"}]
+    cards = [{"card_id": "protein-domains-class", "summary": {"class": "kinase"}}]
+    return {"skill_dir": "target-intrinsic", "cards": cards, "fired": fired, "verdict": None,
+            "composition": None}
+
+
+def test_none_verdict_gateless_short_is_non_gating(monkeypatch):
+    """ACCEPTANCE: adding the verdict=None gateless short must NOT change the gate recommendation or
+    the positive-tier confidence (recommendation + confidence byte-identical)."""
+    import tp_gates
+    base = {
+        "dependency": {"cards": [], "fired": [], "verdict": ("selective_dependency", "dep-01")},
+        "selectivity": {"cards": [], "fired": [], "verdict": ("tumor_selective", "sel-01")},
+        "safety": {"cards": [], "fired": [], "verdict": ("tolerated", "saf-01")},
+    }
+    with_ti = dict(base)
+    with_ti["target_intrinsic"] = _gateless_none_entry()
+
+    assert tp_gates._gate_recommendation(base) == tp_gates._gate_recommendation(with_ti)
+    assert tp_gates._positive_tier(base) == tp_gates._positive_tier(with_ti)
+
+
+def test_synthesis_prompt_builder_tolerates_none_verdict_gateless_short():
+    """LLM synthesis prompt-builder must render a verdict=None gateless short (no crash) and label it
+    honestly as having no rule-fired verdict."""
+    import tp_synthesis_prompt
+    sub_results = {
+        "dependency": {"skill_dir": "functional-requirement", "cards": [], "fired": [],
+                       "verdict": ("selective_dependency", "dep-01")},
+        "target_intrinsic": _gateless_none_entry(),
+    }
+    prompt = tp_synthesis_prompt._build_user_prompt("KRAS", "COADREAD", sub_results)
+    assert "target_intrinsic" in prompt
+    assert "no rule-fired verdict" in prompt          # the None-verdict rendering branch
+    # descriptive card evidence still reaches the integrator prompt
+    assert "protein-domains-class" in prompt
