@@ -71,9 +71,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
         "tahoe-drug-perturbation"}),
     "safety": frozenset({
-        "alteration-role", "clingen-dosage", "clinvar-pathogenicity-safety", "gene-burden-safety",
-        "gnomad-lof-constraint", "mouse-ko-phenotype", "normal-tissue-liability-gtex",
-        "target-safety-prioritisation"}),
+        "alteration-role", "clingen-dosage", "clinvar-pathogenicity-safety", "copy-number-distribution",
+        "gene-burden-safety", "gnomad-lof-constraint", "mouse-ko-phenotype",
+        "normal-tissue-liability-gtex", "target-safety-prioritisation"}),
     "selectivity": frozenset({
         "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
         "surface-abundance-density", "tumor-vs-normal-percentile-crossing",
