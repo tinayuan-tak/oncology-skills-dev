@@ -40,7 +40,7 @@ methods:
 
 outputs:
   summary_fields:
-    - surface_confirmation_class               # cell_surface_confirmed / not_surface / data_unavailable (CSPA-driven; verdict field — matches the tokens the cspa_surface_confirmation reader + surface-intrinsic rules key on)
+    - surface_confirmation_class               # confirmed_high / confirmed / not_surface / data_unavailable (CSPA-driven; matches the tokens the cspa_surface_confirmation reader ACTUALLY emits + the surface-intrinsic rules now key on — corrected 2026-08-17, S2)
     - cspa_category                            # CSPA high-confidence category
     - n_celllines_detected                     # # cell lines with wet-lab CSPA detection
     - measured_in_cspa                         # True / False (honest measured-negative) / None
@@ -61,7 +61,14 @@ outputs:
     # card↔reader↔rule contract validator-ENFORCED (a future enum drift is a hard CI error, not a warning
     # that silently leaves the positive rule dead — the failure mode this card's 2026-08-04 note describes).
     surface_confirmation_class:
-      - cell_surface_confirmed                 # CSPA wet-lab measured on the extracellular surface (positive verdict)
+      # 2026-08-17 (cards review, S2): CORRECTED to the values the reader ACTUALLY emits. The card
+      # previously declared `cell_surface_confirmed` (a doc token the reader never emits) — the
+      # vocab-reachability validator passed because the rule keyed on the SAME wrong token, so the
+      # positive rule was silently DEAD on live data (only the negative `not_surface` fired → a
+      # systematic negative narrative bias for genuinely CSPA-confirmed antigens). Live-verified:
+      # ERBB2/EGFR/MSLN all emit `confirmed_high`.
+      - confirmed_high                         # CSPA high-confidence extracellular-surface capture (strong positive)
+      - confirmed                              # CSPA surface capture (positive)
       - not_surface                            # measured-negative: absent from the CSPA high-confidence surfaceome
       - data_unavailable                       # target not resolvable to a CSPA UniProt AC (abstain)
   figure: protein_evidence_summary_panel

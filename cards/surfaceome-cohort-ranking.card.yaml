@@ -13,6 +13,12 @@
 
 card_id: surfaceome-cohort-ranking
 version: 1.0.0
+# 2026-08-17 (cards review, S2): honesty fix. This card had NO status field, so it read as WIRED —
+# but its product `surfaceome-cohort-ranking-per-indication-v1` has no manifest and no S3 object, so
+# the reader ALWAYS returns data_unavailable (its 3 rules can never fire). Declared dormant so it is
+# honestly EXCLUDED at compose (mirroring lineage-restriction-evidence) rather than silently emitting
+# data_unavailable while looking live. Remove this when the per-indication ranking product lands.
+status: dormant_pending_data
 question: "Where does {target.symbol} rank among all surface proteins in {indication.label} by tumor-vs-normal effect size, and does the RNA signal agree with the CPTAC protein signal?"
 
 applies_when:

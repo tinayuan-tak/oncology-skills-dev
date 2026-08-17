@@ -982,16 +982,20 @@ rules:
   # ============================================================================
 
   # FIELD RECONCILED 2026-08-04: these rules keyed on `surface_accessibility_call`, which the LIVE
-  # CSPA provider (cspa_surface_confirmation) NEVER emits — it emits `surface_confirmation_class`
-  # {cell_surface_confirmed | not_surface | data_unavailable}. So both rules were silently INERT on
-  # live data since CSPA went live (the card↔reader↔rule field name diverged). Now keyed on the real
-  # field. The negative case is `not_surface` (CSPA measured-absence), NOT the old `intracellular_only`
-  # (a UniProt positive-intracellular assertion CSPA does not produce) — see the downgrade note below.
+  # CSPA provider (cspa_surface_confirmation) emits `surface_confirmation_class`
+  # {confirmed_high | confirmed | not_surface | data_unavailable} (VERIFIED live 2026-08-17:
+  # ERBB2/EGFR/MSLN -> confirmed_high). The POSITIVE rule previously keyed `equals:
+  # cell_surface_confirmed` — a doc token the reader never emits — so it was silently DEAD on live
+  # data (only the negative `not_surface` fired, biasing the surface narrative negative). Now keyed on
+  # the real emitted positives via `in: [confirmed_high, confirmed]`. The negative case is `not_surface`
+  # (CSPA measured-absence), NOT the old `intracellular_only` (a UniProt assertion CSPA does not produce).
   - rule_id: protein-surface-confirmed-supportive
     when:
       card_id: protein-surface-evidence
       field: surface_confirmation_class
-      equals: cell_surface_confirmed
+      in: [confirmed_high, confirmed]   # 2026-08-17 (S2): the reader emits confirmed_high/confirmed,
+                                         # NOT the old `cell_surface_confirmed` — this positive rule
+                                         # was DEAD on live data (only the negative fired). Live-verified.
     signals:
       adc: supportive
       bite_tce: supportive

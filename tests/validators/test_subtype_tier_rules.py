@@ -172,20 +172,22 @@ def test_undeclared_scalar_vocab_is_hard_error(tmp_path):
 
 
 def test_enum_drift_against_declared_vocab_is_error(tmp_path):
-    # protein-surface-evidence now declares surface_confirmation_class vocab; a drifted
-    # token (the old positive spelling the rules could never match) must be flagged.
+    # protein-surface-evidence declares surface_confirmation_class vocab; a drifted token must be
+    # flagged. `cell_surface_confirmed` is the corrected-out (2026-08-17, S2) spelling the reader
+    # never emits — it is now NOT producible and must error (the exact dead-rule the review found).
     rep = V.validate_rules_file(
         _rules_file(tmp_path, _scalar_rule("protein-surface-evidence",
-                                           "surface_confirmation_class", "confirmed")),
+                                           "surface_confirmation_class", "cell_surface_confirmed")),
         CARDS)
     assert not rep.ok
     assert any("NOT producible" in e and "surface_confirmation_class" in e for e in rep.errors)
 
 
 def test_declared_enum_value_passes(tmp_path):
+    # confirmed_high is a real value the cspa_surface_confirmation reader emits + the card now declares.
     rep = V.validate_rules_file(
         _rules_file(tmp_path, _scalar_rule("protein-surface-evidence",
-                                           "surface_confirmation_class", "cell_surface_confirmed")),
+                                           "surface_confirmation_class", "confirmed_high")),
         CARDS)
     assert rep.ok, rep.errors
 
