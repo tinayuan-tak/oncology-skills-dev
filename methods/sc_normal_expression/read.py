@@ -20,6 +20,7 @@ import pyarrow.parquet as pq
 import pandas as pd
 
 from . import stats as _stats
+from methods.normal_tissue_safety_common import SC_NORMAL_ESSENTIAL_TISSUES
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -61,7 +62,11 @@ TISSUE_TO_PRODUCT = {
 # lung, or anything else — a BiTE/ADC against a target expressed in cardiomyocytes, hepatocytes,
 # nephron tubule, or hematopoietic progenitors is dangerous independent of the treated indication.
 # So these are ALWAYS included in the liability read, in addition to the indication-matched tissue.
-SAFETY_ESSENTIAL_TISSUES = ["heart", "liver", "kidney", "bone_marrow"]
+# SINGLE-SOURCED (cards review 2026-08-17, S1-3) from normal_tissue_safety_common — this promotes
+# the BRAIN shard (advertised as "always-on CNS safety" but never actually queried → CNS on-target
+# tox was silently unassessed for every target) and the ADRENAL_GLAND shard (endocrine hole) to the
+# always-on set. Both shards already exist in TISSUE_TO_PRODUCT.
+SAFETY_ESSENTIAL_TISSUES = list(SC_NORMAL_ESSENTIAL_TISSUES)
 
 # indication → tumor-matched normal tissue(s). The matched tissue is queried IN ADDITION to the
 # always-on SAFETY_ESSENTIAL_TISSUES (see tissues_for_indication).

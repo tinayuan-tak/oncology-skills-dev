@@ -14,6 +14,8 @@ All cutoffs are parameters here and are surfaced in the card's `thresholds:` blo
 """
 from __future__ import annotations
 
+from methods.normal_tissue_safety_common import GTEX_ESSENTIAL_TISSUES
+
 # log2(TPM+1) absolute cutoffs anchored to DepMap's convention (detectable/high match
 # depmap_expression_distribution; moderate added for the spec's detectable/moderate/high tiers).
 DETECTABLE_LOG2TPM = 1.0      # TPM ≈ 1
@@ -116,15 +118,14 @@ def fraction_above_normal_percentile(tumor_log2tpm, normal_log2tpm, percentile=9
     }
 
 
-# GTEx tissues whose expression carries the highest on-target-off-tumor LIABILITY — a
-# target highly expressed in one of these is a therapeutic-window red flag regardless of
-# tumor abundance. Names match the recount3/GTEx tissue vocabulary (uppercased, in the
-# gtex-long product's `tissue` column). Curated, declared here (not hardcoded downstream)
-# so the card's thresholds/vocab can reference it. Vital/dose-limiting organs.
-CRITICAL_NORMAL_TISSUES = (
-    "HEART", "BRAIN", "LIVER", "LUNG", "KIDNEY", "NERVE",
-    "MUSCLE", "BLOOD", "BONE_MARROW", "ARTERY", "PANCREAS",
-)
+# GTEx tissues whose expression carries the highest on-target-off-tumor LIABILITY — a target
+# highly expressed in one of these is a therapeutic-window red flag regardless of tumor abundance.
+# SINGLE-SOURCED (cards review 2026-08-17, S1-3) from normal_tissue_safety_common so this can no
+# longer diverge from the HPA / single-cell normal-tissue cards or from the GTEx modality-window
+# card. This ADDS THYROID / ADRENAL_GLAND / PITUITARY / BLOOD_VESSEL (previously missing → TSHR &
+# other endocrine/vascular targets falsely read `restricted_normal`) and DROPS the dead `ARTERY`
+# entry (never a GTEx tissue label; the arteries live under BLOOD_VESSEL).
+CRITICAL_NORMAL_TISSUES = GTEX_ESSENTIAL_TISSUES
 
 
 def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM,

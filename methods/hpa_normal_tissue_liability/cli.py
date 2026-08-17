@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for
+from methods.normal_tissue_safety_common import HPA_ESSENTIAL_TISSUES
 
 METHOD_VERSION = "0.1.0"
 
@@ -59,18 +60,14 @@ _DIST_TO_CLASS = {
     "not detected":       "not_detected_in_normal",
 }
 
-# Essential-tissue set (exact membership over HPA's closed 16-name vocabulary):
-# life-critical tissues where on-target-off-tumor toxicity is catastrophic. The
-# strict-modality (BiTE/TCE/cell) killer keys off ANY hit here.
-ESSENTIAL_TISSUES = {
-    "cerebral cortex",   # CNS
-    "bone marrow",       # hematopoietic
-    "liver",
-    "heart muscle",      # cardiac
-    "lung",
-    "kidney",
-    "pancreas",          # endocrine/exocrine — DKA/tox risk
-}
+# Essential-tissue set (exact membership over HPA's closed 16-name vocabulary): life-critical
+# tissues where on-target-off-tumor toxicity is catastrophic. The strict-modality (BiTE/TCE/cell)
+# killer keys off ANY hit here. SINGLE-SOURCED (cards review 2026-08-17, S1-3) from
+# normal_tissue_safety_common — this ADDS "blood vessel" (was omitted though it IS in HPA's vocab;
+# an endothelial-restricted TCE antigen previously escaped the killer). NOTE: thyroid / adrenal /
+# pituitary do NOT exist in HPA's 16-name grouped-intensity field, so endocrine coverage here is a
+# DATA-SUBSTRATE gap (not a list omission) — the GTEx-RNA + single-cell normal cards cover those.
+ESSENTIAL_TISSUES = HPA_ESSENTIAL_TISSUES
 # GI epithelium — modality-dependent (ADC non-cleavable may tolerate; BiTE not).
 GI_TISSUES = {"intestine", "stomach"}
 

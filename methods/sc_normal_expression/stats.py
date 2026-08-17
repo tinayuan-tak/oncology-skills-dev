@@ -46,6 +46,13 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     "colonocyte",
     "hematopoietic stem cell",
     "erythroid progenitor",
+    # S1-3 (cards review 2026-08-17): CNS glia + adrenal endocrine cells, so the newly always-on
+    # brain + adrenal_gland shards actually flag their essential cell types ("neuron" already covers
+    # CNS neurons; adrenal cortical/medullary + chromaffin were previously unflagged).
+    "astrocyte",
+    "oligodendrocyte",
+    "adrenal",           # adrenal cortical / gland cells
+    "chromaffin",        # adrenal medulla
 )
 
 
