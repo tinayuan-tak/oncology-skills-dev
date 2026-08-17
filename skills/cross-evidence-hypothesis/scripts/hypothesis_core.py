@@ -141,11 +141,25 @@ MODALITY_SCOPE: dict[str, set] = {
     "degrader":         {"surface_modality"},
     "molecular_glue":   {"surface_modality"},
     "rna_therapeutic":  {"surface_modality", "tractability_sm"},
-    "adc":              {"tractability_sm"},
-    "bite_tce":         {"tractability_sm"},
-    "antibody":         {"tractability_sm"},
+    # SURFACE / LIGAND biologics: the therapeutic basis is surface presentation / ligand neutralization,
+    # NOT a cell-intrinsic genetic dependency. So the dependency-FAMILY axes are out-of-scope — a
+    # `dependency:non_dependent` (or SL/combinatorial) reading must NOT veto a surface target (e.g. an
+    # approved ADC/TCE antigen like DLL3/NECTIN4 that is not itself a fitness dependency). tractability_sm
+    # (small-molecule chemistry) is likewise out-of-scope. #2 (WS6-surfaced).
+    "adc":              {"tractability_sm", "dependency", "synthetic_lethal_partners", "combinatorial_dependency"},
+    "bite_tce":         {"tractability_sm", "dependency", "synthetic_lethal_partners", "combinatorial_dependency"},
+    "antibody":         {"tractability_sm", "dependency", "synthetic_lethal_partners", "combinatorial_dependency"},
     "modality_agnostic": set(),
 }
+
+# GATE-AXIS ROLES (mirror the spine's nomination-gate policy tp_gates._GATING_AXIS_FAILCLOSED_ACTION:
+# dependency→veto, safety→hold, subtype_fit→hold). ONLY dependency carries a veto disposition
+# (non_dependent / pan_essential_killer). safety + subtype_fit are HOLD-grade: a fired/blind safety or
+# subtype gate is a HOLD (cap at advanceable_flagged), NEVER a decline — because safety is
+# mechanism-conditionable (a window may exist) and the spine itself forces `hold`, not veto. #1
+# (WS6-surfaced: the ceiling was declining on hold-grade safety, wrongly killing approved ADCs etc.).
+_VETO_GATE_AXES = frozenset({"dependency"})
+_HOLD_GRADE_GATE_AXES = frozenset({"safety", "subtype_fit"})
 # Free-text objective → controlled modality (strict keyword map; unknown → modality_agnostic + flag).
 _OBJECTIVE_KEYWORDS = [
     ("small_molecule", ("small-molecule", "small molecule", "inhibitor", "sm ")),
@@ -231,7 +245,7 @@ def _sv_verdict(sv, key):
 
 
 # --- FAIL-CLOSED, GATE-COMPLETE ceiling (§6.6) — consumes recommendation_gate.hard_gates ------------
-def gate_ceiling(pkg: dict) -> dict:
+def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     """The most permissive verdict the deterministic spine permits; the hypothesis is clamped to it.
 
     KEY UPGRADE over the prototype (which modelled only rec-gate.fired + safety, and FAILED OPEN):
@@ -259,6 +273,7 @@ def gate_ceiling(pkg: dict) -> dict:
     safety = _sv_verdict(sv, "safety")
     rg = syn.get("recommendation_gate") or {}
     hard_gates = rg.get("hard_gates")
+    oos = out_of_scope_dims(modality) if modality else set()   # dims out-of-scope for this modality (#2)
 
     signals: list[tuple[int, str]] = []   # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
@@ -272,14 +287,30 @@ def gate_ceiling(pkg: dict) -> dict:
             disp = row.get("disposition")
             status = row.get("status")
             tag = f"{short}:{verdict}"
+            axis_oos = short in oos   # e.g. dependency is out-of-scope for a surface/ligand biologic
             if status == "fired":
-                active_vetoes.append(tag)
-                signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
+                if axis_oos:
+                    # #2: the axis does not decide this modality — surfaced, does NOT veto the ceiling
+                    excluded.append(tag)
+                elif short in _VETO_GATE_AXES:
+                    active_vetoes.append(tag)
+                    signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
+                else:
+                    # #1: HOLD-grade axis (safety / subtype_fit) fired → a HOLD, not a kill
+                    signals.append((VERDICT_RANK["advanceable_flagged"],
+                                    f"hold-grade gate fired ({tag})"))
             elif status == "blind" and disp == "gated":
-                # a veto-CAPABLE axis produced no verdict → cannot rule the veto out → fail closed
-                blind_gates.append(tag)
-                signals.append((VERDICT_RANK["declined"],
-                                f"fail-closed: veto-capable axis blind ({short})"))
+                if axis_oos:
+                    excluded.append(tag)      # not in scope this run → not a coverage gap
+                elif short in _VETO_GATE_AXES:
+                    # a VETO-capable axis produced no verdict → cannot rule the veto out → fail closed
+                    blind_gates.append(tag)
+                    signals.append((VERDICT_RANK["declined"],
+                                    f"fail-closed: veto-capable axis blind ({short})"))
+                else:
+                    # #1: a HOLD-grade axis blind → fail-closed to a HOLD, not a decline
+                    signals.append((VERDICT_RANK["advanceable_flagged"],
+                                    f"fail-closed hold-grade axis blind ({short})"))
             elif status == "opposing":
                 opposing.append(tag)
                 signals.append((VERDICT_RANK["advanceable_with_caveat"],
@@ -294,17 +325,17 @@ def gate_ceiling(pkg: dict) -> dict:
             active_vetoes.append("recommendation_gate")
             signals.append((VERDICT_RANK["declined"],
                             f"recommendation_gate fired ({rg.get('verdict') or 'veto'})"))
-        # scan the veto-capable sub-verdicts for kill tokens the prototype ignored
+        # scan the veto-capable sub-verdicts for kill tokens the prototype ignored — DEPENDENCY only
+        # (the sole veto axis), and only when dependency is in scope for the modality (#2).
         dep = _sv_verdict(sv, "dependency")
-        if dep in {"pan_essential_killer", "non_dependent"}:
+        if dep in {"pan_essential_killer", "non_dependent"} and "dependency" not in oos:
             active_vetoes.append(f"dependency:{dep}")
             signals.append((VERDICT_RANK["declined"], f"dependency kill token ({dep})"))
-        if safety in SAFETY_KILL:
-            active_vetoes.append(f"safety:{safety}")
-            signals.append((VERDICT_RANK["declined"], f"safety hard-kill ({safety})"))
+        # NOTE: safety is HOLD-grade, never a fallback kill (#1) — handled by the hold-grade line below.
 
-    # safety hold-grade downgrade (both paths) — a hold, not a kill
-    if safety in SAFETY_HOLD:
+    # safety hold-grade (both paths) — a hold, not a kill. SAFETY IS NEVER A VETO (mirrors the spine's
+    # safety→hold policy): both SAFETY_HOLD and the former SAFETY_KILL tokens cap at advanceable_flagged.
+    if safety in SAFETY_HOLD or safety in SAFETY_KILL:
         signals.append((VERDICT_RANK["advanceable_flagged"], f"safety hold-grade ({safety})"))
 
     if not signals:

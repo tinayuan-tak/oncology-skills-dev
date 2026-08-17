@@ -330,7 +330,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     out = {**hyp_out, "edges": edges, "tensions": tensions, "evidence_paths": paths}
 
     # --- deterministic FAIL-CLOSED GATE-COMPLETE clamp (the ceiling; the model never overrides) ---
-    gate = hc.gate_ceiling(panel["pkg"])
+    gate = hc.gate_ceiling(panel["pkg"], modality=modality_resolved)
     proposed = hc._scalar(out.get("proposed_verdict"))
     computed, was_clamped = hc.clamp(proposed, gate["ceiling"])
     gate_tension = None

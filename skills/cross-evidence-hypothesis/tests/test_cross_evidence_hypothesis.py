@@ -49,18 +49,68 @@ def test_ceiling_fired_hard_gate_declines():
     assert "dependency:non_dependent" in g["active_vetoes"]
 
 
-def test_ceiling_blind_gated_axis_fails_closed():
-    """A veto-CAPABLE axis with no verdict this run (status=blind, disposition=gated) → the veto
-    cannot be ruled out → fail-closed to declined (roadmap §6.6)."""
+def test_ceiling_blind_gated_VETO_axis_fails_closed_to_declined():
+    """A VETO-capable axis (dependency) with no verdict this run (status=blind, disposition=gated) →
+    the veto cannot be ruled out → fail-closed to declined (roadmap §6.6)."""
     pkg = _pkg()
+    hit = False
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
-        if row["short"] == "safety":
-            row["status"] = "blind"
-            row["live_verdict"] = None
+        if row["short"] == "dependency":
+            row["status"] = "blind"; row["live_verdict"] = None; hit = True
+    assert hit, "fixture must carry a dependency hard-gate"
     g = hc.gate_ceiling(pkg)
     assert g["ceiling"] == "declined"
     assert g["fail_closed"] is True
-    assert any(t.startswith("safety:") for t in g["blind_gates"])
+    assert any(t.startswith("dependency:") for t in g["blind_gates"])
+
+
+def test_ceiling_blind_gated_HOLD_axis_fails_closed_to_hold_not_declined():
+    """#1: a HOLD-grade axis (safety) blind → fail-closed to a HOLD (advanceable_flagged), NEVER a
+    decline — safety mirrors the spine's safety→hold policy (mechanism-conditionable window)."""
+    pkg = _pkg()
+    for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
+        # neutralize any dependency veto so safety is the load-bearing blind axis
+        if row["short"] == "dependency":
+            row["status"] = "latent"
+        if row["short"] == "safety":
+            row["status"] = "blind"; row["live_verdict"] = None
+    g = hc.gate_ceiling(pkg)
+    assert g["ceiling"] == "advanceable_flagged", g
+    assert "safety" not in [t.split(":")[0] for t in g["blind_gates"]]  # not a fail-closed veto
+
+
+def test_ceiling_fired_safety_gate_is_hold_not_decline():
+    """#1: a FIRED safety hard-gate caps at advanceable_flagged (hold), NEVER declined — even a
+    hold-grade verdict formerly in SAFETY_KILL (highly_constrained_safety_concern). Approved ADCs /
+    recover targets were being wrongly killed on hold-grade safety."""
+    pkg = _pkg()
+    for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
+        if row["short"] == "dependency":
+            row["status"] = "latent"
+        if row["short"] == "safety":
+            row["status"] = "fired"; row["verdict"] = "highly_constrained_safety_concern"
+            row["live_verdict"] = "highly_constrained_safety_concern"
+    # make the sub-verdict agree so the hold-grade line also sees it
+    pkg["synthesis"]["sub_verdicts"]["safety"] = {"verdict": "highly_constrained_safety_concern"}
+    g = hc.gate_ceiling(pkg)
+    assert g["ceiling"] == "advanceable_flagged", g
+    assert not any(t.startswith("safety:") for t in g["active_vetoes"])  # safety is not a veto
+
+
+def test_ceiling_dependency_veto_excluded_for_surface_biologic():
+    """#2: dependency is out-of-scope for a surface/ligand biologic (adc/bite_tce/antibody), so a
+    fired dependency:non_dependent must NOT veto — a surface antigen need not be a genetic dependency
+    (e.g. DLL3/tarlatamab). The SAME package DOES decline under a small-molecule modality."""
+    pkg = _pkg()
+    for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
+        if row["short"] == "dependency":
+            row["status"] = "fired"; row["verdict"] = "non_dependent"; row["live_verdict"] = "non_dependent"
+        if row["short"] == "safety":
+            row["status"] = "latent"
+    assert hc.gate_ceiling(pkg, modality="small_molecule")["ceiling"] == "declined"   # SM: dependency decides
+    g = hc.gate_ceiling(pkg, modality="bite_tce")                                     # TCE: dependency out-of-scope
+    assert g["ceiling"] != "declined", g
+    assert any(t.startswith("dependency:") for t in g["excluded"])
 
 
 def test_ceiling_opposing_caps_below_advanceable():

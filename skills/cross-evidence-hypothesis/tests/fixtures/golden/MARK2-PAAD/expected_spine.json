@@ -7,8 +7,7 @@
   "gate_fail_closed": false,
   "hard_gates_present": false,
   "active_vetoes": [
-    "recommendation_gate",
-    "safety:highly_constrained_safety_concern"
+    "recommendation_gate"
   ],
   "blind_gates": [],
   "opposing_gates": [],
