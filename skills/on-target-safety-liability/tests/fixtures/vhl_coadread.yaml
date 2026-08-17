@@ -44,6 +44,62 @@ clinvar-pathogenicity-safety:
   source: opentargets-26-06/evidence_eva
   target: VHL
   top_disease: Chuvash polycythemia
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: del_dominant
+  cn_fraction_deep_deletion: 0.012
+  cn_fraction_focal_amplification: 0.016
+  cn_fraction_high_amplification: 0.0024
+  cn_fraction_neutral: 0.42
+  cn_fraction_shallow_amplification: 0.1904
+  cn_fraction_shallow_deletion: 0.3592
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.23628754913806915
+  cn_median_panel: 0.9887872338294983
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.8126138597726822
+  cn_p5_panel: 0.5807338684797287
+  cn_p75_panel: 1.0489014089107513
+  cn_p95_panel: 1.3420211911201476
+  cn_recurrent_amplification_score: 0.0184
+  cn_recurrent_deletion_score: 0.37120000000000003
+  cn_top_amplified_lineages: []
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.717391304347826
+    fraction_of_del_tail: 0.07112068965517242
+    lineage: Head and Neck
+    median_cn: 0.7024138569831848
+    n_in_lineage: 46
+  - fraction_deleted: 0.6842105263157895
+    fraction_of_del_tail: 0.05603448275862069
+    lineage: Kidney
+    median_cn: 0.6782819628715515
+    n_in_lineage: 38
+  - fraction_deleted: 0.6702702702702703
+    fraction_of_del_tail: 0.2672413793103448
+    lineage: Lung
+    median_cn: 0.8288397192955017
+    n_in_lineage: 185
+  - fraction_deleted: 0.6
+    fraction_of_del_tail: 0.00646551724137931
+    lineage: Vulva/Vagina
+    median_cn: 0.7559035420417786
+    n_in_lineage: 5
+  - fraction_deleted: 0.5416666666666666
+    fraction_of_del_tail: 0.05603448275862069
+    lineage: Pancreas
+    median_cn: 0.8640101253986359
+    n_in_lineage: 48
+  copy_number_class: recurrently_deleted
+  patient_amplified_fraction: 0.09797297297297297
+  patient_cn_context: "COADREAD: 10% of 592 TCGA GISTIC samples amplify VHL (0% high-level\
+    \ +2), 14% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check to the\
+    \ DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: broadly_neutral
+  patient_deleted_fraction: 0.13682432432432431
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.0016891891891891893
+  patient_homdel_fraction: 0.0
 gene-burden-safety:
   burden_safety_class: lof_risk_phenotype
   direction_on_target: LoF

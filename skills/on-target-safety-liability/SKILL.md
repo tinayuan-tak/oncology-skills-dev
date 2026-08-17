@@ -41,6 +41,10 @@ composition:
     - mouse-ko-phenotype               # P5: IMPC mouse-KO phenotype
     - clingen-dosage                   # P5: ClinGen haploinsufficiency/triplosensitivity dosage
     - gene-burden-safety               # P5: gene-burden safety signal
+    - copy-number-distribution         # S1-1 (2026-08-17): AMPLIFICATION guard for the mutant-selective
+                                       # downgrade — patient_focal_cn_class (GISTIC) fires
+                                       # copy-number-amplified-oncogene-safety-context; the resolver's
+                                       # GROUP-0 guard keeps the HOLD for amp-driven oncogenes (ERBB2/MDM2).
     # NOTE: protein-surface-evidence was DROPPED from this skill — re-homed to
     # surface-modality-fit (LIVE there as surface_confirmation via the CSPA reader).
   # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, ONE per
@@ -60,6 +64,7 @@ composition:
     - mouse_ko_phenotype_safety                # mouse-ko-phenotype
     - dosage_sensitivity_safety                # clingen-dosage
     - human_genetic_safety                     # gene-burden-safety
+    - copy_number_alteration                   # copy-number-distribution — amplification guard (S1-1)
   # rules_scope = the CARDS whose rules enter the safety resolver (convention: card-ids, matching
   # the sibling skills). 2026-08-14 review (S3): completed from 2 entries — it listed the
   # gnomad-lof-constraint card + the activating-driver-role-safety-context RULE-id (inconsistent),
@@ -74,6 +79,7 @@ composition:
     - mouse-ko-phenotype               # mouse-ko-lethal-safety-warning
     - clinvar-pathogenicity-safety     # clinvar-germline-pathogenic-safety-warning
     - alteration-role                  # activating-driver-role-safety-context → mutant-selective downgrade (2026-07-23)
+    - copy-number-distribution         # copy-number-amplified-oncogene-safety-context → GROUP-0 amplification guard (S1-1, 2026-08-17)
   synthesis:
     - rule_engine
   output_shape:

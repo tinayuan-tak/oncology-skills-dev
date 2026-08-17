@@ -44,6 +44,62 @@ clinvar-pathogenicity-safety:
   source: opentargets-26-06/evidence_eva
   target: TP53
   top_disease: Hereditary cancer-predisposing syndrome
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: del_dominant
+  cn_fraction_deep_deletion: 0.0256
+  cn_fraction_focal_amplification: 0.0072
+  cn_fraction_high_amplification: 0.0
+  cn_fraction_neutral: 0.392
+  cn_fraction_shallow_amplification: 0.1784
+  cn_fraction_shallow_deletion: 0.3968
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.2930010110139847
+  cn_median_panel: 0.9827742874622345
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.748959943652153
+  cn_p5_panel: 0.5288567930459976
+  cn_p75_panel: 1.0419609546661377
+  cn_p95_panel: 1.2721702873706817
+  cn_recurrent_amplification_score: 0.0072
+  cn_recurrent_deletion_score: 0.4224
+  cn_top_amplified_lineages: []
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.8541666666666666
+    fraction_of_del_tail: 0.07765151515151515
+    lineage: Pancreas
+    median_cn: 0.7545015811920166
+    n_in_lineage: 48
+  - fraction_deleted: 0.6470588235294118
+    fraction_of_del_tail: 0.020833333333333332
+    lineage: Liver
+    median_cn: 0.8826589584350586
+    n_in_lineage: 17
+  - fraction_deleted: 0.62
+    fraction_of_del_tail: 0.058712121212121215
+    lineage: Breast
+    median_cn: 0.7937541306018829
+    n_in_lineage: 50
+  - fraction_deleted: 0.6
+    fraction_of_del_tail: 0.005681818181818182
+    lineage: Vulva/Vagina
+    median_cn: 0.8770651817321777
+    n_in_lineage: 5
+  - fraction_deleted: 0.5909090909090909
+    fraction_of_del_tail: 0.02462121212121212
+    lineage: Bladder/Urinary Tract
+    median_cn: 0.8729210793972015
+    n_in_lineage: 22
+  copy_number_class: recurrently_deleted
+  patient_amplified_fraction: 0.030405405405405407
+  patient_cn_context: "COADREAD: 3% of 592 TCGA GISTIC samples amplify TP53 (0% high-level\
+    \ +2), 60% deleted (1% homdel) \u2014 PATIENT tumour CN, the cross-check to the\
+    \ DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: recurrently_deleted
+  patient_deleted_fraction: 0.5962837837837838
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.0
+  patient_homdel_fraction: 0.013513513513513514
 gene-burden-safety:
   burden_safety_class: lof_risk_phenotype
   direction_on_target: LoF

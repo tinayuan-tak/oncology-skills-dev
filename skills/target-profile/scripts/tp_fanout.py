@@ -397,6 +397,13 @@ SUB_SKILL_CARDS = {
         "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving; safety.resolver 1.3.0)
         "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving; safety.resolver 1.3.0)
         "clinvar-pathogenicity-safety",   # P5 follow-on — ClinVar germline-pathogenic (4th corroborating leg; verdict-moving)
+        "copy-number-distribution",       # S1-1 (2026-08-17) — REQUIRED for the amplification GUARD to fire IN
+                                          # COMPOSITION (same pattern as alteration-role above). safety.resolver
+                                          # GROUP-0's copy-number-amplified-oncogene-safety-context rung keys on
+                                          # copy-number-distribution.patient_focal_cn_class; without this line the
+                                          # guard could never fire in the composed profile and an amplification-
+                                          # driven oncogene (ERBB2/MDM2) would still be wrongly DOWNGRADED off its
+                                          # on-target-safety HOLD. (Also in on-target-safety-liability/run.py CARDS.)
     ],
     "target-intrinsic": [                 # GATELESS descriptive dossier (WS1, 2026-08-17). Compose ONLY the
                                           # target-intrinsic-EXCLUSIVE cards — the ones NOT already composed under

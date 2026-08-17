@@ -44,6 +44,87 @@ clinvar-pathogenicity-safety:
   source: opentargets-26-06/evidence_eva
   target: EGFR
   top_disease: EGFR-related lung cancer
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: amp_dominant
+  cn_fraction_deep_deletion: 0.0024
+  cn_fraction_focal_amplification: 0.1984
+  cn_fraction_high_amplification: 0.0152
+  cn_fraction_neutral: 0.2528
+  cn_fraction_shallow_amplification: 0.4608
+  cn_fraction_shallow_deletion: 0.0704
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.4140825569629669
+  cn_median_panel: 1.1762893199920654
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 1.0451196134090424
+  cn_p5_panel: 0.8675649553537369
+  cn_p75_panel: 1.4592021703720093
+  cn_p95_panel: 1.9728902280330658
+  cn_recurrent_amplification_score: 0.21359999999999998
+  cn_recurrent_deletion_score: 0.0728
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 0.5
+    fraction_of_amp_tail: 0.011235955056179775
+    lineage: Testis
+    median_cn: 1.4950932264328003
+    n_in_lineage: 6
+  - fraction_focal_amplified: 0.4782608695652174
+    fraction_of_amp_tail: 0.08239700374531835
+    lineage: Head and Neck
+    median_cn: 1.4294528365135193
+    n_in_lineage: 46
+  - fraction_focal_amplified: 0.4430379746835443
+    fraction_of_amp_tail: 0.13108614232209737
+    lineage: CNS/Brain
+    median_cn: 1.4702332019805908
+    n_in_lineage: 79
+  - fraction_focal_amplified: 0.3707865168539326
+    fraction_of_amp_tail: 0.12359550561797752
+    lineage: Esophagus/Stomach
+    median_cn: 1.384199619293213
+    n_in_lineage: 89
+  - fraction_focal_amplified: 0.34210526315789475
+    fraction_of_amp_tail: 0.04868913857677903
+    lineage: Kidney
+    median_cn: 1.3477229475975037
+    n_in_lineage: 38
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.3333333333333333
+    fraction_of_del_tail: 0.07692307692307693
+    lineage: Thyroid
+    median_cn: 1.0581836700439453
+    n_in_lineage: 21
+  - fraction_deleted: 0.20833333333333334
+    fraction_of_del_tail: 0.10989010989010989
+    lineage: Myeloid
+    median_cn: 1.0305665731430054
+    n_in_lineage: 48
+  - fraction_deleted: 0.2
+    fraction_of_del_tail: 0.01098901098901099
+    lineage: Vulva/Vagina
+    median_cn: 1.138664722442627
+    n_in_lineage: 5
+  - fraction_deleted: 0.19047619047619047
+    fraction_of_del_tail: 0.08791208791208792
+    lineage: Ovary/Fallopian Tube
+    median_cn: 1.1203004717826843
+    n_in_lineage: 42
+  - fraction_deleted: 0.16666666666666666
+    fraction_of_del_tail: 0.01098901098901099
+    lineage: Testis
+    median_cn: 1.4950932264328003
+    n_in_lineage: 6
+  copy_number_class: recurrently_amplified
+  patient_amplified_fraction: 0.5675675675675675
+  patient_cn_context: "COADREAD: 57% of 592 TCGA GISTIC samples amplify EGFR (1% high-level\
+    \ +2), 0% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check to the\
+    \ DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: recurrently_amplified
+  patient_deleted_fraction: 0.0033783783783783786
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.006756756756756757
+  patient_homdel_fraction: 0.0
 gene-burden-safety:
   _note: ENSG00000146648 has no rare-variant burden rows in OT 26.06
   burden_safety_class: no_burden_signal

@@ -124,7 +124,11 @@ BRAF = ("braf_coadread", "BRAF", "COADREAD", "wt_constraint_mechanism_mismatch")
 EGFR = ("egfr_coadread", "EGFR", "COADREAD", "wt_human_genetics_mechanism_mismatch")
 TP53 = ("tp53_coadread", "TP53", "COADREAD", "highly_constrained_safety_concern")
 VHL  = ("vhl_coadread",  "VHL",  "COADREAD", "human_genetics_safety_concern")
-ALL = [BRAF, EGFR, TP53, VHL]
+# S1-1 (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven. Unlike the
+# DOWNGRADE cases (activating -> mutant-selective downgrade), the amplification guard KEEPS the raw HOLD
+# because a drug hits the WILD-TYPE (amplified) protein — the mutant-selective-sparing logic fails.
+ERBB2 = ("erbb2_brca", "ERBB2", "BRCA", "human_genetics_safety_concern")
+ALL = [BRAF, EGFR, TP53, VHL, ERBB2]
 DOWNGRADE = [BRAF, EGFR]
 CONCERN = [TP53, VHL]
 
@@ -199,3 +203,31 @@ def test_non_gof_concern_is_not_downgraded(pair_id, target, indication, expected
         f"{target} reads as 'activating' — fixture no longer exercises the raw-concern (non-downgrade) path.")
     assert h.get("mechanism_conditioning_note") is None, (
         f"{target} is a raw concern but carries a mechanism_conditioning_note (note should be downgrade-only).")
+
+
+def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
+    """S1-1 (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven must KEEP
+    its on-target-safety HOLD, NOT be mutant-selectively downgraded — a drug (ADC/TCE/degrader/WT-hitting
+    inhibitor) engages the WILD-TYPE (amplified) protein, so the mutant-selective-sparing logic fails.
+    ERBB2/BRCA: activating (IntOGen Act) + ONCOGENE + recurrent_focal_amplification + a WT-loss warning.
+    WITHOUT the GROUP-0 amplification guard this would resolve to wt_human_genetics_mechanism_mismatch
+    (the S1-1 bug — a false safety pass); WITH it, the raw HOLD stands, driven by the amp guard rule."""
+    pair_id, target, indication, _ = ERBB2
+    d = _decision(pair_id, target, indication)
+    h = d.get("headline") or {}
+    v = h.get("safety_verdict")
+    assert v in _CONCERNS, (
+        f"ERBB2 resolved {v!r}, expected a raw safety HOLD — the amplification guard "
+        f"(copy-number-amplified-oncogene-safety-context) failed to keep the hold (S1-1 regression).")
+    assert v not in _MISMATCH, (
+        f"ERBB2 was mutant-selectively DOWNGRADED to {v!r} despite being amplification-driven — the "
+        f"S1-1 amplification guard is not firing (the leak this test exists to catch).")
+    # It IS an activating oncogene (that's the point — activating+oncogene+amplified → held, not downgraded).
+    assert h.get("alteration_functional_direction") == "activating", (
+        f"ERBB2 alteration_functional_direction={h.get('alteration_functional_direction')!r}, expected "
+        f"'activating' — the fixture no longer exercises the amplification-guard-over-downgrade path.")
+    assert h.get("driving_rule_id") == "copy-number-amplified-oncogene-safety-context", (
+        f"ERBB2 hold driving_rule_id={h.get('driving_rule_id')!r}, expected the amplification guard rule "
+        f"(the GROUP-0 rung that kept the hold).")
+    # A HOLD, not a downgrade → no mechanism-conditioning note.
+    assert h.get("mechanism_conditioning_note") is None

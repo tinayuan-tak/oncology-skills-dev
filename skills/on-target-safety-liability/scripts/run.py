@@ -66,6 +66,14 @@ CARDS = [
                                       # verdict-moving rule is NOT yet resolver-referenced (byte-stable);
                                       # safety.resolver.yaml wires it in P5 Slice 5, composed with the
                                       # same mutant-selective downgrade as the gnomAD path.
+    "copy-number-distribution",       # S1-1 (cards review 2026-08-17) — AMPLIFICATION guard for the
+                                      # mutant-selective downgrade. The dispatcher enriches this card
+                                      # with patient_focal_cn_class (TCGA GISTIC, indication-specific);
+                                      # its copy-number-amplified-oncogene-safety-context rule fires on
+                                      # recurrent_focal_amplification and the safety resolver's GROUP-0
+                                      # guard (target-contracts #394) KEEPS the on-target-safety HOLD
+                                      # for an amplification-driven oncogene (ERBB2/MDM2) — the drug
+                                      # hits WT protein, so the mutant-selective-sparing logic fails.
 ]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
