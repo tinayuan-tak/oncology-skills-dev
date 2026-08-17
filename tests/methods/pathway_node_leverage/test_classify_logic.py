@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
@@ -128,3 +129,28 @@ def test_headline_excludes_report_only_ppi_lens():
     assert C._headline_class(lenses) == "dominant_node"
     # sanity: without the ppi exclusion the worst-across-all would have been dominated_node
     assert C._HEADLINE_ORDER["dominated_node"] < C._HEADLINE_ORDER["dominant_node"]
+
+
+# --- paralog / combinatorial correction (single_ko_leverage_understated) ----------------------------
+@pytest.mark.parametrize("cls,understated", [
+    ("strong", True), ("partial", True), ("none", False), ("data_unavailable", False),
+])
+def test_buffering_flag_maps_class_to_understated(monkeypatch, cls, understated):
+    monkeypatch.setattr(C, "_read_paralog_buffering",
+                        lambda target=None: {"paralog_buffering_class": cls,
+                                             "strongest_paralog_symbol": "PARA1"})
+    out = C._paralog_buffering("TGT")
+    assert out["paralog_buffering_class"] == cls
+    assert out["single_ko_leverage_understated"] is understated
+    # strongest paralog is carried through only as context (present regardless of class here)
+    assert out["strongest_buffering_paralog"] == "PARA1"
+
+
+def test_buffering_flag_fails_soft_on_reader_error(monkeypatch):
+    def _boom(*a, **k):
+        raise RuntimeError("paralog product unreachable")
+    monkeypatch.setattr(C, "_read_paralog_buffering", _boom)
+    out = C._paralog_buffering("TGT")                       # must NOT propagate
+    assert out["paralog_buffering_class"] == "data_unavailable"
+    assert out["single_ko_leverage_understated"] is False
+    assert out["strongest_buffering_paralog"] == ""

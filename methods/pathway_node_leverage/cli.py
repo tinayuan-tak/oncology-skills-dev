@@ -13,8 +13,10 @@ Node-set is a LENS (precision/recall gradient); this module implements two, all 
               MSigDB C5 GO:BP fallback                 (functional; high recall / NOISY heuristic)
   - ppi     : BioGRID physical interactors (top-N by publications)  REPORT-ONLY (broadest/hairball;
               surfaced per-lens but EXCLUDED from the headline min-across-lenses — see read_node_leverage)
-Deferred (spec §6): directed acts-through (SIGNOR/OmniPath) — not yet needed (no directional claim);
-paralog/combinatorial correction.
+Paralog/combinatorial correction (spec §6): single_ko_leverage_understated flags a paralog-BUFFERED
+target (reuses the pre-computed dual-KO buffering product) whose single-KO leverage understates its
+dependency — additive/verdict-inert. Deferred: directed acts-through (SIGNOR/OmniPath) — not yet
+needed (this method makes no directional 'acts-through' claim).
 
 PATHWAY-LENS SELECTION IS HEURISTIC (panel-validated, not exact): gene<->gene-set membership is
 many-to-many, so no auto-selector is clean across targets. We prefer curated C2.CP over GO:BP and the
@@ -45,6 +47,7 @@ import pandas as pd
 
 from methods.target_id_sidecar import s3_client
 from methods.depmap_chronos.cli import INDICATION_LINEAGE
+from methods.depmap_paralog_aggregator.read import read_target_summary as _read_paralog_buffering
 
 METHOD_VERSION = "0.1.0"
 
@@ -269,6 +272,26 @@ def _classify(target: str, stats: pd.DataFrame) -> dict:
     }
 
 
+# --- paralog / combinatorial correction (spec §6) ---------------------------------------------------
+def _paralog_buffering(target: str) -> dict:
+    """The paralog/combinatorial correction: a paralog-BUFFERED target's single-KO Chronos is
+    SUPPRESSED (the paralog compensates), so its single-KO node-leverage verdict UNDERSTATES its true
+    dependency — a buffered `weak_and_uncontested` / `dominated_node` can be a false-negative masked by
+    redundancy. We reuse the pre-computed dual-KO buffering product (depmap_paralog_aggregator) — that
+    IS the combinatorial signal, already summarized — and flag understatement. GENERAL (fires for any
+    buffered target: MARK2/MARK3, SMARCA4/SMARCA2, …), NOT a single-example patch. Additive context:
+    it qualifies but does not change node_leverage_class. FAIL-SOFT — a paralog-read failure must never
+    kill the verdict (the correction is context, not verdict-bearing)."""
+    try:
+        s = _read_paralog_buffering(target=target) or {}
+    except Exception:  # absence-discipline: exempt -- paralog buffering is ADDITIVE context (qualifies but does not set node_leverage_class); a transient/creds/absent paralog-product read must degrade to 'data_unavailable', NOT propagate and fail the whole node_leverage verdict (which the complex/pathway lenses own).
+        s = {}
+    cls = s.get("paralog_buffering_class", "data_unavailable")
+    return {"paralog_buffering_class": cls,
+            "strongest_buffering_paralog": s.get("strongest_paralog_symbol") or "",
+            "single_ko_leverage_understated": cls in ("strong", "partial")}
+
+
 # --- headline aggregation ---------------------------------------------------------------------------
 _HEADLINE_ORDER = {"dominated_node": 0, "dominated_but_tractability_edge": 1,
                    "weak_and_uncontested": 2, "dominant_node": 3}
@@ -308,9 +331,16 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
                 "_live_read_error": f"{type(e).__name__}: {e}"}
 
     headline = _headline_class(lenses)
+    buffering = _paralog_buffering(target)
     return {
         "node_leverage_class": headline,          # soft, verdict-inert context (no veto, no certainty lift)
         "evidence_scope": scope,
+        # paralog/combinatorial correction (spec §6): a buffered target's single-KO leverage UNDERSTATES
+        # its dependency — qualifies node_leverage_class (esp. a buffered weak_and_uncontested/dominated
+        # is a candidate false-negative), does NOT change it. Additive, verdict-inert.
+        "paralog_buffering_class": buffering["paralog_buffering_class"],
+        "strongest_buffering_paralog": buffering["strongest_buffering_paralog"],
+        "single_ko_leverage_understated": buffering["single_ko_leverage_understated"],
         "lenses": lenses,
         "_method_version": METHOD_VERSION,
         "_caveats": ["SOFT context: no veto, never raises certainty",
@@ -323,6 +353,12 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
                      "no directed acts-through check (SIGNOR/OmniPath) — DEFERRED, and not yet needed: "
                      "this method makes a relative fitness-rank comparison, NOT a directional "
                      "'X acts through Y' claim, so there is no directional assertion to ground yet",
-                     "paralog/combinatorial not corrected (TODO): a paralog-mediated node relationship "
-                     "(e.g. a target whose PARALOG sits in the effector pathway) is not captured here"],
+                     "paralog/combinatorial correction: single_ko_leverage_understated flags when the "
+                     "target is paralog-BUFFERED (strong/partial, from the dual-KO buffering product) — "
+                     "its single-KO Chronos, hence its leverage verdict, UNDERSTATES its dependency; a "
+                     "buffered weak_and_uncontested/dominated call is a candidate false-negative masked "
+                     "by redundancy (assess dual-KO / combinatorial leverage). Additive, fail-soft. NOTE "
+                     "the paralog-MEDIATED-effector case (target whose PARALOG sits in the effector "
+                     "pathway, e.g. MARK2 via MARK3) is surfaced as this buffering flag, not as a "
+                     "node-set membership edge (which the pinned lenses cannot ground)"],
     }
