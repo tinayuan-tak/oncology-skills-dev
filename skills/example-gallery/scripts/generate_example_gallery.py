@@ -705,6 +705,26 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
             parts.append(f'<p><b>{_esc(_prettify(k))}:</b> {_esc(val)}</p>')
         parts.append('</div>')
 
+    # Presence × Context hero (skill-level aggregate VIEW) — for any run whose decision carries the
+    # per-(measurement, sample_context) reconciliation (tumor-presence). PERSISTS the SVG+JSON into
+    # run_dir/figures/ (so publish_run.py ships it to S3) AND inlines it here, high on the page. This
+    # is why a tumor-presence gallery page shows the same hero the target-profile dashboard does.
+    # Display-only + best-effort (never breaks the page); gated on the field, not on a skill name.
+    if h.get("presence_verdict_by_modality"):
+        try:
+            if str(SKILLS_DIR) not in sys.path:
+                sys.path.insert(0, str(SKILLS_DIR))
+            from _skills_common.presence_matrix import emit_presence_matrix  # noqa: E402
+            _hero_paths = emit_presence_matrix(decision, run_dir / "figures")
+            _hero_svg = next((_inline_svg(p) for p in _hero_paths if p.suffix == ".svg"), None)
+            if _hero_svg:
+                parts.append('<div class="lab" style="margin:18px 0 6px">Presence × context '
+                             '<span class="hint">— where RNA / protein / single-cell agree or '
+                             'disagree, framed against normal tissue (deterministic VIEW)</span></div>')
+                parts.append(f'<div class="hero-matrix" style="max-width:640px">{_hero_svg}</div>')
+        except Exception as e:  # noqa: BLE001 — hero is best-effort; the page still renders
+            print(f"[gallery] presence hero unavailable ({type(e).__name__}: {e})", file=sys.stderr)
+
     cards = decision.get("cards", [])
     tables_dir = run_dir / "tables"
     # group fired rules by card_id for the per-card flow tabs

@@ -63,6 +63,33 @@ def test_page_has_verdict_synthesis_and_card(tmp_path):
     assert "<!DOCTYPE html>" in page and "src=\"http" not in page
 
 
+def test_presence_hero_emitted_and_inlined_when_matrix_present(tmp_path):
+    """A run whose decision carries presence_verdict_by_modality (tumor-presence) gets the
+    Presence × Context hero: the SVG PERSISTS into run_dir/figures (→ publishes to S3) AND is
+    inlined into the page. Gated on the field, not the skill name."""
+    d = _decision()
+    d["headline"]["presence_verdict_by_modality"] = {
+        "bulk_rna/tumor": {"verdict": "tumor_broadly_expressed", "evidence_state": "measured",
+                           "driving_rule_id": "expression-lineage-restricted-supportive"},
+        "sc_rna/normal": {"verdict": "HIGH_LIABILITY", "evidence_state": "comparator",
+                          "driving_rule_id": None},
+    }
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "Presence × context" in page
+    assert 'class="hero-matrix"' in page
+    assert "<svg" in page                                    # inlined
+    # persisted into the run's figures/ so publish_run.py ships it
+    assert (tmp_path / "figures" / "figure_presence_context_matrix.svg").exists()
+    assert (tmp_path / "figures" / "presence_context_matrix.json").exists()
+
+
+def test_presence_hero_absent_without_matrix(tmp_path):
+    # the default fixture has no presence_verdict_by_modality → no hero (additive, gated)
+    page = G.render_page(_decision(), tmp_path, fig_map={}, interactive=False)
+    assert "hero-matrix" not in page
+    assert not (tmp_path / "figures" / "figure_presence_context_matrix.svg").exists()
+
+
 def test_headline_and_metrics_curation():
     # curated card: headline field + prettified key-metric labels
     s = {"expression_class": "broadly_high", "median_log2tpm_panel": 10.99, "allgene_percentile": 99.9,
