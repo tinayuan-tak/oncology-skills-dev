@@ -135,14 +135,17 @@ def _read_matched_cohort(cohort: str):
     import pandas as pd
     try:
         import pyarrow.parquet as pq
-        import s3fs
-        fs = s3fs.S3FileSystem()
+        import pyarrow.fs as pafs   # was s3fs — the ONLY module importing it; s3fs is absent from
+                                    # pixi.toml so this reader crashed at import in the pixi runtime
+                                    # (cards review 2026-08-17, S2). pyarrow.fs.S3FileSystem is the
+                                    # sibling-standard S3 reader (see dgidb_drug_gene/read.py).
+        fs = pafs.S3FileSystem()
         tbl = pq.read_table(f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs,
                             filters=[("cohort", "==", cohort)])
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
-        # Only a GENUINELY missing object (NoSuchKey/404, or s3fs/pyarrow FileNotFoundError) is data
+        # Only a GENUINELY missing object (NoSuchKey/404, or pyarrow FileNotFoundError) is data
         # absence -> empty frame (unchanged data_unavailable). A transient/creds/broken-env failure is
         # NOT absence -> re-raise so it surfaces as an honest _live_read_error, never a silent empty
         # cohort (which would read as "no matched tumors" and dead-axe the concordance verdict).

@@ -117,3 +117,14 @@ def test_genuine_absence_returns_none_not_raise(monkeypatch):
     assert chembl_idx is None and bdb_idx is None
     assert _R._lookup(chembl_idx, "EGFR") is None    # None-safe lookup → data_unavailable downstream
     _R._load_indexed.cache_clear()
+
+
+def test_nan_pchembl_is_not_a_measured_value():
+    """S2 (cards review 2026-08-17): a ChEMBL row that EXISTS but carries a NaN best_pchembl (present
+    in ChEMBL, no quantified potency) must NOT be credited as weak_measured_ligand, and NaN must not
+    leak into best_measured_potency_neglog_m. (GPR151-class false positive.)"""
+    nan_row = {"best_pchembl": float("nan"), "n_potent_ligands": 0}
+    assert classify_measured_bioactivity(nan_row, None) == "no_measured_activity"
+    g = measured_potency_for_gene("GPR151", chembl_row=nan_row, bdb_row=None)
+    assert g["measured_bioactivity_class"] == "no_measured_activity"
+    assert g["best_measured_potency_neglog_m"] is None   # NaN no longer leaks into the emitted field

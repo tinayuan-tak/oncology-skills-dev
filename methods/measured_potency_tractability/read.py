@@ -116,6 +116,15 @@ def _lookup(idx, target):
     return row_by_ac.get(ac) if ac else None
 
 
+def _finite(x) -> bool:
+    """True iff x is a real, finite measured value (not None, not NaN/inf). A ChEMBL row can EXIST
+    with a NaN best_pchembl (present in ChEMBL, no quantified potency); the bare `is not None` test
+    treats NaN as a real measurement (cards review 2026-08-17, S2 — GPR151 falsely read
+    weak_measured_ligand with a NaN potency leaking into the output field)."""
+    import math
+    return x is not None and not (isinstance(x, float) and math.isnan(x))
+
+
 def classify_measured_bioactivity(chembl_row: Optional[dict], bdb_row: Optional[dict]) -> str:
     """Fuse ChEMBL + BindingDB into the measured_bioactivity_class.
 
@@ -137,10 +146,10 @@ def classify_measured_bioactivity(chembl_row: Optional[dict], bdb_row: Optional[
         return "potent_measured_ligand"
 
     # WEAK: some measured potency exists (a potent hit or two, or sub-potent activity) but not a series.
-    chembl_any_potent = (best_pchembl is not None and best_pchembl >= POTENT_PCHEMBL)
+    chembl_any_potent = (_finite(best_pchembl) and best_pchembl >= POTENT_PCHEMBL)
     bdb_any_potent = bool((bdb_row or {}).get("has_sub_micromolar_binder")) or \
-        (best_p_aff is not None and best_p_aff >= POTENT_PCHEMBL)
-    has_measured = (best_pchembl is not None) or (best_p_aff is not None)
+        (_finite(best_p_aff) and best_p_aff >= POTENT_PCHEMBL)
+    has_measured = _finite(best_pchembl) or _finite(best_p_aff)   # NaN != a real measurement
     if chembl_any_potent or bdb_any_potent or has_measured:
         return "weak_measured_ligand"
     return "no_measured_activity"
@@ -160,7 +169,7 @@ def measured_potency_for_gene(target: str,
     best_pchembl = (chembl_row or {}).get("best_pchembl")
     best_p_aff = (bdb_row or {}).get("best_p_affinity")
     # best measured potency across the two sources (both are -log10 M, directly comparable)
-    best_measured = max([v for v in (best_pchembl, best_p_aff) if v is not None], default=None)
+    best_measured = max([v for v in (best_pchembl, best_p_aff) if _finite(v)], default=None)
     return {
         "measured_bioactivity_class": klass,
         "best_measured_potency_neglog_m": best_measured,          # -log10(M); >=6 == <=1 uM
