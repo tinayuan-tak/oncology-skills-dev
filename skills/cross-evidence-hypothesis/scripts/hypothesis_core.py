@@ -536,6 +536,36 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
     return violations
 
 
+def surface_coherence_tensions(coherence_v: dict) -> list:
+    """REMEDIATE detected intra-package coherence violations by SURFACING each into the structured
+    `tensions` slot (the roadmap's "fold the contradiction into the clause OR into `tensions`"), so
+    the emitted hypothesis carries the contradiction explicitly for a reviewer + a skeptic instead of
+    burying it. This deliberately does NOT mutate any LLM clause statement (invariant 9 — LLM-narrated
+    fields stay in slots distinct from deterministic ones): it returns DETERMINISTIC, clearly-tagged
+    tension entries (`source: integrator_coherence_guard`) the caller appends to the emitted tensions.
+    The always-on detection + promotion block (in run.py) remain the teeth; this is the artifact-level
+    surfacing so the tension is never an unacknowledged assertion."""
+    out_tensions = []
+    for clause_key, viols in (coherence_v or {}).items():
+        for v in viols:
+            if v["type"] == "negative_signal_asserted":
+                stmt = (f"clause '{clause_key}' rests on '{v['dimension']}', whose measured verdict "
+                        f"'{v['verdict']}' does not support it")
+                cites = [v["dimension"]]
+            elif v["type"] == "intrinsic_contradiction":
+                stmt = (f"clause '{clause_key}' rests on {v['rested_on']} but '{v['contradicted_by']}' "
+                        f"is present with '{v['verdict']}' ({v['label']}) — the strategy has no "
+                        "actionable support")
+                cites = list(v["rested_on"]) + [v["contradicted_by"]]
+            else:  # edge_contradiction_unsurfaced
+                stmt = (f"clause '{clause_key}' rests on '{v['asserted']}' while '{v['contradicted_by']}' "
+                        "contradicts it")
+                cites = [v["asserted"], v["contradicted_by"]]
+            out_tensions.append({"statement": stmt, "citations": cites, "clause": clause_key,
+                                 "source": "integrator_coherence_guard"})
+    return out_tensions
+
+
 # --- panel assembly + citation surface --------------------------------------------------------------
 def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str],
              modality: str) -> dict:

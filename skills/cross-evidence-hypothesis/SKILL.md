@@ -48,7 +48,7 @@ composition:
   optional_lenses:
     - modality                  # controlled enum (small_molecule / adc / bite_tce / degrader / ...)
     - subgroup                  # subtype-resolved reasoning off the subtype_resolved block
-  status: partial               # WS4 first production increment; hardening deferred (see TODOs)
+  status: partial               # WS4 + drift-guard (§9) + intra-package coherence / adversarial-survival gate (WS5)
   # --- integrator ↔ card-panel contract (roadmap §10): the SPINE FIELDS this integrator reads ---
   # (NOT card_ids — this skill reads the composed package, not cards). Pinned here so a rename is
   # visible in review; a target-contracts CI contract test (§10) is a deferred hardening item.
@@ -140,6 +140,36 @@ with four upgrades over the prototype.
   / antibody / modality_agnostic) scopes which sub-verdict dimensions are in play;
   an out-of-scope axis (e.g. surface-modality for a small molecule) never degrades
   the hypothesis.
+
+## Intra-package coherence guard (WS5)
+
+- **Intra-package coherence WITH TEETH** (always-on, offline; `hypothesis_core.coherence_violations`).
+  A positive-thesis clause (causal_rationale / therapeutic_hypothesis / population) may NOT assert a
+  positive claim on a signal that ANOTHER present package signal contradicts, unless it SURFACES the
+  tension. Four detectors: (a) a measured-NEGATIVE sub-verdict cited as support (e.g.
+  dependency=non_dependent_paralog_buffered), (a2) the same at CARD grain, (b) one end of the agent's
+  OWN `contradicts`/`tensions_with` edge cited while the other present end is unsurfaced, and (c) the
+  INTRINSIC cross-card class (a SL/combination strategy asserted while
+  partner-conditional-dependency=no_partner_mapped is present — even if uncited). A violation BLOCKS
+  promotion (caps the verdict at `advanceable_flagged`) and is also SURFACED into the structured
+  `tensions` slot as a clearly-tagged deterministic entry (`surface_coherence_tensions`,
+  `source: integrator_coherence_guard`) — the roadmap's "fold the contradiction into the clause OR
+  into `tensions`", done WITHOUT mutating any LLM clause prose (invariant 9). The agent is ALSO
+  prompted to fold such tensions into its own `contradicting_citations` / `tensions`, so a coherent
+  clause carries the tension explicitly. This is the deterministic, always-on sibling of the
+  adversarial-survival skeptic pass. Recorded under `defensibility.coherence_violations` /
+  `n_coherence_violations` / `n_coherence_tensions_surfaced`.
+
+- **Adversarial-survival gate** (optional post-check; needs Bedrock;
+  `scripts/adversarial_survival.py`). N=3 skeptics try to REFUTE each clause from the SAME package
+  only; a refutation whose citations do not resolve to the package is discarded (retrieve-don't-recall
+  applied to the skeptic). `score` = fraction of clauses surviving; `adversarial_survival_gate(result,
+  threshold=0.75)` FLAGS a below-threshold hypothesis so it is not shipped clean on traceability alone.
+  The result attaches to the optional first-class `quality.adversarial_survival` slot (null until run):
+
+        BEDROCK_AWS_PROFILE=cmp-dev python3 scripts/adversarial_survival.py \
+            --evidence-package <evidence_package.json> --hypothesis <hypothesis.json> \
+            [--risk r.json] [--target-dossier d.json] --threshold 0.75 --out survival.json
 
 ## What this skill does NOT do
 

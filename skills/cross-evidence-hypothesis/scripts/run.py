@@ -392,6 +392,13 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
                   if isinstance(call, str)}
     coherence_v = hc.coherence_violations(coherence_clauses, conviction, edges, tensions,
                                           present_norm, out_of_scope=oos, card_calls=card_calls)
+    # SURFACE each detected tension into the structured `tensions` slot (fold-into-tensions), so the
+    # contradiction is carried explicitly, never buried — without mutating any LLM clause prose
+    # (invariant 9). coherence_v (as DETECTED) still blocks promotion below (the teeth).
+    coherence_surfaced_tensions = hc.surface_coherence_tensions(coherence_v)
+    if coherence_surfaced_tensions:
+        tensions = tensions + coherence_surfaced_tensions
+        out["tensions"] = tensions
 
     # --- minimum-inputs gate (§12): enough non-gap in-scope decision lines to reason over? ---
     n_supporting = sum(1 for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
@@ -443,6 +450,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "n_clauses": n_clauses, "n_fully_traceable": n_clean,
             "coherence_violations": coherence_v,
             "n_coherence_violations": sum(len(v) for v in coherence_v.values()),
+            "n_coherence_tensions_surfaced": len(coherence_surfaced_tensions),
             "promotable": promotable, "promotion_blockers": promotion_blockers,
         },
         "uncertainty": {
