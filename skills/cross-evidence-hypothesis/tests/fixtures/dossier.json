@@ -1,0 +1,21 @@
+{
+ "headline": {
+  "target_identity": "KRAS (HGNC:6407) \u2014 RAS GTPase",
+  "mechanism_pathway_role": "MAPK pathway node; GTP-bound active-state signaling",
+  "paralog_buffering": "NRAS/HRAS paralogs \u2014 partial buffering",
+  "gnomad_lof_constraint": "constrained",
+  "cards_available": 7,
+  "cards_missing": 0
+ },
+ "cards": [
+  {
+   "card_id": "target-identity-summary"
+  },
+  {
+   "card_id": "signaling-network-mechanism"
+  },
+  {
+   "card_id": "paralog-buffering"
+  }
+ ]
+}

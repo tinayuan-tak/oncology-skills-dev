@@ -1,0 +1,396 @@
+{
+ "package_id": "FIXTURE-KRAS-COADREAD",
+ "framework_version": "2.0.0",
+ "schema_version": 1,
+ "context": {
+  "target": {
+   "symbol": "KRAS",
+   "hgnc_id": 6407
+  },
+  "indication": {
+   "oncotree_code": "COADREAD"
+  },
+  "subgroup_spec": "MSI_status",
+  "scope": "cancer_type"
+ },
+ "synthesis": {
+  "sub_verdicts": {
+   "expression": {
+    "gate": null,
+    "verdict": "tumor_broadly_expressed",
+    "driving_rule_id": "tumor-expression-broadly-high-supportive",
+    "fired_rule_ids": [
+     "expression-modest-downregulation-opposing",
+     "expression-broadly-moderate-neutral",
+     "tumor-expression-broadly-high-supportive",
+     "sc-expression-malignant-broadly-detected-supportive",
+     "protein-abundance-broadly-high-supportive",
+     "tumor-breadth-not-elevated-neutral",
+     "rna-tumor-breadth-multi-supportive",
+     "rna-protein-partial-proxy-neutral",
+     "purity-independent-neutral"
+    ]
+   },
+   "selectivity": {
+    "gate": "selectivity",
+    "verdict": "strong_tumor_selective",
+    "driving_rule_id": "tvn-discordant-neutral-flagged",
+    "fired_rule_ids": [
+     "tumor-vs-normal-crossing-minimal-neutral",
+     "tvn-discordant-neutral-flagged",
+     "tvn-no-therapeutic-window-veto",
+     "tvn-no-full-normal-window-veto",
+     "tvn-sc-normal-critical-organ-veto",
+     "purity-independent-neutral",
+     "ihc-medium-supportive",
+     "modality-window-essential-liability-tce-opposing",
+     "sc-normal-high-liability-bite-killer",
+     "sc-normal-high-liability-adc-antibody-opposing"
+    ]
+   },
+   "dependency": {
+    "gate": "dependency",
+    "verdict": "strongly_selective_dependency",
+    "driving_rule_id": "dep_strongly_selective_v1",
+    "fired_rule_ids": [
+     "dep_strongly_selective_v1"
+    ]
+   },
+   "synthetic_lethal_partners": {
+    "gate": "synthetic_lethal_partners",
+    "verdict": "has_experimental_sl_partner",
+    "driving_rule_id": "sl-experimental-partner-context-conditional",
+    "fired_rule_ids": [
+     "sl-experimental-partner-context-conditional"
+    ]
+   },
+   "combinatorial_dependency": {
+    "gate": null,
+    "verdict": "constitutive_combinatorial_dependency",
+    "driving_rule_id": "combo-constitutive-synthetic-lethal",
+    "fired_rule_ids": [
+     "combo-constitutive-synthetic-lethal"
+    ]
+   },
+   "mechanism": {
+    "gate": "mechanism",
+    "verdict": "well_characterized",
+    "driving_rule_id": "mechanism-well-characterized-supportive",
+    "fired_rule_ids": [
+     "mechanism-well-characterized-supportive",
+     "has-pd-marker-supportive",
+     "phospho-not-phosphoprotein-neutral"
+    ]
+   },
+   "genomic_alteration": {
+    "gate": "genomic_alteration",
+    "verdict": "recurrent_driver",
+    "driving_rule_id": "mutant-strongly-dependent-supportive",
+    "fired_rule_ids": [
+     "mutant-strongly-dependent-supportive",
+     "cn-amplified-moderately-dependent-supportive",
+     "fusion-positive-moderately-dependent-supportive",
+     "amp-expr-strongly-dependent-supportive",
+     "cn-broadly-neutral-neutral",
+     "mut-missense-dominant-supportive",
+     "alteration-role-gof-driver-supportive",
+     "functional-gene-state-sporadic-biallelic-neutral",
+     "mutation-drug-response-strongly-sensitive-supportive",
+     "activating-driver-role-safety-context",
+     "cn-neutral-surface-neutral",
+     "modality-matrix-activating-role-surface-neutral"
+    ]
+   },
+   "differentiation": {
+    "gate": "differentiation",
+    "verdict": "insufficient",
+    "driving_rule_id": "cooccurrence-both-patterns-supportive",
+    "fired_rule_ids": [
+     "has-cooccurring-driver-supportive",
+     "cooccurrence-both-patterns-supportive",
+     "clinical-high-better-survival-neutral"
+    ]
+   },
+   "tractability_sm": {
+    "gate": "tractability_small_molecule",
+    "verdict": "well_covered",
+    "driving_rule_id": "e7-triangulated-target-engaged-supportive",
+    "fired_rule_ids": [
+     "predictability-biomarker-hypothesis-supportive",
+     "prism-clinical-precedent-only-weak-supportive-sm",
+     "prism-no-lineage-signal-neutral",
+     "e7-triangulated-target-engaged-supportive",
+     "hotspot-in-druggable-pocket-sm-supportive-e8",
+     "structure-pocket-adjacent-sm-supportive",
+     "ligandability-experimental-sm-supportive",
+     "known-drug-approved-antineoplastic-sm-supportive",
+     "measured-potent-ligand-sm-supportive",
+     "degradation-ubiquitination-substrate-degrader-supportive"
+    ]
+   },
+   "surface_modality": {
+    "gate": "surface_modality",
+    "verdict": "neither_viable",
+    "driving_rule_id": "neither-viable-killer",
+    "fired_rule_ids": [
+     "cn-broadly-neutral-neutral",
+     "hotspot-in-druggable-pocket-sm-supportive-e8",
+     "structure-pocket-adjacent-sm-supportive",
+     "ligandability-experimental-sm-supportive",
+     "tvn-no-therapeutic-window-veto",
+     "tvn-no-full-normal-window-veto",
+     "tvn-sc-normal-critical-organ-veto",
+     "no-transmembrane-adc-killer",
+     "ecd-none-biologics-opposing",
+     "not-surface-adc-killer",
+     "neither-viable-killer",
+     "ihc-medium-supportive",
+     "normal-tissue-broad-opposing",
+     "cn-neutral-surface-neutral",
+     "protein-not-surface-opposing",
+     "rna-poor-proxy-surface-warning",
+     "modality-window-essential-liability-tce-opposing",
+     "sc-normal-high-liability-bite-killer",
+     "sc-normal-high-liability-adc-antibody-opposing"
+    ]
+   },
+   "safety": {
+    "gate": "safety",
+    "verdict": "tolerant_reduced_safety_risk",
+    "driving_rule_id": "highly-constrained-safety-warning",
+    "fired_rule_ids": [
+     "alteration-role-gof-driver-supportive",
+     "normal-liability-broadly-expressed-neutral",
+     "highly-constrained-safety-warning",
+     "activating-driver-role-safety-context",
+     "gene-burden-lof-safety-warning",
+     "clingen-dominant-loss-safety-warning",
+     "mouse-ko-developmental-only-neutral",
+     "clinvar-germline-pathogenic-safety-warning",
+     "modality-matrix-activating-role-surface-neutral"
+    ]
+   }
+  },
+  "recommendation_gate": {
+   "fired": false,
+   "suppressed_vetoes": [],
+   "hard_gates": [
+    {
+     "short": "dependency",
+     "verdict": "pan_essential_killer",
+     "disposition": "gated",
+     "status": "latent",
+     "live_verdict": "strongly_selective_dependency",
+     "policy_source": "vocab"
+    },
+    {
+     "short": "dependency",
+     "verdict": "non_dependent",
+     "disposition": "gated",
+     "status": "latent",
+     "live_verdict": "strongly_selective_dependency",
+     "policy_source": "vocab"
+    },
+    {
+     "short": "safety",
+     "verdict": "highly_constrained_safety_concern",
+     "disposition": "gated",
+     "status": "latent",
+     "live_verdict": "tolerant_reduced_safety_risk",
+     "policy_source": "vocab"
+    },
+    {
+     "short": "safety",
+     "verdict": "human_genetics_safety_concern",
+     "disposition": "gated",
+     "status": "latent",
+     "live_verdict": "tolerant_reduced_safety_risk",
+     "policy_source": "vocab"
+    },
+    {
+     "short": "surface_modality",
+     "verdict": "neither_viable",
+     "disposition": "excluded_modality_scoped",
+     "status": "excluded",
+     "live_verdict": "neither_viable",
+     "policy_source": "vocab"
+    },
+    {
+     "short": "subtype_fit",
+     "verdict": "subtype_specific_non_dependence",
+     "disposition": "gated",
+     "status": "latent",
+     "live_verdict": null,
+     "policy_source": "vocab"
+    }
+   ]
+  },
+  "confidence_tier": {
+   "tier": "moderate",
+   "hits": [
+    {
+     "short": "dependency",
+     "verdict": "lineage_selective",
+     "weight": "supportive",
+     "driving_rule_id": "lineage-selective-supportive"
+    },
+    {
+     "short": "genomic_alteration",
+     "verdict": "biomarker_stratified_dependency",
+     "weight": "dominant",
+     "driving_rule_id": "mutant-strongly-dependent-supportive"
+    },
+    {
+     "short": "tractability_sm",
+     "verdict": "well_covered",
+     "weight": "dominant",
+     "driving_rule_id": "e7-triangulated-target-engaged-supportive"
+    }
+   ],
+   "floored_from": null,
+   "floored_to": "medium"
+  },
+  "deciding_axis": {
+   "basis": "positive_signal",
+   "coverage_source": "vocab",
+   "deciding_axes": [
+    {
+     "short": "dependency",
+     "gate": "C",
+     "gate_name": "Functional dependence",
+     "band": "necessity",
+     "framework_can_evidence": "partial"
+    },
+    {
+     "short": "genomic_alteration",
+     "gate": "E",
+     "gate_name": "Altered",
+     "band": "necessity",
+     "framework_can_evidence": "captured"
+    },
+    {
+     "short": "tractability_sm",
+     "gate": null,
+     "gate_name": "Small-molecule druggability",
+     "band": "sufficiency",
+     "framework_can_evidence": "partial"
+    }
+   ],
+   "routing": "supported by dependency, genomic_alteration, tractability_sm (necessity biology evidenced)."
+  }
+ },
+ "cards": [
+  {
+   "card_id": "cellline-rna-distribution",
+   "card_version": "1.0.0",
+   "interpretation_call": "broadly_moderate",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "tumor-rna-vs-adjacent",
+   "card_version": "1.0.0",
+   "interpretation_call": "modest_downregulation",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "tumor-protein-abundance-cptac",
+   "card_version": "1.0.0",
+   "interpretation_call": "ns",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "cellline-protein-abundance",
+   "card_version": "1.0.0",
+   "interpretation_call": "broadly_high",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "tumor-elevation-breadth",
+   "card_version": "1.0.0",
+   "interpretation_call": "not_tumor_elevated",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "tumor-rna-distribution",
+   "card_version": "1.0.0",
+   "interpretation_call": "broadly_detected",
+   "validation_state": "pass",
+   "evidence_substrate": "recount3_tcga_gtex_bulk_rna",
+   "measurement_type": "tumor_rna_distribution"
+  },
+  {
+   "card_id": "tumor-rna-distribution-by-subtype",
+   "card_version": "1.0.0",
+   "interpretation_call": "pan_subtype_uniform",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "expression-purity-confound",
+   "card_version": "1.0.0",
+   "interpretation_call": "purity_independent",
+   "validation_state": "pass"
+  },
+  {
+   "card_id": "tumor-vs-normal-selectivity",
+   "card_version": "1.0.0",
+   "interpretation_call": "tumor-vs-normal-selectivity present",
+   "validation_state": "ok",
+   "evidence_substrate": "recount3_tcga_gtex_bulk_rna",
+   "measurement_type": "tumor_vs_normal_selectivity"
+  },
+  {
+   "card_id": "crispr-lof-dependency",
+   "card_version": "1.0.0",
+   "interpretation_call": "crispr-lof-dependency present",
+   "validation_state": "ok",
+   "evidence_substrate": "depmap_crispr_chronos",
+   "measurement_type": "crispr_lof_dependency"
+  }
+ ],
+ "subtype_resolved": {
+  "schema_version": 1,
+  "requested_strata": [
+   "MSI-H",
+   "MSS"
+  ],
+  "available_strata": [
+   "MSI-H",
+   "MSS"
+  ],
+  "per_stratum": [
+   {
+    "stratum": "MSS",
+    "axes": {
+     "dependency": {
+      "evidence_state": "measured",
+      "subgroup_n": 42,
+      "subgroup_n_floor_met": true,
+      "metric": {
+       "chronos_median": -0.62
+      }
+     }
+    }
+   },
+   {
+    "stratum": "MSI-H",
+    "axes": {
+     "dependency": {
+      "evidence_state": "measured",
+      "subgroup_n": 6,
+      "subgroup_n_floor_met": false,
+      "metric": {
+       "chronos_median": -0.1
+      }
+     }
+    }
+   }
+  ],
+  "_disclaimer": "Subtype is SOFT integrator context; a stratum below its n-floor carries no weight.",
+  "convergence_facet": {
+   "axes_converging": [
+    "dependency"
+   ],
+   "note": "MSS-restricted dependency"
+  }
+ }
+}

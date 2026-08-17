@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+"""hypothesis_core — the deterministic (LLM-free) spine of the cross-evidence hypothesis integrator.
+
+This module holds every part of the integrator that MUST be reproducible and auditable: the
+fail-closed gate-complete ceiling, the clamp, the citation-surface assembly, the retrieve-don't-recall
++ clause-traceability audit, the absence-discipline check, the subtype-resolved parse, the
+evidence-substrate correlated-evidence discount, the modality-scope enum, and the weakest-link
+certainty. The LLM two-call pipeline (edges → hypothesis) lives in run.py and calls into here.
+
+Porting note: this evolves framework-runs/cross-dim-agent/hypothesis_agent.py (WS4 of
+CROSS_EVIDENCE_INTEGRATION_ROADMAP.md). The prototype's gate_ceiling modelled only 2 gates and
+FAILED OPEN; here the ceiling consumes synthesis.recommendation_gate.hard_gates (the landed
+complete fail-closed hard-gate set, #462) and is fail-closed + gate-complete (§6.6). Subtype
+(#464) and evidence_substrate (#463) consumption are new (§6.8 / roadmap invariant 8).
+"""
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+from typing import Optional
+
+# --- verdict permissiveness rank; the computed verdict is min(proposed, ceiling) by this order ------
+VERDICT_RANK = {
+    "declined": 0, "needs_data": 1, "advanceable_flagged": 2,
+    "conditional_on_biomarker": 3, "advanceable_with_caveat": 4, "advanceable": 5,
+}
+RANK_VERDICT = {v: k for k, v in VERDICT_RANK.items()}
+
+# Safety hold-grade sub-verdicts (a hold, not a kill) → ceiling caps at advanceable_flagged.
+SAFETY_HOLD = {"human_genetics_safety_concern", "moderately_constrained_safety",
+               "moderately_constrained_safety_concern"}
+# Safety hard-kill tokens (kept for the hard_gates-ABSENT fallback path only).
+SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
+
+# coverage-gap verdicts: a line in one of these states carries NO evidentiary weight (absence-discipline)
+GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_assessed", "not_informative",
+                "no_data", "not_evaluated", "insufficient_data", "insufficient_evidence"}
+CERTAINTY_RANK = {"low": 0, "moderate": 1, "high": 2}
+RANK_CERTAINTY = {v: k for k, v in CERTAINTY_RANK.items()}
+
+# --- modality scope as a CONTROLLED ENUM (replaces the prototype's objective.startswith) ------------
+# For each modality: the sub-verdict dimensions that are OUT OF SCOPE for the hypothesis (a
+# small-molecule program does not turn on surface-modality fit; a surface-directed biologic does not
+# turn on small-molecule tractability). Out-of-scope dims are excluded from data-gaps + certainty +
+# the in-scope decision set, so an irrelevant axis never degrades a hypothesis for the wrong modality.
+MODALITY_SCOPE: dict[str, set] = {
+    "small_molecule":   {"surface_modality"},
+    "degrader":         {"surface_modality"},
+    "molecular_glue":   {"surface_modality"},
+    "rna_therapeutic":  {"surface_modality", "tractability_sm"},
+    "adc":              {"tractability_sm"},
+    "bite_tce":         {"tractability_sm"},
+    "antibody":         {"tractability_sm"},
+    "modality_agnostic": set(),
+}
+# Free-text objective → controlled modality (strict keyword map; unknown → modality_agnostic + flag).
+_OBJECTIVE_KEYWORDS = [
+    ("small_molecule", ("small-molecule", "small molecule", "inhibitor", "sm ")),
+    ("degrader", ("degrader", "protac", "glue-degrader")),
+    ("molecular_glue", ("molecular glue", "molecular-glue")),
+    ("rna_therapeutic", ("rna therapeutic", "sirna", "aso", "antisense", "rna-therapeutic")),
+    ("adc", ("adc", "antibody-drug", "antibody drug")),
+    ("bite_tce", ("tce", "t-cell engager", "bite", "bispecific")),
+    ("antibody", ("antibody", "mab", "biologic")),
+]
+
+
+def resolve_modality(modality: Optional[str], objective: Optional[str]) -> tuple[str, bool]:
+    """Resolve the controlled modality enum. Returns (modality, inferred).
+    An explicit --modality wins (validated against the enum). Otherwise infer from the free-text
+    objective via a strict keyword map; unknown/absent → modality_agnostic (all dims in scope) +
+    inferred=True so the caller can flag the fallback."""
+    if modality:
+        m = str(modality).strip().lower().replace("-", "_")
+        if m in MODALITY_SCOPE:
+            return m, False
+        raise ValueError(f"unknown --modality {modality!r}; valid: {sorted(MODALITY_SCOPE)}")
+    obj = (objective or "").strip().lower()
+    for m, kws in _OBJECTIVE_KEYWORDS:
+        if any(k in obj for k in kws):
+            return m, True
+    return "modality_agnostic", True
+
+
+def out_of_scope_dims(modality: str) -> set:
+    return set(MODALITY_SCOPE.get(modality, set()))
+
+
+# --- small structured-output unwrap helpers (mirror the prototype) ----------------------------------
+def _uv(x):
+    if isinstance(x, dict) and "value" in x and len(x) == 1:
+        return x["value"]
+    return x
+
+
+def _scalar(x):
+    for _ in range(3):
+        if isinstance(x, dict) and "value" in x:
+            x = x["value"]
+        else:
+            break
+    return x if not isinstance(x, (dict, list)) else None
+
+
+def _sv_verdict(sv, key):
+    v = sv.get(key)
+    return (v.get("verdict") if isinstance(v, dict) else v) if v is not None else None
+
+
+# --- FAIL-CLOSED, GATE-COMPLETE ceiling (§6.6) — consumes recommendation_gate.hard_gates ------------
+def gate_ceiling(pkg: dict) -> dict:
+    """The most permissive verdict the deterministic spine permits; the hypothesis is clamped to it.
+
+    KEY UPGRADE over the prototype (which modelled only rec-gate.fired + safety, and FAILED OPEN):
+    this iterates the COMPLETE hard-gate set the spine emits at
+    `synthesis.recommendation_gate.hard_gates` (#462 — every kill-capable (short, verdict) with a
+    per-run status ∈ {fired, suppressed, excluded, opposing, blind, latent}). The ceiling is the
+    LEAST-permissive value implied by that set:
+      - any gated gate `fired`          → declined (an active blanket veto).
+      - any gated gate `blind`          → declined, FAIL-CLOSED: a veto-capable axis could not be
+                                          evaluated, so the veto cannot be ruled out (§6.6).
+      - any contradiction `opposing`    → cap at advanceable_with_caveat (opposing measured
+                                          evidence blocks `strong`, not a veto).
+      - safety hold-grade live          → cap at advanceable_flagged.
+      - excluded (modality-scoped)      → surfaced, does NOT blanket-veto the ceiling.
+    If the package cannot be parsed / has no synthesis, the ceiling is `declined` (fail-closed).
+    If `hard_gates` is ABSENT (older package), fall back to a fail-closed rec-gate + sub-verdict
+    scan (never the prototype's fail-open behaviour)."""
+    syn = pkg.get("synthesis")
+    if not isinstance(syn, dict) or not isinstance(syn.get("sub_verdicts"), dict):
+        return {"ceiling": "declined", "reason": "package has no parseable synthesis.sub_verdicts "
+                "(schema-invalid) — fail-closed", "fail_closed": True, "hard_gates_present": False,
+                "active_vetoes": [], "blind_gates": [], "opposing": [], "excluded": [],
+                "safety_verdict": None}
+    sv = syn["sub_verdicts"]
+    safety = _sv_verdict(sv, "safety")
+    rg = syn.get("recommendation_gate") or {}
+    hard_gates = rg.get("hard_gates")
+
+    signals: list[tuple[int, str]] = []   # (ceiling_rank, reason)
+    active_vetoes, blind_gates, opposing, excluded = [], [], [], []
+
+    if isinstance(hard_gates, list) and hard_gates:
+        for row in hard_gates:
+            if not isinstance(row, dict):
+                continue
+            short = row.get("short")
+            verdict = row.get("verdict")
+            disp = row.get("disposition")
+            status = row.get("status")
+            tag = f"{short}:{verdict}"
+            if status == "fired":
+                active_vetoes.append(tag)
+                signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
+            elif status == "blind" and disp == "gated":
+                # a veto-CAPABLE axis produced no verdict → cannot rule the veto out → fail closed
+                blind_gates.append(tag)
+                signals.append((VERDICT_RANK["declined"],
+                                f"fail-closed: veto-capable axis blind ({short})"))
+            elif status == "opposing":
+                opposing.append(tag)
+                signals.append((VERDICT_RANK["advanceable_with_caveat"],
+                                f"opposing measured evidence ({tag})"))
+            elif status == "excluded":
+                excluded.append(tag)  # modality-scoped foreclosure — surfaced, no blanket veto
+        hard_gates_present = True
+    else:
+        # ---- FALLBACK: no hard_gates block (older package). Fail-closed, not fail-open. ----
+        hard_gates_present = False
+        if bool(rg.get("fired")) and not (rg.get("suppressed_vetoes")):
+            active_vetoes.append("recommendation_gate")
+            signals.append((VERDICT_RANK["declined"],
+                            f"recommendation_gate fired ({rg.get('verdict') or 'veto'})"))
+        # scan the veto-capable sub-verdicts for kill tokens the prototype ignored
+        dep = _sv_verdict(sv, "dependency")
+        if dep in {"pan_essential_killer", "non_dependent"}:
+            active_vetoes.append(f"dependency:{dep}")
+            signals.append((VERDICT_RANK["declined"], f"dependency kill token ({dep})"))
+        if safety in SAFETY_KILL:
+            active_vetoes.append(f"safety:{safety}")
+            signals.append((VERDICT_RANK["declined"], f"safety hard-kill ({safety})"))
+
+    # safety hold-grade downgrade (both paths) — a hold, not a kill
+    if safety in SAFETY_HOLD:
+        signals.append((VERDICT_RANK["advanceable_flagged"], f"safety hold-grade ({safety})"))
+
+    if not signals:
+        ceiling_rank, reason = VERDICT_RANK["advanceable"], (
+            "no fired/blind hard gate on the deterministic spine")
+    else:
+        ceiling_rank, reason = min(signals, key=lambda s: s[0])
+    return {"ceiling": RANK_VERDICT[ceiling_rank], "reason": reason,
+            "fail_closed": bool(blind_gates) or ceiling_rank == VERDICT_RANK["declined"]
+            and not active_vetoes,
+            "hard_gates_present": hard_gates_present,
+            "active_vetoes": active_vetoes, "blind_gates": blind_gates,
+            "opposing": opposing, "excluded": excluded, "safety_verdict": safety}
+
+
+def clamp(proposed: Optional[str], ceiling: str) -> tuple:
+    """Clamp the proposed (LLM) verdict to the deterministic ceiling. Returns (computed, was_clamped).
+    An unrecognized proposed verdict is treated as `needs_data` (never assumed permissive)."""
+    p = proposed if isinstance(proposed, str) and proposed in VERDICT_RANK else "needs_data"
+    if VERDICT_RANK[p] > VERDICT_RANK[ceiling]:
+        return ceiling, True
+    return p, False
+
+
+# --- subtype-resolved parse (#464) ------------------------------------------------------------------
+def parse_subtype_resolved(pkg: dict) -> dict:
+    """Project the first-class `subtype_resolved` block into an agent-consumable summary + the set of
+    per-stratum citation tokens (so a subtype claim in the hypothesis is TRACEABLE, not free-text).
+    Tolerates absence (older/default runs). n-floor discipline is preserved: a stratum axis with
+    subgroup_n_floor_met=False is surfaced but flagged so the agent must not credit it."""
+    block = pkg.get("subtype_resolved")
+    if not isinstance(block, dict):
+        return {"present": False, "requested_strata": [], "available_strata": [],
+                "per_stratum": [], "stratum_tokens": set(), "convergence_facet": None}
+    per_stratum = block.get("per_stratum") or []
+    stratum_tokens: set = set()
+    strata_summary = []
+    for rec in per_stratum:
+        if not isinstance(rec, dict):
+            continue
+        st = rec.get("stratum")
+        if st:
+            stratum_tokens.add(str(st))
+        axes = rec.get("axes") or {}
+        floor_ok = {}
+        for ax, adata in (axes.items() if isinstance(axes, dict) else []):
+            if isinstance(adata, dict):
+                floor_ok[ax] = bool(adata.get("subgroup_n_floor_met"))
+        strata_summary.append({"stratum": st, "axes": axes, "n_floor_met_by_axis": floor_ok})
+    # also allow citing the requested/available stratum names + the axis names
+    for s in (block.get("requested_strata") or []):
+        stratum_tokens.add(str(s))
+    for s in (block.get("available_strata") or []):
+        stratum_tokens.add(str(s))
+    return {"present": True,
+            "requested_strata": list(block.get("requested_strata") or []),
+            "available_strata": list(block.get("available_strata") or []),
+            "per_stratum": strata_summary, "stratum_tokens": stratum_tokens,
+            "convergence_facet": block.get("convergence_facet")}
+
+
+# --- evidence-substrate correlated-evidence discount (#463 / roadmap invariant 8, WS7 half) ---------
+def substrate_independence(pkg: dict) -> dict:
+    """Group present cards by their declared `evidence_substrate` (#463). Cards that SHARE a substrate
+    are the same underlying measurement re-displayed (e.g. the recount3 TCGA/GTEx bulk-RNA
+    tumor/normal cluster, or the DepMap-Chronos dependency cluster) and must count ONCE toward
+    certainty — this is the WS7 certainty-discount half. Untagged cards are conservatively treated as
+    their own independent unit (we cannot prove correlation). Returns the grouping + the effective
+    independent-unit count the certainty ceiling consumes."""
+    cards = pkg.get("cards") or []
+    by_substrate: dict = {}
+    untagged: list = []
+    for c in cards:
+        if not isinstance(c, dict):
+            continue
+        cid = c.get("card_id")
+        if not cid:
+            continue
+        sub = c.get("evidence_substrate")
+        if sub:
+            by_substrate.setdefault(sub, []).append(cid)
+        else:
+            untagged.append(cid)
+    correlated_groups = {s: cids for s, cids in by_substrate.items() if len(cids) > 1}
+    n_distinct_substrates = len(by_substrate)
+    # effective independent units: each substrate counts once + each untagged card its own unit
+    n_independent = n_distinct_substrates + len(untagged)
+    return {"by_substrate": by_substrate, "correlated_groups": correlated_groups,
+            "untagged_cards": untagged, "n_distinct_substrates": n_distinct_substrates,
+            "n_untagged_cards": len(untagged), "n_independent_units": n_independent,
+            "correlated_evidence_discounted": bool(correlated_groups)}
+
+
+# --- data gaps + weakest-link certainty (ported) + substrate/degradation discount -------------------
+def data_gaps(conviction: dict) -> list:
+    return sorted(d for d, v in conviction.items() if v in GAP_VERDICTS)
+
+
+def _dim_certainty(verdict) -> str:
+    return "low" if verdict in GAP_VERDICTS else "moderate"
+
+
+def weakest_link_certainty(conviction: dict, in_scope: list) -> tuple:
+    """Overall certainty bounded by the weakest decision-relevant line (never emits `high` from
+    weakest-link alone — breadth/independence can only LOWER it via the discount)."""
+    if not in_scope:
+        return "low", None
+    worst, limiting = "moderate", None
+    for dim in in_scope:
+        c = _dim_certainty(conviction.get(dim))
+        if CERTAINTY_RANK[c] < CERTAINTY_RANK[worst]:
+            worst, limiting = c, dim
+    return worst, limiting
+
+
+def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: list) -> dict:
+    """Apply the two orthogonal certainty caps AFTER the weakest-link base (roadmap invariant 8:
+    'the correlated-evidence discount is applied before certainty is reported'):
+      - independence cap: < 2 independent substrate-units → cap `low` (all corroboration is one
+        measurement); this is where cards sharing a substrate stop inflating certainty.
+      - degradation cap: a missing optional input (dossier / risk) → cap `low` (§12: a missing
+        input must never inflate certainty)."""
+    cap = CERTAINTY_RANK["high"]
+    reasons = []
+    if n_independent_units < 2:
+        cap = min(cap, CERTAINTY_RANK["low"])
+        reasons.append(f"only {n_independent_units} independent evidence substrate(s)")
+    if degraded_inputs:
+        cap = min(cap, CERTAINTY_RANK["low"])
+        reasons.append(f"degraded inputs: {sorted(degraded_inputs)}")
+    final_rank = min(CERTAINTY_RANK.get(base, 0), cap)
+    return {"base": base, "final": RANK_CERTAINTY[final_rank],
+            "capped": final_rank < CERTAINTY_RANK.get(base, 0), "cap_reasons": reasons}
+
+
+# --- retrieve-don't-recall + clause-traceability WITH TEETH (§6.3–6.5) ------------------------------
+_PMID_RE = re.compile(r"\b\d{6,9}\b")
+
+
+def _norm(s):
+    return str(s).replace("-", "_").lower()
+
+
+def check_traceability(clause_citations: list, surface: dict) -> list:
+    """Return the atomic citation tokens that do NOT resolve to THIS package's deterministic spine.
+
+    RETRIEVE-DON'T-RECALL (§6.3): any PMID-shaped token (a standalone 6–9 digit number) must be an
+    EXACT member of the risk agent's retrieved `allowed_pmids` — NO substring/any() escape for
+    PMIDs (a self-invented PMID is confabulation). Non-PMID tokens (card_ids / sub-verdict names /
+    rule_ids / dossier fields / stratum tokens) may match by normalized-exact or by embedding a
+    known specific (>=6 char) token, so a legit phrase like "copy-number-distribution card" passes."""
+    valid = (surface["card_ids"] | surface["sub_verdicts"] | surface["rule_ids"]
+             | surface.get("dossier_fields", set()) | surface.get("strata", set()))
+    valid_norm = {_norm(t) for t in valid}
+    valid_sub = {_norm(t) for t in valid if len(str(t)) >= 6}
+    allowed_pmids = {str(p).strip() for p in surface.get("pmids", set())}
+    bad = []
+    for c in clause_citations or []:
+        cstr = str(c)
+        # 1. PMID tokens — exact membership only.
+        pmids_in = _PMID_RE.findall(cstr)
+        pmid_ok = True
+        for p in pmids_in:
+            if p not in allowed_pmids:
+                pmid_ok = False
+                bad.append(f"{cstr} (unretrieved PMID {p})")
+                break
+        if not pmid_ok:
+            continue
+        # 2. If the citation IS purely a PMID (all its atoms were PMIDs), and they passed, it's fine.
+        residual = _PMID_RE.sub(" ", cstr).strip()
+        if not residual:
+            continue
+        # 3. Non-PMID residual — normalized-exact or embeds a known specific token.
+        cn = _norm(cstr)
+        if cn in valid_norm:
+            continue
+        if any(tok in cn for tok in valid_sub):
+            continue
+        bad.append(cstr)
+    return bad
+
+
+# --- panel assembly + citation surface --------------------------------------------------------------
+def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str],
+             modality: str) -> dict:
+    """Assemble the panel + citation surface the two LLM calls reason over. READ-ONLY consumer:
+    parses the target-profile evidence_package + optional target-intrinsic dossier + optional 6-dim
+    risk read; never modifies any emitting skill."""
+    pkg = json.loads(Path(pkg_path).read_text())
+    syn = pkg.get("synthesis") or {}
+    sv = syn.get("sub_verdicts") or {}
+    conviction = {k: _sv_verdict(sv, k) for k in sv}
+    card_ids = {c.get("card_id") for c in pkg.get("cards", []) if isinstance(c, dict)}
+
+    # target-intrinsic dossier (indication-INDEPENDENT target biology). Optional.
+    dossier, dossier_fields, dossier_present = {}, set(), False
+    if dossier_path and Path(dossier_path).exists():
+        dd = json.loads(Path(dossier_path).read_text())
+        dossier = {k: _uv(v) for k, v in (dd.get("headline") or {}).items()
+                   if k not in ("cards_available", "cards_missing")}
+        dossier_fields = set(dossier.keys())
+        card_ids |= {c.get("card_id") for c in dd.get("cards", []) if isinstance(c, dict)}
+        dossier_present = True
+
+    rule_ids: set = set()
+    for v in sv.values():
+        if isinstance(v, dict):
+            rule_ids.update(v.get("fired_rule_ids") or [])
+            if v.get("driving_rule_id"):
+                rule_ids.add(v["driving_rule_id"])
+
+    # 6-dim risk read (retrieval-grounded). Optional. allowed_pmids = the retrieved set.
+    risk, allowed_pmids, risk_present = {}, set(), False
+    if risk_path and Path(risk_path).exists():
+        rd = json.loads(Path(risk_path).read_text()).get("dimensions", {})
+        for dim, v in rd.items():
+            risk[dim] = {"risk_level": v.get("risk_level"), "justification": v.get("justification"),
+                         "cited_pmids": v.get("cited_pmids", [])}
+            allowed_pmids.update(str(p) for p in v.get("cited_pmids", []))
+        risk_present = True
+
+    subtype = parse_subtype_resolved(pkg)
+    substrate = substrate_independence(pkg)
+
+    ctx = pkg.get("context", {})
+    return {
+        "pkg": pkg, "conviction": conviction, "risk": risk, "context": ctx,
+        "dossier": dossier, "subtype": subtype, "substrate": substrate,
+        "dossier_present": dossier_present, "risk_present": risk_present,
+        "modality": modality,
+        "citation_surface": {
+            "card_ids": {c for c in card_ids if c},
+            "sub_verdicts": set(sv.keys()), "rule_ids": rule_ids,
+            "pmids": allowed_pmids, "dossier_fields": dossier_fields,
+            "strata": set(subtype["stratum_tokens"]),
+        },
+        "cards_brief": {c.get("card_id"): _uv(c.get("interpretation_call"))
+                        for c in pkg.get("cards", []) if isinstance(c, dict) and c.get("card_id")},
+    }

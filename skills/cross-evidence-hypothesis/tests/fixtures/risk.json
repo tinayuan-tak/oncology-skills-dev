@@ -1,0 +1,19 @@
+{
+ "dimensions": {
+  "clinical_translation_risk": {
+   "risk_level": "moderate",
+   "justification": "prior KRAS-G12C programs",
+   "cited_pmids": [
+    "34567890",
+    "33445566"
+   ]
+  },
+  "target_biology_risk": {
+   "risk_level": "low",
+   "justification": "well-characterised driver",
+   "cited_pmids": [
+    "31234567"
+   ]
+  }
+ }
+}
