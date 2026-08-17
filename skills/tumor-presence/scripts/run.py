@@ -28,6 +28,38 @@ Card roster reached 13 across the expression-extraction plan (Q1/Q5/Q8/Q9 + prot
   subtype + sc_rna/tumor + the two normal comparators).
 """
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CURRENT CONTRACT (read this first)
+#
+# This file is a THIN configuration over the shared dispatcher — the heavy lifting
+# (card reads, rule firing, package emission) lives in _skills_common. The live
+# logic here is four pieces; the remaining inline comments are dated rationale for
+# past fixes, kept as institutional memory (not required to understand the flow).
+#
+#   1. CARDS + CARD_CONTEXT      — the 13 cards this skill consumes, each tagged with
+#                                  its (measurement, sample_context) bucket.
+#   2. THREE ladders             — _EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK:
+#                                  ordered (rule_id -> verdict) lists, highest-
+#                                  precedence first, one per measurement layer.
+#   3. COLLAPSE                  — _partition_measured + _VERDICT_RANK assemble the
+#                                  three ladders into ONE order: [all positives] +
+#                                  [all negatives] + [all gaps], RNA-first within each
+#                                  tier. _verdict() returns the first fired rung.
+#   4. _per_modality_verdicts    — the same ladders applied WITHIN each (measurement,
+#                                  sample_context) bucket, plus the comparator + un-
+#                                  ruled-present rescues. _headline() bundles the
+#                                  collapsed verdict, the per-bucket map, and the
+#                                  verdict-inert display fields read off the cards.
+#
+# The entry point (bottom of file) hands all four to run_wired_skill(...), which runs
+# resolve_cards -> fired_rules -> verdict_fn -> headline_fn -> write_package.
+#
+# INVARIANT: everything except the three ladders + the collapse is verdict-INERT — the
+# facets, comparators, proxy-quality qualifier, and lens-discordance flag never move
+# presence_verdict. The ladder order is frozen by tests/test_per_modality_verdict.py
+# (golden spine) + tests/test_reanchor_flip_matrix.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
 from __future__ import annotations
 
 import sys
