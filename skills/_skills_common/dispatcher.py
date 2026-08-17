@@ -356,6 +356,38 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
     return out_path
 
 
+def _emit_card_figures(card_outputs: list[dict], out_dir, target: str, indication: str) -> int:
+    """OPT-IN (--figures): emit per-card figures via the shared compose-dashboard figure-emitter
+    registry into <out_dir>/figures/cards/<card_id>/. Best-effort per card; never raises (figure
+    emission is additive augmentation, not the decision spine). Returns the count of figures written.
+
+    The registry (compose-dashboard/scripts/_figure_emitters.py) is the SAME one the composed engine
+    uses, so a subskill --figures run produces the identical per-card SVG (+ interactive plotly twin)
+    the dashboard does — no separate plotting code. COMPOSE_SCRIPTS is already on sys.path (resolve_cards
+    imported the live-reader dispatcher from there). A card with no registered emitter, a missing card,
+    or a failed method data load simply contributes no figure."""
+    try:
+        from _figure_emitters import emit_figures_for_card
+    except Exception as e:  # noqa: BLE001 — registry import is best-effort
+        print(f"[dispatcher] --figures: figure-emitter registry unavailable "
+              f"({type(e).__name__}: {e}); no figures emitted.", file=sys.stderr)
+        return 0
+    figures_root = Path(out_dir) / "figures"
+    n = 0
+    for c in card_outputs:
+        if c.get("_missing"):
+            continue                       # no data to plot (honest gap)
+        cid = c.get("card_id")
+        try:
+            descs = emit_figures_for_card(cid, c.get("summary") or {}, figures_root,
+                                          target, indication)
+            n += len(descs)
+        except Exception as e:  # noqa: BLE001 — a figure must never break the run
+            print(f"[dispatcher] --figures: {cid} figure emission failed "
+                  f"({type(e).__name__}: {e}); skipped.", file=sys.stderr)
+    return n
+
+
 def run_wired_skill(
     *,
     skill_name: str,
@@ -468,6 +500,14 @@ def run_wired_skill(
     ap.add_argument("--release-pin", default=None,
                     help="Optional catalog release pin, carried into the envelope governance block "
                          "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.")
+    ap.add_argument("--figures", action="store_true",
+                    help="OPT-IN (default OFF ⇒ no figures): emit per-card SVG (+ interactive plotly) "
+                         "figures via the shared compose-dashboard figure-emitter registry into "
+                         "<out>/figures/cards/<card_id>/. PURELY ADDITIVE — decision.json is "
+                         "byte-identical whether or not this flag is set. Best-effort per card: a card "
+                         "with no registered emitter or a failed data load contributes no figure and "
+                         "never breaks the run. NB: emitters re-read method data from S3, so a --figures "
+                         "run is materially slower than the deterministic spine.")
     args = ap.parse_args(argv)
 
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
@@ -710,7 +750,14 @@ def run_wired_skill(
                     "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
                 }
 
-    # Stamp total wall-clock (read + compute + optional synthesis) BEFORE write_package
+    # 8c. OPT-IN per-card figures (--figures). Emitted BEFORE write_package so the package's
+    # figures/ collection (now recursive) picks them up. PURELY ADDITIVE — decision.json is
+    # byte-identical whether or not --figures is set; a failure per card degrades to no-figure.
+    if args.figures:
+        _n_figs = _emit_card_figures(emitted_cards, args.out, args.target, _indication)
+        print(f"  --figures: emitted {_n_figs} figure(s) → {Path(args.out) / 'figures'}")
+
+    # Stamp total wall-clock (read + compute + optional synthesis + figures) BEFORE write_package
     # serializes the decision — write time itself is not a data-access signal.
     decision["run_health"]["total_secs"] = round(time.perf_counter() - _t0, 4)
 

@@ -133,11 +133,12 @@ def write_package(
                         w.writerow({k: row.get(k) for k in keys})
                 written["tables"].append(csv_path)
 
-    # figures/ — populated per-card by the caller before calling write_package,
-    # OR left empty. write_package does NOT invoke method-side emitters
-    # itself; the calling skill decides which cards get figures. This module
-    # just notes which files exist in provenance.
-    existing_figures = sorted(figures_dir.glob("*"))
+    # figures/ — populated before write_package is called: either flat by a caller, or
+    # (dispatcher --figures path) as figures/cards/<card_id>/figure_*.svg by the shared
+    # figure-emitter registry. write_package does NOT invoke emitters itself; it just notes
+    # which files exist. Collected RECURSIVELY so nested per-card figures are found (backward-
+    # compatible: flat figures at figures/ top level are still collected).
+    existing_figures = sorted(p for p in figures_dir.rglob("*") if p.is_file())
     written["figures"] = existing_figures
 
     # data_provenance — per-card derived-manifest / source pins. Card readers
