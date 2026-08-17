@@ -63,6 +63,10 @@ PER_SAMPLE_STRATIFIABLE_CALLS = {
     'tcga-gtex-expression-distribution',  # methods/tcga_gtex_expression_distribution: read_tumor_expression_subtype_landscape
                                           # recomputes the per-sample distribution WITHIN each stratum member-set
                                           # (UUID→barcode→stratum bridge), NOT an emit-time aggregate — AM #82.
+    'depmap-expression-distribution',     # methods/depmap_expression_distribution: read_stratified_expression +
+                                          # build_expression_subtype_panorama — recomputes the cell-line RNA
+                                          # distribution WITHIN each DepMap-shard stratum member-set (ModelID-keyed,
+                                          # no barcode bridge), reusing subgroup_common.panorama.build_panorama.
 }
 
 # The list-typed summary field names that signal a card emits a per-subgroup

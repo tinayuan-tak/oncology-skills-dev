@@ -131,8 +131,8 @@ measurement_types:
 
   cell_line_rna_expression:
     claim: "How is target mRNA distributed across DepMap cell lines, and is it lineage-stratified?"
-    entity_grains: [target, target_lineage]
-    cards: [cellline-rna-distribution]
+    entity_grains: [target, target_lineage, target_subtype]   # target_subtype: DepMap driver-mutation strata (cellline-rna-distribution-by-subtype)
+    cards: [cellline-rna-distribution, cellline-rna-distribution-by-subtype]
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
 

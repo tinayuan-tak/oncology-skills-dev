@@ -1,0 +1,109 @@
+# Card — CELL-LINE RNA DISTRIBUTION BY DRIVER-MUTATION / MOLECULAR SUBTYPE (DepMap)
+#
+# The target_subtype-grain SIBLING of cellline-rna-distribution. Same measurement_type
+# (cell_line_rna_expression), same DepMap log2(TPM+1) substrate — but recomputes the distribution
+# WITHIN each DepMap subtype/driver-mutation member-set of the indication's cell-line panel,
+# emitting a per-stratum panorama. The cell-line analogue of tumor-rna-distribution-by-subtype.
+#
+# Framework grain-split convention: a POOLED target-grain card (cellline-rna-distribution) beside a
+# SEPARATE tier:subtype card (this one). The GRAIN-CHECK validator enforces that a card declaring
+# per_subgroup_metrics binds a per-sample stratified reader; depmap-expression-distribution IS one
+# (read_stratified_expression + build_expression_subtype_panorama) — it recomputes per stratum via
+# subgroup_common.panorama.build_panorama over the DepMap-side assignment shard, keyed by ModelID
+# (no UUID↔barcode bridge — ModelID IS the cell-line grain).
+#
+# PRESENCE-side (Gate A / tumor-presence). DESCRIPTIVE / verdict-inert: subtype is CONTEXT for
+# patient-selection, NEVER a veto — the pooled cellline-rna-distribution card carries the presence
+# read; this card enriches it. COMPUTE-ALL-SPOTLIGHT-ONE.
+
+card_id: cellline-rna-distribution-by-subtype
+version: 0.1.0
+question: "How does {target.symbol} RNA expression DISTRIBUTE across the driver-mutation / molecular subtypes of {indication.label} DepMap cell lines — which strata are enriched or depleted vs the within-lineage pooled distribution?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype, driver_mutation]
+  rationale: "Cell-line RNA can vary by driver/molecular stratum (e.g. lineage-marker antigens tracking with a driver context). Backed by depmap-expression-distribution, which recomputes the per-ModelID distribution within each stratum's member-set of the DepMap-side assignment shard — not an emit-time aggregate."
+
+applies_when:
+  # COADREAD-only for the pattern proof: the DepMap assignment shard depmap-subgroup-assignments-
+  # coadread-v1 is the only landed cell-line shard today (MSI_H / MSS strata). Additional indications
+  # (NSCLC driver strata, etc.) follow as their --data-source depmap assignment shards land — extend
+  # this allowlist in lockstep with _CELLLINE_ASSIGNMENTS_MANIFEST in the skills dispatcher. An
+  # indication not listed → subtype_axis_available:false (honest).
+  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1                  # DepMap 26Q1 log2(TPM+1) matrix (the distribution substrate)
+  - product_id: depmap-subgroup-assignments-coadread-v1 # the DepMap-side (ModelID-keyed) assignment shard
+
+methods:
+  - call: depmap-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
+    - subtype_axis_available                    # is a DepMap shard landed for this indication?
+    - n_subtypes_measured                       # strata clearing the n-floor (>=30 cell lines)
+    - n_subtypes_enriched                       # strata whose median is >= delta above the pooled median
+    - n_subtypes_depleted                       # strata whose median is >= delta below the pooled median
+    - subtype_stratification_class              # subtype_enriched | subtype_depleted | subtype_variable | pan_subtype_uniform.
+                                                # One-directional CONTEXT — raises confidence / defines patient
+                                                # population, NEVER moves presence_verdict.
+    - spotlight_subtype                          # the highest-median enriched stratum (or null)
+    - pooled_lineage_median_log2tpm              # within-lineage pooled median (the enrichment baseline)
+    - n_subgroups_with_data                      # strata with >=1 member cell line (delta_reducer)
+    - max_subgroup_expression                    # cross-stratum spread of median_log2tpm (delta_reducer)
+    - min_subgroup_expression
+    - cross_subgroup_delta_expression
+  summary_fields_vocabulary:
+    subtype_stratification_class:
+      - subtype_enriched                         # >=1 stratum enriched, none depleted
+      - subtype_depleted                         # >=1 stratum depleted, none enriched
+      - subtype_variable                         # both enriched and depleted strata present
+      - pan_subtype_uniform                      # no stratum clears the enrichment delta (uniform)
+  summary_fields_record_schemas:
+    # record-schema value specs declare the EXPECTED scalar type; a runtime null (an underpowered
+    # stratum's subtype_signal / median) is permitted — matches the subgroup-stratified exemplars.
+    per_subgroup_metrics:
+      stratum: string
+      class: string                              # broadly_high | broadly_detected | broadly_low | insufficient
+      subtype_signal: {enum: [enriched, depleted, uniform], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      median_log2tpm: number
+      fraction_expressed: number
+      subtype_defining_data: string              # 'genomic' (DepMap driver/molecular strata)
+      source_cohort: string
+  # NOTE: no `figure:` yet — the per-stratum panel emitter is a follow-up (avoids figure-debt).
+
+thresholds:
+  # per-stratum enrichment cutoff vs the within-lineage pooled median, in log2(TPM+1) units.
+  # Mirrors _SUBTYPE_ENRICH_LOG2_DELTA in the method (declared here so it is reviewable).
+  subtype_enrich_log2_delta: 1.0
+  subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+
+caveats:
+  - "COADREAD-only for the pattern proof (2026-08-17): depmap-subgroup-assignments-coadread-v1 (MSI_H / MSS) is the only landed DepMap cell-line assignment shard. Other indications return subtype_axis_available:false until their --data-source depmap shards land."
+  - "Enrichment baseline is the WITHIN-LINEAGE pooled median (the union of all strata members), NOT the pan-cancer panel median — a stratum is enriched/depleted relative to its own indication's cell-line panel."
+  - "A stratum below subgroup_n_floor (n<30 cell lines) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
+  - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled cellline-rna-distribution card carries the presence read; this card enriches it."
+  - "DepMap cell-line panels are small per stratum; most indication×stratum cells will be underpowered. This is an honest capability ceiling, not an absence of signal."
+
+# Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled sibling —
+# differs only in GRAIN (target_subtype), not measurement/sample_context.
+measurement: bulk_rna
+sample_context: cell_line       # DepMap cell lines, stratified by driver/molecular subtype
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of cell_line_rna_expression at target_subtype grain.
+measurement_type: cell_line_rna_expression
+entity_grains: [target_subtype]
+schema_version: 1
