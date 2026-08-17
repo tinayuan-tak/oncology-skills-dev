@@ -82,6 +82,14 @@ jobs:
       - name: Validate nomination-gate verdict tokens (resolver consistency)
         run: python validators/validate_verdict_tokens.py --gate vocabularies/nomination_verdict_gate.yaml --resolvers resolvers/
 
+      # Contract-drift guard (2026-08-17 cards review, S2 #4): the card→resolver-consumption
+      # (verdict-role) map. Cards mislabel their verdict role in PROSE in both directions
+      # (mutation-drug-response claims inert but drives a rung; genomic-event-model-match/phospho
+      # claim driving but are inert). This pins the COMPUTED reality in a committed snapshot so a
+      # card gaining/losing resolver consumption fails CI (conscious update).
+      - name: Validate card→resolver consumption (verdict-role snapshot)
+        run: python validators/validate_card_resolver_consumption.py
+
       # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
       # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
       # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test
