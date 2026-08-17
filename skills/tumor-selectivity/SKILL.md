@@ -3,12 +3,19 @@ name: tumor-selectivity
 description: |
   Focused question skill: "How selectively is target X expressed in tumor
   vs normal for indication Y, and how robust is that call across
-  independent comparators?" Consumes THREE cards — tumor-vs-normal-selectivity
-  (v3, four-cell sensitivity; the aggregate verdict) + tumor-vs-normal-
-  percentile-crossing (Q2 per-sample corroboration) + modality-therapeutic-window
-  (the normal-breadth VETO: downgrades an axis-A-selective call to
-  selective_but_broadly_normal when there is no therapeutic window) — and emits a
-  data-package output tree (decision.json + summary.yaml + tables/ + figures/ + provenance.yaml).
+  independent comparators — bulk, single-cell, and in-situ spatial?" Consumes TEN
+  cards across three roles. VERDICT-DRIVING (4): tumor-vs-normal-selectivity (v3,
+  four-cell sensitivity; the aggregate axis-A verdict) + the normal-breadth VETO
+  instruments modality-therapeutic-window (2 arms) and sc-normal-celltype-expression
+  (1 arm) that DOWNGRADE an axis-A-selective call to selective_but_broadly_normal when
+  there is no therapeutic window vs the worst critical normal. CORROBORATION (1):
+  tumor-vs-normal-percentile-crossing (Q2 per-sample). ADDITIVE facets, verdict-inert (5):
+  expression-purity-confound, surface-abundance-density, and — new in v1.9.0 — the tumor
+  SIDE at single-cell + in-situ spatial resolution (tumor-scrna-celltype-expression:
+  malignant-cell-intrinsic vs stroma/CAF; spatial-region-rna-expression + spatial-tumor-
+  normal-colocalization + spatial-surface-protein-abundance: in-situ tumour enrichment +
+  normal-epithelium bystander adjacency). Emits a data-package output tree (decision.json +
+  summary.yaml + tables/ + figures/ + provenance.yaml).
   Optional --synthesize attaches a two-slot LLM narration (verdict-inert).
 
   Use for focused per-target questions like "is EPCAM tumor-selective in
@@ -21,7 +28,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.8.0
+  version: 1.10.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -48,6 +55,16 @@ composition:
                                              # facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
     - surface-abundance-density              # INC-4 axis-C absolute surface density. In run.py CARDS; additive
                                              # facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
+    - tumor-scrna-celltype-expression        # v1.9.0 (2026-08-17) SINGLE-CELL, tumor side. Additive/verdict-inert:
+                                             # malignant-cell-intrinsic vs stroma/CAF (resolves the purity confound
+                                             # at single-cell resolution, which expression-purity-confound only
+                                             # proxies via bulk). The designed Phase-2 stromal-confound veto keys here.
+    - spatial-region-rna-expression          # v1.9.0 IN-SITU spatial (GeoMx WTA) tumour-vs-TME RNA enrichment.
+                                             # Additive/verdict-inert; deconvolution-free selectivity confirmation.
+    - spatial-tumor-normal-colocalization    # v1.9.0 IN-SITU spatial colocalization; normal-epithelium bystander
+                                             # adjacency. Additive/verdict-inert (a spatial selectivity/safety facet).
+    - spatial-surface-protein-abundance      # v1.9.0 IN-SITU spatial PROTEIN (GeoMx DSP). Additive/verdict-inert;
+                                             # data_unavailable where the protein panel doesn't cover the indication.
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. tumor_vs_normal_selectivity is
   # the efficacy-window framing (distinct from safety's normal_tissue_breadth — Rule 1 discriminator b).
   # DATA_TO_SKILL_CONTRACT Rule 3 — one per card in cards_used. 2026-08-14 review (framework-wide
@@ -62,6 +79,10 @@ composition:
     - sc_normal_celltype_expression          # sc-normal-celltype-expression (INC-3 sc-normal veto arm)
     - expression_purity_confound             # expression-purity-confound (additive caveat)
     - surface_density                        # surface-abundance-density (INC-4 additive)
+    - sc_tumor_celltype_expression           # tumor-scrna-celltype-expression (v1.9.0 single-cell, additive)
+    - spatial_region_rna                     # spatial-region-rna-expression (v1.9.0 spatial RNA, additive)
+    - spatial_colocalization                 # spatial-tumor-normal-colocalization (v1.9.0 spatial, additive)
+    - spatial_surface_protein                # spatial-surface-protein-abundance (v1.9.0 spatial protein, additive)
   rules_scope:
     - tumor-vs-normal-selectivity
     - tumor-vs-normal-percentile-crossing
@@ -82,14 +103,20 @@ composition:
 
 ## What this skill does
 
-- Fetches THREE cards for a single (target, indication) via the compose-dashboard
+- Fetches TEN cards for a single (target, indication) via the compose-dashboard
   live-reader dispatcher (reuses the exact same read path Macro uses — no drift):
-  - `tumor-vs-normal-selectivity` (v3, four-cell sensitivity) — the aggregate verdict.
+  - `tumor-vs-normal-selectivity` (v3, four-cell sensitivity) — the aggregate axis-A verdict.
   - `tumor-vs-normal-percentile-crossing` — Q2 per-sample corroboration (fraction of
     tumors above the matched-normal p95).
   - `modality-therapeutic-window` — the axis-B/E NORMAL-BREADTH VETO (tumor ÷ worst
     critical-normal); its `therapeutic_window_class == no_therapeutic_window` downgrades
     an otherwise-selective call (see the veto note below).
+  - `sc-normal-celltype-expression` — the INC-3 sc-normal critical-organ veto arm (single-cell,
+    NORMAL/safety side).
+  - `expression-purity-confound`, `surface-abundance-density` — verdict-inert additive facets.
+  - `tumor-scrna-celltype-expression` (single-cell, TUMOR side), `spatial-region-rna-expression`,
+    `spatial-tumor-normal-colocalization`, `spatial-surface-protein-abundance` — v1.9.0 single-cell +
+    in-situ spatial facets (verdict-inert; see the SINGLE-CELL + SPATIAL note below).
 - Runs the tvn-* + tumor-vs-normal-crossing-* subset of the intracellular-intrinsic
   rules against the summaries. The selectivity RESOLVER stays keyed to the aggregate
   card's classes (verdict byte-stable); the crossing rules add SM/degrader signal.
@@ -106,10 +133,28 @@ composition:
   `_skills_common.selectivity_veto` and applied by `compose_core.resolve_gate_spine`). It is
   one-directional (only downgrades) and a no-op unless a normal-breadth veto rule actually fired.
   (The prior 2026-08-08 "inert inside composed target-profile" limitation is RESOLVED.)
+- SINGLE-CELL + SPATIAL (v1.9.0, 2026-08-17) — the tumor SIDE of the selectivity question at
+  single-cell + in-situ resolution. The bulk four-cell DESeq2 axis-A signal cannot tell whether a
+  `tumor_selective` call is **malignant-cell-intrinsic** or driven by CAF/stromal/immune
+  microenvironment content — the classic purity confound that `expression-purity-confound` only
+  PROXIES via bulk deconvolution. Four cards MEASURE it directly and are surfaced in the headline
+  (all VERDICT-INERT — selectivity_class byte-stable):
+  - `tumor-scrna-celltype-expression` — per-compartment single-cell: `sc_malignant_detection_fraction`
+    + `sc_caf_vs_malignant_class`. (CEACAM5/COADREAD: 0.76 malignant vs 0.03 stromal, `caf_low` →
+    malignant-cell-intrinsic, i.e. a *real* selective window.)
+  - `spatial-region-rna-expression` — in-situ (GeoMx WTA) tumour-vs-TME RNA enrichment
+    (`spatial_rna_class`) — a deconvolution-free orthogonal confirmation.
+  - `spatial-tumor-normal-colocalization` — in-situ `spatial_normal_epithelium_adjacency_fraction`
+    (bystander/off-tumour risk to adjacent normal epithelium — a spatial safety dimension).
+  - `spatial-surface-protein-abundance` — in-situ protein enrichment (GeoMx DSP; `data_unavailable`
+    where the sparse protein panel doesn't cover the indication — honest abstain).
 - Emits `decision.json` with:
   - `headline`: `selectivity_class`, `cells_supporting`, `dominant_direction`,
     `discordant`, `max_abs_log2fc`, the Axis-1 `selectivity_allgene_percentile*`
-    (relative-selectivity context), and the `percentile_crossing_class` corroboration.
+    (relative-selectivity context), the `percentile_crossing_class` corroboration, and
+    (v1.9.0) the single-cell + spatial facets: `sc_tumor_expression_class`,
+    `sc_malignant_detection_fraction`, `sc_caf_vs_malignant_class`, `spatial_rna_class`,
+    `spatial_coloc_class`, `spatial_normal_epithelium_adjacency_fraction`, `spatial_protein_class`.
   - `verdict`: the resolved selectivity verdict, which may be the veto outcome
     `selective_but_broadly_normal` (axis-A selective but no therapeutic window) via the
     `_verdict` clamp; `driving_rule_id` names the rule that set it.
@@ -160,3 +205,28 @@ When called as `/tumor-selectivity`, Claude should:
 5. If the underlying card summary carries `_schema: v2_two_product_fallback`,
    flag that the v3 sensitivity product is not yet in S3 for that indication
    and the response is on legacy two-contrast data.
+
+## Roadmap — Phase 2: the stromal-confound veto (verdict-driving, backtest-gated)
+
+v1.9.0 wired the tumor-side single-cell + spatial cards as VERDICT-INERT facets (they surface the
+evidence but do not change `selectivity_class`). The designed next step promotes the single-cell
+malignant-vs-stroma signal to a **verdict-driving clamp**, symmetric to the existing normal-breadth
+veto:
+
+- **Motivation.** For target nomination (ADC/TCE/degrader), the most dangerous false positive is a
+  bulk `tumor_selective` call that is actually driven by CAF/stromal/immune content rather than the
+  malignant cells — building a payload against it misses the cancer. Axis-A over-expression is
+  necessary but NOT sufficient; it must also be malignant-cell-intrinsic. This is the same
+  necessary-but-not-sufficient logic the normal-breadth veto applies on the safety side.
+- **Instrument.** `tumor-scrna-celltype-expression` → a new `tvn-stromal-confound-veto` rule
+  (target-contracts) keyed on low `malignant_detection_fraction` with a dominant microenvironment
+  compartment (e.g. `caf_vs_malignant_class == caf_high`), downgrading a selective axis-A call to a
+  new `selective_but_stromal_confound` class via the shared `_skills_common.selectivity_veto` clamp
+  (so BOTH engines apply it — the same single-sourcing as F1).
+- **Gate (REQUIRED before shipping).** Verdict-moving → backtest-calibrated on a target PANEL, not a
+  single example: known malignant-intrinsic antigens (CEACAM5, EPCAM, FOLR1, MSLN, ERBB2) must RETAIN
+  their selective call; a canonical stromal/CAF gene (FAP, POSTN, a fibrillar collagen) must be
+  downgraded. Thresholds set from the panel distribution, not eyeballed (cf. the INC-4 CD19
+  counterexample: an over-eager clamp introduces false downgrades that kill good targets).
+- **Cross-repo.** Needs a target-contracts resolver rule + a `selectivity_veto` clamp arm + a backtest
+  fixture; coordinate via `~/.claude/wip-registry.md` (see CLAUDE.md).

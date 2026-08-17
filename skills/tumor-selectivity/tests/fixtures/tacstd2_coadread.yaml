@@ -60,6 +60,67 @@ sc-normal-celltype-expression:
   - liver
   - kidney
   - bone_marrow
+spatial-region-rna-expression:
+  _evidence_tier: spatial_rna_measured
+  detected_tumour: true
+  indication: COADREAD
+  method_version: 0.1.0
+  n_datasets: 1
+  n_donors: 6
+  product_id: spatial-region-rna-coadread-v1
+  spatial_rna_class: tumour_present_no_compartment_preference
+  target: TACSTD2
+  tme_abundance_lcpm: 1.9105
+  tumour_abundance_lcpm: 1.6523
+  tumour_vs_tme_delta: -0.2582
+spatial-surface-protein-abundance:
+  _data_note: No spatial region-protein product landed for indication COADREAD; spatial_protein
+    is a named capability gap here.
+  detected_tumour: null
+  indication: COADREAD
+  method_version: 0.1.0
+  n_datasets: 0
+  n_donors: 0
+  product_id: null
+  spatial_protein_class: data_unavailable
+  target: TACSTD2
+  tme_abundance_lcpm: null
+  tumour_abundance_lcpm: null
+  tumour_vs_tme_delta: null
+spatial-tumor-normal-colocalization:
+  _evidence_tier: spatial_measured
+  immune_adjacency_fraction: 0.10768
+  indication: COADREAD
+  method_version: 0.1.0
+  n_datasets: 18
+  n_donors: 18
+  normal_epithelium_adjacency_fraction: 0.00023
+  per_compartment:
+    endothelial:
+      adjacency_fraction: 0.09665
+      enrichment: 0.8566
+    epithelial_normal:
+      adjacency_fraction: 0.00023
+      enrichment: 0.0
+    immune:
+      adjacency_fraction: 0.10768
+      enrichment: 0.87615
+    other:
+      adjacency_fraction: 0.0
+      enrichment: 0.0
+    stromal:
+      adjacency_fraction: 0.18486
+      enrichment: 0.7236
+  per_neighbor: __omitted_from_fixture__ (list, 46 items)
+  product_id:
+  - spatial-coloc-tumor-crc-coadread-v1
+  - spatial-coloc-tumor-crc-gse280318-v1
+  spatial_coloc_class: no_spatial_preference
+  stromal_adjacency_fraction: 0.18486
+  target: TACSTD2
+  target_pos_fraction_median: 0.06573
+  top_enriched_compartment: immune
+  top_enriched_value: 0.8761
 surface-abundance-density:
   _density_source: governed_ladder
   _estimate_grade_d_class: high
@@ -85,6 +146,62 @@ surface-abundance-density:
   is_tce_viable: true
   method_version: 0.1.0
   surface_density_class: high
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k: 0.038335
+  caf_compartment_available: true
+  caf_detection_fraction: 0.047950000000000007
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.17272500000000002
+    immune: 0.00313
+    malignant: 0.113615
+    other: 0.01985
+    stromal: 0.047950000000000007
+  indication: COADREAD
+  malignant_abundance_log1p_cp10k: 0.072635
+  malignant_compartment_available: true
+  malignant_detection_fraction: 0.113615
+  malignant_n_donors: 350
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 44
+  n_donor_groups: 430
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.072635
+    median_detection_fraction: 0.113615
+    n_cells_total: 503126
+    n_donors: 350
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.038335
+    median_detection_fraction: 0.047950000000000007
+    n_cells_total: 133651
+    n_donors: 262
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.00349
+    median_detection_fraction: 0.00313
+    n_cells_total: 1046159
+    n_donors: 339
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.138705
+    median_detection_fraction: 0.17272500000000002
+    n_cells_total: 1629
+    n_donors: 26
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.024730000000000002
+    median_detection_fraction: 0.01985
+    n_cells_total: 4666
+    n_donors: 48
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: malignant_subset_detected
+  tce_homogeneity_class: heterogeneous
+  top_microenvironment_compartment: stromal
+  top_microenvironment_detection_fraction: 0.047950000000000007
 tumor-vs-normal-percentile-crossing:
   distribution_overlap_tumor_normal: 0.27940711160573034
   fraction_tumor_above_normal_p95: 0.7623318385650224

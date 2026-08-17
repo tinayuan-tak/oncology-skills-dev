@@ -55,6 +55,67 @@ sc-normal-celltype-expression:
   - liver
   - kidney
   - bone_marrow
+spatial-region-rna-expression:
+  _evidence_tier: spatial_rna_measured
+  detected_tumour: true
+  indication: COADREAD
+  method_version: 0.1.0
+  n_datasets: 1
+  n_donors: 6
+  product_id: spatial-region-rna-coadread-v1
+  spatial_rna_class: tumour_enriched_rna
+  target: CEACAM5
+  tme_abundance_lcpm: 3.7211
+  tumour_abundance_lcpm: 4.5403
+  tumour_vs_tme_delta: 0.8191
+spatial-surface-protein-abundance:
+  _data_note: No spatial region-protein product landed for indication COADREAD; spatial_protein
+    is a named capability gap here.
+  detected_tumour: null
+  indication: COADREAD
+  method_version: 0.1.0
+  n_datasets: 0
+  n_donors: 0
+  product_id: null
+  spatial_protein_class: data_unavailable
+  target: CEACAM5
+  tme_abundance_lcpm: null
+  tumour_abundance_lcpm: null
+  tumour_vs_tme_delta: null
+spatial-tumor-normal-colocalization:
+  _evidence_tier: spatial_measured
+  immune_adjacency_fraction: 0.00582
+  indication: COADREAD
+  method_version: 0.1.0
+  n_datasets: 3
+  n_donors: 3
+  normal_epithelium_adjacency_fraction: 0.00065
+  per_compartment:
+    endothelial:
+      adjacency_fraction: 0.00387
+      enrichment: 0.56565
+    epithelial_normal:
+      adjacency_fraction: 0.00065
+      enrichment: 0.2377
+    immune:
+      adjacency_fraction: 0.00582
+      enrichment: 0.6632
+    other:
+      adjacency_fraction: 1.0e-05
+      enrichment: 0.22294999999999998
+    stromal:
+      adjacency_fraction: 0.00789
+      enrichment: 0.313
+  per_neighbor: __omitted_from_fixture__ (list, 31 items)
+  product_id:
+  - spatial-coloc-tumor-crc-coadread-v1
+  - spatial-coloc-tumor-crc-gse280318-v1
+  spatial_coloc_class: immune_excluded
+  stromal_adjacency_fraction: 0.00789
+  target: CEACAM5
+  target_pos_fraction_median: 0.89441
+  top_enriched_compartment: immune
+  top_enriched_value: 0.6632
 surface-abundance-density:
   _density_source: governed_ladder
   _estimate_grade_d_class: high
@@ -80,6 +141,62 @@ surface-abundance-density:
   is_tce_viable: true
   method_version: 0.1.0
   surface_density_class: high
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k: 0.02986
+  caf_compartment_available: true
+  caf_detection_fraction: 0.033475000000000005
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.16129
+    immune: 0.01941
+    malignant: 0.75617
+    other: 0.03306
+    stromal: 0.033475000000000005
+  indication: COADREAD
+  malignant_abundance_log1p_cp10k: 1.38485
+  malignant_compartment_available: true
+  malignant_detection_fraction: 0.75617
+  malignant_n_donors: 371
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 45
+  n_donor_groups: 446
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 1.38485
+    median_detection_fraction: 0.75617
+    n_cells_total: 504408
+    n_donors: 371
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.02986
+    median_detection_fraction: 0.033475000000000005
+    n_cells_total: 131998
+    n_donors: 240
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.02115
+    median_detection_fraction: 0.01941
+    n_cells_total: 1092178
+    n_donors: 397
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.20989
+    median_detection_fraction: 0.16129
+    n_cells_total: 2984
+    n_donors: 53
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.061485
+    median_detection_fraction: 0.03306
+    n_cells_total: 12872
+    n_donors: 134
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: malignant_broadly_detected
+  tce_homogeneity_class: homogeneous
+  top_microenvironment_compartment: stromal
+  top_microenvironment_detection_fraction: 0.033475000000000005
 tumor-vs-normal-percentile-crossing:
   distribution_overlap_tumor_normal: 0.24995908480900783
   fraction_tumor_above_normal_p95: 0.757847533632287

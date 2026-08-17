@@ -215,6 +215,16 @@ SUB_SKILL_CARDS = {
         "surface-abundance-density",             # INC-4 — composer-consistency: the absolute-density facet
                                                  # (verdict-inert; feeds no resolver rung). Surfaces Tier-1
                                                  # copies/cell + modality-floor standing in the composed profile.
+        # v1.9.0 (2026-08-17) SINGLE-CELL + SPATIAL — composer-consistency with the standalone CARDS.
+        # All verdict-inert (feed no resolver rung); composed here so the malignant-vs-stroma + in-situ
+        # spatial evidence also surfaces in the COMPOSED target-profile selectivity lens (not only
+        # standalone). tumor-scrna-celltype-expression is multi-homed (also under tumor-presence, which
+        # keys the sc_rna/tumor presence bucket) — a card may compose under >1 lens (cf. modality-
+        # therapeutic-window above). spatial-* are composed NOWHERE else, so this is their only home.
+        "tumor-scrna-celltype-expression",       # malignant-cell-intrinsic vs stroma/CAF (purity confound, measured)
+        "spatial-region-rna-expression",         # in-situ tumour-vs-TME RNA enrichment
+        "spatial-tumor-normal-colocalization",   # in-situ normal-epithelium bystander adjacency
+        "spatial-surface-protein-abundance",     # in-situ protein enrichment (abstains where GeoMx sparse)
     ],
     "functional-requirement": [
         "pan-cancer-crispr-dependency-distribution",

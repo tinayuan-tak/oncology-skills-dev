@@ -77,7 +77,12 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "selectivity": frozenset({
         "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
         "surface-abundance-density", "tumor-vs-normal-percentile-crossing",
-        "tumor-vs-normal-selectivity"}),
+        "tumor-vs-normal-selectivity",
+        # v1.9.0 tumor-side single-cell + spatial facets — added to SUB_SKILL_CARDS[tumor-selectivity]
+        # (tp_fanout) so this mirror must carry them too (test_dimension_cards_matches_spine). Verdict-
+        # inert in tumor-selectivity; here they let the integrator credit a sc/spatial-surfaced tension.
+        "tumor-scrna-celltype-expression", "spatial-region-rna-expression",
+        "spatial-tumor-normal-colocalization", "spatial-surface-protein-abundance"}),
     "surface_modality": frozenset({
         "adc-tce-modality-fit", "cd-antigen-backbone", "copy-number-distribution",
         "modality-exon-window", "modality-therapeutic-window", "mutation-stratified-surface",

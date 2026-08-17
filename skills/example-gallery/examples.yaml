@@ -2,16 +2,45 @@
 # Add a row + re-run generate_example_gallery.py — no code change needed.
 # `indication` is omitted for target-grain subskills (target-intrinsic).
 examples:
-  # tumor-presence — the richest figure coverage (RNA distribution, protein, breadth, subtype);
-  # three contrasting relevance reads.
-  - {skill: tumor-presence, target: CEACAM5, indication: COADREAD}   # strong presence (surface antigen)
-  - {skill: tumor-presence, target: KRAS,    indication: COADREAD}   # present-but-uninformative (intracellular driver)
-  - {skill: tumor-presence, target: EPCAM,   indication: COADREAD}   # epithelial marker
+  # ── SHARED example set: the SAME (target, indication) pairs run through BOTH tumor-presence and
+  # tumor-selectivity, for side-by-side presence-vs-selectivity. Chosen to span (a) indications
+  # (COADREAD/OV/PAAD/BRCA/SCLC/PRAD/LUAD), (b) target biology/modality (surface antigen vs
+  # intracellular driver vs lineage antigen vs tumor suppressor), and (c) verdict classes
+  # (clean-selective / veto-downgrade / not-selective / subtype-specific driver). ──────────────
+  # tumor-presence — richest figure coverage (RNA distribution, protein, breadth, subtype panorama).
+  - {skill: tumor-presence, target: CEACAM5, indication: COADREAD}   # clean surface antigen
+  - {skill: tumor-presence, target: EPCAM,   indication: COADREAD}   # pan-epithelial marker
+  - {skill: tumor-presence, target: MET,     indication: COADREAD}   # RTK, broadly-normal
+  - {skill: tumor-presence, target: TACSTD2, indication: COADREAD}   # TROP2 surface antigen
+  - {skill: tumor-presence, target: APC,     indication: COADREAD}   # tumor suppressor (down)
+  - {skill: tumor-presence, target: FOLR1,   indication: OV}         # folate-receptor ADC target (ovarian)
+  - {skill: tumor-presence, target: MSLN,    indication: PAAD}       # mesothelin (pancreatic)
+  - {skill: tumor-presence, target: ERBB2,   indication: BRCA}       # HER2 amplified oncogene (breast)
+  - {skill: tumor-presence, target: DLL3,    indication: SCLC}       # neuroendocrine TCE/ADC target
+  - {skill: tumor-presence, target: KLK3,    indication: PRAD}       # prostate lineage antigen
+  - {skill: tumor-presence, target: EGFR,    indication: LUAD}       # SUBTYPE-specific driver (LUAD driver strata)
+  - {skill: tumor-presence, target: KRAS,    indication: LUAD}       # SUBTYPE-specific intracellular driver
 
   # target-intrinsic — indication-independent molecular dossier (17 cards): identity, domains
   # (InterPro), PPI (STRING+CORUM+BioGRID), phospho, safety-genetics, paralogs, etc.
   - {skill: target-intrinsic, target: EGFR}    # kinase, multi-domain, PPI hub
   - {skill: target-intrinsic, target: KRAS}    # GTPase, interpro_only domain, RAF interactors
+
+  # tumor-selectivity — same pairs; shows the normal-breadth VETO + the v1.9.0 single-cell
+  # (malignant-vs-stroma) + in-situ spatial facets + the evidence-strip hero across the verdict
+  # spectrum (clean-selective / veto-downgrade / not-selective / subtype-specific).
+  - {skill: tumor-selectivity, target: CEACAM5,  indication: COADREAD}   # field_effect_tumor_selective (clean; sc caf_low)
+  - {skill: tumor-selectivity, target: EPCAM,    indication: COADREAD}   # discordant_across_comparators (pan-epithelial)
+  - {skill: tumor-selectivity, target: MET,      indication: COADREAD}   # strong → VETO (broadly-normal)
+  - {skill: tumor-selectivity, target: TACSTD2,  indication: COADREAD}   # TROP2 — strong → VETO (broadly-normal)
+  - {skill: tumor-selectivity, target: APC,      indication: COADREAD}   # not_selective (down-regulated TSG)
+  - {skill: tumor-selectivity, target: FOLR1,    indication: OV}         # strong_tumor_selective (log2FC ~9.9)
+  - {skill: tumor-selectivity, target: MSLN,     indication: PAAD}       # modest_tumor_selective
+  - {skill: tumor-selectivity, target: ERBB2,    indication: BRCA}       # strong_tumor_selective (HER2)
+  - {skill: tumor-selectivity, target: DLL3,     indication: SCLC}       # strong_tumor_selective (neuroendocrine)
+  - {skill: tumor-selectivity, target: KLK3,     indication: PRAD}       # strong_tumor_selective (lineage)
+  - {skill: tumor-selectivity, target: EGFR,     indication: LUAD}       # modest; SUBTYPE-specific driver
+  - {skill: tumor-selectivity, target: KRAS,     indication: LUAD}       # modest; SUBTYPE-specific driver
 
   # cross-section of subskills for one target (KRAS/COADREAD) — shows the framework breadth.
   # (tumor-presence + target-intrinsic KRAS rows above complete the cross-section.)

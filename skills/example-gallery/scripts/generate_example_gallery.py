@@ -355,6 +355,8 @@ h1{font-size:23px;margin:0 0 2px}
 .sub{color:#667;margin:0 0 14px;font-size:13px}
 .verdict{display:inline-block;padding:4px 11px;border-radius:6px;background:#1e3a8a;color:#fff;font-weight:600}
 .synth{background:#fff;border:1px solid #e3e6ea;border-left:3px solid #1e3a8a;border-radius:8px;padding:12px 15px;margin:14px 0}
+.hero{background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:10px;margin:6px 0 14px;overflow-x:auto}
+.hero .herofig svg{max-width:100%;height:auto;display:block;margin:0 auto}
 .synth .lab{color:#556;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .synth p{margin:5px 0}
 .lab{color:#556;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
@@ -676,6 +678,39 @@ def _flow_tabs_html(cid: str, summary: dict, fired_for_card: list, uid: str,
     return f'<div class="flowtabs">{radios}{labels}{panels}</div>'
 
 
+# The presence matrix hero has its OWN dedicated render path in render_page (the #487 block, which
+# re-emits it from the decision so it shows even without --figures). Exclude it here so a
+# tumor-presence page does not render the SAME hero TWICE (generic strip + presence-specific block).
+_HERO_OWNED_ELSEWHERE = {"figure_presence_context_matrix.svg"}
+
+
+def _skill_hero_html(run_dir: Path) -> str:
+    """Inline any skill-level HERO SVG(s) emitted at the package ROOT (figures/figure_*.svg) — the
+    aggregate 'overall view' graphics (e.g. tumor-selectivity's evidence strip) produced by
+    run.py --figures skill_figures_fn. These live at figures/figure_*.svg, distinct from the per-card
+    figures/cards/<id>/*.svg (which fig_map_from_existing handles). The presence Presence × Context
+    matrix is EXCLUDED (rendered by its own block in render_page — see _HERO_OWNED_ELSEWHERE), so a
+    presence page shows it once. Returns a self-contained <div> with the SVG(s) inlined, or ''."""
+    figs_dir = run_dir / "figures"
+    if not figs_dir.is_dir():
+        return ""
+    svgs = sorted(p for p in figs_dir.glob("figure_*.svg")
+                  if p.is_file() and p.name not in _HERO_OWNED_ELSEWHERE)
+    if not svgs:
+        return ""
+    blocks = []
+    for svg in svgs:
+        try:
+            blocks.append(f'<div class="herofig">{svg.read_text(encoding="utf-8")}</div>')
+        except Exception:  # noqa: BLE001 — a hero is additive; never break the page
+            continue
+    if not blocks:
+        return ""
+    return ('<div class="lab" style="margin:18px 0 6px">Overall view '
+            '<span class="hint">— skill-level summary graphic</span></div>'
+            '<div class="hero">' + "".join(blocks) + '</div>')
+
+
 def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool) -> str:
     """One self-contained, DIGESTIBLE HTML page for a subskill run: exec summary + at-a-glance
     evidence strip + per-card (title + headline chip + key metrics + figure + collapsible full data)."""
@@ -704,6 +739,14 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                 continue
             parts.append(f'<p><b>{_esc(_prettify(k))}:</b> {_esc(val)}</p>')
         parts.append('</div>')
+
+    # skill-level HERO graphic (e.g. tumor-selectivity's evidence strip, tumor-presence's
+    # Presence × Context matrix) — a run.py --figures skill_figures_fn emits it at figures/figure_*.svg
+    # (package ROOT, not figures/cards/). Embed it inline at the top so the page leads with the
+    # at-a-glance overall view. Additive: absent → nothing rendered.
+    hero = _skill_hero_html(run_dir)
+    if hero:
+        parts.append(hero)
 
     # Presence × Context hero (skill-level aggregate VIEW) — for any run whose decision carries the
     # per-(measurement, sample_context) reconciliation (tumor-presence). PERSISTS the SVG+JSON into

@@ -16,6 +16,7 @@ from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_selectivity import synthesize_selectivity
+from _skills_common.selectivity_hero import emit_selectivity_hero
 # Normal-breadth VETO clamp — SINGLE-SOURCED in _skills_common.selectivity_veto (F1, 2026-08-13) so BOTH
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
 # IDENTICAL clamp. Names re-exported here for the skill's own tests + local readability.
@@ -26,7 +27,33 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 
 
 SKILL_NAME = "tumor-selectivity"
-SKILL_VERSION = "1.6.0"    # 2026-08-08: INC-4 — axis-C absolute surface-density facet (Tier-1 calibrated
+SKILL_VERSION = "1.10.0"   # NOTE: this constant is stamped into provenance.yaml — it MUST equal
+                           #   SKILL.md metadata.version (a test guards this: tests/test_version_parity.py).
+                           # 1.10.0 (2026-08-17): surface the sc-normal-celltype-expression card into the
+                           #   headline (sc_normal_expression_class, sc_normal_safety_essential_class,
+                           #   sc_normal_max_detection_cell_type/_fraction, sc_normal_n_cell_types_above_20pct).
+                           #   This card was VERDICT-DRIVING via the veto but its descriptive output reached
+                           #   NO decision['headline'] consumer — the only composed card so hidden. Additive /
+                           #   display-only; selectivity_class spine byte-stable (the veto rung is unchanged).
+                           # 1.9.0 (2026-08-17): SINGLE-CELL + SPATIAL coverage expansion. Compose the
+                           #   tumor-side single-cell card (tumor-scrna-celltype-expression) + two in-situ
+                           #   spatial cards (spatial-region-rna-expression, spatial-tumor-normal-
+                           #   colocalization) + the spatial protein card (spatial-surface-protein-abundance,
+                           #   abstains where GeoMx panels are absent). ALL VERDICT-INERT additive facets
+                           #   (Phase 1): they SURFACE the malignant-cell-intrinsic-vs-stroma + in-situ
+                           #   tumour-enrichment + normal-epithelium-adjacency evidence next to the bulk
+                           #   axis-A call, but feed NO resolver rung / NO clamp — selectivity_class spine
+                           #   byte-stable. The malignant-vs-stroma signal is the designed Phase-2 verdict-
+                           #   driving "stromal-confound veto" (see SKILL.md § Roadmap; backtest-gated).
+                           # 1.8.0: F1-F5 (#411) — normal-breadth VETO single-sourced in
+                           #   _skills_common.selectivity_veto + applied by the compose-dashboard engine
+                           #   (compose_core.resolve_gate_spine), sc-normal veto arm added to rules_scope;
+                           #   framework-wide measurement_types parity (#434). No verdict change for the
+                           #   standalone skill (the clamp already ran here) — the version bump reconciles
+                           #   the emitted provenance with the SKILL.md contract (was drifting at 1.6.0).
+                           # 1.7.0: 2026-08-11 — SKILL.md doc-drift fixes (percentile-crossing, sc-normal,
+                           #   purity-confound, surface-density declared in cards_used/measurement_types).
+                           # 1.6.0: 2026-08-08: INC-4 — axis-C absolute surface-density facet (Tier-1 calibrated
                            #   copies/cell + floor standing + modality-viability flags). VERDICT-INERT
                            #   (display facet, no clamp — below-floor is a modality caveat, not a downgrade;
                            #   CD19 counterexample). selectivity_class byte-stable.
@@ -73,6 +100,32 @@ CARDS = [
                                              # antigen — high-avidity binders work below the soluble-TCE floor).
                                              # Feeds NO resolver rung; selectivity_class byte-stable. Un-anchored
                                              # targets → unmeasured (abstain; absence != low density).
+    # ── SINGLE-CELL + SPATIAL coverage (v1.9.0, 2026-08-17) — the tumor SIDE of the selectivity
+    # question at single-cell + in-situ resolution. All four are VERDICT-INERT additive facets
+    # (Phase 1): they enrich the evidence package but feed no resolver rung / no clamp, so the
+    # selectivity_class spine is byte-stable. Rationale: the bulk four-cell DESeq2 axis-A signal
+    # cannot tell whether a "tumor_selective" call is MALIGNANT-cell-intrinsic or driven by CAF/
+    # stromal/immune microenvironment content (the purity confound expression-purity-confound only
+    # PROXIES via bulk deconvolution). These cards MEASURE the tumor compartment directly. ────────
+    "tumor-scrna-celltype-expression",       # TUMOR single-cell per-compartment expression. Its
+                                             # malignant_detection_fraction + caf_vs_malignant_class resolve
+                                             # whether the selective bulk signal is malignant-cell-intrinsic
+                                             # (real, druggable) or microenvironment-driven (a false ADC/TCE
+                                             # window). VERDICT-INERT here (Phase 1); this is the signal the
+                                             # designed Phase-2 stromal-confound veto will key on (SKILL.md
+                                             # § Roadmap). Measured for COADREAD/NSCLC/LUSC/PAAD/HNSC/KIRC/OV,
+                                             # else sc_expression_class == data_unavailable (abstain).
+    "spatial-region-rna-expression",         # IN-SITU spatial (GeoMx WTA) tumour-vs-microenvironment RNA
+                                             # enrichment — a deconvolution-free, orthogonal confirmation of
+                                             # tumour-compartment selectivity (spatial_rna_class). Additive.
+    "spatial-tumor-normal-colocalization",   # IN-SITU spatial colocalization — is target-high tumour immune-
+                                             # excluded / adjacent to NORMAL EPITHELIUM (normal_epithelium_
+                                             # adjacency_fraction = bystander/off-tumour risk bulk cannot see).
+                                             # A spatial selectivity/safety dimension. Additive.
+    "spatial-surface-protein-abundance",     # IN-SITU spatial PROTEIN (GeoMx DSP) tumour-vs-microenvironment
+                                             # enrichment — protein-layer selectivity for biologics. GeoMx
+                                             # protein panels are sparse (HNSC/NSCLC), so spatial_protein_class
+                                             # == data_unavailable for most indications (honest abstain). Additive.
 ]
 
 QUESTION = ("How selectively is {target} expressed in {indication} tumor "
@@ -152,6 +205,39 @@ def _headline(cards, fired, verdict_pair):
         "density_floor_verdict":            _summary("surface-abundance-density").get("density_floor_verdict"),
         "is_tce_viable":                    _summary("surface-abundance-density").get("is_tce_viable"),
         "is_adc_high_payload_viable":       _summary("surface-abundance-density").get("is_adc_high_payload_viable"),
+        # ── SINGLE-CELL (NORMAL side) facet — surfaces the sc-normal-celltype-expression card into the
+        # headline. This card is VERDICT-DRIVING via the veto (sc_normal_safety_essential_class ==
+        # critical_organ_liability fires tvn-sc-normal-critical-organ-veto → _verdict downgrade), but its
+        # descriptive output was previously invisible to any consumer reading only decision['headline']
+        # (or to the inline verdict Claude presents) — a reader could not see WHICH normal cell type /
+        # organ drove (or nearly drove) a veto. These are the veto's own inputs, surfaced for
+        # transparency; the selectivity_class spine is byte-stable (this is display, not a new rung).
+        # data_unavailable where no Census normal shard covers the indication+gene (honest abstain).
+        "sc_normal_expression_class":       _summary("sc-normal-celltype-expression").get("sc_normal_expression_class"),
+        "sc_normal_safety_essential_class": _summary("sc-normal-celltype-expression").get("sc_normal_safety_essential_class"),
+        "sc_normal_max_detection_cell_type": _summary("sc-normal-celltype-expression").get("max_detection_cell_type"),
+        "sc_normal_max_detection_fraction": _summary("sc-normal-celltype-expression").get("max_detection_fraction"),
+        "sc_normal_n_cell_types_above_20pct": _summary("sc-normal-celltype-expression").get("n_cell_types_above_20pct"),
+        # ── SINGLE-CELL (tumor side) facet (v1.9.0) — VERDICT-INERT. Resolves the purity confound at
+        # single-cell resolution: is the selective bulk signal malignant-cell-intrinsic or stroma/CAF-
+        # driven? malignant_detection_fraction high + caf_vs_malignant_class == caf_low → real,
+        # tumor-cell-intrinsic (the CEACAM5/COADREAD read: 0.76 malignant vs 0.03 stromal). This is the
+        # signal the Phase-2 stromal-confound veto keys on; surfaced now for the reader/synthesis.
+        "sc_tumor_expression_class":        _summary("tumor-scrna-celltype-expression").get("sc_expression_class"),
+        "sc_malignant_detection_fraction":  _summary("tumor-scrna-celltype-expression").get("malignant_detection_fraction"),
+        "sc_top_microenvironment_compartment":       _summary("tumor-scrna-celltype-expression").get("top_microenvironment_compartment"),
+        "sc_top_microenvironment_detection_fraction": _summary("tumor-scrna-celltype-expression").get("top_microenvironment_detection_fraction"),
+        "sc_caf_vs_malignant_class":        _summary("tumor-scrna-celltype-expression").get("caf_vs_malignant_class"),
+        "sc_tce_homogeneity_class":         _summary("tumor-scrna-celltype-expression").get("tce_homogeneity_class"),
+        # ── SPATIAL (in-situ) facets (v1.9.0) — VERDICT-INERT. Deconvolution-free tumour-compartment
+        # confirmation (region RNA) + bystander-adjacency-to-normal-epithelium risk (colocalization) +
+        # protein-layer spatial enrichment. data_unavailable where the spatial atlas doesn't cover the
+        # indication (honest abstain — most indications for the GeoMx protein panel).
+        "spatial_rna_class":                _summary("spatial-region-rna-expression").get("spatial_rna_class"),
+        "spatial_tumour_vs_tme_delta":      _summary("spatial-region-rna-expression").get("tumour_vs_tme_delta"),
+        "spatial_coloc_class":              _summary("spatial-tumor-normal-colocalization").get("spatial_coloc_class"),
+        "spatial_normal_epithelium_adjacency_fraction": _summary("spatial-tumor-normal-colocalization").get("normal_epithelium_adjacency_fraction"),
+        "spatial_protein_class":            _summary("spatial-surface-protein-abundance").get("spatial_protein_class"),
     }
 
 
@@ -167,4 +253,8 @@ if __name__ == "__main__":
         # Opt-in --synthesize narrates through the SELECTIVITY lens (its own tool schema + prompt),
         # NOT the presence narrator the dispatcher used to hardcode. Two-slot / verdict-inert.
         synthesize_fn=synthesize_selectivity,
+        # Opt-in --figures skill-level HERO: the selectivity evidence-strip (verdict banner + the
+        # independent comparator axes incl. the normal-tissue WINDOW veto) over decision['headline'].
+        # Additive / display-only; reads no S3; decision.json byte-identical whether or not it runs.
+        skill_figures_fn=emit_selectivity_hero,
     ))

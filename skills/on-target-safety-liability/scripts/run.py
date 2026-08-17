@@ -20,7 +20,12 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.7.0"   # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
+SKILL_VERSION = "1.8.0"   # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+                          # (guarded by skills/tests/test_version_parity.py).
+                          # 1.8.0: S1-1 (#475) — compose copy-number-distribution to activate the
+                          # amplification guard. run.py constant was left at 1.7.0 while SKILL.md
+                          # advanced to 1.8.0 (2026-08-17 version-parity reconciliation).
+                          # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
                           # OT context) + gene-burden-safety (Slice 2, OT rare-variant burden LoF-
                           # tolerance; verdict-moving rule resolver-wired in Slice 5).
                           # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
