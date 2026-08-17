@@ -15,10 +15,9 @@
   "promotion_blockers": [
     "intra_package_coherence_violations"
   ],
-  "n_coherence_violations": 2,
+  "n_coherence_violations": 1,
   "coherence_violation_clauses": [
-    "causal_rationale",
-    "therapeutic_hypothesis"
+    "causal_rationale"
   ],
   "overall_certainty": "low",
   "base_certainty": "moderate",

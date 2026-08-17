@@ -109,6 +109,36 @@ def out_of_scope_dims(modality: str) -> set:
     return set(MODALITY_SCOPE.get(modality, set()))
 
 
+# The CARDS that belong to each modality-scoped sub-verdict DIMENSION. `out_of_scope_dims` returns
+# sub-verdict dimension names (surface_modality / tractability_sm), but a clause often cites the
+# underlying CARD (e.g. `adc-tce-modality-fit`, `modality-therapeutic-window`) rather than the
+# dimension name — and those cards are just as out-of-scope for the objective's modality. This maps
+# each modality dimension to normalized-substring tokens matched against a card_id, so the
+# modality-scope exclusion reaches CARD-grain violations too (matched substrings are deliberately
+# specific to biologics-surface / small-molecule-chemistry cards; dependency / SL / genomic / mechanism
+# cards never match, so an in-scope primary-thesis violation — e.g. MARK2's SL-vs-no_partner — is
+# NEVER excluded).
+_MODALITY_DIMENSION_CARD_TOKENS: dict[str, tuple] = {
+    "surface_modality": ("surface", "surfaceome", "adc", "tce", "bite", "topology", "cd_antigen",
+                         "shed_ectodomain", "pmhc", "cspa", "internalizing", "modality_fit",
+                         "modality_therapeutic_window", "modality_exon_window", "biologic"),
+    "tractability_sm": ("tractability", "known_drug", "measured_potency", "structure_features",
+                        "ligandability", "dgidb", "pocket", "kinome", "prism"),
+}
+
+
+def token_out_of_scope(norm_token: str, oos_dims: set) -> bool:
+    """A normalized card/dimension token is OUT OF SCOPE for the modality if it IS an out-of-scope
+    sub-verdict dimension, OR it is a CARD belonging to one (matched via _MODALITY_DIMENSION_CARD_TOKENS).
+    `oos_dims` is the pre-normalized out-of-scope dimension set."""
+    if norm_token in oos_dims:
+        return True
+    for dim in oos_dims:
+        if any(tok in norm_token for tok in _MODALITY_DIMENSION_CARD_TOKENS.get(dim, ())):
+            return True
+    return False
+
+
 # --- small structured-output unwrap helpers (mirror the prototype) ----------------------------------
 def _uv(x):
     if isinstance(x, dict) and "value" in x and len(x) == 1:
@@ -453,15 +483,22 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
     normalized citation surface (card_ids | sub_verdict names | rule_ids). `card_calls` maps card_id ->
     interpretation_call (card-grain verdicts). Returns {clause_key: [violation dicts]}."""
     oos = {_norm(d) for d in (out_of_scope or [])}
+
+    def _oos(tok: str) -> bool:
+        """A card/dimension token is out of scope for the objective's modality — a violation on it
+        must NOT count toward promotion_blockers (scope-aware coherence)."""
+        return token_out_of_scope(tok, oos)
+
     card_calls = card_calls or {}
     # measured-negative SIGNALS keyed by normalized token → (display_name, verdict). Covers both
-    # sub-verdict dimensions and card-grain interpretation calls.
+    # sub-verdict dimensions and card-grain interpretation calls. OUT-OF-SCOPE-modality signals are
+    # excluded (e.g. the ADC/TCE surface cards for a small-molecule objective).
     neg_norm: dict = {}
     for d, v in conviction.items():
-        if _norm(d) not in oos and is_negative_verdict(v):
+        if not _oos(_norm(d)) and is_negative_verdict(v):
             neg_norm[_norm(d)] = (d, v)
     for cid, call in card_calls.items():
-        if _norm(cid) not in oos and is_negative_verdict(call):
+        if not _oos(_norm(cid)) and is_negative_verdict(call):
             neg_norm.setdefault(_norm(cid), (cid, call))
 
     # unified present-signal value lookup (sub-verdict OR card call), by normalized key
@@ -504,6 +541,8 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         # (b) agent contradicts/tensions_with edge enforced on this clause's own citations
         for a, b in conflict_edges:
             for x, y in ((a, b), (b, a)):
+                if _oos(x) or _oos(y):     # tension touches an out-of-scope-modality axis → not a cap
+                    continue
                 if (x in support and y in present_norm and y not in surfaced
                         and y not in support and not _tension_covers(x, y)):
                     found.append({
@@ -514,13 +553,13 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         if key in POSITIVE_THESIS_CLAUSES:
             for rule in INTRINSIC_CONTRADICTIONS:
                 asserts_n = {_norm(a) for a in rule["asserts"]}
-                rested_on = sorted(asserts_n & support)
-                if not rested_on:
+                rested_on = sorted(t for t in (asserts_n & support) if not _oos(t))
+                if not rested_on:     # the asserted thesis is entirely out-of-scope for this modality
                     continue
                 seen_sig: set = set()   # dedup registry keys that normalize identically
                 for sig, negvals in rule["contradicted_by"].items():
                     sig_n = _norm(sig)
-                    if sig_n in seen_sig:
+                    if sig_n in seen_sig or _oos(sig_n):   # skip an out-of-scope contradicting sibling
                         continue
                     val = value_by_norm.get(sig_n)
                     if val in negvals and sig_n not in surfaced and not _surfaced_as_tension(sig_n):

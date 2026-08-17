@@ -18,7 +18,7 @@
   "promotion_blockers": [
     "intra_package_coherence_violations"
   ],
-  "n_coherence_violations": 7,
+  "n_coherence_violations": 6,
   "coherence_violation_clauses": [
     "causal_rationale",
     "population",

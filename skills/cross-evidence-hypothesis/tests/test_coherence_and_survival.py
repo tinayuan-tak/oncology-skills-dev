@@ -188,3 +188,57 @@ def test_survival_majority_refutation_marks_not_survived():
 def test_survival_gate_pass():
     r = {"score": 1.0, "clauses": {"a": {"survives": True}}}
     assert AS.adversarial_survival_gate(r, 0.75)["passed"] is True
+
+
+# =============================== (scope-aware) out-of-scope-modality exclusion =====================
+def test_token_out_of_scope_maps_cards_to_dimensions():
+    oos = {hc._norm(d) for d in hc.out_of_scope_dims("small_molecule")}   # {"surface_modality"}
+    # surface/biologics CARDS belong to the out-of-scope surface_modality dimension
+    assert hc.token_out_of_scope(hc._norm("adc-tce-modality-fit"), oos) is True
+    assert hc.token_out_of_scope(hc._norm("modality-therapeutic-window"), oos) is True
+    assert hc.token_out_of_scope(hc._norm("surface_modality"), oos) is True
+    # dependency / SL / genomic cards stay IN scope (never excluded → MARK2-style primary preserved)
+    for keep in ("crispr-rnai-dependency-concordance", "partner-conditional-dependency",
+                 "combinatorial-dependency", "dependency", "safety"):
+        assert hc.token_out_of_scope(hc._norm(keep), oos) is False
+    # for an ADC objective, tractability (small-molecule) cards are the out-of-scope ones
+    oos_adc = {hc._norm(d) for d in hc.out_of_scope_dims("adc")}          # {"tractability_sm"}
+    assert hc.token_out_of_scope(hc._norm("known-drug-tractability"), oos_adc) is True
+    assert hc.token_out_of_scope(hc._norm("adc-tce-modality-fit"), oos_adc) is False
+
+
+def test_out_of_scope_card_violation_not_flagged_but_in_scope_is():
+    """The KRAS defect: a small-molecule clause citing an ADC/surface card as support must NOT be a
+    coherence violation (out-of-scope modality); the SAME clause citing an in-scope negative
+    dependency line MUST be."""
+    conv = {"dependency": "non_dependent_paralog_buffered"}
+    card_calls = {"adc-tce-modality-fit": "neither_viable",
+                  "crispr-rnai-dependency-concordance": "moderately_concordant_non_dependent"}
+    present = {hc._norm(x) for x in list(conv) + list(card_calls)}
+    oos = hc.out_of_scope_dims("small_molecule")   # surface_modality out of scope
+
+    # out-of-scope surface card cited as support → NO violation (scope-aware)
+    only_surface = {"therapeutic_hypothesis": {"support": ["adc-tce-modality-fit"], "surfaced": []}}
+    assert hc.coherence_violations(only_surface, conv, [], [], present, out_of_scope=oos,
+                                   card_calls=card_calls) == {}
+    # WITHOUT the modality scope (modality_agnostic) the SAME cite IS a violation — proves scope, not a blanket drop
+    assert hc.coherence_violations(only_surface, conv, [], [], present, out_of_scope=set(),
+                                   card_calls=card_calls) != {}
+
+    # in-scope negative dependency card cited as support → STILL a violation (primary thesis preserved)
+    in_scope = {"causal_rationale": {"support": ["crispr-rnai-dependency-concordance"], "surfaced": []}}
+    v = hc.coherence_violations(in_scope, conv, [], [], present, out_of_scope=oos, card_calls=card_calls)
+    assert "causal_rationale" in v
+
+
+def test_mark2_style_sl_no_partner_survives_modality_scope():
+    """MARK2 guard-rail: the intrinsic SL-without-mapped-partner violation is in-scope for a
+    small-molecule objective and must NOT be excluded by the surface_modality scope."""
+    conv = {"combinatorial_dependency": "constitutive_combinatorial_dependency",
+            "partner_conditional_dependency": "no_partner_mapped"}
+    present = {hc._norm(x) for x in list(conv)}
+    clauses = {"therapeutic_hypothesis": {"support": ["combinatorial-dependency"], "surfaced": []}}
+    v = hc.coherence_violations(clauses, conv, [], [], present,
+                                out_of_scope=hc.out_of_scope_dims("small_molecule"))
+    labels = [x.get("label") for x in v.get("therapeutic_hypothesis", [])]
+    assert "combination_or_sl_strategy_without_mapped_partner" in labels
