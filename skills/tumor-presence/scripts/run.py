@@ -144,8 +144,10 @@ CARDS = [
                                         # sc_rna/tumor bucket MODALITY_TAXONOMY.md named as an unbuilt gap.
                                         # Malignant-anchored sc_expression_class → the _SC_RNA_RANK ladder.
                                         # Adds two signals bulk can't: detection_fraction (in how many
-                                        # cells) + malignant-vs-microenvironment attribution. v1: COADREAD
-                                        # + NSCLC (other indications → data_unavailable, honest).
+                                        # cells) + malignant-vs-microenvironment attribution. Wired for
+                                        # COADREAD/NSCLC/LUSC/PAAD/HNSC/KIRC/OV (methods
+                                        # sc_tumor_expression_celltype INDICATION_TO_PRODUCT); other
+                                        # indications → data_unavailable (honest capability ceiling).
     "normal-tissue-liability",          # P8.3 (2026-08-05) — HPA IHC normal-tissue protein footprint
                                         # (measurement: protein_ihc, sample_context: normal). Fills the
                                         # LAST hardcoded data_unavailable bucket in ALL_CONTEXTS
@@ -216,7 +218,7 @@ ALL_CONTEXTS = (
     ("bulk_rna", "tumor"),
     ("bulk_protein_ms", "cell_line"),
     ("bulk_protein_ms", "tumor"),
-    ("sc_rna", "tumor"),          # card-backed 2026-08-04 (tumor-scrna-celltype-expression); COADREAD+NSCLC measured, else data_unavailable
+    ("sc_rna", "tumor"),          # card-backed (tumor-scrna-celltype-expression); measured for COADREAD/NSCLC/LUSC/PAAD/HNSC/KIRC/OV, else data_unavailable
     ("sc_rna", "normal"),         # safety comparator 2026-08-07 (sc-normal-celltype-expression)
     ("protein_ihc", "normal"),    # safety comparator P8.3 (normal-tissue-liability HPA IHC)
 )
