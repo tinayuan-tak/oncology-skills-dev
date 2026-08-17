@@ -100,8 +100,12 @@ def test_perturbing_a_deterministic_output_is_detected():
     case_name = CASES[0]
     case = dg.load_golden_case(GOLDEN / case_name)
     pkg = json.loads(Path(case["pkg"]).read_text())
-    # flip dependency to a hard kill token → gate ceiling must move toward declined
-    pkg["synthesis"]["sub_verdicts"]["dependency"] = {"verdict": "non_dependent"}
+    # flip dependency to a hard kill token → gate ceiling must move toward declined.
+    # Use pan_essential_killer, an UNCONDITIONAL veto: `non_dependent` is now mechanism-conditioned
+    # (#3 — mechanism-excluded for a mutant-selective driver like the KRAS golden case), so it would
+    # NOT move the spine and would make this teeth-test vacuous. pan_essential_killer has no
+    # selectivity window and stays a veto regardless of mechanism.
+    pkg["synthesis"]["sub_verdicts"]["dependency"] = {"verdict": "pan_essential_killer"}
     tmp = GOLDEN / case_name / "_perturbed_pkg.json"
     tmp.write_text(json.dumps(pkg))
     try:

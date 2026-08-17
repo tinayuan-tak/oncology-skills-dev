@@ -113,6 +113,47 @@ def test_ceiling_dependency_veto_excluded_for_surface_biologic():
     assert any(t.startswith("dependency:") for t in g["excluded"])
 
 
+def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
+    """#3: a fired dependency:non_dependent must NOT veto a MUTANT-SELECTIVE / GoF driver (signalled by
+    safety=wt_*_mechanism_mismatch — the WT-LoF constraint does not align with the oncogenic mechanism,
+    so an allele-selective agent need not make the WT gene a fitness dependency; e.g. IDH1/ivosidenib).
+    Orthogonal to #2 (modality) — this holds at ANY modality, including small_molecule."""
+    pkg = _pkg()
+    for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
+        if row["short"] == "dependency":
+            row["status"] = "fired"; row["verdict"] = "non_dependent"; row["live_verdict"] = "non_dependent"
+        if row["short"] == "safety":
+            row["status"] = "latent"
+    pkg["synthesis"]["sub_verdicts"]["safety"] = {"verdict": "wt_human_genetics_mechanism_mismatch"}
+    g = hc.gate_ceiling(pkg, modality="small_molecule")
+    assert g["ceiling"] != "declined", g
+    assert any(t.startswith("dependency:") for t in g["excluded"])
+    assert not any(t.startswith("dependency:") for t in g["active_vetoes"])
+    # NARROW: pan_essential_killer (no selectivity window) STILL vetoes even when mutant-selective
+    for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
+        if row["short"] == "dependency":
+            row["verdict"] = "pan_essential_killer"; row["live_verdict"] = "pan_essential_killer"
+    assert hc.gate_ceiling(pkg, modality="small_molecule")["ceiling"] == "declined"
+
+
+def test_coherence_non_dependent_benign_for_mutant_selective():
+    """#3 (coherence half): a positive-thesis clause may rest on a target whose dependency reads
+    non_dependent WITHOUT it counting as an unsurfaced negative — when the target is mutant-selective
+    (safety=wt_*_mechanism_mismatch). Same signal/discriminator as the gate. At BOTH grains (dimension
+    + dependency-family card)."""
+    clauses = {"therapeutic_hypothesis": {"support": ["dependency", "pan-cancer-crispr-dependency-distribution"],
+                                          "surfaced": []}}
+    card_calls = {"pan-cancer-crispr-dependency-distribution": "non_dependent"}
+    # mutant-selective → benign, no violation
+    conv_ms = {"safety": "wt_human_genetics_mechanism_mismatch", "dependency": "non_dependent"}
+    v_ms = hc.coherence_violations(clauses, conv_ms, [], [], set(), card_calls=card_calls)
+    assert not v_ms, f"mutant-selective non_dependent should be benign, got {v_ms}"
+    # NOT mutant-selective (plain safety) → the negative_signal_asserted DOES fire (guard intact)
+    conv_plain = {"safety": "tolerant_reduced_safety_risk", "dependency": "non_dependent"}
+    v_plain = hc.coherence_violations(clauses, conv_plain, [], [], set(), card_calls=card_calls)
+    assert v_plain, "non-mutant-selective non_dependent must still count as a contradiction"
+
+
 def test_ceiling_opposing_caps_below_advanceable():
     pkg = _pkg()
     pkg["synthesis"]["recommendation_gate"]["hard_gates"].append(

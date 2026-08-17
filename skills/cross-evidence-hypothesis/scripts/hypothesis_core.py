@@ -249,6 +249,23 @@ def _sv_verdict(sv, key):
     return (v.get("verdict") if isinstance(v, dict) else v) if v is not None else None
 
 
+# Mechanism-conditioning of the dependency veto (#3, WS6-surfaced). #488 removed the dependency veto
+# for SURFACE biologics (modality-scoped). This handles the ORTHOGONAL mutant-selective case, at ANY
+# modality: a `dependency:non_dependent` reading does NOT disqualify a MUTANT-SELECTIVE / GoF driver —
+# an allele-selective agent (e.g. IDH1-R132 ivosidenib) need not make the WT gene a cell-intrinsic
+# fitness dependency, so monotherapy CRISPR non-dependence of WT is EXPECTED, not a veto. The safety
+# skill's `wt_*_mechanism_mismatch` verdict is the explicit, package-carried signal that the WT-LoF
+# constraint does NOT align with the oncogenic (activating) mechanism — i.e. the driver is mutant-
+# selective. It is the SAME signal that makes safety hold-grade, applied to the dependency axis. It is
+# absent on TSG/loss-of-function drivers and on the highly_constrained dangerous-FPs (MYC, STAG1), so it
+# does not re-admit them. NARROW by design: only `non_dependent`-family verdicts are conditioned;
+# `pan_essential_killer` (no selectivity window) stays a genuine veto.
+_MUTANT_SELECTIVE_SAFETY = frozenset({"wt_human_genetics_mechanism_mismatch",
+                                      "wt_constraint_mechanism_mismatch"})
+_NON_DEPENDENT_TOKENS = frozenset({"non_dependent", "non_dependent_paralog_buffered",
+                                   "not_a_dependency", "non_essential"})
+
+
 # --- FAIL-CLOSED, GATE-COMPLETE ceiling (§6.6) — consumes recommendation_gate.hard_gates ------------
 def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     """The most permissive verdict the deterministic spine permits; the hypothesis is clamped to it.
@@ -258,13 +275,16 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     `synthesis.recommendation_gate.hard_gates` (#462 — every kill-capable (short, verdict) with a
     per-run status ∈ {fired, suppressed, excluded, opposing, blind, latent}). The ceiling is the
     LEAST-permissive value implied by that set:
-      - any gated gate `fired`          → declined (an active blanket veto).
-      - any gated gate `blind`          → declined, FAIL-CLOSED: a veto-capable axis could not be
-                                          evaluated, so the veto cannot be ruled out (§6.6).
+      - dependency gate `fired`         → declined (the sole veto axis), UNLESS mechanism-conditioned
+                                          (#3): `non_dependent` on a mutant-selective driver
+                                          (safety=wt_*_mechanism_mismatch) is mechanism-excluded.
+                                          pan_essential_killer (no selectivity window) stays a veto.
+      - dependency gate `blind`         → declined, FAIL-CLOSED (veto cannot be ruled out), unless the
+                                          driver is mutant-selective (#3) → mechanism-excluded.
+      - hold-grade gate (safety/subtype)→ cap at advanceable_flagged (never a veto — #1/#488).
       - any contradiction `opposing`    → cap at advanceable_with_caveat (opposing measured
                                           evidence blocks `strong`, not a veto).
-      - safety hold-grade live          → cap at advanceable_flagged.
-      - excluded (modality-scoped)      → surfaced, does NOT blanket-veto the ceiling.
+      - excluded (modality-scoped, #2)  → surfaced, does NOT blanket-veto the ceiling.
     If the package cannot be parsed / has no synthesis, the ceiling is `declined` (fail-closed).
     If `hard_gates` is ABSENT (older package), fall back to a fail-closed rec-gate + sub-verdict
     scan (never the prototype's fail-open behaviour)."""
@@ -279,6 +299,7 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     rg = syn.get("recommendation_gate") or {}
     hard_gates = rg.get("hard_gates")
     oos = out_of_scope_dims(modality) if modality else set()   # dims out-of-scope for this modality (#2)
+    mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY      # mechanism-conditions the dependency veto (#3)
 
     signals: list[tuple[int, str]] = []   # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
@@ -298,8 +319,15 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
                     # #2: the axis does not decide this modality — surfaced, does NOT veto the ceiling
                     excluded.append(tag)
                 elif short in _VETO_GATE_AXES:
-                    active_vetoes.append(tag)
-                    signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
+                    # #3: mechanism-condition the dependency veto. A `non_dependent` reading on a
+                    # mutant-selective/GoF driver is EXPECTED (WT need not be a fitness dependency) →
+                    # mechanism-excluded, not a veto. pan_essential_killer (no selectivity window) stays
+                    # a genuine veto.
+                    if verdict in _NON_DEPENDENT_TOKENS and mutant_selective:
+                        excluded.append(tag)
+                    else:
+                        active_vetoes.append(tag)
+                        signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
                 else:
                     # #1: HOLD-grade axis (safety / subtype_fit) fired → a HOLD, not a kill
                     signals.append((VERDICT_RANK["advanceable_flagged"],
@@ -307,6 +335,9 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             elif status == "blind" and disp == "gated":
                 if axis_oos:
                     excluded.append(tag)      # not in scope this run → not a coverage gap
+                elif short in _VETO_GATE_AXES and mutant_selective:
+                    # #3: dependency axis does not decide a mutant-selective driver → mechanism-excluded
+                    excluded.append(tag)
                 elif short in _VETO_GATE_AXES:
                     # a VETO-capable axis produced no verdict → cannot rule the veto out → fail closed
                     blind_gates.append(tag)
@@ -334,8 +365,11 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
         # (the sole veto axis), and only when dependency is in scope for the modality (#2).
         dep = _sv_verdict(sv, "dependency")
         if dep in {"pan_essential_killer", "non_dependent"} and "dependency" not in oos:
-            active_vetoes.append(f"dependency:{dep}")
-            signals.append((VERDICT_RANK["declined"], f"dependency kill token ({dep})"))
+            if dep in _NON_DEPENDENT_TOKENS and mutant_selective:
+                pass  # #3: mutant-selective driver — WT non-dependence is expected, not a veto
+            else:
+                active_vetoes.append(f"dependency:{dep}")
+                signals.append((VERDICT_RANK["declined"], f"dependency kill token ({dep})"))
         # NOTE: safety is HOLD-grade, never a fallback kill (#1) — handled by the hold-grade line below.
 
     # safety hold-grade (both paths) — a hold, not a kill. SAFETY IS NEVER A VETO (mirrors the spine's
@@ -596,15 +630,29 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         return token_out_of_scope(tok, oos)
 
     card_calls = card_calls or {}
+    # MECHANISM-CONDITIONING (#3, mirrors gate_ceiling): for a mutant-selective / GoF driver
+    # (safety=wt_*_mechanism_mismatch) a `non_dependent` reading on the dependency axis is EXPECTED, not a
+    # contradiction — so a positive thesis may rest on such a target without the dependency non-dependence
+    # counting as an unsurfaced negative. Applies at BOTH grains (the `dependency` dimension and its member
+    # cards, e.g. pan-cancer-crispr-dependency-distribution). Same signal, same discriminator as the gate:
+    # absent on TSGs and highly_constrained dangerous-FPs, so it does not silence a real contradiction.
+    mutant_selective = conviction.get("safety") in _MUTANT_SELECTIVE_SAFETY
+    _dep_norms = {_norm("dependency")} | _DIM_CARD_NORMS.get(_norm("dependency"), frozenset())
+
+    def _mechanism_benign(tok_norm: str, verdict) -> bool:
+        return (mutant_selective and tok_norm in _dep_norms
+                and isinstance(verdict, str) and _norm(verdict) in {_norm(x) for x in _NON_DEPENDENT_TOKENS})
+
     # measured-negative SIGNALS keyed by normalized token → (display_name, verdict). Covers both
     # sub-verdict dimensions and card-grain interpretation calls. OUT-OF-SCOPE-modality signals are
-    # excluded (e.g. the ADC/TCE surface cards for a small-molecule objective).
+    # excluded (e.g. the ADC/TCE surface cards for a small-molecule objective); mechanism-benign
+    # dependency non-dependence (mutant-selective driver) is likewise excluded (#3).
     neg_norm: dict = {}
     for d, v in conviction.items():
-        if not _oos(_norm(d)) and is_negative_verdict(v):
+        if not _oos(_norm(d)) and is_negative_verdict(v) and not _mechanism_benign(_norm(d), v):
             neg_norm[_norm(d)] = (d, v)
     for cid, call in card_calls.items():
-        if not _oos(_norm(cid)) and is_negative_verdict(call):
+        if not _oos(_norm(cid)) and is_negative_verdict(call) and not _mechanism_benign(_norm(cid), call):
             neg_norm.setdefault(_norm(cid), (cid, call))
 
     # unified present-signal value lookup (sub-verdict OR card call), by normalized key
