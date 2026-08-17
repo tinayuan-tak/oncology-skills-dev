@@ -2888,9 +2888,11 @@ rules:
       activator that spares WT. The safety resolver's GROUP-1 downgrades require BOTH this rule AND
       activating-driver-role-safety-context (when_all_fired), so only a genuine GoF ONCOGENE earns the
       WT-constraint mechanism-mismatch downgrade. Neutral signals: mechanism context, not a biology call.
-      KNOWN GAP (follow-up): does not yet exclude amplification-driven oncogenes (e.g. ERBB2), where a
-      drug hits WT protein so the mutant-selective-sparing logic also fails — needs a mutation-driven-GoF
-      signal the alteration-role card does not currently carry.
+      AMPLIFICATION-driven oncogenes (e.g. ERBB2, MDM2) are now EXCLUDED from the downgrade by
+      copy-number-amplified-oncogene-safety-context (a GROUP-0 resolver guard above the GROUP-1
+      downgrades): when the target is recurrently focally amplified, a drug hits WT protein so the
+      mutant-selective-sparing logic fails and the on-target-safety HOLD is kept (S1-1, cards review
+      2026-08-17). [Previously a KNOWN GAP — closed.]
 
   - rule_id: activating-driver-role-safety-context
     when:
@@ -2909,8 +2911,26 @@ rules:
       mechanism-mismatch note. Neutral signals: this rule contributes mechanism CONTEXT, not a
       per-modality biology call. Conditional on an allele-selective modality.
 
-# ============================================================================
-# Phase A (protein layer) — tumor-protein-abundance-cptac (measurement: bulk_protein_ms)
+  - rule_id: copy-number-amplified-oncogene-safety-context
+    when:
+      card_id: copy-number-distribution
+      field: patient_focal_cn_class
+      equals: recurrent_focal_amplification
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      AMPLIFICATION-driven-GoF GUARD for the mutant-selective safety downgrade (S1-1, cards review
+      2026-08-17). The safety resolver's GROUP-1 mechanism-mismatch downgrades assume a GoF oncogene is
+      drugged MUTANT-SELECTIVELY, so a WILD-TYPE-essentiality safety concern OVERSTATES on-target risk
+      (the therapy spares WT). That logic FAILS for an AMPLIFICATION-driven oncogene (ERBB2, MDM2, MYC):
+      the target IS the wild-type protein (over-produced from extra gene copies), so an ADC / T-cell
+      engager / degrader / WT-hitting inhibitor DOES engage WT in normal tissue — the WT-loss safety
+      concern stands. This rule fires when the tumour cohort shows recurrent FOCAL high-level (+2 GISTIC,
+      >=10% of tumours) amplification of the target; the safety resolver consumes it (when_all_fired,
+      GROUP-0 above GROUP-1) to KEEP the on-target-safety HOLD instead of downgrading it to a
+      mechanism-mismatch. Neutral per-modality signals: this is mechanism CONTEXT for the safety gate,
+      not a biology call. Closes the KNOWN GAP documented on oncogene-role-safety-context.
 # Added 2026-07-14 (Pass 1 of legacy-cleanup): CPTAC bulk-protein categorical
 # was emitted after the tumor-presence protein wiring but no rule consumed it,
 # so the protein signal was decision-inert. These rules complete the

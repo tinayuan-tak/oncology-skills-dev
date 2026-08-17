@@ -48,3 +48,45 @@ def test_oncogene_role_rule_defined_and_fires_on_oncogene():
     assert w.get("card_id") == "alteration-role"
     assert w.get("field") == "oncokb_gene_type"
     assert w.get("equals") == "ONCOGENE"
+
+
+# --- S1-1 (cards review 2026-08-17): amplification-driven-GoF guard --------------------------------
+_HOLDS = {"highly_constrained_safety_concern", "human_genetics_safety_concern"}
+_AMP_GUARD = "copy-number-amplified-oncogene-safety-context"
+
+
+def test_amplification_guard_rule_defined():
+    """The amplification signal that blocks the mutant-selective downgrade must be a real rule keyed
+    on the tumour-cohort recurrent FOCAL amplification class."""
+    rule = next((x for x in _rules() if isinstance(x, dict) and x.get("rule_id") == _AMP_GUARD), None)
+    assert rule is not None, f"{_AMP_GUARD} rule must be defined"
+    w = rule.get("when", {})
+    assert w.get("card_id") == "copy-number-distribution"
+    assert w.get("field") == "patient_focal_cn_class"
+    assert w.get("equals") == "recurrent_focal_amplification"
+
+
+def test_amplified_gof_keeps_hold_above_every_downgrade():
+    """For EVERY GROUP-1 mechanism-mismatch downgrade (warning + both role rules), there must be a
+    higher-precedence GROUP-0 rung that fires the SAME warning + both role rules + the amplification
+    guard and yields a HOLD (not a mismatch) — so an amplification-driven oncogene (ERBB2/MDM2), whose
+    drug hits WT protein, keeps its on-target-safety hold instead of being downgraded."""
+    resolve = yaml.safe_load(SAFETY.read_text())["resolve"]
+    downgrades = [(i, r) for i, r in enumerate(resolve)
+                  if r.get("verdict") in _MISMATCH and "when_all_fired" in r]
+    assert downgrades, "expected GROUP-1 mechanism-mismatch downgrade rungs"
+    guards = [(i, r) for i, r in enumerate(resolve)
+              if r.get("verdict") in _HOLDS and _AMP_GUARD in (r.get("when_all_fired") or [])]
+    assert guards, "expected GROUP-0 amplification-guard rungs that keep the hold"
+    # every guard must AND-gate on the amp rule + BOTH role rules (else it would over-broadly hold)
+    for _, g in guards:
+        waf = g["when_all_fired"]
+        assert "activating-driver-role-safety-context" in waf and "oncogene-role-safety-context" in waf, g
+    for di, d in downgrades:
+        warning = next(x for x in d["when_all_fired"] if x.endswith("-safety-warning"))
+        # a guard sharing this warning must exist AND sit BEFORE the downgrade (precedence: first match wins)
+        matching = [gi for gi, g in guards if warning in g["when_all_fired"]]
+        assert matching, f"no amplification-guard rung for warning {warning}"
+        assert min(matching) < di, (
+            f"amplification guard for {warning} must precede the GROUP-1 downgrade at index {di} "
+            f"(first-match-wins) — else the downgrade fires before the guard can keep the hold")

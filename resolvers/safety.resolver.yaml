@@ -18,6 +18,33 @@ description: >
   burden, ClinGen dosage, mouse-KO) adds a combined concern that fires only when gnomAD is SILENT —
   so the gnomAD resolution is byte-identical, and the new leg extends coverage rather than competing.
 resolve:
+  # ── GROUP 0: AMPLIFICATION-driven-GoF GUARD (S1-1, cards review 2026-08-17). Must precede the
+  #    GROUP-1 mutant-selective downgrades. The GROUP-1 downgrade assumes a GoF oncogene is drugged
+  #    MUTANT-SELECTIVELY (spares WT), nullifying a WT-loss safety concern. That FAILS for an
+  #    AMPLIFICATION-driven oncogene (ERBB2, MDM2, MYC): the target IS the wild-type protein, so an
+  #    ADC / TCE / degrader / WT-hitting inhibitor engages WT in normal tissue and the WT-loss concern
+  #    STANDS. When the tumour cohort shows recurrent FOCAL high-level amplification
+  #    (copy-number-amplified-oncogene-safety-context) alongside the GoF role rules, we KEEP the
+  #    on-target-safety HOLD (the same verdict the plain rungs below emit) instead of downgrading it.
+  #    NOTE: this is a strict no-op until the on-target-safety-liability skill composes
+  #    copy-number-distribution (the rule only fires when that card is in the skill's fired set), so
+  #    non-amplified calibration targets still resolve via GROUP-1 exactly as before.
+  - verdict: highly_constrained_safety_concern
+    when_all_fired: [highly-constrained-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, copy-number-amplified-oncogene-safety-context]
+    driving_rule: copy-number-amplified-oncogene-safety-context
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [gene-burden-lof-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, copy-number-amplified-oncogene-safety-context]
+    driving_rule: copy-number-amplified-oncogene-safety-context
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [clingen-dominant-loss-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, copy-number-amplified-oncogene-safety-context]
+    driving_rule: copy-number-amplified-oncogene-safety-context
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [mouse-ko-lethal-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, copy-number-amplified-oncogene-safety-context]
+    driving_rule: copy-number-amplified-oncogene-safety-context
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [clinvar-germline-pathogenic-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, copy-number-amplified-oncogene-safety-context]
+    driving_rule: copy-number-amplified-oncogene-safety-context
+
   # ── GROUP 1: mutant-selective DOWNGRADES (when_all_fired — most specific, must precede the raw
   #    concerns). A GoF driver drugged mutant-selectively spares the WT protein that EVERY WT-loss
   #    safety signal (gnomAD constraint, rare-variant burden, ClinGen dominant-loss, mouse adult-KO)
