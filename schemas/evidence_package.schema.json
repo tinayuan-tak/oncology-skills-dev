@@ -195,9 +195,85 @@
     "schema_version": {
       "type": "integer",
       "const": 1
+    },
+    "subtype_resolved": {
+      "$ref": "#/$defs/subtype_resolved",
+      "description": "OPTIONAL first-class subtype-resolved EVIDENCE block (subtype-first-class-evidence-axis spec, Option A). Present only for runs scoped to molecular strata (target-profile `--subtypes`); ABSENT for default (no-strata) runs, which stay byte-stable. This block makes the per-stratum subtype SIGNALS machine-readable so the cross-evidence integrator can reason at subtype resolution WITHOUT changing the deterministic spine's deliberate 'subtype = context, not a gate' treatment. It is SOFT integrator context: it never raises certainty beyond what a stratum's n supports, never overrides a gate, and a stratum below its n-floor carries no weight. No positive subtype signal here enters any hard gate."
     }
   },
   "$defs": {
+    "subtype_resolved": {
+      "type": "object",
+      "description": "Subtype-resolved evidence block (Option A). Carries, per requested molecular stratum, the per-stratum evidence_state / effect-size metric / subgroup_n / n-floor-met drawn from the subtype-grain cards' per_subgroup_metrics (dependency + mutation-frequency today), plus the cross-axis subtype convergence facet. Additive + independently schema-versioned (schema_version inside this block, distinct from the envelope's top-level schema_version). Verdict-inert: nothing here mints or lifts a nomination.",
+      "required": ["schema_version", "requested_strata", "per_stratum"],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Version of the subtype_resolved block shape (independent of the envelope's schema_version)."
+        },
+        "requested_strata": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "description": "The molecular strata the run was scoped to (mirrors context.subgroup_spec when that is a list). Empty when a subtype-scoped run named no resolvable strata."
+        },
+        "available_strata": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "description": "Strata that actually appeared in at least one subtype-grain card's per_subgroup_metrics this run. A requested stratum absent here had no per-stratum record (coverage/floor gap) and carries no weight."
+        },
+        "per_stratum": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/subtype_stratum_record"},
+          "description": "One record per stratum observed in the subtype-grain cards, each carrying its per-axis evidence_state / n / floor / metric. ABSENCE-DISCIPLINE: a stratum below its n-floor is present but flagged subgroup_n_floor_met=false, so a consumer must not credit it."
+        },
+        "convergence_facet": {
+          "type": "object",
+          "description": "The cross-axis subtype convergence facet (_subtype_facet): per-molecular-subtype which axes carry a MEASURED signal, which subtypes converge on >=2 axes (convergent_subtypes), and registry-bridged associations (associated_subtypes). Previously computed but dropped from the package (emitted only to nomination.json); surfaced here for the integrator. Shape is the facet's own; validated loosely."
+        },
+        "_disclaimer": {
+          "type": "string",
+          "description": "Human-readable statement of the SOFT/verdict-inert contract for this block."
+        }
+      }
+    },
+    "subtype_stratum_record": {
+      "type": "object",
+      "description": "Per-stratum evidence record: the molecular stratum id + its per-axis per_subgroup_metrics projection.",
+      "required": ["stratum", "axes"],
+      "properties": {
+        "stratum": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The molecular-subtype identity (e.g. MSI_H, MSS, NAPY strata)."
+        },
+        "axes": {
+          "type": "object",
+          "description": "Keyed by evidence axis (dependency, mutation_frequency). Each value is the axis's per-stratum projection.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "evidence_state": {
+                "type": ["string", "null"],
+                "description": "measured / underpowered / absent — the per-stratum evidence state emitted by the subtype-grain card. null when the card row did not carry one."
+              },
+              "subgroup_n": {
+                "type": ["number", "null"],
+                "description": "Number of samples/models in the stratum for this axis."
+              },
+              "subgroup_n_floor_met": {
+                "type": ["boolean", "null"],
+                "description": "Whether the stratum cleared its per-axis n-floor. false => carries no weight (absence-discipline at stratum grain)."
+              },
+              "metric": {
+                "type": "object",
+                "description": "The per-stratum effect-size / class the panorama row exposes (e.g. a Chronos median, a mutation frequency). Shape varies per axis; validated loosely."
+              }
+            }
+          }
+        }
+      }
+    },
     "card_present": {
       "type": "object",
       "required": [
