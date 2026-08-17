@@ -47,6 +47,14 @@ outputs:
     - n_tumor
     - n_adjacent
     - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    # GTEx-normal contrast (additive DISPLAY facet, 2026-08-17): the sensitivity product's cell C
+    # (tumor vs GTEx population-normal, raw) surfaced ALONGSIDE the adjacent contrast so the DEG card
+    # shows tumor vs adjacent-normal AND vs GTEx-normal in one place. VERDICT-INERT — NO rule keys on
+    # these; expression_call_class / presence_verdict stay driven by the adjacent contrast (cell A)
+    # only, preserving the Phase-A/Phase-B boundary (tumor-vs-GTEx selectivity is owned by
+    # tumor-selectivity). Populated for indications with a *-dge-tumor-vs-normal-sensitivity-v1 product.
+    - gtex_log2_fc                              # cell C: tumor vs GTEx-normal log2 fold-change (display)
+    - gtex_q_value                              # cell C: BH q-value (display)
     # All-gene percentile null (additive, 2026-08-05): where log2_fc falls among ALL genes
     # in the SAME per-indication DGE product (context named in allgene_percentile_context).
     # Contextualizes the absolute fold-change; comparator-dependent (adjacent-margin
