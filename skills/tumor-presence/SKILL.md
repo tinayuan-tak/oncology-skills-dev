@@ -18,7 +18,10 @@ description: |
       - tumor-scrna-celltype-expression  single-cell per-compartment tumor presence
 
     DISPLAY-ONLY facets (4) — additive context, feed NO ladder (verdict byte-stable):
-      - tumor-rna-distribution-by-subtype   per-molecular-subtype panorama (COADREAD shard)
+      - tumor-rna-distribution-by-subtype   per-subtype panorama (per-indication strata: COADREAD
+                                            molecular subtypes CMS/CIMP/MSI/sidedness/stage; LUAD & NSCLC
+                                            driver-mutation strata EGFR/KRAS/ALK/HER2/BRAF; else
+                                            subtype_axis_available:false)
       - expression-purity-confound          tumor-intrinsic vs stromal/immune signal
       - cellline-rna-protein-concordance    is RNA an adequate protein proxy? (cell-line arm)
       - rna-protein-concordance-tumor       is RNA an adequate protein proxy? (patient-tumor CPTAC arm)

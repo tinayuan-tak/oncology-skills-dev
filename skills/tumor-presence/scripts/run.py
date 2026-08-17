@@ -763,12 +763,14 @@ def _headline(cards, fired, verdict_pair):
         "bulk_rna_proxy_quality_source": ("tumor" if _rna_biomarker_tumor in
                                           ("adequate_proxy", "partial_proxy", "poor_proxy")
                                           else "cell_line"),
-        # SUBTYPE SCOPE (Finding A, 2026-08-04) — the per-molecular-subtype presence landscape from
+        # SUBTYPE SCOPE (Finding A, 2026-08-04) — the per-subtype presence landscape from
         # tumor-rna-distribution-by-subtype, ELEVATED into the audit spine so the subtype scope is
         # visible here, not just in a side table (_per_subgroup_metrics.csv). One-directional / non-veto
-        # (like the other facets — feeds NO resolver ladder; presence_verdict byte-stable). Degrades
-        # honestly: subtype_scope_available=False for indications with no landed assignment shard
-        # (only COADREAD today) — a NAMED gap, not silence.
+        # (like the other facets — feeds NO resolver ladder; presence_verdict byte-stable). The strata
+        # are indication-specific: COADREAD carries molecular/clinical subtypes (CMS, CIMP, MSI, sidedness,
+        # stage); LUAD & NSCLC carry driver-mutation strata (EGFR/KRAS/ALK/HER2/BRAF). Degrades honestly:
+        # subtype_scope_available=False for any indication with no landed assignment shard — a NAMED gap,
+        # not silence.
         "subtype_scope_available":  get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_axis_available"),
         "n_subtypes_measured":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_measured"),
         "n_subtypes_enriched":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_enriched"),
