@@ -3,18 +3,20 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out (in parallel, in-process) to the 10 wired
+  synthesis." Fans out (in parallel, in-process) to the 12 wired
   question-answering skills:
     - tumor-presence
     - tumor-selectivity
     - functional-requirement
     - synthetic-lethal-partners         (SL co-dependency / combination discovery)
+    - combinatorial-dependency          (MEASURED dual-KO SL complement; gateless, additive)
     - mechanism-and-pharmacology
     - genomic-alteration-profile        (SNV + copy-number + fusion [LIVE, additive])
     - differentiation-landscape
     - tractability-small-molecule       (small-molecule chemical-genetic half)
     - surface-modality-fit              (biologics ADC/TCE half)
     - on-target-safety-liability
+    - target-intrinsic                  (indication-independent dossier; GATELESS, verdict=None)
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +
@@ -36,7 +38,7 @@ description: |
   "should we nominate MET in NSCLC?"
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -58,6 +60,8 @@ composition:
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
     - paralog-buffering                        # Layer 6h addition (Phase C-adjacent)
+    # Phase C (combinatorial-dependency: MEASURED dual-KO SL complement)
+    - combinatorial-dependency                 # 2026-08-14: DepMap ParalogV2 dual-KO GI + published corroboration; gateless, additive
     # Phase A/E (genomic-alteration-profile: SNV + copy-number + fusion)
     - mutation-type-counts
     - mutation-stratified-dependency
@@ -81,6 +85,18 @@ composition:
     # (surfaceome-cohort-ranking DROPPED from fan-out 2026-07-14 — per-indication scan)
     # Phase G (safety)
     - gnomad-lof-constraint                    # Layer 6h addition (Phase G)
+    # target-intrinsic EXCLUSIVE cards (WS1 2026-08-17; GATELESS descriptive dossier —
+    # its other 12 cards are HOME cards of other sub-skills' lenses, composed there, not re-listed)
+    - target-identity-summary                  # canonical id / family / aliases
+    - target-development-level                 # Pharos/IDG TDL druggability/novelty tier
+    - protein-domains-class                    # UniProt FT DOMAIN architecture + protein class
+    - domain-modality-relevance                # domain→modality facet (inhibitor_sufficient vs removal_required)
+    - ppi-interactome                          # STRING functional network + CORUM complex membership
+    - gene-ontology-annotation                 # GO BP/MF/CC term membership
+    - reactome-pathway-membership              # Reactome pathway/geneset membership + rollup
+    # Subtype tier — composed ONLY with --subtypes (verdict-affecting; omitted by default)
+    - subgroup-stratified-dependency           # opt-in via --subtypes
+    - subgroup-stratified-mutation-frequency   # opt-in via --subtypes
   rules_scope:
     - all
   synthesis:
@@ -99,11 +115,15 @@ composition:
 
 ## What this skill does
 
-- Runs the 10 wired question-answering skills in parallel (all data-package
+- Runs the 12 wired question-answering skills in parallel (all data-package
   producers): tumor-presence, tumor-selectivity, functional-requirement,
-  synthetic-lethal-partners, mechanism-and-pharmacology, genomic-alteration-profile,
-  differentiation-landscape, tractability-small-molecule, surface-modality-fit,
-  on-target-safety-liability.
+  synthetic-lethal-partners, combinatorial-dependency, mechanism-and-pharmacology,
+  genomic-alteration-profile, differentiation-landscape, tractability-small-molecule,
+  surface-modality-fit, on-target-safety-liability, target-intrinsic.
+  - `combinatorial-dependency` and `target-intrinsic` are **gateless** (absent from the
+    resolver-gate map): they surface in `sub_verdicts` + the LLM synthesis but do NOT
+    drive the recommendation spine, which stays byte-stable. `target-intrinsic` is
+    additionally **descriptive** (`verdict=None`) — indication-independent target biology.
 - Collects each sub-verdict + fired rules + card summaries.
 - Invokes Bedrock (Opus by default via env `ANTHROPIC_MODEL`) with a
   structured tool_use forcing the LLM to emit:
@@ -160,6 +180,26 @@ composition:
   summary and argument prioritization to hypothesis-relevant evidence.
   Sub-verdicts unchanged.
 
+## Verdict-affecting scope (`--subtypes`)
+
+Unlike the lenses and fast modes above (which are verdict-inert), `--subtypes` **can change the
+recommendation spine**:
+
+- `--subtypes <ids>` — comma-separated molecular subgroup ids (e.g. `MSI_H,MSS`). Activates the
+  subtype tier over the `subgroup-stratified-*` cards. It is NEGATIVE-SELECTION only: a MEASURED,
+  floor-cleared subtype that is NOT a dependency fires the subtype-non-dependence rule, which the
+  gate maps to `hold`. Omit for a whole-cohort profile — absent this flag the subtype cards are not
+  composed and the output is byte-identical to the pre-subtype behavior (backward-compatible).
+
+## Provenance / instrumentation flags (verdict-inert)
+
+- `--release-pin <pin>` — STAMP a data `release_pin` into `governance`/`provenance` for
+  reproducibility parity with compose-dashboard. **Pass-through only**: target-profile reads live and
+  does NOT auto-resolve the release; absent this flag the pin is recorded as `unpinned` (honest,
+  never fabricated). Auto-resolution is a deferred data-catalog follow-on.
+- `--profile-timers` — emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr
+  (instrumentation only; zero effect on artifacts).
+
 ## Fast modes (deterministic spine, no LLM)
 
 The deterministic verdict spine — sub-verdicts, the recommendation gate, the positive tier, the
@@ -179,20 +219,22 @@ of the Tier-3 LLM synthesis. These flags skip verdict-inert work and leave that 
 
 When called as `/target-profile`, Claude should:
 
-1. Extract `target` + `indication`. Optionally extract `modality`
-   and/or `therapeutic-hypothesis` from the user's natural-language
-   prompt if named.
+1. Extract `target` + `indication`. Optionally extract `modality`,
+   `therapeutic-hypothesis`, and/or molecular `subtypes`/subgroups from the
+   user's natural-language prompt if named.
 2. Pick an `out` directory (default `/tmp/target-profile/{target}-{indication}`).
-3. Run:
+3. Run (the `export AWS_PROFILE=cbg` prefix is only needed when the LLM synthesis
+   runs — i.e. NOT for `--emit evidence-package`, `--verdict-only`, or `--no-synthesis`):
    ```
    export AWS_PROFILE=cbg && \
    python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/target-profile/scripts/run.py \
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
-   Add `--modality <M>` and/or `--therapeutic-hypothesis "<text>"` if
-   supplied by the user. Add `--emit evidence-package` when the user wants the
-   machine-facing `evidence_package.json` envelope instead of the narrated profile
-   (deterministic, LLM-free — no `AWS_PROFILE`/Bedrock needed).
+   Add `--modality <M>`, `--therapeutic-hypothesis "<text>"`, and/or `--subtypes <ids>`
+   if supplied by the user (note `--subtypes` can change the verdict — see above). Add
+   `--emit evidence-package` when the user wants the machine-facing `evidence_package.json`
+   envelope instead of the narrated profile (deterministic, LLM-free — no
+   `AWS_PROFILE`/Bedrock needed).
 4. Read `<OUT_DIR>/target_profile.md` and present the executive summary
    inline; offer the full nomination.json for detail. (For `--emit
    evidence-package`, read `<OUT_DIR>/evidence_package.json`.)

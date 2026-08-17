@@ -548,7 +548,7 @@ def _run_sub_skills(target: str, indication: str,
             ),
         }
 
-    # PERF Stage 2 (2026-07-23): the 10 sub-skills are GENUINELY INDEPENDENT (collect-then-synthesize;
+    # PERF Stage 2 (2026-07-23): the sub-skills are GENUINELY INDEPENDENT (collect-then-synthesize;
     # no sub-skill reads another's result), so fan them out CONCURRENTLY. THREADS not processes: the
     # method-layer caches (depmap_common.parquet lru + disk cache; framework-tpm-long/hpa disk latches)
     # are process-global, so threads SHARE a target's reads across sub-skills (processes would
