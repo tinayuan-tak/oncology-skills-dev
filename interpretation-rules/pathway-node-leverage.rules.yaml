@@ -110,3 +110,21 @@ rules:
     rationale: |
       Node-leverage could not be computed (target not DepMap-screened, or a live-read error). Evidence
       is in-scope but missing — a coverage gap, not a negative signal. Insufficient.
+
+  # --- paralog / combinatorial correction (spec §6) -----------------------------------------------
+  - rule_id: node-leverage-single-ko-understated-neutral
+    when:
+      card_id: pathway-node-leverage
+      field: single_ko_leverage_understated
+      equals: 'true'
+    signals:
+      axis_fit: neutral
+    rationale: |
+      The target is paralog-BUFFERED (paralog_buffering_class strong/partial, from the DepMap dual-KO
+      buffering product), so its single-KO Chronos — and therefore its node_leverage_class — UNDERSTATES
+      its dependency. A buffered weak_and_uncontested / dominated verdict is a candidate FALSE-NEGATIVE
+      masked by redundancy: do not dismiss the target on the single-KO leverage call; assess dual-KO /
+      combinatorial leverage (this is also how the paralog-mediated-effector relationship, e.g. MARK2 via
+      MARK3, surfaces — as a buffering caveat, not a node-set membership edge). Neutral (informational
+      caveat): it never vetoes and never raises certainty; the fired_rule_id carries the correction to
+      the cross-evidence hypothesis agent.

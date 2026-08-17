@@ -68,6 +68,11 @@ required_inputs:
   # so an unavailable BioGRID product only drops that one report-only lens, never the verdict.
   - product_id: biogrid-physical-interactions-per-gene-v1
     optional: true
+  # DepMap paralog-buffering (dual-KO) — the paralog/combinatorial correction: flags a paralog-buffered
+  # target whose single-KO leverage understates its dependency. OPTIONAL / non-blocking (fail-soft): an
+  # unavailable product yields paralog_buffering_class=data_unavailable, never blocks the verdict.
+  - product_id: depmap-paralog-buffering-per-gene-v1
+    optional: true
 
 methods:
   - call: pathway-node-leverage
@@ -81,7 +86,10 @@ outputs:
   summary_fields:
     - node_leverage_class            # PRIMARY categorical — the headline (WORST/most-dominated reachable verdict across lenses)
     - evidence_scope                 # lineage-scoping provenance (within-lineage vs flagged pan-lineage fallback)
-    - lenses                         # map: {complex: [per-node-set struct], pathway: [per-node-set struct]} — the per-lens detail
+    - paralog_buffering_class        # paralog/combinatorial correction — buffering class of the target (from dual-KO product)
+    - strongest_buffering_paralog    # the max-buffering paralog symbol (context; '' when none/unavailable)
+    - single_ko_leverage_understated # bool — true when buffered (strong/partial): single-KO leverage UNDERSTATES the target
+    - lenses                         # map: {complex: [...], pathway: [...], ppi: [...report-only...]} — the per-lens detail
 
   summary_fields_vocabulary:
     node_leverage_class:
@@ -95,6 +103,14 @@ outputs:
       - within_indication_lineage           # Chronos scoped to the indication's DepMap lineage cohort (>= MIN_COHORT lines)
       - pan_lineage_thin_cohort             # indication given but lineage cohort too thin — FELL BACK to pan-cancer (flagged)
       - pan_lineage_no_indication           # no indication supplied — pan-cancer by construction
+    paralog_buffering_class:
+      - strong                              # strong paralog buffering (dual-KO delta high) — single-KO leverage understated
+      - partial                             # partial buffering
+      - none                                # no functional paralog buffering
+      - data_unavailable                    # paralog product unreachable / target absent (fail-soft)
+    single_ko_leverage_understated:         # bool coerced to 'true'/'false' by the rule engine + validator
+      - 'true'
+      - 'false'
 
   # NOTE (per-lens detail): `lenses` is a MAP lens_name -> list of per-node-set structs, each
   # {node_set, n_members, verdict, n_nodes, target_median_chronos, target_tdl,
@@ -127,7 +143,7 @@ caveats:
   - "Node-set is a LENS on a precision/recall gradient: complex (CORUM, tightest/mechanistic) is more trustworthy than pathway (GO:BP, high-recall/noisy). Report each lens with its precision caveat; do not average across lenses."
   - "Tractability-yield uses Pharos TDL only (Tclin > Tchem > Tbio > Tdark) — a coarse druggability proxy, not a target-specific chemical-matter assessment. dominated_but_tractability_edge means 'a stronger node exists but is no more druggable than the target', not 'the target is druggable in absolute terms'."
   - "Undirected membership (co-complex / co-annotation) CANNOT ground an 'acts-through' direction claim — no directed SIGNOR/OmniPath check is performed. The verdict is a leverage comparison, not a mechanistic epistasis claim."
-  - "Paralog / combinatorial buffering is NOT corrected (deferred, spec §6): a target buffered by a paralog can read falsely non-dominant, and a context-specific SL paralog (SMARCA4->SMARCA2) will not surface pan-cancer."
+  - "Paralog/combinatorial correction (spec §6): single_ko_leverage_understated flags a paralog-buffered target (strong/partial, from the DepMap dual-KO product) whose single-KO leverage UNDERSTATES its dependency — a buffered weak/dominated call is a candidate false-negative; assess dual-KO leverage. Target-level FLAG (additive, verdict-inert; does not re-rank); paralog product optional/fail-soft."
   - "A minimum median-Chronos separation gate (min_median_separation) prevents dominant/dominated being called on screen noise; nodes within the gate are treated as indistinguishable."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — this card is the (only) VIEW of the `pathway_node_leverage`
