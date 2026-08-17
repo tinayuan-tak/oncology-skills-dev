@@ -11,7 +11,10 @@ Node-set is a LENS (precision/recall gradient); this module implements two, all 
   - complex : CORUM 5.3 co-complex members            (tightest; "wrong subunit?"; robust)
   - pathway : MSigDB C2.CP curated canonical pathway PREFERRED (Reactome/KEGG/WP/BioCarta/PID),
               MSigDB C5 GO:BP fallback                 (functional; high recall / NOISY heuristic)
-Deferred (spec §7): PPI (STRING/BioGRID), directed acts-through.
+  - ppi     : BioGRID physical interactors (top-N by publications)  REPORT-ONLY (broadest/hairball;
+              surfaced per-lens but EXCLUDED from the headline min-across-lenses — see read_node_leverage)
+Deferred (spec §6): directed acts-through (SIGNOR/OmniPath) — not yet needed (no directional claim);
+paralog/combinatorial correction.
 
 PATHWAY-LENS SELECTION IS HEURISTIC (panel-validated, not exact): gene<->gene-set membership is
 many-to-many, so no auto-selector is clean across targets. We prefer curated C2.CP over GO:BP and the
@@ -51,6 +54,8 @@ _SRC_MODEL = _DMC + "Model.csv"
 _SRC_COMMON_ESS = _DMC + "CRISPRInferredCommonEssentials.csv"
 _SRC_TDL = "data-catalog/sources/pharos-idg-tcrd/snapshot-2026-08-10/pharos_tdl_per_gene.parquet"
 _SRC_CORUM = "data-catalog/sources/corum/release-5.3-snapshot-2026-07-14/corum_complete.json"
+_SRC_BIOGRID = ("data-catalog/derived/biogrid-physical-interactions-per-gene-v1/"
+                "biogrid_physical_edges_per_gene.parquet")
 _SRC_MSIGDB_ZIP = ("data-catalog/sources/msigdb/human-v2026-1-hs/"
                    "msigdb_v2026.1.Hs_files_to_download_locally.zip")
 _MSIGDB_GMT_DIR = "msigdb_v2026.1.Hs_files_to_download_locally/msigdb_v2026.1.Hs_GMTs/"
@@ -64,6 +69,8 @@ _BUCKET = "onc-compbio"
 DEP_FLOOR = -0.5          # a node must clear this median Chronos to be dependency-relevant
 MIN_SEP = 0.15           # min median-Chronos separation to call one node stronger (vs screen noise)
 MIN_COHORT = 15          # min lineage cell lines before we trust lineage-scoped medians; else pan-lineage
+PPI_TOP_N = 25           # cap the BioGRID interaction neighbourhood to the best-evidenced partners
+                         # (the PPI lens is the broadest/hairball per spec §3 — bounded + REPORT-ONLY)
 # Pathway node-set size band. A gene sits in MANY gene sets; the smallest containing set is almost always
 # a niche/incidental one (e.g. CDK4 -> GOBP_RESPONSE_TO_IONOMYCIN), and the largest is generic machinery.
 # Prefer the smallest set WITHIN [MIN,MAX] as a coarse "specific-but-not-niche" heuristic. This is a
@@ -180,6 +187,30 @@ def _pathway_node_sets(target: str) -> list:
     return [{"name": sel[0], "members": sel[1]}] if sel else []
 
 
+def _ppi_node_sets(target: str) -> list:
+    """The PPI (interaction-neighbourhood) lens: the target's top-N physical interactors by publication
+    evidence (BioGRID physical edges). Spec §3's BROADEST/hairball lens — bounded to PPI_TOP_N and
+    REPORT-ONLY (see read_node_leverage: excluded from the headline min-across-lenses, because a raw
+    interaction neighbourhood [~94 partners/gene] under worst-across-lenses aggregation would spuriously
+    inflate 'dominated' calls). FAIL-SOFT: any read error yields an empty lens (never takes down the
+    headline complex/pathway lenses). Pushdown on the symbol-sorted gene_symbol column."""
+    try:
+        df = pd.read_parquet(io.BytesIO(_get(_SRC_BIOGRID)),
+                             columns=["gene_symbol", "partner_symbol", "n_publications"],
+                             filters=[("gene_symbol", "==", target)])
+    except Exception:  # absence-discipline: exempt -- PPI is a REPORT-ONLY lens (excluded from the headline); a transient/creds/absent BioGRID read must degrade to 'no PPI lens this run', NOT propagate — re-raising would couple a non-verdict-bearing lens to the whole node_leverage read (fail the verdict on a BioGRID blip). The verdict-bearing complex/pathway lenses have their own read paths.
+        return []
+    if df.empty:
+        return []
+    partners = (df.sort_values("n_publications", ascending=False)
+                  .head(PPI_TOP_N)["partner_symbol"].tolist())
+    members = sorted(set(partners) | {target})
+    if len(members) < 2:
+        return []
+    return [{"name": f"BioGRID physical interactors (top {PPI_TOP_N} by publications)",
+             "members": members}]
+
+
 # --- lineage-scoped comparison ----------------------------------------------------------------------
 def _model_ids_for_lineage(lineage: Optional[str]) -> Optional[list]:
     if not lineage:
@@ -238,6 +269,21 @@ def _classify(target: str, stats: pd.DataFrame) -> dict:
     }
 
 
+# --- headline aggregation ---------------------------------------------------------------------------
+_HEADLINE_ORDER = {"dominated_node": 0, "dominated_but_tractability_edge": 1,
+                   "weak_and_uncontested": 2, "dominant_node": 3}
+
+
+def _headline_class(lenses: dict) -> str:
+    """Headline = the WORST (most-dominated) reachable verdict across the CURATED lenses (soft context).
+    The `ppi` lens is REPORT-ONLY — EXCLUDED here — because a raw interaction neighbourhood
+    (~94 partners/gene) under worst-across-lenses aggregation would spuriously crown a more-dependent
+    bystander and inflate 'dominated'. PPI is surfaced per-lens for inspection, not for the verdict."""
+    verdicts = [p["verdict"] for ln, lp in lenses.items() if ln != "ppi"
+                for p in lp if p.get("verdict") in _HEADLINE_ORDER]
+    return min(verdicts, key=lambda v: _HEADLINE_ORDER[v]) if verdicts else "no_node_set"
+
+
 # --- public entrypoint ------------------------------------------------------------------------------
 def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
     """Per-lens node-leverage summary for the target, lineage-scoped to the indication's DepMap cohort."""
@@ -250,7 +296,8 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
                  ("pan_lineage_thin_cohort" if lineage else "pan_lineage_no_indication"))
         lenses = {}
         for lens_name, node_sets in (("complex", _complex_node_sets(target)),
-                                     ("pathway", _pathway_node_sets(target))):
+                                     ("pathway", _pathway_node_sets(target)),
+                                     ("ppi", _ppi_node_sets(target))):
             per = [{"node_set": ns["name"], "n_members": len(ns["members"]),
                     **_classify(target, _stats(ns["members"], target, model_ids))} for ns in node_sets]
             lenses[lens_name] = per
@@ -260,11 +307,7 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
         return {"node_leverage_class": "data_unavailable",
                 "_live_read_error": f"{type(e).__name__}: {e}"}
 
-    # headline class = the WORST (most-dominated) reachable verdict across lenses (soft context)
-    order = {"dominated_node": 0, "dominated_but_tractability_edge": 1, "weak_and_uncontested": 2,
-             "dominant_node": 3}
-    verdicts = [p["verdict"] for lp in lenses.values() for p in lp if p.get("verdict") in order]
-    headline = min(verdicts, key=lambda v: order[v]) if verdicts else "no_node_set"
+    headline = _headline_class(lenses)
     return {
         "node_leverage_class": headline,          # soft, verdict-inert context (no veto, no certainty lift)
         "evidence_scope": scope,
@@ -274,7 +317,12 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
                      "complex (CORUM) lens is the robust one; pathway-lens node-set selection is a "
                      "HEURISTIC (C2.CP-preferred, size-banded) over many-to-many gene<->set membership "
                      "— judge the selected node_set NAME for relevance",
+                     "ppi lens (BioGRID physical interactors, top-N by publications) is REPORT-ONLY — "
+                     "surfaced for inspection but EXCLUDED from the headline (an interaction hairball "
+                     "under worst-across-lenses aggregation would inflate 'dominated'); fail-soft",
+                     "no directed acts-through check (SIGNOR/OmniPath) — DEFERRED, and not yet needed: "
+                     "this method makes a relative fitness-rank comparison, NOT a directional "
+                     "'X acts through Y' claim, so there is no directional assertion to ground yet",
                      "paralog/combinatorial not corrected (TODO): a paralog-mediated node relationship "
-                     "(e.g. a target whose PARALOG sits in the effector pathway) is not captured here",
-                     "no directed acts-through check — undirected membership cannot ground direction (TODO)"],
+                     "(e.g. a target whose PARALOG sits in the effector pathway) is not captured here"],
     }

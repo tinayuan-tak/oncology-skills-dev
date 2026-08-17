@@ -89,3 +89,42 @@ def test_paad_maps_to_pancreas_lineage():
     from methods.depmap_chronos.cli import INDICATION_LINEAGE
     assert INDICATION_LINEAGE.get("PAAD") == "Pancreas"
     assert INDICATION_LINEAGE.get("PDAC") == "Pancreas"     # disease-abbrev alias still present
+
+
+# --- PPI lens (BioGRID interactors) + report-only headline exclusion --------------------------------
+def test_ppi_node_set_caps_top_n_and_includes_target(monkeypatch):
+    # 30 partners with descending publication evidence; the lens keeps the top PPI_TOP_N by n_publications.
+    n = 30
+    df = pd.DataFrame({
+        "gene_symbol": ["TGT"] * n,
+        "partner_symbol": [f"P{i:02d}" for i in range(n)],
+        "n_publications": list(range(n, 0, -1)),           # P00 highest evidence ... P29 lowest
+    })
+    monkeypatch.setattr(C, "_get", lambda key: b"")        # bytes unused (read_parquet patched below)
+    monkeypatch.setattr(C.pd, "read_parquet", lambda *a, **k: df)
+    ns = C._ppi_node_sets("TGT")
+    assert len(ns) == 1
+    members = ns[0]["members"]
+    assert "TGT" in members                                # target always retained
+    assert len(members) == C.PPI_TOP_N + 1                 # top-N partners + the target
+    assert "P00" in members and "P29" not in members       # best-evidenced kept, weakest dropped
+
+
+def test_ppi_lens_fails_soft_on_read_error(monkeypatch):
+    def _boom(*a, **k):
+        raise RuntimeError("s3 down")
+    monkeypatch.setattr(C, "_get", _boom)
+    assert C._ppi_node_sets("TGT") == []                   # never propagates → headline lenses survive
+
+
+def test_headline_excludes_report_only_ppi_lens():
+    # complex says dominant_node; ppi (report-only) says dominated_node. Headline must follow the
+    # CURATED lenses (dominant_node), NOT be dragged to dominated by the interaction hairball.
+    lenses = {
+        "complex": [{"verdict": "dominant_node"}],
+        "pathway": [],
+        "ppi": [{"verdict": "dominated_node"}],
+    }
+    assert C._headline_class(lenses) == "dominant_node"
+    # sanity: without the ppi exclusion the worst-across-all would have been dominated_node
+    assert C._HEADLINE_ORDER["dominated_node"] < C._HEADLINE_ORDER["dominant_node"]
