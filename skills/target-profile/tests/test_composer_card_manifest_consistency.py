@@ -32,7 +32,14 @@ WAIVED_COMPOSER_OMISSIONS: dict[tuple[str, str], str] = {
     # (2026-07-23, P4 slice 3) The ("surface-modality-fit", "normal-tissue-liability") waiver was
     # RESOLVED: normal-tissue-liability is now composed in SUB_SKILL_CARDS["surface-modality-fit"]
     # (alongside the P4 copy-number-distribution wiring), so it is no longer a real omission and the
-    # waiver was removed (the stale-waiver guard would otherwise fail). No waivers currently needed.
+    # waiver was removed (the stale-waiver guard would otherwise fail).
+    ("tumor-presence", "cellline-rna-distribution-by-subtype"):
+        # (2026-08-17, WS-C) DepMap driver-mutation subtype panorama of the cell-line RNA distribution.
+        # DISPLAY-ONLY / verdict-inert and COADREAD-only (pattern proof). Deliberately NOT composed into
+        # the target-profile fan-out yet: it is a tumor-presence render facet, not a nomination signal,
+        # and composing it would add a proof-stage card to every composed profile. Promote to
+        # SUB_SKILL_CARDS["tumor-presence"] when it graduates beyond the COADREAD proof.
+        "WS-C proof-stage display facet; tumor-presence-only until it graduates past COADREAD.",
 }
 
 # REVERSE-direction waiver (2026-08-13, compose-core convergence final stage): a card DELIBERATELY

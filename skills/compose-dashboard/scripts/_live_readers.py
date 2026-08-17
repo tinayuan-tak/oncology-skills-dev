@@ -562,6 +562,35 @@ def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str
     return mod.build_subtype_panorama(target, indication)
 
 
+# Indication → DepMap-side (ModelID-keyed) assignment shard for the cell-line subtype panorama.
+# COADREAD-only for the pattern proof (the only landed DepMap cell-line shard: MSI_H/MSS). Extend in
+# lockstep with the card's applies_when as new --data-source depmap shards land.
+_CELLLINE_SUBTYPE_ASSIGNMENTS = {
+    "COADREAD": "depmap-subgroup-assignments-coadread-v1",
+    "COAD":     "depmap-subgroup-assignments-coadread-v1",
+    "READ":     "depmap-subgroup-assignments-coadread-v1",
+}
+
+
+def _dispatch_cellline_expression_distribution_subtype(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route cellline-rna-distribution-by-subtype card (target_subtype grain) to
+    methods/depmap_expression_distribution/read.py::build_expression_subtype_panorama.
+
+    Cell-line analogue of _dispatch_tumor_expression_distribution_subtype. Resolves the DepMap
+    assignment shard's strata (ModelID-keyed) and recomputes the per-ModelID RNA distribution within
+    each stratum. DESCRIPTIVE / verdict-inert. No shard for the indication → subtype_axis_available:
+    false (honest)."""
+    manifest = _CELLLINE_SUBTYPE_ASSIGNMENTS.get((indication or "").upper())
+    if manifest is None:
+        return {"subtype_axis_available": False, "n_subtypes_measured": 0,
+                "subtype_stratification_class": None, "spotlight_subtype": None,
+                "per_subgroup_metrics": []}
+    read_mod = _import_method("depmap_expression_distribution.read")
+    scoping = _import_method("subgroup_common.scoping")
+    strata = sorted(scoping.load_assignments(manifest)["stratum_id"].unique().tolist())
+    return read_mod.build_expression_subtype_panorama(target, indication, strata, manifest)
+
+
 def _dispatch_sc_tumor_celltype_expression(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route tumor-scrna-celltype-expression card (sc_rna/tumor bucket) to
     methods/sc_tumor_expression_celltype/cli.py::build_summary.
@@ -1396,6 +1425,7 @@ CARD_DISPATCHERS = {
     "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
+    "cellline-rna-distribution-by-subtype": _dispatch_cellline_expression_distribution_subtype,
     "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
     "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket (#267 added to CARDS, dispatcher was missing)
     "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg (#272 added to CARDS, dispatcher was missing)

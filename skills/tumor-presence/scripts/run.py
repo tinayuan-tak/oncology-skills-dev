@@ -113,6 +113,10 @@ CARDS = [
                                         # subtype landscape + faceted panel; subtype_signal is
                                         # confidence/context (NOT a veto — one-directional gate). Same
                                         # (bulk_rna, tumor) bucket as the pooled card.
+    "cellline-rna-distribution-by-subtype",  # WS-C: CELL-LINE analogue — DepMap driver-mutation strata
+                                        # of the cell-line RNA distribution (ModelID-keyed panorama).
+                                        # Same (bulk_rna, cell_line) bucket as cellline-rna-distribution.
+                                        # DISPLAY-ONLY / verdict-inert; COADREAD-only (proof).
     "expression-purity-confound",       # Q9 (2026-07-23) — is the TUMOR presence signal tumor-cell-
                                         # intrinsic or microenvironment (stromal/immune)-driven? A
                                         # purity-confound CAVEAT on the tumor presence call (correlates
@@ -192,6 +196,7 @@ CARD_CONTEXT = {
     "tumor-rna-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
     "tumor-rna-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
     "tumor-rna-distribution-by-subtype": ("bulk_rna", "tumor"),   # per-subtype panorama of the same — same (bulk_rna, tumor) bucket
+    "cellline-rna-distribution-by-subtype": ("bulk_rna", "cell_line"),  # WS-C: DepMap driver-subtype panorama — same bucket as cellline-rna-distribution
     "tumor-protein-abundance-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
     "cellline-protein-abundance":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
@@ -785,6 +790,13 @@ def _headline(cards, fired, verdict_pair):
         # One-directional: raises CONFIDENCE / defines patient population, NEVER moves presence_verdict.
         "subtype_stratification_class": get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_stratification_class"),
         "n_subtypes_restricted":    get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_restricted"),
+        # WS-C: CELL-LINE driver-subtype panorama (cellline-rna-distribution-by-subtype), ELEVATED into
+        # the spine alongside the TUMOR subtype scope. DISPLAY-ONLY / one-directional — feeds NO ladder;
+        # presence_verdict byte-stable. Degrades honestly (subtype_axis_available=False) off-COADREAD.
+        "cellline_subtype_scope_available": get_card_field(cards, "cellline-rna-distribution-by-subtype", "subtype_axis_available"),
+        "cellline_n_subtypes_measured": get_card_field(cards, "cellline-rna-distribution-by-subtype", "n_subtypes_measured"),
+        "cellline_subtype_stratification_class": get_card_field(cards, "cellline-rna-distribution-by-subtype", "subtype_stratification_class"),
+        "cellline_spotlight_subtype": get_card_field(cards, "cellline-rna-distribution-by-subtype", "spotlight_subtype"),
         # sc_rna slice (2026-08-04) — single-cell per-compartment tumor presence, ELEVATED into the
         # audit spine. VERDICT-BEARING via _SC_RNA_RANK (feeds the sc_rna/tumor bucket + the collapsed
         # spine below the bulk backbone). malignant_detection_fraction is the sc-native headline metric;

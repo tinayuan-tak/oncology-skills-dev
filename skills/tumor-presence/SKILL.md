@@ -5,7 +5,7 @@ description: |
   and how does it distribute across cancer cell lines vs. tumor samples, at RNA,
   protein, and single-cell level?"
 
-  Consumes 13 cards across three measurement layers (bulk RNA, bulk protein MS,
+  Consumes 14 cards across three measurement layers (bulk RNA, bulk protein MS,
   single-cell RNA), grouped by role:
 
     VERDICT-BEARING (7) — feed the rank-ordered presence ladders:
@@ -17,11 +17,12 @@ description: |
       - tumor-elevation-breadth          pan-cancer K-of-N tumor-elevation (target-grain)
       - tumor-scrna-celltype-expression  single-cell per-compartment tumor presence
 
-    DISPLAY-ONLY facets (4) — additive context, feed NO ladder (verdict byte-stable):
+    DISPLAY-ONLY facets (5) — additive context, feed NO ladder (verdict byte-stable):
       - tumor-rna-distribution-by-subtype   per-subtype panorama (per-indication strata: COADREAD
                                             molecular subtypes CMS/CIMP/MSI/sidedness/stage; LUAD & NSCLC
                                             driver-mutation strata EGFR/KRAS/ALK/HER2/BRAF; else
                                             subtype_axis_available:false)
+      - cellline-rna-distribution-by-subtype  cell-line RNA by DepMap driver/molecular subtype (COADREAD proof)
       - expression-purity-confound          tumor-intrinsic vs stromal/immune signal
       - cellline-rna-protein-concordance    is RNA an adequate protein proxy? (cell-line arm)
       - rna-protein-concordance-tumor       is RNA an adequate protein proxy? (patient-tumor CPTAC arm)
@@ -60,8 +61,9 @@ composition:
     - cellline-protein-abundance
     - tumor-elevation-breadth
     - tumor-rna-distribution
-    # DISPLAY-ONLY facets (4) — additive context, feed no ladder (verdict byte-stable)
+    # DISPLAY-ONLY facets (5) — additive context, feed no ladder (verdict byte-stable)
     - tumor-rna-distribution-by-subtype
+    - cellline-rna-distribution-by-subtype
     - expression-purity-confound
     - cellline-rna-protein-concordance
     - rna-protein-concordance-tumor
@@ -118,7 +120,7 @@ composition:
 
 ## What this skill does
 
-- Fetches the 13 cards via the compose-dashboard live-reader dispatchers — the exact same
+- Fetches the 14 cards via the compose-dashboard live-reader dispatchers — the exact same
   read path the composed engines use, so there is no computation drift.
 - Fires each card's rules on the `intracellular_intrinsic` axis across THREE measurement ladders
   (`_EXPRESSION_RANK` / `_PROTEIN_RANK` / `_SC_RNA_RANK`, keyed by the card's `measurement`), then
