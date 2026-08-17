@@ -86,9 +86,22 @@ and hides context-specific SL (SMARCA4→SMARCA2). Surfaced three times in
 validation. The production method MUST compute dependency **within the indication
 lineage cohort** (DepMap `Model.csv` OncotreeLineage; reuse the
 `depmap_chronos` INDICATION→lineage map) with a pan-lineage fallback when the
-cohort is thin. Also deferred: paralog/combinatorial correction; a **directed**
-SIGNOR/OmniPath acts-through check before any "acts-through" claim (undirected
-membership cannot ground direction).
+cohort is thin. **SHIPPED** (2026-08-17): lineage-scoping (#372) and the
+paralog/combinatorial correction (#375/#392 — a buffered target's single-KO
+leverage is flagged `single_ko_leverage_understated`, reusing the dual-KO
+buffering product; the paralog-mediated-effector case, e.g. MARK2 via MARK3,
+surfaces as that buffering caveat rather than a node-set edge).
+
+**Directed SIGNOR/OmniPath acts-through check — CLOSED as not-applicable
+(2026-08-17).** The original concern was that undirected membership cannot ground
+a directional "X acts through Y" claim. But this method makes **no** directional
+claim: `node_leverage_class` is a relative fitness-rank comparison ("is the target
+the best node in its neighbourhood, or dominated?"), never an "acts-through"
+assertion. A directed-edge guard therefore has nothing to guard. This item is
+**not a pending TODO** — it becomes in-scope only if a future feature adds a
+directional/epistasis claim (e.g. "target acts through effector E"), at which
+point a directed SIGNOR/OmniPath check would gate that specific claim. Until then:
+intentionally not built.
 
 ## 7. Productionization plan (build order)
 
@@ -101,11 +114,12 @@ the cooccurrence verdict). Step 4 skill #466 (differentiation-landscape CARDS +
 target-profile fanout; hypothesis-agent exposure automatic via `fired_rule_ids`;
 nominations byte-stable — nothing consumes `axis_fit`). PPI lens #374 added
 **report-only** (excluded from the headline). Lens gradient delivered: complex +
-C2.CP + GO:BP (headline) + PPI (report-only). **Deferred:** directed acts-through
-(SIGNOR/OmniPath) — no directional "acts-through" claim to ground yet — and
-paralog/combinatorial correction (the leg the dropped MARK2→YAP/TAZ done-when
-needed; see the roadmap's revised WS3 done-when). Step 5 (source-release pins)
-below.
+C2.CP + GO:BP (headline) + PPI (report-only). Paralog/combinatorial correction
+**SHIPPED** #375/#392 (single_ko_leverage_understated; the leg the dropped
+MARK2→YAP/TAZ done-when needed — see the roadmap's revised WS3 done-when).
+Step 5 (source-release pins) satisfied by the card's release-pinned
+`required_inputs` (see §5). Directed acts-through **CLOSED as not-applicable**
+(§6) — no directional claim to ground. **WS3 is complete; no open items remain.**
 
 1. **analysis-methods** `methods/pathway_node_leverage/` — `read_node_leverage(target,
    indication)` returning per-lens verdicts + effect sizes + provenance; reads the
