@@ -63,6 +63,11 @@ required_inputs:
   - product_id: msigdb-human-v2026-1-hs
   # Pharos IDG/TCRD — per-gene TDL (the tractability-yield leg: Tclin > Tchem > Tbio > Tdark).
   - product_id: pharos-idg-tcrd-snapshot-2026-08-10
+  # BioGRID physical interactions — the PPI (interaction-neighbourhood) lens node-set. OPTIONAL /
+  # non-blocking: the PPI lens is REPORT-ONLY (excluded from the headline) and fail-soft in the method,
+  # so an unavailable BioGRID product only drops that one report-only lens, never the verdict.
+  - product_id: biogrid-physical-interactions-per-gene-v1
+    optional: true
 
 methods:
   - call: pathway-node-leverage

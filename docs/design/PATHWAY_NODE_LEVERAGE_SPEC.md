@@ -92,6 +92,21 @@ membership cannot ground direction).
 
 ## 7. Productionization plan (build order)
 
+**STATUS 2026-08-17 — axis LIVE end-to-end.** Step 1 method #371 + refine #372
+(lineage-scoped incl PAAD fix; C2.CP-preferred, size-banded node-set selection).
+Step 2 card + measurement_type #384 (`derived_from crispr_lof_dependency`,
+`evidence_tier: inferred` → machine-enforced soft/no-veto). Step 3 rules #390
+(soft `axis_fit` signal; NOT a `differentiation.resolver` rung — orthogonal to
+the cooccurrence verdict). Step 4 skill #466 (differentiation-landscape CARDS +
+target-profile fanout; hypothesis-agent exposure automatic via `fired_rule_ids`;
+nominations byte-stable — nothing consumes `axis_fit`). PPI lens #374 added
+**report-only** (excluded from the headline). Lens gradient delivered: complex +
+C2.CP + GO:BP (headline) + PPI (report-only). **Deferred:** directed acts-through
+(SIGNOR/OmniPath) — no directional "acts-through" claim to ground yet — and
+paralog/combinatorial correction (the leg the dropped MARK2→YAP/TAZ done-when
+needed; see the roadmap's revised WS3 done-when). Step 5 (source-release pins)
+below.
+
 1. **analysis-methods** `methods/pathway_node_leverage/` — `read_node_leverage(target,
    indication)` returning per-lens verdicts + effect sizes + provenance; reads the
    pinned CORUM / MSigDB / Pharos / DepMap sources; lineage-scoped. `cli.py` for

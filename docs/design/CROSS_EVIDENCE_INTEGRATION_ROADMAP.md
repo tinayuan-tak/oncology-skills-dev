@@ -101,8 +101,13 @@ version unsound):**
   modality matching (should be a controlled enum). Clause-traceability measures
   pointer-COMPLETENESS only, not clause SOUNDNESS — do not headline "1.0 on n=2".
 - 6-dim risk agent (`risk_agent.py`) / draft skill #455.
-- Pathway-node-leverage: proof-of-concept only; the naive raw-Chronos ranking is
-  superseded by the §2 corrected spec.
+- Pathway-node-leverage: LIVE end-to-end (2026-08-17) — method #371 + refine #372
+  (lineage-scoped, common-essential-excluded, tractability-yield, C2.CP-preferred
+  node-set selection), card + measurement_type #384, interpretation-rules #390
+  (soft `axis_fit` signal), skill wiring #466 (differentiation-landscape +
+  target-profile fanout), PPI report-only lens #374. The naive raw-Chronos PoC is
+  superseded. Deferred: paralog/combinatorial correction + directed acts-through
+  (see §2; the paralog leg is what the dropped MARK2→YAP/TAZ criterion needed).
 
 **Exists but not wired:** `target-intrinsic` dossier skill.
 
@@ -135,9 +140,27 @@ correlated-evidence discount.
   prerequisite: **ingest/scaffold the MSigDB C5 GO:BP node-set as a
   release-PINNED data-catalog source manifest** (stable ID, sort key, lineage);
   the card references that manifest ID (membership drift can flip
-  dominated↔competitive). *Done when:* MARK2/3 reads `dominated_node (YAP/TAZ)`
-  **with the tractability-yield caveat present**, and an acceptance test confirms
-  a tractable upstream kinase "dominated" by an undruggable TF is NOT down-ranked.
+  dominated↔competitive). *Done when (REVISED 2026-08-17):* the axis is live
+  end-to-end (method → card → rules → skill: #371/#372, #384, #390, #466), the
+  **tractability-yield acceptance test passes** (a tractable node "dominated" by
+  an undruggable one reads `dominated_but_tractability_edge`, NOT down-ranked —
+  CDK4/KRAS validated at the `_classify` logic level), and **node-set selection
+  is validated on a diverse target panel** (CDK4/KRAS/EGFR/BRAF/MET/SMARCA4/TP53/
+  AURKA), not a single motivating case.
+  **The original criterion — "MARK2/3 reads `dominated_node (YAP/TAZ)`" — is
+  DROPPED.** Empirically NO CORUM / C2.CP / GO:BP set (nor SIGNOR / Reactome)
+  contains both MARK2 and YAP/TAZ: only MARK2's PARALOG MARK3 sits in
+  `GOBP_HIPPO_SIGNALING`, so the MARK2→YAP/TAZ leverage relationship is
+  **paralog-mediated, not a membership fact**. Forcing that verdict via a
+  node-set heuristic would overfit the method to one example (the exact
+  over-indexing trap). MARK2/PAAD honestly reads `weak_and_uncontested`
+  (lineage-scoped, peripheral); recovering the paralog-mediated relationship is
+  the **deferred paralog-correction** (§2), captured by the paralog axis, not the
+  membership lenses. Lens set delivered: complex (CORUM) + curated-pathway
+  (C2.CP) + functional (GO:BP), all headline-driving; PPI (BioGRID) added
+  **report-only** (excluded from the headline — a raw interaction hairball would
+  inflate `dominated`). Deferred: directed acts-through (no directional claim to
+  ground yet) + paralog/combinatorial correction.
 - **WS7 (pulled forward) · Correlated-evidence / independence discount.**
   Co-scheduled with WS4's certainty emission (NOT deferred to Phase 3). If it must
   trail, WS4 ships certainty with a hard `correlated_evidence_discounted:false`
