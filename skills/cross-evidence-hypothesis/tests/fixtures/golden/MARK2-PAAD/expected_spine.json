@@ -1,0 +1,45 @@
+{
+  "computed_verdict": "declined",
+  "gate_ceiling": "declined",
+  "gate_reason": "recommendation_gate fired (veto)",
+  "was_clamped": false,
+  "gate_clamp_tension_present": false,
+  "gate_fail_closed": false,
+  "hard_gates_present": false,
+  "active_vetoes": [
+    "recommendation_gate",
+    "safety:highly_constrained_safety_concern"
+  ],
+  "blind_gates": [],
+  "opposing_gates": [],
+  "modality_excluded_gates": [],
+  "clause_traceability": 1.0,
+  "promotable": false,
+  "promotion_blockers": [
+    "intra_package_coherence_violations"
+  ],
+  "n_coherence_violations": 7,
+  "coherence_violation_clauses": [
+    "causal_rationale",
+    "population",
+    "therapeutic_hypothesis",
+    "therapeutic_window"
+  ],
+  "overall_certainty": "low",
+  "base_certainty": "low",
+  "certainty_capped": false,
+  "cap_reasons": [
+    "degraded inputs: ['dossier', 'risk']"
+  ],
+  "limiting_dimension": "selectivity",
+  "data_gaps": [
+    "differentiation",
+    "selectivity"
+  ],
+  "correlated_evidence_discounted": false,
+  "correlated_groups": {},
+  "n_independent_units": 80,
+  "prompt_template_hash": "a9c0cca3669cbb7c6330d01c1a1e3aa0ef98ab35a4197a61f7681c83d674a284",
+  "model_id": "offline:offline_replay",
+  "llm_mode": "offline_replay"
+}

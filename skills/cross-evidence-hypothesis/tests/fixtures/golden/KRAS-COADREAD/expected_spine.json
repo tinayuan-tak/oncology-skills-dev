@@ -1,0 +1,37 @@
+{
+  "computed_verdict": "advanceable_flagged",
+  "gate_ceiling": "advanceable",
+  "gate_reason": "no fired/blind hard gate on the deterministic spine",
+  "was_clamped": true,
+  "gate_clamp_tension_present": false,
+  "gate_fail_closed": false,
+  "hard_gates_present": false,
+  "active_vetoes": [],
+  "blind_gates": [],
+  "opposing_gates": [],
+  "modality_excluded_gates": [],
+  "clause_traceability": 1.0,
+  "promotable": false,
+  "promotion_blockers": [
+    "intra_package_coherence_violations"
+  ],
+  "n_coherence_violations": 2,
+  "coherence_violation_clauses": [
+    "causal_rationale",
+    "therapeutic_hypothesis"
+  ],
+  "overall_certainty": "low",
+  "base_certainty": "moderate",
+  "certainty_capped": true,
+  "cap_reasons": [
+    "degraded inputs: ['dossier', 'risk']"
+  ],
+  "limiting_dimension": null,
+  "data_gaps": [],
+  "correlated_evidence_discounted": false,
+  "correlated_groups": {},
+  "n_independent_units": 80,
+  "prompt_template_hash": "a9c0cca3669cbb7c6330d01c1a1e3aa0ef98ab35a4197a61f7681c83d674a284",
+  "model_id": "offline:offline_replay",
+  "llm_mode": "offline_replay"
+}

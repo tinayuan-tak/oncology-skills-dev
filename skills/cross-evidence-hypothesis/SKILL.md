@@ -27,7 +27,7 @@ description: |
   consumer: it does not modify target-profile or any sub-skill.
 
 metadata:
-  version: 0.1.0
+  version: 0.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -116,6 +116,21 @@ with four upgrades over the prototype.
   `advanceable_flagged`.
 - **Absence-discipline WITH TEETH**: an absent/insufficient line carries no
   weight and can never support a clause; a violation blocks promotion.
+- **Intra-package COHERENCE WITH TEETH** (`hypothesis_core.coherence_violations`,
+  §6.5 — the WS5 adversarial-survival root-cause fix). A positive-thesis clause
+  (causal_rationale / therapeutic_hypothesis / population) may NOT assert a
+  positive claim on a signal that ANOTHER present package signal contradicts,
+  unless the clause SURFACES the tension (in `contradicting_citations` or a
+  principal tension). Enforced four ways: (a) a MEASURED-NEGATIVE sub-verdict
+  cited as support; (a2) a card whose interpretation_call is measured-negative
+  cited as support; (b) the agent's OWN `contradicts`/`tensions_with` edges
+  enforced on its own clauses; (c) a small GENERAL intrinsic cross-card registry
+  (`INTRINSIC_CONTRADICTIONS`) — e.g. a synthetic-lethal/combination strategy is
+  unsupported when `partner-conditional-dependency = no_partner_mapped` is present
+  (the exact class the WS5 smoke found dropping MARK2 survival to 0.25, where the
+  contradicting line is present but UNCITED). A coherence violation blocks
+  promotion and caps the verdict (`advanceable_flagged`), so a clause that is
+  internally contradicted cannot ship clean on traceability alone.
 - **Degraded mode / minimum-inputs** (§12): a missing dossier or risk read
   degrades certainty (capped `low`) and is flagged — it NEVER silently inflates
   certainty or raises the ceiling. Below the minimum non-gap decision lines the
@@ -153,19 +168,42 @@ with four upgrades over the prototype.
         --modality small_molecule \
         --out <dir>
 
+## WS4 drift-guard (roadmap §9) — DELIVERED (v0.2.0)
+
+The output carries a `provenance` block pinning the two drift PINS — `prompt_template_hash`
+(a stable sha256 over both system prompts + both tool schemas) and `model_id` — plus `llm_mode`.
+An OFFLINE, DETERMINISTIC golden-set drift-CI (`tests/test_drift_guard.py`) freezes, for
+KRAS/COADREAD + MARK2/PAAD, the DETERMINISTIC SPINE outputs (clamped verdict, gate ceiling / clamp
+tension, clause-traceability, computed certainty + caps, data gaps, substrate-discount, intra-package
+coherence) and the two PINS; it FAILS when any of them drift (a prompt/schema edit flips
+`prompt_template_hash`). The LLM PROSE is deliberately NOT frozen. Fixtures are TRIMMED evidence
+packages (integrator-relevant fields only) + a canned two-call `llm_replay.json` fed via
+`--no-llm --llm-replay` (`run.replay_synthesize`), so CI never calls Bedrock. Documented tolerance:
+the offline spine is exactly reproducible run-to-run, so fields compare for exact equality (the one
+float within `DRIFT_FLOAT_TOL`); the model/prompt-change channel is handled by REGENERATION + review:
+
+    BEDROCK_AWS_PROFILE=cmp-dev python3 scripts/freeze_drift_golden.py --all       # re-capture LLM + refreeze
+    python3 scripts/freeze_drift_golden.py --all --replay-only                     # refreeze spine only (no Bedrock)
+
+## Adversarial-survival post-check / gate (WS5) — DELIVERED (v0.2.0)
+
+The always-on, OFFLINE `hypothesis_core.coherence_violations` guard (above) is the deterministic
+sibling of the LLM skeptic pass. `scripts/adversarial_survival.py` (rehomed from
+framework-runs, repointed at this skill's `hypothesis_core`) is the OPTIONAL, Bedrock-backed
+post-check: N=3 skeptics try to refute each clause FROM THE PACKAGE ONLY (uncontained/confabulated
+refutations discarded via `check_traceability`), and `adversarial_survival_gate(result, threshold)`
+FLAGS a below-threshold hypothesis so it is not shipped clean on traceability alone. Emit the score
+into the optional first-class `quality.adversarial_survival` slot. Run it as a gate:
+
+    BEDROCK_AWS_PROFILE=cmp-dev python3 scripts/adversarial_survival.py \
+        --evidence-package <evidence_package.json> --hypothesis <hypothesis.json> --threshold 0.75
+
 ## Deferred hardening (TODOs — documented, NOT built in this increment)
 
 - **Immutable, content-addressed provenance manifest** (roadmap §6.9): a hash-in-
   path write-once archival manifest with a mandatory non-reproducible / as-of-DATE
   header (model_id, timestamp, temperature, cost-per-hypothesis, prompt_hash). This
-  increment emits `hypothesis.json` in a plain output dir.
-- **Drift-guard / golden-set CI** (roadmap §9, WS9): pin `prompt_hash` + `model_id`
-  and freeze a golden set (KRAS/COADREAD, MARK2/PAAD); fail CI when clamped verdicts
-  or edge structure drift on model/prompt change. (Also monitors the conservative,
-  non-reproducible DOWNWARD channel called out in §1.)
-- **Adversarial-survival metric** (WS5): a skeptic pass that tries to refute each
-  clause from the same evidence; clause-traceability here measures pointer
-  COMPLETENESS only, not clause SOUNDNESS.
+  increment emits `hypothesis.json` in a plain output dir with the `provenance` block.
 - **Curated truth-set + extrinsic metrics** (WS6): the three-reader comparison,
   pre-registered, on a truth-set disjoint from WS9's rule-anchoring facts.
 - **Retrieval-LOG-grounded allowed_pmids** (roadmap §6.3): today `allowed_pmids`

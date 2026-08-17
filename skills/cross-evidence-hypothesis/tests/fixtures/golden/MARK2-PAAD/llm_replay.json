@@ -1,0 +1,376 @@
+{
+  "cross_edges": {
+    "edges": {
+      "value": [
+        {
+          "type": "contradicts",
+          "from_dimension": "combinatorial_dependency",
+          "to_dimension": "partner-conditional-dependency",
+          "rationale": "strong_synthetic_lethal / has_experimental_sl_partner is undercut because partner-conditional-dependency=no_partner_mapped means the combinatorial signal has no actionable partner to pair with in PAAD.",
+          "citations": [
+            "combinatorial-dependency",
+            "synthetic-lethal-partners",
+            "partner-conditional-dependency"
+          ]
+        },
+        {
+          "type": "contradicts",
+          "from_dimension": "synthetic_lethal_partners",
+          "to_dimension": "dependency",
+          "rationale": "The experimental SL partner claim sits against non_dependent_paralog_buffered \u2014 CRISPR and RNAI both call MARK2 non_dependent, so there is no monotherapy dependency base for the SL/combination signal.",
+          "citations": [
+            "synthetic-lethal-partners",
+            "pan-cancer-crispr-dependency-distribution",
+            "pan-cancer-rnai-dependency-distribution",
+            "crispr-rnai-dependency-concordance"
+          ]
+        },
+        {
+          "type": "contradicts",
+          "from_dimension": "genomic_alteration",
+          "to_dimension": "genomic_alteration",
+          "rationale": "amp-expr-stratified-dependency=amplified_overexpressed_moderately_dependent and copy-number-stratified-dependency=amplified_moderately_dependent are undercut by copy-number-distribution=broadly_neutral \u2014 the amplified-dependent stratum is not a materially represented population in PAAD.",
+          "citations": [
+            "amp-expr-stratified-dependency",
+            "copy-number-stratified-dependency",
+            "copy-number-distribution"
+          ]
+        },
+        {
+          "type": "tensions_with",
+          "from_dimension": "dependency",
+          "to_dimension": "dependency",
+          "rationale": "paralog-buffering=strong provides the mechanistic reason the monotherapy dependency is absent (non_dependent_paralog_buffered), tensioning any single-agent MARK2 inhibition thesis.",
+          "citations": [
+            "paralog-buffering",
+            "pan-cancer-crispr-dependency-distribution"
+          ]
+        },
+        {
+          "type": "conditions",
+          "from_dimension": "mechanism",
+          "to_dimension": "dependency",
+          "rationale": "signaling-network-mechanism=well_characterized with phospho_present and pathway-activity-context=relatively_high sets the pathway role, but this active-pathway context does NOT convert into a dependency, conditioning interpretation of non_dependent.",
+          "citations": [
+            "signaling-network-mechanism",
+            "phospho-pathway-activity",
+            "pathway-activity-context",
+            "pan-cancer-crispr-dependency-distribution"
+          ]
+        },
+        {
+          "type": "contradicts",
+          "from_dimension": "safety",
+          "to_dimension": "tractability_sm",
+          "rationale": "tractable small-molecule readiness (potent_measured_ligand, approved_drug_tractable, strong structure) collides with highly_constrained_safety_concern: gnomad highly_constrained, mouse lethal_ko, germline_pathogenic, broad normal expression \u2014 a druggable-but-dangerous target.",
+          "citations": [
+            "measured-potency-tractability",
+            "known-drug-tractability",
+            "structure-features-static",
+            "gnomad-lof-constraint",
+            "mouse-ko-phenotype",
+            "clinvar-pathogenicity-safety",
+            "normal-tissue-liability-gtex"
+          ]
+        },
+        {
+          "type": "tensions_with",
+          "from_dimension": "expression",
+          "to_dimension": "safety",
+          "rationale": "tumor_broadly_expressed with tumor-vs-normal-percentile-crossing=strongly_tumor_enriched is tensioned by broad_normal_expression / sc-normal-celltype-expression=HIGH_LIABILITY / modality-therapeutic-window=essential_tissue_liability \u2014 no clean therapeutic window.",
+          "citations": [
+            "tumor-vs-normal-percentile-crossing",
+            "normal-tissue-liability",
+            "sc-normal-celltype-expression",
+            "modality-therapeutic-window"
+          ]
+        },
+        {
+          "type": "corroborates",
+          "from_dimension": "expression",
+          "to_dimension": "genomic_alteration",
+          "rationale": "expression-clinical-association=expression_high_worse_survival aligns with an oncogenic-context read (oncogenic-pathway-alteration=frequently_altered), though both remain associative not dependency-backed.",
+          "citations": [
+            "expression-clinical-association",
+            "oncogenic-pathway-alteration"
+          ]
+        },
+        {
+          "type": "corroborates",
+          "from_dimension": "surface_modality",
+          "to_dimension": "safety",
+          "rationale": "surface_modality neither_viable (not_surface, no_transmembrane, essential_exon_liability, pmhc broadly_presented_normal) reinforces that antigen-based sparing of normal tissue is unavailable given broad normal expression.",
+          "citations": [
+            "protein-surface-evidence",
+            "surface-topology-and-ptm",
+            "modality-exon-window",
+            "pmhc-presentation",
+            "normal-tissue-liability-gtex"
+          ]
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "a9b22d4355ecc84d59022e7298f84e9f795486b23a236912d09c0be06307e69b"
+    },
+    "principal_tensions": {
+      "value": [
+        {
+          "statement": "The positive combination/SL thesis (strong_synthetic_lethal, has_experimental_sl_partner) has no operational partner in PAAD (no_partner_mapped) and no monotherapy dependency floor (non_dependent by both CRISPR and RNAI), so the actionable dependency case is largely hollow.",
+          "citations": [
+            "combinatorial-dependency",
+            "synthetic-lethal-partners",
+            "partner-conditional-dependency",
+            "pan-cancer-crispr-dependency-distribution",
+            "pan-cancer-rnai-dependency-distribution"
+          ]
+        },
+        {
+          "statement": "MARK2 is highly chemically tractable (potent_measured_ligand, approved_drug_tractable, strong structure) yet carries a highly_constrained_safety_concern (gnomad highly_constrained, lethal_ko, germline_pathogenic, broad normal expression) \u2014 tractability does not resolve the missing therapeutic window.",
+          "citations": [
+            "measured-potency-tractability",
+            "known-drug-tractability",
+            "gnomad-lof-constraint",
+            "mouse-ko-phenotype",
+            "clinvar-pathogenicity-safety",
+            "modality-therapeutic-window"
+          ]
+        },
+        {
+          "statement": "Amplified/overexpressed-dependent strata suggest a possible responder subset, but copy-number-distribution=broadly_neutral means that stratum is not materially present in PAAD, weakening any biomarker-selected population claim.",
+          "citations": [
+            "amp-expr-stratified-dependency",
+            "copy-number-stratified-dependency",
+            "copy-number-distribution"
+          ]
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "a9b22d4355ecc84d59022e7298f84e9f795486b23a236912d09c0be06307e69b"
+    },
+    "evidence_paths": {
+      "value": [
+        {
+          "claim": "MARK2 lacks an actionable monotherapy dependency in PAAD and the SL/combination signal cannot be operationalized.",
+          "leads_to": "causal_rationale",
+          "steps": [
+            {
+              "signal": "CRISPR and RNAI both call MARK2 non_dependent, concordantly",
+              "citation": "crispr-rnai-dependency-concordance"
+            },
+            {
+              "signal": "strong paralog buffering explains the absent dependency",
+              "citation": "paralog-buffering"
+            },
+            {
+              "signal": "an experimental SL partner exists but no partner is mapped to PAAD context",
+              "citation": "partner-conditional-dependency"
+            },
+            {
+              "signal": "so the strong_synthetic_lethal signal has no actionable pairing",
+              "citation": "combinatorial-dependency"
+            }
+          ]
+        },
+        {
+          "claim": "Even if inhibitable, MARK2 offers no therapeutic window in PAAD.",
+          "leads_to": "therapeutic_window",
+          "steps": [
+            {
+              "signal": "small molecule is chemically active with a potent measured ligand",
+              "citation": "measured-potency-tractability"
+            },
+            {
+              "signal": "but normal tissue is broadly expressing MARK2",
+              "citation": "normal-tissue-liability-gtex"
+            },
+            {
+              "signal": "single-cell normal tissue shows HIGH_LIABILITY",
+              "citation": "sc-normal-celltype-expression"
+            },
+            {
+              "signal": "germline constraint and lethal KO signal on-target toxicity",
+              "citation": "mouse-ko-phenotype"
+            },
+            {
+              "signal": "yielding essential_tissue_liability with no window",
+              "citation": "modality-therapeutic-window"
+            }
+          ]
+        },
+        {
+          "claim": "A copy-number-selected responder population is not credibly present in PAAD.",
+          "leads_to": "population",
+          "steps": [
+            {
+              "signal": "amplified+overexpressed cells show moderate dependency",
+              "citation": "amp-expr-stratified-dependency"
+            },
+            {
+              "signal": "but the MARK2 copy-number distribution is broadly neutral",
+              "citation": "copy-number-distribution"
+            }
+          ]
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "a9b22d4355ecc84d59022e7298f84e9f795486b23a236912d09c0be06307e69b"
+    }
+  },
+  "hypothesis": {
+    "causal_rationale": {
+      "statement": "MARK2 sits in a well-characterized signaling network in PAAD (signaling-network-mechanism well_characterized) with active phosphorylation and relatively high pathway activity (phospho-pathway-activity phospho_present; pathway-activity-context relatively_high), and its high expression associates with worse survival in an oncogenic-frequently-altered context (expression-clinical-association expression_high_worse_survival; oncogenic-pathway-alteration frequently_altered) \u2014 but this active-pathway context does NOT convert into a monotherapy dependency: CRISPR and RNAI concordantly call MARK2 non_dependent (crispr-rnai-dependency-concordance moderately_concordant_non_dependent; pan-cancer-crispr-dependency-distribution non_dependent; pan-cancer-rnai-dependency-distribution non_dependent), mechanistically because paralog buffering is strong (paralog-buffering strong). A synthetic-lethal / combinatorial signal exists (combinatorial-dependency strong_synthetic_lethal; synthetic-lethal-partners has_experimental_sl_partner) BUT it cannot be operationalized because no actionable partner is mapped in PAAD (partner-conditional-dependency no_partner_mapped) and there is no monotherapy dependency floor to build on (non_dependent by both screens); the actionable causal case is therefore largely hollow.",
+      "citations": [
+        "signaling-network-mechanism",
+        "phospho-pathway-activity",
+        "pathway-activity-context",
+        "expression-clinical-association",
+        "oncogenic-pathway-alteration",
+        "crispr-rnai-dependency-concordance",
+        "pan-cancer-crispr-dependency-distribution",
+        "pan-cancer-rnai-dependency-distribution",
+        "paralog-buffering",
+        "combinatorial-dependency",
+        "synthetic-lethal-partners",
+        "partner-conditional-dependency"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "therapeutic_hypothesis": {
+      "statement": "A small-molecule inhibitor of MARK2 is chemically feasible \u2014 MARK2 is chemically active with a potent measured ligand, approved-drug-class tractability, and a strong static structure (tractability_sm chemically_active; measured-potency-tractability potent_measured_ligand; known-drug-tractability approved_drug_tractable; structure-features-static strong) \u2014 and small molecule is the correct modality because surface/antigen approaches are foreclosed (surface_modality neither_viable; protein-surface-evidence not_surface; surface-topology-and-ptm no_transmembrane; adc-tce-modality-fit neither_viable) and degradation is unfavorable (degradation-feasibility unfavorable_location). HOWEVER, chemical tractability does not create a usable drug: monotherapy dependency is absent (dependency non_dependent_paralog_buffered) so a single-agent inhibitor lacks a killing rationale, and a combination/SL strategy is UNSUPPORTED because no actionable partner is mapped in PAAD (partner-conditional-dependency no_partner_mapped) despite the experimental SL signal (combinatorial-dependency strong_synthetic_lethal).",
+      "modality": "small_molecule",
+      "citations": [
+        "tractability_sm",
+        "measured-potency-tractability",
+        "known-drug-tractability",
+        "structure-features-static",
+        "surface-modality",
+        "protein-surface-evidence",
+        "surface-topology-and-ptm",
+        "adc-tce-modality-fit",
+        "degradation-feasibility"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "population": {
+      "statement": "No credible biomarker-selected responder population is identifiable in PAAD. The only enriched-dependency signal comes from amplified/overexpressed strata (amp-expr-stratified-dependency amplified_overexpressed_moderately_dependent; copy-number-stratified-dependency amplified_moderately_dependent), but this stratum is not materially present because the MARK2 copy-number distribution is broadly neutral (copy-number-distribution broadly_neutral), so an amplification-selected population claim is unsupported. Expression is broad rather than tumor-restricted (expression tumor_broadly_expressed; tumor-rna-distribution-by-subtype pan_subtype_uniform), and no on-target compound or PRISM activity anchors a responder class (mutation-drug-response no_on_target_compound; prism-compound-activity no_compounds_found). Default population would be unselected PAAD, which the dependency data do not support.",
+      "indication": "PAAD",
+      "subtype_or_biomarker": "None credible; nominal amplified/overexpressed stratum not materially present (copy-number-distribution broadly_neutral)",
+      "citations": [
+        "amp-expr-stratified-dependency",
+        "copy-number-stratified-dependency",
+        "copy-number-distribution",
+        "expression",
+        "tumor-rna-distribution-by-subtype",
+        "mutation-drug-response",
+        "prism-compound-activity"
+      ],
+      "contradicting_citations": [
+        "copy-number-distribution",
+        "amp-expr-stratified-dependency",
+        "copy-number-stratified-dependency"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "therapeutic_window": {
+      "statement": "There is no therapeutic window for MARK2 inhibition in PAAD. Although the small molecule is potent and tractable (measured-potency-tractability potent_measured_ligand), MARK2 is broadly expressed across normal tissue (normal-tissue-liability-gtex broadly_expressed_normal; normal-tissue-liability broad_normal_expression) with HIGH_LIABILITY in single-cell normal cell types (sc-normal-celltype-expression HIGH_LIABILITY), and on-target toxicity is signaled by strong germline LoF constraint, lethal knockout, and germline-pathogenic variation (safety highly_constrained_safety_concern; gnomad-lof-constraint highly_constrained; mouse-ko-phenotype lethal_ko; clinvar-pathogenicity-safety germline_pathogenic). This yields essential_tissue_liability (modality-therapeutic-window essential_tissue_liability; modality-exon-window essential_exon_liability). The strong tumor-percentile enrichment (tumor-vs-normal-percentile-crossing strongly_tumor_enriched) does NOT rescue the window because normal-tissue liability is high and antigen-based sparing is unavailable (surface_modality neither_viable). A druggable-but-dangerous target.",
+      "citations": [
+        "measured-potency-tractability",
+        "normal-tissue-liability-gtex",
+        "normal-tissue-liability",
+        "sc-normal-celltype-expression",
+        "safety",
+        "gnomad-lof-constraint",
+        "mouse-ko-phenotype",
+        "clinvar-pathogenicity-safety",
+        "modality-therapeutic-window",
+        "modality-exon-window"
+      ],
+      "contradicting_citations": [
+        "tumor-vs-normal-percentile-crossing"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "evidence_grade": {
+      "overall": "weak",
+      "per_line": [
+        {
+          "dimension": "expression",
+          "strength": "moderate"
+        },
+        {
+          "dimension": "selectivity",
+          "strength": "absent"
+        },
+        {
+          "dimension": "dependency",
+          "strength": "strong"
+        },
+        {
+          "dimension": "synthetic_lethal_partners",
+          "strength": "weak"
+        },
+        {
+          "dimension": "combinatorial_dependency",
+          "strength": "weak"
+        },
+        {
+          "dimension": "mechanism",
+          "strength": "moderate"
+        },
+        {
+          "dimension": "genomic_alteration",
+          "strength": "weak"
+        },
+        {
+          "dimension": "differentiation",
+          "strength": "absent"
+        },
+        {
+          "dimension": "tractability_sm",
+          "strength": "strong"
+        },
+        {
+          "dimension": "surface_modality",
+          "strength": "strong"
+        },
+        {
+          "dimension": "safety",
+          "strength": "strong"
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "proposed_verdict": {
+      "value": "declined",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "proposed_verdict_reason": {
+      "value": "MARK2 in PAAD fails on the two decisive axes: no actionable dependency (non_dependent by CRISPR and RNAI, mechanistically explained by strong paralog buffering; the SL/combinatorial signal has no mapped partner in PAAD per partner-conditional-dependency no_partner_mapped) and no therapeutic window (highly_constrained_safety_concern from broad normal expression, highly constrained gnomad LoF, lethal KO, germline pathogenic, essential_tissue_liability). High chemical tractability (potent_measured_ligand, approved_drug_tractable, strong structure) makes the target druggable but not drug-worthy. The only enriched stratum (amplified/overexpressed-dependent) is not materially present given broadly_neutral copy number. Expect a deterministic safety gate to clamp regardless.",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    },
+    "go_forth": {
+      "next_evidence": "Identify and functionally validate a PAAD-context actionable synthetic-lethal partner for MARK2 (a paired CRISPR/inhibitor combination screen in PAAD models querying the experimental SL partner from synthetic-lethal-partners against the paralog-buffering axis) \u2014 resolving whether the strong_synthetic_lethal signal can be operationalized (partner-conditional-dependency no_partner_mapped is the limiting gap). Even a positive result must be weighed against the unresolved safety liability; if no PAAD-actionable partner emerges, the target is confirmed dead in this indication.",
+      "value_of_information": "This directly resolves the principal tension (hollow SL/combination thesis with no mapped partner and no monotherapy dependency floor). A mapped, validated partner is the only path that could reopen a combination rationale; its absence confirms decline. It is more decision-changing than any window experiment because the dependency case must exist before safety trade-offs are even worth evaluating.",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "190ea7e14a037ad44331ac0480a24d372c18c634227157275fb2167f97a13303"
+    }
+  }
+}

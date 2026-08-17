@@ -36,6 +36,28 @@ SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 # coverage-gap verdicts: a line in one of these states carries NO evidentiary weight (absence-discipline)
 GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_assessed", "not_informative",
                 "no_data", "not_evaluated", "insufficient_data", "insufficient_evidence"}
+
+# MEASURED-NEGATIVE sub-verdicts (distinct from GAP_VERDICTS, which are absence): a line that was
+# evaluated and returned a NEGATIVE call. A positive-thesis clause may not cite one of these as
+# SUPPORT without surfacing the tension (intra-package coherence, §6.5 / WS5 adversarial-survival —
+# the SL-vs-non_dependent class of internal contradiction). Curated conservative set + a few stems so
+# suffix variants (e.g. non_dependent_paralog_buffered) are covered; positive tokens
+# (strongly_selective_dependency, strong_tumor_selective, lineage_selective, discordant_*) do NOT match.
+NEGATIVE_SIGNAL_VERDICTS = {
+    # dependency / functional-requirement
+    "non_dependent", "non_dependent_paralog_buffered", "not_a_dependency", "non_essential",
+    # selectivity / tumor-vs-normal
+    "not_selective", "selective_but_broadly_normal", "not_tumor_selective",
+    # surface / modality fit
+    "neither_viable",
+    # synthetic-lethal / combinatorial / partner-conditional
+    "no_partner_mapped", "no_experimental_sl_partner", "no_sl_partner",
+    "no_combinatorial_dependency",
+    # genomic-alteration
+    "passenger_pattern", "not_altered", "no_recurrent_alteration",
+}
+_NEGATIVE_STEMS = ("non_dependent", "no_partner", "no_experimental_sl", "no_sl_partner",
+                   "not_selective", "neither_viable", "no_combinatorial", "passenger")
 CERTAINTY_RANK = {"low": 0, "moderate": 1, "high": 2}
 RANK_CERTAINTY = {v: k for k, v in CERTAINTY_RANK.items()}
 
@@ -364,6 +386,154 @@ def check_traceability(clause_citations: list, surface: dict) -> list:
             continue
         bad.append(cstr)
     return bad
+
+
+# --- intra-package coherence (§6.5 / WS5 adversarial-survival) --------------------------------------
+# The positive-thesis clauses whose job is to ASSERT a case for the target. therapeutic_window is
+# deliberately EXEMPT from the negative-signal rule: its job is to weigh liabilities, so citing a
+# negative safety / selectivity line there is honest framing, not an incoherent positive assertion.
+POSITIVE_THESIS_CLAUSES = ("causal_rationale", "therapeutic_hypothesis", "population")
+ALL_SUPPORT_CLAUSES = ("causal_rationale", "therapeutic_hypothesis", "population",
+                       "therapeutic_window")
+
+# INTRINSIC CROSS-CARD CONTRADICTIONS — a small, GENERAL registry of thesis families that a
+# NEGATIVE/absent SIBLING line measuring the SAME biology undercuts. These are the cases where the
+# contradiction is between a CITED positive line and a PRESENT-but-UNCITED negative sibling, so the
+# clause-cites-a-negative-line rule cannot see it. Stated generally (not tuned to any one target):
+# claiming a synthetic-lethal / combination strategy is incoherent when the partner-mapping line found
+# no actionable partner — this is the SL-vs-no_partner_mapped class the WS5 smoke surfaced on MARK2.
+# The registry is the extensible home for further principled cross-card incoherences.
+INTRINSIC_CONTRADICTIONS = [
+    {
+        "label": "combination_or_sl_strategy_without_mapped_partner",
+        # a clause resting on these positive SL/combination lines as its actionable strategy ...
+        "asserts": {"synthetic-lethal-partners", "combinatorial-dependency",
+                    "synthetic_lethal_partners", "combinatorial_dependency"},
+        # ... is contradicted when a partner-mapping line is present with a no-partner call.
+        "contradicted_by": {
+            "partner-conditional-dependency": {"no_partner_mapped", "no_sl_partner"},
+            "partner_conditional_dependency": {"no_partner_mapped", "no_sl_partner"},
+            "synthetic_lethal_partners": {"no_partner_mapped", "no_sl_partner"},
+        },
+    },
+]
+
+
+def is_negative_verdict(v) -> bool:
+    """A MEASURED-negative sub-verdict (NOT an absence/gap — those are handled by absence-discipline)."""
+    if not isinstance(v, str) or v in GAP_VERDICTS:
+        return False
+    n = _norm(v)
+    if n in {_norm(x) for x in NEGATIVE_SIGNAL_VERDICTS}:
+        return True
+    return any(n.startswith(s) or s in n for s in _NEGATIVE_STEMS)
+
+
+def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions: list,
+                         present_norm: set, out_of_scope=None, card_calls: dict = None) -> dict:
+    """INTRA-PACKAGE COHERENCE (the WS5 root-cause fix): the integrator may not assert a positive
+    claim on a signal that ANOTHER present package signal contradicts, UNLESS the clause surfaces the
+    tension. Enforced FOUR ways:
+
+      (a) MEASURED-NEGATIVE cited as support: a positive-thesis clause (causal_rationale /
+          therapeutic_hypothesis / population) cites a sub-verdict DIMENSION whose verdict is
+          measured-negative (e.g. dependency=non_dependent_paralog_buffered) in its SUPPORT citations
+          without surfacing it (contradicting_citations or a principal tension).
+      (a2) SAME, for a CARD whose interpretation_call is measured-negative (card-grain, not just
+          sub-verdict grain).
+      (b) AGENT-EDGE contradiction unsurfaced: the agent's OWN typed `contradicts` / `tensions_with`
+          edges are enforced on its own clauses.
+      (c) INTRINSIC CROSS-CARD contradiction: a clause rests on a positive thesis FAMILY
+          (INTRINSIC_CONTRADICTIONS.asserts, e.g. the SL/combination cards) while a NEGATIVE sibling
+          line measuring the same biology is PRESENT (e.g. partner-conditional-dependency =
+          no_partner_mapped) and unsurfaced — the SL-vs-no_partner_mapped class where the contradicting
+          line is present but UNCITED, so (a)/(a2) cannot see it.
+
+    `clauses` maps clause_key -> {"support": [tokens], "surfaced": [tokens]}. `present_norm` is the
+    normalized citation surface (card_ids | sub_verdict names | rule_ids). `card_calls` maps card_id ->
+    interpretation_call (card-grain verdicts). Returns {clause_key: [violation dicts]}."""
+    oos = {_norm(d) for d in (out_of_scope or [])}
+    card_calls = card_calls or {}
+    # measured-negative SIGNALS keyed by normalized token → (display_name, verdict). Covers both
+    # sub-verdict dimensions and card-grain interpretation calls.
+    neg_norm: dict = {}
+    for d, v in conviction.items():
+        if _norm(d) not in oos and is_negative_verdict(v):
+            neg_norm[_norm(d)] = (d, v)
+    for cid, call in card_calls.items():
+        if _norm(cid) not in oos and is_negative_verdict(call):
+            neg_norm.setdefault(_norm(cid), (cid, call))
+
+    # unified present-signal value lookup (sub-verdict OR card call), by normalized key
+    value_by_norm: dict = {}
+    for d, v in conviction.items():
+        value_by_norm[_norm(d)] = v
+    for cid, call in card_calls.items():
+        value_by_norm.setdefault(_norm(cid), call)
+
+    conflict_edges = []  # (norm_a, norm_b) pairs the agent typed as contradicts / tensions_with
+    for e in (edges or []):
+        if isinstance(e, dict) and e.get("type") in ("contradicts", "tensions_with"):
+            a, b = _norm(e.get("from_dimension", "")), _norm(e.get("to_dimension", ""))
+            if a and b and a != b:
+                conflict_edges.append((a, b))
+
+    tension_tok_sets = [{_norm(c) for c in (t.get("citations") or [])}
+                        for t in (tensions or []) if isinstance(t, dict)]
+
+    def _tension_covers(x, y):
+        return any(x in ts and y in ts for ts in tension_tok_sets)
+
+    def _surfaced_as_tension(x):
+        return any(x in ts for ts in tension_tok_sets)
+
+    violations: dict = {}
+    for key, cl in clauses.items():
+        support = {_norm(t) for t in (cl.get("support") or [])}
+        surfaced = {_norm(t) for t in (cl.get("surfaced") or [])}
+        found = []
+        # (a)/(a2) measured-negative sub-verdict OR card cited as support — positive-thesis clauses
+        if key in POSITIVE_THESIS_CLAUSES:
+            for nd, (name, verdict) in neg_norm.items():
+                if nd in support and nd not in surfaced and not _surfaced_as_tension(nd):
+                    found.append({
+                        "type": "negative_signal_asserted", "dimension": name, "verdict": verdict,
+                        "detail": (f"cites '{name}' (measured-negative verdict '{verdict}') as SUPPORT "
+                                   "without surfacing it as a tension (move to contradicting_citations "
+                                   "or a principal tension)")})
+        # (b) agent contradicts/tensions_with edge enforced on this clause's own citations
+        for a, b in conflict_edges:
+            for x, y in ((a, b), (b, a)):
+                if (x in support and y in present_norm and y not in surfaced
+                        and y not in support and not _tension_covers(x, y)):
+                    found.append({
+                        "type": "edge_contradiction_unsurfaced", "asserted": x, "contradicted_by": y,
+                        "detail": (f"cites '{x}' as support while its OWN typed edge marks '{y}' as "
+                                   f"contradicting/tensioning it, and '{y}' is present but unsurfaced")})
+        # (c) intrinsic cross-card contradiction (present-but-uncited negative sibling)
+        if key in POSITIVE_THESIS_CLAUSES:
+            for rule in INTRINSIC_CONTRADICTIONS:
+                asserts_n = {_norm(a) for a in rule["asserts"]}
+                rested_on = sorted(asserts_n & support)
+                if not rested_on:
+                    continue
+                seen_sig: set = set()   # dedup registry keys that normalize identically
+                for sig, negvals in rule["contradicted_by"].items():
+                    sig_n = _norm(sig)
+                    if sig_n in seen_sig:
+                        continue
+                    val = value_by_norm.get(sig_n)
+                    if val in negvals and sig_n not in surfaced and not _surfaced_as_tension(sig_n):
+                        seen_sig.add(sig_n)
+                        found.append({
+                            "type": "intrinsic_contradiction", "label": rule["label"],
+                            "rested_on": rested_on, "contradicted_by": sig, "verdict": val,
+                            "detail": (f"rests on {rested_on} but '{sig}' is present with '{val}' "
+                                       f"({rule['label']}) and is not surfaced — the strategy is "
+                                       "internally unsupported")})
+        if found:
+            violations[key] = found
+    return violations
 
 
 # --- panel assembly + citation surface --------------------------------------------------------------

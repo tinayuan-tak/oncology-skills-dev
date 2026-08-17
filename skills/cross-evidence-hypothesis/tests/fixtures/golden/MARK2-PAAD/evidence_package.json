@@ -1,0 +1,514 @@
+{
+  "schema_version": 1,
+  "framework_version": "2.0.0",
+  "context": {
+    "target": {
+      "symbol": "MARK2",
+      "hgnc_id": 3332,
+      "ensembl": "ENSG00000072518.0",
+      "uniprot": "Q7KZI7"
+    },
+    "indication": {
+      "oncotree_code": "PAAD"
+    },
+    "subgroup_spec": null,
+    "scope": "cancer_type"
+  },
+  "synthesis": {
+    "sub_verdicts": {
+      "expression": {
+        "gate": null,
+        "verdict": "tumor_broadly_expressed",
+        "driving_rule_id": "tumor-expression-broadly-high-supportive",
+        "fired_rule_ids": [
+          "expression-call-not-informative-degrader-killer",
+          "expression-broadly-moderate-neutral",
+          "tumor-expression-broadly-high-supportive",
+          "sc-expression-malignant-broadly-detected-supportive",
+          "protein-abundance-broadly-moderate-neutral",
+          "tumor-breadth-single-neutral",
+          "rna-tumor-breadth-multi-supportive",
+          "rna-protein-partial-proxy-neutral",
+          "purity-independent-neutral"
+        ]
+      },
+      "selectivity": {
+        "gate": "selectivity",
+        "verdict": "not_informative",
+        "driving_rule_id": "tvn-not-informative-neutral",
+        "fired_rule_ids": [
+          "tumor-vs-normal-crossing-strong-supportive",
+          "tvn-not-informative-neutral",
+          "tvn-no-therapeutic-window-veto",
+          "tvn-no-full-normal-window-veto",
+          "tvn-sc-normal-critical-organ-veto",
+          "purity-independent-neutral",
+          "ihc-medium-supportive",
+          "modality-window-essential-liability-tce-opposing",
+          "sc-normal-high-liability-bite-killer",
+          "sc-normal-high-liability-adc-antibody-opposing"
+        ]
+      },
+      "dependency": {
+        "gate": "dependency",
+        "verdict": "non_dependent_paralog_buffered",
+        "driving_rule_id": "strong-paralog-buffering-degrader-preferred",
+        "fired_rule_ids": [
+          "non-dependent-killer",
+          "rnai-non-dependent-neutral",
+          "concordant-non-dependent-neutral",
+          "no-lineage-enrichment-neutral",
+          "recommended-models-well-modeled-supportive",
+          "expression-correlation-weak-neutral",
+          "abundance-dependency-none-neutral",
+          "e7-data-unavailable-insufficient",
+          "strong-paralog-buffering-degrader-preferred"
+        ]
+      },
+      "synthetic_lethal_partners": {
+        "gate": "synthetic_lethal_partners",
+        "verdict": "has_experimental_sl_partner",
+        "driving_rule_id": "sl-experimental-partner-context-conditional",
+        "fired_rule_ids": [
+          "sl-experimental-partner-context-conditional"
+        ]
+      },
+      "combinatorial_dependency": {
+        "gate": null,
+        "verdict": "constitutive_combinatorial_dependency",
+        "driving_rule_id": "combo-constitutive-synthetic-lethal",
+        "fired_rule_ids": [
+          "combo-constitutive-synthetic-lethal"
+        ]
+      },
+      "mechanism": {
+        "gate": "mechanism",
+        "verdict": "well_characterized",
+        "driving_rule_id": "mechanism-well-characterized-supportive",
+        "fired_rule_ids": [
+          "mechanism-well-characterized-supportive",
+          "has-pd-marker-supportive",
+          "phospho-present-supportive"
+        ]
+      },
+      "genomic_alteration": {
+        "gate": "genomic_alteration",
+        "verdict": "moderate_biomarker_dependency",
+        "driving_rule_id": "amp-expr-moderately-dependent-supportive",
+        "fired_rule_ids": [
+          "amp-expr-moderately-dependent-supportive",
+          "not-mutation-stratified-neutral",
+          "cn-broadly-neutral-neutral",
+          "mut-mixed-neutral",
+          "alteration-role-lof-driver-neutral",
+          "functional-gene-state-sporadic-biallelic-neutral",
+          "mutation-drug-response-no-compound-insufficient",
+          "cn-neutral-surface-neutral",
+          "modality-matrix-lof-role-surface-antigen-loss-opposing"
+        ]
+      },
+      "differentiation": {
+        "gate": "differentiation",
+        "verdict": "data_unavailable",
+        "driving_rule_id": "cooccurrence-data-unavailable-insufficient",
+        "fired_rule_ids": [
+          "cooccurrence-data-unavailable-insufficient",
+          "clinical-high-worse-survival-supportive"
+        ]
+      },
+      "tractability_sm": {
+        "gate": "tractability_small_molecule",
+        "verdict": "chemically_active",
+        "driving_rule_id": "known-drug-approved-antineoplastic-sm-supportive",
+        "fired_rule_ids": [
+          "predictability-weakly-predictable-neutral",
+          "prism-no-compounds-found-neutral",
+          "prism-lineage-selectivity-data-unavailable-insufficient",
+          "e7-data-unavailable-insufficient",
+          "structure-low-confidence-sm-opposing",
+          "ligandability-experimental-sm-supportive",
+          "known-drug-approved-antineoplastic-sm-supportive",
+          "measured-potent-ligand-sm-supportive",
+          "degradation-unfavorable-location-degrader-opposing"
+        ]
+      },
+      "surface_modality": {
+        "gate": "surface_modality",
+        "verdict": "neither_viable",
+        "driving_rule_id": "neither-viable-killer",
+        "fired_rule_ids": [
+          "cn-broadly-neutral-neutral",
+          "structure-low-confidence-sm-opposing",
+          "ligandability-experimental-sm-supportive",
+          "tvn-no-therapeutic-window-veto",
+          "tvn-no-full-normal-window-veto",
+          "tvn-sc-normal-critical-organ-veto",
+          "no-transmembrane-adc-killer",
+          "ecd-none-biologics-opposing",
+          "kinase-surface-adc-supportive",
+          "neither-viable-killer",
+          "ihc-medium-supportive",
+          "normal-tissue-essential-bite-killer",
+          "normal-tissue-essential-adc-antibody-opposing",
+          "normal-tissue-broad-opposing",
+          "cn-neutral-surface-neutral",
+          "protein-not-surface-opposing",
+          "rna-poor-proxy-surface-warning",
+          "modality-window-essential-liability-tce-opposing",
+          "exon-window-essential-liability-tce-opposing",
+          "pmhc-broadly-presented-normal-tce-opposing",
+          "sc-normal-high-liability-bite-killer",
+          "sc-normal-high-liability-adc-antibody-opposing"
+        ]
+      },
+      "safety": {
+        "gate": "safety",
+        "verdict": "highly_constrained_safety_concern",
+        "driving_rule_id": "highly-constrained-safety-warning",
+        "fired_rule_ids": [
+          "alteration-role-lof-driver-neutral",
+          "normal-liability-broadly-expressed-neutral",
+          "highly-constrained-safety-warning",
+          "mouse-ko-lethal-safety-warning",
+          "clinvar-germline-pathogenic-safety-warning",
+          "modality-matrix-lof-role-surface-antigen-loss-opposing"
+        ]
+      }
+    },
+    "recommendation_gate": {
+      "fired": true,
+      "forced_recommendation": "hold",
+      "llm_recommendation": null,
+      "overridden": true,
+      "triggered_by": [
+        {
+          "short": "safety",
+          "verdict": "highly_constrained_safety_concern",
+          "action": "hold",
+          "driving_rule_id": "highly-constrained-safety-warning",
+          "policy_source": "vocab"
+        }
+      ],
+      "suppressed_vetoes": []
+    }
+  },
+  "cards": [
+    {
+      "card_id": "cellline-rna-distribution",
+      "interpretation_call": "broadly_moderate"
+    },
+    {
+      "card_id": "tumor-rna-vs-adjacent",
+      "interpretation_call": "not_informative"
+    },
+    {
+      "card_id": "tumor-protein-abundance-cptac",
+      "interpretation_call": "ns"
+    },
+    {
+      "card_id": "cellline-protein-abundance",
+      "interpretation_call": "broadly_moderate"
+    },
+    {
+      "card_id": "tumor-elevation-breadth",
+      "interpretation_call": "single_tumor_elevated"
+    },
+    {
+      "card_id": "tumor-rna-distribution",
+      "interpretation_call": "broadly_detected"
+    },
+    {
+      "card_id": "tumor-rna-distribution-by-subtype",
+      "interpretation_call": "pan_subtype_uniform"
+    },
+    {
+      "card_id": "expression-purity-confound",
+      "interpretation_call": "purity_independent"
+    },
+    {
+      "card_id": "cellline-rna-protein-concordance",
+      "interpretation_call": "uninterpreted"
+    },
+    {
+      "card_id": "tumor-scrna-celltype-expression",
+      "interpretation_call": "malignant_subset_detected"
+    },
+    {
+      "card_id": "tumor-vs-normal-selectivity",
+      "interpretation_call": "not_informative"
+    },
+    {
+      "card_id": "tumor-vs-normal-percentile-crossing",
+      "interpretation_call": "strongly_tumor_enriched"
+    },
+    {
+      "card_id": "modality-therapeutic-window",
+      "interpretation_call": "essential_tissue_liability"
+    },
+    {
+      "card_id": "sc-normal-celltype-expression",
+      "interpretation_call": "HIGH_LIABILITY"
+    },
+    {
+      "card_id": "surface-abundance-density",
+      "interpretation_call": "not_surface_density_whole_cell_estimate"
+    },
+    {
+      "card_id": "pan-cancer-crispr-dependency-distribution",
+      "interpretation_call": "non_dependent"
+    },
+    {
+      "card_id": "pan-cancer-rnai-dependency-distribution",
+      "interpretation_call": "non_dependent"
+    },
+    {
+      "card_id": "crispr-rnai-dependency-concordance",
+      "interpretation_call": "moderately_concordant_non_dependent"
+    },
+    {
+      "card_id": "dependency-lineage-selectivity",
+      "interpretation_call": "no_lineage_enrichment"
+    },
+    {
+      "card_id": "paralog-buffering",
+      "interpretation_call": "strong"
+    },
+    {
+      "card_id": "expression-dependency-correlation",
+      "interpretation_call": "weak_negative"
+    },
+    {
+      "card_id": "recommended-models",
+      "interpretation_call": "well_modeled_in_lineage"
+    },
+    {
+      "card_id": "abundance-dependency",
+      "interpretation_call": "no_protein_dependency_link"
+    },
+    {
+      "card_id": "partner-conditional-dependency",
+      "interpretation_call": "no_partner_mapped"
+    },
+    {
+      "card_id": "cross-consortium-dependency",
+      "interpretation_call": "concordant_dependent"
+    },
+    {
+      "card_id": "synthetic-lethal-partners",
+      "interpretation_call": "has_experimental_sl_partner"
+    },
+    {
+      "card_id": "combinatorial-dependency",
+      "interpretation_call": "strong_synthetic_lethal"
+    },
+    {
+      "card_id": "signaling-network-mechanism",
+      "interpretation_call": "well_characterized"
+    },
+    {
+      "card_id": "phospho-pathway-activity",
+      "interpretation_call": "phospho_present"
+    },
+    {
+      "card_id": "pathway-activity-context",
+      "interpretation_call": "relatively_high"
+    },
+    {
+      "card_id": "tahoe-drug-perturbation",
+      "interpretation_call": "bidirectionally_perturbed"
+    },
+    {
+      "card_id": "mutation-type-counts",
+      "interpretation_call": "missense"
+    },
+    {
+      "card_id": "mutation-stratified-dependency",
+      "interpretation_call": "not_mutation_stratified"
+    },
+    {
+      "card_id": "mutation-hotspot-frequency",
+      "interpretation_call": "mid"
+    },
+    {
+      "card_id": "copy-number-distribution",
+      "interpretation_call": "broadly_neutral"
+    },
+    {
+      "card_id": "copy-number-stratified-dependency",
+      "interpretation_call": "amplified_moderately_dependent"
+    },
+    {
+      "card_id": "fusion-stratified-dependency",
+      "interpretation_call": "not_fusion_stratified"
+    },
+    {
+      "card_id": "amp-expr-stratified-dependency",
+      "interpretation_call": "amplified_overexpressed_moderately_dependent"
+    },
+    {
+      "card_id": "mutation-drug-response",
+      "interpretation_call": "no_on_target_compound"
+    },
+    {
+      "card_id": "fusion-rearrangement-landscape",
+      "interpretation_call": "no_recurrent_fusion"
+    },
+    {
+      "card_id": "alteration-role",
+      "interpretation_call": "uninterpreted"
+    },
+    {
+      "card_id": "functional-gene-state",
+      "interpretation_call": "sporadic_biallelic_inactivation"
+    },
+    {
+      "card_id": "genomic-event-model-match",
+      "interpretation_call": "sporadic_biallelic_inactivation"
+    },
+    {
+      "card_id": "genomic-instability-state",
+      "interpretation_call": "intermediate_aneuploidy"
+    },
+    {
+      "card_id": "ddr-deficiency-context",
+      "interpretation_call": "hrd_low"
+    },
+    {
+      "card_id": "mutational-signature-context",
+      "interpretation_call": "rare"
+    },
+    {
+      "card_id": "oncogenic-pathway-alteration",
+      "interpretation_call": "frequently_altered"
+    },
+    {
+      "card_id": "target-clonality",
+      "interpretation_call": "insufficient"
+    },
+    {
+      "card_id": "expression-clinical-association",
+      "interpretation_call": "expression_high_worse_survival"
+    },
+    {
+      "card_id": "stemness-context",
+      "interpretation_call": "stem_low"
+    },
+    {
+      "card_id": "precog-prognostic-association",
+      "interpretation_call": "no_prognostic_association"
+    },
+    {
+      "card_id": "prism-compound-activity",
+      "interpretation_call": "no_compounds_found"
+    },
+    {
+      "card_id": "measured-potency-tractability",
+      "interpretation_call": "potent_measured_ligand"
+    },
+    {
+      "card_id": "dependency-predictability",
+      "interpretation_call": "cross_gene_expression"
+    },
+    {
+      "card_id": "structure-features-static",
+      "interpretation_call": "strong"
+    },
+    {
+      "card_id": "degradation-feasibility",
+      "interpretation_call": "unfavorable_location"
+    },
+    {
+      "card_id": "known-drug-tractability",
+      "interpretation_call": "approved_drug_tractable"
+    },
+    {
+      "card_id": "surface-topology-and-ptm",
+      "interpretation_call": "no_transmembrane"
+    },
+    {
+      "card_id": "surfaceome-family-classification",
+      "interpretation_call": "kinase_surface"
+    },
+    {
+      "card_id": "adc-tce-modality-fit",
+      "interpretation_call": "neither_viable"
+    },
+    {
+      "card_id": "normal-tissue-liability",
+      "interpretation_call": "broad_normal_expression"
+    },
+    {
+      "card_id": "rna-protein-concordance-tumor",
+      "interpretation_call": "uninterpreted"
+    },
+    {
+      "card_id": "protein-surface-evidence",
+      "interpretation_call": "not_surface"
+    },
+    {
+      "card_id": "shed-ectodomain-liability",
+      "interpretation_call": "not_shed_membrane_retained"
+    },
+    {
+      "card_id": "pmhc-presentation",
+      "interpretation_call": "broadly_presented_normal"
+    },
+    {
+      "card_id": "cd-antigen-backbone",
+      "interpretation_call": "not_cd_antigen"
+    },
+    {
+      "card_id": "modality-exon-window",
+      "interpretation_call": "essential_exon_liability"
+    },
+    {
+      "card_id": "mutation-stratified-surface",
+      "interpretation_call": "not_in_product"
+    },
+    {
+      "card_id": "pathway-stratified-surface",
+      "interpretation_call": "not_in_product"
+    },
+    {
+      "card_id": "gnomad-lof-constraint",
+      "interpretation_call": "highly_constrained"
+    },
+    {
+      "card_id": "normal-tissue-liability-gtex",
+      "interpretation_call": "broadly_expressed_normal"
+    },
+    {
+      "card_id": "target-safety-prioritisation",
+      "interpretation_call": "uninterpreted"
+    },
+    {
+      "card_id": "gene-burden-safety",
+      "interpretation_call": "direction_unresolved"
+    },
+    {
+      "card_id": "clingen-dosage",
+      "interpretation_call": "no_clingen_entry"
+    },
+    {
+      "card_id": "mouse-ko-phenotype",
+      "interpretation_call": "lethal_ko"
+    },
+    {
+      "card_id": "clinvar-pathogenicity-safety",
+      "interpretation_call": "germline_pathogenic"
+    },
+    {
+      "card_id": "target-identity-summary",
+      "interpretation_call": "uninterpreted"
+    },
+    {
+      "card_id": "prism-crispr-concordance"
+    },
+    {
+      "card_id": "variant-level-interpretation"
+    },
+    {
+      "card_id": "co-mutation-and-mutual-exclusivity"
+    }
+  ]
+}

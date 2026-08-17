@@ -1,0 +1,463 @@
+{
+  "cross_edges": {
+    "edges": {
+      "value": [
+        {
+          "type": "conditions",
+          "from_dimension": "signaling-network-mechanism",
+          "to_dimension": "dependency-lineage-selectivity",
+          "rationale": "Well-characterized KRAS RAS/MAPK driver role conditions the observed lineage-selective dependency in COADREAD.",
+          "citations": [
+            "signaling-network-mechanism",
+            "dependency-lineage-selectivity",
+            "pathway-activity-context"
+          ]
+        },
+        {
+          "type": "conditions",
+          "from_dimension": "mutation-stratified-dependency",
+          "to_dimension": "dependency-lineage-selectivity",
+          "rationale": "Mutant-strongly-dependent stratum with hotspot missense conditions/explains where the lineage-selective dependency actually concentrates.",
+          "citations": [
+            "mutation-stratified-dependency",
+            "mutation-hotspot-frequency",
+            "variant-level-interpretation",
+            "dependency-lineage-selectivity"
+          ]
+        },
+        {
+          "type": "corroborates",
+          "from_dimension": "mutation-stratified-dependency",
+          "to_dimension": "mutation-drug-response",
+          "rationale": "Mutant-strongly-dependent aligns with mutant-strongly-drug-sensitive \u2014 genetic and pharmacologic biomarker point to the same stratum.",
+          "citations": [
+            "mutation-stratified-dependency",
+            "mutation-drug-response",
+            "dependency-predictability"
+          ]
+        },
+        {
+          "type": "corroborates",
+          "from_dimension": "pan-cancer-crispr-dependency-distribution",
+          "to_dimension": "pan-cancer-rnai-dependency-distribution",
+          "rationale": "CRISPR and RNAi both strongly-selective; cross-consortium concordant-dependent triangulates the selective dependency signal.",
+          "citations": [
+            "pan-cancer-crispr-dependency-distribution",
+            "pan-cancer-rnai-dependency-distribution",
+            "cross-consortium-dependency",
+            "prism-crispr-concordance"
+          ]
+        },
+        {
+          "type": "corroborates",
+          "from_dimension": "measured-potency-tractability",
+          "to_dimension": "known-drug-tractability",
+          "rationale": "Potent measured ligand plus strong static structure and approved-drug-tractable converge on small-molecule tractability.",
+          "citations": [
+            "measured-potency-tractability",
+            "known-drug-tractability",
+            "structure-features-static",
+            "prism-compound-activity"
+          ]
+        },
+        {
+          "type": "contradicts",
+          "from_dimension": "combinatorial-dependency",
+          "to_dimension": "partner-conditional-dependency",
+          "rationale": "Strong synthetic-lethal / constitutive combinatorial-dependency signal is undercut by no_partner_mapped \u2014 no actionable partner to pair the combination with.",
+          "citations": [
+            "combinatorial-dependency",
+            "synthetic-lethal-partners",
+            "partner-conditional-dependency"
+          ]
+        },
+        {
+          "type": "contradicts",
+          "from_dimension": "dependency-lineage-selectivity",
+          "to_dimension": "paralog-buffering",
+          "rationale": "Monotherapy lineage-selective dependency is tensioned by strong paralog-buffering, which predicts functional redundancy blunting single-target inhibition.",
+          "citations": [
+            "dependency-lineage-selectivity",
+            "paralog-buffering",
+            "crispr-rnai-dependency-concordance"
+          ]
+        },
+        {
+          "type": "contradicts",
+          "from_dimension": "amp-expr-stratified-dependency",
+          "to_dimension": "copy-number-distribution",
+          "rationale": "Amplified-overexpressed-strongly-dependent stratum claim is contradicted by broadly-neutral copy-number distribution \u2014 the amplified population is not enriched in COADREAD.",
+          "citations": [
+            "amp-expr-stratified-dependency",
+            "copy-number-stratified-dependency",
+            "copy-number-distribution"
+          ]
+        },
+        {
+          "type": "tensions_with",
+          "from_dimension": "dependency-lineage-selectivity",
+          "to_dimension": "crispr-rnai-dependency-concordance",
+          "rationale": "Selective dependency signal is tempered by moderately-concordant-NON-dependent concordance call, indicating the pan-lineage baseline is non-dependent.",
+          "citations": [
+            "dependency-lineage-selectivity",
+            "crispr-rnai-dependency-concordance"
+          ]
+        },
+        {
+          "type": "tensions_with",
+          "from_dimension": "safety",
+          "to_dimension": "dependency-lineage-selectivity",
+          "rationale": "WT-constraint mechanism mismatch plus broad normal expression and gnomAD high constraint tension the therapeutic window for inhibiting a selective dependency.",
+          "citations": [
+            "gnomad-lof-constraint",
+            "normal-tissue-liability",
+            "sc-normal-celltype-expression",
+            "modality-therapeutic-window"
+          ]
+        },
+        {
+          "type": "conditions",
+          "from_dimension": "mutation-type-counts",
+          "to_dimension": "safety",
+          "rationale": "Mutant-selective (missense hotspot) drug response mitigates the WT-constraint safety liability because the therapeutic hypothesis targets mutant allele, not WT.",
+          "citations": [
+            "mutation-type-counts",
+            "mutation-drug-response",
+            "gnomad-lof-constraint",
+            "gene-burden-safety"
+          ]
+        },
+        {
+          "type": "tensions_with",
+          "from_dimension": "tumor-elevation-breadth",
+          "to_dimension": "dependency-lineage-selectivity",
+          "rationale": "Not-tumor-elevated / modest downregulation expression profile is dissociated from the dependency, consistent with weak expression-dependency correlation.",
+          "citations": [
+            "tumor-elevation-breadth",
+            "tumor-rna-vs-adjacent",
+            "expression-dependency-correlation",
+            "abundance-dependency"
+          ]
+        },
+        {
+          "type": "corroborates",
+          "from_dimension": "oncogenic-pathway-alteration",
+          "to_dimension": "target-clonality",
+          "rationale": "Frequently-altered oncogenic pathway with predominantly-clonal, likely-oncogenic hotspot supports truncal driver status underpinning the dependency.",
+          "citations": [
+            "oncogenic-pathway-alteration",
+            "target-clonality",
+            "variant-level-interpretation",
+            "mutation-hotspot-frequency"
+          ]
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "df9da21fc1582230651ef359240daa04780ce92ce2e6fa95c8d1994f49056668"
+    },
+    "principal_tensions": {
+      "value": [
+        {
+          "statement": "The synthetic-lethal/combinatorial-dependency thesis has no actionable partner (no_partner_mapped), so the combination signal cannot yet be operationalized into a therapeutic pairing.",
+          "citations": [
+            "combinatorial-dependency",
+            "synthetic-lethal-partners",
+            "partner-conditional-dependency"
+          ]
+        },
+        {
+          "statement": "Strong paralog-buffering and a moderately-concordant-non-dependent concordance call temper the lineage-selective monotherapy dependency, predicting redundancy-driven escape from single-node inhibition.",
+          "citations": [
+            "paralog-buffering",
+            "crispr-rnai-dependency-concordance",
+            "dependency-lineage-selectivity"
+          ]
+        },
+        {
+          "statement": "Safety window is constrained: WT-constraint mechanism mismatch, high gnomAD LoF constraint, broad normal expression and essential-tissue liability \u2014 but this is largely mitigated if the drug is mutant-selective per the missense-hotspot / mutant-drug-sensitive strata.",
+          "citations": [
+            "gnomad-lof-constraint",
+            "normal-tissue-liability",
+            "modality-therapeutic-window",
+            "mutation-drug-response",
+            "mutation-type-counts"
+          ]
+        },
+        {
+          "statement": "Amplified-overexpressed strongly-dependent stratum does not define an enrichable COADREAD population because copy-number distribution is broadly neutral; the actionable biomarker is the missense hotspot, not amplification.",
+          "citations": [
+            "amp-expr-stratified-dependency",
+            "copy-number-distribution",
+            "mutation-stratified-dependency"
+          ]
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "df9da21fc1582230651ef359240daa04780ce92ce2e6fa95c8d1994f49056668"
+    },
+    "evidence_paths": {
+      "value": [
+        {
+          "claim": "KRAS is a biomarker-defined (hotspot-mutant) selective dependency in COADREAD that is small-molecule tractable via a mutant-selective approach.",
+          "leads_to": "causal_rationale",
+          "steps": [
+            {
+              "signal": "well-characterized RAS/MAPK driver mechanism, relatively high pathway activity",
+              "citation": "signaling-network-mechanism"
+            },
+            {
+              "signal": "clonal, likely-oncogenic missense hotspot in a frequently-altered oncogenic pathway",
+              "citation": "variant-level-interpretation"
+            },
+            {
+              "signal": "mutant stratum strongly dependent and strongly drug-sensitive",
+              "citation": "mutation-stratified-dependency"
+            },
+            {
+              "signal": "CRISPR/RNAi/PRISM triangulated, cross-consortium concordant-dependent, engaged",
+              "citation": "prism-crispr-concordance"
+            },
+            {
+              "signal": "potent measured ligand, strong structure, approved-drug tractable",
+              "citation": "measured-potency-tractability"
+            }
+          ]
+        },
+        {
+          "claim": "A mutant-selective therapeutic window is defensible despite broad WT normal-tissue liability.",
+          "leads_to": "therapeutic_window",
+          "steps": [
+            {
+              "signal": "broad normal expression, high gnomAD constraint, essential-tissue liability flag WT-inhibition risk",
+              "citation": "gnomad-lof-constraint"
+            },
+            {
+              "signal": "WT-constraint mechanism mismatch on the safety line",
+              "citation": "modality-therapeutic-window"
+            },
+            {
+              "signal": "response concentrates in missense-hotspot mutant stratum, sparing WT",
+              "citation": "mutation-drug-response"
+            }
+          ]
+        },
+        {
+          "claim": "Monotherapy KRAS inhibition risks incomplete effect and lacks a mapped combination partner.",
+          "leads_to": "therapeutic_hypothesis",
+          "steps": [
+            {
+              "signal": "strong paralog-buffering predicts functional redundancy",
+              "citation": "paralog-buffering"
+            },
+            {
+              "signal": "baseline concordance is moderately-concordant-NON-dependent",
+              "citation": "crispr-rnai-dependency-concordance"
+            },
+            {
+              "signal": "experimental SL partner and strong combinatorial dependency exist",
+              "citation": "combinatorial-dependency"
+            },
+            {
+              "signal": "but partner-conditional-dependency = no_partner_mapped, blocking a defined pairing",
+              "citation": "partner-conditional-dependency"
+            }
+          ]
+        },
+        {
+          "claim": "The enrichable COADREAD population is hotspot-mutant, not amplified/overexpressed.",
+          "leads_to": "population",
+          "steps": [
+            {
+              "signal": "top-1pct recurrent missense hotspot",
+              "citation": "mutation-hotspot-frequency"
+            },
+            {
+              "signal": "copy-number distribution broadly neutral, so amplification does not define a population",
+              "citation": "copy-number-distribution"
+            },
+            {
+              "signal": "mutant strongly dependent defines the tractable stratum",
+              "citation": "mutation-stratified-dependency"
+            }
+          ]
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "df9da21fc1582230651ef359240daa04780ce92ce2e6fa95c8d1994f49056668"
+    }
+  },
+  "hypothesis": {
+    "causal_rationale": {
+      "statement": "KRAS is a well-characterized RAS/MAPK driver in COADREAD with relatively high pathway activity (signaling-network-mechanism, pathway-activity-context), and the dependency concentrates in the hotspot-mutant stratum: a predominantly-clonal, likely-oncogenic missense hotspot in a frequently-altered oncogenic pathway (variant-level-interpretation, target-clonality, mutation-hotspot-frequency, oncogenic-pathway-alteration) drives a mutant-strongly-dependent state (mutation-stratified-dependency) that is triangulated across CRISPR, RNAi and PRISM with cross-consortium concordant-dependent, engaged calls (pan-cancer-crispr-dependency-distribution, pan-cancer-rnai-dependency-distribution, prism-crispr-concordance, cross-consortium-dependency). The dependency is lineage-selective and conditioned by the driver mechanism (dependency-lineage-selectivity). HOWEVER, this monotherapy dependency is tensioned by strong paralog-buffering and a moderately-concordant-NON-dependent baseline call, indicating the pan-lineage baseline is non-dependent and redundancy may blunt single-node inhibition (paralog-buffering, crispr-rnai-dependency-concordance). Expression does not underpin the dependency \u2014 target is not tumor-elevated with modest downregulation and only weak expression-dependency correlation (tumor-elevation-breadth, tumor-rna-vs-adjacent, expression-dependency-correlation, abundance-dependency).",
+      "citations": [
+        "signaling-network-mechanism",
+        "pathway-activity-context",
+        "variant-level-interpretation",
+        "target-clonality",
+        "mutation-hotspot-frequency",
+        "oncogenic-pathway-alteration",
+        "mutation-stratified-dependency",
+        "pan-cancer-crispr-dependency-distribution",
+        "pan-cancer-rnai-dependency-distribution",
+        "prism-crispr-concordance",
+        "cross-consortium-dependency",
+        "dependency-lineage-selectivity"
+      ],
+      "contradicting_citations": [
+        "paralog-buffering",
+        "crispr-rnai-dependency-concordance",
+        "tumor-elevation-breadth",
+        "tumor-rna-vs-adjacent",
+        "expression-dependency-correlation",
+        "abundance-dependency"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "therapeutic_hypothesis": {
+      "statement": "A mutant-selective small-molecule inhibitor of KRAS is the proposed modality, justified by a potent measured ligand, strong static structural features, and approved-drug tractability converging with clinical-precedent compound activity (measured-potency-tractability, structure-features-static, known-drug-tractability, prism-compound-activity). Small molecule is the only viable modality here: surface/ADC/TCE routes are dead (surface-modality neither_viable, not-surface, no-transmembrane per surfaceome-family-classification, protein-surface-evidence, surface-topology-and-ptm, adc-tce-modality-fit). The pharmacologic case is corroborated by mutant-strongly-drug-sensitive response aligning with the mutant-dependent stratum (mutation-drug-response, dependency-predictability). CRITICAL CAVEAT: monotherapy is threatened by strong paralog-buffering and a non-dependent baseline (paralog-buffering, crispr-rnai-dependency-concordance), which motivates a combination \u2014 and although a strong synthetic-lethal / combinatorial-dependency signal exists (combinatorial-dependency, synthetic-lethal-partners), NO actionable partner is mapped (partner-conditional-dependency = no_partner_mapped), so a specific combination pairing is UNSUPPORTED at present and cannot be operationalized. Degradation is a feasible alternative avenue (degradation-feasibility ubiquitination_substrate) if buffering defeats occupancy-based inhibition.",
+      "modality": "small_molecule",
+      "citations": [
+        "measured-potency-tractability",
+        "structure-features-static",
+        "known-drug-tractability",
+        "prism-compound-activity",
+        "mutation-drug-response",
+        "dependency-predictability",
+        "surface-topology-and-ptm",
+        "adc-tce-modality-fit",
+        "degradation-feasibility"
+      ],
+      "contradicting_citations": [
+        "paralog-buffering",
+        "crispr-rnai-dependency-concordance",
+        "partner-conditional-dependency",
+        "combinatorial-dependency",
+        "synthetic-lethal-partners"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "population": {
+      "statement": "The enrichable COADREAD population is hotspot-MUTANT KRAS, not amplified/overexpressed. The actionable biomarker is a top-1pct recurrent, predominantly-clonal, likely-oncogenic missense hotspot defining the mutant-strongly-dependent, mutant-strongly-drug-sensitive stratum (mutation-hotspot-frequency, target-clonality, variant-level-interpretation, mutation-stratified-dependency, mutation-drug-response). The amplified-overexpressed-strongly-dependent stratum does NOT define an enrichable population here because copy-number distribution is broadly neutral in COADREAD (amp-expr-stratified-dependency contradicted by copy-number-distribution); amplification is not a valid enrichment axis. Malignant-subset scRNA detection confirms tumor-cell expression (tumor-scrna-celltype-expression), and models are well-represented in lineage (recommended-models).",
+      "indication": "COADREAD",
+      "subtype_or_biomarker": "KRAS hotspot missense mutation (e.g. G12/G13); NOT copy-number amplification",
+      "citations": [
+        "mutation-hotspot-frequency",
+        "target-clonality",
+        "variant-level-interpretation",
+        "mutation-stratified-dependency",
+        "mutation-drug-response",
+        "tumor-scrna-celltype-expression",
+        "recommended-models"
+      ],
+      "contradicting_citations": [
+        "amp-expr-stratified-dependency",
+        "copy-number-distribution"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "therapeutic_window": {
+      "statement": "The window is constrained but conditionally defensible. Broad normal-tissue expression, high gnomAD LoF constraint, essential-tissue liability, HIGH single-cell normal-tissue liability, LoF risk phenotype and autosomal-dominant loss genetics all flag risk of WT KRAS inhibition (normal-tissue-liability, gnomad-lof-constraint, modality-therapeutic-window, sc-normal-celltype-expression, gene-burden-safety, clingen-dosage), and the safety line reads WT_constraint_mechanism_mismatch (safety). CRITICALLY, this liability is MITIGATED, not resolved, IF the drug is mutant-selective: response concentrates in the missense-hotspot mutant stratum sparing WT (mutation-type-counts, mutation-drug-response), so a mutant-allele-selective inhibitor decouples efficacy from the constrained WT pool. Selectivity is otherwise unreconciled \u2014 tumor-vs-normal selectivity is discordant across comparators and only minimally enriched (tumor-vs-normal-selectivity, tumor-vs-normal-percentile-crossing), so the window rests entirely on mutant-allele pharmacologic selectivity rather than expression differential.",
+      "citations": [
+        "mutation-type-counts",
+        "mutation-drug-response"
+      ],
+      "contradicting_citations": [
+        "normal-tissue-liability",
+        "gnomad-lof-constraint",
+        "modality-therapeutic-window",
+        "sc-normal-celltype-expression",
+        "gene-burden-safety",
+        "clingen-dosage",
+        "tumor-vs-normal-selectivity",
+        "tumor-vs-normal-percentile-crossing"
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "evidence_grade": {
+      "overall": "moderate",
+      "per_line": [
+        {
+          "dimension": "dependency (mutation-stratified, triangulated)",
+          "strength": "strong"
+        },
+        {
+          "dimension": "genomic_alteration / biomarker (hotspot missense)",
+          "strength": "strong"
+        },
+        {
+          "dimension": "mechanism (RAS/MAPK driver)",
+          "strength": "strong"
+        },
+        {
+          "dimension": "tractability_sm (potent ligand, structure, approved-drug)",
+          "strength": "strong"
+        },
+        {
+          "dimension": "mutation-drug-response corroboration",
+          "strength": "strong"
+        },
+        {
+          "dimension": "paralog-buffering / monotherapy redundancy risk",
+          "strength": "moderate"
+        },
+        {
+          "dimension": "therapeutic_window / safety (WT mismatch vs mutant-selective rescue)",
+          "strength": "moderate"
+        },
+        {
+          "dimension": "expression / tumor-elevation (dissociated from dependency)",
+          "strength": "weak"
+        },
+        {
+          "dimension": "selectivity (discordant across comparators)",
+          "strength": "weak"
+        },
+        {
+          "dimension": "combinatorial partner mapping (no_partner_mapped)",
+          "strength": "weak"
+        },
+        {
+          "dimension": "surface/ADC/TCE modality fit",
+          "strength": "absent"
+        },
+        {
+          "dimension": "copy-number amplification population axis",
+          "strength": "absent"
+        }
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "proposed_verdict": {
+      "value": "conditional_on_biomarker",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "proposed_verdict_reason": {
+      "value": "The dependency is strong, triangulated, and biomarker-anchored to a top-1pct clonal missense hotspot, with small-molecule tractability well-established (mutation-stratified-dependency, prism-crispr-concordance, mutation-hotspot-frequency, measured-potency-tractability). Advancement is conditional on the mutant-hotspot biomarker because efficacy concentrates there and, critically, mutant-allele selectivity is the ONLY route to a defensible window given WT-constraint mechanism mismatch, high gnomAD constraint and broad normal-tissue liability (mutation-drug-response, gnomad-lof-constraint, modality-therapeutic-window, normal-tissue-liability). A deterministic safety gate may clamp this toward advanceable_flagged given the WT essential-tissue liability; the honest tensions are paralog-buffering-driven monotherapy escape and an unmapped combination partner (paralog-buffering, partner-conditional-dependency).",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    },
+    "go_forth": {
+      "next_evidence": "Isogenic KRAS-mutant vs KRAS-WT COADREAD cell/organoid panel treated with the candidate mutant-selective small molecule, reading (a) mutant-allele selectivity index (potency shift mutant vs WT, to confirm the window rescue) and (b) durability of response under paralog-buffering pressure \u2014 i.e. whether HRAS/NRAS or feedback reactivation drives escape, and which co-targeted node restores full effect. This single experiment simultaneously tests the mutant-selective safety-window hypothesis (the gate-limiting question) AND maps the missing combination partner that partner-conditional-dependency=no_partner_mapped currently blocks.",
+      "value_of_information": "It resolves the two decision-changing unknowns at once: whether the constrained WT window is truly rescued by mutant selectivity (kill/confirm on safety gate) and whether monotherapy survives paralog-buffering or needs a now-unmapped partner (kill/confirm on efficacy durability). Both are the principal tensions gating advancement.",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "f98f05ce5f34545749a729991c8ab71b4077e1ac527adbf25785fd3c1047887f"
+    }
+  }
+}

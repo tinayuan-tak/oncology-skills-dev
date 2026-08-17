@@ -30,8 +30,10 @@ Run:  BEDROCK_AWS_PROFILE=cmp-dev python3 run.py \
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
@@ -41,9 +43,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hypothesis_core as hc  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.1.0"   # WS4 first production increment. Deferred hardening documented as TODOs
-                          # in SKILL.md (content-addressed provenance manifest; drift-guard CI;
-                          # adversarial-survival WS5; truth-set eval WS6).
+SKILL_VERSION = "0.2.0"   # 0.1.0→0.2.0: WS4 DRIFT-GUARD (§9 — pinned prompt_template_hash + model_id
+                          # + offline golden-set drift-CI) and the intra-package COHERENCE step
+                          # (WS5 adversarial-survival root-cause fix). Deferred: content-addressed
+                          # provenance manifest; curated truth-set eval (WS6).
 
 
 # --- LLM prompts (ported + extended for subtype-resolved reasoning) ---------------------------------
@@ -58,6 +61,13 @@ EDGE_SYSTEM = (
     "dependency; paralogy TENSIONS_WITH a monotherapy dependency).\n"
     "If SUBTYPE-RESOLVED per-stratum records are given, reason at subtype resolution where the "
     "records support it (e.g. dependency strong in MSS but absent in MSI-H), citing the stratum name.\n"
+    "CRITICAL — actively hunt for INTERNAL CONTRADICTIONS where a POSITIVE line's thesis is undercut "
+    "by a NEGATIVE or absent SIBLING line measuring the SAME biology, and emit an explicit "
+    "`contradicts` edge for each. In particular: a synthetic-lethal / combination signal "
+    "(synthetic-lethal-partners, combinatorial-dependency) is CONTRADICTED by "
+    "partner-conditional-dependency=no_partner_mapped (a combination has no actionable partner to pair "
+    "with); a monotherapy dependency is contradicted by paralog-buffering / dependency=non_dependent; "
+    "an amplified/enriched-population claim is contradicted by copy-number-distribution=broadly_neutral. "
     "Emit: (a) typed EDGES — conditions | corroborates | tensions_with | contradicts — each with a "
     "one-line rationale citing ONLY card_ids / sub-verdict names / rule_ids / panel PMIDs / dossier "
     "field names / stratum names; (b) principal_tensions — the few disagreements that most bear on "
@@ -110,7 +120,23 @@ HYP_SYSTEM = (
     "HARD RULES: (a) EVERY clause MUST cite the evidence it rests on — card_ids, sub-verdict names, "
     "fired rule_ids, dossier field names, stratum names, or PMIDs present in the input. NEVER cite "
     "from memory. (b) Name where lines CORROBORATE and where they TENSION/CONTRADICT — the honest "
-    "map matters more than a clean story. (c) Propose a verdict but know a deterministic gate will "
+    "map matters more than a clean story. (b2) INTRA-PACKAGE COHERENCE — a positive-thesis clause "
+    "(causal_rationale / therapeutic_hypothesis / population) may NOT assert a positive claim on a "
+    "signal that ANOTHER line in this SAME package contradicts. If a line you cite is a MEASURED-"
+    "NEGATIVE call (e.g. dependency=non_dependent_paralog_buffered, partner-conditional=no_partner_"
+    "mapped, selectivity=not_selective), or if you emitted a `contradicts`/`tensions_with` EDGE "
+    "touching a signal your clause rests on, you MUST surface that tension IN THE SAME CLAUSE — put "
+    "the contradicting token in that clause's `contradicting_citations` AND state the tension in the "
+    "clause text (e.g. 'a combination strategy is proposed BECAUSE monotherapy dependency is absent "
+    "(dependency non_dependent_paralog_buffered)'). Do NOT list a contradicting line among plain "
+    "`citations` as if it supported the claim — that is an internally-contradicted assertion and is "
+    "rejected. (b3) SPECIFIC — do NOT propose a COMBINATION or SYNTHETIC-LETHAL strategy as the "
+    "actionable vulnerability unless a partner-mapping line actually maps an actionable partner: if "
+    "partner-conditional-dependency=no_partner_mapped (or synthetic_lethal_partners maps none), the "
+    "combination is UNSUPPORTED — state that in the clause, put partner-conditional-dependency in "
+    "contradicting_citations, and grade the line weak/absent; do NOT claim a biomarker-enriched "
+    "(e.g. amplified) population when the copy-number line reads broadly_neutral. (c) Propose a "
+    "verdict but know a deterministic gate will "
     "CLAMP it — if the evidence is compelling but a hard gate (safety/veto) opposes, SURFACE the "
     "tension. (d) ABSENCE: a line whose verdict is insufficient / data_unavailable / not_assessed "
     "carries NO weight — you may NOT cite an absent line as support; name such gaps in go_forth and "
@@ -196,6 +222,46 @@ def _default_synthesize():
     return synthesize_structured
 
 
+# --- WS4 drift-guard provenance (roadmap §9): pin prompt_template_hash + model_id ------------------
+def prompt_template_hash() -> str:
+    """A stable sha256 over the DETERMINISTIC prompt SURFACE (both system prompts + both tool
+    schemas) — INDEPENDENT of any single target's user prompt. A change to a prompt or a schema flips
+    this hash, so the golden-set drift-CI (test_drift_guard) fails and forces a review + golden
+    regeneration on any prompt/model change (roadmap invariant 7)."""
+    h = hashlib.sha256()
+    for part in (EDGE_SYSTEM, HYP_SYSTEM,
+                 json.dumps(EDGE_SCHEMA, sort_keys=True),
+                 json.dumps(HYPOTHESIS_SCHEMA, sort_keys=True)):
+        h.update(part.encode("utf-8"))
+        h.update(b"\x00")
+    return h.hexdigest()
+
+
+def _resolve_model_id(llm_mode: str) -> str:
+    """The model_id pinned into provenance. For an offline/injected run there is no Bedrock model, so
+    record the mode; for a live run resolve the framework synthesis-model pin without importing boto3
+    at test time."""
+    if llm_mode != "bedrock":
+        return f"offline:{llm_mode}"
+    try:
+        from _skills_common.bedrock_client import FRAMEWORK_SYNTHESIS_MODEL
+        return FRAMEWORK_SYNTHESIS_MODEL
+    except Exception:  # noqa: BLE001 — provenance must never crash the run
+        return "unknown"
+
+
+def replay_synthesize(replay: dict):
+    """Deterministic offline synthesize_fn backed by a CANNED two-call response dict
+    ({"cross_edges": {...}, "hypothesis": {...}}). Powers `--no-llm --llm-replay <file>` and the
+    offline golden-set drift-CI: identical inputs → identical deterministic spine outputs, no Bedrock."""
+    def _synth(system, user, name, schema, **kw):
+        if name not in replay:
+            raise KeyError(f"--llm-replay file has no canned response for call {name!r} "
+                           f"(have: {sorted(replay)})")
+        return replay[name]
+    return _synth
+
+
 def _panel_block(panel: dict, objective: str) -> str:
     ctx = panel["context"]
     tgt = (ctx.get("target") or {}).get("symbol") if isinstance(ctx.get("target"), dict) \
@@ -230,9 +296,13 @@ def _panel_block(panel: dict, objective: str) -> str:
 
 
 def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug target",
-        modality=None, dossier_path=None, synthesize_fn=None) -> dict:
+        modality=None, dossier_path=None, synthesize_fn=None, llm_mode=None) -> dict:
     """Assemble the panel, run the two-call pipeline, clamp, and enforce the defensibility contract.
-    `synthesize_fn(system, user, name, schema, max_tokens=...)` is injectable for offline testing."""
+    `synthesize_fn(system, user, name, schema, max_tokens=...)` is injectable for offline testing.
+    `llm_mode` labels provenance: 'bedrock' (default live), 'offline_replay', or 'injected' (a test
+    stub); it never changes the deterministic spine, only what model_id is pinned."""
+    if llm_mode is None:
+        llm_mode = "bedrock" if synthesize_fn is None else "injected"
     modality_resolved, modality_inferred = hc.resolve_modality(modality, objective)
     panel = hc.assemble(pkg_path, risk_path, dossier_path, modality_resolved)
     synth = synthesize_fn or _default_synthesize()
@@ -305,16 +375,36 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         if cited_gaps:
             absence_violations[key] = cited_gaps
 
+    # --- INTRA-PACKAGE COHERENCE WITH TEETH (§6.5 / WS5): a positive-thesis clause may not assert on
+    # a signal another present line contradicts (measured-negative cited as support, or one end of the
+    # agent's OWN contradicts/tensions_with edge) unless it surfaces the tension. ---
+    coherence_clauses = {}
+    for key in support_clauses:
+        c = hc._uv(out.get(key)) or {}
+        c = c if isinstance(c, dict) else {}
+        coherence_clauses[key] = {
+            "support": list(c.get("citations") or []),
+            "surfaced": list(c.get("contradicting_citations") or []),
+        }
+    present_norm = {hc._norm(t) for t in (surface["card_ids"] | surface["sub_verdicts"]
+                                          | surface["rule_ids"])}
+    card_calls = {cid: call for cid, call in (panel.get("cards_brief") or {}).items()
+                  if isinstance(call, str)}
+    coherence_v = hc.coherence_violations(coherence_clauses, conviction, edges, tensions,
+                                          present_norm, out_of_scope=oos, card_calls=card_calls)
+
     # --- minimum-inputs gate (§12): enough non-gap in-scope decision lines to reason over? ---
     n_supporting = sum(1 for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
     minimum_inputs_met = n_supporting >= 2
 
-    # --- promotion gate (teeth): untraceable / absence-violation / below-minimum BLOCK promotion ---
+    # --- promotion gate (teeth): untraceable / absence-violation / coherence / below-minimum BLOCK ---
     promotion_blockers = []
     if untraceable:
         promotion_blockers.append("untraceable_citations")
     if absence_violations:
         promotion_blockers.append("absence_discipline_violations")
+    if coherence_v:
+        promotion_blockers.append("intra_package_coherence_violations")
     if not minimum_inputs_met:
         promotion_blockers.append("insufficient_inputs")
     promotable = not promotion_blockers
@@ -351,6 +441,8 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         "defensibility": {
             "clause_traceability": traceability, "untraceable_citations": untraceable,
             "n_clauses": n_clauses, "n_fully_traceable": n_clean,
+            "coherence_violations": coherence_v,
+            "n_coherence_violations": sum(len(v) for v in coherence_v.values()),
             "promotable": promotable, "promotion_blockers": promotion_blockers,
         },
         "uncertainty": {
@@ -378,6 +470,17 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "degraded_inputs": degraded_inputs, "minimum_inputs_met": minimum_inputs_met,
             "n_supporting_in_scope_lines": n_supporting,
         },
+        # --- optional intrinsic-quality slot (WS5). adversarial_survival is null until the optional
+        # post-check (scripts/adversarial_survival.py, needs Bedrock) is run; the deterministic
+        # coherence guard above is the always-on, offline sibling of that skeptic pass. ---
+        "quality": {"adversarial_survival": None},
+        # --- WS4 drift-guard provenance (roadmap §9): the two PINS the golden-set drift-CI freezes ---
+        "provenance": {
+            "skill": SKILL_NAME, "skill_version": SKILL_VERSION,
+            "prompt_template_hash": prompt_template_hash(),
+            "model_id": _resolve_model_id(llm_mode), "llm_mode": llm_mode,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        },
         "panel_conviction": conviction,
     }
 
@@ -394,12 +497,27 @@ def main(argv=None) -> int:
     ap.add_argument("--modality", default=None, choices=sorted(hc.MODALITY_SCOPE),
                     help="controlled modality enum (overrides objective inference)")
     ap.add_argument("--out", required=True, help="output directory")
+    ap.add_argument("--no-llm", action="store_true",
+                    help="OFFLINE deterministic run: use --llm-replay canned responses instead of "
+                         "Bedrock (powers the golden-set drift-CI; the deterministic spine is identical)")
+    ap.add_argument("--llm-replay", default=None,
+                    help="canned two-call response JSON ({\"cross_edges\":{...},\"hypothesis\":{...}}) "
+                         "for --no-llm")
     args = ap.parse_args(argv)
+
+    synthesize_fn, llm_mode = None, None
+    if args.no_llm:
+        if not args.llm_replay:
+            print("--no-llm requires --llm-replay <canned response json>", file=sys.stderr)
+            return 2
+        synthesize_fn = replay_synthesize(json.loads(Path(args.llm_replay).read_text()))
+        llm_mode = "offline_replay"
 
     outd = Path(args.out)
     outd.mkdir(parents=True, exist_ok=True)
     print("→ assembling cross-evidence hypothesis ...", file=sys.stderr)
-    r = run(args.evidence_package, args.risk, args.objective, args.modality, args.target_dossier)
+    r = run(args.evidence_package, args.risk, args.objective, args.modality, args.target_dossier,
+            synthesize_fn=synthesize_fn, llm_mode=llm_mode)
     (outd / "hypothesis.json").write_text(json.dumps(r, indent=2, default=str))
 
     v = r["verdict"]
@@ -417,6 +535,12 @@ def main(argv=None) -> int:
     d = r["defensibility"]
     print(f"DEFENSIBILITY: traceability={d['clause_traceability']} promotable={d['promotable']} "
           f"blockers={d['promotion_blockers']}")
+    if d["coherence_violations"]:
+        print(f"  COHERENCE: {d['n_coherence_violations']} intra-package contradiction(s): "
+              f"{ {k: [x['type'] for x in v] for k, v in d['coherence_violations'].items()} }")
+    print(f"PROVENANCE: model={r['provenance']['model_id']} "
+          f"prompt_template_hash={r['provenance']['prompt_template_hash'][:12]}… "
+          f"mode={r['provenance']['llm_mode']}")
     print(f"wrote {outd}/hypothesis.json", file=sys.stderr)
     return 0
 

@@ -1,0 +1,6 @@
+{
+  "case": "KRAS-COADREAD",
+  "objective": "small-molecule drug target",
+  "modality": "small_molecule",
+  "source_evidence_package": "/tmp/bakeoff-features/KRAS-envfix/evidence_package.json"
+}

@@ -1,0 +1,190 @@
+"""Offline guards for the WS5 intra-package COHERENCE step + the adversarial-survival post-check.
+No Bedrock: the LLM is a stub. Verifies the four coherence detectors (measured-negative sub-verdict
+or card cited as support; agent contradicts/tensions_with edge unsurfaced; intrinsic cross-card
+SL-vs-no_partner contradiction), that surfacing clears them, that therapeutic_window is exempt, that
+promotion is blocked with teeth; and the survival metric's containment discard + majority + gate."""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+import adversarial_survival as AS  # noqa: E402
+import hypothesis_core as hc  # noqa: E402
+import run as R  # noqa: E402
+
+FIX = Path(__file__).resolve().parent / "fixtures"
+PKG = FIX / "evidence_package_new_blocks.json"
+RISK = FIX / "risk.json"
+DOSSIER = FIX / "dossier.json"
+
+
+# =============================== is_negative_verdict ===============================
+def test_is_negative_verdict_polarity():
+    assert hc.is_negative_verdict("non_dependent_paralog_buffered") is True
+    assert hc.is_negative_verdict("no_partner_mapped") is True
+    assert hc.is_negative_verdict("neither_viable") is True
+    assert hc.is_negative_verdict("passenger_pattern") is True
+    for v in ("strongly_selective_dependency", "strong_tumor_selective", "lineage_selective",
+              "discordant_across_comparators", "constitutive_combinatorial_dependency"):
+        assert hc.is_negative_verdict(v) is False
+    # gap verdicts are absence, NOT measured-negative (handled by absence-discipline)
+    for v in ("insufficient", "data_unavailable", None, "not_informative"):
+        assert hc.is_negative_verdict(v) is False
+
+
+# =============================== (a) measured-negative sub-verdict cited as support ================
+def test_negative_signal_cited_as_support_is_flagged():
+    conv = {"dependency": "non_dependent_paralog_buffered", "mechanism": "well_characterized"}
+    clauses = {"causal_rationale": {"support": ["dependency", "mechanism"], "surfaced": []}}
+    v = hc.coherence_violations(clauses, conv, [], [], {"dependency", "mechanism"}, out_of_scope=set())
+    assert v["causal_rationale"][0]["type"] == "negative_signal_asserted"
+    assert v["causal_rationale"][0]["dimension"] == "dependency"
+
+
+def test_surfacing_in_contradicting_citations_clears_it():
+    conv = {"dependency": "non_dependent_paralog_buffered"}
+    # the LLM cites dependency AND flags it in contradicting_citations → surfaced → cleared
+    clauses = {"causal_rationale": {"support": ["dependency"], "surfaced": ["dependency"]}}
+    assert hc.coherence_violations(clauses, conv, [], [], {"dependency"}, out_of_scope=set()) == {}
+
+
+def test_surfacing_via_principal_tension_clears_it():
+    conv = {"dependency": "non_dependent_paralog_buffered"}
+    clauses = {"population": {"support": ["dependency"], "surfaced": []}}
+    tensions = [{"statement": "dep absent", "citations": ["dependency", "paralog-buffering"]}]
+    assert hc.coherence_violations(clauses, conv, [], tensions, {"dependency"}, out_of_scope=set()) == {}
+
+
+def test_therapeutic_window_is_exempt_from_negative_signal_rule():
+    conv = {"safety": "highly_constrained_safety_concern"}
+    clauses = {"therapeutic_window": {"support": ["safety"], "surfaced": []}}
+    assert hc.coherence_violations(clauses, conv, [], [], {"safety"}, out_of_scope=set()) == {}
+
+
+def test_out_of_scope_negative_not_flagged():
+    conv = {"surface_modality": "neither_viable"}
+    clauses = {"therapeutic_hypothesis": {"support": ["surface_modality"], "surfaced": []}}
+    v = hc.coherence_violations(clauses, conv, [], [], {"surface_modality"},
+                               out_of_scope={"surface_modality"})
+    assert v == {}
+
+
+# =============================== (a2) card-grain measured-negative =================================
+def test_card_grain_negative_call_cited_as_support_is_flagged():
+    conv = {"dependency": "strongly_selective_dependency"}
+    card_calls = {"partner-conditional-dependency": "no_partner_mapped"}
+    clauses = {"causal_rationale": {"support": ["partner-conditional-dependency"], "surfaced": []}}
+    v = hc.coherence_violations(clauses, conv, [], [], {"partner-conditional-dependency"},
+                               out_of_scope=set(), card_calls=card_calls)
+    assert v["causal_rationale"][0]["dimension"] == "partner-conditional-dependency"
+
+
+# =============================== (b) agent contradiction edge ======================================
+def test_agent_contradiction_edge_unsurfaced_is_flagged():
+    conv = {"combinatorial_dependency": "constitutive_combinatorial_dependency"}
+    edges = [{"type": "contradicts", "from_dimension": "combinatorial_dependency",
+              "to_dimension": "differentiation", "rationale": "x",
+              "citations": ["combinatorial_dependency", "differentiation"]}]
+    present = {"combinatorial_dependency", "differentiation"}
+    clauses = {"therapeutic_hypothesis": {"support": ["combinatorial_dependency"], "surfaced": []}}
+    v = hc.coherence_violations(clauses, conv, edges, [], present, out_of_scope=set())
+    assert any(x["type"] == "edge_contradiction_unsurfaced" for x in v["therapeutic_hypothesis"])
+    clauses2 = {"therapeutic_hypothesis": {"support": ["combinatorial_dependency"],
+                                           "surfaced": ["differentiation"]}}
+    assert hc.coherence_violations(clauses2, conv, edges, [], present, out_of_scope=set()) == {}
+
+
+# =============================== (c) INTRINSIC SL-vs-no_partner (the task example) =================
+def test_intrinsic_sl_without_mapped_partner_flagged_even_when_uncited():
+    """The exact skeptic-found class: a clause rests on the SL/combination strategy while
+    partner-conditional-dependency=no_partner_mapped is PRESENT (even if the clause never cites it)."""
+    conv = {"combinatorial_dependency": "constitutive_combinatorial_dependency",
+            "partner_conditional_dependency": "no_partner_mapped"}
+    clauses = {"therapeutic_hypothesis": {"support": ["combinatorial-dependency"], "surfaced": []}}
+    present = {"combinatorial-dependency", "partner_conditional_dependency"}
+    v = hc.coherence_violations(clauses, conv, [], [], present, out_of_scope=set())
+    labels = [x.get("label") for x in v["therapeutic_hypothesis"]]
+    assert "combination_or_sl_strategy_without_mapped_partner" in labels
+    # surfacing the no-partner line clears it
+    clauses2 = {"therapeutic_hypothesis": {"support": ["combinatorial-dependency"],
+                                           "surfaced": ["partner_conditional_dependency"]}}
+    assert hc.coherence_violations(clauses2, conv, [], [], present, out_of_scope=set()) == {}
+
+
+# =============================== run() end-to-end: coherence teeth =================================
+def _stub_incoherent(system, user, name, schema, **kw):
+    """causal_rationale cites surface_modality=neither_viable (a measured-negative, IN scope under
+    modality_agnostic) as SUPPORT without surfacing it."""
+    if name == "cross_edges":
+        return {"edges": [], "principal_tensions": [], "evidence_paths": []}
+    return {
+        "causal_rationale": {"statement": "driver", "citations": ["dependency", "surface_modality"]},
+        "therapeutic_hypothesis": {"statement": "hit it", "modality": "modality_agnostic",
+                                   "citations": ["dependency"]},
+        "population": {"statement": "all", "citations": ["dependency"]},
+        "therapeutic_window": {"statement": "ok", "citations": ["safety"]},
+        "evidence_grade": {"overall": "moderate", "per_line": []},
+        "proposed_verdict": "advanceable", "proposed_verdict_reason": "x",
+        "go_forth": {"next_evidence": "y"},
+    }
+
+
+def test_run_coherence_blocks_promotion_and_caps_verdict():
+    r = R.run(str(PKG), str(RISK), "vague objective", "modality_agnostic", str(DOSSIER),
+              synthesize_fn=_stub_incoherent)
+    d = r["defensibility"]
+    assert d["n_coherence_violations"] >= 1
+    assert "intra_package_coherence_violations" in d["promotion_blockers"]
+    assert d["promotable"] is False
+    assert hc.VERDICT_RANK[r["verdict"]["computed"]] <= hc.VERDICT_RANK["advanceable_flagged"]
+    assert "surface_modality" in json.dumps(d["coherence_violations"])
+
+
+# =============================== adversarial-survival (stubbed) ===================================
+def _hyp_result():
+    return {"target": "T", "indication": "I", "hypothesis": {
+        "causal_rationale": {"statement": "A", "citations": ["dependency"]},
+        "therapeutic_hypothesis": {"statement": "B", "citations": ["dependency"]},
+        "population": {"statement": "C", "citations": ["MSS"]},
+        "therapeutic_window": {"statement": "D", "citations": ["safety"]},
+    }}
+
+
+def test_survival_containment_discards_uncontained_refutation():
+    def stub(system, user, name, schema, **kw):
+        return {"clauses": [{"clause": k, "refuted": True, "refutation": "bad",
+                             "cited": ["totally_made_up_token_xyz"]}
+                            for k in ("causal_rationale", "therapeutic_hypothesis",
+                                      "population", "therapeutic_window")]}
+    r = AS.adversarial_survival(_hyp_result(), str(PKG), str(RISK), str(DOSSIER),
+                                n_skeptics=3, synthesize_fn=stub)
+    assert r["score"] == 1.0
+    assert all(c["survives"] for c in r["clauses"].values())
+
+
+def test_survival_majority_refutation_marks_not_survived():
+    def stub(system, user, name, schema, **kw):
+        return {"clauses": [{"clause": "causal_rationale", "refuted": True,
+                             "refutation": "dependency does not support this", "cited": ["dependency"]},
+                            {"clause": "therapeutic_hypothesis", "refuted": False,
+                             "refutation": "", "cited": []},
+                            {"clause": "population", "refuted": False, "refutation": "", "cited": []},
+                            {"clause": "therapeutic_window", "refuted": False, "refutation": "",
+                             "cited": []}]}
+    r = AS.adversarial_survival(_hyp_result(), str(PKG), str(RISK), str(DOSSIER),
+                                n_skeptics=3, synthesize_fn=stub)
+    assert r["clauses"]["causal_rationale"]["survives"] is False
+    assert r["clauses"]["causal_rationale"]["valid_refutations"] == 3
+    assert r["score"] == 0.75
+    gate = AS.adversarial_survival_gate(r, threshold=0.8)
+    assert gate["passed"] is False and gate["below_threshold"] is True
+    assert "causal_rationale" in gate["non_surviving_clauses"]
+
+
+def test_survival_gate_pass():
+    r = {"score": 1.0, "clauses": {"a": {"survives": True}}}
+    assert AS.adversarial_survival_gate(r, 0.75)["passed"] is True

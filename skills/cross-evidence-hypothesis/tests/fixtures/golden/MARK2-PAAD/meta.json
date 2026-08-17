@@ -1,0 +1,6 @@
+{
+  "case": "MARK2-PAAD",
+  "objective": "small-molecule drug target",
+  "modality": "small_molecule",
+  "source_evidence_package": "/tmp/bakeoff-features/MARK2-PAAD/evidence_package.json"
+}
