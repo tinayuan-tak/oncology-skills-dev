@@ -184,6 +184,92 @@ def _summary_is_unavailable(summary: dict) -> Optional[str]:
     return None
 
 
+def _resolve_one_card(card_id: str, target: str, indication: str,
+                      subgroup_context: "Optional[dict]") -> dict:
+    """Read + classify ONE card into its card_output dict. MODULE-LEVEL (picklable) so it can run in
+    either a thread or a FORKED worker process. Imports the live-reader dispatcher internally (cached
+    — a no-op in a forked child, which inherits the parent's already-imported modules). Returns a
+    fresh dict per card (no shared mutable state), and read exceptions propagate to the caller exactly
+    as in the sequential path."""
+    read_live = _import_dispatcher()
+    if subgroup_context is not None:
+        try:
+            summary = read_live(card_id, target, indication, subgroup_context=subgroup_context)
+        except TypeError:
+            # Dispatcher predates the subgroup_context kwarg — scalar fallback.
+            summary = read_live(card_id, target, indication)
+    else:
+        summary = read_live(card_id, target, indication)
+    if summary is None:
+        return {
+            "card_id": card_id, "summary": {},
+            "interpretation_call": "not_implemented",
+            "_missing": True,
+            "_missing_reason": "dispatcher_returned_none",
+        }
+    unavailable = _summary_is_unavailable(summary)
+    if unavailable is not None:
+        # Distinguish an HONEST data_unavailable answer (the card ran and reported no data) from a
+        # genuine absence (dispatcher None / live_read_error). Both count against COVERAGE (`_missing`),
+        # but the honest-data_unavailable card is flagged `_data_unavailable` so fired_rules still
+        # evaluates its dedicated `equals: data_unavailable` rung (M2, 2026-08-11).
+        is_honest_du = "_live_read_error" not in summary and _data_unavailable_field(summary) is not None
+        return {
+            "card_id": card_id,
+            "summary": summary,
+            "interpretation_call": "data_unavailable",
+            "_missing": True,
+            "_missing_reason": unavailable,
+            "_data_unavailable": is_honest_du,
+        }
+    return {
+        "card_id": card_id,
+        "summary": summary,
+        "interpretation_call": _primary_class_value(summary),
+    }
+
+
+def _resolve_one_card_star(args: tuple) -> dict:
+    """tuple-unpacking wrapper so multiprocessing.Pool.map (single-arg) can call _resolve_one_card."""
+    return _resolve_one_card(*args)
+
+
+def _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers) -> list:
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(card_ids))) as ex:
+        return list(ex.map(
+            lambda c: _resolve_one_card(c, target, indication, subgroup_context), card_ids))
+
+
+def _read_cards_process(card_ids, target, indication, subgroup_context, max_workers) -> list:
+    """OPT-IN (SKILLS_READ_POOL=process): read cards in FORKED worker processes to bypass the GIL.
+    The reader CPU (pandas assembly, per-row dict builds) is GIL-bound, so a thread pool serializes it
+    — profiling showed the cold parallel read is GIL-limited, and a fork pool did 12.8s -> 8.7s.
+
+    Safety (fork-after-clean-state + degrade-never-break):
+      - fork ONLY — children inherit the parent's warm imports at ~zero cost. If the `fork` start
+        method is unavailable (non-Linux), fall back to threads. Forking AFTER boto3/SSL client init
+        can deadlock; resolve_cards is the run's FIRST S3 touch and we pre-warm only IMPORTS (no
+        client) in the parent, so at fork time the parent holds no live S3/SSL state.
+      - ANY pool failure (fork error, pickling, worker death) degrades to the thread path — a read
+        must never break because of the pool.
+    Order preserved (Pool.map); results are the same fresh card_output dicts, pickled back."""
+    import multiprocessing as mp
+    try:
+        ctx = mp.get_context("fork")
+    except ValueError:
+        # No fork on this platform — thread pool is the safe equivalent.
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers)
+    args = [(c, target, indication, subgroup_context) for c in card_ids]
+    try:
+        with ctx.Pool(processes=min(max_workers, len(card_ids))) as pool:
+            return pool.map(_resolve_one_card_star, args)
+    except Exception as e:  # noqa: BLE001 — the pool is an optimization; never break the run
+        print(f"[resolve_cards] SKILLS_READ_POOL=process failed ({type(e).__name__}: {e}); "
+              f"falling back to the thread pool.", file=sys.stderr)
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers)
+
+
 def resolve_cards(card_ids: list[str], target: str, indication: str,
                   subgroup_context: Optional[dict] = None) -> list[dict]:
     """Fetch live summaries for a list of card_ids via the compose-dashboard
@@ -215,71 +301,33 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
                  "provenance": {"input_manifest_ids": list(card_input_manifest_ids(cid))}}
                 for cid in card_ids]
 
-    read_live = _import_dispatcher()
+    # Pre-warm the live-reader import in the PARENT so a forked worker (SKILLS_READ_POOL=process)
+    # inherits it at ~zero cost. This imports modules only — it opens no S3/SSL client — so it is
+    # safe to do before a fork. The per-card readers re-derive it via _import_dispatcher() (cached).
+    _import_dispatcher()
 
-    def _read_one(card_id: str) -> dict:
-        """Read + classify ONE card into its card_output dict. Pure w.r.t. `outputs` (returns a fresh
-        dict), so it is safe to run concurrently across card_ids — the only shared state it touches is
-        the dispatcher's own (thread-safe) lru_caches. Read exceptions propagate to the caller exactly
-        as in the sequential path (they surface out of resolve_cards)."""
-        if subgroup_context is not None:
-            try:
-                summary = read_live(card_id, target, indication,
-                                    subgroup_context=subgroup_context)
-            except TypeError:
-                # Dispatcher predates the subgroup_context kwarg — scalar fallback.
-                summary = read_live(card_id, target, indication)
-        else:
-            summary = read_live(card_id, target, indication)
-        if summary is None:
-            return {
-                "card_id": card_id, "summary": {},
-                "interpretation_call": "not_implemented",
-                "_missing": True,
-                "_missing_reason": "dispatcher_returned_none",
-            }
-        unavailable = _summary_is_unavailable(summary)
-        if unavailable is not None:
-            # Distinguish an HONEST data_unavailable answer (the card ran and reported
-            # no data) from a genuine absence (dispatcher None / live_read_error). Both
-            # count against COVERAGE (`_missing` → cards_missing / run_health unchanged),
-            # but the honest-data_unavailable card is flagged `_data_unavailable` so
-            # fired_rules still evaluates it and its dedicated `equals: data_unavailable`
-            # resolver rung fires (real driving_rule_id) instead of the verdict silently
-            # collapsing to the bare `insufficient` default. (M2, 2026-08-11.)
-            is_honest_du = "_live_read_error" not in summary and _data_unavailable_field(summary) is not None
-            return {
-                "card_id": card_id,
-                "summary": summary,
-                "interpretation_call": "data_unavailable",
-                "_missing": True,
-                "_missing_reason": unavailable,
-                "_data_unavailable": is_honest_du,
-            }
-        return {
-            "card_id": card_id,
-            "summary": summary,
-            "interpretation_call": _primary_class_value(summary),
-        }
-
-    # PERF (2026-08-18): the per-card reads are INDEPENDENT and I/O-bound (S3 + pyarrow, both of which
-    # release the GIL), so run them concurrently on a bounded thread pool instead of summing their
-    # latencies. Measured on tumor-presence (14 cards): sequential read wall-clock ~59s (the SUM),
-    # dominated by the two expression-distribution cards (~14.5s + ~10.4s); parallelized it collapses
-    # toward the SLOWEST single read (~15s). Output is byte-identical: ThreadPoolExecutor.map preserves
-    # input order, and _read_one returns a fresh dict per card (no shared mutable state). Sequential
-    # fallback for a single card or when SKILLS_READ_WORKERS<=1 (a kill-switch for debugging / any
-    # reader later found thread-unsafe) keeps the exact former code path.
+    # PERF (2026-08-18): the per-card reads are INDEPENDENT, so run them concurrently instead of
+    # summing their latencies. Two pool modes:
+    #   thread (default) — a bounded ThreadPoolExecutor. The reads' S3/pyarrow I/O releases the GIL,
+    #     so this already collapses the wall-clock toward the slowest read for I/O-bound cards.
+    #   process (SKILLS_READ_POOL=process) — a FORKED process pool that ALSO parallelizes the readers'
+    #     GIL-bound CPU (pandas assembly), which a thread pool serializes; measured 12.8s -> 8.7s on
+    #     tumor-presence. Opt-in while it proves out (fork-safety + result-pickling); see
+    #     _read_cards_process. Any failure there degrades to the thread pool.
+    # Output is byte-identical across all three paths: order preserved, _resolve_one_card returns a
+    # fresh dict per card. Sequential fallback for a single card or SKILLS_READ_WORKERS<=1 (kill-switch)
+    # keeps the exact former code path.
     try:
         _max_workers = int(os.environ.get("SKILLS_READ_WORKERS", "8"))
     except ValueError:
         _max_workers = 8
+    _pool_mode = os.environ.get("SKILLS_READ_POOL", "thread").strip().lower()
     if len(card_ids) <= 1 or _max_workers <= 1:
-        outputs = [_read_one(cid) for cid in card_ids]
+        outputs = [_resolve_one_card(cid, target, indication, subgroup_context) for cid in card_ids]
+    elif _pool_mode == "process":
+        outputs = _read_cards_process(card_ids, target, indication, subgroup_context, _max_workers)
     else:
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=min(_max_workers, len(card_ids))) as _ex:
-            outputs = list(_ex.map(_read_one, card_ids))
+        outputs = _read_cards_threaded(card_ids, target, indication, subgroup_context, _max_workers)
     # PROVENANCE (2026-08-13): stamp each card_output with the manifest ids it DECLARES as inputs
     # (card_spec.required_inputs[].product_id), so the subskill default path carries the same real
     # per-card data provenance as the composed engine — the basis for the decision.json governance
