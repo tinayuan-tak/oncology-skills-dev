@@ -38,7 +38,7 @@ applies_when:
   # entity-specific denominators for them). OV's 3CA ovarian cube is likewise MULTI-ENTITY POOLED /
   # pan-gynecologic (ovarian-dominant but includes carcinosarcoma/endometrial/GIST/peritoneal — no
   # cancer_type filter); a pan-gynecologic presence readout, NOT HGSOC-pure.
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV']"
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV', 'STAD']"
 
 required_inputs:
   - product_id: sc-pseudobulk-tumor-crc-coadread-v1          # COADREAD — CRC core atlas (Marteau 2025) tumor pseudobulk: 45 studies / 420 tumor-origin donors / 509,819 malignant cells, with an EXPLICIT 'Cancer cell' malignant call distinct from normal 'Epithelial cell' (the Census coadread-v2 inferred the malignant compartment via compartment_of, conflating malignant with normal colonic epithelium). Reader repointed AM#312 (same pattern as NSCLC->LuCA). Superseded: sc-pseudobulk-donor-celltype-coadread-v2 (Census, 749 donors, inferred malignant).
@@ -48,6 +48,7 @@ required_inputs:
   - product_id: sc-pseudobulk-tumor-3ca-hnsc-v1              # HNSC (3CA atlas) tumor pseudobulk
   - product_id: sc-pseudobulk-tumor-3ca-kidney-v1            # KIRC (3CA atlas) tumor pseudobulk — pan-renal pooled (ccRCC + papillary/chromophobe/Wilms); 125 donors / 74 malignant
   - product_id: sc-pseudobulk-tumor-3ca-ovarian-v1           # OV (3CA atlas) tumor pseudobulk — pan-gynecologic pooled (ovarian + carcinosarcoma/endometrial/GIST/peritoneal); 115 donors / 106 malignant
+  - product_id: sc-pseudobulk-tumor-stad-golim-v1            # STAD — Go/Lim integrated gastric atlas (2026); malignant = Epithelial ∩ Phenotype==GC (adenocarcinoma proxy, no inferCNV); 95 donors / malignant in 88; CLDN18(.2) 1.23 malignant vs 0.06. Fills the previously-excluded gastric gap (Census tumor label 'unknown' + no 3CA bucket).
 
 methods:
   - call: sc-tumor-expression-celltype

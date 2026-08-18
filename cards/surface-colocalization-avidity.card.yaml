@@ -23,7 +23,7 @@ tier: indication   # the same-cell cube is per-indication (malignant compartment
 
 applies_when:
   # indications with a landed same-cell coexpr cube (INDICATION_TO_SAMECELL_MANIFEST in the method).
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV']"
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV', 'STAD']"
 
 required_inputs:
   - product_id: sc-samecell-coexpr-crc-coadread-v1           # COADREAD — CRC core atlas same-cell avidity (12 pairs / 370 donors / 509,819 malignant cells; reader repointed AM#312). Superseded: sc-samecell-coexpr-coadread-v1 (Census).
@@ -33,7 +33,8 @@ required_inputs:
   - product_id: sc-samecell-coexpr-3ca-hnsc-v1
   - product_id: sc-samecell-coexpr-3ca-kidney-v1
   - product_id: sc-samecell-coexpr-3ca-ovarian-v1
-  - product_id: sc-samecell-coexpr-normal-v1                  # NORMAL selectivity gate (pan-tissue, 19 tissues / 46 pairs / 318 donors). The SAFETY half of the AND-gate: does any well-powered normal cell type co-express BOTH antigens on the same cell? Previously orphaned (read by no card); wired via pair_selectivity_gate.window (method PR analysis-methods#351). Order-insensitive pair match; support floor >=3 donors & >=10 cells.
+  - product_id: sc-samecell-coexpr-stad-golim-v1             # STAD — Go/Lim gastric atlas same-cell avidity (16 CLDN18.2-anchored pairs / 88 malignant donors; CLDN18 ~56% malignant; CLDN18:MUC1 / CLDN18:EPCAM both~0.37).
+  - product_id: sc-samecell-coexpr-normal-v1                # NORMAL selectivity gate (pan-tissue, 19 tissues / 46 pairs / 318 donors). The SAFETY half of the AND-gate: does any well-powered normal cell type co-express BOTH antigens on the same cell? Previously orphaned (read by no card); wired via pair_selectivity_gate.window (method PR analysis-methods#351). Order-insensitive pair match; support floor >=3 donors & >=10 cells.
 
 methods:
   - call: surface-colocalization-avidity

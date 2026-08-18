@@ -850,6 +850,7 @@ measurement_types:
       - {kind: dataset, source: sc-samecell-coexpr-3ca-hnsc-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-3ca-kidney-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-3ca-ovarian-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-stad-golim-v1, method: sc_samecell_coexpr, evidence_tier: measured}   # STAD — Go/Lim gastric atlas (data-catalog #434); 16 CLDN18.2-anchored pairs / 88 malignant donors
 
   spatial_colocalization:
     claim: "For a target on malignant cells, which neighbour compartments (immune / stromal / endothelial / normal epithelium) are spatially CO-LOCALIZED with the target-positive malignant cells in situ — and is the target-high tumour immune-excluded or adjacent to normal epithelium?"
