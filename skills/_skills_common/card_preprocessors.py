@@ -1,5 +1,5 @@
 """Shared per-gate CARD PREPROCESSORS — mutate card summaries BEFORE fired_rules, in EVERY resolution
-path (G1, 2026-08-13 review).
+path.
 
 Some skills apply a correction to their card summaries before firing rules — e.g. genomic-alteration's
 family-wise FDR across the stratified-dependency classes. This lived ONLY in the skill's main() (a
@@ -52,12 +52,12 @@ def apply_family_wise_fdr(cards: list[dict], alpha: float = 0.05) -> dict:
     class whose family-wise q >= alpha. Bites only when >=2 classes FIRE (single-class calls stay
     byte-stable). Returns a provenance dict.
 
-    G2 fix (2026-08-13): the BH denominator is now the number of TESTED classes (every family card that
-    produced a valid p, whether or not it fired), NOT just the firing subset. The prior m=len(firing)
-    conditioned multiplicity on selection and UNDER-corrected — a gene tested on all 4 classes with 2
-    firing at p~0.03 got m=2 (q~0.03, both survive) instead of m=4 (q~0.06-0.12, both demote). Family-
-    wise multiplicity is the number of tests PERFORMED. (Kept the >=2-firing TRIGGER: correcting single
-    firing calls against m=tested is a larger recalibration — measured/decided separately.)"""
+    The BH denominator is the number of TESTED classes (every family card that produced a valid p,
+    whether or not it fired), NOT just the firing subset: conditioning multiplicity on the firing
+    subset under-corrects (a gene tested on all 4 classes with 2 firing at p~0.03 would get m=2,
+    q~0.03, both survive — instead of m=4, q~0.06-0.12, both demote). Family-wise multiplicity is the
+    number of tests PERFORMED. The correction TRIGGER stays at >=2 firing: correcting single firing
+    calls against m=tested is a larger recalibration, decided separately."""
     card_by_id = {c["card_id"]: c for c in cards}
     tested = []
     for card_id, class_field, p_field, firing_classes, demoted in _STRATIFIED_FAMILY:
@@ -74,7 +74,7 @@ def apply_family_wise_fdr(cards: list[dict], alpha: float = 0.05) -> dict:
         return {"family_size": len(tested), "n_firing": len(firing),
                 "tested": [t["card_id"] for t in tested], "demoted": [],
                 "family_wise_q": {}, "corrected": False}
-    qs = _bh_qvalues([t["p"] for t in tested])   # m = TESTED, not firing (G2 fix)
+    qs = _bh_qvalues([t["p"] for t in tested])   # m = TESTED classes, not the firing subset
     demoted, fam_q = [], {}
     for t, q in zip(tested, qs):
         fam_q[t["card_id"]] = round(q, 6)

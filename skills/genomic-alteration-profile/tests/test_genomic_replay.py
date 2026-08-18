@@ -12,7 +12,7 @@ skill stops flagging a real oncogenic alteration (a nomination-moving false nega
 
 This replays the REAL reader summaries frozen by freeze_fixture.py (run once against live S3) THROUGH THE
 REAL run.py — only the live dispatcher is monkeypatched, so production CARDS + the family-wise FDR
-preprocessor (G1/G2) + the intracellular_intrinsic rule-firing + the shared genomic_alteration resolver all
+preprocessor + the intracellular_intrinsic rule-firing + the shared genomic_alteration resolver all
 execute exactly as in a real run. It therefore fails deterministically, credential-less, on the SAME reader
 drift a live run would.
 
@@ -26,7 +26,7 @@ Two curated fixtures pin canonical CRC drivers on DISTINCT axes:
 Both are unambiguous COADREAD drivers, so the resolved genomic_alteration_profile must be a POSITIVE driver
 class — never a passenger_pattern / insufficient collapse. The frozen fixtures are refreshed by the
 nightly-live re-freeze (card-behavior-matrix-nightly), which guards the snapshots themselves against reader
-drift. Mirror of tumor-selectivity's replay (SK#411) / tumor-presence's replay (SK#401).
+drift. Mirror of the tumor-selectivity and tumor-presence replay tests.
 """
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ BRAF = ("braf_coadread", "BRAF", "COADREAD")
 @pytest.mark.parametrize("pair_id,target,indication", [KRAS, BRAF], ids=["kras", "braf"])
 def test_fixture_is_nonvacuous(pair_id, target, indication):
     """Guard against a stale/broken freeze reading green: both curated drivers resolve the bulk of the
-    17-card roster (a few cards — fusion landscape/stratified — legitimately return data_unavailable for
+    18-card roster (a few cards — fusion landscape/stratified — legitimately return data_unavailable for
     a non-fusion gene). Require >=10 to carry a real summary; a freeze that silently produced
     errors/empties fails here rather than passing the verdict guards vacuously."""
     frozen = _load_fixture(pair_id)

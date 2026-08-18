@@ -30,15 +30,15 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
-    make_decision_json, write_package, get_card_field,
+    make_decision_json, write_package,
 )
 from _skills_common.resolver import resolve_or_raise
 # The family-wise FDR across the stratified-dependency classes is single-sourced in
 # _skills_common.card_preprocessors so all three resolution paths apply it identically:
 # this skill's main(), the target-profile fan-out, and compose-dashboard's gate spine.
-# The names are re-exported here for main()'s call site and this skill's own tests.
+# apply_family_wise_fdr is used by main(); _bh_qvalues is re-exported for this skill's tests.
 from _skills_common.card_preprocessors import (  # noqa: F401
-    apply_family_wise_fdr as _apply_family_wise_fdr, _STRATIFIED_FAMILY, _bh_qvalues,
+    apply_family_wise_fdr as _apply_family_wise_fdr, _bh_qvalues,
 )
 
 SKILL_NAME = "genomic-alteration-profile"
@@ -93,6 +93,11 @@ QUESTION = ("How is {target} genomically altered in {indication} — by SNV/inde
             "(driver, biomarker-stratified dependency, or passenger), by copy-"
             "number (amplification/deletion), or a mix — and which class drives?")
 
+# Cross-subgroup frequency delta at/above which the DESCRIPTIVE subtype panorama is flavored
+# "subgroup-specific" (below it, with >=2 measured strata, "uniform"). Mirrors the
+# subgroup-stratified-mutation-frequency card's own threshold; display-only, never a verdict input.
+_SUBTYPE_DELTA_THRESHOLD = 0.10
+
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """Multi-class genomic-alteration verdict, delegated to the shared declarative resolver.
@@ -131,20 +136,22 @@ _ALTERATION_CLASS_FIELDS: dict[str, tuple] = {
 }
 
 
-def _genomic_alteration_by_class(cards) -> dict:
+def _genomic_alteration_by_class(cards: list[dict]) -> dict:
     """Per-alteration-class breakdown: {class: {verdict, evidence_state, <supporting fields>}}.
 
     `verdict` is that class's OWN primary card call (SNV landscape / CN distribution / fusion
     recurrence) — not re-derived, so it cannot drift from the cards. `evidence_state` is
     `measured` when the primary field resolved, else `data_unavailable` (a NAMED gap, never a
     fabricated negative).
+
+    Unlike the headline lifts, an absent card_id falls back to None (a named data_unavailable gap)
+    rather than raising — the by-class map is tolerant of a card that did not resolve this run.
     """
-    # get_card_field raises on an absent card_id (typo-guard), so only read cards resolved this
-    # run; a card not present falls back to None (a named data_unavailable gap).
-    present = {c.get("card_id") for c in (cards or [])}
+    card_by_id = {c.get("card_id"): c for c in (cards or [])}
 
     def _field(card_id, field):
-        return get_card_field(cards, card_id, field) if card_id in present else None
+        card = card_by_id.get(card_id)
+        return (card.get("summary") or {}).get(field) if card is not None else None
 
     out: dict[str, dict] = {}
     for cls, (primary, supporting) in _ALTERATION_CLASS_FIELDS.items():
@@ -160,7 +167,7 @@ def _genomic_alteration_by_class(cards) -> dict:
 
 
 # Headline field table: (headline_key, card_id, summary_field). Every entry is a plain lift of a
-# card summary field via get_card_field; keeping them declarative removes ~40 near-identical call
+# card summary field via _lift_field; keeping them declarative removes ~40 near-identical call
 # sites and makes the mutation / copy-number / fusion / role / cohort-context axes scannable at a
 # glance. All CARDS are always present in the resolved list, so no lookup here can raise.
 _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
@@ -250,11 +257,11 @@ def _resolve_subtype_panorama(target: str, indication: str,
     measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"]
     delta = summary.get("cross_subgroup_delta_frequency")
 
-    # Compact display flavor mirroring the card's own thresholds (delta >= 0.10 = subgroup-specific;
-    # delta < 0.10 with >=2 measured strata = uniform; else not-informative). Display-only, not a verdict.
+    # Compact display flavor mirroring the card's own thresholds (delta >= threshold = subgroup-
+    # specific; below it with >=2 measured strata = uniform; else not-informative). Display-only.
     if len(measured) < 2 or delta is None:
         pattern = "not_informative"
-    elif delta >= 0.10:
+    elif delta >= _SUBTYPE_DELTA_THRESHOLD:
         pattern = "subgroup_specific_pattern"
     else:
         pattern = "uniform_across_subgroups"
@@ -275,10 +282,21 @@ def _resolve_subtype_panorama(target: str, indication: str,
     }
 
 
+def _lift_field(card_by_id: dict, card_id: str, field: str):
+    """Prebuilt-index equivalent of get_card_field: same raise-on-unknown-card_id typo-guard and
+    `summary.get(field)` semantics, but reuses one index so _build_headline does ~50 lifts against
+    a single dict instead of rebuilding it per call. All _HEADLINE_FIELDS cards are always present."""
+    if card_id not in card_by_id:
+        raise KeyError(f"_lift_field: card_id {card_id!r} not found "
+                       f"(available: {sorted(card_by_id)}). Check for a typo in the caller.")
+    return (card_by_id[card_id].get("summary") or {}).get(field)
+
+
 def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
                     fdr_provenance: dict) -> dict:
     """Assemble the deterministic headline: the computed verdict keys, every declarative field
     lift from _HEADLINE_FIELDS, then the card-availability roll-up."""
+    card_by_id = {c["card_id"]: c for c in cards}
     headline: dict = {
         "genomic_alteration_profile":  verdict,
         "driving_rule_id":             driving_rule,
@@ -289,7 +307,7 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
         "stratified_family_wise_fdr":  fdr_provenance,
     }
     for key, card_id, field in _HEADLINE_FIELDS:
-        headline[key] = get_card_field(cards, card_id, field)
+        headline[key] = _lift_field(card_by_id, card_id, field)
     headline["cards_available"] = sum(1 for c in cards if not c.get("_missing"))
     headline["cards_missing"]   = [c["card_id"] for c in cards if c.get("_missing")]
     return headline
@@ -363,7 +381,7 @@ def main() -> int:
         from _skills_common.synthesis_genomic import synthesize_genomic_alteration
         try:
             decision["llm_synthesis"] = synthesize_genomic_alteration(
-                decision, args.synthesis_model, None)
+                decision, args.synthesis_model)
         except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
             decision["llm_synthesis"] = {
                 "_synthesis_error": f"{type(e).__name__}: {e}",

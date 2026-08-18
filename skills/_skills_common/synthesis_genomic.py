@@ -171,7 +171,7 @@ def _civic_variant_line(variants, class_key: str, with_therapies: bool = False) 
     return "; ".join(parts)
 
 
-def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> str:
+def build_user_prompt(decision: dict) -> str:
     """Assemble the LLM input from the DETERMINISTIC genomic-alteration decision spine. Narrates the
     multi-class verdict + driving class + role + recurrence, grounded in the actual headline fields the
     skill emits (verified against genomic-alteration-profile/scripts/run.py::headline)."""
@@ -225,7 +225,7 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "gene-level role) + which confer therapy resistance. data_unavailable = uncurated by CIViC, "
         "NOT benign. Verdict-inert.",
         "",
-        "GENOME-INSTABILITY / PASSENGER-RISK CONTEXT (M7 — INDICATION-level cohort context, "
+        "GENOME-INSTABILITY / PASSENGER-RISK CONTEXT (INDICATION-level cohort context, "
         "target-independent; use to WEIGH the recurrence signal, not as a driver call):",
         f"  aneuploidy_burden_class (CIN): {h.get('aneuploidy_burden_class', 'n/a')}   "
         f"wgd_class (whole-genome-doubling prevalence): {h.get('wgd_class', 'n/a')}",
@@ -267,13 +267,12 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     return "\n".join(lines)
 
 
-def synthesize_genomic_alteration(decision: dict, model_id: Optional[str] = None,
-                                  subtype_query: Optional[str] = None) -> dict:
+def synthesize_genomic_alteration(decision: dict, model_id: Optional[str] = None) -> dict:
     """Run the opt-in genomic-alteration narration over a composed decision. Returns the provenance-
     tagged llm_synthesis block. Raises are the CALLER's to handle (the caller degrades to a note on
     failure — synthesis is never allowed to break the deterministic run)."""
     from _skills_common.llm import synthesize_structured
-    user_prompt = build_user_prompt(decision, subtype_query=subtype_query)
+    user_prompt = build_user_prompt(decision)
     result = synthesize_structured(
         system_prompt=_SYSTEM,
         user_prompt=user_prompt,

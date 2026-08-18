@@ -1,4 +1,4 @@
-"""Deferred-(a): composed-level family-wise FDR across the stratified-dependency classes.
+"""Composed-level family-wise FDR across the stratified-dependency classes.
 
 The 4 stratified cards (mutation/CN/fusion/amp-expr) each fire biomarker_stratified_dependency from
 an independent MW test at per-card alpha=0.05, with NO shared compute point. _apply_family_wise_fdr
@@ -66,12 +66,12 @@ def test_bh_matches_known_values():
 # ── no-op cases (byte-stable) ───────────────────────────────────────────────
 
 def test_single_class_fire_is_noop():
-    # G2: family_size now counts TESTED classes (both have a p), n_firing counts firing (1). Correction
+    # family_size counts TESTED classes (both have a p), n_firing counts firing (1). Correction
     # still requires >=2 FIRING → no-op, class unchanged.
     cards = [_mut("mutant_strongly_dependent", 1e-9), _cn("not_cn_stratified", 0.4)]
     prov = gap._apply_family_wise_fdr(cards)
     assert prov["corrected"] is False and prov["n_firing"] == 1 and prov["demoted"] == []
-    assert prov["family_size"] == 2   # 2 TESTED (G2 denominator), even though only 1 fired
+    assert prov["family_size"] == 2   # 2 TESTED (the denominator), even though only 1 fired
     # class unchanged
     assert cards[0]["summary"]["mutation_stratification_class"] == "mutant_strongly_dependent"
 
@@ -164,10 +164,10 @@ def test_demotion_when_weak_p_not_top_rank():
     assert cards[2]["summary"]["_family_wise_fdr_demoted"] is True
 
 
-# ── G2 (2026-08-13): denominator = TESTED classes, not just firing ──────────────────────────────────
+# ── denominator = TESTED classes, not just firing ──────────────────────────────────────────────────
 
-def test_g2_denominator_counts_tested_not_just_firing():
-    """G2: two firing classes at p=0.03 with two more TESTED (non-firing) classes must be BH-corrected
+def test_denominator_counts_tested_not_just_firing():
+    """Two firing classes at p=0.03 with two more TESTED (non-firing) classes must be BH-corrected
     against m=4 (all tested), not m=2 (firing subset). m=4 → q≈0.06 ≥ 0.05 → BOTH firing classes demote;
     the old m=firing gave q≈0.03 < 0.05 → both survived (the under-correction bug)."""
     cards = [

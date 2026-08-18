@@ -1,4 +1,4 @@
-"""Per-alteration-class decomposition (2026-08-14 consolidation-fidelity follow-up).
+"""Per-alteration-class decomposition (genomic_alteration_by_class).
 
 The genomic_alteration_profile verdict collapses SNV/indel + copy-number + fusion into one multi_class
 scalar. `genomic_alteration_by_class` reorganizes the already-computed per-card class fields into a

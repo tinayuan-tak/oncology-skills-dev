@@ -1,11 +1,10 @@
-"""genomic-alteration-profile _verdict coverage (G test-gap + C exhaustiveness, 2026-07-20).
+"""genomic-alteration-profile _verdict coverage.
 
-This v2 multi-class skill shipped with NO tests. It fuses a SNV/indel axis (primary) with
-a copy-number modifier. These tests pin EVERY fired rule_id → verdict mapping and, crucially,
-make the DELIBERATE non-driver choices explicit (mutation-stratified WT / not-stratified /
-insufficient-rate are intentionally NOT genomic-alteration drivers — they fall through), so a
-future SILENT drop of a class that SHOULD drive fails CI. Manual precursor to the gap-#5
-exhaustiveness validator.
+This multi-class skill fuses a SNV/indel axis (primary) with a copy-number modifier. These tests
+pin EVERY fired rule_id → verdict mapping and, crucially, make the DELIBERATE non-driver choices
+explicit (mutation-stratified WT / not-stratified / insufficient-rate are intentionally NOT
+genomic-alteration drivers — they fall through), so a future SILENT drop of a class that SHOULD
+drive fails CI.
 """
 from __future__ import annotations
 
@@ -41,7 +40,8 @@ def test_moderate_biomarker():
 
 
 def test_lof_and_missense_dominant_patterns():
-    # T1.1 (2026-08-09): renamed recurrent_{lof,missense}_driver -> {lof,missense}_dominant_pattern.
+    # Variant-class composition verdicts: recurrent_{lof,missense}_driver were renamed to
+    # {lof,missense}_dominant_pattern (they report spectrum composition, not patient recurrence).
     # These fire on variant-CLASS composition (mutation-type-counts), NOT patient recurrence — the
     # honest name. "recurrent" is reserved for signals that literally count sample recurrence
     # (cn-recurrently-*, fusion-landscape). Pure verdict-string rename; precedence/logic unchanged.
@@ -62,7 +62,7 @@ def test_cn_deletion_driver():
 
 
 def test_fusion_landscape_recurrent_driver():
-    # T1.3 (2026-08-09): a recurrently rearranged patient oncogene with NO DepMap dependency line
+    # Fusion-only driver: a recurrently rearranged patient oncogene with NO DepMap dependency line
     # now reads recurrent_fusion_driver (was: collapsed to passenger/insufficient). The fusion analog
     # of recurrent_amplification_driver — a landscape-recurrence driver, not a nominating positive.
     assert _v("fusion-landscape-recurrent-driver-supportive")[0] == "recurrent_fusion_driver"
@@ -72,7 +72,7 @@ def test_fusion_landscape_recurrent_driver():
 
 
 def test_precedence_by_strength_strong_cn_over_moderate_mut():
-    # T2.4 (2026-08-09): for a dually-altered gene, a STRONG CN-dependency outranks a MODERATE
+    # Effect-strength precedence: for a dually-altered gene, a STRONG CN-dependency outranks a MODERATE
     # mutation-dependency — the larger effect is named the driver. Both map to the stratified
     # verdicts, but the driving_rule must be the strong CN rule, not the moderate mut rule.
     v, drv = _v("mutant-moderately-dependent-supportive", "cn-amplified-strongly-dependent-supportive")
@@ -84,7 +84,7 @@ def test_precedence_by_strength_strong_cn_over_moderate_mut():
 # --- multi-class ----------------------------------------------------------
 
 def test_both_axes_drive_is_multi_class():
-    # #380 Stage-1: multi_class_driver requires an alteration-role DRIVER co-signal, not variant
+    # multi_class_driver requires an alteration-role DRIVER co-signal, not variant
     # SHAPE alone (a missense+CN passenger with no driver role → missense_dominant_pattern, the
     # CEACAM5 fix). A genuine dually-altered DRIVER therefore includes the role rule.
     assert _v("mut-missense-dominant-supportive",

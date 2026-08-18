@@ -11,14 +11,14 @@ firing, so the resolver verdict SILENTLY changes class (e.g. a confirmed_driver 
 dependency collapses to passenger_pattern / insufficient — the nomination-moving failure mode). No
 existing test runs `fired_rules` over a REAL summary for this skill.
 
-This script does the LIVE reads ONCE (needs S3 creds + the sibling repos) and freezes each of the 17
-card summaries to fixtures/<target>_<indication>.yaml; test_genomic_replay.py replays them THROUGH THE
+This script does the LIVE reads ONCE (needs S3 creds + the sibling repos) and freezes each of the 18
+whole-cohort card summaries to fixtures/<target>_<indication>.yaml; test_genomic_replay.py replays them THROUGH THE
 REAL run.py (dispatcher monkeypatched) so the family-wise FDR preprocessor + the intracellular_intrinsic
 rule-firing + the shared genomic_alteration resolver all execute deterministically + credential-less in
 PR CI. A nightly-live re-freeze (card-behavior-matrix-nightly) catches drift in the frozen snapshot itself.
 
 Mirror of skills/tumor-selectivity/tests/freeze_fixture.py (same _prune, same shape); the skill differs
-only in its CARDS roster (17 cards) + that a genomic verdict has no post-resolver veto clamp.
+only in its CARDS roster (18 cards) + that a genomic verdict has no post-resolver veto clamp.
 
 Usage (from a repo checkout with siblings adjacent, AWS creds present):
     pixi run python skills/genomic-alteration-profile/tests/freeze_fixture.py            # refreeze KRAS/COADREAD

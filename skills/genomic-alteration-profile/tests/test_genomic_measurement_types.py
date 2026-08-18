@@ -1,13 +1,11 @@
-"""genomic-alteration-profile gate-view PULL declaration (DATA_TO_SKILL_CONTRACT Rule 3).
+"""genomic-alteration-profile PULL declaration (composition.measurement_types_pulled).
 
-The gate declares the measurement_type CLAIMS it pulls (composition.measurement_types_pulled),
-independent of which datasets provide them. Before the 2026-08-13 review this list had drifted to 8
-entries while cards_used had grown to 17 cards spanning 17 distinct types — the 3 stratified-dependency
-siblings (cn/fusion/amp-expr), the drug-response biomarker, and the 5 cohort-context/variant layers were
-pulled but never declared. This test pins the declaration: it exists, is non-empty, every pulled type
-resolves to a key in vocabularies/measurement_types.yaml, and — the anti-drift guard — every card the
-gate USES maps to a type it DECLARES it pulls. Graceful-skip when target-contracts is absent (isolated
-CI). Mirror of surface-modality-fit/tests/test_measurement_types_pulled.py.
+The skill declares the measurement_type CLAIMS it pulls, independent of which datasets provide them.
+This test pins the declaration: it exists, is non-empty, every pulled type resolves to a key in
+vocabularies/measurement_types.yaml, and — the anti-drift guard — every card the skill USES maps to a
+type it DECLARES it pulls, so the list cannot silently drift out of sync with cards_used. Graceful-skip
+when target-contracts is absent (isolated CI). Mirror of
+surface-modality-fit/tests/test_measurement_types_pulled.py.
 """
 from __future__ import annotations
 
@@ -42,7 +40,7 @@ def _pulled() -> list:
 
 def test_gate_declares_measurement_types_pulled():
     pulled = _pulled()
-    assert pulled, "genomic-alteration-profile must declare composition.measurement_types_pulled (Rule 3)"
+    assert pulled, "genomic-alteration-profile must declare composition.measurement_types_pulled"
     # the verdict-driving spine: SNV spectrum + the stratified-dependency siblings + role
     for required in ("mutation_variant_class_spectrum", "cn_stratified_dependency",
                      "fusion_stratified_dependency", "amp_expr_stratified_dependency",
@@ -62,7 +60,7 @@ def test_pulled_types_are_registered_in_the_vocab():
 
 
 def test_every_used_card_maps_to_a_pulled_type():
-    """THE ANTI-DRIFT GUARD (the check that was missing when this list fell to 8/17): every card in
+    """THE ANTI-DRIFT GUARD: every card in
     cards_used (whole-cohort CARDS + the --subtypes-gated subgroup card) whose type is registered must
     map to a type the gate DECLARES it pulls. A card wired in without declaring its pull fails here."""
     if not VOCAB.exists():
