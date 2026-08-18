@@ -22,9 +22,7 @@ the (separate, verdict-moving) partner-conditional dependency work; it does NOT 
 from __future__ import annotations
 
 import io
-import sys
 from pathlib import Path
-from typing import Optional
 
 METHOD_VERSION = "0.1.0"
 
@@ -68,7 +66,6 @@ def _load_footprints_df():
 def build_per_indication_table():
     """BUILD-time aggregation: per-(disease) HRD context rollup. Returns a DataFrame keyed by
     indication with n_samples, median_hrd_score, frac_hrd_high, median_mutsig3, ddr_context_class."""
-    import numpy as np
     import pandas as pd
 
     df = _load_footprints_df()

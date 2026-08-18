@@ -35,7 +35,7 @@ import json
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator, Iterable, Optional
+from typing import Optional
 
 import pandas as pd
 

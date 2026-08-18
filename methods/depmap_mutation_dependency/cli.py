@@ -656,7 +656,7 @@ def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        REFLINE_NOMINAL, REFLINE_NEUTRAL, REFLINE_KILLER,
+        REFLINE_NOMINAL, REFLINE_KILLER,
         FIGSIZE_DOUBLE_COLUMN, CHRONOS_STRONG_DEPENDENCY,
     )
 
@@ -908,7 +908,7 @@ def emit_manifest(target: str, indication: str, release_pin: str,
 @click.option("--dry-run", is_flag=True)
 def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     out.mkdir(parents=True, exist_ok=True)
-    click.echo(f"=== depmap-mutation-stratified (Card 3) ===")
+    click.echo("=== depmap-mutation-stratified (Card 3) ===")
     click.echo(f"  target:      {target}")
     click.echo(f"  indication:  {indication}")
     click.echo(f"  out:         {out}")

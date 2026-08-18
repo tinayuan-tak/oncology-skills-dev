@@ -26,11 +26,9 @@ biomarker, because it reflects an actual pharmacologic agent, not gene knockout.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import click
 

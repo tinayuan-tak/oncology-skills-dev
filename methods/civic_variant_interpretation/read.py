@@ -13,7 +13,6 @@ from __future__ import annotations
 import io
 import os
 from functools import lru_cache
-from typing import Optional
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -87,7 +86,6 @@ def _load() -> dict:
     Per variant we collect: oncogenicity_class (strongest of assertion/functional evidence),
     resistance_class (strongest resistance significance), n_evidence, and resistance therapies.
     """
-    import pandas as pd
     mp_gv = _mp_to_gene_variant()
     ev = _read_tsv(_EVIDENCE_KEY)
     asrt = _read_tsv(_ASSERTION_KEY)

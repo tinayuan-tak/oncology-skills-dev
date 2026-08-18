@@ -24,7 +24,6 @@ the (separate) genomic-alteration verdict; it does NOT itself flip a verdict.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 from .signatures import SIGNATURE_TO_PROCESS, INFORMATIVE_PROCESSES, NON_BASELINE_PROCESSES

@@ -15,7 +15,6 @@ from __future__ import annotations
 import gzip
 import io
 import statistics as _st
-import sys
 from collections import defaultdict
 
 import click

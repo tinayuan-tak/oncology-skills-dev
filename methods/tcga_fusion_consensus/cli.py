@@ -156,7 +156,6 @@ def main(tumorfusions_xlsx: Path, tumorfusions_samples_xlsx: Path,
          tissue_filter: str | None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     click.echo(f"=== tcga_fusion_consensus v{METHOD_VERSION} ===")
-    tf_ok = ["LUAD", "LUSC"] if tissue_filter == "LUAD,LUSC" else None
     filt = [t.strip() for t in tissue_filter.split(",")] if tissue_filter else None
 
     click.echo("  loading TumorFusions events…")
@@ -215,7 +214,7 @@ def main(tumorfusions_xlsx: Path, tumorfusions_samples_xlsx: Path,
                                        consensus["caller_count"].value_counts().to_dict().items()},
     }
     (out / "_provenance.json").write_text(json.dumps(prov, indent=2))
-    click.echo(f"  wrote _provenance.json")
+    click.echo("  wrote _provenance.json")
     return 0
 
 

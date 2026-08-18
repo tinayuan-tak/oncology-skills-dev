@@ -206,7 +206,6 @@ def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_
                             missense_dominant_fraction: float = 0.70,
                             lof_dominant_fraction: float = 0.50) -> dict:
     """Compute per-class mutation counts + landscape-class label."""
-    import pandas as pd
 
     # Aggregate counts per framework category
     counts = {"missense": 0, "nonsense": 0, "frameshift": 0, "splice": 0,
@@ -345,7 +344,7 @@ def emit_mutation_class_bar(summary: dict, target_symbol: str,
     colors = [VARIANT_CLASS_COLORS[c] for c in class_order]
 
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-    bars = ax.barh(range(len(class_order)), counts, color=colors, edgecolor="white")
+    ax.barh(range(len(class_order)), counts, color=colors, edgecolor="white")
     for i, c in enumerate(counts):
         if c > 0:
             ax.text(c + max(counts) * 0.01, i, str(c),

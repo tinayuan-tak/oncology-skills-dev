@@ -174,7 +174,7 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
     if "ModelConditionID" not in chosen_df.columns:
         load_errors.append({
             "_live_read_error": "cn_matrix_missing_modelconditionid",
-            "detail": f"CN matrix lacks ModelConditionID column; cannot bridge to ModelID.",
+            "detail": "CN matrix lacks ModelConditionID column; cannot bridge to ModelID.",
         })
         return {}, {}, "data_unavailable", load_errors
 
