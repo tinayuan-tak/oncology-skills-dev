@@ -37,11 +37,15 @@ the fold-change.
 From the repo root:
 
 ```
-export AWS_PROFILE=cbg
+export AWS_PROFILE=cbg SKILLS_READ_POOL=process
 python3 skills/tumor-selectivity/scripts/run.py \
   --target CEACAM5 --indication COADREAD \
   --out /tmp/tumor-selectivity/CEACAM5-COADREAD
 ```
+
+`SKILLS_READ_POOL=process` is optional — it reads the ten cards in a forked process pool for the
+fastest cold run (~15% faster; safely degrades to threads on any failure, byte-identical output).
+Omit it and the reads still run concurrently on a thread pool. See SKILL.md § Performance.
 
 `CEACAM5` / `COADREAD` is the canonical clean-selective example — a field-effect epithelial
 antigen with a real therapeutic window and a malignant-cell-intrinsic single-cell signal, so all
