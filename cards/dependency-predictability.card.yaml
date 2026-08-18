@@ -44,7 +44,7 @@ applies_when:
 
 required_inputs:
   - product_id: depmap-predictability
-    release_pin: "26q1-v2"
+    release_pin: "26q1-v3"
 
 methods:
   - call: depmap-predictability
@@ -52,7 +52,7 @@ methods:
     entrypoint: read_predictability
     args:
       target: "{target.symbol}"
-      release_pin: "26q1-v2"
+      release_pin: "26q1-v3"
 
 outputs:
   summary_fields:
