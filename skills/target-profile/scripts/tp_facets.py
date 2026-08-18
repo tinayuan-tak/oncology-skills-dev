@@ -450,6 +450,85 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
     return expr.get("synthesis_facet")
 
 
+# --- MODALITY-CONJUNCTION facet (cross-lens; the composed layer's job) --------------------------
+# The modality nomination presence deliberately CANNOT mint (it is modality-blind). This is where
+# it is completed: the presence CLAIM VECTOR (A abundance / C malignant-intrinsic / homogeneity)
+# is conjoined with the CROSS-lens gates only target-profile holds — surface accessibility
+# (surface-modality-fit fit_class), the tumor-vs-normal WINDOW (tumor-selectivity), and safety.
+# A conjunction gated by the WEAKEST required gate (never an average); confidence-relevant, but
+# VERDICT-INERT — additive to nomination.json, never touches the recommendation spine (like the
+# biomarker / subtype / presence facets). Returns None if the presence claim vector is absent.
+def _modality_gate(sig):
+    return {"strong": "pass", "moderate": "pass", "weak": "conditional",
+            "absent": "fail", "negative": "fail", "unmeasured": "unknown"}.get(sig, "unknown")
+
+
+# selectivity verdict -> (TCE window, ADC window). TCE has no therapeutic-index buffer, so a broad
+# normal footprint is a killer; ADC tolerates more via TI.
+_WINDOW = {
+    "strong_tumor_selective": ("pass", "pass"),
+    "modest_tumor_selective": ("conditional", "pass"),
+    "field_effect_tumor_selective": ("conditional", "conditional"),
+    "selective_but_broadly_normal": ("fail", "conditional"),
+    "discordant_across_comparators": ("unknown", "unknown"),
+}
+# surface-modality-fit fit_class -> (TCE surface, ADC surface).
+_SURFACE = {
+    "both_viable": ("pass", "pass"),
+    "TCE_preferred": ("pass", "conditional"),
+    "ADC_preferred": ("conditional", "pass"),
+    "neither_viable": ("fail", "fail"),
+}
+_RANK = {"fail": 0, "unknown": 1, "stub": 1, "conditional": 2, "pass": 3}
+
+
+def _sub_verdict(sub_results, key):
+    v = ((sub_results or {}).get(key) or {}).get("verdict")
+    return v[0] if isinstance(v, (list, tuple)) and v else (v if isinstance(v, str) else None)
+
+
+def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
+    facet = (sub_results or {}).get("expression", {}).get("synthesis_facet") or {}
+    cv = facet.get("claim_vector")
+    if not isinstance(cv, dict):
+        return None
+    A = _modality_gate((cv.get("A") or {}).get("signal"))
+    C = _modality_gate((cv.get("C") or {}).get("signal"))
+    hom = cv.get("homogeneity")
+    hom_gate = {"homogeneous": "pass", "moderately_homogeneous": "conditional",
+                "heterogeneous": "fail"}.get(hom, "unknown")
+    sel_v = _sub_verdict(sub_results, "selectivity")
+    surf_v = _sub_verdict(sub_results, "surface_modality")
+    safe_v = _sub_verdict(sub_results, "safety")
+    tce_w, adc_w = _WINDOW.get(sel_v, ("unknown", "unknown"))
+    tce_s, adc_s = _SURFACE.get(surf_v, ("unknown", "unknown"))
+
+    def rollup(gates):
+        stat = [s for _, s in gates]
+        head = ("FAIL" if any(s == "fail" for s in stat)
+                else "CONDITIONAL" if any(s in ("conditional", "unknown", "stub") for s in stat)
+                else "PASS")
+        weakest = min(gates, key=lambda g: _RANK.get(g[1], 1))[0]
+        return {"call": head, "weakest_gate": weakest, "gates": dict(gates)}
+
+    adc = rollup([("presence_abundance", A), ("presence_malignant(tolerant)", "conditional" if C == "conditional" else C),
+                  ("surface", adc_s), ("window", adc_w)])
+    tce = rollup([("presence_abundance", A), ("presence_malignant", C), ("homogeneity", hom_gate),
+                  ("surface", tce_s), ("window", tce_w)])
+    return {
+        "ADC": adc, "TCE": tce,
+        "inputs": {"presence_A": (cv.get("A") or {}).get("signal"), "presence_C": (cv.get("C") or {}).get("signal"),
+                   "homogeneity": hom, "selectivity_verdict": sel_v, "surface_fit_class": surf_v},
+        "safety_signal": safe_v,
+        "_disclaimer": (
+            "Cross-lens modality nomination — VERDICT-INERT (never touches overall_recommendation). "
+            "Conjoins the presence claim vector (modality-blind) with the surface-accessibility "
+            "(surface-modality-fit), tumor-vs-normal WINDOW (tumor-selectivity), and safety gates that "
+            "only the composed layer holds. Gated by the WEAKEST required gate, not an average. Safety "
+            "is surfaced as a signal (it has its own resolver); weigh it, do not read this as a safety call."),
+    }
+
+
 # --- SUBTYPE convergence facet (capstone Part 3c integration layer) ----------------------------
 # The cross-card per-molecular-subtype convergence the capstone owed. Where _biomarker_facet
 # converges SCALAR biomarker roles, this converges the PER-STRATUM panoramas: the three
@@ -1078,6 +1157,7 @@ __all__ = [
     '_addressable_population_facet',
     '_biomarker_facet',
     '_presence_facet',
+    '_modality_conjunction_facet',
     '_biomarker_quantitative',
     '_classify_biomarker_best_roles',
     '_cv',

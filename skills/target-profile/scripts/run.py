@@ -57,7 +57,7 @@ from tp_gates import (               # names main() calls directly
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _addressable_population_facet, _biomarker_facet, _deciding_axis, _fragility_facet,
-    _heterogeneity_facet, _ordinal_matrix, _presence_facet, _subtype_facet,
+    _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet, _subtype_facet,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import _SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool, _build_user_prompt
@@ -265,6 +265,11 @@ def main() -> int:
     # cross-modal tension (RNA-high/protein-absent; tumor-high/normal-high) from raw card numbers. This
     # hands the reasoner the skill's computed reconciliation. VERDICT-INERT (presence ∉ _SHORT_TO_GATE).
     presence_facet = _presence_facet(sub_results)
+
+    # Modality-conjunction facet (2026-08-18): completes the modality nomination presence can't mint —
+    # the presence claim vector conjoined with the cross-lens surface / window / safety gates. Like the
+    # other facets: deterministic, additive, VERDICT-INERT (never touches overall_recommendation).
+    modality_conjunction = _modality_conjunction_facet(sub_results)
 
     # Fragility facet (2026-08-12): verdict-inert flip-stability — the quantitative "how solid is this
     # call?" scalar. Worst-case single-rule flip-fragility over the decision-relevant axes (+ a
@@ -583,6 +588,7 @@ def main() -> int:
         # presence against the normal-tissue window. Presence ∉ _SHORT_TO_GATE, so it never moves
         # the recommendation. None when tumor-presence supplied no facet.
         "presence_facet": presence_facet,
+        "modality_conjunction": modality_conjunction,
         # Fragility facet (verdict-inert flip-stability): worst-case single-rule flip-fragility over the
         # decision-relevant axes + a `contested` flag (declarative threshold). A structural sensitivity
         # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or
