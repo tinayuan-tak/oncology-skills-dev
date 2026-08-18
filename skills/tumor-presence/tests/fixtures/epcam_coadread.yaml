@@ -197,6 +197,42 @@ cellline-rna-distribution:
     lineage: Fibroblast
     median_log2tpm: 0.7486553192138672
     n: 45
+cellline-rna-distribution-by-subtype:
+  _data_source: DepMap-26q1 expression (subgroup-stratified)
+  cross_subgroup_delta_expression: 0.3676
+  indication: COADREAD
+  max_subgroup_expression: 9.9714
+  min_subgroup_expression: 9.6038
+  n_subgroups_with_data: 2
+  n_subtypes_depleted: 0
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 1
+  per_subgroup_metrics:
+  - class: broadly_high
+    evidence_state: underpowered
+    fraction_expressed: 1.0
+    median_log2tpm: 9.6038
+    source_cohort: DepMap-26q1
+    stratum: MSI_H
+    subgroup_n: 27
+    subgroup_n_floor_met: false
+    subtype_defining_data: genomic
+    subtype_signal: null
+  - class: broadly_high
+    evidence_state: measured
+    fraction_expressed: 0.98
+    median_log2tpm: 9.9714
+    source_cohort: DepMap-26q1
+    stratum: MSS
+    subgroup_n: 100
+    subgroup_n_floor_met: true
+    subtype_defining_data: genomic
+    subtype_signal: uniform
+  pooled_lineage_median_log2tpm: 9.8646
+  spotlight_subtype: null
+  subtype_axis_available: true
+  subtype_stratification_class: pan_subtype_uniform
+  target: EPCAM
 cellline-rna-protein-concordance:
   method_version: 0.1.0
   n_paired_models: 370
@@ -252,22 +288,38 @@ sc-normal-celltype-expression:
   max_detection_cell_type: BEST4+ colonocyte
   max_detection_fraction: 1.0
   method_version: 0.1.0
-  n_cell_types_above_20pct: 83
-  n_reliable_cell_types: 231
+  n_cell_types_above_20pct: 88
+  n_reliable_cell_types: 322
   origin_tissues:
   - colon
   safety_essential_flags:
     BEST4+ colonocyte: 1.0
     BEST4+ enterocyte: 0.9038785834738617
+    L2/3 intratelencephalic projecting glutamatergic neuron: 0.09309309309309309
+    L3 intratelencephalic projecting glutamatergic neuron: 0.05745341614906832
+    L4 intratelencephalic projecting glutamatergic neuron: 0.05277401894451962
+    L5 extratelencephalic projecting glutamatergic cortical neuron: 0.22580645161290322
+    L5 intratelencephalic projecting glutamatergic neuron: 0.09090909090909091
+    L5/6 near-projecting glutamatergic neuron: 0.14285714285714285
+    L6 corticothalamic-projecting glutamatergic cortical neuron: 0.08333333333333333
+    L6b glutamatergic neuron of the primary motor cortex: 0.06172839506172839
+    central nervous system neuron: 0.11764705882352941
+    cerebral cortex neuron: 0.06473988439306358
     colonocyte: 0.8839773116488916
+    corticothalamic-projecting glutamatergic cortical neuron: 0.10440835266821345
+    direct pathway medium spiny neuron: 0.2713060256648689
     early colonocyte: 1.0
     enteric neuron: 0.06666666666666667
     enterocyte: 0.9103448275862069
     enterocyte of epithelium of large intestine: 0.9326870469838862
     erythroid progenitor cell: 0.5232112668375416
+    extratelencephalic-projecting glutamatergic cortical neuron: 0.15512101017186952
     hematopoietic stem cell: 0.07407407407407407
+    hippocampal pyramidal neuron: 0.132890365448505
+    indirect pathway medium spiny neuron: 0.27116172964443147
     inhibitory motor neuron: 0.05714285714285714
     interneuron: 0.05555555555555555
+    intratelencephalic-projecting glutamatergic cortical neuron: 0.05533683289588801
     kidney collecting duct alpha-intercalated cell: 0.5567767868358247
     kidney collecting duct cell: 0.8913043478260869
     kidney collecting duct intercalated cell: 0.8222222222222222
@@ -279,8 +331,12 @@ sc-normal-celltype-expression:
     kidney loop of Henle thick ascending limb epithelial cell: 0.5256410256410257
     kidney loop of Henle thin ascending limb epithelial cell: 0.625
     kidney loop of Henle thin descending limb epithelial cell: 0.40625
+    medium spiny neuron: 0.17054263565891473
     megakaryocyte-erythroid progenitor cell: 0.11437908496732026
-    neuron: 0.1575757575757576
+    near-projecting glutamatergic cortical neuron: 0.1440677966101695
+    neuron: 0.06209150326797386
+    neuron of the forebrain: 0.09424858914512646
+    oligodendrocyte precursor cell: 0.051587301587301584
     primary sensory neuron (sensu Teleostei): 0.15384615384615385
   sc_normal_expression_class: HIGH_LIABILITY
   sc_normal_safety_essential_class: critical_organ_liability
@@ -290,6 +346,8 @@ sc-normal-celltype-expression:
   - liver
   - kidney
   - bone_marrow
+  - brain
+  - adrenal_gland
 tumor-elevation-breadth:
   breadth_layer_concordance: concordant
   cohorts_tested:
@@ -513,6 +571,8 @@ tumor-rna-vs-adjacent:
   allgene_percentile_context: coadread-dge-df06320 metric=log2FoldChange
   base_mean: 40704.55729340963
   expression_call_class: not_informative
+  gtex_log2_fc: 2.085965449060126
+  gtex_q_value: 1.6321039340096234e-72
   is_actionable_provider_call: false
   is_significant_provider_call: true
   is_upregulated_provider_call: false

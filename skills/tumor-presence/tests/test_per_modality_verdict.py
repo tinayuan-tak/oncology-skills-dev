@@ -690,3 +690,55 @@ def test_not_discordant_when_tumor_lens_unmeasured():
     lens, discordant = _lens_disc(fired)
     assert lens == "bulk_rna/cell_line"
     assert discordant is False
+
+
+# --- single-cell detail surfacing (per-compartment / CAF / homogeneity) -----
+def _cards_with_sc(sc_summary):
+    """All declared cards, with the single-cell tumor card carrying `sc_summary` (the rich per-
+    compartment object the method emits) so _headline's get_card_field reads resolve."""
+    return [{"card_id": cid,
+             "summary": (sc_summary if cid == "tumor-scrna-celltype-expression" else {})}
+            for cid in tp.CARDS]
+
+
+def test_headline_surfaces_single_cell_compartment_caf_and_homogeneity():
+    """The method computes a rich single-cell object (per-compartment detection + abundance, the CAF
+    confounder, malignant homogeneity); the headline must surface it, not just the class + malignant
+    fraction. Guards against the surfacing regressing to the old ~5-scalar view."""
+    sc = {
+        "sc_expression_class": "malignant_broadly_detected",
+        "malignant_detection_fraction": 0.8886, "malignant_abundance_log1p_cp10k": 2.08,
+        "tce_homogeneity_class": "homogeneous",
+        "top_microenvironment_compartment": "stromal", "top_microenvironment_detection_fraction": 0.081,
+        "caf_vs_malignant_class": "caf_low", "caf_detection_fraction": 0.081, "caf_compartment_available": True,
+        "compartment_detection": {"malignant": 0.889, "stromal": 0.081},
+        "per_compartment": [{"compartment": "malignant", "median_detection_fraction": 0.889}],
+        "n_compartments_measured": 5, "n_donor_groups": 453, "n_datasets": 45,
+    }
+    fired = [_fr("sc-expression-malignant-broadly-detected-supportive", "tumor-scrna-celltype-expression")]
+    h = tp._headline(cards=_cards_with_sc(sc), fired=fired, verdict_pair=tp._verdict(fired))
+    assert h["sc_tce_homogeneity_class"] == "homogeneous"
+    assert h["sc_caf_vs_malignant_class"] == "caf_low"
+    assert h["sc_malignant_abundance_log1p_cp10k"] == 2.08
+    assert h["sc_top_microenvironment_detection_fraction"] == 0.081
+    assert h["sc_n_datasets"] == 45 and h["sc_n_compartments_measured"] == 5
+    assert h["sc_compartment_detection"]["malignant"] == 0.889
+    assert isinstance(h["sc_per_compartment"], list) and h["sc_per_compartment"]
+    # and these flow into the synthesis facet the composed target-profile consumes
+    facet = tp._synthesis_facet(cards=_cards_with_sc(sc), fired=fired, verdict_pair=tp._verdict(fired))
+    assert facet["sc_tce_homogeneity_class"] == "homogeneous"
+    assert facet["sc_caf_vs_malignant_class"] == "caf_low"
+
+
+def test_headline_summarizes_normal_essential_flags_to_top_n():
+    """The bulky normal-tissue safety_essential_flags dict is summarized to a ranked top-N (readable)
+    while the full dict is retained verbatim."""
+    flags = {f"cell_type_{i}": (0.9 - i * 0.05) for i in range(20)}
+    cards = [{"card_id": cid,
+              "summary": ({"safety_essential_flags": flags} if cid == "sc-normal-celltype-expression" else {})}
+             for cid in tp.CARDS]
+    h = tp._headline(cards=cards, fired=[], verdict_pair=tp._verdict([]))
+    top = h["sc_normal_top_essential_cell_types"]
+    assert len(top) == 8 and top[0]["cell_type"] == "cell_type_0"       # ranked by detection desc
+    assert top[0]["detection_fraction"] >= top[-1]["detection_fraction"]
+    assert h["sc_normal_safety_essential_flags"] == flags               # full dict retained

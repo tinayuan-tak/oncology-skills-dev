@@ -11,7 +11,7 @@ renamed field stops firing, collapsing `presence_verdict` to a false-negative
 insufficient/data_unavailable. No test runs `fired_rules` over a real summary.
 
 This script does the LIVE reads ONCE (needs S3 creds + the sibling repos) and freezes each of the
-13 card summaries to fixtures/epcam_coadread.yaml; test_tumor_presence_replay.py replays them THROUGH
+14 card summaries to fixtures/epcam_coadread.yaml; test_tumor_presence_replay.py replays them THROUGH
 THE REAL run.py (dispatcher monkeypatched) so the verdict + per-modality + headline drift floors run
 deterministically + credential-less in PR CI. A nightly-live re-freeze (card-behavior-matrix-nightly)
 catches drift in the frozen snapshot itself.

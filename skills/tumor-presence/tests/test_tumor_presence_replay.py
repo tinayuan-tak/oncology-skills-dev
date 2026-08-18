@@ -19,7 +19,7 @@ covering both (a) and (b). The frozen fixture is refreshed by the nightly-live r
 
 Fixture: EPCAM / COADREAD — a canonical, maximally-characterized epithelial surface antigen, broadly
 present in colorectal tumor (a stable measured-positive), in the single indication with the fullest
-bucket coverage (paired tumor-adjacent RNA, CPTAC COAD protein, single-cell, subtype shard). All 13
+bucket coverage (paired tumor-adjacent RNA, CPTAC COAD protein, single-cell, subtype shard). All 14
 cards resolve and 5 of 7 buckets are measured, giving the strongest possible drift floor.
 """
 from __future__ import annotations
@@ -101,12 +101,12 @@ def epcam_decision(tmp_path_factory):
 
 
 def test_fixture_is_nonvacuous():
-    """Guard against a stale/broken freeze reading green: EPCAM/COADREAD resolves all 13 cards, so
-    require the bulk (>=11) to carry a real summary. A freeze that silently produced errors/empties
+    """Guard against a stale/broken freeze reading green: EPCAM/COADREAD resolves all 14 cards, so
+    require the bulk (>=12) to carry a real summary. A freeze that silently produced errors/empties
     must fail here, not pass by vacuity."""
     frozen = _load_fixture()
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
-    assert len(real) >= 11, (
+    assert len(real) >= 12, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary — refreeze against live "
         f"S3 (freeze_fixture.py). Real cards: {sorted(real)}")
 

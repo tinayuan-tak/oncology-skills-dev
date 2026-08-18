@@ -16,6 +16,7 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.presence_matrix import (  # noqa: E402
     build_matrix_cells, render_presence_matrix_svg, emit_presence_matrix, _tier_of, _status_of,
+    _wrap_two_lines, _short_verdict, _sc_detail,
 )
 
 
@@ -126,3 +127,38 @@ def test_emit_writes_svg_and_json(tmp_path):
 def test_emit_is_noop_without_a_matrix():
     # no presence_verdict_by_modality → nothing to render (honest no-op, never raises)
     assert emit_presence_matrix({"target": "X", "headline": {}}, "/tmp/should_not_be_written") == []
+
+
+def test_cell_labels_wrap_not_truncate():
+    """Readability: long verdict labels wrap to two lines rather than ellipsis-truncating. The three
+    longest presence verdicts must render with NO ellipsis in the SVG."""
+    svg = render_presence_matrix_svg(_headline(), "CEACAM5", "COADREAD")
+    assert "…" not in svg, "a verdict label was ellipsis-truncated — it should wrap to two lines"
+    # the label the row already names ('expression') is dropped so the word fits
+    assert _short_verdict("broadly_moderate_expression") == "broadly moderate"
+    assert _short_verdict("tumor_broadly_expressed") == "broadly expressed"
+
+
+def test_wrap_two_lines_never_exceeds_two_lines_or_width():
+    for label, mx in [("broadly moderate", 15), ("present not elevated", 12),
+                      ("lineage restricted", 11), ("superlongunbreakabletoken", 10)]:
+        lines = _wrap_two_lines(label, mx)
+        assert 1 <= len(lines) <= 2
+        assert all(len(ln) <= mx for ln in lines), (label, lines)
+
+
+def test_sc_detail_projection_and_strip_render():
+    """The single-cell detail block is projected from the headline sc_* fields and shows on the SVG when
+    measured; honest 'not measured' otherwise."""
+    h = dict(_headline())
+    h.update({"sc_expression_class": "malignant_broadly_detected",
+              "sc_malignant_detection_fraction": 0.8886, "sc_tce_homogeneity_class": "homogeneous",
+              "sc_caf_vs_malignant_class": "caf_low", "sc_n_donor_groups": 453, "sc_n_datasets": 45})
+    d = _sc_detail(h)
+    assert d["measured"] is True and d["tce_homogeneity_class"] == "homogeneous"
+    svg = render_presence_matrix_svg(h, "EPCAM", "COADREAD")
+    assert "Single-cell (tumor)" in svg and "malignant cells" in svg and "CAF-low" in svg
+    # unmeasured sc → honest label, no CAF/homogeneity clutter
+    h2 = dict(_headline()); h2["sc_expression_class"] = "data_unavailable"
+    assert _sc_detail(h2)["measured"] is False
+    assert "not measured for this indication" in render_presence_matrix_svg(h2, "X", "Y")

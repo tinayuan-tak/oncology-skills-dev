@@ -44,7 +44,7 @@ description: |
   POST-HOC lens exposed via the optional --modality flag.
 
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -172,14 +172,24 @@ tumor-context presence signal a target-only query gets.
 
 The **`sc_rna/tumor`** bucket is card-backed by `tumor-scrna-celltype-expression`. It reads `measured`
 for the indications with a landed single-cell pseudobulk product carrying a per-cell malignant
-annotation (**COADREAD, NSCLC, LUSC, PAAD, HNSC, KIRC, OV** — see `INDICATION_TO_PRODUCT` in
+annotation (**COADREAD, NSCLC, LUSC, PAAD, HNSC, KIRC, OV, STAD** — see `INDICATION_TO_PRODUCT` in
 `methods/sc_tumor_expression_celltype/read.py`) and `data_unavailable` for every other indication (an
 honest capability ceiling, never a coarser fall-back). The matching `sc_rna/normal` comparator
 (`sc-normal-celltype-expression`) covers each indication's tumor-of-origin tissue PLUS an always-on
-critical-organ panel (heart, liver, kidney, bone marrow) queried for every indication. The single-cell bucket carries what bulk cannot:
+critical-organ panel (heart, liver, kidney, bone marrow) queried for every indication.
+
+The single-cell bucket carries what bulk cannot, surfaced in the headline as verdict-inert detail:
 per-cell `detection_fraction` and malignant-vs-microenvironment attribution (`sc_expression_class` ∈
 malignant_broadly_detected / malignant_subset_detected / microenvironment_dominant / broadly_low /
-data_unavailable).
+data_unavailable); the full per-compartment vector (`sc_per_compartment` / `sc_compartment_detection` —
+detection + abundance per malignant/stromal/immune/endothelial/epithelial_normal/other); a
+cancer-associated-fibroblast contrast (`sc_caf_vs_malignant_class` — a target expressed mainly on CAFs
+looks tumor-present in bulk but is a stromal signal); and malignant-expression homogeneity
+(`sc_tce_homogeneity_class`, a T-cell-engager prerequisite — rule-keyed only on the surface axis, shown
+here as context). The normal comparator is summarized as an organ-aware liability tier
+(`sc_normal_safety_essential_class`) plus a ranked `sc_normal_top_essential_cell_types` (the full
+per-cell-type footprint is retained verbatim as `sc_normal_safety_essential_flags`). See
+[CONTRACT.md](CONTRACT.md) § "Single-cell layer" for the full field list and rationale.
 
 ## Headline lens: tumor tissue outranks the pan-cancer cell-line proxy
 

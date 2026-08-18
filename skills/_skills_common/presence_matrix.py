@@ -107,6 +107,24 @@ def _status_of(verdict: Optional[str]) -> Optional[str]:
     return None
 
 
+def _sc_detail(headline: Optional[dict]) -> dict:
+    """The single-cell detail block projected from the headline's sc_* fields. `measured` is True only
+    when the sc_rna/tumor bucket carried a real read (sc_expression_class ∉ {None, data_unavailable})."""
+    h = headline or {}
+    cls = h.get("sc_expression_class")
+    return {
+        "measured": bool(cls) and cls != "data_unavailable",
+        "sc_expression_class": cls,
+        "malignant_detection_fraction": h.get("sc_malignant_detection_fraction"),
+        "tce_homogeneity_class": h.get("sc_tce_homogeneity_class"),
+        "caf_vs_malignant_class": h.get("sc_caf_vs_malignant_class"),
+        "top_microenvironment_compartment": h.get("sc_top_microenvironment_compartment"),
+        "compartment_detection": h.get("sc_compartment_detection") or {},
+        "n_donor_groups": h.get("sc_n_donor_groups"),
+        "n_datasets": h.get("sc_n_datasets"),
+    }
+
+
 def build_matrix_cells(headline: dict) -> dict:
     """Structured (testable) projection of headline['presence_verdict_by_modality'] onto the
     row×col grid. Returns a labeled VIEW — never a verdict input. Off-scale (data_unavailable)
@@ -142,6 +160,10 @@ def build_matrix_cells(headline: dict) -> dict:
         "driving_rule_id": driving,
         "headline_lens": (headline or {}).get("headline_lens"),
         "cell_line_vs_tumor_discordant": (headline or {}).get("cell_line_vs_tumor_discordant"),
+        # Single-cell detail (verdict-inert): the malignant-vs-microenvironment attribution + the
+        # TCE-relevant homogeneity + CAF-confounder signals that bulk cannot give. Rendered as a compact
+        # strip beneath the matrix and carried in the JSON twin. Empty/None when sc is not measured.
+        "sc_detail": _sc_detail(headline),
         "_disclaimer": (
             "PRESENCE × CONTEXT VIEW — an order-preserving projection of the per-(measurement, "
             "sample_context) presence sub-verdicts for display ONLY. NOT calibrated measurement "
@@ -152,7 +174,9 @@ def build_matrix_cells(headline: dict) -> dict:
 
 
 def _short_verdict(verdict: Optional[str]) -> str:
-    """Compact cell label from a presence verdict (drop the leading measurement prefix)."""
+    """Compact cell label from a presence verdict: drop the leading measurement prefix and the trailing
+    `_expression` (redundant — the row label already names the measurement), so the label fits the cell
+    on at most two wrapped lines (e.g. `broadly_moderate_expression` → `broadly moderate`)."""
     if not verdict:
         return ""
     v = verdict
@@ -160,6 +184,8 @@ def _short_verdict(verdict: Optional[str]) -> str:
         if v.startswith(pre):
             v = v[len(pre):]
             break
+    if v.endswith("_expression"):
+        v = v[: -len("_expression")]
     return v.replace("_", " ")
 
 
@@ -167,15 +193,43 @@ def _esc(s: str) -> str:
     return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+def _wrap_two_lines(text: str, max_chars: int) -> list[str]:
+    """Greedily pack `text` into AT MOST two lines of ~max_chars, so a verdict label is fully readable
+    inside a cell instead of being ellipsis-truncated. Overflow past two lines is folded into the second
+    line with a trailing ellipsis (rare — presence verdicts are ≤3-4 words). A single over-long word is
+    truncated so it can never overrun the cell."""
+    words = str(text).split()
+    if not words:
+        return [""]
+    lines: list[str] = []
+    cur = ""
+    for w in words:
+        cand = f"{cur} {w}".strip()
+        if len(cand) <= max_chars or not cur:
+            cur = cand
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    if len(lines) > 2:                       # fold any remainder into line 2
+        lines = [lines[0], " ".join(lines[1:])]
+    if len(lines) == 2 and len(lines[1]) > max_chars:
+        lines[1] = lines[1][:max_chars - 1] + "…"
+    if len(lines) == 1 and len(lines[0]) > max_chars:   # single unbreakable long token
+        lines[0] = lines[0][:max_chars - 1] + "…"
+    return lines
+
+
 # --- SVG geometry (compact dashboard tile) --------------------------------
 _RL = 132     # row-label gutter
-_CW = 78      # presence cell width
+_CW = 96      # presence cell width (wide enough for a wrapped 2-line verdict label)
 _NW = 132     # normal (window) cell width
-_CH = 34      # cell height
+_CH = 42      # cell height (fits two label lines without truncation)
 _GAP = 4
 _GUT = 14     # gutter between presence + window groups
 _TOP = 52     # header band
-_BOT = 40     # eyebrow band
+_BOT = 76     # eyebrow band (collapsed verdict + discordance + single-cell strip + legend)
 
 
 def render_presence_matrix_svg(headline: dict, target: str, indication: str) -> str:
@@ -247,16 +301,47 @@ def render_presence_matrix_svg(headline: dict, target: str, indication: str) -> 
     s.append(f'<text x="{x0}" y="{ey}" font-size="10.5" fill="#1a1a19">'
              f'<tspan font-weight="700">Collapsed verdict:</tspan> {_esc(cv)}'
              f'{_esc(f"  (driven by {star} {lens})" if lens else "")}</text>')
+    sc_y = ey + 15
     if view["cell_line_vs_tumor_discordant"]:
-        s.append(f'<text x="{x0}" y="{ey + 15}" font-size="9.5" fill="#8a4b1a">'
+        s.append(f'<text x="{x0}" y="{sc_y}" font-size="9.5" fill="#8a4b1a">'
                  f'▸ one-word verdict understates tumor presence — read the tumor row, '
                  f'not the headline</text>')
+        sc_y += 15
+    # single-cell detail strip: malignant-vs-microenvironment attribution + TCE homogeneity + CAF
+    # confounder — the signals bulk cannot give. Text-led (never color alone).
+    _render_sc_strip(s, view.get("sc_detail") or {}, x0, sc_y)
     # legend
     s.append(f'<text x="{x0}" y="{H - 6}" font-size="8.5" fill="#8a8d91">'
              f'■ presence tier (order, not magnitude) · hatched = not measured · '
              f'×/!/✓ = normal-tissue comparator</text>')
     s.append('</svg>')
     return "\n".join(s)
+
+
+def _render_sc_strip(s: list, sc: dict, x0: float, y: float) -> None:
+    """Append the single-cell detail line to the SVG. Shows the malignant detection fraction,
+    homogeneity class, and CAF-vs-malignant class when single-cell is measured; an honest
+    'not measured' otherwise. Verdict-inert display only."""
+    if not sc.get("measured"):
+        s.append(f'<text x="{x0}" y="{y}" font-size="9.5" fill="#8a8d91">'
+                 f'<tspan font-weight="700" fill="#6b6f76">Single-cell (tumor):</tspan> '
+                 f'not measured for this indication</text>')
+        return
+    frac = sc.get("malignant_detection_fraction")
+    bits = [f"{round(frac * 100)}% of malignant cells" if isinstance(frac, (int, float)) else "detected"]
+    if sc.get("tce_homogeneity_class") and sc["tce_homogeneity_class"] != "data_unavailable":
+        bits.append(_esc(str(sc["tce_homogeneity_class"]).replace("_", " ")))
+    caf = sc.get("caf_vs_malignant_class")
+    _caf_label = {"caf_low": "CAF-low", "caf_dominant": "CAF-dominant",
+                  "malignant_dominant": "malignant-dominant", "shared_caf_malignant": "CAF+malignant"}
+    if caf and caf != "data_unavailable":
+        bits.append(_esc(_caf_label.get(caf, str(caf).replace("_", " "))))
+    nd, nds = sc.get("n_donor_groups"), sc.get("n_datasets")
+    if isinstance(nd, int) and isinstance(nds, int):
+        bits.append(f'{nd} donors / {nds} datasets')
+    s.append(f'<text x="{x0}" y="{y}" font-size="9.5" fill="#1a1a19">'
+             f'<tspan font-weight="700" fill="#b2182b">Single-cell (tumor):</tspan> '
+             f'{" · ".join(bits)}</text>')
 
 
 def _draw_cell(s: list, cell: dict, x: float, y: float, w: float) -> None:
@@ -291,11 +376,20 @@ def _draw_cell(s: list, cell: dict, x: float, y: float, w: float) -> None:
     s.append(f'<rect x="{x}" y="{y}" width="{w}" height="{_CH}" rx="{rx}" fill="{fill}"{ring}/>')
     label = _short_verdict(verdict) or _TIER_WORD.get(tier, "")
     star = "★ " if cell.get("is_headline_lens") else ""
-    # truncate long labels to fit
-    if len(label) > 13:
-        label = label[:12] + "…"
-    s.append(f'<text x="{x + w/2}" y="{y + _CH/2 + 4}" font-size="9.5" text-anchor="middle" '
-             f'fill="{ink}">{star}{_esc(label)}</text>')
+    # Wrap the full verdict across up to two lines (≈ w/6px per char at font 9) so it stays readable —
+    # never ellipsis-truncate a label that would otherwise fit on two lines. The star marks the headline
+    # lens on the first line.
+    lines = _wrap_two_lines(label, max_chars=max(6, int((w - 8) / 5.2)))
+    cx = x + w / 2
+    if len(lines) == 1:
+        s.append(f'<text x="{cx}" y="{y + _CH/2 + 3.5}" font-size="9.5" text-anchor="middle" '
+                 f'fill="{ink}">{star}{_esc(lines[0])}</text>')
+    else:
+        y0 = y + _CH/2 - 4
+        s.append(f'<text x="{cx}" y="{y0}" font-size="9" text-anchor="middle" '
+                 f'fill="{ink}">{star}{_esc(lines[0])}</text>')
+        s.append(f'<text x="{cx}" y="{y0 + 11}" font-size="9" text-anchor="middle" '
+                 f'fill="{ink}">{_esc(lines[1])}</text>')
 
 
 def emit_presence_matrix(decision: dict, figures_root) -> list[Path]:

@@ -2,7 +2,9 @@
 
 A first-run guide for a new contributor. `tumor-presence` answers: *"Is target X
 present in indication Y's tumor tissue, and how does it distribute across cell lines,
-tumor samples, protein, and single cells?"* See [SKILL.md](SKILL.md) for the full contract.
+tumor samples, protein, and single cells?"* See [SKILL.md](SKILL.md) for the full contract
+and [CONTRACT.md](CONTRACT.md) for the design rationale (ladders, collapse invariants, the
+single-cell layer, and version history).
 
 ## Prerequisites
 
@@ -38,7 +40,7 @@ python3 skills/tumor-presence/scripts/run.py \
 
 `EPCAM` / `COADREAD` is the canonical example — a broadly-present epithelial antigen in
 the indication with the fullest card coverage (paired tumor-adjacent RNA, CPTAC protein,
-single-cell, subtype shard), so all 13 cards resolve.
+single-cell, subtype shard), so nearly all 14 cards resolve.
 
 `--target` is an HGNC gene symbol (uppercase); `--indication` is an AACR OncoTree code
 (uppercase, e.g. `COADREAD`, `LUAD`, `BRCA`). Omit `--indication` for a target-only query.
