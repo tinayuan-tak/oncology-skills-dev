@@ -56,8 +56,9 @@ from tp_gates import (               # names main() calls directly
 )
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
-    _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _deciding_axis, _fragility_facet,
-    _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet, _subtype_facet,
+    _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _deciding_axis, _dependency_facet,
+    _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
+    _subtype_facet,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import _SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool, _build_user_prompt
@@ -272,6 +273,12 @@ def main() -> int:
     # cross-modal tension (RNA-high/protein-absent; tumor-high/normal-high) from raw card numbers. This
     # hands the reasoner the skill's computed reconciliation. VERDICT-INERT (presence ∉ _SHORT_TO_GATE).
     presence_facet = _presence_facet(sub_results)
+
+    # Dependency claim-vector facet (P2 phase 3-claim, 2026-08-18): functional-requirement's SIGNAL
+    # decomposition (claim_vector DEP/SEL/COND/CHEM + key_signals + confidence annotations), parallel to
+    # presence_facet. The SIGNAL half of the reconciliation; the certainty roll-up is certainty_by_axis.
+    # VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
+    dependency_facet = _dependency_facet(sub_results)
 
     # Modality-conjunction facet (2026-08-18): completes the modality nomination presence can't mint —
     # the presence claim vector conjoined with the cross-lens surface / window / safety gates. Like the
@@ -603,6 +610,10 @@ def main() -> int:
         # presence against the normal-tissue window. Presence ∉ _SHORT_TO_GATE, so it never moves
         # the recommendation. None when tumor-presence supplied no facet.
         "presence_facet": presence_facet,
+        # Dependency claim-vector facet (P2 phase 3-claim): functional-requirement's SIGNAL decomposition
+        # (claim_vector + key_signals + confidence annotations). A FACET (not a gate) — the SIGNAL half;
+        # the per-axis certainty roll-up is certainty_by_axis. None when FR supplied no facet.
+        "dependency_facet": dependency_facet,
         "modality_conjunction": modality_conjunction,
         # Fragility facet (verdict-inert flip-stability): worst-case single-rule flip-fragility over the
         # decision-relevant axes + a `contested` flag (declarative threshold). A structural sensitivity

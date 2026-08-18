@@ -20,12 +20,14 @@ from tp_synthesis_prompt import _build_user_prompt  # noqa: E402
 
 
 def test_facet_loader_is_opt_in():
-    # tumor-presence supplies the hook
-    fn = _load_sub_skill_facet_fn("tumor-presence")
-    assert callable(fn)
-    # a sub-skill without the hook returns None (loader never fabricates one)
-    _load_sub_skill_verdict_fn("functional-requirement")  # warm the module cache
-    assert _load_sub_skill_facet_fn("functional-requirement") is None
+    # sub-skills that supply the hook: tumor-presence (cross-modal reconciliation) and, since P2
+    # phase 3-claim, functional-requirement (the dependency claim-vector SIGNAL decomposition).
+    assert callable(_load_sub_skill_facet_fn("tumor-presence"))
+    assert callable(_load_sub_skill_facet_fn("functional-requirement"))
+    # a sub-skill WITHOUT the hook returns None (loader never fabricates one). mechanism-and-pharmacology
+    # is the negative control — a composed sub-skill that exposes no _synthesis_facet.
+    _load_sub_skill_verdict_fn("mechanism-and-pharmacology")  # warm the module cache
+    assert _load_sub_skill_facet_fn("mechanism-and-pharmacology") is None
 
 
 def test_presence_facet_reads_synthesis_facet_from_sub_results():

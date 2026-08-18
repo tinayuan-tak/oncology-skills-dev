@@ -465,6 +465,49 @@ def _headline(cards, fired, verdict_pair):
     return hl
 
 
+# ─── Cross-lens facet (consumed by the composed target-profile synthesis) ─────────────────────────
+# The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet")
+# (mirrors tumor-presence #522). It reuses `_headline` (single source of truth) and returns the
+# reconciliation-relevant subset — for functional-requirement the dependency verdict + the modality-
+# blind claim vector SIGNAL decomposition (DEP/SEL/COND/CHEM) + the brief cited key-signals read, plus
+# the confidence annotations FR separates from its verdict (predictability / cross-consortium) as
+# narrative context. It deliberately does NOT carry the per-axis (strength, certainty) object — that is
+# the SEPARATE `certainty_by_axis` sidecar (CERTAINTY_MODEL §3); this facet is the SIGNAL half, the
+# sidecar is the certainty half (reconciliation D1). VERDICT-INERT: the fan-out treats an absent facet
+# as no-facet; nothing here enters `fired` or the resolver.
+_SYNTHESIS_FACET_KEYS = (
+    "dependency_verdict", "driving_rule_id",
+    "crispr_call", "rnai_call", "concordance_call",
+    "lineage_selectivity", "paralog_buffering_class", "strongest_paralog_symbol",
+    # conditional-SL + chemical-genetic confirmation (the COND / CHEM claim inputs)
+    "partner_conditional_class", "prism_concordance_class",
+    # confidence annotations FR separates from its verdict (narrative context; the numeric certainty
+    # roll-up lives in certainty_by_axis, not here)
+    "predictability_class", "cross_consortium_class",
+    "dependency_confidence", "dependency_confidence_note",
+    # biomarker render facets (patient-selection context)
+    "model_correspondence_class", "abundance_dependency_class",
+    # the modality-blind claim vector SIGNAL decomposition + brief cited read (this subskill's
+    # within-lens integration; the cross-lens layer reads the per-claim SIGNALS, not a certainty)
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT dependency facet for the composed target-profile synthesis prompt.
+    Reuses `_headline` (single source of truth) and returns the reconciliation-relevant subset.
+    Never moves the verdict; safe to omit (fan-out treats absence as no-facet)."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = (
+        "Deterministic dependency facet from functional-requirement (a FACET, not a gate; the "
+        "dependency verdict is owned by the shared resolver and is verdict-inert to this projection). "
+        "claim_vector is the SIGNAL decomposition — DEP genetic-dependency / SEL context-selectivity / "
+        "COND conditional-SL / CHEM chemical-genetic-confirmation, each a signal tier. The per-axis "
+        "certainty roll-up is the separate certainty_by_axis sidecar, not this facet.")
+    return facet
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,

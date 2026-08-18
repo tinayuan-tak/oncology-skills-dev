@@ -450,6 +450,18 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
     return expr.get("synthesis_facet")
 
 
+# Dependency claim-vector facet (P2 phase 3-claim): functional-requirement's `_synthesis_facet`,
+# carried by the fan-out as sub_results['dependency']['synthesis_facet']. Parallel to _presence_facet —
+# a thin reader surfacing the dependency SIGNAL decomposition (claim_vector DEP/SEL/COND/CHEM +
+# key_signals + confidence annotations) for the synthesis prompt + evidence package. The per-axis
+# certainty roll-up is the SEPARATE certainty_by_axis sidecar; this is the SIGNAL half (reconciliation
+# D1). VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
+# Returns None when functional-requirement is absent / supplied no facet.
+def _dependency_facet(sub_results: dict) -> Optional[dict]:
+    dep = (sub_results or {}).get("dependency") or {}
+    return dep.get("synthesis_facet")
+
+
 # --- PER-AXIS (strength, certainty) sidecar assembly (CERTAINTY_MODEL §3) ------------------------
 # Each verdict-bearing sub-skill MAY expose `_strength_certainty`; the fan-out captures it as
 # sub_results[short]['strength_certainty'] (None for skills without the hook). This thin reader
