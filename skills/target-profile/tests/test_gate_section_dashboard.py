@@ -486,12 +486,17 @@ def test_groundable_axis_without_record_renders_no_block():
 
 
 def test_nongroundable_axis_renders_not_configured_note():
-    """A subskill whose axis is NOT groundable (e.g. expression) renders an honest
-    'not yet configured' grounding note (coverage-gap honesty), even with no record."""
-    h = _render(_sr())
-    expr = re.search(r"<section id=s-skill-expression\b.*?</section>", h, re.S).group(0)
-    assert "grounded-none" in expr
-    assert "not yet configured" in expr
+    """A subskill whose axis is NOT groundable renders an honest 'not yet configured' grounding note
+    (coverage-gap honesty). Post-#500 the grounded reader covers ALL indication-conditioned subskills,
+    so the only non-groundable subskill section is the indication-independent target_intrinsic."""
+    sr = _sr()
+    sr["target_intrinsic"] = {"skill_dir": "target-intrinsic",
+                              "cards": [{"card_id": "target-intrinsic-dossier", "summary": {}}],
+                              "verdict": None, "fired": []}
+    h = _render(sr)
+    ti = re.search(r"<section id=s-skill-target-intrinsic\b.*?</section>", h, re.S).group(0)
+    assert "grounded-none" in ti
+    assert "not yet configured" in ti
 
 
 # --- NEW: gateless subskills get their own flat sections ---------------------

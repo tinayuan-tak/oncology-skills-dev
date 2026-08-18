@@ -131,10 +131,15 @@ _SUBSKILL_ORDER = [
     "tractability_sm", "surface_modality", "safety", "target_intrinsic",
 ]
 # Subskill axes for which the grounded literature reader (literature-risk-assessment/ground_axis)
-# is configured today — kept in step with ground_axis.AXIS_CONFIG's verdict_key set (#491/#493:
-# safety, dependency, selectivity, surface_modality, tractability_sm). A subskill NOT in this set
-# renders an honest "not yet grounded" note; one IN it but without a record this run renders nothing.
-_GROUNDABLE_AXES = {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"}
+# is configured — kept in step with ground_axis.AXIS_CONFIG's verdict_key-bearing (non-pseudo-card)
+# axes. As of #500 the reader was rolled out to ALL indication-conditioned subskills, so this is
+# every subskill EXCEPT the indication-independent target_intrinsic (which is not in AXIS_CONFIG).
+# A subskill NOT in this set renders an honest "not yet grounded" note; one IN it but without a
+# record this run renders nothing. Parity with AXIS_CONFIG is drift-guarded by
+# test_groundable_axes_parity_with_axis_config (tests/test_hypothesis_synthesis_render.py).
+_GROUNDABLE_AXES = {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
+                    "mechanism", "genomic_alteration", "differentiation",
+                    "synthetic_lethal_partners", "combinatorial_dependency", "expression"}
 
 
 def _subskill_anchor(short: str) -> str:
@@ -1121,7 +1126,13 @@ _LIT_RISK_CHIP = {
 _LIT_DIM_ORDER = ["biological", "druggability", "translational", "clinical", "safety", "commercial"]
 
 
-def _pubmed_links(pmids: list) -> str:
+def _pubmed_links(pmids) -> str:
+    # Defensive: a scalar (e.g. a single PMID delivered as a string) must not be iterated
+    # per-character into broken links — coerce any non-list scalar to a one-item list.
+    if pmids is None or pmids == "":
+        return "<span class=sub>none</span>"
+    if not isinstance(pmids, (list, tuple, set)):
+        pmids = [pmids]
     if not pmids:
         return "<span class=sub>none</span>"
     return ", ".join(f"<a href='https://pubmed.ncbi.nlm.nih.gov/{_esc(str(p))}/' target=_blank "
@@ -1134,7 +1145,7 @@ def _render_literature_risk_html(ra: Optional[dict]) -> list[str]:
     'non-reproducible, as-of-DATE' block per RISK_ASSESSMENT_INTEGRATION.md §4; NEVER fused into the
     deterministic grid and NEVER a verdict input. Each dimension: risk grade + the literature's STATE
     read + what-could-kill-it, with cited (retrieved, confab-guarded) PMIDs."""
-    if not ra or not ra.get("dimensions"):
+    if not ra or not isinstance(ra.get("dimensions"), dict):
         return []
     prov = ra.get("provenance", {}) or {}
     pin = prov.get("corpus_pin", {}) or {}
@@ -1151,19 +1162,22 @@ def _render_literature_risk_html(ra: Optional[dict]) -> list[str]:
            "(<code>citable_in_nominations: false</code>). Retrieval-grounded over PubMed "
            f"{_esc(mindate)}–{_esc(maxdate)} for <b>{_esc(ind)}</b>; every claim cites only retrieved "
            f"PMIDs (confabulation-guarded). As-of {_esc(asof)}.</div>",
-           "<table><tr><th>Dimension</th><th>5R pillar</th><th>Risk</th>"
-           "<th>What the literature says (state) · what could kill it (risk)</th>"
+           "<table><tr><th>Dimension</th><th>5R pillar</th><th>Risk grade</th>"
+           "<th>What the literature says (state) · rationale for the grade</th>"
            "<th>Cited PMIDs</th></tr>"]
     dims = ra["dimensions"]
     for k in _LIT_DIM_ORDER + [d for d in dims if d not in _LIT_DIM_ORDER]:
         d = dims.get(k)
-        if not d:
+        if not isinstance(d, dict):
             continue
-        cls, lab = _LIT_RISK_CHIP.get(str(d.get("risk_level")), ("chip-gap", str(d.get("risk_level"))))
+        # normalize the grade so a lowercase/missing value never leaks a raw token as a grey chip
+        rl = str(d.get("risk_level") or "").strip().upper()
+        cls, lab = _LIT_RISK_CHIP.get(rl, ("chip-gap", (d.get("risk_level") or "not assessed")))
         contra = (" <span class=badge-rule title='Literature diverges from the deterministic verdict'>"
                   "⚠ diverges from computed verdict</span>") if d.get("contradicts_deterministic") else ""
         cell = (f"<div><b>State:</b> {_esc(d.get('interpretation') or '—')}</div>"
-                f"<div style='margin-top:4px'><b>Risk:</b> {_esc(d.get('justification') or '—')}{contra}</div>")
+                f"<div style='margin-top:4px'><b>Why this grade:</b> "
+                f"{_esc(d.get('justification') or '—')}{contra}</div>")
         out.append(f"<tr><td><b>{_esc(k.title())}</b></td>"
                    f"<td class=sub>{_esc(d.get('pillar', ''))}</td>"
                    f"<td><span class='chip {cls}'>{_esc(lab)}</span></td>"
@@ -1181,15 +1195,18 @@ def _grounded_block_html(short: str, grounded_record: Optional[dict]) -> list[st
     that RAISE this axis's risk (liability / dependency-weakening), anchored to the deterministic
     verdict. When ground_axis isn't configured for this axis, render an honest 'not yet grounded'
     note (coverage-gap honesty discipline) rather than silence."""
-    if not grounded_record or not grounded_record.get("grounded"):
+    if not grounded_record or not isinstance(grounded_record.get("grounded"), dict):
         if short in _GROUNDABLE_AXES:
             return []  # groundable but not run this time — say nothing rather than a false gap
+        _cfg = ", ".join(sorted(_GROUNDABLE_AXES)) or "—"
         return ["<div class=grounded grounded-none><span class=tag>Literature grounding</span>"
                 " Grounded literature reader not yet configured for this axis "
-                "<span class=sub>(currently: safety, dependency — see literature-risk-assessment"
+                f"<span class=sub>(configured axes: {_esc(_cfg)} — see literature-risk-assessment"
                 " <code>ground_axis</code>).</span></div>"]
     g = grounded_record["grounded"]
-    findings = g.get("findings") or []
+    findings = g.get("findings")
+    if not isinstance(findings, list):
+        findings = []
     anchor = _humanize(g.get("anchor_verdict") or "—")
     pin = g.get("corpus_pin", {}) or {}
     n_ret = g.get("n_retrieved", 0)
@@ -1212,8 +1229,12 @@ def _grounded_block_html(short: str, grounded_record: Optional[dict]) -> list[st
     out.append("</ul>")
     corr = g.get("corroborations") or []
     if corr:
-        out.append("<p class=sub><b>Corroborations of the computed verdict:</b> "
-                   + _esc("; ".join(corr)) + "</p>")
+        # Neutral label: when the block is flagged contradicts_deterministic, these notes may in fact
+        # DIVERGE from the verdict — do not assert they "corroborate" it (see review G4).
+        _corr_label = ("Literature notes vs. the computed verdict"
+                       if g.get("contradicts_deterministic") else "Corroborations of the computed verdict")
+        out.append(f"<p class=sub><b>{_corr_label}:</b> "
+                   + _esc("; ".join(str(c) for c in corr)) + "</p>")
     out.append("</div>")
     return out
 
@@ -1265,13 +1286,15 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
     trace_pct = f"{trace * 100:.0f}%" if isinstance(trace, (int, float)) else "—"
     out = ["<section id=s-hypothesis class='llm llm-exec'>"
            "<span class='tag tag-corner'>AI-generated · cross-evidence integrator</span>"
-           "<h2>Cross-evidence hypothesis <span class=n>— gate-clamped, cited synthesis across all "
+           "<h2>Cross-evidence hypothesis <span class=n>— gate-checked, cited synthesis across all "
            "subskills</span></h2>",
            "<p class=sub>The cross-evidence integrator's structured hypothesis (replaces the free-text "
-           "synthesis). Every clause is traceable to a cited subskill; the agent's verdict is CLAMPED by "
-           "the deterministic gate spine and never exceeds it.</p>",
+           "synthesis). Every clause is traceable to a cited subskill; the agent's verdict is bounded by "
+           "the deterministic gate spine — it can be clamped DOWN, never up.</p>",
            f"<div class=banner><b>Integrator verdict:</b> "
            f"<span class='chip {vcls}'>{_esc(_humanize(V.get('computed')))}</span>"
+           + (" <span class=sub>(clamped down from "
+              f"{_esc(_humanize(V.get('proposed_by_agent')))})</span>" if V.get('was_clamped') else "")
            + (f" <span class=sub>(ceiling {_esc(_humanize(V.get('gate_ceiling')))}"
               + (f" — {_esc(V.get('gate_reason'))}" if V.get('gate_reason') else "") + ")</span>"
               if V.get('gate_ceiling') else "")
@@ -1321,6 +1344,19 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
     return [x for x in out if x]
 
 
+def _safe_panel(fn, *args, _what: str = "panel") -> list[str]:
+    """Fail-open wrapper for the optional context panels (literature / grounded / hypothesis). A
+    partial-but-parseable input must degrade THAT panel to 'not shown', never raise out of
+    _render_target_profile_html and lose the WHOLE governance artifact (review S1). Mirrors the
+    presence-hero fail-open discipline."""
+    try:
+        return fn(*args) or []
+    except Exception as e:  # noqa: BLE001
+        print(f"[target-profile] WARN: {_what} panel render failed "
+              f"({type(e).__name__}: {e}); panel omitted.", file=sys.stderr)
+        return []
+
+
 def _render_target_profile_html(
     target: str,
     indication: str,
@@ -1341,6 +1377,7 @@ def _render_target_profile_html(
     risk_assessment: Optional[dict] = None,
     grounded_by_axis: Optional[dict] = None,
     hypothesis: Optional[dict] = None,
+    confidence_tier: Optional[dict] = None,
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1377,21 +1414,43 @@ def _render_target_profile_html(
                f"The AI suggested '{llm_said}'; a rule required '{forced}'."
                if rg.get("overridden") else
                "A deterministic rule confirmed the AI's call.")
-        checked = f"<span class=badge-rule title=\"{_esc(tip)}\">✓ rule-checked</span>"
+        checked = f"<span class=badge-rule title=\"{_esc(tip)}\">✓ gate-checked</span>"
     else:
         checked = ("<span class=badge-rule title=\"No override rule fired; the AI's recommendation "
-                   "stands, checked against the deterministic gate.\">✓ rule-checked</span>")
+                   "stands, checked against the deterministic gate.\">✓ gate-checked</span>")
     if presence_only:
         # Focused view: clean "TARGET × INDICATION" header, no recommendation clutter.
         p.append(f"<header><h1>{_esc(target)} <span style='opacity:.6;font-weight:400'>×</span> "
                  f"{_esc(indication)}</h1></header>")
     else:
+        # Confidence coherence (review S1/G1): the recommendation + `confidence` are LLM-authored
+        # (temperature > 0). Label their provenance EXPLICITLY (not just a faint tag), surface the
+        # DETERMINISTIC confidence tier as the primary figure, and show the LLM narrative's word only
+        # as a transparent secondary — so the reproducible signal is never hidden behind an AI headline.
+        det_tier = (confidence_tier or {}).get("tier")
+        llm_conf = _val("confidence")
+        conf_html = (f"<span class=pill>{_esc(det_tier)}</span> <span class=sub>(deterministic tier; "
+                     f"AI narrative said “{_esc(llm_conf)}”)</span>" if det_tier
+                     else f"<span class=pill>{_esc(llm_conf)}</span> <span class=sub>(AI narrative)</span>")
+        # When the cross-evidence integrator ran, show ITS verdict + certainty on the header too, so the
+        # top line does not silently contradict the hypothesis section below (review S1).
+        recon = ""
+        _hv = hypothesis.get("verdict") if isinstance(hypothesis, dict) else None
+        if hypothesis and isinstance(_hv, dict) and _hv.get("computed"):
+            hv = _hv
+            _hu = hypothesis.get("uncertainty")
+            hcert = _hu.get("overall_certainty") if isinstance(_hu, dict) else None
+            recon = ("<div class=sub style='margin-top:4px'>Cross-evidence integrator: "
+                     f"<b>{_esc(_humanize(hv.get('computed')))}</b>"
+                     + (f" · certainty {_esc(hcert)}" if hcert else "")
+                     + " — a fuller, fully-cited read that may be more conservative than this headline "
+                       "(see the Cross-evidence hypothesis section).</div>")
         p.append("<header>"
                  f"<h1>{_esc(target)} <span style='opacity:.7;font-weight:400'>in</span> {_esc(indication)}"
                  " — target profile</h1>"
-                 f"<div class=rec>Recommendation: {action_html}"
-                 f" · confidence <span class=pill>{_esc(_val('confidence'))}</span> {checked}"
-                 f" <span style='opacity:.7;font-size:12px'>· AI-generated</span></div>"
+                 f"<div class=rec>Recommendation <span class=sub>(AI-proposed, gate-checked)</span>: "
+                 f"{action_html} · confidence {conf_html} {checked}</div>"
+                 f"{recon}"
                  "</header>")
 
     # --- Presence × Context hero (deterministic VIEW) ----------------------
@@ -1496,9 +1555,12 @@ def _render_target_profile_html(
     # is supplied it REPLACES the original Tier-3 executive-summary + tension narrative with the
     # gate-clamped, cited structured hypothesis (its own tensions render inside it). Otherwise the
     # original executive summary is shown (backward-compatible).
-    if hypothesis:
-        p.extend(_render_hypothesis_html(hypothesis))
+    hyp_html = _safe_panel(_render_hypothesis_html, hypothesis, _what="hypothesis") if hypothesis else []
+    if hyp_html:
+        p.extend(hyp_html)
     else:
+        # no hypothesis supplied, OR the hypothesis panel failed to render — fall back to the original
+        # Tier-3 executive summary so there is always a synthesis section.
         p.append("<div class='llm llm-exec' id=s-exec><span class='tag tag-corner'>AI-generated</span>"
                  f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
 
@@ -1507,7 +1569,7 @@ def _render_target_profile_html(
     # Rendered as a visually-separate, explicitly-labeled non-reproducible context block — NOT the
     # deterministic verdict grid (RISK_ASSESSMENT_INTEGRATION.md §4). Suppressed in presence_only.
     if risk_assessment and not presence_only:
-        p.extend(_render_literature_risk_html(risk_assessment))
+        p.extend(_safe_panel(_render_literature_risk_html, risk_assessment, _what="literature-risk"))
 
     # --- Subskill sections (FLAT). Iterates _sections (the SAME list the left nav uses — no drift).
     # ONE section per subskill in fan-out order; each renders its own cards as a card-subtab section,
@@ -1523,7 +1585,8 @@ def _render_target_profile_html(
     # place the summary sections (Evidence summary + Modality-fit matrix) ABOVE them.
     bands_html: list[str] = []
     for short, label, sec_id in _sections:
-        grounded_html = _grounded_block_html(short, grounded_by_axis.get(short))
+        grounded_html = _safe_panel(_grounded_block_html, short, grounded_by_axis.get(short),
+                                    _what=f"grounded[{short}]")
         gate_html, n_g = _render_gate_section_html(
             "", label, [short], sub_results, scorecard_by_short,
             card_figures, figures_dir, indication=indication, modality_note=None,

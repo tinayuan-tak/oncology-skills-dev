@@ -503,7 +503,7 @@ def main() -> int:
             card_figures=card_figures, figures_dir=figures_dir,
             presence_facet=presence_facet,
             risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
-            hypothesis=hypothesis,
+            hypothesis=hypothesis, confidence_tier=confidence_tier,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
