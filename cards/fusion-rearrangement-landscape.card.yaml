@@ -12,7 +12,7 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.2.0   # 1.2.0: +modality_relevance (P4 sweep); 1.1.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort ADDITIVE display sibling to TCGA
+version: 1.3.0   # 1.3.0: + fusion_recurrence_confidence (verdict-inert tier); 1.2.0: +modality_relevance (P4 sweep); 1.1.0: + GENIE-SV breadth fields (genie_sv_*)
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
 applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
@@ -33,6 +33,7 @@ outputs:
     - fusion_frequency
     - recurrent_partners
     - fusion_class                                  # PRIMARY categorical driving rules
+    - fusion_recurrence_confidence                  # VERDICT-INERT tier on a recurrent_fusion_driver call (see vocabulary + caveat)
     # ---- GENIE-SV breadth (pan-cohort, panel-coverage-correct) — ADDITIVE display, verdict-inert ----
     # The higher-N complement to the TCGA-consensus facts above (271k panel tumors vs 33 TCGA tissues).
     # None of these drive a resolver rung; genie_sv_recurrence_class is a DISPLAY comparator only.
@@ -48,6 +49,10 @@ outputs:
       - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
       - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
       - data_unavailable                            # product/target absent — NOT a measured negative
+    fusion_recurrence_confidence:                   # VERDICT-INERT tier for a recurrent_fusion_driver call
+      - high_recurrent_partner                      # the SAME partner recurs >=3 samples (EML4-ALK, TMPRSS2-ERG) — 100% precise on the validation panel
+      - moderate_promiscuous                        # target recurs >=3 samples, no single recurrent partner — a MIXED bucket (see caveat)
+      - null                                        # not a recurrent_fusion_driver call (sporadic / no_recurrent / data_unavailable)
     genie_sv_recurrence_class:                      # DISPLAY-only breadth comparator (does NOT drive rules)
       - top_1pct                                    # SV frequency in the top 1% of SV-covered genes in-indication
       - top_decile                                  # top 10%
@@ -67,6 +72,7 @@ caveats:
   - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is n_samples_with_fusion / assayed samples in the indication tissue (sample_coverage), or None when the coverage denominator is unavailable — never a rate over an unknown cohort."
   - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-sv-recurrence-v1) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
   - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
+  - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call WITHOUT changing the verdict (the resolver keys on fusion_class). high_recurrent_partner (a recurrent partner) is 100% precise on a curated true/false panel. moderate_promiscuous (target recurs, no recurrent partner) is a GENUINELY MIXED bucket: real promiscuous kinase fusions (ROS1/NTRK1/FGFR2/BRAF — constant kinase, varying 5' partner) AND amplification-driven passenger SVs at an amplified oncogene locus (ERBB2/STAD ~1%, ERBB2/BRCA, MDM2/SARC) both fall here. A 2026-08-18 panel backtest found NO structural feature separates them — frequency does not (ERBB2/STAD 1.04% ~= ROS1/LUAD 1.11%) nor partner dispersion — so the promiscuous branch is NOT demoted (that would false-negative the real kinase fusions). Separating the amplicon-artifact false positives needs an orthogonal signal (OncoKB fusion-competence or a copy-number cross-reference): a future cross-card refinement."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
 # [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
