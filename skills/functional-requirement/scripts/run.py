@@ -24,6 +24,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, resolve_cards
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_dependency import synthesize_dependency
+from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
 
 
 SKILL_NAME = "functional-requirement"
@@ -345,7 +346,7 @@ def _headline(cards, fired, verdict_pair):
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
     cross_consortium_class = get_card_field(cards, "cross-consortium-dependency", "cross_consortium_class")
     confidence = _dependency_confidence_note(v, predictability_class, cross_consortium_class)
-    return {
+    hl = {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
         # (strength, certainty) — Step-3 reference axis (CERTAINTY_MODEL.md). ADDITIVE + verdict-inert.
@@ -385,7 +386,26 @@ def _headline(cards, fired, verdict_pair):
         # Q7 protein abundance → dependency (render facet, biomarker-assay comparison vs the RNA arm):
         "abundance_dependency_class": get_card_field(cards, "abundance-dependency", "abundance_dependency_class"),
         "protein_dependency_pearson_r": get_card_field(cards, "abundance-dependency", "protein_dependency_pearson_r"),
+        # ── claim-vector inputs (2026-08-18) — the class fields the DEP/SEL/COND/CHEM claims key on,
+        # read here via get_card_field so the headline-fields drift guard covers them (the reliability
+        # numerics ride alongside). crispr_call/rnai_call/concordance_call/lineage_selectivity/
+        # cross_consortium_class/predictability_class above already supply DEP+SEL; these add COND+CHEM.
+        "partner_conditional_class": get_card_field(cards, "partner-conditional-dependency", "partner_stratification_class"),
+        "n_partner_deficient":       get_card_field(cards, "partner-conditional-dependency", "n_partner_deficient"),
+        "partner_stratification_q":  get_card_field(cards, "partner-conditional-dependency", "partner_stratification_mannwhitney_q"),
+        "prism_concordance_class":   get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
+        "n_compounds_evaluated":     get_card_field(cards, "prism-crispr-concordance", "n_compounds_evaluated"),
+        "n_lineages_evaluated":      get_card_field(cards, "dependency-lineage-selectivity", "n_lineages_evaluated"),
     }
+    # Additive, verdict-INERT (2026-08-18, P2): the modality-blind claim vector (DEP/SEL/COND/CHEM
+    # signal×reliability) + a brief cited key-signals read — the WITHIN-lens evidence integration this
+    # subskill owns, built on the SHARED claim_vector_core contract (dependency is the second concrete
+    # after presence). Both are projections over the headline just built; they NEVER touch the
+    # dependency_verdict spine (byte-stable, frozen by the KRAS/COADREAD offline replay guard). See
+    # _skills_common/dependency_claims.py + claim_vector_core.py.
+    hl["claim_vector"] = dependency_claim_vector(hl, cards)
+    hl["key_signals"] = dependency_key_signals(hl, cards)
+    return hl
 
 
 if __name__ == "__main__":
