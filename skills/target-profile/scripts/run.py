@@ -152,6 +152,11 @@ def main() -> int:
                          "pseudo-cards), or a comma-list (e.g. safety,dependency). Requires Bedrock + "
                          "network (BEDROCK_AWS_PROFILE); VERDICT-INERT + best-effort. Off by default "
                          "(a run without --ground is byte-identical + makes no network call).")
+    ap.add_argument("--risk-rollup", default=None, type=Path,
+                    help="OPTIONAL: path to a risk_rollup.json (literature-risk-assessment/risk_rollup [3A]). "
+                         "Renders the DETERMINISTIC, reproducible 'Risk by category' 5R lead table (the "
+                         "committee glance) — modality-conditioned bins that are a pure function of the "
+                         "sub-verdicts; the LLM/literature never sets a bin. Display-only.")
     ap.add_argument("--hypothesis", default=None, type=Path,
                     help="OPTIONAL: path to a cross-evidence-hypothesis hypothesis.json. When given, the "
                          "gate-clamped, cited 6-part hypothesis REPLACES the original Tier-3 LLM "
@@ -184,6 +189,12 @@ def main() -> int:
             risk_assessment = json.loads(Path(args.risk_assessment).read_text())
         except Exception as e:  # noqa: BLE001
             print(f"[target-profile] WARN: could not read --risk-assessment: {e}", file=sys.stderr)
+    risk_rollup = None
+    if args.risk_rollup:
+        try:
+            risk_rollup = json.loads(Path(args.risk_rollup).read_text())
+        except Exception as e:  # noqa: BLE001
+            print(f"[target-profile] WARN: could not read --risk-rollup: {e}", file=sys.stderr)
     grounded_by_axis: dict = {}
     if args.grounded_dir and Path(args.grounded_dir).is_dir():
         for gp in sorted(Path(args.grounded_dir).glob("grounded_*.json")):
@@ -504,6 +515,7 @@ def main() -> int:
             presence_facet=presence_facet,
             risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
             hypothesis=hypothesis, confidence_tier=confidence_tier,
+            risk_rollup=risk_rollup,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)

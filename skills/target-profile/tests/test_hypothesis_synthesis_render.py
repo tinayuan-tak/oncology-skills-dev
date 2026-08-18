@@ -118,12 +118,13 @@ def test_no_hypothesis_keeps_original_executive_summary():
 
 # ---------- review fixes: header coherence / robustness / drift-guard ----------
 
-def _render2(hypothesis=None, risk_assessment=None, grounded_by_axis=None, confidence_tier=None):
+def _render2(hypothesis=None, risk_assessment=None, grounded_by_axis=None, confidence_tier=None,
+             risk_rollup=None):
     sc = tp._gate_scorecard(_sr(), None)
     return tp._render_target_profile_html(
         "KRAS", "COADREAD", _sr(), _LLM, {}, scorecard=sc, hypothesis=hypothesis,
         risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
-        confidence_tier=confidence_tier)
+        confidence_tier=confidence_tier, risk_rollup=risk_rollup)
 
 
 def test_header_surfaces_deterministic_tier_and_flags_ai_provenance():
@@ -171,6 +172,41 @@ def test_literature_risk_grade_is_case_insensitive():
     h = _render2(risk_assessment=ra)
     assert "chip-pos" in h            # lowercase 'low' normalized to the positive LOW chip
     assert ">None<" not in h          # never leaks the literal token
+
+
+_RR = {
+    "biological": {"pillar": "Right Target", "bin": "LOW", "chain": ["mutant-conditioned dependency"],
+                   "engine_literature_discordance": True, "blind_spots": ["in-vivo"]},
+    "druggability": {"pillar": "Right Molecule", "bin": "LOW", "chain": ["clinical allele-specific SM"]},
+    "safety": {"pillar": "Right Safety", "bin": "MED", "chain": ["WT constraint"], "blind_spots": ["ocular", "gi"]},
+    "clinical": {"pillar": "Right Patient (clinical precedent)", "bin": "ENGINE-BLIND", "chain": []},
+}
+
+
+def test_deterministic_risk_rollup_lead_renders():
+    """The deterministic 'Risk by category' 5R lead table renders (reproducible spine), with bins as
+    chips, engine-blind shown as 'not evidenced', and the literature-diverges flag — leading ABOVE the
+    non-reproducible literature panel."""
+    h = _render2(risk_rollup=_RR)
+    assert "id=s-risk-rollup" in h
+    assert "Risk by category" in h and "reproducible" in h
+    assert "not evidenced" in h                      # engine-blind clinical
+    assert "literature diverges" in h                # biological discordance flag
+    # deterministic lead is positioned ABOVE the literature-context panel
+    ra = {"indication": "x", "dimensions": {"safety": {"pillar": "p", "risk_level": "LOW",
+          "interpretation": "i", "justification": "j", "cited_pmids": []}},
+          "provenance": {"corpus_pin": {}}}
+    h2 = _render2(risk_rollup=_RR, risk_assessment=ra)
+    assert h2.index("id=s-risk-rollup") < h2.index("id=s-litrisk")
+
+
+def test_risk_rollup_absent_no_section():
+    assert "id=s-risk-rollup" not in _render2(risk_rollup=None)
+
+
+def test_malformed_risk_rollup_does_not_crash():
+    h = _render2(risk_rollup={"safety": "not-a-dict", "biological": 123})
+    assert "id=s-evidence" in h and "</html>" in h
 
 
 def test_groundable_axes_parity_with_axis_config():

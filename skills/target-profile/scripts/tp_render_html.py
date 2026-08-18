@@ -1139,6 +1139,64 @@ def _pubmed_links(pmids) -> str:
                      f"rel=noopener>{_esc(str(p))}</a>" for p in pmids)
 
 
+# Deterministic risk-by-category lead (RISK_CATEGORY_DASHBOARD_SPINE.md): the committee glance.
+# bin → chip. ENGINE-BLIND = a category with no wired deterministic evidence (honest "not evidenced").
+_ROLLUP_BIN_CHIP = {
+    "LOW": ("chip-pos", "LOW"), "MED": ("chip-neu", "MED"), "MEDIUM": ("chip-neu", "MED"),
+    "HIGH": ("chip-neg", "HIGH"), "ENGINE-BLIND": ("chip-gap", "not evidenced"),
+}
+_ROLLUP_ORDER = ["biological", "druggability", "safety", "translational", "clinical", "commercial"]
+
+
+def _render_risk_rollup_html(rollup: Optional[dict]) -> list[str]:
+    """DETERMINISTIC 'Risk by category' lead lens (risk_rollup [3A]). The reproducible, portfolio-
+    comparable committee glance the design mandates as the top-of-dashboard risk view — a modality-
+    conditioned worst-case bin per category, a PURE function of the deterministic sub-verdicts (the
+    LLM/literature NEVER sets a bin). Engine-blind categories are shown as an honest 'not evidenced'.
+    Grounded literature can only RAISE a flag (discordance / blind-spot), never lower a bin. This is
+    the deterministic spine; the separate literature panel is labeled non-reproducible context."""
+    if not rollup or not isinstance(rollup, dict):
+        return []
+    out = ["<section id=s-risk-rollup class=scorecard>"
+           "<span class=tag>Computed from the evidence — reproducible</span>"
+           "<h2>Risk by category <span class=n>— deterministic 5R spine (the committee glance)</span></h2>",
+           "<p class=sub>Drug-discovery risk per category, computed from the deterministic sub-verdicts "
+           "(modality-conditioned worst-case). The LLM / literature never sets a bin. Engine-blind "
+           "categories show <span class='chip chip-gap'>not evidenced</span>; grounded literature can "
+           "only RAISE a flag (⚠ divergence / blind spot), never lower a bin.</p>",
+           "<table><tr><th>Category</th><th>5R pillar</th><th>Risk</th><th>Basis · flags</th></tr>"]
+    ordered = [d for d in _ROLLUP_ORDER if d in rollup] + [d for d in rollup if d not in _ROLLUP_ORDER]
+    for dim in ordered:
+        v = rollup.get(dim)
+        if not isinstance(v, dict):
+            continue
+        cls, lab = _ROLLUP_BIN_CHIP.get(str(v.get("bin")).upper(), ("chip-gap", v.get("bin") or "—"))
+        chain = v.get("chain") or []
+        basis = "; ".join(str(c) for c in chain) if isinstance(chain, (list, tuple)) else str(chain)
+        flags = []
+        if v.get("engine_literature_discordance"):
+            flags.append("<span class=badge-rule title='Grounded literature diverges from the "
+                         "deterministic bin'>⚠ literature diverges</span>")
+        nblind = len(v.get("blind_spots") or []) if isinstance(v.get("blind_spots"), (list, tuple)) else 0
+        if nblind:
+            flags.append(f"<span class=sub>{nblind} blind spot{'s' if nblind != 1 else ''}</span>")
+        if v.get("bin_basis"):
+            flags.append(f"<span class=sub>({_esc(v.get('bin_basis'))})</span>")
+        basis_cell = (_esc(basis) if basis else "<span class=sub>—</span>")
+        if flags:
+            basis_cell += " " + " ".join(flags)
+        out.append(f"<tr><td><b>{_esc(dim.title())}</b></td>"
+                   f"<td class=sub>{_esc(v.get('pillar', ''))}</td>"
+                   f"<td><span class='chip {cls}'>{_esc(lab)}</span></td>"
+                   f"<td>{basis_cell}</td></tr>")
+    out.append("</table>")
+    out.append("<p class=sub style='margin-top:8px'>Deterministic + reproducible from the same "
+               "evidence_package; the modality-conditioned bins are the risk spine. See the "
+               "literature-risk panel below for non-reproducible as-of-date context.</p>")
+    out.append("</section>")
+    return out
+
+
 def _render_literature_risk_html(ra: Optional[dict]) -> list[str]:
     """The target×indication-level 6-dimension literature RISK panel (from literature-risk-assessment's
     risk_assessment.json). CONTEXT-TIER — rendered as a visually-separate, explicitly-labeled
@@ -1378,6 +1436,7 @@ def _render_target_profile_html(
     grounded_by_axis: Optional[dict] = None,
     hypothesis: Optional[dict] = None,
     confidence_tier: Optional[dict] = None,
+    risk_rollup: Optional[dict] = None,
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1499,8 +1558,10 @@ def _render_target_profile_html(
         for _s, _lab, _anc in _sections:
             nav.append(f"<a href='#{_anc}'>{_esc(_lab)}</a>")
     else:
+        if risk_rollup:
+            nav.append("<a href='#s-risk-rollup'>Risk by category (deterministic)</a>")
         if risk_assessment:
-            nav.append("<a href='#s-litrisk'>Literature risk (6-dim)</a>")
+            nav.append("<a href='#s-litrisk'>Literature risk (context)</a>")
         if scorecard:
             nav.append("<a href='#s-evidence'>Evidence summary</a>")
         if deciding_axis and show_deciding_axis:
@@ -1551,10 +1612,16 @@ def _render_target_profile_html(
             "reproducible from the same inputs.</div></div>",
         ]
 
-    # --- Synthesis (LLM) — TOP, the lead the reader needs first. When a cross-evidence hypothesis
-    # is supplied it REPLACES the original Tier-3 executive-summary + tension narrative with the
-    # gate-clamped, cited structured hypothesis (its own tensions render inside it). Otherwise the
-    # original executive summary is shown (backward-compatible).
+    # --- Risk by category (DETERMINISTIC 5R spine) — the committee glance, leads the analytical
+    # content per RISK_CATEGORY_DASHBOARD_SPINE.md. Reproducible bins from the sub-verdicts; the
+    # separate literature panel below is labeled non-reproducible context. Suppressed in presence_only.
+    if risk_rollup and not presence_only:
+        p.extend(_safe_panel(_render_risk_rollup_html, risk_rollup, _what="risk-rollup"))
+
+    # --- Synthesis (LLM) — the lead reasoning. When a cross-evidence hypothesis is supplied it
+    # REPLACES the original Tier-3 executive-summary + tension narrative with the gate-clamped, cited
+    # structured hypothesis (its own tensions render inside it). Otherwise the original executive
+    # summary is shown (backward-compatible).
     hyp_html = _safe_panel(_render_hypothesis_html, hypothesis, _what="hypothesis") if hypothesis else []
     if hyp_html:
         p.extend(hyp_html)
