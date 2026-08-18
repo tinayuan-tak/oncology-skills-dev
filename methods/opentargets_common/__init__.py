@@ -1,10 +1,10 @@
 """opentargets_common — shared read layer for the human-genetics safety leg.
 
-Every OT 26.06 safety reader (target_prioritisation, gene_burden, clingen,
-mouse_phenotype) imports from here so the S3 cache-latch discipline and the
-ENSG<->symbol resolver-sidecar join live in exactly ONE place.
+All five OT 26.06 safety readers (gene_burden, clingen, clinvar, mouse_phenotype,
+target_prioritisation) import from here so the S3 cache-latch discipline, the
+ENSG<->symbol resolver-sidecar join, and the CLI entrypoint live in exactly ONE place.
 
-Two capabilities:
+Capabilities:
   - `ensure_entity_cached(entity)` — disk-latch an OT entity's parquet directory to
     ~/.cache/framework-opentargets-26-06/ ONCE per machine. Definitive-vs-transient
     latch (mirrors cptac_protein_deg/read.py): only a true 404/NoSuchKey latches
@@ -163,3 +163,18 @@ def symbol_to_ensembl(target: str) -> Optional[str]:
         return t
     s2e, _ = _sidecar_maps()
     return s2e.get(t.upper())
+
+
+def ot_cli_main(read_fn, description: str, argv=None) -> None:
+    """Shared `--target [--indication] -> JSON` CLI entrypoint for the OT safety readers.
+
+    Each reader's `_main` was byte-identical except this description string; they now delegate here.
+    `read_fn` is the module's `read_*(target, indication)`; its dict is printed as indent-2 JSON.
+    """
+    import argparse
+    import json
+    ap = argparse.ArgumentParser(description=description)
+    ap.add_argument("--target", required=True)
+    ap.add_argument("--indication", default=None)
+    args = ap.parse_args(argv)
+    print(json.dumps(read_fn(args.target, args.indication), indent=2, default=str))

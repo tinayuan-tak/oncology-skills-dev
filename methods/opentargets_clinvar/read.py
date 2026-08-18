@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..opentargets_common import read_entity, symbol_to_ensembl
+from ..opentargets_common import read_entity, symbol_to_ensembl, ot_cli_main
 
 METHOD_VERSION = "0.1.0"
 
@@ -140,13 +140,7 @@ def read_clinvar_pathogenic(target: str, indication: Optional[str] = None) -> di
 
 
 def _main(argv=None):
-    import argparse
-    import json
-    ap = argparse.ArgumentParser(description="OT ClinVar germline-pathogenic safety for a target.")
-    ap.add_argument("--target", required=True)
-    ap.add_argument("--indication", default=None)
-    args = ap.parse_args(argv)
-    print(json.dumps(read_clinvar_pathogenic(args.target, args.indication), indent=2, default=str))
+    ot_cli_main(read_clinvar_pathogenic, "OT ClinVar germline-pathogenic safety for a target.", argv)
 
 
 if __name__ == "__main__":

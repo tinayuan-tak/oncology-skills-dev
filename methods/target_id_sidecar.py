@@ -21,12 +21,24 @@ from __future__ import annotations
 
 import io
 import os
+import re
 from typing import Optional
 
 DEFAULT_AWS_PROFILE = "cbg"
 
 # value tokens that are never a real native id (guards stringified nulls in the sidecar)
 _BAD_VALUES = {"", "nan", "none", "null", "na", "<na>"}
+
+# Strict UniProt accession shape (Swiss-Prot/TrEMBL). Used to detect an AC passed in place of an
+# HGNC symbol; anchored + strict so it never false-matches digit-bearing symbols like NFE2L2.
+_UNIPROT_AC_RE = re.compile(
+    r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})$"
+)
+
+
+def looks_like_uniprot_ac(s: str) -> bool:
+    """True if `s` matches the strict UniProt-AC shape (accepts an AC passed as the target symbol)."""
+    return bool(s) and bool(_UNIPROT_AC_RE.match(s.strip()))
 
 
 def s3_client(profile: Optional[str] = None):

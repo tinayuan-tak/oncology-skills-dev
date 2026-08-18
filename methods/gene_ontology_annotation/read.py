@@ -50,7 +50,7 @@ def _ensure_aws_profile():
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac
 
 
 @lru_cache(maxsize=1)
@@ -129,7 +129,7 @@ def read_target_summary(target: str, indication: str = None,
     """Per-target GO annotation summary (BP / MF / CC). `indication` unused (GO is target-intrinsic;
     accepted for dispatcher signature consistency)."""
     sym_to_ac = _load_symbol_to_ac(sidecar_path)
-    ac = target.strip() if _looks_like_uniprot_ac(target) else sym_to_ac.get(target.strip().upper())
+    ac = target.strip() if looks_like_uniprot_ac(target) else sym_to_ac.get(target.strip().upper())
     if not ac:
         return _empty("target_symbol_not_resolvable")
     try:
@@ -168,12 +168,6 @@ def read_target_summary(target: str, indication: str = None,
         }
     except Exception as e:  # noqa: BLE001
         return _empty(f"compute_failed: {type(e).__name__}")
-
-
-def _looks_like_uniprot_ac(s: str) -> bool:
-    import re
-    return bool(re.match(r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})$",
-                         s.strip()))
 
 
 def _empty(note: str) -> dict:

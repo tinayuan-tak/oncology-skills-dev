@@ -40,7 +40,7 @@ PATHWAYS_RELATION_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathwaysRelation.txt"
 CACHE_DIR = Path.home() / ".cache" / "framework-reactome"
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac
 
 
 def _ensure_cached(s3_key: str, cache_filename: str) -> Path:
@@ -138,26 +138,16 @@ def _walk_to_top(pid: str, child_to_parent: dict) -> str:
 def _hgnc_to_uniprot_ac(target: str, sidecar_path: Optional[str] = None) -> Optional[str]:
     """Resolve HGNC gene symbol → primary UniProt accession.
 
-    Accepts target as EITHER a UniProt-AC (matched by the strict pattern below)
-    or an HGNC symbol (looked up in the Reactome resolver-sidecar crosswalk).
-
-    UniProt-AC pattern (strict): [OPQ][0-9][A-Z0-9]{3}[0-9] (6 chars) OR
-    [A-N,R-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2} (6-10 chars). The strict
-    pattern is required because permissive heuristics falsely match HGNC
-    symbols like NFE2L2 (looks like it has digits, but is a symbol).
+    Accepts target as EITHER a UniProt-AC (returned as-is; matched by the strict
+    shared looks_like_uniprot_ac shape) or an HGNC symbol (looked up in the
+    Reactome resolver-sidecar crosswalk).
     """
     target = target.strip()
     if not target:
         return None
-    # Check strict UniProt-AC pattern before assuming input is HGNC symbol.
-    import re
-    _UNIPROT_AC_RE = re.compile(
-        r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|"
-        r"[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})$"
-    )
-    if _UNIPROT_AC_RE.match(target):
+    # An AC passed in place of a symbol is returned as-is; otherwise look up the crosswalk.
+    if looks_like_uniprot_ac(target):
         return target
-    # Otherwise, treat as HGNC symbol and look up crosswalk.
     return _hgnc_symbol_to_uniprot_ac_cached(target, sidecar_path)
 
 
