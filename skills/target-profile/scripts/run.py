@@ -132,6 +132,16 @@ def main() -> int:
                          "facing shape compose-dashboard emits), assembled from the SAME per-sub-skill "
                          "verdict spine. evidence-package implies --no-synthesis + --no-figures and "
                          "emits no nomination.json / md / html.")
+    ap.add_argument("--risk-assessment", default=None, type=Path,
+                    help="OPTIONAL: path to a literature-risk-assessment risk_assessment.json. When "
+                         "given, its 6-dimension literature RISK read is rendered on the HTML dashboard "
+                         "as a visually-separate, explicitly-labeled CONTEXT-TIER panel (non-reproducible; "
+                         "never a verdict input — RISK_ASSESSMENT_INTEGRATION.md §4). Display-only.")
+    ap.add_argument("--grounded-dir", default=None, type=Path,
+                    help="OPTIONAL: directory of per-axis grounded_<axis>.json records "
+                         "(literature-risk-assessment/ground_axis). Each subskill section whose axis has "
+                         "a record shows its escalate-only, PMID-cited literature findings inline. "
+                         "Display-only; never a verdict input.")
     args = ap.parse_args()
 
     # --verdict-only is the umbrella fast mode: skip BOTH the LLM synthesis tail and figure/panel
@@ -148,6 +158,26 @@ def main() -> int:
         args.no_figures = True
 
     args.out.mkdir(parents=True, exist_ok=True)
+
+    # OPTIONAL literature context (display-only, never verdict-affecting): the target-level 6-dim
+    # risk_assessment.json + per-axis grounded_<axis>.json records from literature-risk-assessment.
+    # Loaded here and passed to the HTML renderer; failures degrade to "not shown", never block a run.
+    risk_assessment = None
+    if args.risk_assessment:
+        try:
+            risk_assessment = json.loads(Path(args.risk_assessment).read_text())
+        except Exception as e:  # noqa: BLE001
+            print(f"[target-profile] WARN: could not read --risk-assessment: {e}", file=sys.stderr)
+    grounded_by_axis: dict = {}
+    if args.grounded_dir and Path(args.grounded_dir).is_dir():
+        for gp in sorted(Path(args.grounded_dir).glob("grounded_*.json")):
+            try:
+                rec = json.loads(gp.read_text())
+                ax = rec.get("axis")
+                if ax:
+                    grounded_by_axis[ax] = rec
+            except Exception as e:  # noqa: BLE001
+                print(f"[target-profile] WARN: could not read {gp.name}: {e}", file=sys.stderr)
 
     invoked_lenses: dict = {}
     if args.modality:
@@ -425,6 +455,7 @@ def main() -> int:
             catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
             card_figures=card_figures, figures_dir=figures_dir,
             presence_facet=presence_facet,
+            risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)

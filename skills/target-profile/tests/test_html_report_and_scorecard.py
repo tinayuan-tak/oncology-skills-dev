@@ -131,7 +131,7 @@ def test_html_llm_sections_tinted_and_separated():
     # sections are marked class=det. The two provenance classes stay visually distinct.
     assert "AI-generated" in h
     assert "class=det" in h                        # deterministic sections marked
-    assert "Risk by category" in h                 # the 5R lead lens (replaced "Gate scorecard")
+    assert "Evidence summary" in h                 # the deterministic lead lens (one row per subskill)
 
 
 def test_html_scorecard_and_matrix_honesty_survives():
@@ -155,23 +155,24 @@ def test_composite_svg_not_embedded_scorecard_is_the_glance():
                                            scorecard=tp._gate_scorecard(sr, _DA),
                                            composite_svg_path=svg)
     assert "SLIDE" not in h and "<svg" not in h    # the slide SVG is NOT injected
-    assert "Risk by category" in h                  # the risk-category lead lens is the at-a-glance instead
+    assert "Evidence summary" in h                  # the Evidence-summary lens is the at-a-glance instead
 
 
 def test_exec_summary_is_first_content_section():
-    """Executive summary leads (right after the header), before the scorecard."""
+    """Executive summary leads (right after the header), before the Evidence summary."""
     h = _html()
-    assert h.index("id=s-exec") < h.index("id=s-scorecard")
+    assert h.index("id=s-exec") < h.index("id=s-evidence")
 
 
-def test_evidence_by_question_section_removed():
-    """The standalone 'Evidence by question' recap was REMOVED (2026-07-21) — the axis-grouped gate
-    sections now carry each card's data + figures, so the recap was a duplicate."""
+def test_evidence_by_question_recap_removed_but_summary_present():
+    """The standalone 'Evidence by question' per-card recap heading is gone — the flat subskill
+    sections now carry each card's data + figures. The `s-evidence` id is REUSED for the new
+    Evidence-summary lens (one row per subskill)."""
     h = _html()
-    assert "id=s-evidence" not in h
-    assert "Evidence by question" not in h
-    # the per-card data still lives in the gate sections (this fixture has dependency + safety)
-    assert "id=s-gate-c" in h and "card-rail" in h
+    assert "Evidence by question" not in h            # the duplicate per-card recap heading is gone
+    assert "id=s-evidence" in h and "Evidence summary" in h   # id reused for the summary lens
+    # the per-card data still lives in the flat subskill sections (this fixture has dependency + safety)
+    assert "id=s-skill-dependency" in h and "card-rail" in h
 
 
 def test_language_is_humanized_no_raw_tokens_leak():
@@ -224,8 +225,8 @@ def test_scorecard_cross_references_are_shown():
     }
     h = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {},
                                        scorecard=tp._gate_scorecard(sr, None))
-    assert "feeds Dependency" in h
-    assert "also confirms Dependency" in h
+    assert "feeds Functional dependence" in h
+    assert "also confirms Functional dependence" in h
 
 
 def test_redundant_subverdicts_section_removed():
@@ -279,7 +280,7 @@ def test_html_status_banner_summarizes_the_run():
     h = _html()   # _sr() has 2 sub-skills (dependency, safety), each 1 card
     assert "class=statusbar" in h
     assert "Evaluated KRAS × COADREAD" in h or "Evaluated KRAS × COADREAD" in h
-    assert "question-gate" in h
+    assert "subskill" in h                          # banner counts subskills assessed (was "question-gate")
     assert "evidence card" in h
 
 
@@ -326,8 +327,53 @@ def test_risk_category_rollup_level_is_computed_from_members():
     assert ru["safety"]["risk_level"] == "elevated"
 
 
-def test_risk_category_lead_lens_renders_and_replaces_scorecard_heading():
+def test_evidence_summary_is_the_lead_deterministic_lens():
+    """The 5R 'Risk by category' lead lens + lettered 'Gate detail' scorecard were REPLACED by a
+    flat Evidence summary: one row per subskill (id=s-evidence). No risk-category table, no gate
+    letters."""
     h = _html()
-    assert "id=s-riskcat" in h and "Risk by category" in h   # the lead lens
-    assert "5R framework" in h                                # anchored
-    assert "Gate detail" in h                                 # old scorecard demoted, not deleted
+    assert "id=s-evidence" in h and "Evidence summary" in h   # the flat lead lens
+    assert "one row per subskill" in h                        # its subtitle
+    assert "id=s-riskcat" not in h                            # 5R risk-category table gone
+    assert "Risk by category" not in h
+    assert "Gate detail" not in h                             # lettered scorecard section gone
+
+
+# ---------- NEW: literature risk panel (target×indication 6-dimension lens) ----------
+
+_RISK_ASSESSMENT = {
+    "indication": "COADREAD",
+    "provenance": {"corpus_pin": {"mindate": "2015/01/01", "maxdate": "2026/01/01"},
+                   "generated_at": "2026-08-18T00:00:00Z", "synthesis_model": "claude-lit-x"},
+    "dimensions": {
+        "biological": {"risk_level": "LOW", "interpretation": "well-supported oncogenic biology",
+                       "justification": "strong genetic evidence", "pillar": "Right Target",
+                       "cited_pmids": [12345678]},
+        "safety": {"risk_level": "HIGH", "interpretation": "on-target tox reported",
+                   "justification": "cardiac liability in KO models", "pillar": "Right Safety",
+                   "cited_pmids": [22223333], "contradicts_deterministic": True},
+    },
+}
+
+
+def test_literature_risk_panel_renders_when_risk_assessment_passed():
+    """NEW literature panel: passing risk_assessment renders a visually-separate, explicitly
+    non-reproducible lit-risk section (id=s-litrisk) with a PubMed-linked, per-dimension table +
+    the `citable_in_nominations: false` context disclaimer."""
+    sr = _sr()
+    h = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {},
+                                       scorecard=tp._gate_scorecard(sr, _DA),
+                                       risk_assessment=_RISK_ASSESSMENT)
+    assert "id=s-litrisk" in h
+    assert "Literature risk assessment" in h
+    assert "citable_in_nominations" in h                       # the non-reproducible-context flag
+    assert "pubmed.ncbi.nlm.nih.gov/12345678" in h            # a cited PMID links out to PubMed
+    # one row per dimension present in the assessment
+    assert "Biological" in h and "Safety" in h
+
+
+def test_literature_risk_panel_absent_when_no_risk_assessment():
+    """The lit-risk panel is opt-in — absent when risk_assessment is None (default)."""
+    h = _html()   # _html() passes no risk_assessment
+    assert "id=s-litrisk" not in h
+    assert "Literature risk assessment" not in h

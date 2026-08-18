@@ -71,9 +71,9 @@ def _render(sr, **kw):
 
 def test_presence_gate_section_has_card_subtabs():
     h = _render(_sr())
-    assert "id=s-gate-a" in h
+    assert "id=s-skill-expression" in h
     # one tab button per card (3 cards)
-    assert h.count("data-panel=s-gate-a-p") == 3
+    assert h.count("data-panel=s-skill-expression-p") == 3
     for title in ("Cell-line RNA", "Cell-line protein", "Pan-cancer breadth"):
         assert title in h, title
 
@@ -111,10 +111,11 @@ def test_presence_only_strips_full_report_sections():
     h = _render(_sr(), presence_only=True)
     assert "About this analysis" not in h
     assert "Evaluated " not in h            # statusbar gone
-    assert "Gate scorecard" not in h        # scorecard gone
-    assert "Risk by category" not in h
-    # but the presence gate + exec summary remain
-    assert "id=s-gate-a" in h and "Executive summary" in h
+    assert "id=s-evidence" not in h         # Evidence summary gone
+    assert "Evidence summary" not in h
+    assert "id=s-litrisk" not in h          # literature panel gone
+    # but the expression section + exec summary remain
+    assert "id=s-skill-expression" in h and "Executive summary" in h
 
 
 def test_presence_only_clean_header():
@@ -131,7 +132,7 @@ def test_tab_bootstrap_always_present_when_gate_rendered():
 
 def test_full_report_still_renders_all_sections():
     h = _render(_sr(), presence_only=False)
-    assert "id=s-riskcat" in h and "id=s-gate-a" in h   # both the risk-category lead lens AND the gate section
+    assert "id=s-evidence" in h and "id=s-skill-expression" in h   # the Evidence-summary lens AND the subskill section
 
 
 # --- Required (C) gate — v2 biomarker facets ---------------------------------
@@ -157,54 +158,58 @@ def _sr_required():
     return sr
 
 
-def test_required_gate_section_renders():
+def test_dependency_section_renders():
     h = _render(_sr_required())
-    assert "id=s-gate-c" in h and "Functional dependence" in h   # gate C renamed from "Required"
+    assert "id=s-skill-dependency" in h and "Functional dependence" in h   # dependency subskill label
 
 
-def test_required_unifies_dependency_and_sl_under_c():
-    """v2: Required (C) unifies the dependency sub-skill + synthetic_lethal_partners. The
-    genomic-alteration cards move to their OWN 'Altered' (E) gate (see below)."""
+def test_dependency_and_sl_render_as_separate_flat_sections():
+    """v-flat: NO gate-C unification. The dependency subskill + synthetic_lethal_partners each get
+    their OWN flat section; the dependency corroboration facet (CRISPR×RNAi) now renders UNDER
+    dependency (no longer routed out)."""
     h = _render(_sr_required())
-    seg = h.split("id=s-gate-c")[1].split("</section>")[0]
-    for title in ("CRISPR dependency", "SL partners"):
-        assert title in seg, title
-    # mutation-stratified is NO LONGER unified into C in v2 — it lives under Altered (E).
-    assert "Mutation-stratified" not in seg
+    dep = re.search(r"<section id=s-skill-dependency\b.*?</section>", h, re.S).group(0)
+    assert "CRISPR dependency" in dep        # primary dependency card
+    assert "CRISPR×RNAi" in dep              # corroboration facet now stays under dependency
+    # SL partners is its OWN section, not unified under dependency
+    assert "id=s-skill-synthetic-lethal-partners" in h
+    sl = re.search(r"<section id=s-skill-synthetic-lethal-partners\b.*?</section>", h, re.S).group(0)
+    assert "SL partners" in sl
+    assert "SL partners" not in dep          # not merged into dependency
+    # mutation-stratified lives under genomic-alteration, not dependency
+    assert "Mutation-stratified" not in dep
 
 
-def test_genomic_alteration_renders_as_own_altered_gate_e():
-    """v2: genomic_alteration is its OWN biology gate 'Altered' (E). The mutation-stratified card is
-    a card-grain FACET routed to the Biomarker section (item #5) — NOT rendered under E anymore."""
+def test_genomic_alteration_renders_as_own_flat_section_with_its_facet():
+    """v-flat: genomic_alteration gets its own section (id=s-skill-genomic-alteration); its
+    mutation-stratified FACET now renders UNDER it — biomarker routing removed (item #4)."""
     h = _render(_sr_required())
-    assert "id=s-gate-e" in h and "Altered" in h
-    seg = re.search(r"<section id=s-gate-e\b.*?</section>", h, re.S).group(0)
-    # mutation-stratified moved OUT of Altered → the Biomarker section
-    assert "Mutation-stratified" not in seg
+    assert "id=s-skill-genomic-alteration" in h and "Genomic alteration" in h
+    seg = re.search(r"<section id=s-skill-genomic-alteration\b.*?</section>", h, re.S).group(0)
+    assert "Mutation-stratified" in seg      # facet now renders under its home section
 
 
-def test_biomarker_section_collects_routed_facets():
-    """Item #5: the Biomarker section (its own risk-category band) collects the card-grain facets
-    routed OUT of Functional dependence (C) + Altered (E): mutation-stratified + CRISPR×RNAi."""
+def test_no_biomarker_section_facets_render_under_home_subskills():
+    """Item #4: biomarker ROUTING removed. There is no separate Biomarker section; the facet cards
+    render under their home subskill sections — mutation-stratified under genomic-alteration,
+    CRISPR×RNAi under dependency."""
     h = _render(_sr_required())
-    assert "id=s-gate-biomarker" in h and ">Biomarker<" in h or "Biomarker" in h
-    seg = re.search(r"<section id=s-gate-biomarker\b.*?</section>", h, re.S).group(0)
-    assert "Mutation-stratified" in seg      # stratification facet routed here
-    assert "CRISPR×RNAi" in seg              # corroboration facet routed here
-    # and they are GONE from their old home gates
-    c = re.search(r"<section id=s-gate-c\b.*?</section>", h, re.S).group(0)
-    assert "CRISPR×RNAi" not in c            # corroboration facet no longer under C
+    assert "id=s-gate-biomarker" not in h
+    assert ">Biomarker<" not in h
+    gen = re.search(r"<section id=s-skill-genomic-alteration\b.*?</section>", h, re.S).group(0)
+    assert "Mutation-stratified" in gen      # stratification facet under its home
+    dep = re.search(r"<section id=s-skill-dependency\b.*?</section>", h, re.S).group(0)
+    assert "CRISPR×RNAi" in dep              # corroboration facet under its home
 
 
-def test_required_keeps_primary_dependency_cards_only():
-    """After facet routing (item #5), Functional dependence (C) keeps its PRIMARY dependency cards
-    (CRISPR/RNAi distribution, lineage, paralog) — the corroboration/stratification facets moved to
-    the Biomarker section."""
+def test_dependency_section_lists_primary_and_facet_cards():
+    """After the biomarker-routing removal (item #4), the dependency section lists BOTH its primary
+    dependency cards AND the corroboration facet (CRISPR×RNAi) that used to be routed out."""
     h = _render(_sr_required())
-    seg = h.split("id=s-gate-c")[1].split("</section>")[0]
+    seg = re.search(r"<section id=s-skill-dependency\b.*?</section>", h, re.S).group(0)
     order = re.findall(r"<button class='tab[^>]*>([^<]+)", seg)
-    assert "CRISPR dependency" in order      # primary dependency card stays
-    assert "CRISPR×RNAi" not in order        # corroboration facet routed to Biomarker
+    assert "CRISPR dependency" in order      # primary dependency card
+    assert "CRISPR×RNAi" in order            # facet now stays under dependency (not routed out)
 
 
 # --- Surface-biologics — modality-fit gate (v2 axis 2) -----------------------
@@ -219,29 +224,32 @@ def _sr_surface():
     return sr
 
 
-def test_surface_modality_gate_renders_named_not_lettered():
+def test_surface_modality_section_renders_with_no_gate_letter():
     h = _render(_sr_surface())
-    assert "id=s-gate-surface-biologics-fit" in h
-    assert "Surface-biologics fit" in h
-    assert "<span class=gate-letter></span>" not in h    # named gate → no empty letter square
+    assert "id=s-skill-surface-modality" in h
+    assert "Surface / biologics fit" in h                 # the subskill label
+    assert "<span class=gate-letter></span>" not in h    # flat layout → no gate-letter square
 
 
 def test_surface_composed_verdict_leads_inputs():
     """The composed adc-tce-modality-fit card (role 'composed') sorts FIRST + carries a 'verdict'
     badge; its input cards follow."""
     h = _render(_sr_surface())
-    seg = h.split("id=s-gate-surface-biologics-fit")[1].split("</section>")[0]
+    seg = h.split("id=s-skill-surface-modality")[1].split("</section>")[0]
     order = re.findall(r"<button class='tab[^>]*>([^<]+)", seg)
     assert order[0] == "ADC/TCE fit"        # composed verdict first
     assert "verdict</span>" in seg
 
 
-def test_surface_gate_carries_modality_relevance_banner():
-    """The surface-biologics (Druggability) gate's relevance is lens-conditional — the section
-    states which modalities."""
+def test_surface_modality_section_renders_composed_and_input_cards():
+    """v-flat: the surface-modality section renders the composed ADC/TCE fit verdict card plus its
+    input cards (topology, surfaceome family). The old lens-conditional 'Druggability' modality
+    banner is gone in the flat layout."""
     h = _render(_sr_surface())
-    seg = h.split("id=s-gate-surface-biologics-fit")[1].split("</section>")[0]
-    assert "Druggability" in seg and "ADC" in seg
+    seg = h.split("id=s-skill-surface-modality")[1].split("</section>")[0]
+    for title in ("ADC/TCE fit", "Topology", "Surfaceome family"):
+        assert title in seg, title
+    assert "Druggability" not in seg        # no modality-relevance banner in the flat layout
 
 
 # --- multi-gate sequence (B Selective + D Mechanism, clean biology gates) ----
@@ -259,30 +267,33 @@ def _sr_all_gates():
     return sr
 
 
-def test_biology_gates_render_in_A_B_C_D_order():
+def test_biology_subskill_sections_render_in_fanout_order():
+    """v-flat: sections render one-per-subskill in fan-out order (expression → selectivity →
+    dependency → … → mechanism), NOT grouped into A/B/C/D gate bands."""
     h = _render(_sr_all_gates())
-    positions = {g: h.find(f"id=s-gate-{g}") for g in ("a", "b", "c", "d")}
-    assert all(v >= 0 for v in positions.values()), positions
-    assert positions["a"] < positions["b"] < positions["c"] < positions["d"]
+    pos = {s: h.find(f"id=s-skill-{s}") for s in
+           ("expression", "selectivity", "dependency", "mechanism")}
+    assert all(v >= 0 for v in pos.values()), pos
+    assert pos["expression"] < pos["selectivity"] < pos["dependency"] < pos["mechanism"]
 
 
 def test_selective_and_mechanism_key_facts():
     h = _render(_sr_all_gates())
-    # split on the SECTION tag (not the nav href='#s-gate-b' which also contains the id)
-    b = re.search(r"<section id=s-gate-b\b.*?</section>", h, re.S).group(0)
+    # split on the SECTION tag (not the nav href='#s-skill-selectivity' which also contains the id)
+    b = re.search(r"<section id=s-skill-selectivity\b.*?</section>", h, re.S).group(0)
     assert "Selectivity" in b and "Cells supporting" in b
-    d = re.search(r"<section id=s-gate-d\b.*?</section>", h, re.S).group(0)
+    d = re.search(r"<section id=s-skill-mechanism\b.*?</section>", h, re.S).group(0)
     assert "Network" in d and "Upstream" in d
 
 
 def test_absent_gate_is_skipped():
-    """A gate whose sub-skills are all absent this run renders no section (not an empty one)."""
+    """A subskill absent this run renders no section (not an empty one)."""
     sr = _sr()   # has expression + dependency (bare) but no selectivity/mechanism/surface
     del sr["dependency"]
     h = _render(sr)
-    assert "id=s-gate-b" not in h and "id=s-gate-d" not in h
-    assert "id=s-gate-surface-biologics-fit" not in h
-    assert "id=s-gate-a" in h   # present one still renders
+    assert "id=s-skill-selectivity" not in h and "id=s-skill-mechanism" not in h
+    assert "id=s-skill-surface-modality" not in h
+    assert "id=s-skill-expression" in h   # present one still renders
 
 
 # --- remaining modality-fit gates: Small-molecule tractability + Safety ------
@@ -302,19 +313,21 @@ def _sr_modality_fit():
 
 def test_small_molecule_gate_primary_leads_corroboration_facets():
     h = _render(_sr_modality_fit())
-    sm = re.search(r"<section id=s-gate-small-molecule-druggability\b.*?</section>", h, re.S).group(0)
+    sm = re.search(r"<section id=s-skill-tractability-sm\b.*?</section>", h, re.S).group(0)
     order = re.findall(r"<button class='tab[^>]*>([^<]+)", sm)
     assert order[0] == "Compound activity"                 # primary tractability evidence first
     assert "Chemical-genetic" in order and "Predictability" in order   # corroboration facets present
     assert "confidence</span>" in sm                        # facets carry the confidence badge
-    assert "small-molecule / degrader" in sm                # modality banner
 
 
-def test_safety_gate_renders_with_tiered_banner():
+def test_safety_section_renders_constraint_key_facts():
+    """v-flat: the safety section renders its gnomAD constraint key facts. (The old modality-fit
+    'tiered severity' banner is gone in the flat layout.)"""
     h = _render(_sr_modality_fit())
-    sf = re.search(r"<section id=s-gate-safety\b.*?</section>", h, re.S).group(0)
+    sf = re.search(r"<section id=s-skill-safety\b.*?</section>", h, re.S).group(0)
     assert "Constraint" in sf and "pLI" in sf
-    assert "tiered severity" in sf and "On-target safety liability" in sf   # own band, not modality-fit
+    assert "On-target safety" in sf         # the subskill label
+    assert "tiered severity" not in sf      # modality banner removed
 
 
 # --- roll-up lens: scorecard rows link down to their gate sections -----------
@@ -330,54 +343,51 @@ def _sr_full():
 
 
 def test_scorecard_rows_link_to_gate_sections():
-    """The scorecard is the top-level lens: each question-row links down to its rendered gate section."""
+    """The Evidence summary is the top-level lens: each subskill row links down to its rendered
+    flat section (s-skill-*)."""
     h = _render(_sr_full())
-    sc = re.search(r"<section id=s-scorecard.*?</section>", h, re.S).group(0)
-    links = set(re.findall(r"href='#(s-gate-[^']+)'", sc))
-    # every rendered gate section is reachable from the scorecard
-    for anchor in ("s-gate-a", "s-gate-b", "s-gate-c", "s-gate-d",
-                   "s-gate-small-molecule-druggability", "s-gate-surface-biologics-fit", "s-gate-safety"):
-        assert anchor in links, f"scorecard missing link to {anchor}"
+    sc = re.search(r"<section id=s-evidence.*?</section>", h, re.S).group(0)
+    links = set(re.findall(r"href='#(s-skill-[^']+)'", sc))
+    # every rendered subskill section is reachable from the Evidence summary
+    for anchor in ("s-skill-expression", "s-skill-selectivity", "s-skill-dependency",
+                   "s-skill-synthetic-lethal-partners", "s-skill-mechanism",
+                   "s-skill-genomic-alteration", "s-skill-tractability-sm",
+                   "s-skill-surface-modality", "s-skill-safety"):
+        assert anchor in links, f"Evidence summary missing link to {anchor}"
 
 
 def test_scorecard_does_not_link_unrendered_gate():
-    """A sub-skill whose gate section did NOT render this run stays plain text (no dangling anchor)."""
+    """A subskill whose section did NOT render this run stays plain text (no dangling anchor)."""
     sr = _sr()   # only expression (+ bare dependency); no selectivity section
     del sr["dependency"]
     h = _render(sr)
-    sc = re.search(r"<section id=s-scorecard.*?</section>", h, re.S).group(0)
-    assert "href='#s-gate-b'" not in sc   # Selective didn't render → no link
+    sc = re.search(r"<section id=s-evidence.*?</section>", h, re.S).group(0)
+    assert "href='#s-skill-selectivity'" not in sc   # Selectivity didn't render → no link
 
 
 # --- v2 axis-band grouping ---------------------------------------------------
 
-def test_gate_sections_grouped_under_risk_category_bands():
-    """5R body grouping (2026-07-21): gate sections render under risk-category bands — Biological,
-    Druggability, then Safety (its OWN band, out of modality-fit). Biological precedes Druggability
-    precedes Safety."""
+def test_sections_render_flat_no_axis_bands():
+    """v-flat: NO 5R axis-band grouping — sections render flat, one per subskill, in fan-out order.
+    The old <div class=axis-band> Biological/Druggability/Safety headers are gone."""
     sr = _sr_all_gates()
     sr["safety"] = _sr_modality_fit()["safety"]
     sr["tractability_sm"] = _sr_modality_fit()["tractability_sm"]
     h = _render(sr)
-    assert "<div class=axis-band>" in h
-    # match the BAND HEADERS specifically (class=axis-band), not the same words in the lead-lens table
-    band_pos = {m.group(1): m.start() for m in
-                re.finditer(r"<div class=axis-band><h2>([A-Za-z]+)", h)}
-    assert {"Biological", "Druggability", "Safety"} <= set(band_pos), band_pos
-    bio, drug, safety = band_pos["Biological"], band_pos["Druggability"], band_pos["Safety"]
-    assert bio < drug < safety, "band order must be Biological → Druggability → Safety"
-    # the Expressed (A) SECTION sits under Biological; the Safety SECTION sits under its own band.
-    a_sec = re.search(r"<section id=s-gate-a\b", h).start()
-    safety_sec = re.search(r"<section id=s-gate-safety\b", h).start()
-    assert bio < a_sec < drug
-    assert safety < safety_sec
+    assert "<div class=axis-band>" not in h   # the element (not the CSS rule) is gone
+    # fan-out order: expression → selectivity → dependency → mechanism → tractability_sm → safety
+    pos = {s: h.find(f"id=s-skill-{s}") for s in
+           ("expression", "selectivity", "dependency", "mechanism", "tractability-sm", "safety")}
+    assert all(v >= 0 for v in pos.values()), pos
+    assert (pos["expression"] < pos["selectivity"] < pos["dependency"] < pos["mechanism"]
+            < pos["tractability-sm"] < pos["safety"])
 
 
 def test_axis_band_suppressed_in_presence_only():
     """The focused Presence view renders no axis-band chrome (single-section view)."""
     h = _render(_sr(), presence_only=True)
     assert "<div class=axis-band>" not in h   # the element, not the CSS rule
-    assert "id=s-gate-a" in h
+    assert "id=s-skill-expression" in h
 
 
 # --- reports_into cross-gate breadcrumb --------------------------------------
@@ -391,20 +401,18 @@ def test_reports_into_breadcrumb_on_cross_gate_card():
     sr = _sr_required()
     sr["tractability_sm"] = _sr_modality_fit()["tractability_sm"]   # prism-crispr under SM
     h = _render(sr)
-    sm = re.search(r"<section id=s-gate-small-molecule-druggability\b.*?</section>", h, re.S).group(0)
+    sm = re.search(r"<section id=s-skill-tractability-sm\b.*?</section>", h, re.S).group(0)
     assert "Also feeds" in sm and "(C)" in sm
-    assert "href='#s-gate-c'" in sm   # links to the gate-C section (label tracks the contract name)
+    assert "href='#s-skill-dependency'" in sm   # breadcrumb links to the flat dependence section
 
 
 def test_no_self_referential_breadcrumb():
-    """The breadcrumb names a DIFFERENT gate, never its own. Required (C) hosts dependency + SL
-    (neither reports_into C from elsewhere) → no 'Also feeds' self-reference in the C section."""
+    """A cross-section breadcrumb names a DIFFERENT section, never its own s-skill anchor. The
+    dependency section carries facet breadcrumbs, but none point at its own s-skill-dependency id."""
     sr = _sr_required()
     h = _render(sr)
-    c = re.search(r"<section id=s-gate-c\b.*?</section>", h, re.S).group(0)
-    # C's own cards don't self-reference C; the only 'Also feeds' pointing at C comes from the
-    # Altered (E) section's mutation-stratified card, which is a different section.
-    assert "href='#s-gate-c'" not in c
+    dep = re.search(r"<section id=s-skill-dependency\b.*?</section>", h, re.S).group(0)
+    assert "href='#s-skill-dependency'" not in dep
 
 
 # --- rail key-metric humanization (no raw snake_case token leaks) ------------
@@ -443,3 +451,63 @@ def test_provenance_trace_section_renders_run():
 def test_provenance_trace_suppressed_in_presence_only():
     h = _render(_sr(), presence_only=True)
     assert "id=s-provenance" not in h
+
+
+# --- NEW: per-subskill grounded literature block -----------------------------
+
+def _grounded_safety_record():
+    return {"grounded": {
+        "anchor_verdict": "highly_constrained_safety_concern",
+        "corpus_pin": {"mindate": "2015/01/01", "maxdate": "2026/01/01"},
+        "n_retrieved": 12, "confabulated_dropped": ["999"],
+        "findings": [{"kind": "liability", "finding": "cardiotoxic in conditional-KO mice",
+                      "cited_pmids": [44445555]}],
+        "corroborations": ["consistent with gnomAD constraint"]}}
+
+
+def test_grounded_block_renders_in_safety_section_when_passed():
+    """NEW per-subskill grounded block: passing grounded_by_axis={'safety': <rec>} renders an
+    escalate-only 'Grounded findings' block inside the safety section, with PubMed-linked PMIDs."""
+    h = _render(_sr_modality_fit(),
+                grounded_by_axis={"safety": _grounded_safety_record()})
+    sf = re.search(r"<section id=s-skill-safety\b.*?</section>", h, re.S).group(0)
+    assert "class=grounded" in sf
+    assert "Grounded findings" in sf
+    assert "escalate-only" in sf
+    assert "pubmed.ncbi.nlm.nih.gov/44445555" in sf   # a cited PMID links out
+
+
+def test_groundable_axis_without_record_renders_no_block():
+    """A groundable axis (dependency/safety) with NO record passed renders nothing (not a false
+    gap) — the block is opt-in."""
+    h = _render(_sr_modality_fit())   # no grounded_by_axis
+    sf = re.search(r"<section id=s-skill-safety\b.*?</section>", h, re.S).group(0)
+    assert "class=grounded" not in sf
+
+
+def test_nongroundable_axis_renders_not_configured_note():
+    """A subskill whose axis is NOT groundable (e.g. expression) renders an honest
+    'not yet configured' grounding note (coverage-gap honesty), even with no record."""
+    h = _render(_sr())
+    expr = re.search(r"<section id=s-skill-expression\b.*?</section>", h, re.S).group(0)
+    assert "grounded-none" in expr
+    assert "not yet configured" in expr
+
+
+# --- NEW: gateless subskills get their own flat sections ---------------------
+
+def test_target_intrinsic_and_combinatorial_get_own_sections():
+    """v-flat: the gateless subskills target_intrinsic + combinatorial_dependency (previously
+    section-less under the gate-band layout) now each get their OWN flat s-skill-* section."""
+    sr = _sr()
+    sr["combinatorial_dependency"] = {"skill_dir": "combinatorial-dependency",
+        "cards": [{"card_id": "combo-crispr-screen", "summary": {}}],
+        "verdict": ("has_combo_partner", "r"), "fired": []}
+    sr["target_intrinsic"] = {"skill_dir": "target-intrinsic",
+        "cards": [{"card_id": "target-intrinsic-dossier", "summary": {}}],
+        "verdict": None, "fired": []}
+    h = _render(sr)
+    assert "id=s-skill-combinatorial-dependency" in h
+    assert "Combinatorial dependency (dual-KO)" in h
+    assert "id=s-skill-target-intrinsic" in h
+    assert "Target-intrinsic dossier" in h

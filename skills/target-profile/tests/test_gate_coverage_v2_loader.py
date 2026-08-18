@@ -152,9 +152,9 @@ def test_card_reports_into_reads_contract(tmp_path):
     # both card-grain facets resolved by their card_id
     assert "mutation-stratified-dependency" in m
     assert "crispr-rnai-dependency-concordance" in m
-    # each edge points at dependency's section (s-gate-c) with a human label carrying the letter
+    # each edge points at dependency's flat subskill section (s-skill-dependency) with a human label
     (label, anchor), = m["mutation-stratified-dependency"]
-    assert anchor == "s-gate-c"
+    assert anchor == "s-skill-dependency"
     assert "Required" in label and "(C)" in label   # gate_name + letter from the contract
 
 
