@@ -219,6 +219,39 @@ def _prompt(target, indication, axis, anchor, abstracts):
     return "\n".join(lines)
 
 
+# TARGETED per-axis PubMed retrieval (follow-up #3). Previously ground_axis reused the shared
+# `pubmed_category` query, so the six target-biology axes (dependency / mechanism / genomic_alteration /
+# synthetic_lethal_partners / combinatorial_dependency / expression) all retrieved the SAME 'biological'
+# abstracts and only the extraction PROMPT differed. Each axis now gets an axis-specific term clause so
+# RETRIEVAL is on-axis too. `disease_scoped=False` for target-LEVEL axes (safety / tractability_sm /
+# surface_modality — gnomAD constraint / structure / surface biology are indication-independent), else
+# the disease is AND-ed in. (pubmed_category is retained for back-compat + the 6-dim risk agent.)
+AXIS_PUBMED_TERMS = {
+    "safety": ("toxicity OR adverse event OR normal tissue OR knockout mouse OR on-target", False),
+    "dependency": ("genetic dependency OR essentiality OR CRISPR knockout OR knockdown OR RNAi", True),
+    "selectivity": ("normal tissue expression OR tumor-specific OR on-target toxicity OR therapeutic window", True),
+    "surface_modality": ("cell surface OR internalization OR shed ectodomain OR antibody-drug conjugate OR surface antigen", False),
+    "tractability_sm": ("small molecule OR inhibitor OR druggable OR binding pocket OR crystal structure", False),
+    "mechanism": ("signaling OR pathway OR mechanism OR phosphorylation OR downstream effector", True),
+    "genomic_alteration": ("mutation OR amplification OR deletion OR fusion OR oncogenic driver", True),
+    "differentiation": ("co-mutation OR mutual exclusivity OR prognosis OR molecular subtype OR patient stratification", True),
+    "synthetic_lethal_partners": ("synthetic lethal OR synthetic lethality OR co-dependency OR paralog buffering", True),
+    "combinatorial_dependency": ("combination therapy OR co-targeting OR dual inhibition OR combinatorial dependency", True),
+    "expression": ("expression OR overexpression OR RNA-seq OR protein abundance OR immunohistochemistry", True),
+    "clinical": ("clinical trial OR patient OR phase I OR phase II OR discontinued", True),
+    "commercial": ("therapeutic OR drug development OR competitive landscape OR approved", True),
+}
+
+
+def _axis_query(target: str, disease_terms: str, axis: str) -> str:
+    """PURE: build the TARGETED PubMed query for an axis — (gene) [AND (disease)] AND (axis terms).
+    Disease is AND-ed only for indication-conditioned axes (AXIS_PUBMED_TERMS[axis][1])."""
+    terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
+    if disease_scoped and disease_terms:
+        return f"({target}) AND ({disease_terms}) AND ({terms})"
+    return f"({target}) AND ({terms})"
+
+
 def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "safety",
                 mindate: str = "2015", maxdate: str = "2026", per_cat: int = 8) -> dict:
     """LIVE: load the axis's deterministic block, retrieve literature, produce the grounded block."""
@@ -230,11 +263,14 @@ def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "saf
     cfg = AXIS_CONFIG[axis]
     pkg = json.loads(Path(pkg_path).read_text())
     det = deterministic_block(pkg, axis)
+    # TARGETED single-query retrieval (follow-up #3): one axis-specific query instead of the
+    # all-category sweep (no wasted queries, on-axis abstracts). disease_terms = the DISEASE_TERMS
+    # expansion when known, else the raw indication (read-only — no global DISEASE_TERMS mutation).
     key = indication.strip().lower()
-    if key not in ps.DISEASE_TERMS:
-        ps.DISEASE_TERMS[key] = indication      # passthrough term for arbitrary indications
-    res = ps.search_pubmed(target, key, abstracts_per_category=per_cat, mindate=mindate, maxdate=maxdate)
-    abstracts = res.abstracts_by_category.get(cfg["pubmed_category"], [])
+    disease_terms = ps.DISEASE_TERMS.get(key, indication)
+    query = _axis_query(target, disease_terms, axis)
+    pmids = ps._esearch(query, retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate)
+    abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
     retrieved = {a.pmid for a in abstracts}
     out = synthesize_structured(SYSTEM, _prompt(target, indication, axis, det["verdict"], abstracts),
                                 "axis_findings", TOOL_SCHEMA)

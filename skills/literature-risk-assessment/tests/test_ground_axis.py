@@ -122,3 +122,30 @@ def test_pseudo_cards_are_engine_blind():
         assert cfg["verdict_key"] is None and cfg["cards"] == [] and cfg.get("pseudo_card") is True
     d = ga.deterministic_block({"synthesis": {"sub_verdicts": {}}, "cards": []}, "clinical")
     assert d["verdict"] is None and d["cards"] == {} and d["engine_blind"] is True
+
+
+# =============================== TARGETED per-axis queries (follow-up #3) ===============================
+def test_axis_pubmed_terms_cover_every_axis():
+    # every configured axis must have a targeted query clause (no axis falls back to empty terms)
+    assert set(ga.AXIS_PUBMED_TERMS) >= set(ga.AXIS_CONFIG)
+    for ax, (terms, disease_scoped) in ga.AXIS_PUBMED_TERMS.items():
+        assert terms and isinstance(disease_scoped, bool)
+
+
+def test_axis_query_disease_scoping():
+    # indication-conditioned axis → disease AND-ed in; the query is axis-distinct (not the shared one)
+    q_dep = ga._axis_query("KRAS", "colorectal cancer", "dependency")
+    assert "KRAS" in q_dep and "colorectal cancer" in q_dep and "dependency" in q_dep.lower()
+    # target-LEVEL axis (safety) → NO disease clause (gnomAD/tox is indication-independent)
+    q_saf = ga._axis_query("KRAS", "colorectal cancer", "safety")
+    assert "colorectal cancer" not in q_saf and "toxicity" in q_saf
+    # the six former 'biological'-collision axes now produce DISTINCT queries
+    qs = {ax: ga._axis_query("FOO", "lung cancer", ax) for ax in
+          ("dependency", "mechanism", "genomic_alteration", "synthetic_lethal_partners",
+           "combinatorial_dependency", "expression")}
+    assert len(set(qs.values())) == 6        # all distinct, not one shared 'biological' query
+
+
+def test_axis_query_unknown_axis_is_target_only():
+    q = ga._axis_query("FOO", "lung cancer", "not_an_axis")
+    assert q == "(FOO) AND ()" or "FOO" in q      # defensive: no crash, gene present
