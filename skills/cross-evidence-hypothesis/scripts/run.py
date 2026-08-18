@@ -317,7 +317,7 @@ def _panel_block(panel: dict, objective: str) -> str:
 
 def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug target",
         modality=None, dossier_path=None, synthesize_fn=None, llm_mode=None,
-        substrate=None) -> dict:
+        substrate=None, adversarial=False, n_skeptics=None) -> dict:
     """Assemble the panel, run the two-call pipeline, clamp, and enforce the defensibility contract.
     `synthesize_fn(system, user, name, schema, max_tokens=...)` is injectable for offline testing.
     `llm_mode` labels provenance: 'bedrock' (default live), 'offline_replay', or 'injected' (a test
@@ -325,7 +325,11 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     `substrate` is the per-subskill GROUNDED SUBSTRATE (dict axis→ground_axis block): the design-correct
     literature path (§13) — its findings enrich the panel + its PMIDs become citable, and any axis that
     contradicts its deterministic verdict is surfaced as a tension. Escalate-only: it never lowers the
-    deterministic ceiling."""
+    deterministic ceiling.
+    `adversarial` (opt-in, WS5): after assembly, run the SKEPTIC refutation post-check and populate
+    quality.adversarial_survival + quality.adversarial_gate. Off by default — it costs N_SKEPTICS extra
+    Bedrock calls and is INTRINSIC-quality only (never changes the deterministic spine/ceiling; not in
+    the drift-golden subset). Reuses this run's injected synth, so it stays offline-testable."""
     if llm_mode is None:
         llm_mode = "bedrock" if synthesize_fn is None else "injected"
     modality_resolved, modality_inferred = hc.resolve_modality(modality, objective)
@@ -465,7 +469,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         computed = "advanceable_flagged"
         was_clamped = True
 
-    return {
+    result = {
         "skill": SKILL_NAME, "skill_version": SKILL_VERSION,
         "target": tgt, "indication": ind, "objective": objective,
         "modality": {"resolved": modality_resolved, "inferred_from_objective": modality_inferred,
@@ -551,6 +555,17 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         "panel_conviction": conviction,
     }
 
+    # --- WS5 intrinsic-quality post-check (opt-in): the SKEPTIC refutation pass. Populates the quality
+    # slot that is otherwise null. Never touches the spine/ceiling (INTRINSIC-quality) — a low survival
+    # score is a defensibility SIGNAL for the human, not a gate. ---
+    if adversarial:
+        import adversarial_survival as AS  # local import: only loaded on the opt-in path
+        surv = AS.adversarial_survival(result, pkg_path, risk_path, dossier_path,
+                                       n_skeptics=(n_skeptics or AS.N_SKEPTICS), synthesize_fn=synth)
+        result["quality"]["adversarial_survival"] = surv
+        result["quality"]["adversarial_gate"] = AS.adversarial_survival_gate(surv)
+    return result
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="cross-evidence hypothesis integrator (WS4)")
@@ -575,12 +590,23 @@ def main(argv=None) -> int:
     ap.add_argument("--llm-replay", default=None,
                     help="canned two-call response JSON ({\"cross_edges\":{...},\"hypothesis\":{...}}) "
                          "for --no-llm")
+    ap.add_argument("--adversarial", action="store_true",
+                    help="OPT-IN (WS5): after assembling the hypothesis, run the SKEPTIC refutation "
+                         "post-check and populate quality.adversarial_survival + quality.adversarial_gate. "
+                         "Costs N extra Bedrock calls; INTRINSIC-quality only — never changes the "
+                         "verdict/ceiling. Incompatible with --no-llm (the skeptic pass has no replay).")
+    ap.add_argument("--n-skeptics", type=int, default=None,
+                    help="number of skeptic refutation passes for --adversarial (default: 3)")
     args = ap.parse_args(argv)
 
     synthesize_fn, llm_mode = None, None
     if args.no_llm:
         if not args.llm_replay:
             print("--no-llm requires --llm-replay <canned response json>", file=sys.stderr)
+            return 2
+        if args.adversarial:
+            print("--adversarial needs live Bedrock (the skeptic pass is not part of the two-call "
+                  "replay); drop --no-llm to run it", file=sys.stderr)
             return 2
         synthesize_fn = replay_synthesize(json.loads(Path(args.llm_replay).read_text()))
         llm_mode = "offline_replay"
@@ -598,7 +624,8 @@ def main(argv=None) -> int:
     outd.mkdir(parents=True, exist_ok=True)
     print("→ assembling cross-evidence hypothesis ...", file=sys.stderr)
     r = run(args.evidence_package, args.risk, args.objective, args.modality, args.target_dossier,
-            synthesize_fn=synthesize_fn, llm_mode=llm_mode, substrate=substrate or None)
+            synthesize_fn=synthesize_fn, llm_mode=llm_mode, substrate=substrate or None,
+            adversarial=args.adversarial, n_skeptics=args.n_skeptics)
     (outd / "hypothesis.json").write_text(json.dumps(r, indent=2, default=str))
 
     v = r["verdict"]
@@ -624,6 +651,11 @@ def main(argv=None) -> int:
         print(f"GROUNDED SUBSTRATE: {gsub['n_findings']} finding(s) / {gsub['n_grounded_pmids']} "
               f"citable PMID(s) across {len(gsub['per_axis'])} axes"
               + (f"; discordant: {gsub['discordant_axes']}" if gsub["discordant_axes"] else ""))
+    surv = (r.get("quality") or {}).get("adversarial_survival")
+    if surv and surv.get("score") is not None:
+        gate = (r.get("quality") or {}).get("adversarial_gate") or {}
+        print(f"ADVERSARIAL SURVIVAL: {surv['n_surviving']}/{surv['n_clauses']} clauses survive "
+              f"(score {surv['score']}; gate {'PASS' if gate.get('passed') else 'FLAG'})")
     print(f"PROVENANCE: model={r['provenance']['model_id']} "
           f"prompt_template_hash={r['provenance']['prompt_template_hash'][:12]}… "
           f"mode={r['provenance']['llm_mode']}")

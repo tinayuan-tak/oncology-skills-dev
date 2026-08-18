@@ -446,3 +446,32 @@ def test_run_without_substrate_leaves_grounded_absent_and_stable():
     assert not any(t.get("source") == "grounded_substrate_discordance"
                    for t in r["hypothesis"]["tensions"])
     assert r["degraded_mode"]["grounded_substrate_present"] is False
+
+
+def _stub_clean_with_skeptic(system, user, name, schema, **kw):
+    """_stub_clean, plus a benign skeptic that refutes nothing (every clause survives)."""
+    if name == "skeptic_refutation":
+        return {"clauses": []}   # no valid refutations → all clauses survive → score 1.0
+    return _stub_clean(system, user, name, schema, **kw)
+
+
+def test_adversarial_off_by_default_leaves_quality_slot_null():
+    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+              str(DOSSIER), synthesize_fn=_stub_clean)
+    # default: the WS5 slot is present but null (no skeptic pass, byte-stable to the pre-flag output)
+    assert r["quality"]["adversarial_survival"] is None
+    assert "adversarial_gate" not in r["quality"]
+
+
+def test_adversarial_flag_populates_quality_slot_and_gate():
+    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+              str(DOSSIER), synthesize_fn=_stub_clean_with_skeptic, adversarial=True, n_skeptics=3)
+    surv = r["quality"]["adversarial_survival"]
+    assert surv is not None and surv["score"] == 1.0
+    assert surv["n_surviving"] == surv["n_clauses"] and surv["n_clauses"] > 0
+    gate = r["quality"]["adversarial_gate"]
+    assert gate["passed"] is True and gate["non_surviving_clauses"] == []
+    # INTRINSIC-quality: the deterministic spine is identical to the adversarial-off run
+    base = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+                 str(DOSSIER), synthesize_fn=_stub_clean)
+    assert r["verdict"] == base["verdict"] and r["defensibility"] == base["defensibility"]
