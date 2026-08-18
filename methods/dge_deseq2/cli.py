@@ -102,13 +102,24 @@ def compute_git_sha(repo_path: Path) -> str:
               help="Final Parquet destination URI (s3:// or local). Defaults to {out}/result.parquet.")
 @click.option("--threads", type=int, default=4)
 @click.option("--stratify-by", default=None,
-              help="Stratification axis. 'subgroup_catalog' enables per-subgroup DGE. ITER-1 STUB.")
+              help="Subgroup axis label (e.g. msi_status). When set with a four_cell_sensitivity "
+                   "contrast, runs the per-subgroup DESeq2 driver (07). Requires "
+                   "--subgroup-assignments-manifest + --strata.")
+@click.option("--subgroup-assignments-manifest", default=None,
+              help="data-catalog derived-manifest id for the subgroup_assignments.parquet "
+                   "(e.g. tcga-subgroup-assignments-coadread-v1). Resolved to a local parquet "
+                   "via subgroup_common.load_assignments (cached).")
+@click.option("--strata", default=None,
+              help="Comma-separated stratum_ids to emit (e.g. MSI_H,MSS).")
+@click.option("--min-subgroup-tumor", type=int, default=10,
+              help="Minimum tumor members for a stratum to be emitted (07 only).")
 @click.option("--gtex-tissue-override", "gtex_tissue", default=None,
               help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
 @click.option("--dry-run", is_flag=True, help="Print the Rscript invocation without running it.")
 def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
          out: Path, parquet_uri: str | None, threads: int, stratify_by: str | None,
-         gtex_tissue: str | None, dry_run: bool) -> int:
+         subgroup_assignments_manifest: str | None, strata: str | None,
+         min_subgroup_tumor: int, gtex_tissue: str | None, dry_run: bool) -> int:
     """Invoke the DGE DESeq2 R pipeline for an indication × contrast."""
 
     if contrast in ("tumor_vs_gtex", "subtype_stratified"):
@@ -118,13 +129,31 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
             f"remains an iter-1 stub. Use four_cell_sensitivity or tumor_vs_adjacent."
         )
 
+    # --- per-subgroup DGE (07_stratified_four_cell_driver.R) ----------------
+    subgroup_parquet: str | None = None
     if stratify_by:
-        click.echo(
-            f"WARNING: --stratify-by {stratify_by} is an iter-1 STUB; the R pipeline needs an "
-            f"iter-1 patch to consume the subgroup catalog. Card 5 (subgroup-stratified-expression) "
-            f"is blocked on this.",
-            err=True,
-        )
+        if contrast != "four_cell_sensitivity":
+            raise click.ClickException(
+                "--stratify-by requires --contrast four_cell_sensitivity (the per-subgroup "
+                "driver reuses the four-cell recount3 substrate)."
+            )
+        if not (subgroup_assignments_manifest and strata):
+            raise click.ClickException(
+                "--stratify-by needs --subgroup-assignments-manifest and --strata "
+                "(comma-separated stratum_ids, e.g. MSI_H,MSS)."
+            )
+        # Resolve the assignments manifest → local parquet path. load_assignments
+        # downloads to the session cache and returns the DataFrame; we read the
+        # cache path it writes so the R driver reads the SAME product the read
+        # layer will. This keeps the emit-side and read-side member sets identical.
+        from methods.subgroup_common.loaders import load_assignments, CACHE_ASSIGNMENTS
+        load_assignments(subgroup_assignments_manifest, data_catalog_repo=catalog_repo)
+        subgroup_parquet = str(CACHE_ASSIGNMENTS / subgroup_assignments_manifest / "assignments.parquet")
+        if not Path(subgroup_parquet).exists():
+            raise click.ClickException(
+                f"Assignments parquet not resolved to a local path: {subgroup_parquet}. "
+                f"Check the manifest id + AWS_PROFILE (needs onc-compbio GetObject)."
+            )
 
     out.mkdir(parents=True, exist_ok=True)
 
@@ -142,8 +171,15 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
         f"--out-dir={out}",
         f"--parquet-uri={parquet_uri}",
         f"--threads={threads}",
-        f"--contrast={contrast}",
+        f"--contrast={'four_cell_sensitivity_by_subgroup' if stratify_by else contrast}",
     ]
+    if stratify_by:
+        cmd += [
+            f"--subgroup-assignments={subgroup_parquet}",
+            f"--subgroup-axis={stratify_by}",
+            f"--strata={strata}",
+            f"--min-subgroup-tumor={min_subgroup_tumor}",
+        ]
     if gtex_tissue:
         cmd.append(f"--gtex-tissue={gtex_tissue}")
 
@@ -158,6 +194,11 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
     click.echo(f"  git-sha:      {git_sha}")
     if contrast == "four_cell_sensitivity":
         click.echo(f"  gtex-tissue:  {gtex_tissue or '(derived from config)'}")
+    if stratify_by:
+        click.echo(f"  stratify-by:  {stratify_by}")
+        click.echo(f"  assignments:  {subgroup_assignments_manifest}")
+        click.echo(f"  strata:       {strata}")
+        click.echo(f"  subgroup-parquet: {subgroup_parquet}")
     click.echo()
     click.echo(f"  Rscript cmd:  {' '.join(cmd)}")
 

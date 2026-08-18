@@ -1251,3 +1251,173 @@ def read_per_sample_expression_tumor_vs_adjacent(
         "studies_used": studies,
         "_data_source": "recount3-tcga-gtex-2023-01-04",
     }
+
+
+# ---------------------------------------------------------------------------
+# Per-subgroup tumor-vs-normal selectivity (2026-08-18)
+# ---------------------------------------------------------------------------
+# The read side of unblocking the `tumor-vs-normal-selectivity` card for
+# molecular subgroups. Consumes the emit-time per-subgroup DESeq2 product
+# (07_stratified_four_cell_driver.R → `{indication}-dge-tumor-vs-normal-
+# sensitivity-by-subgroup-v1`), a tall per-gene × per-stratum sensitivity
+# table, and projects it into a DESCRIPTIVE subgroup panorama: one card-shaped
+# record per stratum + cross-stratum reducer scalars.
+#
+# It reads a PRE-BAKED product (each stratum's log2FC came from a full DESeq2
+# fit restricted to that stratum's tumor set), so — unlike the peer
+# @subgroup_iterable readers (gdc_somatic_hotspot / depmap_chronos) that filter
+# per-sample source data at read time — there is NO read-time recompute here.
+# The per-stratum record reuses the SAME classifier + concordance helpers as
+# the whole-cohort card (_classify_selectivity_from_sensitivity /
+# _comparator_concordance), so a stratum's selectivity_class means exactly what
+# it means whole-cohort.
+
+# Parquet emits uppercase cell tags (log2fc_A, padj_A); the card summary + the
+# classifier/concordance helpers key on lowercase (log2fc_cell_a, q_value_cell_a).
+_STRATUM_CELL_MAP = {
+    "log2fc_A": "log2fc_cell_a", "padj_A": "q_value_cell_a",
+    "log2fc_B": "log2fc_cell_b", "padj_B": "q_value_cell_b",
+    "log2fc_C": "log2fc_cell_c", "padj_C": "q_value_cell_c",
+}
+
+
+def _stratum_row_to_card_fields(r) -> dict:
+    """Map one per-stratum sensitivity row (pandas Series) to a card-shaped record.
+
+    Reuses the whole-cohort classifier + comparator-concordance so a stratum's
+    selectivity_class / comparator_concordance carry identical semantics. Adds
+    the subgroup grain fields (stratum_id, subgroup_n, floor_met, evidence_state).
+    """
+    from methods.subgroup_common.panorama import evidence_state, SUBGROUP_N_FLOOR
+
+    def _num(v):
+        # NaN-safe passthrough (pandas NaN → None so the classifier's `x == x`
+        # guard and the reducer's None-filter behave).
+        try:
+            import math
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                return None
+        except Exception:
+            pass
+        return v
+
+    row = {
+        "cells_ran":          _num(r.get("cells_ran")),
+        "cells_supporting":   _num(r.get("cells_supporting")),
+        "dominant_direction": r.get("dominant_direction"),
+        "sig_all_cells":      bool(r.get("sig_all_cells")) if r.get("sig_all_cells") is not None else None,
+        "discordant":         bool(r.get("discordant")) if r.get("discordant") is not None else None,
+        "max_abs_log2fc":     _num(r.get("max_abs_log2fc")),
+    }
+    for up, lo in _STRATUM_CELL_MAP.items():
+        row[lo] = _num(r.get(up))
+
+    n = r.get("subgroup_n_tumor")
+    n = int(n) if n is not None and n == n else 0
+    floor_met = n >= SUBGROUP_N_FLOOR
+    row.update({
+        "stratum":              r.get("stratum_id"),
+        "subgroup_n":           n,
+        "subgroup_n_floor_met": floor_met,
+        "evidence_state":       evidence_state(n, floor_met),
+        "selectivity_class":    _classify_selectivity_from_sensitivity(row),
+        "comparator_concordance": _comparator_concordance(row),
+        "source_cohort":        f"recount3 TCGA-tumor∈{r.get('stratum_id')} vs shared normals "
+                                f"(adjacent n={r.get('n_adjacent')}, GTEx n={r.get('n_gtex')})",
+    })
+    return row
+
+
+def read_stratified_tumor_vs_normal_selectivity(
+    target: str, indication: str, subgroup_axis: Optional[str] = None,
+) -> dict:
+    """Descriptive per-subgroup tumor-vs-normal selectivity panorama for a target.
+
+    Product: `{indication.lower()}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1`
+    (tall per-gene × per-stratum sensitivity parquet). Returns the card v3.5.0
+    subgroup envelope:
+
+      {target, indication, subgroup_axis, status,
+       per_subgroup_metrics: [ {stratum, subgroup_n, evidence_state,
+                                selectivity_class, comparator_concordance,
+                                max_abs_log2fc, log2fc_cell_a..c, ...}, ... ],
+       n_subgroups_with_data, max_subgroup_log2fc, min_subgroup_log2fc,
+       cross_subgroup_delta_log2fc, selectivity_class_by_subgroup,
+       cross_subgroup_selectivity_divergence, any_subgroup_strong_selective}
+
+    Purely DESCRIPTIVE (panorama semantics — shows the landscape, emits no
+    signal / verdict change). `status='data_unavailable'` when the per-subgroup
+    product is not accessible for `indication` (never raises for a genuine
+    absence; a transient S3/creds error DOES propagate — RD3 discipline).
+    """
+    import pyarrow.parquet as pq
+    from methods.subgroup_common.panorama import delta_reducer
+
+    ensure_aws_profile()
+    manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+
+    def _empty(status: str) -> dict:
+        return {
+            "target": target, "indication": indication, "subgroup_axis": subgroup_axis,
+            "status": status, "per_subgroup_metrics": [],
+            "n_subgroups_with_data": 0,
+            "max_subgroup_log2fc": None, "min_subgroup_log2fc": None,
+            "cross_subgroup_delta_log2fc": None,
+            "selectivity_class_by_subgroup": {},
+            "cross_subgroup_selectivity_divergence": None,
+            "any_subgroup_strong_selective": None,
+            "_data_source": manifest_id,
+        }
+
+    s3fs = _get_s3fs()
+    try:
+        s3_uri = s3_uri_for(manifest_id)
+        path = _s3_uri_to_path(s3_uri)
+        table = pq.read_table(path, filesystem=s3fs,
+                              filters=[("gene_symbol", "=", target)])
+    except Exception as e:
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
+        return _empty("data_unavailable")
+
+    if table.num_rows == 0:
+        return _empty("data_unavailable")
+
+    df = table.to_pandas()
+    if subgroup_axis:
+        df = df[df["subgroup_axis"] == subgroup_axis]
+    if df.empty:
+        return _empty("data_unavailable")
+
+    records = [_stratum_row_to_card_fields(r) for _, r in df.iterrows()]
+
+    # Cross-stratum reduction. Numeric spread via the shared delta_reducer
+    # (max/min/delta of max_abs_log2fc across measured strata); categorical
+    # divergence = do the strata land in different selectivity classes?
+    # Surface the axis: honor the caller's filter, else read it off the product
+    # (a single-axis product carries one distinct subgroup_axis value).
+    axes = {a for a in df["subgroup_axis"].dropna().unique()} if "subgroup_axis" in df else set()
+    resolved_axis = subgroup_axis or (next(iter(axes)) if len(axes) == 1 else None)
+    envelope = {
+        "target": target, "indication": indication,
+        "subgroup_axis": resolved_axis,
+        "status": "live",
+        "per_subgroup_metrics": records,
+        "_data_source": manifest_id,
+        "_data_s3_uri": s3_uri,
+    }
+    envelope.update(delta_reducer(records, metric_key="max_abs_log2fc", label="log2fc"))
+
+    measured = [r for r in records if r.get("evidence_state") == "measured"]
+    class_by = {r["stratum"]: r["selectivity_class"] for r in records}
+    measured_classes = {r["selectivity_class"] for r in measured}
+    strong = {"strong_tumor_selective", "field_effect_tumor_selective"}
+    envelope.update({
+        "selectivity_class_by_subgroup": class_by,
+        # divergence judged over MEASURED (floor-clearing) strata only — an
+        # underpowered stratum's class is an unknown, not a real difference.
+        "cross_subgroup_selectivity_divergence": (len(measured_classes) > 1) if measured else None,
+        "any_subgroup_strong_selective": bool(measured_classes & strong) if measured else None,
+    })
+    return envelope

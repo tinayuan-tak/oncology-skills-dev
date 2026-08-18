@@ -29,6 +29,14 @@ option_list <- list(
   make_option("--joint-gtex", action = "store_true", default = FALSE),
   make_option("--gtex-tissue", type = "character", default = NULL,
               help = "Override recount3 GTEx tissue code (four_cell_sensitivity only)."),
+  make_option("--subgroup-assignments", type = "character", default = NULL,
+              help = "subgroup_assignments.parquet path (four_cell_sensitivity_by_subgroup)."),
+  make_option("--subgroup-axis", type = "character", default = NULL,
+              help = "Subgroup axis label (four_cell_sensitivity_by_subgroup)."),
+  make_option("--strata", type = "character", default = NULL,
+              help = "Comma-separated stratum_ids (four_cell_sensitivity_by_subgroup)."),
+  make_option("--min-subgroup-tumor", type = "integer", default = 10L,
+              help = "Minimum tumor members for a stratum to be emitted (07)."),
   make_option("--threads", type = "integer", default = 4)
 )
 opts <- parse_args(OptionParser(option_list = option_list))
@@ -79,6 +87,34 @@ if (identical(opts$contrast, "four_cell_sensitivity")) {
   message("  Contrasts:    ", f("tumor_vs_adjacent.parquet"), " + ",
           f("tumor_vs_gtex.parquet"))
   message("  Provenance:   ", f("provenance.yaml"))
+  quit(status = 0)
+}
+
+# === four_cell_sensitivity_by_subgroup: per-subgroup DESeq2 =================
+# Same recount3 substrate as four_cell_sensitivity (00_load_recount3), then the
+# stratified driver (07) restricts the tumor arm per stratum and emits the tall
+# sensitivity_by_subgroup.parquet. Normals stay whole-cohort.
+if (identical(opts$contrast, "four_cell_sensitivity_by_subgroup")) {
+  stopifnot(!is.null(opts$`subgroup-assignments`), !is.null(opts$`subgroup-axis`),
+            !is.null(opts$strata))
+  run("00_load_recount3.R", c(
+    paste0("--config=", shQuote(opts$config)),
+    if (!is.null(opts$`gtex-tissue`))
+      paste0("--gtex-tissue=", shQuote(opts$`gtex-tissue`)) else "",
+    paste0("--out=", shQuote(f("00_recount3.rds")))
+  ))
+  run("07_stratified_four_cell_driver.R", c(
+    paste0("--in=",          shQuote(f("00_recount3.rds"))),
+    paste0("--assignments=", shQuote(opts$`subgroup-assignments`)),
+    paste0("--axis=",        shQuote(opts$`subgroup-axis`)),
+    paste0("--strata=",      shQuote(opts$strata)),
+    paste0("--min-subgroup-tumor=", opts$`min-subgroup-tumor`),
+    paste0("--out-dir=",     shQuote(opts$`out-dir`)),
+    paste0("--threads=",     opts$threads)
+  ))
+  message("=== per-subgroup four-cell sensitivity pipeline complete ===")
+  message("  Sensitivity:  ", f("sensitivity_by_subgroup.parquet"))
+  message("  Provenance:   ", f("provenance_by_subgroup.yaml"))
   quit(status = 0)
 }
 

@@ -14,10 +14,14 @@
 #
 # Output .rds: list(
 #   counts    = integer matrix (gene_symbol × sample),  HGNC-collapsed
-#   coldata   = data.frame(sample_id, group, source, tcga_tss, study)
+#   coldata   = data.frame(sample_id, group, source, tcga_tss, submitter_id, study)
 #   rowdata   = data.frame(gene_symbol, gene_id, gene_stem)
 #   metadata  = list(substrate, tcga_studies, gtex_tissue, counts, n_*)
 # )
+# `submitter_id` is the TCGA patient barcode (gdc_cases.submitter_id) for TCGA
+# samples, NA for GTEx — the join key to subgroup-assignments.patient_id used by
+# 07_stratified_four_cell_driver.R. Additive column; the whole-cohort four-cell
+# driver (06) ignores it, so its output is unaffected.
 
 suppressPackageStartupMessages({
   library(optparse)
@@ -149,11 +153,27 @@ for (study in tcga_studies) {
   st_col  <- "gdc_cases.samples.sample_type"
   id_col  <- "gdc_file_id"
   tss_col <- "gdc_cases.tissue_source_site.code"
+  # gdc_cases.submitter_id is the CASE (patient) barcode TCGA-XX-XXXX — the join
+  # key to the subgroup-assignments product's `patient_id` column (subgroup
+  # stratification, 2026-08-18). Molecular subgroups (MSI, CMS, ...) are
+  # patient-level properties, so a patient-barcode join is both correct and
+  # robust to the sample-vs-aliquot-barcode truncation the sample_id path risks.
+  sub_col <- "gdc_cases.submitter_id"
   stopifnot(st_col %in% names(md), id_col %in% names(md))
 
   tumor_ids  <- md[get(st_col) == "Primary Tumor",        get(id_col)]
   normal_ids <- md[get(st_col) == "Solid Tissue Normal",  get(id_col)]
   tss_by_id  <- setNames(md[[tss_col]], md[[id_col]])
+  # Patient-barcode-by-file-id map (NA vector when the column is absent, so the
+  # loader never dies on a metadata schema change; the stratified driver then
+  # simply finds no members and the whole-cohort emit is unaffected).
+  submitter_by_id <- if (sub_col %in% names(md)) {
+    setNames(md[[sub_col]], md[[id_col]])
+  } else {
+    message("[00_load_recount3]   WARNING: ", sub_col, " absent in ", study,
+            " metadata — submitter_id column will be NA (subgroup join disabled)")
+    setNames(rep(NA_character_, nrow(md)), md[[id_col]])
+  }
 
   # Keep only ids that are actually columns in the gene_sums matrix.
   present  <- setdiff(names(gs), "gene_id")
@@ -164,7 +184,7 @@ for (study in tcga_studies) {
 
   tcga_pieces[[study]] <- gs
   tcga_cols[[study]]   <- list(tumor = tumor_ids, normal = normal_ids,
-                               tss = tss_by_id)
+                               tss = tss_by_id, submitter = submitter_by_id)
 }
 
 # --- GTEx (all normal) ------------------------------------------------------
@@ -206,6 +226,7 @@ for (study in tcga_studies) {
     coldata_rows[[paste0(study, "_", grp)]] <- data.frame(
       sample_id = ids, group = grp, source = "TCGA",
       tcga_tss  = unname(ci$tss[ids]) %||% NA_character_,
+      submitter_id = unname(ci$submitter[ids]),
       study     = study, stringsAsFactors = FALSE)
   }
 }
@@ -216,7 +237,8 @@ if (!is.null(gtex_gs) && length(gtex_ids)) {
   col_blocks[["gtex_normal"]] <- as.matrix(gs[, ..ids])
   coldata_rows[["gtex_normal"]] <- data.frame(
     sample_id = ids, group = "normal", source = "GTEx",
-    tcga_tss = NA_character_, study = paste0("GTEX_", gtex_tissue),
+    tcga_tss = NA_character_, submitter_id = NA_character_,
+    study = paste0("GTEX_", gtex_tissue),
     stringsAsFactors = FALSE)
 }
 
