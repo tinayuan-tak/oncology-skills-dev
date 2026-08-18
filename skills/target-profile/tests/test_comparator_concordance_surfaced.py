@@ -27,32 +27,3 @@ def test_comparator_concordance_in_selectivity_curated_metrics():
     fields = dict(tp.PHASE_METRIC_FIELDS["selectivity"])
     assert "comparator_concordance" in fields
     assert fields["comparator_concordance"] == "comparator agreement"
-
-
-def test_comparator_concordance_renders_in_evidence_section():
-    sub_results = {
-        "selectivity": {
-            "skill_dir": "tumor-selectivity",
-            "cards": [{"card_id": "tumor-vs-normal-selectivity",
-                       "summary": {"cells_supporting": 3, "cells_ran": 3,
-                                   "comparator_concordance": "concordant",
-                                   "dominant_direction": "up", "max_abs_log2fc": 2.1}}],
-            "verdict": ("strong_tumor_selective", "r"), "fired": [],
-        },
-    }
-    html, _n = tp._render_card_data_html(sub_results)
-    joined = "".join(html)
-    assert "comparator agreement" in joined       # the curated label
-    assert "concordant" in joined                  # the value
-
-
-def test_single_comparator_value_is_readable():
-    """single_comparator renders as-is (no crash / no truncation); the underscore reads clearly."""
-    sub_results = {
-        "selectivity": {"skill_dir": "tumor-selectivity",
-                        "cards": [{"card_id": "tumor-vs-normal-selectivity",
-                                   "summary": {"comparator_concordance": "single_comparator"}}],
-                        "verdict": ("modest_tumor_selective", "r"), "fired": []},
-    }
-    html, _ = tp._render_card_data_html(sub_results)
-    assert "single_comparator" in "".join(html)

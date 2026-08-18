@@ -300,33 +300,6 @@ def test_html_section_bars_do_not_break_wellformedness():
     HTMLParser().feed(_html())
 
 
-# ---------- risk-category roll-up (5R lead lens) ----------
-
-def test_risk_category_rollup_surfaces_only_evidenced():
-    """Data-driven surfacing: a category appears iff >=1 member sub-skill has an on-scale status.
-    Categories with no evidenced member fall to not_evidenced (no placeholder row)."""
-    sc = tp._gate_scorecard(_sr(), _DA)   # _sr has dependency (biological) + safety
-    ru = tp._risk_category_rollup(sc)
-    cats = {c["category"] for c in ru["surfaced"]}
-    assert "biological" in cats           # dependency fired → biological surfaces
-    assert "safety" in cats               # safety fired → safety surfaces
-    # categories with no evidenced sub-skill this run are NOT surfaced as rows
-    assert "translational" in ru["not_evidenced"]
-    assert "clinical" in ru["not_evidenced"]
-    # every surfaced category carries a computed risk level + driver
-    for c in ru["surfaced"]:
-        assert c["risk_level"] in ("elevated", "supported", "neutral")
-        assert c["driver"]
-
-
-def test_risk_category_rollup_level_is_computed_from_members():
-    """Risk level rolls up member statuses: an opposing member → elevated; else supportive → supported."""
-    sc = tp._gate_scorecard(_sr(), _DA)
-    ru = {c["category"]: c for c in tp._risk_category_rollup(sc)["surfaced"]}
-    # safety fired a kill (opposing) in _sr → elevated
-    assert ru["safety"]["risk_level"] == "elevated"
-
-
 def test_evidence_summary_is_the_lead_deterministic_lens():
     """The 5R 'Risk by category' lead lens + lettered 'Gate detail' scorecard were REPLACED by a
     flat Evidence summary: one row per subskill (id=s-evidence). No risk-category table, no gate

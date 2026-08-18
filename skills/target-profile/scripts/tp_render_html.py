@@ -2,18 +2,12 @@
 per-card panels, risk-category rollup)."""
 from __future__ import annotations
 
-import argparse
-import concurrent.futures
 import html as _html
-import importlib.util
-import json
-import os
 import re
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import yaml
 
@@ -22,80 +16,11 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from _skills_common import resolve_cards, ordinal_view
-from tp_common import PHASE_METRIC_FIELDS, SKILL_NAME, SKILL_VERSION, _CONTRACTS_REPO, _first_card_summary_field, _fmt_metric, _framework_model_version
+from tp_common import SKILL_NAME, SKILL_VERSION, _CONTRACTS_REPO, _fmt_metric, _framework_model_version
 from tp_gates import _load_gate_coverage
 
 
 
-
-# --- Risk-category roll-up (5R dashboard spine, 2026-07-21) ------------------
-#
-# The committee-facing lead lens: roll the per-gate scorecard rows up into drug-discovery risk
-# categories (5R-anchored — see target-contracts docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md).
-# DATA-DRIVEN SURFACING: a category is surfaced IFF >=1 of its member sub-skills produced evidence
-# this run (a non-coverage-gap status). Categories with no evidenced member are NOT rendered as
-# rows — they collapse into a one-line "not yet evidenced" footnote. This keeps the dashboard
-# honest (absence = "we don't evidence this yet") AND self-extending (wire a new sub-skill → its
-# category appears automatically). Category risk LEVEL is a computed roll-up of member statuses,
-# reusing the SAME 4-state the scorecard already assigned — no new classification logic.
-_RISK_CATEGORY_ORDER = ["biological", "biomarker", "druggability", "safety",
-                        "translational", "clinical", "commercial"]
-_RISK_CATEGORY_LABEL = {
-    "biological":    ("Biological", "Right Target — is this real, actionable biology?"),
-    "biomarker":     ("Biomarker", "Right Patient — who responds?"),
-    "druggability":  ("Druggability", "can it be drugged (small-molecule / biologic)?"),
-    "safety":        ("Safety", "Right Safety — on-target liability?"),
-    "translational": ("Translational", "Right Tissue — models / PD / exposure?"),
-    "clinical":      ("Clinical", "clinical precedent?"),
-    "commercial":    ("Commercial", "Right Commercial Potential — differentiation?"),
-}
-
-
-def _risk_category_rollup(scorecard: list[dict]) -> dict:
-    """Group scorecard rows by risk_category → the 5R lead lens. Returns
-    {surfaced: [{category, label, sub, risk_level, driver, members:[rows], anchor}],
-     not_evidenced: [category,...]}. A category surfaces iff >=1 member has an on-scale status
-     (supportive/opposing/neutral — i.e. we looked); all-coverage-gap categories are 'not evidenced'.
-    risk_level: opposing member → 'elevated'; else any supportive → 'supported'; else 'neutral'."""
-    by_cat: dict = {}
-    for row in scorecard or []:
-        cat = row.get("risk_category") or "other"
-        by_cat.setdefault(cat, []).append(row)
-
-    def _level(members: list[dict]) -> tuple[str, str]:
-        statuses = [m.get("status") for m in members]
-        opp = [m for m in members if m.get("status") == "opposing"]
-        sup = [m for m in members if m.get("status") == "supportive"]
-        if opp:
-            drv = opp[0]
-            return "elevated", f"{_humanize(drv.get('verdict') or drv.get('short'))} (opposing)"
-        if sup:
-            drv = sup[0]
-            return "supported", f"{_humanize(drv.get('verdict') or drv.get('short'))}"
-        return "neutral", "measured; no strong signal either way"
-
-    surfaced, not_evidenced = [], []
-    for cat in _RISK_CATEGORY_ORDER + sorted(k for k in by_cat if k not in _RISK_CATEGORY_ORDER):
-        members = by_cat.get(cat)
-        if not members:
-            not_evidenced.append(cat)
-            continue
-        # evidenced iff >=1 member has an on-scale (non-coverage-gap) status
-        if not any(m.get("status") in ("supportive", "opposing", "neutral") for m in members):
-            not_evidenced.append(cat)
-            continue
-        level, driver = _level(members)
-        label, sub = _RISK_CATEGORY_LABEL.get(cat, (_humanize(cat), ""))
-        # anchor: link to the first evidenced member's gate section (roll-up → detail)
-        anchor = None
-        for m in members:
-            a = _SHORT_TO_GATE_ANCHOR.get(m.get("short"))
-            if a:
-                anchor = a
-                break
-        surfaced.append({"category": cat, "label": label, "sub": sub, "risk_level": level,
-                         "driver": driver, "members": members, "anchor": anchor})
-    return {"surfaced": surfaced, "not_evidenced": not_evidenced}
 
 _HTML_STATUS = {   # 4-state scorecard chip → (glyph, css class, human label)
     "supportive":   ("●", "chip-pos",  "Supports"),
@@ -152,10 +77,6 @@ _COVERAGE_LABEL = {
     "license_blocked": "License-blocked data",
     "out_of_scope": "Out of scope (Tier-2)",
 }
-# Plain-English band labels (reader-facing) — the "necessity/sufficiency" jargon is dropped in
-# favor of the question each band actually asks.
-_BAND_LABEL = {"necessity": "Is it real biology?",
-               "sufficiency": "Will it become a drug?"}
 # Nomination action → (display term, plain-English gloss). Shown as "Term — gloss" in the header.
 _ACTION_GLOSS = {
     "nominate": ("Nominate", "advance this target"),
@@ -456,28 +377,6 @@ def _esc(x) -> str:
     return _html.escape(str(x if x is not None else "—"), quote=True)
 
 
-def _inline_svg(svg_path: Optional[Path]) -> Optional[str]:
-    """Read an emitted matplotlib SVG (svg.fonttype:none → text-preserving) and return its
-    <svg>...</svg> body for inline embedding. Strips the XML/doctype preamble so it drops into
-    the page. Returns None on any failure (render never blocks on the figure)."""
-    if not svg_path or not Path(svg_path).exists():
-        return None
-    try:
-        raw = Path(svg_path).read_text()
-        i = raw.find("<svg")
-        if i < 0:
-            return None
-        body = raw[i:]
-        # Strip matplotlib's fixed pt width/height on the root <svg> so it scales to the card
-        # (the viewBox preserves the aspect ratio). Belt-and-suspenders with the CSS rule.
-        end = body.find(">")
-        head, rest = body[:end], body[end:]
-        head = re.sub(r'\s(width|height)="[^"]*"', "", head)
-        return head + rest
-    except Exception:  # noqa: BLE001
-        return None
-
-
 def _mtx_cell_class(cell: dict) -> str:
     if cell.get("signal") is None:
         return ""
@@ -529,72 +428,6 @@ def _read_card_plotly_specs(card_figures: Optional[dict], figures_dir: Optional[
             continue
         out.append({"id": f["id"], "spec_json": spec_json})
     return out
-
-
-def _render_card_data_html(sub_results: dict, card_figures: Optional[dict] = None,
-                           figures_dir: Optional[Path] = None) -> tuple[list[str], int]:
-    """Per-question 'Evidence' section: render each sub-skill's card SUMMARY metrics (already in
-    sub_results from resolve_cards) as clean data, PLUS — when a run produced them (Phase B) —
-    the card's interactive Plotly figure(s) embedded inline. Leads with the PHASE_METRIC_FIELDS
-    curated key metrics; otherwise shows the card's scalar summary fields.
-
-    Returns (html_lines, n_plotly_embedded). A card with a dynamic spec shows the interactive chart
-    above its data table; a card without one shows the table alone (the static fallback). The plot
-    is a computed, provenanced artifact (drawn by the method from the same series as the SVG) — the
-    renderer only EMBEDS it, never re-plots (honesty spine: renderer adds nothing)."""
-    out = ["<section id=s-evidence class=det><span class=tag>Computed from the evidence</span>"
-           "<h2>Evidence by question <span class=n>— the card data behind each call</span></h2>"]
-    n_plotly = 0
-    for short, r in sub_results.items():
-        cards = r.get("cards") or []
-        # gather scalar summary fields across this sub-skill's cards (skip private _ + nested)
-        rows: list[tuple[str, str]] = []
-        curated = PHASE_METRIC_FIELDS.get(short, [])
-        seen = set()
-        for field, label in curated:
-            val = _first_card_summary_field(r, field)
-            if val is not None:
-                rows.append((label, _fmt_metric(val))); seen.add(field)
-        for c in cards:
-            if c.get("_missing"):
-                continue
-            for k, v in (c.get("summary") or {}).items():
-                if k.startswith("_") or k in seen or isinstance(v, (list, dict)):
-                    continue
-                rows.append((_prettify_field(k), _fmt_metric(v))); seen.add(k)
-        label = _GATE_SHORT_LABEL.get(short, _humanize(short))
-        # Interactive figures produced for this sub-skill's cards this run (Phase B). Embedded as a
-        # <div> + JSON <script>; the bootstrap at page end calls Plotly.newPlot. Absent → table only.
-        plot_divs: list[str] = []
-        for c in cards:
-            if c.get("_missing"):
-                continue
-            for spec in _read_card_plotly_specs(card_figures, figures_dir, c.get("card_id")):
-                dom_id = f"plt-{short}-{spec['id']}"
-                plot_divs.append(
-                    f"<div class=plotly-fig id={dom_id}></div>"
-                    f"<script type='application/json' class=plotly-spec data-target={dom_id}>"
-                    f"{spec['spec_json']}</script>")
-                n_plotly += 1
-        if not rows and not plot_divs:
-            missing = [c["card_id"] for c in cards if c.get("_missing")]
-            note = ("no card data (cards not available this run: "
-                    + ", ".join(f"<code>{_esc(m)}</code>" for m in missing) + ")") if missing \
-                    else "no scalar metrics emitted"
-            out.append(f"<details><summary>{_esc(label)}</summary>"
-                       f"<p class=sub>{note}.</p></details>")
-            continue
-        out.append(f"<details open><summary>{_esc(label)}</summary>")
-        out.extend(plot_divs)                          # interactive chart(s) lead
-        if rows:
-            out.append("<table>")
-            for lab, val in rows[:18]:   # cap to keep the section scannable
-                out.append(f"<tr><td style='color:var(--muted);width:45%'>{_esc(lab)}</td>"
-                           f"<td>{_esc(val)}</td></tr>")
-            out.append("</table>")
-        out.append("</details>")
-    out.append("</section>")
-    return out, n_plotly
 
 
 # --- Gate section with subtabs (iterative dashboard, 2026-07-21) ------------------------------
@@ -1890,7 +1723,6 @@ def _render_target_profile_html(
 
 __all__ = [
     '_ACTION_GLOSS',
-    '_BAND_LABEL',
     '_CARD_FIGURE_ORDER',
     '_CARD_KEYFACTS',
     '_CARD_REPORTS_INTO_FALLBACK',
@@ -1902,8 +1734,6 @@ __all__ = [
     '_HTML_STATUS',
     '_INDICATION_LINEAGE',
     '_PLOTLY_BOOTSTRAP_JS',
-    '_RISK_CATEGORY_LABEL',
-    '_RISK_CATEGORY_ORDER',
     '_SHORT_TO_GATE_ANCHOR',
     '_SIG_CLASS',
     '_TAB_BOOTSTRAP_JS',
@@ -1917,13 +1747,10 @@ __all__ = [
     '_expression_indication_focus',
     '_fmt_fact_value',
     '_humanize',
-    '_inline_svg',
     '_mtx_cell_class',
     '_plotly_bundle',
     '_prettify_field',
     '_read_card_plotly_specs',
-    '_render_card_data_html',
     '_render_gate_section_html',
     '_render_target_profile_html',
-    '_risk_category_rollup',
 ]
