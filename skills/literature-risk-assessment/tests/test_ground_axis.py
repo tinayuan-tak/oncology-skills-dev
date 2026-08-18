@@ -77,6 +77,19 @@ def test_severity_in_tool_schema_enum():
     assert "severity" in props["required"]
 
 
+def test_prompt_abstract_truncation_uses_budget():
+    from types import SimpleNamespace
+    long = "X" * 4000
+    abs_ = [SimpleNamespace(pmid="1", title="T", abstract=long)]
+    # default budget raised from the original 900
+    assert ga.ABSTRACT_CHARS == 1500
+    p_default = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_)
+    assert ("X" * ga.ABSTRACT_CHARS) in p_default and ("X" * (ga.ABSTRACT_CHARS + 1)) not in p_default
+    # explicit override is honored
+    p_small = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_, abstract_chars=100)
+    assert ("X" * 100) in p_small and ("X" * 101) not in p_small
+
+
 def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
     assert {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"} <= set(ga.AXIS_CONFIG)
     nouns = {cfg["finding_noun"] for cfg in ga.AXIS_CONFIG.values()}

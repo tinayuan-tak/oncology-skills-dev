@@ -156,6 +156,11 @@ AXIS_CONFIG = {
 SEVERITY_LEVELS = ("high", "moderate")   # schema enum (order-stable)
 SEVERITY_HIGH = "high"                    # a `severity == SEVERITY_HIGH` finding escalates a pseudo dim
 
+# Per-abstract character budget passed to the model. Raised from the original 900 (which cut most
+# oncology abstracts mid-way, dropping the RESULTS/limitations text where escalating findings live) to
+# 1500 — closer to a full structured abstract while staying well within the input budget for ~8 items.
+ABSTRACT_CHARS = 1500
+
 SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
           "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
           "invent one.")
@@ -208,7 +213,7 @@ def deterministic_block(pkg: dict, axis: str) -> dict:
             "cards": {k: calls.get(k) for k in cfg["cards"] if k in calls}}
 
 
-def _prompt(target, indication, axis, anchor, abstracts):
+def _prompt(target, indication, axis, anchor, abstracts, abstract_chars: int = ABSTRACT_CHARS):
     cfg = AXIS_CONFIG[axis]
     anchor_line = (f"\nDETERMINISTIC {axis} verdict (ANCHOR, context only): {anchor}"
                    if anchor is not None else
@@ -226,7 +231,7 @@ def _prompt(target, indication, axis, anchor, abstracts):
              "crowded landscape with approved/late-stage competitors, or blocking IP); 'moderate' "
              "otherwise. Flag if the literature CONTRADICTS the deterministic verdict.\n\nABSTRACTS:"]
     for a in abstracts:
-        lines.append(f"[PMID {a.pmid}] {a.title}\n{(a.abstract or '')[:900]}")
+        lines.append(f"[PMID {a.pmid}] {a.title}\n{(a.abstract or '')[:abstract_chars]}")
     return "\n".join(lines)
 
 
@@ -264,7 +269,8 @@ def _axis_query(target: str, disease_terms: str, axis: str) -> str:
 
 
 def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "safety",
-                mindate: str = "2015", maxdate: str = "2026", per_cat: int = 8) -> dict:
+                mindate: str = "2015", maxdate: str = "2026", per_cat: int = 8,
+                abstract_chars: int = ABSTRACT_CHARS) -> dict:
     """LIVE: load the axis's deterministic block, retrieve literature, produce the grounded block."""
     import json
     import pubmed_search as ps
@@ -283,7 +289,8 @@ def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "saf
     pmids = ps._esearch(query, retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate)
     abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
     retrieved = {a.pmid for a in abstracts}
-    out = synthesize_structured(SYSTEM, _prompt(target, indication, axis, det["verdict"], abstracts),
+    out = synthesize_structured(SYSTEM, _prompt(target, indication, axis, det["verdict"], abstracts,
+                                                abstract_chars=abstract_chars),
                                 "axis_findings", TOOL_SCHEMA)
     grounded = build_grounded_block(det, out, retrieved,
                                     corpus_pin={"mindate": mindate, "maxdate": maxdate},
@@ -299,10 +306,15 @@ if __name__ == "__main__":
     ap.add_argument("--evidence-package", required=True)
     ap.add_argument("--axis", default="safety", choices=sorted(AXIS_CONFIG))
     ap.add_argument("--mindate", default="2015"); ap.add_argument("--maxdate", default="2026")
+    ap.add_argument("--per-cat", type=int, default=8,
+                    help="abstracts retrieved for the axis query (relevance-ranked; default 8)")
+    ap.add_argument("--abstract-chars", type=int, default=ABSTRACT_CHARS,
+                    help=f"per-abstract character budget passed to the model (default {ABSTRACT_CHARS})")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     rec = ground_axis(a.target, a.indication, a.evidence_package, axis=a.axis,
-                      mindate=a.mindate, maxdate=a.maxdate)
+                      mindate=a.mindate, maxdate=a.maxdate, per_cat=a.per_cat,
+                      abstract_chars=a.abstract_chars)
     if a.out:
         Path(a.out).write_text(json.dumps(rec, indent=2))
     print(json.dumps(rec, indent=2))
