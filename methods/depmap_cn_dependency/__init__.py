@@ -10,7 +10,7 @@ Composes two existing loaders + the PROVEN Mann-Whitney contrast (imported verba
 depmap_mutation_dependency), so the statistical treatment is identical to the mutation path:
   - Chronos via depmap_chronos_distribution.load_depmap_files ({ModelID -> chronos})
   - relative CN via depmap_cn_distribution.load_cn_files ({ModelID -> relative_cn})
-  - amplified boolean = relative_cn > FOCAL_AMP (1.5, the DepMap-side focal-amp convention)
+  - amplified boolean = relative_cn > FOCAL_AMP_HIGH (2.0, the focal high-level amp cut the dependency arm uses)
   - neutral (comparator) = NOT amplified (broad; the faithful mirror of the mutation path's
     "everything not mutant" WT group — sign-off decision 2026-08-06).
 

@@ -1,14 +1,14 @@
 """depmap_amp_expr_dependency — amplification→overexpression→dependency three-way (A1 oncogene-addiction).
 
 The CONJOINT analog of the mutation/CN/fusion stratified-dependency primitive: is target T's DepMap
-CRISPR dependency (Chronos) stronger in cell lines that are BOTH amplified (relative CN > 1.5) AND
+CRISPR dependency (Chronos) stronger in cell lines that are BOTH amplified (relative CN > 2.0) AND
 high-expression (top-tertile log2TPM) for T? This is the amplification-DRIVEN oncogene-addiction
 signature (ERBB2/MYC/MET-amp archetype) — the amp→overexpression→dependency chain the CN-only
 stratified path (amplified-vs-neutral, expression-blind) cannot resolve, and the expression-dependency
 FACET (expression-blind to CN) cannot establish either.
 
 The stratifying boolean is a CONJUNCTION (v1, user-approved 2026-08-06 "conditioned arm vs rest"):
-  positive arm = amplified (CN > FOCAL_AMP 1.5) AND high-expression (TPM in the top within-panel tertile)
+  positive arm = amplified (CN > FOCAL_AMP 2.0) AND high-expression (TPM in the top within-panel tertile)
   comparator   = every OTHER evaluated line (not-both) — the broad mirror of the CN/fusion comparators.
 Because the stratifier collapses to a single {ModelID -> bool}, the SAME proven one-sided Mann-Whitney
 (_mannwhitney_stratification, imported verbatim from depmap_mutation_dependency) applies — statistics
