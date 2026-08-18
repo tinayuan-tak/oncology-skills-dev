@@ -51,14 +51,12 @@ _RESISTANCE_SIGNIFICANCE = {"Resistance": "known_resistance", "Reduced Sensitivi
 _PREDICTIVE_SENSITIVITY = {"Sensitivity/Response"}
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _read_tsv(key: str):
     import pandas as pd
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
     body = s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()

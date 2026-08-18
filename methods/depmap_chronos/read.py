@@ -17,7 +17,6 @@ cli's emit_* helpers separately. Same code path the unit tests exercise.
 
 from __future__ import annotations
 
-import os
 from functools import partial
 from pathlib import Path
 from typing import Optional
@@ -51,9 +50,7 @@ DEFAULT_CHRONOS_PARQUET = (
 INDICATION_TO_DEPMAP_LINEAGE = _cli.INDICATION_LINEAGE
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_lineage_selectivity(
@@ -70,7 +67,7 @@ def read_lineage_selectivity(
 
     On data-unreachable errors, returns a dict with `_live_read_error` key.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(
         release_pin="26q1", target_symbol=target

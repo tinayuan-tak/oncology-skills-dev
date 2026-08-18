@@ -69,9 +69,7 @@ def _md5_hex(path: Path) -> str:
     return h.hexdigest()
 
 
-def _ensure_aws_profile() -> None:
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = "cbg"
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def resort(in_uri: str, out_path: Path, row_group_size: int) -> tuple[int, dict]:
@@ -81,7 +79,7 @@ def resort(in_uri: str, out_path: Path, row_group_size: int) -> tuple[int, dict]
     """
     import duckdb
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Cap memory so DuckDB spills to disk before any OOM risk.
@@ -244,7 +242,7 @@ def main(in_uri: str, out: Path, row_group_size: int,
     """Globally re-sort the TCGA long TPM parquet by ensembl_gene_id for fast per-gene reads."""
     import boto3
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     size_bytes, stats = resort(in_uri, out, row_group_size)
     _log(f"[resort_long] stats: {stats}")

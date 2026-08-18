@@ -9,7 +9,6 @@ the concordance fields (per_compound_concordance + crispr_prism_concordance_clas
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import cli as _cli
@@ -18,9 +17,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RELEASE_PIN = "prism-activity-v4"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_prism_crispr_concordance(target: str, indication: Optional[str] = None,
@@ -28,7 +25,7 @@ def read_prism_crispr_concordance(target: str, indication: Optional[str] = None,
     """Read CRISPR × RNAi × PRISM concordance for a target — pan-cancer,
     indication-independent (correlation across the full DepMap cell-line panel;
     lineage stratification is out of scope for this card)."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     parquet_uri = _cli.RELEASE_PIN_TO_PARQUET.get(release_pin)
     if parquet_uri is None:
         return {

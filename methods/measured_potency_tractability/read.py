@@ -26,7 +26,6 @@ data_unavailable (coverage gap), NEVER a false negative.
 from __future__ import annotations
 
 import io
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -46,16 +45,14 @@ POTENT_SERIES_MIN = 10   # >= this many potent (<=1 uM) ligands = a real chemoty
 DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
     # batch reads — the failure mode that silently dropped cards on full dossier runs).
     from methods.target_id_sidecar import s3_client

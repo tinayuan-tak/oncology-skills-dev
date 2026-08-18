@@ -17,7 +17,6 @@ symbol column — deprecated-symbol risk), same discipline as the CSPA + topolog
 from __future__ import annotations
 
 import io
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -32,16 +31,14 @@ _, SIDECAR_KEY = sidecar_bucket_key_for(DERIVED_MANIFEST_ID)
 DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
     # batch reads), mirroring uniprot_protein_features — a bare boto3.client had NO retry backoff.
     from methods.target_id_sidecar import s3_client

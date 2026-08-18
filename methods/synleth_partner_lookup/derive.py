@@ -22,7 +22,6 @@ the read side (read.py) does a point lookup. CC-BY-4.0 source (redistributable).
 from __future__ import annotations
 
 import io
-import os
 from collections import defaultdict
 from typing import Optional
 
@@ -58,9 +57,7 @@ def evidence_tier(rel_source: Optional[str]) -> str:
 _TIER_RANK = {"experimental": 2, "other": 1, "computational": 0}
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def load_sl_pairs(tsv_path=None):
@@ -70,7 +67,7 @@ def load_sl_pairs(tsv_path=None):
             "cell_line", "pubmed_id", "cancer"]
     if tsv_path is not None:
         return pd.read_csv(tsv_path, sep="\t", usecols=cols, dtype=str)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     body = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=SL_SOURCE_KEY)["Body"].read()
     return pd.read_csv(io.BytesIO(body), sep="\t", usecols=cols, dtype=str)

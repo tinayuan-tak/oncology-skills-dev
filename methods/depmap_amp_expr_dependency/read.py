@@ -12,7 +12,6 @@ the underlying DepMap data is unreachable.
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -23,8 +22,7 @@ METHOD_VERSION = _cli.METHOD_VERSION
 DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
@@ -36,7 +34,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
     threaded into all three loaders (was previously hardcoded to "26q1", so the arg was ignored).
     Returns the card's summary_fields, or a dict with _live_read_error when data is unreachable.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     METHODS_REPO = Path(__file__).resolve().parent.parent.parent
     if str(METHODS_REPO) not in sys.path:
         sys.path.insert(0, str(METHODS_REPO))

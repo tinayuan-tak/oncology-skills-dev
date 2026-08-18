@@ -56,9 +56,7 @@ _INDICATION_TISSUE = {
 _COMPOSITE_INDICATIONS = {"COADREAD": {"COAD", "READ"}, "NSCLC": {"LUAD", "LUSC"}, "AML": {"LAML"}}
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _boto3():
@@ -269,7 +267,7 @@ def _open_tissue(tissue: str, local_dir: Optional[str]):
         else:
             return None
     else:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         key = f"{SPLICESEQ_SOURCE_PREFIX}/{_snapshot_dir()}/PSI_download_{tissue}.zip"
         try:
             raw = _boto3().get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
@@ -312,7 +310,7 @@ def _snapshot_dir() -> str:
     except Exception:  # noqa: BLE001
         pass
     # fallback: list the prefix and take the lexically-max snapshot dir
-    _ensure_aws_profile()
+    ensure_aws_profile()
     resp = _boto3().list_objects_v2(Bucket=S3_BUCKET, Prefix=f"{SPLICESEQ_SOURCE_PREFIX}/", Delimiter="/")
     dirs = [p["Prefix"].rstrip("/").split("/")[-1] for p in resp.get("CommonPrefixes", [])]
     return sorted(dirs)[-1] if dirs else "v2-snapshot"

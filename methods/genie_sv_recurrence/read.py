@@ -14,7 +14,6 @@ uniquely names the fusion counterpart — EML4 for ALK, etc.). DISPLAY facet, ve
 from __future__ import annotations
 
 import io
-import os
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -39,12 +38,7 @@ _NON_GENE_PARTNER_TOKENS = frozenset({"INTERGENIC", "INTRAGENIC", "INTRACHROMOSO
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path for siblings
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
-
-
-from methods.target_id_sidecar import s3_client as _boto3_client
+from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
 
 
 @lru_cache(maxsize=1)
@@ -53,7 +47,7 @@ def _load_sv():
     parse — the free-text Comments/Annotation columns carry embedded newlines and quotes, so a
     naive line split would corrupt rows. Returns a pandas DataFrame or None."""
     import pandas as pd
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = _boto3_client()
     try:
         body = s3.get_object(Bucket=S3_BUCKET, Key=SV_KEY)["Body"].read()

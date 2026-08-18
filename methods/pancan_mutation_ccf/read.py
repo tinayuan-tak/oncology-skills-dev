@@ -10,7 +10,6 @@ indication is absent. Mirrors precog_prognostic.read's S3-resolve pattern (aws s
 from __future__ import annotations
 
 import io
-import os
 import subprocess
 from functools import lru_cache
 from typing import Optional
@@ -27,8 +26,7 @@ _UNAVAILABLE = {
 }
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", "cbg")
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 @lru_cache(maxsize=2)
@@ -38,7 +36,7 @@ def _load_product(product_path: "Optional[str]" = None):
     if product_path:
         from pathlib import Path
         return pd.read_parquet(product_path) if Path(product_path).exists() else None
-    _ensure_aws_profile()
+    ensure_aws_profile()
     try:
         raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"],
                              capture_output=True, timeout=120).stdout

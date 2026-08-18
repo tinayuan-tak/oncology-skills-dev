@@ -13,7 +13,6 @@ cli's emit_*_plot helpers separately.
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import cli as _cli
@@ -21,9 +20,7 @@ from . import cli as _cli
 DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_expression_dependency(target: str, indication: Optional[str] = None) -> dict:
@@ -38,7 +35,7 @@ def read_expression_dependency(target: str, indication: Optional[str] = None) ->
       Dict matching Card 4's outputs.summary_fields OR a dict with _live_read_error
       key when data is unreachable.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     if indication is None:
         indication = ""

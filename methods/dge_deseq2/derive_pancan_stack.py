@@ -35,7 +35,6 @@ NaN-filled by the concat (union schema), which is honest: cell B was not run the
 from __future__ import annotations
 
 import hashlib
-import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -106,9 +105,7 @@ def _dedupe_overlapping_indications(rows: list) -> list:
     return [r for r in rows if str(r.get("indication")).upper() not in drop]
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _sensitivity_s3_uri(indication: str) -> str:
@@ -130,7 +127,7 @@ def list_published_sensitivity_indications(s3fs=None) -> set[str]:
     (upper-case). ``s3fs`` is injectable for testing; defaults to a real pyarrow S3FileSystem."""
     import pyarrow.fs as pafs
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
     if s3fs is None:
         s3fs = pafs.S3FileSystem()
     base = f"{S3_BUCKET}/data-catalog/derived"
@@ -185,7 +182,7 @@ def build_stack(indications: list[str] | None = None):
     import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # Full-roster build (no explicit subset): verify the hard-coded vintage map still matches the
     # published sensitivity products, so a newly-landed indication can't be silently dropped from the
     # stack (which would leave the breadth reader's n_indications_tested stale). An explicit subset
@@ -338,7 +335,7 @@ def read_rna_tumor_elevation_breadth(target: str) -> dict:
     import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
     empty = {
         "rna_tumor_elevation_breadth_class": "data_unavailable",
         "n_indications_tested": 0, "n_indications_elevated": 0,

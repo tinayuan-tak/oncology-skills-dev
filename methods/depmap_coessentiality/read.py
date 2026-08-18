@@ -6,7 +6,6 @@ for the queried gene are loaded (< 1 s per call on a cold parquet, < 200 ms warm
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -26,9 +25,7 @@ def _resolve_s3_uri() -> str:
     return s3_uri_for(MANIFEST_ID)
 
 
-def _ensure_aws_profile() -> None:
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _local_path() -> Optional[Path]:
@@ -62,7 +59,7 @@ def read_coessential_partners(
         substrate_uri:    resolved path used
         _data_unavailable: present (True) if the substrate could not be read
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     local = _local_path() if not parquet_path else None
     if parquet_path:
         path = parquet_path

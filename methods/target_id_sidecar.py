@@ -79,6 +79,12 @@ def s3_client(profile: Optional[str] = None):
                 os.environ["AWS_PROFILE"] = saved
 
 
+def ensure_aws_profile() -> None:
+    """Default AWS_PROFILE to the onc-compbio `cbg` profile when unset (the default SSO role lacks
+    bucket access). No-op if AWS_PROFILE is already set. Consolidates the former per-module copies."""
+    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+
+
 def is_definitively_absent(exc: BaseException) -> bool:
     """True IFF `exc` means the S3 object genuinely does not exist (NoSuchKey / 404 / NoSuchBucket).
 

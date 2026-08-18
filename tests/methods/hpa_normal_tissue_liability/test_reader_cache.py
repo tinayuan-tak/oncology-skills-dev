@@ -79,5 +79,5 @@ def test_ensure_hpa_cached_hits_existing_disk_file(tmp_path, monkeypatch):
     _write_hpa_zip(tmp_path, [["KRAS", "Detected in all", "y", ""]])  # writes proteinatlas.tsv.zip
     def _boom(*a, **k):
         raise AssertionError("must not download when disk cache exists")
-    monkeypatch.setattr(cli, "_ensure_aws_profile", _boom)
+    monkeypatch.setattr(cli, "ensure_aws_profile", _boom)
     assert cli._ensure_hpa_cached() == z

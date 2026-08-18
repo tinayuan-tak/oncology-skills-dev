@@ -62,11 +62,6 @@ _SURFACE_FAMILY_CLASSES = {
 _SURFACE_SECRETED = {"surface", "cell_surface", "secreted", "membrane", "plasma_membrane"}
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = "cbg"
-
-
 @lru_cache(maxsize=1)
 def _load_precedent(target_contracts_dir: str = None) -> dict:
     """Curated degrader-precedent vocab (entries keyed by HGNC symbol). {} on failure."""

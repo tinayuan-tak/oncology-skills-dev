@@ -20,7 +20,6 @@ favorable window — do not read absence as safety).
 
 from __future__ import annotations
 
-import os
 import sys
 import zipfile
 from functools import lru_cache
@@ -71,9 +70,7 @@ ESSENTIAL_TISSUES = HPA_ESSENTIAL_TISSUES
 GI_TISSUES = {"intestine", "stomach"}
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _ensure_hpa_cached() -> Path:
@@ -82,7 +79,7 @@ def _ensure_hpa_cached() -> Path:
     HPA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if HPA_CACHE_ZIP.exists() and HPA_CACHE_ZIP.stat().st_size > 0:
         return HPA_CACHE_ZIP
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     print(f"[hpa] downloading s3://{S3_BUCKET}/{HPA_KEY} -> {HPA_CACHE_ZIP}", file=sys.stderr)
     boto3.client("s3").download_file(S3_BUCKET, HPA_KEY, str(HPA_CACHE_ZIP))

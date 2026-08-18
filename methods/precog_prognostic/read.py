@@ -11,7 +11,6 @@ single-cohort expression-clinical-association card.
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import cli as _cli
@@ -23,13 +22,12 @@ _DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
 _XWALK = _cli.INDICATION_TO_PRECOG
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _load_product():
     from methods.derived_product import load_materialized_product
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # dev fallback (re-reads the source matrix) if the materialized product is unreachable
     return load_materialized_product(_DERIVED_S3, dev_build=_cli.build_long_table)
 

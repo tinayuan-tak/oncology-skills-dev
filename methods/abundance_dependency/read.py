@@ -6,7 +6,6 @@ unit-testing without S3.
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 DEFAULT_AWS_PROFILE = "cbg"
@@ -19,9 +18,7 @@ MIN_PAIRED_MODELS = 20
 SIGNIFICANCE_ALPHA = 0.05
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def classify_abundance_dependency(pearson_r: Optional[float], pearson_p: Optional[float],
@@ -48,7 +45,7 @@ def read_abundance_dependency(target: str, indication: Optional[str] = None,
                               release_pin: str = "26q1") -> dict:
     """Q7 protein arm — correlate target Gygi-MS protein abundance with its Chronos dependency across
     DepMap cell lines. Returns the class + stats + a comparison hook to the RNA arm. data-safe."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     sym = target.upper().strip()
     base = {"target": target, "indication": indication or "", "release_pin": release_pin,
             "abundance_layer": "protein_gygi_ms"}

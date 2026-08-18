@@ -7,7 +7,6 @@ log-rank (no lifelines dependency). Pure classifier split out for unit-testing.
 from __future__ import annotations
 
 import io
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -26,9 +25,7 @@ MIN_PER_ARM = 15         # minimum patients per expression arm
 SIGNIFICANCE_ALPHA = 0.05
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _boto3():
@@ -135,7 +132,7 @@ def classify_survival_association(p: Optional[float], high_expr_hazard_direction
 def read_expression_clinical_association(target: str, indication: str) -> dict:
     """Q11 — median-split OS log-rank by target expression for a (target, indication). Returns the
     association class + log-rank stats. data_unavailable-safe. Univariate/unadjusted (see caveats)."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     sym = target.upper().strip()
     base = {"target": target, "indication": indication, "endpoint": "OS",
             "survival_source": "pancanatlas_tcga_cdr"}

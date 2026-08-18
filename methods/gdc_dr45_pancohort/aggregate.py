@@ -30,9 +30,7 @@ NON_SYNONYMOUS_CLASSES = {
 }
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _boto3_client():
@@ -93,7 +91,7 @@ def _stream_maf_genes(s3, key: str) -> list[tuple[str, str, str]]:
 def _collect(program: str, data_catalog_repo: Optional[Path] = None, _max_files: Optional[int] = None):
     """Stream all tumor MAFs for a program → (n_cases, gene_data). gene_data[gene] =
     {mutated_cases: set, hotspots: {hgvs: set(cases)}}. Deduped to case_id (patient grain)."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = _boto3_client()
     files = _load_manifest_files(program, data_catalog_repo)
     if _max_files:

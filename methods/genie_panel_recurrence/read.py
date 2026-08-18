@@ -34,9 +34,7 @@ _MIN_COVERED = 20
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path for siblings
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 @lru_cache(maxsize=8)
@@ -45,7 +43,7 @@ def _load_genie_maf(indication: str):
     Local-cache-first ({ind}-genie-maf.parquet) then the registered pan-indication product
     (filter indication). Returns a pandas DataFrame or None."""
     import pandas as pd
-    _ensure_aws_profile()
+    ensure_aws_profile()
     local = GENIE_MAF_LOCAL / f"{indication.lower()}-genie-maf.parquet"
     if local.exists():
         df = pd.read_parquet(local, columns=["sample_id", "gene_symbol"])
@@ -85,7 +83,7 @@ def _indication_cohort(indication: str) -> tuple:
     data_clinical_sample.txt filtered to the indication's CANCER_TYPE. This is the denominator
     universe — NOT the MAF (which lists only mutated samples). Returns a tuple of sample_ids."""
     import pandas as pd
-    _ensure_aws_profile()
+    ensure_aws_profile()
     cancer_type = GENIE_CANCER_TYPE.get(indication)
     if cancer_type is None:
         return tuple()

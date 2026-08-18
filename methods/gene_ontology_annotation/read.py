@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import gzip
 import io
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -45,12 +44,7 @@ _NS_CODE = {"P": "biological_process", "F": "molecular_function", "C": "cellular
 _EXPERIMENTAL_EVIDENCE = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "HTP", "HDA", "HMP", "HGI", "HEP"}
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
-
-
-from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac
+from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac, ensure_aws_profile
 
 
 @lru_cache(maxsize=1)
@@ -60,7 +54,7 @@ def _load_obo_names(obo_path: Optional[str] = None) -> dict:
     if obo_path is not None:
         raw = open(obo_path, "rb").read()
     else:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=OBO_S3_KEY)["Body"].read()
     names: dict[str, str] = {}
     cur_id = None
@@ -83,7 +77,7 @@ def _load_gaf(gaf_path: Optional[str] = None) -> dict:
     if gaf_path is not None:
         raw = open(gaf_path, "rb").read()
     else:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=GAF_S3_KEY)["Body"].read()
     by_ac: dict[str, dict] = {}   # ac -> {(go_id, ns): evidence}
     with gzip.open(io.BytesIO(raw), "rt", encoding="utf-8", errors="replace") as fh:
@@ -117,7 +111,7 @@ def _load_symbol_to_ac(sidecar_path: Optional[str] = None) -> dict:
     empty crosswalk would silently fail EVERY target (data_unavailable framework-wide). The live-read
     seam turns a raise into an honest per-card _live_read_error."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
-    _ensure_aws_profile()
+    ensure_aws_profile()
     return read_resolver_sidecar_map(
         S3_BUCKET, SIDECAR_S3_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
         local_path=sidecar_path)

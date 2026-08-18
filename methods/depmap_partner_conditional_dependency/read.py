@@ -12,7 +12,6 @@ _live_read_error / no_partner_mapped when the underlying data is unreachable or 
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -34,8 +33,7 @@ _CLASS_RANK = {
 }
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_partner_conditional_dependency(target: str, indication: Optional[str] = None,
@@ -46,7 +44,7 @@ def read_partner_conditional_dependency(target: str, indication: Optional[str] =
     like the CN/mutation-stratified siblings). Returns the card's summary_fields (strongest partner),
     or a dict with _live_read_error / no_partner_mapped when data is unreachable / unmapped.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     METHODS_REPO = Path(__file__).resolve().parent.parent.parent
     if str(METHODS_REPO) not in sys.path:
         sys.path.insert(0, str(METHODS_REPO))

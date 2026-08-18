@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import gzip
 import io
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -66,12 +65,7 @@ _, BIOGRID_PHYSICAL_PRODUCT_KEY = bucket_key_for(BIOGRID_MANIFEST_ID)
 BIOGRID_HUB_DEGREE = 50   # >= this many physical partners → physical hub (mirrors STRING's hub cut)
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
-
-
-from methods.target_id_sidecar import s3_client as _boto3_client
+from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
 
 
 @lru_cache(maxsize=1)
@@ -81,7 +75,7 @@ def _load_string_info(info_path: Optional[str] = None) -> tuple:
     if info_path is not None:
         raw = open(info_path, "rb").read()
     else:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=STRING_INFO_KEY)["Body"].read()
     sym_to_id: dict[str, str] = {}
     id_to_sym: dict[str, str] = {}
@@ -164,7 +158,7 @@ def _string_edges_for(string_id: str, links_path: Optional[str] = None) -> list:
     if links_path is not None:
         fh_bytes = open(links_path, "rb").read()
     else:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         fh_bytes = _boto3_client().get_object(Bucket=S3_BUCKET, Key=STRING_LINKS_KEY)["Body"].read()
     prefix = string_id + " "
     out = []
@@ -186,7 +180,7 @@ def _load_corum(uniprot_path: Optional[str] = None, complete_path: Optional[str]
     if uniprot_path is not None:
         u_raw = open(uniprot_path, "rb").read()
     else:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         u_raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=CORUM_UNIPROT_KEY)["Body"].read()
     ac_to_complexes: dict[str, set] = {}
     for i, line in enumerate(io.StringIO(u_raw.decode("utf-8", "replace"))):
@@ -225,7 +219,7 @@ def _load_uniprot_sidecar(sidecar_path: Optional[str] = None) -> dict:
     silently fail every CORUM lookup); the caller's CORUM block records a non-fatal note on failure so
     the STRING + BioGRID signals are unaffected."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
-    _ensure_aws_profile()
+    ensure_aws_profile()
     return read_resolver_sidecar_map(
         S3_BUCKET, UNIPROT_SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "uniprot_canonical",
         local_path=sidecar_path)

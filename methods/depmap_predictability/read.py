@@ -11,7 +11,6 @@ graceful-degradation contract holds (same shape as E1-E4).
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import cli as _cli
@@ -20,9 +19,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RELEASE_PIN = "26q1-v3"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_predictability(target: str, indication: Optional[str] = None,
@@ -33,7 +30,7 @@ def read_predictability(target: str, indication: Optional[str] = None,
     NOT consumed by v2 — the model uses lineage as a FEATURE, not a stratification
     axis. Per-lineage read-outs are exposed via `per_lineage_predictability`.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     parquet_uri = _cli.RELEASE_PIN_TO_PARQUET.get(release_pin)
     if parquet_uri is None:
         return {

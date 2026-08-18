@@ -12,7 +12,6 @@ NOT data_unavailable — distinct from an unreadable roster (infra failure)."""
 from __future__ import annotations
 
 import json
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -25,9 +24,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 METHOD_VERSION = _classify.METHOD_VERSION
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _extract_records(doc) -> list:
@@ -58,7 +55,7 @@ def _load_roster(members_path: Optional[str] = None) -> dict:
                 doc = json.load(f)
         else:
             import boto3
-            _ensure_aws_profile()
+            ensure_aws_profile()
             bucket, prefix = bucket_prefix_for(SOURCE_MANIFEST_ID)
             key = f"{prefix}{MEMBERS_FILE}"
             body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()

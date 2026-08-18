@@ -37,15 +37,13 @@ MIN_MUTANT_SAMPLES = 10  # below this the clonality fraction is not reported (in
 CCF_CAP = 1.5           # cap ccf (purity/CN noise can push it >1)
 
 
-def _ensure_aws_profile():
-    import os
-    os.environ.setdefault("AWS_PROFILE", "cbg")
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def load_purity() -> dict:
     """{sample-level barcode (first 15 chars) -> ABSOLUTE purity}."""
     import boto3
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=MC3_S3_BUCKET, Key=ABS_S3_KEY)
     text = obj["Body"].read().decode("utf-8", errors="replace")
@@ -76,7 +74,7 @@ def aggregate_clonality(indication: str) -> list[dict]:
     Returns a list of {indication, gene_symbol, n_mutant_samples, clonal_fraction, median_ccf,
     clonality_class, evidence_tier} dicts."""
     import boto3
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     projects = set(INDICATION_TO_TCGA_PROJECTS.get(indication, []))
     if not projects:

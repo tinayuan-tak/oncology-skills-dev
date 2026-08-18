@@ -31,9 +31,7 @@ _SINGLE_DOMINANT = 0.80   # median dominant-isoform fraction >= 0.80 → one iso
 _DIVERSE = 0.50           # < 0.50 → isoform-diverse (no single isoform dominates)
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _boto3():
@@ -46,7 +44,7 @@ def _enst_to_gene() -> dict:
     """{base-ENST: gene_symbol} from the GENCODE v26 GTF transcript lines. Version-stripped keys
     (DepMap transcript ids are versioned ENST; join on the base). Empty on failure."""
     import gzip
-    _ensure_aws_profile()
+    ensure_aws_profile()
     try:
         raw = _boto3().get_object(Bucket=S3_BUCKET, Key=GENCODE_GTF_KEY)["Body"].read()
     except Exception as e:  # noqa: BLE001
@@ -156,7 +154,7 @@ def build_isoform_table(local_csv: Optional[str] = None):
 
     src = local_csv
     if src is None:
-        _ensure_aws_profile()
+        ensure_aws_profile()
         src = _boto3().get_object(Bucket=S3_BUCKET, Key=TRANSCRIPT_TPM_KEY)["Body"]
     # Plan the read from the header FIRST (column identity is data-dependent), then read ONLY the
     # mapped ENST columns directly as float32. Reading dtype=str over all 237k columns would balloon

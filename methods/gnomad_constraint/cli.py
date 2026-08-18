@@ -123,9 +123,7 @@ def _to_int(v):
     return int(f) if f is not None else None
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _local_cache_path() -> str:
@@ -137,7 +135,7 @@ def _local_cache_path() -> str:
 def _download_source(dest: str) -> None:
     """S3 read-through: download the per-gene constraint parquet to the local cache if absent."""
     import boto3  # local import — framework runtime shouldn't require boto3 unless a live read happens
-    _ensure_aws_profile()
+    ensure_aws_profile()
     boto3.client("s3").download_file(S3_BUCKET, S3_KEY, dest)
 
 

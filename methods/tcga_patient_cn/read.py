@@ -46,14 +46,12 @@ _FOCAL_AMP_FRACTION = 0.10   # high-level (+2) in >= 10% of tumours → recurren
 _FOCAL_HOMDEL_FRACTION = 0.10  # homdel (-2) in >= 10% → recurrent_focal_deletion (the TSG analog)
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _s3_read_bytes(key: str) -> bytes:
     import boto3
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
     return s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
 

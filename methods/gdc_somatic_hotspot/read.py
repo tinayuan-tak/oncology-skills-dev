@@ -69,9 +69,7 @@ INDICATION_TO_GDC_PROJECTS = {
 }
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 # --- Derived-manifest resolution (2026-08-05) ---------------------------------
@@ -114,7 +112,7 @@ def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, col
     - Else resolve the manifest's s3_uri and read from S3 with the same filters/columns.
     Returns None if neither is available (caller renders data_unavailable)."""
     import pyarrow.parquet as pq
-    _ensure_aws_profile()
+    ensure_aws_profile()
     if local_path.exists():
         return pq.read_table(local_path, filters=filters, columns=columns)
     key = _manifest_s3_path(manifest_id)
@@ -237,7 +235,7 @@ def read_hotspot_summary(
     (requires co-mutation analysis across samples; iter-1b returns empty lists
     with a structured note).
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     if aggregate_path is None:
         aggregate_path = _resolve_aggregate_path(indication)
 

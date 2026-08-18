@@ -21,7 +21,6 @@ Usage:
 from __future__ import annotations
 
 import gzip
-import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -118,9 +117,7 @@ NON_SYNONYMOUS_CLASSES = {
 }
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _barcode_to_project(barcode: str) -> str | None:
@@ -174,7 +171,7 @@ def aggregate_indication(indication: str) -> "pa.Table":
     import boto3
     import pyarrow as pa
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     projects = set(INDICATION_TO_TCGA_PROJECTS.get(indication, []))
     if not projects:
@@ -328,7 +325,7 @@ def per_sample_maf(indication: str) -> "pa.Table":
     import boto3
     import pyarrow as pa
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     projects = set(INDICATION_TO_TCGA_PROJECTS.get(indication, []))
     if not projects:

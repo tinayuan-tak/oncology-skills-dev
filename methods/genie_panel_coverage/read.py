@@ -13,7 +13,6 @@ per-(sample,gene) materialization.
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Optional
@@ -36,12 +35,7 @@ _MUTATIONS_PANEL_COLUMN = "mutations"
 _SV_PANEL_COLUMN = "sv"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
-
-
-from methods.target_id_sidecar import s3_client as _boto3_client
+from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
 
 
 def _parse_gene_panel_file(text: str) -> list[str]:
@@ -60,7 +54,7 @@ def _parse_gene_panel_file(text: str) -> list[str]:
 @lru_cache(maxsize=1)
 def load_panel_gene_sets(genie_prefix: str = GENIE_PREFIX) -> dict:
     """{panel_id: frozenset(gene_symbol)} for all 166 GENIE panels. Cached once."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = _boto3_client()
     prefix = f"{genie_prefix}/gene_panels/"
     out: dict[str, frozenset] = {}
@@ -82,7 +76,7 @@ def _sample_panel_map_for_column(column: str, genie_prefix: str = GENIE_PREFIX) 
     blank panel for that assay (not profiled on it) are OMITTED — they carry no coverage for
     any gene on that assay and must not enter its denominator. Cached per column."""
     import pandas as pd
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = _boto3_client()
     key = f"{genie_prefix}/data_gene_matrix.txt" if genie_prefix != GENIE_PREFIX else GENE_MATRIX_KEY
     body = s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"]

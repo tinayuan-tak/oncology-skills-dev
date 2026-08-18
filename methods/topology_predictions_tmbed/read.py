@@ -21,7 +21,6 @@ load failure).
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import classify as _classify
@@ -48,9 +47,7 @@ _UNAVAILABLE_PTM_FIELDS = {
 }
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _err(reason: str, remediation: str) -> dict:
@@ -75,7 +72,7 @@ def read_target_summary(target: str, indication: Optional[str] = None,
     `gene_symbol` column is 100% empty — documented gotcha — so we MUST join via the
     sidecar's uniprot_canonical, never the native column), then looks up the topology row.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     try:
         accession = _classify.resolve_uniprot(target, sidecar_path=sidecar_path,
                                               bucket=S3_BUCKET, sidecar_key=SIDECAR_KEY)

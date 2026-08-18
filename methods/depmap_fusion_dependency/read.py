@@ -15,7 +15,6 @@ absent from OmicsFusionFiltered.csv were never fusion-called and are excluded, n
 """
 from __future__ import annotations
 
-import os
 import re
 import sys
 from io import BytesIO
@@ -35,8 +34,7 @@ FUSION_S3_KEY = f"{DEPMAP_SOURCE_PREFIX}/OmicsFusionFiltered.csv"
 _GENE_PAREN_RE = re.compile(r"^([A-Za-z0-9._\-]+)\s*\(\d+\)$")
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _extract_symbol(col) -> Optional[str]:
@@ -109,7 +107,7 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
     (target-only, like the mutation/CN stratified siblings). Returns the card's
     summary_fields, or a dict with _live_read_error when data is unreachable.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     METHODS_REPO = Path(__file__).resolve().parent.parent.parent
     if str(METHODS_REPO) not in sys.path:
         sys.path.insert(0, str(METHODS_REPO))

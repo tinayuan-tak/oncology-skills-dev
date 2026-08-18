@@ -11,7 +11,6 @@ curated domain AND no class-bearing keyword → data_unavailable (coverage/annot
 from __future__ import annotations
 
 import io
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -36,16 +35,14 @@ INTERPRO_KEY = (f"{bucket_prefix_for(INTERPRO_MANIFEST_ID)[1]}"
 _, INTERPRO_SIDECAR_KEY = sidecar_bucket_key_for(INTERPRO_MANIFEST_ID)
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
     # batch reads — the failure mode that silently dropped protein-domains-class on a dossier run)
     from methods.target_id_sidecar import s3_client
@@ -127,7 +124,7 @@ def _interpro_domains_for(ac: str, interpro_path: Optional[str] = None) -> Optio
         if interpro_path is not None:
             tbl = pq.read_table(interpro_path, filters=flt, columns=cols)
         else:
-            _ensure_aws_profile()
+            ensure_aws_profile()
             import pyarrow.fs as fs
             tbl = pq.read_table(f"{S3_BUCKET}/{INTERPRO_KEY}",
                                 filesystem=fs.S3FileSystem(region="us-east-1"),

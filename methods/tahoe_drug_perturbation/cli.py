@@ -11,7 +11,6 @@ a few MB, never the 5.3 GB product. NO scanpy/anndata; pyarrow + the cbg S3 prof
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 PRODUCT_MANIFEST_ID = "tahoe-drug-perturbation-per-gene-v1"
@@ -26,9 +25,7 @@ STRONG_ABS_LFC = 1.0     # |log2FC| >= 1 (2-fold) = a strong transcriptional mov
 TOP_N = 15
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
@@ -170,6 +167,6 @@ def _context(target, klass, strongest, n_drugs, n_lines, top_supp, top_ind) -> s
 def build_summary(target: str, indication: Optional[str] = None) -> dict:
     """Public entry — per-target Tahoe drug-perturbation MoA facet. `indication` accepted for the
     CARD_DISPATCHERS contract but NOT consumed (the product is gene-keyed / pan-cancer)."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     df = fetch_gene_rows(target)
     return compute_summary(df, (target or "").strip())

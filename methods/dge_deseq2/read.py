@@ -29,10 +29,7 @@ DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rn
 DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile():
-    """The onc-compbio bucket requires the cbg profile; the default SSO role lacks access."""
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _load_manifest(manifest_id: str) -> dict:
@@ -59,7 +56,7 @@ def _allgene_log2fc_null(manifest_id: str, column: str = "log2FoldChange") -> tu
     Returns a tuple (hashable/cache-safe); empty on any failure → percentile is None."""
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    _ensure_aws_profile()
+    ensure_aws_profile()
     try:
         manifest = _load_manifest(manifest_id)
         s3_uri = manifest.get("s3_uri")
@@ -93,7 +90,7 @@ def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
     (manifest, column); one added full-column scan per cell. Empty on failure."""
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    _ensure_aws_profile()
+    ensure_aws_profile()
     try:
         path = _s3_uri_to_path(s3_uri)
         s3 = fs.S3FileSystem()
@@ -136,7 +133,7 @@ def read_dge_gene_row(
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     manifest = _load_manifest(manifest_id)
     s3_uri = manifest.get("s3_uri")
@@ -272,7 +269,7 @@ def _load_ensembl_hgnc_map():
     global _ENSEMBL_HGNC_MAP_CACHE
     if _ENSEMBL_HGNC_MAP_CACHE is not None:
         return _ENSEMBL_HGNC_MAP_CACHE
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, io
     import pandas as pd
     s3 = boto3.client("s3")
@@ -311,7 +308,7 @@ def _fetch_recount3_metadata(study: str) -> "pd.DataFrame":
     CONSTANT — target-independent — so it must not be re-streamed for every gene/target. Callers
     only .merge() the result (which copies), so returning the cached object is safe. maxsize 64 >
     the 33 TCGA studies."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
     s3 = boto3.client("s3")
@@ -333,7 +330,7 @@ def _fetch_recount3_gene_row(study: str, target_ensembl_ids: set[str]) -> "pd.Da
     recount3 count files use Gencode v26 versioned IDs (ENSG00000133703.13); the
     ID-map returns unversioned. Match on the stem before the '.'.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
     s3 = boto3.client("s3")
@@ -379,7 +376,7 @@ def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
     Memoized per study (perf, chain-review retrieval-opt #1): library sizes are a per-study
     CONSTANT (target-independent), previously re-streamed — a full ~50 MB gz download — on every
     gene. Callers .reset_index()/.merge() the result (both copy), so caching is safe."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np
     s3 = boto3.client("s3")
@@ -435,7 +432,7 @@ def _fetch_recount3_rpk_sums(
     from .gene_lengths import load_gene_lengths
     gene_lengths = load_gene_lengths()  # unversioned Ensembl → bp
 
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np
     s3 = boto3.client("s3")
@@ -649,7 +646,7 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
     """
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3fs = fs.S3FileSystem()
     try:
         # Resolve the product URI from its data-catalog manifest (single source of truth).
@@ -701,7 +698,7 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     """
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    _ensure_aws_profile()
+    ensure_aws_profile()
     manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
     s3fs = fs.S3FileSystem()
     try:
@@ -926,7 +923,7 @@ INDICATION_TO_GTEX_TISSUE = {
 
 def _fetch_recount3_gtex_metadata(tissue: str) -> "pd.DataFrame":
     """Fetch GTEx tissue metadata; returns DataFrame with external_id + SMTS + SMTSD."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
     s3 = boto3.client("s3")
@@ -940,7 +937,7 @@ def _fetch_recount3_gtex_metadata(tissue: str) -> "pd.DataFrame":
 
 def _fetch_recount3_gtex_gene_row(tissue: str, target_ensembl_ids: set) -> "pd.DataFrame":
     """Fetch GTEx counts for target's Ensembl-IDs from the gzipped tissue matrix."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np
     import pandas as pd
@@ -977,7 +974,7 @@ def _fetch_recount3_gtex_gene_row(tissue: str, target_ensembl_ids: set) -> "pd.D
 
 def _fetch_recount3_gtex_library_sizes(tissue: str) -> "pd.Series":
     """GTEx per-sample library sizes for CPM normalization."""
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np, pandas as pd
     s3 = boto3.client("s3")
@@ -1013,7 +1010,7 @@ def _fetch_gtex_samples_from_long_product(
     path would have produced for the same (target, gtex_tissue) — verified at
     the long product's emit time (see manifests/derived/gtex-tpm-recount3-long-v1.yaml).
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
 

@@ -11,7 +11,6 @@ Verdict-INERT: no resolver rung.
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import cli as _cli
@@ -37,13 +36,12 @@ _ALIASES = {"COADREAD": ["COAD", "READ"], "NSCLC": ["LUAD", "LUSC"], "CRC": ["CO
 _GENE_MAP_CACHE = None
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _load_product():
     from methods.derived_product import load_materialized_product
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # dev fallback (rebuilds from source) if the materialized product is unreachable
     return load_materialized_product(_resolve_derived_uri(), dev_build=_cli.build_per_indication_table)
 

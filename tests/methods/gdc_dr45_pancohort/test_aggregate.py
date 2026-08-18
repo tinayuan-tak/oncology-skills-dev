@@ -39,7 +39,7 @@ _FILE_ROWS = {
 def _patch(monkeypatch, files=None):
     monkeypatch.setattr(agg, "_load_manifest_files", lambda program, repo=None: files if files is not None else _fake_files())
     monkeypatch.setattr(agg, "_boto3_client", lambda: object())
-    monkeypatch.setattr(agg, "_ensure_aws_profile", lambda: None)
+    monkeypatch.setattr(agg, "ensure_aws_profile", lambda: None)
     def _fake_stream(s3, key):
         # key is DR45_S3_PREFIX/path → recover the path suffix
         for p, rows in _FILE_ROWS.items():

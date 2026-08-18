@@ -13,7 +13,6 @@ data_unavailable can fire).
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -23,9 +22,7 @@ from . import cli as _cli
 DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_mutation_stratified_dependency(
@@ -44,7 +41,7 @@ def read_mutation_stratified_dependency(
     Returns dict matching Card 3's outputs.summary_fields (+ evidence_scope / lineage_* provenance),
     or a dict with _live_read_error key when data is unreachable.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
 
     # Reuse Card 1's loader for Chronos
     METHODS_REPO = Path(__file__).resolve().parent.parent.parent

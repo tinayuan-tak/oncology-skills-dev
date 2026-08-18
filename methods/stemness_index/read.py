@@ -8,7 +8,6 @@ Target-INDEPENDENT cohort context (tier: indication). Verdict-INERT: no resolver
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from . import cli as _cli
@@ -29,13 +28,12 @@ def _resolve_derived_uri() -> str:
 _ALIASES = _cli.INDICATION_TO_STUDIES
 
 
-def _ensure_aws_profile() -> None:
-    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _load_product():
     from methods.derived_product import load_materialized_product
-    _ensure_aws_profile()
+    ensure_aws_profile()
     # dev fallback (slow: rescores from source) if the materialized product is unreachable
     return load_materialized_product(_resolve_derived_uri(), dev_build=_cli.build_per_indication_table)
 

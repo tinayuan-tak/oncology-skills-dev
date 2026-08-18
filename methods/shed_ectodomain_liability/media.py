@@ -30,7 +30,6 @@ THRESHOLD — self-calibrating (relative-to-what, not a magic number):
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from typing import Optional
 
@@ -45,9 +44,7 @@ MIN_LINES_DETECTED = 3          # a high mean must rest on >= this many detected
 MEDIA_PANEL_HIGH_QUANTILE = 0.75  # panel per-protein mean-NPX quantile that defines "high"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _s3_bucket_key(filename: str):
@@ -60,7 +57,7 @@ def _read_csv_s3(filename: str):
     HPA leg in cli.py; avoids an s3fs dependency)."""
     import io
     import boto3
-    _ensure_aws_profile()
+    ensure_aws_profile()
     bucket, key = _s3_bucket_key(filename)
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
     import pandas as pd
@@ -99,7 +96,7 @@ def _load_idmap(idmap_path: Optional[str] = None) -> dict:
             idm = pd.read_csv(idmap_path)
         else:
             import boto3
-            _ensure_aws_profile()
+            ensure_aws_profile()
             bucket, key = _s3_bucket_key(IDMAP_FILENAME)
             body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
             idm = pd.read_csv(io.BytesIO(body))

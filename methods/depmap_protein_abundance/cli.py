@@ -71,9 +71,7 @@ LINEAGE_CONCENTRATION_MAX_LINEAGES = 3   # detected in <= this many lineages →
 LINEAGE_CONCENTRATION_TOP_SHARE = 0.50   # one lineage holds >= this share of detected lines → concentrated
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 @lru_cache(maxsize=8)
@@ -89,7 +87,7 @@ def _cached_csv(path_or_none, bucket, key):
     import pandas as pd
     if path_or_none is not None:
         return pd.read_csv(path_or_none)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_csv(io.BytesIO(body))
@@ -102,7 +100,7 @@ def _read_csv(path_or_none, bucket, key, **kw):
     if kw:
         if path_or_none is not None:
             return pd.read_csv(path_or_none, **kw)
-        _ensure_aws_profile()
+        ensure_aws_profile()
         import boto3
         body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
         return pd.read_csv(io.BytesIO(body), **kw)
@@ -117,7 +115,7 @@ def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))

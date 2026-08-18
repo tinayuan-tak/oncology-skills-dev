@@ -77,9 +77,7 @@ HPA_SYSTEMIC_LOCATIONS = {  # secreted, but into a specific compartment (weaker 
 }
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +127,7 @@ def _read_hpa_secretome_df(hpa_path=None):
         return pd.read_csv(p, sep="\t",
                            usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL],
                            dtype=str)
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     body = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=HPA_KEY)["Body"].read()
     z = zipfile.ZipFile(io.BytesIO(body))

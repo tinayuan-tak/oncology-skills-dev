@@ -45,9 +45,7 @@ _BUCKET = "onc-compbio"
 _DEFAULT_AWS_PROFILE = "cbg"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = _DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _release_cfg(release_pin: str) -> dict:
@@ -57,7 +55,7 @@ def _release_cfg(release_pin: str) -> dict:
 def _read_csv_s3(key: str, **kwargs):
     import boto3
     import pandas as pd
-    _ensure_aws_profile()
+    ensure_aws_profile()
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=_BUCKET, Key=key)
     return pd.read_csv(io.BytesIO(obj["Body"].read()), **kwargs)
@@ -163,7 +161,7 @@ def read_mutation_drug_response(target: str, indication: Optional[str] = None,
     indication-independent, like the sibling stratified cards). Returns a dict matching the
     mutation-drug-response card's summary_fields, or a graceful no-compound / data_unavailable dict.
     """
-    _ensure_aws_profile()
+    ensure_aws_profile()
     from methods.depmap_mutation_drug_response.cli import compute_drug_response_stratification
 
     sample_ids, compound_records = load_on_target_compounds(release_pin, target)

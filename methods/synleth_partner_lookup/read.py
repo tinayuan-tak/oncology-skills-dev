@@ -23,7 +23,6 @@ Graceful degradation: derived product unreachable → data_unavailable + _live_r
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -40,9 +39,7 @@ CACHE_DIR = Path.home() / ".cache" / "synlethdb-sl-partners"
 CACHE_PARQUET = CACHE_DIR / "synlethdb_sl_partners_per_gene.parquet"
 
 
-def _ensure_aws_profile():
-    if "AWS_PROFILE" not in os.environ:
-        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _ensure_cached(parquet_path=None) -> Optional[Path]:
@@ -51,7 +48,7 @@ def _ensure_cached(parquet_path=None) -> Optional[Path]:
         return Path(parquet_path)
     if CACHE_PARQUET.exists():
         return CACHE_PARQUET
-    _ensure_aws_profile()
+    ensure_aws_profile()
     import boto3
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     boto3.client("s3").download_file(S3_BUCKET, DERIVED_KEY, str(CACHE_PARQUET))
