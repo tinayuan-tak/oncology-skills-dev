@@ -1,0 +1,760 @@
+{
+  "assembled": [
+    {
+      "dimension": "safety",
+      "gold_upheld": [
+        {
+          "target": "ALK",
+          "indication": "NSCLC (ALK-rearranged)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "EML4-ALK is a fusion-driven GoF target and WT ALK is dispensable in adult tissue, so full inhibition carries little on-target liability.",
+          "evidence_basis": "Alk-null mice are viable with only mild neurobehavioral phenotype; WT ALK expression is restricted to CNS/neural tissue; alectinib and Takeda's brigatinib are approved and well tolerated.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "KRAS",
+          "indication": "NSCLC (KRAS G12C)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "A mutant-selective G12C agent spares WT KRAS, so the essential normal-tissue role of WT KRAS does not gate on-target safety.",
+          "evidence_basis": "Sotorasib and adagrasib are approved covalent G12C-selective inhibitors well tolerated in patients; the GoF (germline KRAS activation causes Noonan) mutant-selective mechanism downgrades the WT-constraint concern.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF8",
+          "indication": "Hodgkin lymphoma / systemic ALCL (CD30+)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD30 expression is confined to activated lymphocytes and Reed-Sternberg cells with negligible essential normal-tissue role, giving a clean safety window for an ADC.",
+          "evidence_basis": "Brentuximab vedotin (Adcetris, marketed ex-US by Takeda) is an approved CD30 ADC with a manageable on-target profile; restricted antigen expression is the canonical anchor.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF17",
+          "indication": "Multiple myeloma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "BCMA is plasma-cell restricted and its on-target effect is a tolerated plasma-cell aplasia, not loss of an essential gene.",
+          "evidence_basis": "Approved BCMA T-cell engagers teclistamab and elranatamab show on-target plasma-cell depletion / hypogammaglobulinemia that is managed with Ig replacement; no broad essential-tissue expression.",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MS4A1",
+          "indication": "B-cell non-Hodgkin lymphoma (CD20+)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD20 is a B-lineage-restricted antigen absent from stem cells and plasma cells, so on-target B-cell aplasia is reversible and well tolerated.",
+          "evidence_basis": "Two decades of rituximab use establish a benign on-target safety precedent; CD20 is not expressed on hematopoietic progenitors, preserving recovery.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "POLR2A",
+          "indication": "Pan-cancer (solid tumors)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "POLR2A encodes the RNA Pol II catalytic subunit, a universally essential housekeeping gene with no therapeutic window for full inhibition.",
+          "evidence_basis": "DepMap common-essential across all lineages; gnomAD LOEUF near 0 (extreme LoF intolerance); full loss is cell-lethal in every proliferating tissue.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CDK1",
+          "indication": "Pan-cancer (solid tumors)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "CDK1 is the non-redundant master mitotic kinase; complete inhibition arrests all dividing normal tissue, precluding an on-target safety window.",
+          "evidence_basis": "DepMap pan-/common-essential dependency; no viable full-KO in dividing cells; historical mitotic-inhibitor programs limited by broad hematologic/GI toxicity.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "BCL2L1",
+          "indication": "CLL / solid tumors (BCL-XL-dependent)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Platelet survival depends on BCL-XL, so full inhibition produces dose-limiting on-target thrombocytopenia.",
+          "evidence_basis": "Navitoclax dose-limiting thrombocytopenia is a documented clinical on-target tox precedent; it directly motivated the platelet-sparing PROTAC degrader DT2216, confirming the liability.",
+          "modality": "degrader",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MDM2",
+          "indication": "TP53-wild-type tumors (e.g., liposarcoma / AML)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "MDM2 is an essential p53 regulator and its inhibition produces on-target dose-limiting myelosuppression.",
+          "evidence_basis": "Mdm2-KO is embryonic lethal (rescued only by concurrent p53 loss); MDM2 inhibitors (idasanutlin, milademetan) show dose-limiting thrombocytopenia and neutropenia in trials.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "PLK1",
+          "indication": "Pan-cancer / AML",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "PLK1 is an essential mitotic kinase whose full inhibition causes on-target myelosuppression in proliferating hematopoietic tissue.",
+          "evidence_basis": "DepMap common-essential dependency + documented dose-limiting on-target neutropenia in the clinic (volasertib, BI 2536).",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TFRC",
+          "indication": "Pan-cancer (anti-CD71 ADC concept)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Transferrin receptor is ubiquitously expressed and essential for iron uptake, so targeting it broadly damages normal (especially erythroid) tissue.",
+          "evidence_basis": "Ubiquitous normal expression atlas (incl. erythroid progenitors) + DepMap pan-essential dependency; on-target anemia is the expected liability.",
+          "modality": "adc",
+          "confidence": "med",
+          "_angles": 1,
+          "verdict": "upheld"
+        }
+      ],
+      "review_queue": [
+        {
+          "target": "AURKA",
+          "indication": "Pan-cancer (incl. AML, lymphoma)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Aurora A is an essential mitotic kinase and its full inhibition drives on-target hematologic toxicity, narrowing the therapeutic window.",
+          "evidence_basis": "Takeda's alisertib (MLN8237) had dose-limiting neutropenia as its principal on-target toxicity; AURKA is a common mitotic-essential dependency.",
+          "modality": "small_molecule",
+          "confidence": "med",
+          "_angles": 2,
+          "verdict": "uncertain"
+        },
+        {
+          "target": "MYC",
+          "indication": "MYC-amplified/driven tumors (e.g., Burkitt lymphoma)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "MYC is required by rapidly regenerating normal tissues (intestinal crypt, bone marrow), so complete degradation would produce broad on-target toxicity.",
+          "evidence_basis": "DepMap common-essential dependency + essential role in normal proliferating compartments (gut/hematopoietic); systemic pan-MYC inhibition tolerability is a known liability.",
+          "modality": "degrader",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "uncertain"
+        }
+      ]
+    },
+    {
+      "dimension": "biological",
+      "gold_upheld": [
+        {
+          "target": "ALK",
+          "indication": "NSCLC (ALK-rearranged)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "EML4-ALK fusion is the defining oncogenic driver of ALK+ NSCLC, an addiction validated by dramatic responses to ALK TKIs.",
+          "evidence_basis": "Approved ALK TKIs (crizotinib, alectinib, brigatinib, lorlatinib) with fusion-selected benefit; EML4-ALK is a bona fide driver rearrangement.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF17",
+          "indication": "Multiple myeloma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "BCMA is a validated plasma-cell/B-cell-maturation lineage antigen in myeloma, a strong therapeutic link even though it is not a cell-intrinsic fitness dependency.",
+          "evidence_basis": "Approved BCMAxCD3 T-cell engager teclistamab (plus belantamab ADC and ide-cel/cilta-cel CAR-T) \u2014 a validated immunotherapy antigen.",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF8",
+          "indication": "Hodgkin lymphoma / systemic ALCL",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD30 is a lineage-defining antigen on Reed-Sternberg and ALCL cells, an established therapeutic target link.",
+          "evidence_basis": "Approved CD30-directed ADC brentuximab vedotin in classical Hodgkin lymphoma and sALCL (a Takeda-marketed antigen program).",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "AR",
+          "indication": "Prostate adenocarcinoma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "Androgen-receptor signaling is the lineage-defining oncogenic driver of prostate cancer, sustained even in castration-resistant disease.",
+          "evidence_basis": "Approved AR-pathway agents (enzalutamide, abiraterone) plus clinical-stage AR degraders (bavdegalutamide/ARV-110) \u2014 a canonical driver and degrader target.",
+          "modality": "degrader",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MS4A1",
+          "indication": "Diffuse large B-cell lymphoma (NHL)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD20 is a B-cell lineage antigen and the backbone antigen of B-cell NHL therapy, an uncontested therapeutic link.",
+          "evidence_basis": "Approved anti-CD20 antibody rituximab (R-CHOP standard of care) \u2014 a validated lineage antigen, not a fitness dependency.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "IGF1R",
+          "indication": "NSCLC",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "The IGF1R-in-NSCLC hypothesis failed to replicate clinically, undermining the target-disease link.",
+          "evidence_basis": "Figitumumab Phase III program terminated for futility/harm; no biomarker-defined IGF1R-driven NSCLC subtype emerged.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TTN",
+          "indication": "Colorectal cancer",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Titin's recurrent mutations are length-biased passengers with no oncogenic driver role in CRC.",
+          "evidence_basis": "Largest human gene; excluded by driver-detection consensus (MutSigCV/IntOGen) as a background-frequency passenger \u2014 not a driver or dependency.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "SMO",
+          "indication": "Pancreatic ductal adenocarcinoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "The stromal Hedgehog rationale for SMO in PDAC failed to replicate clinically despite strong preclinical premise.",
+          "evidence_basis": "Vismodegib and saridegib (IPI-926) added to chemo showed no benefit / potential harm in PDAC trials; SMO is validated only in basal cell carcinoma.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "KRAS",
+          "indication": "Breast cancer",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Breast cancer is not a RAS-driven lineage; KRAS mutation is rare and non-driving, so no established target-disease link exists in this indication.",
+          "evidence_basis": "KRAS mutation frequency ~1-2% in breast with no recognized KRAS-mutant driver subtype (contrast CRC/NSCLC/PDAC where KRAS is a driver).",
+          "modality": "small_molecule",
+          "confidence": "med",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CD19",
+          "indication": "Small cell lung cancer",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "CD19 is a B-lymphocyte-restricted antigen with no expression or biological link in SCLC, a neuroendocrine epithelial tumor.",
+          "evidence_basis": "CD19 validated only in B-cell malignancies (blinatumomab, CAR-T); absent from SCLC lineage \u2014 a wrong-lineage antigen with no disease link.",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "KRAS",
+          "indication": "Colorectal adenocarcinoma (COADREAD)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "KRAS is the most recurrent oncogenic driver in CRC (~40%) and confers a selective genetic dependency in KRAS-mutant lines.",
+          "evidence_basis": "DepMap CRISPR selective dependency in KRAS-mutant lines + recurrent driver; G12C inhibitors sotorasib/adagrasib approved (CRC via EGFR combos).",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "BTK",
+          "indication": "Mantle cell lymphoma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "BTK-driven B-cell receptor signaling is the established oncogenic pathway in MCL, an experimentally and clinically validated dependency.",
+          "evidence_basis": "Approved covalent BTK inhibitors (ibrutinib/acalabrutinib/zanubrutinib) + clinically active BTK degraders (NX-5948, BGB-16673) confirm target-disease link.",
+          "modality": "degrader",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CD19",
+          "indication": "B-cell acute lymphoblastic leukemia (B-ALL)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD19 is a pan-B-lineage antigen expressed on essentially all B-ALL blasts \u2014 a canonical immunotherapy antigen (not a cell-intrinsic dependency).",
+          "evidence_basis": "Validated antigen: blinatumomab (CD19xCD3), CD19 CAR-T (tisa-cel), tafasitamab all approved in B-cell malignancies.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MMP9",
+          "indication": "Gastric / gastroesophageal junction adenocarcinoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "The MMP-in-cancer rationale failed to translate; MMP9 is a stromal-remodeling bystander whose inhibition gave no clinical benefit in gastric cancer.",
+          "evidence_basis": "Clinical failure: anti-MMP9 andecaliximab missed OS in the Phase 3 GAMMA-1 trial (HER2-negative gastric/GEJ).",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "PMEL",
+          "indication": "Colorectal adenocarcinoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "gp100/PMEL is a melanocyte-lineage differentiation antigen absent from colorectal epithelium, so there is no target-disease link in CRC.",
+          "evidence_basis": "Expression-atlas lineage restriction: PMEL is the melanocytic tebentafusp target (uveal melanoma); not expressed in colorectal adenocarcinoma.",
+          "modality": "tce",
+          "confidence": "med",
+          "_angles": 1,
+          "verdict": "upheld"
+        }
+      ],
+      "review_queue": []
+    },
+    {
+      "dimension": "selectivity",
+      "gold_upheld": [
+        {
+          "target": "FOLR1",
+          "indication": "ovarian cancer (HGSOC, platinum-resistant)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "Folate receptor-alpha is tumor-restricted with limited/apically-buried normal epithelial expression, giving a validated ADC window.",
+          "evidence_basis": "Mirvetuximab soravtansine (Elahere) FDA-approved 2022 for FRalpha-positive platinum-resistant ovarian cancer; normal expression confined to apical epithelial surfaces (kidney/lung) largely inaccessible to IV antibody.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "DLL3",
+          "indication": "small cell lung cancer (ES-SCLC)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "DLL3 is near-absent from normal adult tissue yet highly surface-expressed on neuroendocrine/SCLC cells, an essentially ideal tumor-selective window.",
+          "evidence_basis": "Tarlatamab (Imdelltra) DLL3xCD3 T-cell engager FDA-approved 2024 for ES-SCLC; DLL3 normal expression is minimal (Notch ligand internalized in normal cells), high on neuroendocrine tumors.",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF8",
+          "indication": "Hodgkin lymphoma / CD30+ anaplastic large-cell lymphoma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD30 (TNFRSF8) is restricted to activated lymphocytes and Reed-Sternberg/ALCL cells, sparing most normal tissue and giving a clean ADC window.",
+          "evidence_basis": "Brentuximab vedotin (Adcetris, Takeda) FDA-approved for classical Hodgkin lymphoma and systemic ALCL; CD30 normal expression limited to a small subset of activated B/T lymphocytes.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CLDN18",
+          "indication": "gastric / gastroesophageal junction adenocarcinoma (CLDN18.2+)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "The CLDN18.2 isoform's normal epitope is buried in gastric-mucosa tight junctions but exposed on tumor cells, yielding a defensible tumor-selective window.",
+          "evidence_basis": "Zolbetuximab (Vyloy) anti-CLDN18.2 mAb FDA-approved 2024 for CLDN18.2-positive HER2-negative gastric/GEJ adenocarcinoma; normal CLDN18.2 restricted to differentiated gastric mucosa with epitope masked by tight junctions.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "ERBB2",
+          "indication": "HER2-positive gastric / gastroesophageal adenocarcinoma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "Amplification-driven HER2 overexpression on tumor cells vs low normal-epithelial levels underpins a validated, widely-approved surface-antigen window.",
+          "evidence_basis": "Trastuzumab and trastuzumab deruxtecan (Enhertu) approved for HER2-positive gastric and breast cancer; tumor selectivity is amplification/overexpression-driven (companion IHC/ISH biomarker), with only manageable on-target cardiac expression.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TFRC",
+          "indication": "pan-cancer (e.g. hematologic malignancy)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Transferrin receptor (CD71) is ubiquitously expressed and essential for iron uptake in all proliferating and erythroid cells, leaving no tumor-vs-normal window.",
+          "evidence_basis": "TFRC is required for erythropoiesis and broadly expressed across normal proliferating tissues; no selective surface window for a naked/ADC/TCE approach.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CD47",
+          "indication": "acute myeloid leukemia / lymphoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "CD47 is a ubiquitous 'don't-eat-me' signal expressed on erythrocytes and normal cells, creating a massive antigen sink and on-target anemia.",
+          "evidence_basis": "Magrolimab (anti-CD47) causes on-target anemia from erythrocyte CD47 binding; broad normal expression drove RBC sink and dosing/tolerability problems, with programs halted.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "EPCAM",
+          "indication": "gastric / colorectal adenocarcinoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "EpCAM is expressed across essentially all normal epithelia, so a T-cell engager or potent ADC has a poor therapeutic window.",
+          "evidence_basis": "Catumaxomab (EpCAMxCD3 trifunctional) was withdrawn from market amid hepatic/GI toxicity; EpCAM basolateral expression is pan-epithelial (liver, GI, etc.).",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CD44",
+          "indication": "head and neck squamous cell carcinoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "CD44 (incl. v6 isoform) is expressed on normal keratinocytes and broadly across epithelial/hematopoietic tissue, producing fatal-grade on-target skin toxicity.",
+          "evidence_basis": "Bivatuzumab mertansine (anti-CD44v6 ADC) caused fatal skin toxicity from normal keratinocyte CD44v6 expression; the clinical program was terminated.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CLDN18.2",
+          "indication": "Gastric / gastroesophageal junction adenocarcinoma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "Claudin-18.2 is normally buried in gastric-mucosa tight junctions (epitope inaccessible) but becomes surface-exposed on tumor cells, yielding a favorable selective window despite gastric lineage origin.",
+          "evidence_basis": "Normal-tissue expression restricted to differentiated gastric mucosa with sequestered epitope; clinical precedent = zolbetuximab (anti-CLDN18.2 mAb, Vyloy) approved 2024 for CLDN18.2+/HER2- gastric/GEJ.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF17",
+          "indication": "Multiple myeloma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "BCMA is expressed almost exclusively on plasma cells/plasmablasts; the only on-target normal compartment is B-lineage, so depletion produces manageable hypogammaglobulinemia rather than critical-organ toxicity.",
+          "evidence_basis": "Lineage-restricted plasma-cell expression (no vital-organ expression); multiple approved agents (teclistamab BCMAxCD3 TCE 2022, belantamab ADC, ide-cel/cilta-cel CAR-T) validate the selective window.",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "IGF1R",
+          "indication": "Ewing sarcoma / pan-cancer",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "IGF1R is broadly expressed across normal tissues and drives systemic metabolic signaling, so antibody blockade produces on-target hyperglycemia/metabolic toxicity with no selective tumor window.",
+          "evidence_basis": "Ubiquitous normal expression + metabolic axis role; clinical precedent = failure of figitumumab/cixutumumab/dalotuzumab (broad Ph3 failures with hyperglycemia) despite occasional Ewing responses.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        }
+      ],
+      "review_queue": [
+        {
+          "target": "EGFR",
+          "indication": "colorectal cancer (RAS-wildtype)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Wild-type EGFR is broadly expressed on normal skin and GI epithelium, so a cytotoxic/engager surface payload has a narrow, tox-limited window.",
+          "evidence_basis": "Cetuximab's dose-limiting acneiform rash / GI toxicity reflects normal keratinocyte and gut-epithelial EGFR; EGFR ADCs (e.g. depatuxizumab mafodotin) constrained by normal-tissue expression.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "uncertain"
+        },
+        {
+          "target": "CEACAM5",
+          "indication": "Colorectal / NSCLC adenocarcinoma",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "CEA is highly expressed on the luminal surface of normal colonic and GI epithelium, narrowing the tumor-vs-normal window and contributing to on-target/off-tumor liability.",
+          "evidence_basis": "High normal GI-epithelial CEACAM5; clinical precedent = tusamitamab ravtansine Phase III CARMEN-LC03 failure (2023), reflecting insufficient selective window.",
+          "modality": "adc",
+          "confidence": "med",
+          "_angles": 1,
+          "verdict": "disputed"
+        }
+      ]
+    },
+    {
+      "dimension": "druggability",
+      "gold_upheld": [
+        {
+          "target": "ALK",
+          "indication": "NSCLC (ALK-rearranged)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "ALK-fusion NSCLC is drugged by multiple approved small-molecule TKIs, so there is an unambiguously viable modality.",
+          "evidence_basis": "Approved drugs crizotinib, alectinib, lorlatinib, and brigatinib (Takeda) targeting the EML4-ALK fusion kinase.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "EGFR",
+          "indication": "NSCLC (EGFR-mutant incl. exon20ins)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "EGFR-mutant NSCLC has a deep bench of approved TKIs spanning classical and exon20 mutations, confirming clear small-molecule tractability.",
+          "evidence_basis": "Approved osimertinib (classical activating mutations) and mobocertinib (Takeda, exon20 insertions) directly inhibiting mutant EGFR kinase.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF8",
+          "indication": "Hodgkin lymphoma / ALCL (CD30+)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD30 is a validated internalizing surface antigen with an approved ADC, so an antibody-based modality is clearly viable.",
+          "evidence_basis": "Approved ADC brentuximab vedotin (Adcetris, Takeda/Seagen) targeting CD30 in classical Hodgkin lymphoma and systemic ALCL.",
+          "modality": "adc",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TNFRSF17",
+          "indication": "Multiple myeloma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "BCMA is a clinically validated myeloma surface antigen addressable by multiple biologic formats including approved T-cell engagers.",
+          "evidence_basis": "Approved BCMAxCD3 bispecific teclistamab (plus belantamab ADC and BCMA CAR-T) in relapsed/refractory multiple myeloma.",
+          "modality": "tce",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MS4A1",
+          "indication": "Non-Hodgkin lymphoma (CD20+)",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "CD20 is the archetypal drugged B-cell surface antigen with decades of approved naked and engineered antibodies.",
+          "evidence_basis": "Approved anti-CD20 antibodies (rituximab, obinutuzumab) foundational to NHL therapy.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "ESR1",
+          "indication": "HR+ breast cancer",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "The estrogen receptor is drugged and degraded clinically, giving a validated degrader modality precedent.",
+          "evidence_basis": "Approved selective estrogen receptor degrader fulvestrant (and oral SERD elacestrant) that trigger ER degradation.",
+          "modality": "degrader",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MYC",
+          "indication": "Pan-cancer (e.g. Burkitt lymphoma)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "MYC is the canonical undruggable transcription factor with no ligandable pocket and no approved direct agent despite decades of effort.",
+          "evidence_basis": "Intrinsically disordered bHLH-LZ oncoprotein; Pharos non-Tclin, zero approved direct small-molecule or biologic inhibitors.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "CTNNB1",
+          "indication": "Colorectal cancer",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "Beta-catenin is a scaffold/transcriptional effector with no druggable active site and no approved direct inhibitor.",
+          "evidence_basis": "No approved agent directly inhibiting beta-catenin; WNT-pathway direct targeting remains preclinical/failed.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "STK11",
+          "indication": "NSCLC (LKB1-mutant)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "STK11/LKB1 is a loss-of-function tumor suppressor that cannot be pharmacologically restored, so there is no direct modality.",
+          "evidence_basis": "Germline LoF causes Peutz-Jeghers; somatic inactivating/deletion events are not addressable by inhibition or degradation.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "TP53",
+          "indication": "Pan-cancer",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "TP53 is an inactivated tumor suppressor whose direct pharmacological reactivation has repeatedly failed in the clinic.",
+          "evidence_basis": "Li-Fraumeni germline LoF; mutant-p53 reactivator eprenetapopt (APR-246) failed its Phase 3 MDS endpoint.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "MYCN",
+          "indication": "Neuroblastoma (MYCN-amplified)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "MYCN is an amplification-driven transcription factor with no ligandable pocket and no approved direct inhibitor.",
+          "evidence_basis": "Undruggable bHLH-LZ TF; no approved direct agent, programs limited to indirect (e.g. BET/Aurora) approaches.",
+          "modality": "small_molecule",
+          "confidence": "high",
+          "_angles": 2,
+          "verdict": "upheld"
+        },
+        {
+          "target": "ERBB2",
+          "indication": "HER2-positive gastric / GEJ adenocarcinoma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "HER2 is an amplification-driven cell-surface RTK with approved antibody and ADC agents in gastric cancer.",
+          "evidence_basis": "Trastuzumab approved via ToGA and T-DXd approved in HER2+ gastric; validated surface antigen with amplification-linked dependency.",
+          "modality": "antibody",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        },
+        {
+          "target": "IKZF3",
+          "indication": "Multiple myeloma",
+          "label": "positive",
+          "expected_bin": "LOW",
+          "rationale": "IKZF3 (Aiolos) is degradable via approved CRBN molecular glues, giving a proven degrader modality for an otherwise TF-like target.",
+          "evidence_basis": "Lenalidomide/pomalidomide are approved CRBN molecular-glue degraders of IKZF1/IKZF3 in myeloma; degradation is the validated mechanism of IMiD efficacy.",
+          "modality": "degrader",
+          "confidence": "high",
+          "_angles": 1,
+          "verdict": "upheld"
+        }
+      ],
+      "review_queue": [
+        {
+          "target": "STAT3",
+          "indication": "Pan-cancer (solid tumors / lymphoma)",
+          "label": "negative",
+          "expected_bin": "HIGH",
+          "rationale": "STAT3 is a hard transcription factor with a shallow SH2 pocket and no approved direct inhibitor after repeated failures.",
+          "evidence_basis": "Pharos Tchem at best for direct inhibition; multiple failed direct small-molecule/SH2 programs; only indirect (antisense/upstream JAK) approaches advanced.",
+          "modality": "small_molecule",
+          "confidence": "med",
+          "_angles": 1,
+          "verdict": "uncertain"
+        }
+      ]
+    }
+  ],
+  "critique": "## Coverage + balance critique of the per-dimension gold seed\n\n### Positive/negative balance (upheld only)\n\n| dimension | positive\u2192LOW | negative\u2192HIGH | read |\n|---|---|---|---|\n| safety | 5 | 6 | balanced |\n| biological | 8 | 7 | balanced (the healthy template) |\n| selectivity | 7 | 5 | positive-tilted (+ 1 duplicate, see below) |\n| druggability | 8 | 5 | positive-tilted |\n\nRaw counts (11\u201315) are even across dimensions, so the problem is **not thinness \u2014 it's diversity and tilt**. Two dimensions lean positive; the real weakness is redundancy inside the positive arm.\n\n### Most decision-relevant gaps\n\n**1. \"Hero-target\" over-representation collapses effective coverage.** TNFRSF8 (CD30) and TNFRSF17 (BCMA) appear in **all four** dimensions; ALK, MS4A1, ERBB2, IGF1R each recur 2\u20133\u00d7. A roll-up model can score well by memorizing \"these ~5 surface antigens / ALK = LOW\" without generalizing. This is exactly the overfit-to-motivating-examples failure mode. Cap any single target at ~2 dimensions and backfill with distinct targets.\n\n**2. Selectivity has a literal duplicate and misses the current ADC canon.** `CLDN18/gastric (CLDN18.2+)` and `CLDN18.2/Gastric` are the **same target** counted twice \u2014 inflates n and the positive tilt. Missing canonical selective positives that any selectivity gold set should include:\n- **TACSTD2/TROP2** (Trodelvy, Dato-DXd) \u2014 the biggest omission\n- **FOLH1/PSMA** (prostate) \u2014 canonical high-selectivity\n- **MSLN** (mesothelioma/ovarian/PDAC), **CEACAM5** (NSCLC)\nAnd a canonical selectivity **negative**: **wild-type EGFR** (skin/GI on-target/off-tumor tox) \u2014 currently EGFR only appears as a druggability positive.\n\n**3. Druggability is missing the flagship \"undruggable\u2192druggable\" flips and tilts positive.** KRAS appears in biological and safety but **not druggability** \u2014 omitting **KRAS G12C\u2192LOW** (sotorasib/adagrasib) leaves out the single most important recent druggability data point. Also add **BCL2\u2192LOW** (venetoclax) as a PPI-druggable positive. Negatives are strong (MYC, CTNNB1, TP53, MYCN, STK11) \u2014 keep those; add positives to correct tilt.\n\n**4. Safety negatives are ALL pan-essential proliferation genes (POLR2A, CDK1, PLK1, BCL2L1, MDM2, TFRC).** The gold set never exercises the **human-genetics/germline-constraint leg** that is the actual signature of the on-target-safety-liability skill (gnomAD LoF constraint, dosage sensitivity, mouse-KO lethality). Add a germline-constrained / mouse-KO-lethal HIGH that is *not* a proliferation gene. Also add **CD19\u2192LOW** as the canonical \"on-target/off-tumor tox is tolerated\" (B-cell aplasia) safety positive.\n\n**5. Biological is the balance target.** It is the only dimension with 0 review queue, near-even balance, a true passenger control (**TTN/CRC\u2192HIGH**), and lineage-mismatch negatives (CD19/SCLC, PMEL/CRC). Bring the other three up to this standard rather than adding raw volume.\n\n### Label checks\n- **CLDN18 vs CLDN18.2 (selectivity):** dedupe \u2014 same antigen.\n- **STK11, TP53 druggability\u2192HIGH:** defensible only as \"not *directly* druggable\" (they're LoF TSGs drugged via SL partners); keep, but the gold set has no TSG-that-*is*-druggable-via-glue counterpoint beyond IKZF3.\n- **TFRC** as both safety-HIGH and selectivity-HIGH: internally consistent (broadly expressed) but is one of the recurring redundant targets in #1.\n- **KRAS/Breast\u2192HIGH (biological)** and **MDM2/TP53-WT\u2192HIGH (safety)**: both correct.\n\n### Priority additions (specific)\n- Druggability: **KRAS G12C/NSCLC\u2192LOW**, **BCL2/CLL\u2192LOW**\n- Selectivity: **TACSTD2 (TROP2)/breast (TNBC)\u2192LOW**, **FOLH1 (PSMA)/prostate\u2192LOW**, **EGFR-WT/colorectal\u2192HIGH** (skin/GI tox)\n- Safety: **CD19/B-ALL\u2192LOW** (tolerated on-target tox), one germline-constrained/mouse-KO-lethal non-proliferation **\u2192HIGH**\n- Biological: a fusion-driver positive (**BCR-ABL/CML** or EML4-ALK) to complement the SNV/lineage examples",
+  "totals": [
+    {
+      "dimension": "safety",
+      "upheld": 11,
+      "review": 2,
+      "modality_mix": {
+        "small_molecule": 6,
+        "adc": 2,
+        "tce": 1,
+        "antibody": 1,
+        "degrader": 1
+      }
+    },
+    {
+      "dimension": "biological",
+      "upheld": 15,
+      "review": 0,
+      "modality_mix": {
+        "small_molecule": 5,
+        "tce": 3,
+        "adc": 1,
+        "degrader": 2,
+        "antibody": 4
+      }
+    },
+    {
+      "dimension": "selectivity",
+      "upheld": 12,
+      "review": 2,
+      "modality_mix": {
+        "adc": 5,
+        "tce": 3,
+        "antibody": 4
+      }
+    },
+    {
+      "dimension": "druggability",
+      "upheld": 13,
+      "review": 1,
+      "modality_mix": {
+        "small_molecule": 7,
+        "adc": 1,
+        "tce": 1,
+        "antibody": 2,
+        "degrader": 2
+      }
+    }
+  ],
+  "modality_mix_overall": {
+    "small_molecule": 18,
+    "adc": 9,
+    "tce": 8,
+    "antibody": 11,
+    "degrader": 5
+  },
+  "n_upheld_total": 51
+}
