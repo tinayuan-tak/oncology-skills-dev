@@ -182,7 +182,7 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"({tvn.get('selectivity_allgene_percentile_class')})",
         f"  context: {tvn.get('selectivity_allgene_percentile_context')}",
         "",
-        "PER-SAMPLE PERCENTILE-CROSSING (Q2 corroboration — fraction of tumors above the normal p95):",
+        "PER-SAMPLE PERCENTILE-CROSSING (corroboration — fraction of tumors above the normal p95):",
         f"  percentile_crossing_class: {h.get('percentile_crossing_class')}",
         f"  fraction_tumor_above_normal_p95: {_fmt(h.get('fraction_tumor_above_normal_p95'))}",
         f"  distribution_overlap_tumor_normal: {_fmt(h.get('distribution_overlap_tumor_normal'))}",

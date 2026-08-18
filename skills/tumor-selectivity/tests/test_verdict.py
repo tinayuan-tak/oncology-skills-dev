@@ -64,7 +64,7 @@ def test_verdict_fn_is_discoverable_by_composer():
     assert hasattr(ts, "_verdict") or hasattr(ts, "_snapshot")
 
 
-# --- axis-B/E NORMAL-BREADTH VETO (conjunction redesign INC-1/2, 2026-08-07) -----------------
+# --- NORMAL-BREADTH VETO: the essential-organ window arm ------------------------------------
 # A gene over-expressed vs its tissue-of-origin (axis A: strong/modest/field_effect) but with NO
 # therapeutic window vs the worst critical normal (housekeeping: GAPDH/ACTB/TUBB) is NOT a target.
 # The modality-therapeutic-window card's tvn-no-therapeutic-window-veto rule fires; _verdict applies
@@ -104,7 +104,7 @@ def test_not_selective_unaffected_by_window_veto():
         [{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _VETO}])[0] == "not_selective"
 
 
-# --- DEFERRED-2 (2026-08-08): the PAN-NORMAL window veto arm (tvn-no-full-normal-window-veto). ---
+# --- NORMAL-BREADTH VETO: the pan-normal window arm (tvn-no-full-normal-window-veto). ---
 _FULL_VETO = "tvn-no-full-normal-window-veto"
 
 
@@ -142,7 +142,7 @@ def test_clean_full_normal_target_retains_selective():
         "strong_tumor_selective", "tvn-strong-selective-supportive")
 
 
-# --- INC-3 (2026-08-08): cell-type-resolved axis-D veto (tvn-sc-normal-critical-organ-veto). ---
+# --- NORMAL-BREADTH VETO: the cell-type-resolved sc-normal arm (tvn-sc-normal-critical-organ-veto). ---
 _SC_VETO = "tvn-sc-normal-critical-organ-veto"
 
 
@@ -180,9 +180,9 @@ def test_selective_without_veto_is_unchanged():
         "strong_tumor_selective", "tvn-strong-selective-supportive")
 
 
-# --- F1 (2026-08-08 synthesis review): _headline must EMIT the resolved (post-veto) verdict. ---
-# Before this, _headline ignored verdict_pair and emitted the raw pre-veto tvn.selectivity_class, so
-# selective_but_broadly_normal was NEVER emitted anywhere in decision.json + the narrator over-claimed.
+# --- _headline must EMIT the resolved (post-veto) verdict, not the raw pre-veto axis-A class. ---
+# If _headline emitted the raw tvn.selectivity_class, a veto-downgraded target
+# (selective_but_broadly_normal) would never appear in decision.json and the narrator would over-claim.
 
 def _headline_for(cards_summary_class, verdict_pair):
     cards = [{"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": cards_summary_class}},
@@ -212,20 +212,19 @@ def test_headline_emits_resolved_verdict_no_veto():
 
 
 def test_headline_surfaces_purity_facet():
-    """DEFERRED-3: the verdict-inert purity-confound facet is surfaced in the headline."""
+    """The verdict-inert purity-confound facet is surfaced in the headline."""
     h = _headline_for("strong_tumor_selective", ("strong_tumor_selective", "r"))
     assert h["purity_confound_class"] == "purity_independent"
 
 
-def test_deferred1_composed_path_composes_ALL_veto_cards():
-    """DEFERRED-1 / F4 (2026-08-13): target-profile's SUB_SKILL_CARDS[tumor-selectivity] must include
-    EVERY normal-breadth veto card, so ALL three veto arms fire in the COMPOSED path (card_id_filter)
-    identically to standalone — else a broadly-normal gene nominates as selective. The prior guard
-    asserted only modality-therapeutic-window (2 of 3 arms, both keying that card); the sc-normal arm
-    (tvn-sc-normal-critical-organ-veto, keying sc-normal-celltype-expression) was UNGUARDED and could
-    silently drop from the selectivity lens (F4)."""
+def test_composed_path_composes_all_veto_cards():
+    """target-profile's SUB_SKILL_CARDS[tumor-selectivity] must include EVERY normal-breadth veto card,
+    so ALL three veto arms fire in the COMPOSED path (card_id_filter) identically to standalone — else
+    a broadly-normal gene nominates as selective. In particular the sc-normal arm
+    (tvn-sc-normal-critical-organ-veto, keying sc-normal-celltype-expression) must not silently drop
+    from the selectivity lens."""
     import ast
-    # SUB_SKILL_CARDS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
+    # SUB_SKILL_CARDS lives in target-profile/scripts/tp_fanout.py.
     tp_run = (RUN_PY.parent.parent.parent / "target-profile" / "scripts" / "tp_fanout.py").read_text()
     tree = ast.parse(tp_run)
     ssc = None
@@ -233,7 +232,7 @@ def test_deferred1_composed_path_composes_ALL_veto_cards():
         if isinstance(node, ast.Assign) and any(
                 getattr(t, "id", None) == "SUB_SKILL_CARDS" for t in node.targets):
             ssc = node.value
-    assert ssc is not None, "SUB_SKILL_CARDS not found in target-profile/run.py"
+    assert ssc is not None, "SUB_SKILL_CARDS not found in target-profile/scripts/tp_fanout.py"
     # find the tumor-selectivity entry
     sel_cards = None
     for k, v in zip(ssc.keys, ssc.values):
@@ -243,12 +242,12 @@ def test_deferred1_composed_path_composes_ALL_veto_cards():
     # Every card backing a normal-breadth veto arm must be composed into the selectivity lens.
     for veto_card in ("modality-therapeutic-window", "sc-normal-celltype-expression"):
         assert veto_card in sel_cards, (
-            f"DEFERRED-1/F4 regression: veto card {veto_card!r} is not composed into the selectivity "
+            f"regression: veto card {veto_card!r} is not composed into the selectivity "
             f"lens → its normal-breadth veto arm cannot fire in target-profile (housekeeping FP "
             f"resurrected for that arm).")
 
 
-# --- INC-4 (2026-08-08): axis-C absolute-density facet is VERDICT-INERT (a display facet, NOT a veto).
+# --- The absolute surface-density facet is VERDICT-INERT (a display facet, NOT a veto).
 # The CD19 counterexample (110 copies/cell, grade A — a validated CAR-T/TCE antigen below the soluble-TCE
 # floor) is why below_tce_floor must NOT clamp the selectivity verdict. These pin the inert contract. ---
 
@@ -279,7 +278,7 @@ def test_below_floor_does_not_appear_in_veto_rule_set():
     a 4th veto arm (the CD19-protection design decision)."""
     veto_rules = set(ts._NORMAL_BREADTH_VETO_RULES)
     assert not any("density" in r or "floor" in r for r in veto_rules), (
-        "INC-4 regression: a density-floor rule leaked into the veto set — axis-C must stay verdict-inert "
+        "regression: a density-floor rule leaked into the veto set — axis-C must stay verdict-inert "
         "(below-floor is a modality caveat, not a target killer; CD19=110/cell is a validated antigen).")
 
 

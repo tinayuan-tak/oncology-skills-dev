@@ -1,4 +1,4 @@
-"""Shared normal-breadth VETO clamp for the tumor-selectivity gate (F1, 2026-08-13 review).
+"""Shared normal-breadth VETO clamp for the tumor-selectivity gate.
 
 The selectivity axis-A verdict (from target-contracts/resolvers/selectivity.resolver.yaml) is
 NECESSARY but NOT SUFFICIENT: a gene over-expressed vs its tissue of origin but with NO therapeutic
@@ -8,14 +8,12 @@ POST-RESOLVER clamp downgrades a selective axis-A verdict to `selective_but_broa
 normal-breadth veto rule fired (worst-case conjunction). One-directional: it can only DOWNGRADE a
 selective call, never upgrade.
 
-WHY SHARED (F1): the clamp historically lived ONLY in tumor-selectivity/scripts/run.py::_verdict, so
-the target-profile fan-out (which calls that _verdict) applied it, but the compose-dashboard engine
-(which resolves selectivity via _skills_common.compose_core.resolve_gate_spine → resolve_verdict_for_gate,
-the raw resolver, which has NO veto rungs) SILENTLY DROPPED it — a broadly-normal gene rendered through
-compose-dashboard reported `strong_tumor_selective` with no downgrade. Single-sourcing the clamp here and
-applying it in BOTH the skill's _verdict AND resolve_gate_spine makes the two engines apply it identically.
-The clamp is a NO-OP unless a veto rule actually fired AND the verdict is a selective axis-A class, so
-non-veto targets are byte-unchanged in both engines.
+WHY SHARED: the clamp is single-sourced here and applied in BOTH consumers — tumor-selectivity's
+run.py::_verdict AND the compose-dashboard engine (_skills_common.compose_core.resolve_gate_spine) —
+so the two apply it identically. (The engine resolves selectivity via the raw resolver, which has no
+veto rungs; without this shared clamp it would report `strong_tumor_selective` for a broadly-normal
+gene that the standalone skill downgrades.) The clamp is a NO-OP unless a veto rule actually fired AND
+the verdict is a selective axis-A class, so non-veto targets are byte-unchanged in both engines.
 """
 from __future__ import annotations
 

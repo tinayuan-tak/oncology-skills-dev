@@ -29,6 +29,10 @@ import json
 from pathlib import Path
 from typing import Optional
 
+# The axis-A "selective" set is single-sourced in selectivity_veto (the veto owns which verdicts are
+# downgradable); the hero reads it so the "window open" tile can never drift from the clamp's view.
+from _skills_common.selectivity_veto import _AXIS_A_SELECTIVE
+
 # --- verdict → banner status (the resolved selectivity_class) --------------------------------------
 # Green tiers = a supported tumor-over-normal window; red = window CLOSED by the normal-breadth veto;
 # amber = discordant (comparators disagree); gray = not-selective / off. Substring match, specific first.
@@ -48,9 +52,6 @@ _STATUS_INK = {"good": "#ffffff", "warn": "#1a1a19", "bad": "#ffffff", "off": "#
 # ASCII-safe glyphs (× ! ✓ render across non-emoji fonts/SVG rasterizers). WORD is load-bearing (CVD).
 _STATUS_ICON = {"good": "✓", "warn": "!", "bad": "×", "off": "–", "na": "·"}
 _AXIS_WORD = {"good": "supports", "warn": "caution", "bad": "opposes", "off": "neutral", "na": "n/a"}
-
-_AXIS_A_SELECTIVE = {"strong_tumor_selective", "modest_tumor_selective", "field_effect_tumor_selective"}
-_OFFSCALE_FILL = "#f0f0ee"
 
 
 def _verdict_status(cls: Optional[str]) -> tuple[str, str]:

@@ -70,7 +70,7 @@ The run writes a data-package tree under `--out`:
   - `driving_rule_id` — the exact rule that produced it (a veto rule when downgraded).
   - `axis_a_selectivity_class` — the **raw** tumor-vs-origin class *before* the veto. Compare it to
     `selectivity_class`: if they differ, a normal-breadth veto fired (read the window fields).
-  - **Single-cell + spatial facets** (v1.9.0, verdict-inert): `sc_tumor_expression_class`,
+  - **Single-cell + spatial facets** (verdict-inert): `sc_tumor_expression_class`,
     `sc_malignant_detection_fraction`, `sc_caf_vs_malignant_class` (malignant-cell-intrinsic vs
     stroma), `spatial_rna_class`, `spatial_coloc_class`,
     `spatial_normal_epithelium_adjacency_fraction` (bystander risk), `spatial_protein_class`.

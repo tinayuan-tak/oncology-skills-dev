@@ -29,7 +29,7 @@ Two curated fixtures pin BOTH sides of the veto conjunction end-to-end:
     tumor_selective, and this test goes red.
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly), which
-guards the snapshots themselves against reader drift. Mirror of tumor-presence's replay (SK#401).
+guards the snapshots themselves against reader drift. Mirror of tumor-presence's replay.
 """
 from __future__ import annotations
 
@@ -134,7 +134,7 @@ TACSTD2 = ("tacstd2_coadread", "TACSTD2", "COADREAD")
 @pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
                          ids=["ceacam5", "tacstd2"])
 def test_fixture_is_nonvacuous(pair_id, target, indication):
-    """Guard against a stale/broken freeze reading green: both curated pairs resolve all 6 cards, so
+    """Guard against a stale/broken freeze reading green: both curated pairs resolve all 10 cards, so
     require >=5 to carry a real summary. A freeze that silently produced errors/empties fails here."""
     frozen = _load_fixture(pair_id)
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
@@ -206,7 +206,7 @@ def test_broadly_normal_target_is_downgraded_by_veto():
                          ids=["ceacam5", "tacstd2"])
 def test_headline_resolves_broadly(pair_id, target, indication):
     """Headline drift floor: a reader field-name drift that silently nulled a block of `_headline`
-    reads would collapse many values to None. Both pairs resolve ~24/25 headline fields; a
+    reads would collapse many values to None. Both pairs resolve ~40/41 headline fields; a
     conservative floor of >=20 fails hard on a block-nulling drift while leaving refresh headroom."""
     h = _decision(pair_id, target, indication).get("headline") or {}
     non_null = [k for k, v in h.items() if v not in (None, "", [], "data_unavailable")]
