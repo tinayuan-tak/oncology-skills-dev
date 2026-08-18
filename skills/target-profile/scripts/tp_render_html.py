@@ -1218,6 +1218,109 @@ def _grounded_block_html(short: str, grounded_record: Optional[dict]) -> list[st
     return out
 
 
+def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
+    """Render the cross-evidence-hypothesis agent's structured output (hypothesis.json) as the
+    synthesis section — REPLACING target-profile's original Tier-3 LLM narrative (executive_summary +
+    tension_analysis). The cross-evidence integrator is a META-layer ABOVE target-profile: it composes
+    no cards and reasons over the evidence_package, emitting a gate-CLAMPED, clause-traceable, cited
+    6-part hypothesis. Display-only: the deterministic recommendation stays the header top-line; the
+    integrator's own go/no-go (verdict.computed + go_forth) renders INSIDE this section."""
+    if not doc or not doc.get("hypothesis"):
+        return []
+    H = doc["hypothesis"]
+    V = doc.get("verdict", {}) or {}
+    D = doc.get("defensibility", {}) or {}
+    U = doc.get("uncertainty", {}) or {}
+    prov = doc.get("provenance", {}) or {}
+    _PART = "margin-top:10px;padding-top:8px;border-top:1px solid var(--line-2)"
+
+    def _chips(cits, warn=False):
+        if not cits:
+            return ""
+        cls = "chip chip-neg" if warn else "chip chip-gap"
+        pre = "⚠ " if warn else ""
+        return " ".join(f"<span class='{cls}' style='font-size:11px'>{pre}<code>{_esc(str(c))}</code></span>"
+                        for c in cits)
+
+    def _part(label, part, extra=()):
+        if not part:
+            return ""
+        ex = ""
+        for lbl, f in extra:
+            if part.get(f):
+                ex += f" <span class=sub>· {_esc(lbl)}: {_esc(part.get(f))}</span>"
+        cites = _chips(part.get("citations"))
+        contra = part.get("contradicting_citations")
+        contra_html = (f"<div class=sub style='margin-top:3px'>Countervailing: {_chips(contra, warn=True)}</div>"
+                       if contra else "")
+        return (f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>{_esc(label)}{ex}</p>"
+                f"<p style='margin:2px 0'>{_esc(part.get('statement') or '—')}</p>"
+                + (f"<div class=sub>Evidence: {cites}</div>" if cites else "")
+                + contra_html + "</div>")
+
+    vcls = {"advanceable": "chip-pos", "advanceable_with_caveat": "chip-neu",
+            "conditional_on_biomarker": "chip-neu", "advanceable_flagged": "chip-neu",
+            "declined": "chip-neg"}.get(str(V.get("computed")), "chip-neu")
+    trace = D.get("clause_traceability")
+    trace_pct = f"{trace * 100:.0f}%" if isinstance(trace, (int, float)) else "—"
+    out = ["<section id=s-hypothesis class='llm llm-exec'>"
+           "<span class='tag tag-corner'>AI-generated · cross-evidence integrator</span>"
+           "<h2>Cross-evidence hypothesis <span class=n>— gate-clamped, cited synthesis across all "
+           "subskills</span></h2>",
+           "<p class=sub>The cross-evidence integrator's structured hypothesis (replaces the free-text "
+           "synthesis). Every clause is traceable to a cited subskill; the agent's verdict is CLAMPED by "
+           "the deterministic gate spine and never exceeds it.</p>",
+           f"<div class=banner><b>Integrator verdict:</b> "
+           f"<span class='chip {vcls}'>{_esc(_humanize(V.get('computed')))}</span>"
+           + (f" <span class=sub>(ceiling {_esc(_humanize(V.get('gate_ceiling')))}"
+              + (f" — {_esc(V.get('gate_reason'))}" if V.get('gate_reason') else "") + ")</span>"
+              if V.get('gate_ceiling') else "")
+           + f" · certainty <span class=pill>{_esc(U.get('overall_certainty') or '—')}</span>"
+           + f" · clause-traceability {trace_pct} "
+             f"({D.get('n_fully_traceable', '?')}/{D.get('n_clauses', '?')})"
+           + f" · coherence violations {D.get('n_coherence_violations', '?')}"
+           + (" · <b>promotable</b>" if D.get('promotable') else "")
+           + "</div>"]
+    rv = V.get("reason") or {}
+    rv_val = rv.get("value") if isinstance(rv, dict) else rv
+    if rv_val:
+        out.append(f"<p><b>Why this verdict:</b> {_esc(rv_val)}</p>")
+    out.append(_part("Causal rationale", H.get("causal_rationale")))
+    out.append(_part("Therapeutic hypothesis", H.get("therapeutic_hypothesis"), (("modality", "modality"),)))
+    out.append(_part("Population", H.get("population"), (("biomarker", "subtype_or_biomarker"),)))
+    out.append(_part("Therapeutic window", H.get("therapeutic_window")))
+    eg = H.get("evidence_grade") or {}
+    if eg:
+        def _sc(s):
+            return "chip-pos" if s == "strong" else "chip-neg" if s == "absent" else "chip-neu"
+        rows = "".join(f"<tr><td>{_esc(x.get('dimension'))}</td>"
+                       f"<td><span class='chip {_sc(x.get('strength'))}'>{_esc(x.get('strength'))}</span></td></tr>"
+                       for x in (eg.get("per_line") or []))
+        out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Evidence grade "
+                   f"— overall {_esc(eg.get('overall'))}</p>"
+                   f"<table style='margin-top:4px'><tr><th>Dimension</th><th>Strength</th></tr>{rows}</table></div>")
+    tens = H.get("tensions") or []
+    if tens:
+        items = "".join(f"<li>{_esc(t.get('statement'))} "
+                        f"<span class=sub>{_chips(t.get('citations'))}</span></li>" for t in tens)
+        out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Tensions &amp; trade-offs</p>"
+                   f"<ul>{items}</ul></div>")
+    gf = H.get("go_forth") or {}
+    if gf:
+        out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Go-forth — value of "
+                   f"information</p><p style='margin:2px 0'><b>Next evidence:</b> "
+                   f"{_esc(gf.get('next_evidence') or '—')}</p>"
+                   f"<p style='margin:2px 0' class=sub><b>Why it's decisive:</b> "
+                   f"{_esc(gf.get('value_of_information') or '—')}</p></div>")
+    out.append(f"<p class=sub style='margin-top:8px'>Cross-evidence integrator "
+               f"<code>{_esc(doc.get('skill_version', ''))}</code> · model "
+               f"<code>{_esc(prov.get('model_id', ''))}</code> · prompt_hash "
+               f"<code>{_esc(str(prov.get('prompt_template_hash', ''))[:12])}</code> · a meta-layer above "
+               "target-profile (composes no cards; reasons over the evidence_package).</p>")
+    out.append("</section>")
+    return [x for x in out if x]
+
+
 def _render_target_profile_html(
     target: str,
     indication: str,
@@ -1237,6 +1340,7 @@ def _render_target_profile_html(
     presence_facet: Optional[dict] = None,
     risk_assessment: Optional[dict] = None,
     grounded_by_axis: Optional[dict] = None,
+    hypothesis: Optional[dict] = None,
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1330,7 +1434,8 @@ def _render_target_profile_html(
     # (the SAME list the body renders), so a new/renamed subskill appears automatically — no drift.
     shell_cls = "shell focused" if presence_only else "shell"
     nav = [f"<div class={shell_cls}><nav class=toc>",
-           "<a href='#s-exec'>Executive summary</a>"]
+           ("<a href='#s-hypothesis'>Cross-evidence hypothesis</a>" if hypothesis
+            else "<a href='#s-exec'>Executive summary</a>")]
     if presence_only:
         for _s, _lab, _anc in _sections:
             nav.append(f"<a href='#{_anc}'>{_esc(_lab)}</a>")
@@ -1348,7 +1453,8 @@ def _render_target_profile_html(
         nav.append("<span class=h>Subskill evidence</span>")
         for _s, _lab, _anc in _sections:
             nav.append(f"<a href='#{_anc}'>{_esc(_lab)}</a>")
-        nav.append("<a href='#s-tension'>Conflicting signals</a>")
+        if not hypothesis:   # the hypothesis section carries its own Tensions block
+            nav.append("<a href='#s-tension'>Conflicting signals</a>")
         nav.append("<a href='#s-provenance'>Provenance trace</a>")
         nav.append("<a href='#s-about'>About this analysis</a>")
     nav.append("</nav><div class=content>")
@@ -1386,11 +1492,15 @@ def _render_target_profile_html(
             "reproducible from the same inputs.</div></div>",
         ]
 
-    # --- Executive summary (LLM) — TOP, the lead the reader needs first ----
-    # AI-generated tag moved to the upper-right corner (out of the heading's way) — the exec summary
-    # is the one AI section, so its provenance sits as a corner chip rather than a leading banner.
-    p.append("<div class='llm llm-exec' id=s-exec><span class='tag tag-corner'>AI-generated</span>"
-             f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
+    # --- Synthesis (LLM) — TOP, the lead the reader needs first. When a cross-evidence hypothesis
+    # is supplied it REPLACES the original Tier-3 executive-summary + tension narrative with the
+    # gate-clamped, cited structured hypothesis (its own tensions render inside it). Otherwise the
+    # original executive summary is shown (backward-compatible).
+    if hypothesis:
+        p.extend(_render_hypothesis_html(hypothesis))
+    else:
+        p.append("<div class='llm llm-exec' id=s-exec><span class='tag tag-corner'>AI-generated</span>"
+                 f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
 
     # --- Literature risk assessment (6 dimensions; CONTEXT-TIER lens) -------
     # The target×indication-level literature read from literature-risk-assessment (risk_assessment.json).
@@ -1512,6 +1622,10 @@ def _render_target_profile_html(
 
     # --- Tension analysis (LLM) → "Conflicting signals & trade-offs" — closure.
     def _tension_html() -> list[str]:
+        # When the cross-evidence hypothesis replaces the synthesis, its own Tensions block covers
+        # this — suppress the original Tier-3 tension narrative to avoid a duplicate/stale section.
+        if hypothesis:
+            return []
         return ["<div class=llm id=s-tension><span class=tag>AI-generated</span>"
                 "<h2>Conflicting signals &amp; trade-offs</h2>"
                 f"<p>{_esc(_val('tension_analysis'))}</p></div>"]

@@ -142,6 +142,12 @@ def main() -> int:
                          "(literature-risk-assessment/ground_axis). Each subskill section whose axis has "
                          "a record shows its escalate-only, PMID-cited literature findings inline. "
                          "Display-only; never a verdict input.")
+    ap.add_argument("--hypothesis", default=None, type=Path,
+                    help="OPTIONAL: path to a cross-evidence-hypothesis hypothesis.json. When given, the "
+                         "gate-clamped, cited 6-part hypothesis REPLACES the original Tier-3 LLM "
+                         "executive-summary + tension synthesis on the HTML dashboard (the cross-evidence "
+                         "integrator is a meta-layer above target-profile). Display-only; the deterministic "
+                         "recommendation stays the header top-line.")
     args = ap.parse_args()
 
     # --verdict-only is the umbrella fast mode: skip BOTH the LLM synthesis tail and figure/panel
@@ -178,6 +184,12 @@ def main() -> int:
                     grounded_by_axis[ax] = rec
             except Exception as e:  # noqa: BLE001
                 print(f"[target-profile] WARN: could not read {gp.name}: {e}", file=sys.stderr)
+    hypothesis = None
+    if args.hypothesis:
+        try:
+            hypothesis = json.loads(Path(args.hypothesis).read_text())
+        except Exception as e:  # noqa: BLE001
+            print(f"[target-profile] WARN: could not read --hypothesis: {e}", file=sys.stderr)
 
     invoked_lenses: dict = {}
     if args.modality:
@@ -456,6 +468,7 @@ def main() -> int:
             card_figures=card_figures, figures_dir=figures_dir,
             presence_facet=presence_facet,
             risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
+            hypothesis=hypothesis,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
