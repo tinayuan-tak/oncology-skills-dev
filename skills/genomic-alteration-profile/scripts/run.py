@@ -1,24 +1,21 @@
 #!/usr/bin/env python3
-"""genomic-alteration-profile — genomic alteration profile for a (target, indication).
+"""genomic-alteration-profile — how is a (target, indication) genomically altered?
 
-Answers "how is this gene genomically altered in indication Y, and which
-alteration class drives?" — spanning SNV/indel (mutation) + copy-number
-(amplification/deletion) + fusion/rearrangement (LIVE, tcga-fusion-consensus-v1),
-with additive role / allele-count / patient-model / subtype panorama layers.
+Answers: "How is gene X altered in indication Y, and which alteration class drives —
+SNV/indel (mutation), copy-number (amplification/deletion), or fusion/rearrangement?"
+A gene is often a driver via DIFFERENT classes across indications (ERBB2 amplified in
+breast/gastric vs mutated in a lung subset; MET exon14-skip + amplification), so this
+skill reports the alteration MIX and names which class carries the signal, rather than
+implying "not a driver" for an amplification- or fusion-driven target.
 
-REFRAMED 2026-07-14 from `mutation-profile` (which was SNV/indel only). The
-copy-number-distribution card + its 11 rules already existed but were never
-composed into a skill — the same gene is often a driver via DIFFERENT
-alteration classes across indications (ERBB2 amp in breast/gastric vs mutation
-in a lung subset; MET exon14-skip + amplification), so a mutation-only skill
-implied "not a driver" for amplification-driven targets. This skill reports the
-alteration MIX and which class drives. See docs/SKILLS_SCOPE_REVIEW_2026-07-14.md.
-
-Consumes 8 whole-cohort cards (3 mutation + copy-number + fusion + role +
-functional-gene-state M6 + genomic-event-model-match M11). A 9th card,
-subgroup-stratified-mutation-frequency (tier:subtype), resolves ONLY on the
-optional --subtypes panorama path — a DESCRIPTIVE per-stratum frequency landscape
-that touches no resolver rung (the verdict spine stays byte-stable regardless).
+Structure:
+  - A whole-cohort spine of CARDS drives the deterministic multi-class verdict, resolved
+    by the shared declarative resolver (resolvers/genomic_alteration.resolver.yaml).
+  - An optional, --subtypes-gated subtype panorama (SUBTYPE_CARDS) is DESCRIPTIVE only: it
+    recomputes frequency within each stratum and never touches a resolver rung, so the
+    verdict is byte-identical whether or not --subtypes is passed.
+  - An optional --synthesize flag attaches an LLM narration as a sibling key; it can never
+    alter the deterministic verdict.
 """
 
 from __future__ import annotations
@@ -36,129 +33,58 @@ from _skills_common import (
     make_decision_json, write_package, get_card_field,
 )
 from _skills_common.resolver import resolve_or_raise
-# G1/G2 (2026-08-13): the family-wise FDR is SINGLE-SOURCED in _skills_common.card_preprocessors so ALL
-# three resolution paths apply it (standalone main() here, target-profile fan-out, compose-dashboard
-# resolve_gate_spine) — it previously lived only in main() and both composed paths bypassed it. The
-# names are re-exported here for this skill's own tests + main()'s call site.
+# The family-wise FDR across the stratified-dependency classes is single-sourced in
+# _skills_common.card_preprocessors so all three resolution paths apply it identically:
+# this skill's main(), the target-profile fan-out, and compose-dashboard's gate spine.
+# The names are re-exported here for main()'s call site and this skill's own tests.
 from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr, _STRATIFIED_FAMILY, _bh_qvalues,
 )
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.3.0"      # 2.3.0 (2026-08-14): + genomic_alteration_by_class per-class decomposition (additive/verdict-inert). 2.0.0 reframed from mutation-profile; 2.1.0 (2026-08-05): subtype panorama + driver-recurrence percentile + opt-in synthesis
+SKILL_VERSION = "2.3.0"
 
+# Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
+# cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
+# the headline / LLM / matrix but touch no resolver rung (the verdict spine stays byte-stable).
 CARDS = [
-    # SNV / indel (mutation)
-    "mutation-type-counts",
-    "mutation-stratified-dependency",
-    "mutation-hotspot-frequency",
-    # Copy number (amplification / deletion) — card + rules already existed
-    "copy-number-distribution",
-    # Copy-number-STRATIFIED dependency (A1a, 2026-08-06) — the CN analog of
-    # mutation-stratified-dependency: are AMPLIFIED cell lines Chronos-more-dependent? Its
-    # cn-amplified-*-dependent rules fire the SAME biomarker_stratified_dependency verdict the
-    # mutation path uses (resolver section 2b), closing the amplification-driven-oncogene gap
-    # (ERBB2/MYC). VERDICT-MOVING but golden-snapshot byte-identical (new rule ids never fire on
-    # old enumerated combos). Composed here so the genomic gate reads the amplification-addiction signal.
-    "copy-number-stratified-dependency",
-    # Fusion-STRATIFIED dependency (A1-fusion, 2026-08-06) — the gene-fusion analog of the mut/CN
-    # stratified cards: are cell lines carrying a fusion INVOLVING the target Chronos-more-dependent?
-    # Its fusion-positive-*-dependent rules fire the SAME biomarker_stratified_dependency verdict
-    # (resolver section 2c; reuses the mutation verdict), recovering the fusion-driven-oncogene class
-    # (EWSR1-FLI1/BCR-ABL1) that BOTH the mutation-only and CN-only paths miss (neither mutated nor
-    # amplified). VERDICT-MOVING but golden-snapshot byte-identical (new rule ids never fire on old
-    # enumerated combos). Distinct from fusion-rearrangement-landscape below (TCGA-patient recurrence,
-    # signal-only) — this is the DepMap cell-line dependency-establishing test.
-    "fusion-stratified-dependency",
-    # Amp→expr→dep three-way (A1 amp-expr, 2026-08-06) — the CONJOINT sibling of copy-number-stratified-
-    # dependency: are lines BOTH amplified AND high-expression for the target Chronos-more-dependent? Its
-    # amp-expr-*-dependent rules fire the SAME biomarker_stratified_dependency verdict (resolver section
-    # 2d; reuses the mutation verdict), capturing amplification-DRIVEN overexpression-addiction (ERBB2/
-    # MYC/KRAS-amp) that the CN-only path (expression-blind) under-weights. VERDICT-MOVING but golden-
-    # snapshot byte-identical (new rule ids never fire on old enumerated combos). Precedence mut > cn >
-    # fusion > amp-expr (most-specific last).
-    "amp-expr-stratified-dependency",
-    # Genotype × DRUG-RESPONSE (Thread 4, 2026-08-09) — the PHARMACOLOGICAL sibling of the stratified-
-    # dependency cards above. Are lines carrying an alteration in the target more SENSITIVE to a DRUG
-    # that TARGETS it (PRISM Log2AUC), vs the CRISPR-KO dependency the mutation-stratified card measures?
-    # VERDICT-DRIVING (2026-08-15 doc-parity fix — was mis-labeled "additive signal-only / no resolver
-    # rung"): the STRONG class (drug_response_stratification_class==mutant_strongly_drug_sensitive) fires
-    # mutation-drug-response-strongly-sensitive-supportive → the drug_response_biomarker rung (resolver
-    # §2d-drug); the moderate class stays a signal-only facet. The verdict is DELIBERATELY a DISTINCT
-    # drug_response_biomarker (never conflated with biomarker_stratified_dependency — drug-sensitivity !=
-    # KO-dependency). Live: BRAF→mutant_strongly_drug_sensitive (vemurafenib q=4.8e-11);
-    # KRAS→sensitive (G12C/G12D-inhibitor era); EGFR→not_stratified (honest cell-panel negative).
-    "mutation-drug-response",
-    # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
-    # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
-    # data_unavailable}. VERDICT-DRIVING (2026-08-15 doc-parity fix — was mis-labeled "additive
-    # signal-only / no resolver rung"): fusion_class==recurrent_fusion_driver fires
-    # fusion-landscape-recurrent-driver-supportive → the recurrent_fusion_driver rung (resolver §3c,
-    # the fusion analog of recurrent focal amplification). Non-recurrent classes stay narrative-only;
-    # graceful data_unavailable for TCGA-absent targets.
-    "fusion-rearrangement-landscape",
-    # Typed driver-ROLE call (OncoKB × IntOGen) — the functional-role layer on the descriptive
-    # cards above (frequency ≠ function). VERDICT-DRIVING: its alteration-role-gof-driver-supportive /
-    # alteration-role-lof-driver-neutral rules fire the 12 confirmed_driver rungs (resolver §0) via
-    # when_all_fired with a mut/cn driver rule — confirmed_driver is the HIGHEST-precedence genomic
-    # verdict. (2026-08-08 review: this comment previously claimed "ADDITIVE / rules touch no resolver
-    # rung / byte-stable" — that was FALSE; corrected. Nomination-gate-neutral, but it DOES set the
-    # verdict.) Also in target-profile SUB_SKILL_CARDS[genomic-alteration-profile] (composer-consistency).
-    "alteration-role",
-    # Harmonized two-hit / biallelic-inactivation state (M6, functional_gene_state). The ALLELE-COUNT
-    # layer: is the gene biallelically inactivated (completed two-hit → LoF) or only monoallelically
-    # hit — mutation + allele-specific CN, patient (TCGA) + model (DepMap) arms. ADDITIVE signal-only:
-    # its state signals + headline reach the LLM/matrix but touch NO resolver rung (the genomic
-    # verdict spine stays byte-stable — wiring INTO the verdict is a later, riskier step). Phase-1
-    # genetic-only vocab {wt, monoallelic, biallelic-genetic, uncertain}.
-    "functional-gene-state",
-    # Patient↔model genomic-event correspondence (M11, genomic_event_model_match — the canonical P3
-    # join). Which DepMap models carry the SAME functional event as the tumors, and which are
-    # dependent? The genomic sibling of recommended-models (expression-Q4). ADDITIVE signal-only:
-    # feeds LLM/matrix + headline, touches NO resolver rung (verdict spine byte-stable). Corroborates
-    # Required (C) — genotype-matched + dependent in-lineage models = a genotype-backed dependency basis.
-    "genomic-event-model-match",
-    # Genome-instability / aneuploidy burden (M7, genomic_instability_state). INDICATION-level,
-    # target-INDEPENDENT cohort context: how chromosomally unstable is this cancer? (high CIN →
-    # WGD/prognosis + copy-number-noise caveats). ADDITIVE signal-only: feeds LLM/matrix + headline,
-    # touches NO resolver rung (verdict spine byte-stable). Reads tcga_aneuploidy_burden live.
-    "genomic-instability-state",
-    "mutational-signature-context",  # 2026-08-12: per-indication mutagenic-process cohort-context facet
-                                # (TCGA MC3 → SigProfilerAssignment COSMIC v3.3). VERDICT-INERT display
-                                # facet — PATIENT/tumour arm of mutagenic-process context (sibling of
-                                # ddr-deficiency-context + the model MMR/HRD arm of genomic-instability-state).
-    "ddr-deficiency-context",   # Track PI (2026-08-09): per-indication DDR/HRD cohort-context facet
-                                # (PanCanAtlas DDR footprint, Knijnenburg 2018). VERDICT-INERT display
-                                # facet (sibling of genomic-instability-state) — surfaces the cohort HRD
-                                # prior (hrd_enriched/intermediate/low) that frames HRD-conditional
-                                # hypotheses; touches NO resolver rung. Alteration-verdict byte-stable.
-    "oncogenic-pathway-alteration",   # Sanchez-Vega 2018 (2026-08-10): per-indication oncogenic-pathway
-                                      # ALTERATION frequency (10 pathways); VERDICT-INERT cohort context;
-                                      # complements PROGENy activity. Reads oncogenic_pathway_alteration.
-    # Per-VARIANT interpretation (variant_level_interpretation, CIViC). Closes the gene→variant gap:
-    # every other mutation card is per-GENE (alteration-role = GoF/LoF per gene) or FREQUENCY
-    # (recurrence), not FUNCTION — this names which specific variants are oncogenic (vs VUS/benign)
-    # and which confer therapy resistance (EGFR T790M→TKIs, BRAF V600E→cetuximab). ADDITIVE
-    # signal-only: feeds LLM/matrix + headline, touches NO resolver rung (verdict spine byte-stable).
-    "variant-level-interpretation",
-    # Mutation CLONALITY / truncality (scientific-gap #2, 2026-08-14): is the target's driver mutation
-    # TRUNCAL (clonal — durable) or SUBCLONAL (relapse-prone)? ccf from MC3 VAF x PanCanAtlas ABSOLUTE
-    # purity (pancan-mutation-clonality-per-gene-v1). ADDITIVE signal-only: feeds LLM/matrix + headline,
-    # touches NO resolver rung (verdict spine byte-stable). A subclonal-driver downgrade is a later
-    # verdict-moving step gated by a backtest.
-    "target-clonality",
+    # ── SNV / indel ──────────────────────────────────────────────────────────
+    "mutation-type-counts",            # verdict-driving: variant-class landscape (missense/truncating mix)
+    "mutation-stratified-dependency",  # verdict-driving: are mutant cell lines more Chronos-dependent?
+    "mutation-hotspot-frequency",      # signal-only: recurrence frequency + driver-recurrence percentile
+
+    # ── Copy number (amplification / deletion) ───────────────────────────────
+    "copy-number-distribution",           # verdict-driving: focal amp/deletion recurrence
+    "copy-number-stratified-dependency",  # verdict-driving: are AMPLIFIED lines more dependent? (ERBB2/MYC)
+    "amp-expr-stratified-dependency",     # verdict-driving: amplified AND high-expression conjoint dependency
+
+    # ── Fusion / rearrangement ───────────────────────────────────────────────
+    "fusion-stratified-dependency",    # verdict-driving: are fusion-positive lines more dependent? (EWSR1-FLI1)
+    "fusion-rearrangement-landscape",  # verdict-driving: recurrent TCGA fusion driver (tcga-fusion-consensus-v1)
+
+    # ── Genotype × drug response ─────────────────────────────────────────────
+    "mutation-drug-response",          # verdict-driving (STRONG class only): mutant lines more drug-sensitive (PRISM)
+
+    # ── Typed driver ROLE ────────────────────────────────────────────────────
+    "alteration-role",                 # verdict-driving: OncoKB × IntOGen GoF/LoF role → confirmed_driver rungs
+
+    # ── Additive signal-only layers (feed the headline/LLM; touch no resolver rung) ──
+    "functional-gene-state",           # biallelic two-hit / allele-count state (mutation + allele-specific CN)
+    "genomic-event-model-match",       # which DepMap models carry the SAME event as the tumours, and are dependent
+    "genomic-instability-state",       # indication-level aneuploidy / CIN / WGD / MSI cohort context (target-independent)
+    "mutational-signature-context",    # indication-level mutagenic-process context (TCGA MC3 SBS signatures)
+    "ddr-deficiency-context",          # indication-level DDR/HRD cohort context (frames the HRD-conditional axis)
+    "oncogenic-pathway-alteration",    # indication-level oncogenic-pathway alteration frequency (Sanchez-Vega 2018)
+    "variant-level-interpretation",    # per-variant oncogenicity + therapy-resistance alleles (CIViC)
+    "target-clonality",                # is the driver mutation truncal (durable) or subclonal (relapse-prone)?
 ]
 
-# SUBTYPE axis (2026-08-05 hardening) — kept OUT of the scalar CARDS list ON PURPOSE.
-# subgroup-stratified-mutation-frequency (tier:subtype) is a PANORAMA card: its dispatcher
-# needs externally-resolved strata (subgroup_context.resolved_strata_ids) or it returns only
-# a data-note. So — mirroring target-profile's SUBTYPE_CARDS — it resolves on a SEPARATE,
-# --subtypes-gated path (see _resolve_subtype_panorama below), never on the whole-cohort spine.
-# DESCRIPTIVE panorama: recomputes frequency WITHIN each stratum's denominator (MSI/MSS,
-# sidedness, GENIE line-of-therapy); emits per_subgroup_metrics + cross_subgroup_delta_frequency;
-# NO verdict signal → touches NO resolver rung (the genomic_alteration verdict spine stays
-# byte-stable whether or not a subtype scope is passed). The genomic analog of tumor-presence's
-# tumor-rna-distribution-by-subtype.
+# The subtype panorama is DELIBERATELY kept off the CARDS spine. Its card is a panorama
+# dispatcher that needs externally-resolved strata (subgroup_context.resolved_strata_ids) or
+# it returns only a data-note — so it resolves on a separate, --subtypes-gated path (see
+# _resolve_subtype_panorama). It is DESCRIPTIVE (per-stratum frequency), emits no verdict, and
+# touches no resolver rung, so the whole-cohort verdict is byte-stable whether or not a subtype
+# scope is passed.
 SUBTYPE_CARDS = [
     "subgroup-stratified-mutation-frequency",
 ]
@@ -168,37 +94,22 @@ QUESTION = ("How is {target} genomically altered in {indication} — by SNV/inde
             "number (amplification/deletion), or a mix — and which class drives?")
 
 
-# Family-wise FDR across the stratified-dependency classes: SINGLE-SOURCED in
-# _skills_common.card_preprocessors (imported above as _apply_family_wise_fdr / _STRATIFIED_FAMILY /
-# _bh_qvalues). It is applied here in main() AND — via preprocess_cards_for_gate("genomic_alteration")
-# — in the target-profile fan-out and compose-dashboard resolve_gate_spine, so all three paths correct
-# identically (G1). The shared version also fixes the BH denominator to the number of TESTED classes,
-# not just the firing subset (G2). See card_preprocessors.py for the full rationale.
-
-
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Multi-class genomic-alteration verdict — DELEGATES to the shared declarative resolver
-    (gap #5 conversion, 2026-07-22). The former inline multi-axis if-chain (SNV/indel priority ×
-    copy-number, combined into multi_class_driver) now lives in
-    resolvers/genomic_alteration.resolver.yaml (target-contracts), evaluated by the ONE interpreter
-    both engines call. The original swap was proven byte-for-byte equivalent to the former if-chain by
-    the pre-swap oracle over the then-enumerated SNV×CN fired-set combinations and frozen in the golden
-    snapshot. NOTE (2026-08-13): the resolver has since grown rungs the original 2^8 oracle did NOT span
-    — the confirmed_driver family (§0, alteration-role), the biomarker_stratified_dependency siblings
-    (§2b/2c/2d: cn/fusion/amp-expr), and the recurrent_fusion_driver rung — so the 256-combination figure
-    is historical, not the current combinatorial coverage. The resolver YAML remains the single source of
-    truth; a missing spec raises (NO silent fallback to a stale copy, which would reintroduce the drift
-    this refactor eliminates)."""
+    """Multi-class genomic-alteration verdict, delegated to the shared declarative resolver.
+
+    The verdict logic (SNV/indel priority × copy-number × fusion, precedence by effect
+    strength then class) lives in resolvers/genomic_alteration.resolver.yaml (target-contracts),
+    evaluated by the single interpreter every engine calls. A missing spec raises rather than
+    falling back to a stale copy, so the two engines can never silently drift.
+    """
     return resolve_or_raise(fired, "genomic_alteration")
 
 
-# Per-ALTERATION-CLASS decomposition (2026-08-14 consolidation-fidelity follow-up). The
-# genomic_alteration_profile verdict COLLAPSES three heterogeneous alteration classes (SNV/indel,
-# copy-number, fusion) into one multi_class scalar — the clearest "collapse across heterogeneous
-# dimensions" case the consolidation diagnostic found. This map reorganizes the ALREADY-computed
-# per-card class fields into a first-class per-class breakdown, mirroring tumor-presence's
-# presence_verdict_by_modality. ADDITIVE / verdict-inert: reuses fields already read in the headline,
-# touches NO resolver rung — the collapsed genomic_alteration_profile stays byte-stable.
+# Per-alteration-class decomposition. The collapsed genomic_alteration verdict fuses SNV/indel,
+# copy-number, and fusion into one multi_class scalar; this map reorganizes the ALREADY-computed
+# per-card class fields into a first-class per-class breakdown (mirroring tumor-presence's
+# presence_verdict_by_modality) so a consumer can see WHICH class carries the signal. It reuses
+# fields already read for the headline and touches no resolver rung — the verdict stays byte-stable.
 #   class -> (primary "verdict" field, {supporting_field_name: (card_id, field)})
 _ALTERATION_CLASS_FIELDS: dict[str, tuple] = {
     "snv_indel": (
@@ -223,13 +134,13 @@ _ALTERATION_CLASS_FIELDS: dict[str, tuple] = {
 def _genomic_alteration_by_class(cards) -> dict:
     """Per-alteration-class breakdown: {class: {verdict, evidence_state, <supporting fields>}}.
 
-    `verdict` is that class's OWN primary card call (the SNV landscape / CN distribution / fusion
-    recurrence) — NOT a re-derived call, so it cannot drift from the cards. `evidence_state` is
+    `verdict` is that class's OWN primary card call (SNV landscape / CN distribution / fusion
+    recurrence) — not re-derived, so it cannot drift from the cards. `evidence_state` is
     `measured` when the primary field resolved, else `data_unavailable` (a NAMED gap, never a
-    fabricated negative). Lets a consumer see WHICH alteration class carries the signal instead of
-    only the collapsed multi_class verdict."""
-    # get_card_field RAISES on an absent card_id (typo-guard), so only read cards that resolved this
-    # run — else fall back to None (a NAMED data_unavailable gap). Mirrors tumor-presence _per_modality.
+    fabricated negative).
+    """
+    # get_card_field raises on an absent card_id (typo-guard), so only read cards resolved this
+    # run; a card not present falls back to None (a named data_unavailable gap).
     present = {c.get("card_id") for c in (cards or [])}
 
     def _field(card_id, field):
@@ -248,16 +159,81 @@ def _genomic_alteration_by_class(cards) -> dict:
     return out
 
 
+# Headline field table: (headline_key, card_id, summary_field). Every entry is a plain lift of a
+# card summary field via get_card_field; keeping them declarative removes ~40 near-identical call
+# sites and makes the mutation / copy-number / fusion / role / cohort-context axes scannable at a
+# glance. All CARDS are always present in the resolved list, so no lookup here can raise.
+_HEADLINE_FIELDS: list[tuple[str, str, str]] = [
+    # ── SNV / indel axis ─────────────────────────────────────────────────────
+    ("mutation_landscape_class",            "mutation-type-counts",           "mutation_landscape_class"),
+    ("mutation_stratification_class",       "mutation-stratified-dependency", "mutation_stratification_class"),
+    # Scope at which the stratified-dependency call was made (within-indication vs a pan-cancer
+    # extrapolation), plus flags for a within-vs-pan disagreement and a pan-fallback strong→moderate cap.
+    ("stratified_evidence_scope",           "mutation-stratified-dependency", "evidence_scope"),
+    ("stratified_lineage_context_divergent","mutation-stratified-dependency", "lineage_context_divergent"),
+    ("stratified_pan_fallback_capped",      "mutation-stratified-dependency", "pan_fallback_strong_capped_to_moderate"),
+    # Pharmacological biomarker: genotype → on-target drug response (PRISM), complementing the CRISPR-KO
+    # stratified dependency above.
+    ("drug_response_stratification_class",  "mutation-drug-response",         "drug_response_stratification_class"),
+    ("drug_response_delta_log2auc",         "mutation-drug-response",         "delta_log2auc_mut_vs_wt"),
+    ("drug_response_n_on_target_compounds", "mutation-drug-response",         "n_on_target_compounds"),
+    # Recurrence frequency + driver-recurrence percentile, from both WES (TCGA-MC3) and panel (GENIE).
+    ("overall_mutation_frequency",          "mutation-hotspot-frequency",     "overall_mutation_frequency"),
+    ("driver_recurrence_class",             "mutation-hotspot-frequency",     "driver_recurrence_class"),
+    ("driver_recurrence_percentile",        "mutation-hotspot-frequency",     "driver_recurrence_percentile"),
+    ("genie_driver_recurrence_class",       "mutation-hotspot-frequency",     "genie_driver_recurrence_class"),
+    ("genie_mutation_frequency",            "mutation-hotspot-frequency",     "genie_mutation_frequency"),
+
+    # ── Copy-number axis (cell-line verdict-driving + patient-tumour cross-check) ──
+    ("copy_number_class",                   "copy-number-distribution",       "copy_number_class"),
+    ("patient_copy_number_class",           "copy-number-distribution",       "patient_copy_number_class"),
+    ("cn_stratification_class",             "copy-number-stratified-dependency", "cn_stratification_class"),
+    ("fusion_stratification_class",         "fusion-stratified-dependency",   "fusion_stratification_class"),
+    ("amp_expr_stratification_class",       "amp-expr-stratified-dependency", "amp_expr_stratification_class"),
+
+    # ── Fusion / rearrangement axis (TCGA consensus verdict + GENIE-SV breadth facet) ──
+    ("fusion_class",                        "fusion-rearrangement-landscape", "fusion_class"),
+    ("genie_sv_recurrence_class",           "fusion-rearrangement-landscape", "genie_sv_recurrence_class"),
+    ("genie_sv_frequency",                  "fusion-rearrangement-landscape", "genie_sv_frequency"),
+    ("genie_sv_recurrent_partners",         "fusion-rearrangement-landscape", "genie_sv_recurrent_partners"),
+
+    # ── Typed driver role (OncoKB × IntOGen) ─────────────────────────────────
+    ("alteration_role",                     "alteration-role",                "alteration_role"),
+    ("functional_direction",                "alteration-role",                "functional_direction"),
+
+    # ── Additive signal-only axes ────────────────────────────────────────────
+    ("functional_state_class",              "functional-gene-state",          "functional_state_class"),
+    ("clonality_class",                     "target-clonality",               "clonality_class"),
+    ("clonal_fraction",                     "target-clonality",               "clonal_fraction"),
+    ("clonality_n_mutant_samples",          "target-clonality",               "n_mutant_samples"),
+    ("event_correspondence_class",          "genomic-event-model-match",      "event_correspondence_class"),
+
+    # ── Indication-level cohort context (target-independent) ─────────────────
+    ("aneuploidy_burden_class",             "genomic-instability-state",      "aneuploidy_burden_class"),
+    ("wgd_class",                           "genomic-instability-state",      "wgd_class"),
+    ("msi_class",                           "genomic-instability-state",      "msi_class"),          # patient MSI (CRC+STAD)
+    ("model_msi_class",                     "genomic-instability-state",      "model_msi_class"),    # model MSI (all lineages)
+    ("ddr_context_class",                   "ddr-deficiency-context",         "ddr_context_class"),
+    ("frac_hrd_high",                       "ddr-deficiency-context",         "frac_hrd_high"),
+    ("dominant_mutational_process",         "mutational-signature-context",   "dominant_process"),   # patient SBS
+    ("enriched_mutational_processes",       "mutational-signature-context",   "enriched_processes"),
+    ("model_mmr_signature_class",           "genomic-instability-state",      "model_mmr_signature_class"),
+
+    # ── Per-variant interpretation (CIViC) ───────────────────────────────────
+    ("civic_variant_class",                 "variant-level-interpretation",   "civic_variant_class"),
+    ("civic_oncogenic_variants",            "variant-level-interpretation",   "oncogenic_variants"),
+    ("civic_resistance_variants",           "variant-level-interpretation",   "resistance_variants"),
+]
+
+
 def _resolve_subtype_panorama(target: str, indication: str,
                               subtypes: list[str]) -> dict:
-    """DESCRIPTIVE subtype panorama — resolve subgroup-stratified-mutation-frequency
-    across the requested strata. Mirrors target-profile's subtype tier: the card is a
-    PANORAMA dispatcher, so it needs subgroup_context.resolved_strata_ids threaded or it
-    returns only a data-note (which is why it is NOT in the whole-cohort CARDS list).
-
-    Returns a compact projection for the headline's `subtype_axis` block — never a verdict.
-    NO resolver rung is touched here, so the genomic_alteration verdict spine is byte-stable
-    whether or not --subtypes is passed.
+    """DESCRIPTIVE subtype panorama — resolve subgroup-stratified-mutation-frequency across the
+    requested strata. The card is a panorama dispatcher, so it needs
+    subgroup_context.resolved_strata_ids threaded or it returns only a data-note (which is why it
+    is off the whole-cohort CARDS list). Returns a compact projection for the headline's
+    `subtype_axis` block — never a verdict, and it touches no resolver rung, so the whole-cohort
+    verdict spine is byte-stable whether or not --subtypes is passed.
     """
     subgroup_context = {"resolved_strata_ids": list(subtypes),
                         "catalog_status": "resolved_active"}
@@ -270,9 +246,8 @@ def _resolve_subtype_panorama(target: str, indication: str,
     measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"]
     delta = summary.get("cross_subgroup_delta_frequency")
 
-    # Compact pattern label mirroring the card's own interpretation_hints (delta >= 0.10 =
-    # subgroup-specific; delta < 0.10 with >=2 measured strata = uniform; else not-informative).
-    # DISPLAY-ONLY — this is a data-note flavor string, not a verdict.
+    # Compact display flavor mirroring the card's own thresholds (delta >= 0.10 = subgroup-specific;
+    # delta < 0.10 with >=2 measured strata = uniform; else not-informative). Display-only, not a verdict.
     if len(measured) < 2 or delta is None:
         pattern = "not_informative"
     elif delta >= 0.10:
@@ -296,6 +271,26 @@ def _resolve_subtype_panorama(target: str, indication: str,
     }
 
 
+def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
+                    fdr_provenance: dict) -> dict:
+    """Assemble the deterministic headline: the computed verdict keys, every declarative field
+    lift from _HEADLINE_FIELDS, then the card-availability roll-up."""
+    headline: dict = {
+        "genomic_alteration_profile":  verdict,
+        "driving_rule_id":             driving_rule,
+        # Per-alteration-class breakdown of the collapsed multi_class verdict (which class drives).
+        "genomic_alteration_by_class": _genomic_alteration_by_class(cards),
+        # When >=2 stratified-dependency classes fired, their p-values were BH-corrected jointly and
+        # any class with family-wise q >= 0.05 was demoted so a multi-class call is not over-credited.
+        "stratified_family_wise_fdr":  fdr_provenance,
+    }
+    for key, card_id, field in _HEADLINE_FIELDS:
+        headline[key] = get_card_field(cards, card_id, field)
+    headline["cards_available"] = sum(1 for c in cards if not c.get("_missing"))
+    headline["cards_missing"]   = [c["card_id"] for c in cards if c.get("_missing")]
+    return headline
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -317,8 +312,8 @@ def main() -> int:
     args = ap.parse_args()
 
     cards = resolve_cards(CARDS, args.target, args.indication)
-    # Composed-level family-wise FDR (deferred-a): correct the stratified-dependency family for
-    # multiplicity BEFORE firing rules. Mutates demoted cards in place; no-op when <2 classes fire.
+    # Correct the stratified-dependency family for multiplicity BEFORE firing rules. Mutates demoted
+    # cards in place; no-op when <2 classes fire (so single-class calls stay byte-stable).
     fdr_provenance = _apply_family_wise_fdr(cards)
     fired = fired_rules(cards, axis="intracellular_intrinsic",
                         card_id_filter=CARDS)
@@ -328,144 +323,10 @@ def main() -> int:
     subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else []
     subtype_result = _resolve_subtype_panorama(args.target, args.indication, subtypes) if subtypes else None
 
-    headline = {
-        "genomic_alteration_profile":    verdict,
-        "driving_rule_id":               driving_rule,
-        # Per-alteration-class decomposition (2026-08-14 consolidation-fidelity follow-up): the
-        # collapsed verdict above fuses SNV/indel + copy-number + fusion into one multi_class scalar;
-        # this surfaces the per-class breakdown (each class's own primary call + evidence_state + its
-        # stratified-dependency sibling) so a consumer sees WHICH class drives, not just the roll-up.
-        # ADDITIVE / verdict-inert (reuses already-read fields; genomic_alteration_profile byte-stable).
-        "genomic_alteration_by_class":   _genomic_alteration_by_class(cards),
-        # Family-wise FDR provenance (deferred-a): when >=2 stratified-dependency classes fired, their
-        # p-values were BH-corrected jointly; any class with family-wise q >= 0.05 was demoted (its rule
-        # suppressed) so a multi-class call is not over-credited by uncorrected multiplicity.
-        "stratified_family_wise_fdr":    fdr_provenance,
-        # SNV / indel axis
-        "mutation_landscape_class":      get_card_field(cards, "mutation-type-counts",
-                                              "mutation_landscape_class"),
-        "mutation_stratification_class": get_card_field(cards, "mutation-stratified-dependency",
-                                              "mutation_stratification_class"),
-        # Indication-conditioning provenance (T2.0, 2026-08-09) — at what SCOPE was the stratified
-        # dependency call made? within_indication (within-lineage split) / within_indication_mut_vs_pan_wt
-        # (lineage mutants vs pan-DepMap WT — high-prevalence-driver lineages) / pan_lineage_evidence_only
-        # (within-lineage underpowered → pan-DepMap, strong capped to moderate) / pan_no_indication.
-        # Surfaced so a reader/LLM knows whether the biomarker call is indication-specific or a
-        # pan-cancer extrapolation; lineage_context_divergent flags a within-vs-pan disagreement.
-        "stratified_evidence_scope":     get_card_field(cards, "mutation-stratified-dependency",
-                                              "evidence_scope"),
-        "stratified_lineage_context_divergent": get_card_field(cards, "mutation-stratified-dependency",
-                                              "lineage_context_divergent"),
-        # True when a pan-fallback STRONG stratified call was de-rated to moderate because the
-        # within-lineage mutant arm was underpowered (tissue confound unresolved) — signals a
-        # pan-cancer extrapolation, not indication-specific evidence (T2.0).
-        "stratified_pan_fallback_capped": get_card_field(cards, "mutation-stratified-dependency",
-                                              "pan_fallback_strong_capped_to_moderate"),
-        # Pharmacological biomarker (Thread 4): genotype → on-target DRUG-response (PRISM Log2AUC),
-        # the complement to the CRISPR-KO stratified dependency above. Verdict-inert facet.
-        "drug_response_stratification_class": get_card_field(cards, "mutation-drug-response",
-                                              "drug_response_stratification_class"),
-        "drug_response_delta_log2auc":    get_card_field(cards, "mutation-drug-response",
-                                              "delta_log2auc_mut_vs_wt"),
-        "drug_response_n_on_target_compounds": get_card_field(cards, "mutation-drug-response",
-                                              "n_on_target_compounds"),
-        "overall_mutation_frequency":    get_card_field(cards, "mutation-hotspot-frequency",
-                                              "overall_mutation_frequency"),
-        # Driver-recurrence percentile (Axis-1 contextualization, 2026-08-05) — is this gene's
-        # recurrence unusual among all mutated genes in-indication? DISPLAY facet, verdict-inert.
-        # TCGA-MC3 (whole-exome, ~1k pts) + GENIE (panel, ~35x pts, coverage-correct) — two distinct
-        # comparators surfaced side by side (2026-08-06). Both verdict-inert.
-        "driver_recurrence_class":       get_card_field(cards, "mutation-hotspot-frequency",
-                                              "driver_recurrence_class"),
-        "driver_recurrence_percentile":  get_card_field(cards, "mutation-hotspot-frequency",
-                                              "driver_recurrence_percentile"),
-        "genie_driver_recurrence_class": get_card_field(cards, "mutation-hotspot-frequency",
-                                              "genie_driver_recurrence_class"),
-        "genie_mutation_frequency":      get_card_field(cards, "mutation-hotspot-frequency",
-                                              "genie_mutation_frequency"),
-        # Copy-number axis (cell-line, verdict-driving) + PATIENT-tumour CN cross-check (TCGA GISTIC,
-        # indication-specific, verdict-inert). Surfacing both lets the LLM/reviewer flag cell-line↔patient
-        # CN discrepancies (a locus amplified in patients but not the cell-line panel, or vice versa).
-        "copy_number_class":             get_card_field(cards, "copy-number-distribution",
-                                              "copy_number_class"),
-        "patient_copy_number_class":     get_card_field(cards, "copy-number-distribution",
-                                              "patient_copy_number_class"),
-        # Copy-number-STRATIFIED dependency (A1a) — amplified-vs-neutral Chronos split; the
-        # amplification-addiction biomarker (ERBB2/MYC). Fires biomarker_stratified_dependency via
-        # the resolver's section-2b rungs (reuses the mutation verdict). Surfaced for the LLM/matrix.
-        "cn_stratification_class":       get_card_field(cards, "copy-number-stratified-dependency",
-                                              "cn_stratification_class"),
-        # Fusion-STRATIFIED dependency (A1-fusion) — fusion-positive-vs-negative Chronos split; the
-        # fusion-addiction biomarker (EWSR1-FLI1/BCR-ABL1). Fires biomarker_stratified_dependency via
-        # the resolver's section-2c rungs (reuses the mutation verdict). Surfaced for the LLM/matrix.
-        # DISTINCT from fusion_class below (TCGA-patient recurrence facet) — this is the cell-line
-        # dependency-establishing signal.
-        "fusion_stratification_class":   get_card_field(cards, "fusion-stratified-dependency",
-                                              "fusion_stratification_class"),
-        # Amp→expr→dep three-way (A1 amp-expr) — conjoint amplified+overexpressed-vs-rest Chronos split;
-        # amplification-DRIVEN overexpression-addiction (ERBB2/MYC/KRAS-amp). Fires
-        # biomarker_stratified_dependency via the resolver's section-2d rungs (reuses the mutation
-        # verdict). Surfaced for the LLM/matrix. The conjoint refinement the CN-only class under-weights.
-        "amp_expr_stratification_class": get_card_field(cards, "amp-expr-stratified-dependency",
-                                              "amp_expr_stratification_class"),
-        # Fusion / rearrangement axis — LIVE (tcga-fusion-consensus-v1). fusion_class is the TCGA
-        # 3-caller-consensus verdict (deep, 33 tissues); the genie_sv_* fields are the pan-cohort
-        # BREADTH complement (GENIE 271k panel tumors, coverage-correct — genie-sv-recurrence-v1,
-        # 2026-08-06). fusion_class IS verdict-driving (recurrent_fusion_driver → resolver §3c rung,
-        # doc-parity fix 2026-08-15); the genie_sv_* breadth fields are display-only facets.
-        "fusion_class":                  get_card_field(cards, "fusion-rearrangement-landscape",
-                                              "fusion_class"),
-        "genie_sv_recurrence_class":     get_card_field(cards, "fusion-rearrangement-landscape",
-                                              "genie_sv_recurrence_class"),
-        "genie_sv_frequency":            get_card_field(cards, "fusion-rearrangement-landscape",
-                                              "genie_sv_frequency"),
-        "genie_sv_recurrent_partners":   get_card_field(cards, "fusion-rearrangement-landscape",
-                                              "genie_sv_recurrent_partners"),
-        # Typed driver-role axis (OncoKB × IntOGen)
-        "alteration_role":               get_card_field(cards, "alteration-role", "alteration_role"),
-        "functional_direction":          get_card_field(cards, "alteration-role", "functional_direction"),
-        # Allele-count / biallelic-inactivation axis (M6, functional_gene_state) — signal-only,
-        # does NOT feed the verdict (additive; the resolver spine is byte-stable).
-        "functional_state_class":        get_card_field(cards, "functional-gene-state", "functional_state_class"),
-        # Mutation CLONALITY / truncality (#2) — is the driver TRUNCAL (durable) or SUBCLONAL (relapse-prone)?
-        # ccf from MC3 VAF x ABSOLUTE purity; verdict-inert durability facet for the LLM/matrix/headline.
-        "clonality_class":               get_card_field(cards, "target-clonality", "clonality_class"),
-        "clonal_fraction":               get_card_field(cards, "target-clonality", "clonal_fraction"),
-        "clonality_n_mutant_samples":    get_card_field(cards, "target-clonality", "n_mutant_samples"),
-        # Patient↔model genomic-event correspondence (M11) — signal-only, does NOT feed the verdict.
-        "event_correspondence_class":    get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
-        # Genome-instability / aneuploidy burden (M7) — INDICATION cohort context, target-independent.
-        # signal-only, does NOT feed the verdict. Phase 3a adds a 2nd genome-state axis: wgd_class
-        # (whole-genome-doubling prevalence, ABSOLUTE) — same card, also cohort-level + verdict-inert.
-        "aneuploidy_burden_class":       get_card_field(cards, "genomic-instability-state", "aneuploidy_burden_class"),
-        "wgd_class":                     get_card_field(cards, "genomic-instability-state", "wgd_class"),
-        # MSI prevalence (Phase 3a) — cohort-level, CRC+STAD only (data_unavailable elsewhere = unlabelled,
-        # not measured-negative). Same card, verdict-inert.
-        "msi_class":                     get_card_field(cards, "genomic-instability-state", "msi_class"),
-        # MODEL-side MSI (DepMap, all lineages) — the complement filling NSCLC/PAAD where patient MSI
-        # is data_unavailable. Same card, cohort-level, verdict-inert.
-        "model_msi_class":               get_card_field(cards, "genomic-instability-state", "model_msi_class"),
-        # DDR/HRD cohort context (Track PI) — INDICATION-level, target-independent, verdict-inert.
-        # The cohort HRD prior (hrd_enriched/intermediate/low) that frames the PARP1/HRD-blind axis.
-        "ddr_context_class":             get_card_field(cards, "ddr-deficiency-context", "ddr_context_class"),
-        "frac_hrd_high":                 get_card_field(cards, "ddr-deficiency-context", "frac_hrd_high"),
-        # PATIENT mutagenic-process context (TCGA MC3 SBS signatures) — verdict-inert cohort facet
-        "dominant_mutational_process":   get_card_field(cards, "mutational-signature-context", "dominant_process"),
-        "enriched_mutational_processes": get_card_field(cards, "mutational-signature-context", "enriched_processes"),
-        # MODEL mutational-signature (DepMap SBS) — MMR-signature cross-validates MSI (independent signal);
-        # cohort-level, verdict-inert. (SBS3-HRD is a weak proxy, kept in the card not the headline.)
-        "model_mmr_signature_class":     get_card_field(cards, "genomic-instability-state", "model_mmr_signature_class"),
-        # Per-VARIANT interpretation (CIViC) — the gene→variant axis: WHICH variants are oncogenic
-        # (vs the gene-level role) + which confer therapy resistance. signal-only, verdict-inert.
-        "civic_variant_class":           get_card_field(cards, "variant-level-interpretation", "civic_variant_class"),
-        "civic_oncogenic_variants":      get_card_field(cards, "variant-level-interpretation", "oncogenic_variants"),
-        "civic_resistance_variants":     get_card_field(cards, "variant-level-interpretation", "resistance_variants"),
-        "cards_available":               sum(1 for c in cards if not c.get("_missing")),
-        "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
-    }
+    headline = _build_headline(cards, verdict, driving_rule, fdr_provenance)
 
-    # SUBTYPE axis (2026-08-05) — DESCRIPTIVE panorama; only present when --subtypes was passed.
-    # Surfaced in the headline for the LLM/render, but NOT a verdict input (spine byte-stable).
+    # Subtype panorama (only present when --subtypes was passed): surfaced for the LLM/render, but
+    # not a verdict input (spine byte-stable).
     if subtype_result is not None:
         headline["subtype_scope"] = subtype_result["scope_subtypes"]
         headline["subtype_axis"] = subtype_result["subtype_panorama"]
@@ -476,8 +337,8 @@ def main() -> int:
         lenses = {args.modality: modality_lens(fired, args.modality)}
         invoked_lenses["modality"] = args.modality
 
-    # The whole-cohort cards drive the verdict; the subtype panorama cards (if any) are
-    # appended for the emitted package + LLM, but are NOT in `fired` — they touch no rung.
+    # The whole-cohort cards drive the verdict; the subtype panorama cards (if any) are appended to
+    # the emitted package + LLM, but are NOT in `fired` — they touch no rung.
     emitted_cards = cards + (subtype_result["cards"] if subtype_result is not None else [])
     if subtype_result is not None:
         invoked_lenses["subtypes"] = subtype_result["scope_subtypes"]
@@ -490,11 +351,10 @@ def main() -> int:
         headline=headline, modality_lenses=lenses,
     )
 
-    # OPT-IN LLM synthesis (two-slot). This skill hand-rolls main() (does NOT use run_wired_skill),
-    # so it copies the dispatcher's opt-in block — narrating through the GENOMIC-ALTERATION lens
-    # (its own tool schema + prompt). Attached as a SIBLING key decision['llm_synthesis'] AFTER the
-    # deterministic decision is composed → structurally cannot alter the verdict spine. A synthesis
-    # failure (Bedrock auth/network) degrades to a note; the deterministic run never breaks.
+    # OPT-IN LLM synthesis. This skill hand-rolls main() (it does not use run_wired_skill), so it
+    # narrates through the genomic-alteration lens here. Attached as a sibling key AFTER the
+    # deterministic decision is composed, so it structurally cannot alter the verdict spine; a
+    # synthesis failure (Bedrock auth/network) degrades to a note and never breaks the run.
     if args.synthesize:
         from _skills_common.synthesis_genomic import synthesize_genomic_alteration
         try:
