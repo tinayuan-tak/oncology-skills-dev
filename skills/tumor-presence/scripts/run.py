@@ -45,6 +45,14 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import presence_claim_vector, presence_key_signals
+from _skills_common.presence_claims_figure import emit_claim_vector_figure
+
+
+def _emit_skill_figures(decision, figures_root):
+    """Combined --figures emitter: the Presence × Context hero matrix PLUS the claim-vector
+    (signal × reliability) figure. Both additive / display-only; best-effort per emitter."""
+    return (emit_presence_matrix(decision, figures_root)
+            + emit_claim_vector_figure(decision, figures_root))
 
 
 SKILL_NAME = "tumor-presence"
@@ -563,7 +571,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
-        # Skill-level hero graphic (opt-in --figures): the Presence × Context matrix + single-cell detail
-        # panel over the computed headline. Additive / display-only (see presence_matrix.py).
-        skill_figures_fn=emit_presence_matrix,
+        # Skill-level graphics (opt-in --figures): the Presence × Context hero matrix + the
+        # claim-vector (signal × reliability) figure. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
     ))
