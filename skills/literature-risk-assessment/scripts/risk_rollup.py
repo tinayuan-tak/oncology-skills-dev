@@ -18,6 +18,18 @@ tests pin the STRUCTURE (conjunction, escalate-only, discordance), not the exact
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Single source of truth for pseudo-card escalation lives with the PRODUCER (ground_axis owns the
+# grounded-finding contract). Guarded, cheap import — ground_axis has no heavy/network deps at module
+# load (its Bedrock/PubMed imports are lazy). Consumer-depends-on-producer, so the severity vocabulary
+# can never drift out of sync with the schema the model is actually asked to fill.
+_SCRIPTS = str(Path(__file__).resolve().parent)
+if _SCRIPTS not in sys.path:
+    sys.path.insert(0, _SCRIPTS)
+from ground_axis import SEVERITY_HIGH  # noqa: E402
+
 RANK = {"LOW": 0, "MED": 1, "HIGH": 2}
 INV = {0: "LOW", 1: "MED", 2: "HIGH"}
 SURFACE = {"adc", "bite_tce", "tce", "antibody"}
@@ -35,11 +47,6 @@ AXIS_TO_DIM = {"safety": "safety", "dependency": "biological", "selectivity": "s
                "synthetic_lethal_partners": "biological", "combinatorial_dependency": "biological",
                "expression": "biological", "differentiation": "translational",
                "clinical": "clinical", "commercial": "commercial"}   # translational + clinical/commercial = engine-blind
-# coarse literature-bin escalators for the engine-blind pseudo-card dims (decision 2)
-_PSEUDO_ESCALATORS = ("fail", "discontinu", "terminat", "negative", "toxic", "crowded",
-                      "competitor", "freedom", "ip_", "lack_of")
-
-
 def _mod(m: str) -> str:
     m = (m or "").lower()
     if "adc" in m: return "adc"
@@ -156,14 +163,14 @@ def _findings_of(block: dict) -> list:
 
 
 def _pseudo_literature_bin(findings: list) -> str:
-    """Coarse literature-only bin for engine-blind pseudo-card dims (decision 2): a finding whose kind
-    hits an escalator → HIGH; any finding → MED; none → LOW. Uncalibrated (literature-only)."""
+    """Coarse literature-only bin for engine-blind pseudo-card dims (decision 2): a finding the model
+    graded severity=='high' → HIGH; any finding → MED; none → LOW. Uncalibrated (literature-only).
+    Keys on the controlled `severity` enum (exact membership) — NOT a substring-grep of free-text
+    `kind`, which mis-binned prose that didn't happen to contain an escalator token."""
     if not findings:
         return "LOW"
-    for f in findings:
-        k = str(f.get("kind", "")).lower()
-        if any(e in k for e in _PSEUDO_ESCALATORS):
-            return "HIGH"
+    if any(str(f.get("severity", "")).lower() == SEVERITY_HIGH for f in findings):
+        return "HIGH"
     return "MED"
 
 

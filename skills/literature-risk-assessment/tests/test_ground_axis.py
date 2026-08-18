@@ -54,6 +54,29 @@ def test_unwraps_structured_output_and_tolerates_string_finding():
     assert g["contradicts_deterministic"] is True
 
 
+def test_severity_passthrough_and_safe_default():
+    # a valid severity is carried through verbatim; a missing/off-enum severity (and a bare-string
+    # finding) defaults to 'moderate' so the pseudo-card bin never crashes or silently escalates.
+    out = {"findings": [
+        {"finding": "Ph3 discontinued", "kind": "x", "severity": "high", "cited_pmids": ["1"]},
+        {"finding": "some context", "kind": "x", "severity": "bogus", "cited_pmids": ["1"]},
+        {"finding": "no severity field", "kind": "x", "cited_pmids": ["1"]},
+        "bare string finding"],
+        "corroborations": [], "contradicts_deterministic": False, "notes": ""}
+    g = ga.build_grounded_block(DET, out, {"1"}, corpus_pin={}, n_retrieved=1)
+    sev = [f["severity"] for f in g["findings"]]
+    assert sev == ["high", "moderate", "moderate", "moderate"]
+    # single source of truth: the enum + escalator token are exported for the consumer (risk_rollup)
+    assert ga.SEVERITY_HIGH in ga.SEVERITY_LEVELS
+    assert not hasattr(ga, "PSEUDO_ESCALATOR_KINDS")  # dead duplicate removed
+
+
+def test_severity_in_tool_schema_enum():
+    props = ga.TOOL_SCHEMA["properties"]["findings"]["items"]
+    assert props["properties"]["severity"]["enum"] == list(ga.SEVERITY_LEVELS)
+    assert "severity" in props["required"]
+
+
 def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
     assert {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"} <= set(ga.AXIS_CONFIG)
     nouns = {cfg["finding_noun"] for cfg in ga.AXIS_CONFIG.values()}

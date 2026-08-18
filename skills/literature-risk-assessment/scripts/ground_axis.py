@@ -147,10 +147,14 @@ AXIS_CONFIG = {
         "kinds": ("a CROWDED competitive landscape, approved/late-stage COMPETITORS on the same target/"
                   "pathway, IP/freedom-to-operate concerns, or a small addressable population")},
 }
-# Coarse literature-bin escalators for pseudo-card dims (decision 2: literature-only, uncalibrated bin
-# for portfolio-sortability). A finding whose kind hits these → escalate the dim.
-PSEUDO_ESCALATOR_KINDS = ("fail", "discontinu", "terminat", "negative", "toxic", "crowded",
-                          "competitor", "freedom", "ip_")
+# Controlled per-finding SEVERITY — the SINGLE SOURCE OF TRUTH for pseudo-card (clinical/commercial)
+# escalation (decision 2: literature-only, uncalibrated bin for portfolio-sortability). This replaces
+# the former free-text `kind` substring-grep, which was fragile-by-construction: it hoped the model's
+# prose `kind` happened to contain a token like "toxic"/"crowded", and one escalator ("lack_of") could
+# NEVER match natural prose ("lack of clinical validation"). Now the model classifies each finding into
+# a fixed enum and risk_rollup bins on exact membership — no substring matching, no drift-prone list.
+SEVERITY_LEVELS = ("high", "moderate")   # schema enum (order-stable)
+SEVERITY_HIGH = "high"                    # a `severity == SEVERITY_HIGH` finding escalates a pseudo dim
 
 SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
           "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
@@ -159,8 +163,9 @@ SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts
 TOOL_SCHEMA = {"type": "object", "properties": {
     "findings": {"type": "array", "items": {"type": "object", "properties": {
         "finding": {"type": "string"}, "kind": {"type": "string"},
+        "severity": {"type": "string", "enum": list(SEVERITY_LEVELS)},
         "cited_pmids": {"type": "array", "items": {"type": "string"}}},
-        "required": ["finding", "kind", "cited_pmids"]}},
+        "required": ["finding", "kind", "severity", "cited_pmids"]}},
     "corroborations": {"type": "array", "items": {"type": "string"}},
     "contradicts_deterministic": {"type": "boolean"}, "notes": {"type": "string"}},
     "required": ["findings", "corroborations", "contradicts_deterministic", "notes"]}
@@ -182,7 +187,11 @@ def build_grounded_block(det: dict, llm_out: dict, retrieved_pmids: set, *,
         cites = _uv(f.get("cited_pmids")) or []
         good = [str(p) for p in cites if str(p) in retrieved_pmids]
         dropped += [str(p) for p in cites if str(p) not in retrieved_pmids]
-        kept.append({"finding": _uv(f.get("finding")), "kind": _uv(f.get("kind")), "cited_pmids": good})
+        sev = str(_uv(f.get("severity")) or "moderate").lower()
+        if sev not in SEVERITY_LEVELS:  # tolerate a missing/off-enum value from a legacy or bare finding
+            sev = "moderate"
+        kept.append({"finding": _uv(f.get("finding")), "kind": _uv(f.get("kind")),
+                     "severity": sev, "cited_pmids": good})
     return {"findings": kept, "corroborations": _uv(llm_out.get("corroborations")) or [],
             "contradicts_deterministic": _uv(llm_out.get("contradicts_deterministic")),
             "anchor_verdict": det.get("verdict"), "confabulated_dropped": dropped,
@@ -212,8 +221,10 @@ def _prompt(target, indication, axis, anchor, abstracts):
              f"Kinds to look for: {cfg['kinds']}.",
              "Each finding is ESCALATE-ONLY — it may RAISE this axis's risk; you may NOT use the "
              "literature to LOWER the deterministic concern or conclude the axis is fine. Report the "
-             "finding + its kind + its PMIDs. Flag if the literature CONTRADICTS the deterministic "
-             "verdict.\n\nABSTRACTS:"]
+             "finding + its kind + its PMIDs, and rate its SEVERITY: 'high' for a DECISIVE risk (e.g. a "
+             "FAILED/DISCONTINUED trial or program, clinical toxicity, a negative pivotal readout, a "
+             "crowded landscape with approved/late-stage competitors, or blocking IP); 'moderate' "
+             "otherwise. Flag if the literature CONTRADICTS the deterministic verdict.\n\nABSTRACTS:"]
     for a in abstracts:
         lines.append(f"[PMID {a.pmid}] {a.title}\n{(a.abstract or '')[:900]}")
     return "\n".join(lines)

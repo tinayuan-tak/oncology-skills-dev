@@ -110,12 +110,16 @@ def test_pseudo_card_dims_get_coarse_literature_bin():
     pkg = _pkg("tolerant_reduced_safety_risk", {})
     # no substrate -> engine-blind
     assert rr.project(pkg, "adc")["clinical"]["bin"] == "ENGINE-BLIND"
-    # a failed-trial finding escalates the clinical pseudo-card to HIGH (literature-only)
-    sub = {"clinical": {"grounded": {"findings": [{"finding": "Ph3 failed", "kind": "failed_trial", "cited_pmids": ["1"]}]}}}
+    # a severity=high finding escalates the clinical pseudo-card to HIGH (literature-only). This keys on
+    # the controlled `severity` enum, NOT a substring-grep of `kind` — so prose that doesn't contain an
+    # escalator token (e.g. "lack of clinical validation") no longer silently under-bins.
+    sub = {"clinical": {"grounded": {"findings": [
+        {"finding": "Ph3 failed", "kind": "failed_trial", "severity": "high", "cited_pmids": ["1"]}]}}}
     out = rr.project(pkg, "adc", sub)["clinical"]
     assert out["bin"] == "HIGH" and out["bin_basis"] == "literature-only (uncalibrated)"
-    # a benign finding -> MED; no findings -> LOW
-    sub2 = {"commercial": {"grounded": {"findings": [{"finding": "some context", "kind": "context", "cited_pmids": []}]}}}
+    # a moderate-severity finding -> MED; no findings -> LOW
+    sub2 = {"commercial": {"grounded": {"findings": [
+        {"finding": "lack of clinical validation", "kind": "no_validation", "severity": "moderate", "cited_pmids": []}]}}}
     assert rr.project(pkg, "adc", sub2)["commercial"]["bin"] == "MED"
 
 
