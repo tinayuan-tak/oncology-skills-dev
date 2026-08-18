@@ -1,7 +1,7 @@
 """depmap_predictability.read — v2 library entry for live-mode reads.
 
-Reads one row out of the frozen derived parquet
-`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v2/predictability_per_gene.parquet`
+Reads one row out of the frozen derived parquet (default pin 26q1-v3)
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v3/predictability_per_gene.parquet`
 via pyarrow predicate pushdown. No sklearn / XGBoost at framework runtime.
 
 On unreachable parquet or missing target, returns a dict with
@@ -17,7 +17,7 @@ from typing import Optional
 from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
-DEFAULT_RELEASE_PIN = "26q1-v2"
+DEFAULT_RELEASE_PIN = "26q1-v3"
 
 
 def _ensure_aws_profile():

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """depmap-predictability CLI (v2 — DepMap-parity + extensions thin lookup).
 
-Reads ONE row out of the frozen derived parquet
-`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v2/predictability_per_gene.parquet`
-via pyarrow predicate pushdown. The parquet was produced by the sibling v2
-precompute method (`depmap_predictability_precompute`).
+Reads ONE row out of the frozen derived parquet (default pin 26q1-v3)
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v3/predictability_per_gene.parquet`
+via pyarrow predicate pushdown. The parquet was produced by the sibling
+precompute method (`depmap_predictability_precompute`). v2 remains selectable
+via --release-pin for reproducibility (identical schema; v3 only widens the
+gene-set gate 0.30 → 0.15).
 
 v2 schema exposes:
   - pearson_r_rf + r² + bootstrap 95% CI (primary DepMap-parity scalar)
@@ -39,12 +41,14 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
 
-# Release-pin → parquet S3 URI. v2 supersedes v1 as the canonical build.
-# v2 resolved from its data-catalog manifest (single source of truth); v1's manifest is NOT
+# Release-pin → parquet S3 URI. v3 (wider 0.15 gate, 9,240 genes) is the canonical build;
+# v2 (0.30 gate, 3,730 genes) is RETAINED for reproducibility of historical runs. v2/v3
+# resolve from their data-catalog manifests (single source of truth); v1's manifest is NOT
 # in the catalog (BLOCKED) so its URI stays hardcoded until that manifest lands.
 RELEASE_PIN_TO_PARQUET = {
     "26q1-v1": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet",
     "26q1-v2": s3_uri_for("depmap-predictability-26q1-v2"),
+    "26q1-v3": s3_uri_for("depmap-predictability-26q1-v3"),
 }
 
 # Feature-class → SVG color map. Extended for v2 (arm + driver_gof/lof + cross-gene).
@@ -368,7 +372,7 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="26q1-v2", show_default=True,
+@click.option("--release-pin", default="26q1-v3", show_default=True,
               type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
 @click.option("--parquet-uri", default=None,
               help="Override the parquet URI (testing / local fixture).")
