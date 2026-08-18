@@ -44,6 +44,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.presence_matrix import emit_presence_matrix
+from _skills_common.presence_claims import presence_claim_vector, presence_key_signals
 
 
 SKILL_NAME = "tumor-presence"
@@ -415,7 +416,7 @@ def _headline(cards, fired, verdict_pair):
                         if _rna_biomarker_tumor in ("adequate_proxy", "partial_proxy", "poor_proxy")
                         else _rna_biomarker)
     _sc_normal_flags = get_card_field(cards, "sc-normal-celltype-expression", "safety_essential_flags")
-    return {
+    hl = {
         # COLLAPSED verdict — the audit spine target-profile reads as `verdict`.
         "presence_verdict":              v,
         "driving_rule_id":               drv,
@@ -500,6 +501,14 @@ def _headline(cards, fired, verdict_pair):
         "sc_normal_top_essential_cell_types": _top_essential_cell_types(_sc_normal_flags),
         "sc_normal_safety_essential_flags":   _sc_normal_flags,
     }
+    # Additive, verdict-INERT (2026-08-18): the modality-blind claim vector (A/B/C/D signal×reliability)
+    # + a brief cited key-signals read. Both are projections over the headline just built; they NEVER
+    # touch the presence_verdict spine (byte-stable, frozen by the golden-spine test). The claim vector
+    # is the WITHIN-lens evidence integration this subskill owns; it rides the _synthesis_facet package
+    # into the composed target-profile. See _skills_common/presence_claims.py.
+    hl["claim_vector"] = presence_claim_vector(hl, cards)
+    hl["key_signals"] = presence_key_signals(hl, cards)
+    return hl
 
 
 # ─── Cross-modal reconciliation facet (consumed by the composed target-profile synthesis) ─
@@ -525,6 +534,8 @@ _SYNTHESIS_FACET_KEYS = (
     "normal_tissue_ihc_breadth_class", "normal_tissue_ihc_essential_flag",
     "sc_normal_expression_class", "sc_normal_safety_essential_class",
     "sc_normal_max_det_cell_type", "sc_normal_max_det_fraction", "sc_normal_top_essential_cell_types",
+    # Modality-blind claim vector + brief cited read (the within-lens integration this subskill owns).
+    "claim_vector", "key_signals",
 )
 
 
