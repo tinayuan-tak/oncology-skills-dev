@@ -104,6 +104,52 @@ def test_pan_fallback_keeps_moderate_as_is():
     assert r[CLS] == "mutant_moderately_dependent"
 
 
+# ── amp-expr class vocabulary (regression guard) ─────────────────────────────
+# depmap_amp_expr_dependency emits the fully-spelled labels below (cli._LABELS), NOT the
+# abbreviated `amp_expr_*` form. A prior version of _STRONG_TO_MODERATE keyed the abbreviated
+# form, so the amp-expr class was absent from both the downgrade map and _DEPENDENT_CLASSES:
+# rung-3 never downgraded a strong amp-expr call, and the divergence flag mis-computed. These two
+# tests pin the ladder to the real amp-expr vocabulary so that regression cannot return silently.
+_AE_STRONG = "amplified_overexpressed_strongly_dependent"
+_AE_MODERATE = "amplified_overexpressed_moderately_dependent"
+_AE_INSUFFICIENT = "insufficient_amp_expr_rate"
+_AE_CLS = "amp_expr_stratification_class"
+
+
+def _ae_thunk(pan_class, within_class, hybrid_class=None):
+    """Like `_thunk`, but keys the returned dict on the amp-expr class field (`_AE_CLS`)."""
+    def compute(mut_models, wt_models):
+        if mut_models is None and wt_models is None:
+            return {_AE_CLS: pan_class}
+        if mut_models is not None and wt_models is not None:
+            return {_AE_CLS: within_class}
+        return {_AE_CLS: hybrid_class if hybrid_class is not None else within_class}
+    return compute
+
+
+def test_amp_expr_pan_fallback_downgrades_strong():
+    # within + hybrid both insufficient → pan-DepMap, and a STRONG amp-expr call must be
+    # downgraded to moderate (cannot confirm indication-specificity). Pre-fix this stayed strong.
+    r = apply_lineage_ladder(
+        _ae_thunk(_AE_STRONG, _AE_INSUFFICIENT, hybrid_class=_AE_INSUFFICIENT),
+        _AE_CLS, META, "COADREAD")
+    assert r["evidence_scope"] == "pan_lineage_evidence_only"
+    assert r[_AE_CLS] == _AE_MODERATE                      # DOWNGRADED (was strong pre-fix)
+    assert r[f"pan_lineage_raw_{_AE_CLS}"] == _AE_STRONG
+
+
+def test_amp_expr_divergence_flag_uses_real_labels():
+    # within-lineage says not-stratified, pan says strongly-dependent → the two disagree, so the
+    # divergence flag must fire. Pre-fix the amp-expr strong class was not in _DEPENDENT_CLASSES,
+    # so the flag was computed as False (pan read as "not a dependency call").
+    r = apply_lineage_ladder(
+        _ae_thunk(_AE_STRONG, "not_amp_expr_stratified"),
+        _AE_CLS, META, "COADREAD")
+    assert r["evidence_scope"] == "within_indication"
+    assert r[_AE_CLS] == "not_amp_expr_stratified"
+    assert r["lineage_context_divergent"] is True
+
+
 def test_unmapped_indication_is_pan_no_indication():
     r = apply_lineage_ladder(_thunk("mutant_strongly_dependent", "x"), CLS, META, None)
     assert r["evidence_scope"] == "pan_no_indication"

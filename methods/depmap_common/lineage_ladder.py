@@ -48,7 +48,9 @@ _STRONG_TO_MODERATE = {
     "mutant_strongly_dependent": "mutant_moderately_dependent",
     "amplified_strongly_dependent": "amplified_moderately_dependent",
     "fusion_positive_strongly_dependent": "fusion_positive_moderately_dependent",
-    "amp_expr_strongly_dependent": "amp_expr_moderately_dependent",
+    # amp-expr emits the fully-spelled label pair (depmap_amp_expr_dependency.cli._LABELS);
+    # keep these in exact sync with that method's strong/moderate strings.
+    "amplified_overexpressed_strongly_dependent": "amplified_overexpressed_moderately_dependent",
 }
 
 # classes that mean "a positive dependency call" (for the divergence check)
