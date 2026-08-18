@@ -1,12 +1,12 @@
-"""claim_vector_core — the SHARED (signal × reliability) claim-vector contract for the subskill fleet.
+"""claim_vector_core — the SHARED (signal × corroboration) claim-vector contract for the subskill fleet.
 
 WHAT THIS IS: the extracted, skill-agnostic MACHINERY behind a modality-blind, verdict-INERT claim
 vector — a projection that stacks a subskill's heterogeneous card evidence into a set of ORTHOGONAL
-claims, each carrying a signal tier and an INDEPENDENT reliability tier, plus a brief cited read.
+claims, each carrying a signal tier and an INDEPENDENT corroboration tier, plus a brief cited read.
 
 The SHAPE is uniform across skills; the AXES are declared per skill (a ClaimSpec list). This is
 deliberately NOT presence's A/B/C/D — presence's abundance/elevation/malignant/generality axes and
-functional-requirement's DEP/SEL/COND/CHEM axes share the (signal × reliability) shape and the
+functional-requirement's DEP/SEL/COND/CHEM axes share the (signal × corroboration) shape and the
 combination discipline, NOT the axis set. Extracted from TWO concretes (presence_claims first, then
 dependency_claims) per the rule-of-two, so the abstraction is factored from real instances rather than
 speculated from one.
@@ -17,8 +17,8 @@ THE COMBINATION DISCIPLINE (the honesty rules this module reifies as shared help
     floor) and `negative` (measured, wrong direction). A coverage gap is never evidence of absence.
   * claims are kept SEPARATE, never averaged. A weak claim on one axis does not degrade a strong claim
     on another — they are orthogonal projections, not a scalar score.
-  * within a claim, corroboration is SUB-ADDITIVE: a second AGREEING arm raises RELIABILITY, never the
-    signal tier; a DISAGREEING arm penalizes reliability and is surfaced as a `conflict`.
+  * within a claim, corroboration is SUB-ADDITIVE: a second AGREEING arm raises CORROBORATION, never the
+    signal tier; a DISAGREEING arm penalizes corroboration and is surfaced as a `conflict`.
 
 WHAT THIS IS NOT: a verdict input. Every claim vector built here is a one-way VIEW over an
 already-computed decision; it never feeds a rule, resolver, or gate. The consuming skill owns that
@@ -33,7 +33,7 @@ from typing import Callable, Optional, Sequence
 # (a measured floor) both rank 0 but read differently in text; `unmeasured` (a GAP) is None, NOT 0 — so
 # it is never comparable/averageable and gap≠absent is enforced at the type level.
 SIGNAL_ORD = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0, "unmeasured": None}
-RELIABILITY_ORD = {"high": 3, "moderate": 2, "low": 1, "unmeasured": None}
+CORROBORATION_ORD = {"high": 3, "moderate": 2, "low": 1, "unmeasured": None}
 
 
 def cards_by_id(cards) -> dict:
@@ -52,8 +52,8 @@ def sig_ge(tier: Optional[str], floor: str) -> bool:
 
 
 # ── combination-discipline helpers ───────────────────────────────────────────────────────────────
-def bump_reliability(rel: str, corroborated: bool) -> str:
-    """SUB-ADDITIVE within-claim corroboration: an independent AGREEING arm lifts reliability one step
+def bump_corroboration(rel: str, corroborated: bool) -> str:
+    """SUB-ADDITIVE within-claim corroboration: an independent AGREEING arm lifts corroboration one step
     (low->moderate->high), NEVER the signal tier. No-op on `unmeasured` — a gap cannot be corroborated
     into confidence."""
     order = ["low", "moderate", "high"]
@@ -62,8 +62,8 @@ def bump_reliability(rel: str, corroborated: bool) -> str:
     return order[min(order.index(rel) + 1, len(order) - 1)]
 
 
-def cap_reliability(rel: str, ceiling: str) -> str:
-    """Conflict penalty: a DISAGREEING arm caps reliability at `ceiling` (never raises it). No-op on
+def cap_corroboration(rel: str, ceiling: str) -> str:
+    """Conflict penalty: a DISAGREEING arm caps corroboration at `ceiling` (never raises it). No-op on
     `unmeasured`."""
     order = ["low", "moderate", "high"]
     if rel not in order or ceiling not in order:
@@ -84,28 +84,35 @@ def weakest(tiers, ord_map) -> Optional[str]:
 class ClaimSpec:
     """One orthogonal claim axis, declared per skill.
 
-    signal_fn(headline, cards_by_id)      -> (signal_tier, evidence_str, conflict_or_None)
-    reliability_fn(headline, cards_by_id) -> reliability_tier
+    signal_fn(headline, cards_by_id)         -> (signal_tier, evidence_str, conflict_or_None)
+    corroboration_fn(headline, cards_by_id)  -> corroboration_tier
     informs: light-touch downstream-lens routing tag (NOT a gate).
     """
     axis_key: str
     label: str
     signal_fn: Callable
-    reliability_fn: Callable
+    corroboration_fn: Callable
     informs: str
 
 
 def build_claim_vector(spec: Sequence[ClaimSpec], headline: dict, cards, disclaimer: str) -> dict:
-    """Assemble {axis_key: {signal, reliability, evidence, conflict, informs}, _disclaimer} from a
+    """Assemble {axis_key: {signal, corroboration, evidence, conflict, informs}, _disclaimer} from a
     skill's ClaimSpec list. Pure projection — reads the already-computed headline + card summaries and
-    writes nothing back to either."""
+    writes nothing back to either.
+
+    NOTE on `corroboration` (renamed from `reliability`, reconciliation D2): this is a WITHIN-CLAIM
+    support-quality tier — how well the claim's OWN signal is corroborated across its arms (it MAY
+    include verdict-driving arms, e.g. dependency DEP's CRISPR↔RNAi concordance). It is deliberately
+    NOT the axis certainty: the authoritative, VERDICT-DISJOINT certainty is the separate per-axis
+    `certainty_by_axis` sidecar (CERTAINTY_MODEL). The claim vector is the SIGNAL decomposition; this
+    field is a local annotation, never the axis certainty."""
     c = cards_by_id(cards)
     vec: dict = {}
     for cs in spec:
         signal, evidence, conflict = cs.signal_fn(headline, c)
         vec[cs.axis_key] = {
             "signal": signal,
-            "reliability": cs.reliability_fn(headline, c),
+            "corroboration": cs.corroboration_fn(headline, c),
             "evidence": evidence,
             "conflict": conflict,
             "informs": cs.informs,
@@ -151,5 +158,5 @@ def build_key_signals(claim_vector: dict, *, rank_keys: Sequence[str], support_f
     return {"headline": headline_fn(claim_vector, supports), "supports": supports, "caveat": caveat}
 
 
-__all__ = ["SIGNAL_ORD", "RELIABILITY_ORD", "ClaimSpec", "build_claim_vector", "build_key_signals",
-           "cards_by_id", "fmt", "sig_ge", "bump_reliability", "cap_reliability", "weakest"]
+__all__ = ["SIGNAL_ORD", "CORROBORATION_ORD", "ClaimSpec", "build_claim_vector", "build_key_signals",
+           "cards_by_id", "fmt", "sig_ge", "bump_corroboration", "cap_corroboration", "weakest"]

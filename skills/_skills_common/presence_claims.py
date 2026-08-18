@@ -1,10 +1,10 @@
 """Presence CLAIM VECTOR + KEY SIGNALS — a modality-blind, verdict-INERT integration of the
-tumor-presence card evidence into (signal × reliability) per claim, plus a brief cited read.
+tumor-presence card evidence into (signal × corroboration) per claim, plus a brief cited read.
 
 WHAT THIS IS: an additive projection over the ALREADY-computed presence headline + card summaries.
 It stacks heterogeneous card evidence into four ORTHOGONAL claims —
   A abundance · B tumor-elevation · C malignant-intrinsic · D generality —
-each with a signal tier and a reliability tier, following the combination discipline:
+each with a signal tier and a corroboration tier, following the combination discipline:
 evidence corroborates WITHIN a claim (sub-additively), conflicts penalize, and claims are kept
 SEPARATE across (a weak C never degrades a strong B — they are not averaged).
 
@@ -43,7 +43,7 @@ def _f(v, nd=2):
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
 
 
-# ── the four claims (each returns {signal, reliability, evidence, conflict}) ───────────────────
+# ── the four claims (each returns {signal, corroboration, evidence, conflict}) ───────────────────
 def _claim_A(h, c):
     trd = c.get("tumor-rna-distribution", {})
     cp, pct, med = trd.get("control_position"), trd.get("allgene_percentile"), trd.get("median_log2tpm")
@@ -68,10 +68,10 @@ def _claim_A(h, c):
         sig = "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak"
         band = f"raw median {med:.1f} log2TPM (anchor n/a)"
     else:
-        return {"signal": "unmeasured", "reliability": "unmeasured", "evidence": "no abundance anchor", "conflict": None, "informs": CLAIM_INFORMS["A"]}
+        return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no abundance anchor", "conflict": None, "informs": CLAIM_INFORMS["A"]}
     proxy = h.get("bulk_rna_proxy_quality")
     rel = "high" if proxy == "rna_confirmed_by_protein" else "moderate" if proxy == "rna_positive_proxy_partial" else "low"
-    return {"signal": sig, "reliability": rel, "conflict": None, "informs": CLAIM_INFORMS["A"],
+    return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["A"],
             "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}"}
 
 
@@ -98,7 +98,7 @@ def _claim_B(h, c):
     if cpt:
         arms.append(("CPTAC", cpt, cp.get("protein_effect_size"), cp.get("protein_bh_q_value")))
     if not arms:
-        return {"signal": "unmeasured", "reliability": "unmeasured", "evidence": "no tumor-vs-normal arm", "conflict": None, "informs": CLAIM_INFORMS["B"]}
+        return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no tumor-vs-normal arm", "conflict": None, "informs": CLAIM_INFORMS["B"]}
     ups = [a for a in arms if a[1][0] == "up"]; downs = [a for a in arms if a[1][0] == "down"]
     flats = [a for a in arms if a[1][0] == "flat"]
     conflict = None
@@ -110,7 +110,7 @@ def _claim_B(h, c):
         # comparator/post-transcriptional discordance: one arm elevated, another measured-FLAT (e.g.
         # CEACAM5 — RNA vs adjacent-colon flat, but CPTAC protein vs population-normal up). Surface it
         # (the elevation is real but not corroborated across arms/comparators) without moving the tier;
-        # reliability is capped since the arms don't agree. See P1 calibration finding (2026-08-18).
+        # corroboration is capped since the arms don't agree. See P1 calibration finding (2026-08-18).
         if flats:
             up_names = "/".join(a[0] for a in ups); flat_names = "/".join(a[0] for a in flats)
             conflict = f"comparator discordance: {up_names} elevated but {flat_names} flat"
@@ -118,18 +118,18 @@ def _claim_B(h, c):
     else:
         sig, rel = "absent", "moderate"
     ev = "; ".join(f"{n}:{d[0]}(fc/eff={_f(fc)},q={q:.0e})" if isinstance(q, (int, float)) else f"{n}:{d[0]}" for n, d, fc, q in arms)
-    return {"signal": sig, "reliability": rel, "evidence": ev, "conflict": conflict, "informs": CLAIM_INFORMS["B"]}
+    return {"signal": sig, "corroboration": rel, "evidence": ev, "conflict": conflict, "informs": CLAIM_INFORMS["B"]}
 
 
 def _claim_C(h, c):
     cls = h.get("sc_expression_class") or c.get("tumor-scrna-celltype-expression", {}).get("sc_expression_class")
     frac, n = h.get("sc_malignant_detection_fraction"), h.get("sc_n_donor_groups")
     if not cls or cls == "data_unavailable":
-        return {"signal": "unmeasured", "reliability": "unmeasured", "evidence": "no single-cell for indication", "conflict": None, "informs": CLAIM_INFORMS["C"]}
+        return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no single-cell for indication", "conflict": None, "informs": CLAIM_INFORMS["C"]}
     sig = {"malignant_broadly_detected": "strong", "malignant_subset_detected": "weak",
            "microenvironment_dominant": "negative", "broadly_low": "absent"}.get(cls, "weak")
     rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 20 else "low"
-    return {"signal": sig, "reliability": rel, "conflict": None, "informs": CLAIM_INFORMS["C"],
+    return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["C"],
             "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)"}
 
 
@@ -138,7 +138,7 @@ def _claim_D(h, c):
     dist = c.get("tumor-rna-distribution", {}).get("distribution_pattern")
     sig = {"broadly_tumor_elevated": "strong", "multi_tumor_elevated": "moderate",
            "single_tumor_elevated": "weak", "not_tumor_elevated": "absent"}.get(br, "unmeasured")
-    return {"signal": sig, "reliability": "moderate", "evidence": f"breadth={br}; dist={dist}", "conflict": None, "informs": CLAIM_INFORMS["D"]}
+    return {"signal": sig, "corroboration": "moderate", "evidence": f"breadth={br}; dist={dist}", "conflict": None, "informs": CLAIM_INFORMS["D"]}
 
 
 def _homogeneity(h, c):
@@ -147,14 +147,14 @@ def _homogeneity(h, c):
 
 
 def presence_claim_vector(headline: dict, cards: list) -> dict:
-    """The modality-blind claim vector: {A,B,C,D: {signal, reliability, evidence, informs}, homogeneity}.
+    """The modality-blind claim vector: {A,B,C,D: {signal, corroboration, evidence, informs}, homogeneity}.
     Verdict-inert projection over the computed headline + card summaries."""
     c = _by_id(cards)
     return {"A": _claim_A(headline, c), "B": _claim_B(headline, c), "C": _claim_C(headline, c),
             "D": _claim_D(headline, c), "homogeneity": _homogeneity(headline, c),
             "_disclaimer": ("Modality-blind, verdict-INERT projection of the presence cards into orthogonal "
                             "claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), "
-                            "each signal×reliability. Claims are NOT additive; a weak C does not degrade a "
+                            "each signal×corroboration. Claims are NOT additive; a weak C does not degrade a "
                             "strong B. Never feeds the presence_verdict.")}
 
 
@@ -249,9 +249,9 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         med, fa, n = r.get("median_log2tpm"), r.get("fraction_tumor_above_normal_p95"), r.get("n_tumor_samples")
         rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
         strata[sid] = {
-            "A": {"signal": _tier_from_median(med), "reliability": rel,
+            "A": {"signal": _tier_from_median(med), "corroboration": rel,
                   "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"},
-            "B": {"signal": _tier_from_fraction_above_normal(fa), "reliability": "moderate" if isinstance(fa, (int, float)) else "unmeasured",
+            "B": {"signal": _tier_from_fraction_above_normal(fa), "corroboration": "moderate" if isinstance(fa, (int, float)) else "unmeasured",
                   "evidence": (f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
                                if isinstance(fa, (int, float)) else "no per-stratum normal window")},
             "n_tumor_samples": n,

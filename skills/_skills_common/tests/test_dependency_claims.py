@@ -1,5 +1,5 @@
 """Unit tests for functional-requirement's claim vector (skills/_skills_common/dependency_claims.py),
-the SECOND concrete over claim_vector_core. Pin the DEP/SEL/COND/CHEM tier mappings + the reliability
+the SECOND concrete over claim_vector_core. Pin the DEP/SEL/COND/CHEM tier mappings + the corroboration
 combination (RNAi corroboration, Broad↔Sanger lift, omics-predictability, conflict caps) + the
 deterministic key-signals read. Pure over a headline dict — no S3, no card reads.
 
@@ -45,12 +45,12 @@ def test_kras_claim_vector_tiers():
     assert vec["DEP"]["signal"] == "strong"
     # base moderate (moderately_concordant_non_dependent) + RNAi corroboration + cross-consortium
     # replication + own-omics predictability → high
-    assert vec["DEP"]["reliability"] == "high"
+    assert vec["DEP"]["corroboration"] == "high"
     assert vec["DEP"]["conflict"] is None
-    assert vec["SEL"] == {"signal": "strong", "reliability": "high",
+    assert vec["SEL"] == {"signal": "strong", "corroboration": "high",
                           "evidence": vec["SEL"]["evidence"], "conflict": None,
                           "informs": vec["SEL"]["informs"]}
-    assert vec["CHEM"]["signal"] == "strong" and vec["CHEM"]["reliability"] == "high"
+    assert vec["CHEM"]["signal"] == "strong" and vec["CHEM"]["corroboration"] == "high"
 
 
 def test_no_partner_mapped_is_gap_not_absent():
@@ -58,7 +58,7 @@ def test_no_partner_mapped_is_gap_not_absent():
     (which would read as 'measured, not synthetic-lethal')."""
     vec = dependency_claim_vector(_kras_headline(), [])
     assert vec["COND"]["signal"] == "unmeasured"
-    assert vec["COND"]["reliability"] == "unmeasured"
+    assert vec["COND"]["corroboration"] == "unmeasured"
     assert "GAP" in vec["COND"]["evidence"]
 
 
@@ -80,7 +80,7 @@ def test_pan_essential_flags_broad_tox_conflict():
     assert "pan-essential" in (vec["DEP"]["conflict"] or "")    # …but flagged as a broad-tox liability
 
 
-def test_rnai_disagreement_flags_conflict_and_caps_reliability():
+def test_rnai_disagreement_flags_conflict_and_caps_corroboration():
     h = _kras_headline()
     h["rnai_call"] = "non_dependent"
     h["cross_consortium_class"] = "single_consortium_only"      # remove the consortium lift
@@ -88,7 +88,7 @@ def test_rnai_disagreement_flags_conflict_and_caps_reliability():
     vec = dependency_claim_vector(h, [])
     assert vec["DEP"]["signal"] == "strong"
     assert "RNAi" in (vec["DEP"]["conflict"] or "")
-    assert vec["DEP"]["reliability"] in ("moderate", "low")     # capped, not high
+    assert vec["DEP"]["corroboration"] in ("moderate", "low")     # capped, not high
 
 
 def test_non_dependent_case():
@@ -135,4 +135,4 @@ def test_partner_conditional_strong_signal():
     h["partner_stratification_q"] = 0.01
     vec = dependency_claim_vector(h, [])
     assert vec["COND"]["signal"] == "moderate"
-    assert vec["COND"]["reliability"] == "high"                 # q<0.1 AND n>=15
+    assert vec["COND"]["corroboration"] == "high"                 # q<0.1 AND n>=15

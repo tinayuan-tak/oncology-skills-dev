@@ -2,8 +2,8 @@
 
 Pin the COMBINATION DISCIPLINE the shared machinery must uphold, independent of any one skill's axes:
   * ordinal (not metric) tiers; gap (`unmeasured`) is off-scale, never comparable, never == absent;
-  * within-claim corroboration is SUB-ADDITIVE (lifts reliability, never the signal tier);
-  * conflict caps reliability; claims stay separate; the key-signals builder ranks + gates + picks the
+  * within-claim corroboration is SUB-ADDITIVE (lifts corroboration, never the signal tier);
+  * conflict caps corroboration; claims stay separate; the key-signals builder ranks + gates + picks the
     weakest MEASURED critical caveat deterministically.
 Pure — no S3, no card reads.
 """
@@ -17,8 +17,8 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.claim_vector_core import (  # noqa: E402
-    SIGNAL_ORD, RELIABILITY_ORD, ClaimSpec, build_claim_vector, build_key_signals,
-    bump_reliability, cap_reliability, weakest, sig_ge, cards_by_id,
+    SIGNAL_ORD, CORROBORATION_ORD, ClaimSpec, build_claim_vector, build_key_signals,
+    bump_corroboration, cap_corroboration, weakest, sig_ge, cards_by_id,
 )
 
 
@@ -27,7 +27,7 @@ def test_gap_is_off_scale_not_zero():
     assert SIGNAL_ORD["unmeasured"] is None          # a GAP is off-scale
     assert SIGNAL_ORD["absent"] == 0                  # a measured floor IS on-scale
     assert SIGNAL_ORD["negative"] == 0
-    assert RELIABILITY_ORD["unmeasured"] is None
+    assert CORROBORATION_ORD["unmeasured"] is None
 
 
 def test_sig_ge_treats_unmeasured_as_never_meeting_floor():
@@ -39,24 +39,24 @@ def test_sig_ge_treats_unmeasured_as_never_meeting_floor():
 
 
 # ── sub-additive corroboration + conflict cap ──────────────────────────────────────────────────────
-def test_bump_reliability_is_sub_additive_and_capped():
-    assert bump_reliability("low", True) == "moderate"
-    assert bump_reliability("moderate", True) == "high"
-    assert bump_reliability("high", True) == "high"          # cannot exceed high
-    assert bump_reliability("low", False) == "low"           # no corroboration = no-op
-    assert bump_reliability("unmeasured", True) == "unmeasured"  # a gap can't be corroborated
+def test_bump_corroboration_is_sub_additive_and_capped():
+    assert bump_corroboration("low", True) == "moderate"
+    assert bump_corroboration("moderate", True) == "high"
+    assert bump_corroboration("high", True) == "high"          # cannot exceed high
+    assert bump_corroboration("low", False) == "low"           # no corroboration = no-op
+    assert bump_corroboration("unmeasured", True) == "unmeasured"  # a gap can't be corroborated
 
 
-def test_cap_reliability_never_raises():
-    assert cap_reliability("high", "moderate") == "moderate"
-    assert cap_reliability("low", "moderate") == "low"       # already below ceiling → unchanged
-    assert cap_reliability("unmeasured", "low") == "unmeasured"
+def test_cap_corroboration_never_raises():
+    assert cap_corroboration("high", "moderate") == "moderate"
+    assert cap_corroboration("low", "moderate") == "low"       # already below ceiling → unchanged
+    assert cap_corroboration("unmeasured", "low") == "unmeasured"
 
 
 def test_weakest_ignores_unmeasured():
-    assert weakest(["high", "moderate", "low"], RELIABILITY_ORD) == "low"
-    assert weakest(["high", "unmeasured"], RELIABILITY_ORD) == "high"   # gap doesn't win weakest-link
-    assert weakest(["unmeasured"], RELIABILITY_ORD) is None
+    assert weakest(["high", "moderate", "low"], CORROBORATION_ORD) == "low"
+    assert weakest(["high", "unmeasured"], CORROBORATION_ORD) == "high"   # gap doesn't win weakest-link
+    assert weakest(["unmeasured"], CORROBORATION_ORD) is None
 
 
 def test_cards_by_id_tolerates_none():
@@ -77,7 +77,7 @@ def _toy_spec():
 def test_build_claim_vector_shape_and_separation():
     vec = build_claim_vector(_toy_spec(), {}, [], "DISC")
     assert vec["_disclaimer"] == "DISC"
-    assert vec["X"] == {"signal": "strong", "reliability": "high", "evidence": "e-x",
+    assert vec["X"] == {"signal": "strong", "corroboration": "high", "evidence": "e-x",
                         "conflict": None, "informs": "informs-x"}
     # a weak/absent Y sits UNCHANGED next to a strong X — no averaging, no cross-contamination
     assert vec["Y"]["signal"] == "absent" and vec["Y"]["conflict"] == "conf-y"

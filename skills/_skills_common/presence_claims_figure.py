@@ -1,9 +1,9 @@
-"""Claim-vector figure — a compact SVG of the presence claim vector (A/B/C/D signal × reliability),
+"""Claim-vector figure — a compact SVG of the presence claim vector (A/B/C/D signal × corroboration),
 the visual twin of _skills_common.presence_claims. Additive / display-only, emitted via the
 --figures hook alongside the presence-context matrix.
 
 Honesty discipline (mirrors presence_matrix / ordinal_view): tiers are ORDER, not magnitude; the bar
-length encodes the ordinal tier only; reliability is a SEPARATE channel (dots); an UNMEASURED claim
+length encodes the ordinal tier only; corroboration is a SEPARATE channel (dots); an UNMEASURED claim
 is a hatched gap — NEVER a zero-length bar (a coverage gap is not a measured absence). Reads only
 decision['headline']['claim_vector'] — deterministic and cheap.
 """
@@ -31,7 +31,7 @@ def render_claim_vector_svg(claim_vector: dict, target: str, indication: str) ->
          '<defs><pattern id="cvna" width="6" height="6" patternUnits="userSpaceOnUse" '
          'patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#d5d7da" stroke-width="1.4"/></pattern></defs>',
          f'<text x="{x0}" y="20" font-size="13" font-weight="700" fill="#1a1a19">{_esc(target)} · {_esc(indication)}</text>',
-         f'<text x="{x0}" y="35" font-size="10" fill="#6b6f76">Presence claim vector — signal (bar, ordinal) × reliability (dots). '
+         f'<text x="{x0}" y="35" font-size="10" fill="#6b6f76">Presence claim vector — signal (bar, ordinal) × corroboration (dots). '
          f'Modality-blind, verdict-inert; hatched = unmeasured gap.</text>']
     y = 50
     for k, name in _CLAIM:
@@ -47,11 +47,11 @@ def render_claim_vector_svg(claim_vector: dict, target: str, indication: str) ->
             bw = max(6, int(tier / 3 * barmax))
             s.append(f'<rect x="{bx}" y="{y+4}" width="{barmax}" height="13" rx="3" fill="#f0f0ee"/>')
             s.append(f'<rect x="{bx}" y="{y+4}" width="{bw}" height="13" rx="3" fill="{_TIER_FILL[tier]}"/>')
-            nrel = _REL_DOTS.get(cl.get("reliability"), 0)
+            nrel = _REL_DOTS.get(cl.get("corroboration"), 0)
             dots = "".join(f'<circle cx="{bx+barmax+14+j*11}" cy="{y+10}" r="3.5" '
                            f'fill="{"#184f95" if j < nrel else "none"}" stroke="#184f95" stroke-width="1"/>' for j in range(3))
             s.append(dots)
-            s.append(f'<text x="{bx+barmax+58}" y="{y+14}" font-size="9.5" fill="#3a3a39">{_esc(cl.get("signal"))} · {_esc(cl.get("reliability"))}</text>')
+            s.append(f'<text x="{bx+barmax+58}" y="{y+14}" font-size="9.5" fill="#3a3a39">{_esc(cl.get("signal"))} · {_esc(cl.get("corroboration"))}</text>')
         y += rowh
     hom = (claim_vector or {}).get("homogeneity")
     s.append(f'<text x="{x0}" y="{y+14}" font-size="9.5" fill="#6b6f76">homogeneity (TCE lens): '

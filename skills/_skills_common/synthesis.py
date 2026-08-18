@@ -210,7 +210,7 @@ def _card_line(cards: dict, missing: set, present_ids: set, card_id: str, fields
 
 def _claim_vector_block(cv: Optional[dict]) -> str:
     """Render the pre-computed presence CLAIM VECTOR as grounding substrate for the narration, so the
-    relevance enum + confidence derive from the deterministic (signal × reliability) per claim rather
+    relevance enum + confidence derive from the deterministic (signal × corroboration) per claim rather
     than the LLM re-deriving them. Additive / backward-compatible: a no-op note when the decision
     predates claim_vector (spine byte-stable either way)."""
     if not isinstance(cv, dict):
@@ -219,13 +219,13 @@ def _claim_vector_block(cv: Optional[dict]) -> str:
     for k, name in (("A", "abundance"), ("B", "tumor-elevation"),
                     ("C", "malignant-intrinsic"), ("D", "generality")):
         cl = cv.get(k) or {}
-        rows.append(f"    {k} {name}: signal={cl.get('signal')} reliability={cl.get('reliability')} "
+        rows.append(f"    {k} {name}: signal={cl.get('signal')} corroboration={cl.get('corroboration')} "
                     f"— {cl.get('evidence')}" + (f"  CONFLICT: {cl['conflict']}" if cl.get("conflict") else ""))
     if cv.get("homogeneity"):
         rows.append(f"    homogeneity: {cv.get('homogeneity')}")
     rows.append(
-        "  DIRECTIVE: your confidence_qualifier MUST track the claim reliability tiers (a decision-critical "
-        "claim of reliability=low/insufficient cannot yield well_supported). expression_relevance_for_target "
+        "  DIRECTIVE: your confidence_qualifier MUST track the claim corroboration tiers (a decision-critical "
+        "claim of corroboration=low/insufficient cannot yield well_supported). expression_relevance_for_target "
         "MUST reflect claims A (abundance) AND B (tumor-elevation) TOGETHER — a strong B with a weak/mid A is "
         "NOT strongly_supports; do NOT upgrade on fold-change alone. Claims are ORTHOGONAL — a weak C does not "
         "degrade a strong B; never average them.")

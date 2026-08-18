@@ -1,21 +1,21 @@
 """dependency_claims — functional-requirement's CLAIM VECTOR + KEY SIGNALS: a modality-blind,
-verdict-INERT projection of the dependency cards into (signal × reliability) per orthogonal claim.
+verdict-INERT projection of the dependency cards into (signal × corroboration) per orthogonal claim.
 
 The SECOND concrete instance of the shared claim_vector_core contract (presence_claims is the first).
 Declares functional-requirement's four axes as a ClaimSpec list:
 
   DEP  genetic dependency          — CRISPR distribution (dependency_class), RNAi as an orthogonal-LoF
-                                      within-claim corroboration; reliability from CRISPR×RNAi concordance
+                                      within-claim corroboration; corroboration from CRISPR×RNAi concordance
                                       + Broad↔Sanger cross-consortium replication + omics-predictability.
-  SEL  context-selectivity         — lineage-selectivity enrichment_class; reliability from n lineages.
-  COND conditional / synthetic-SL  — partner-conditional-dependency (WRN×MSI-style rescue); reliability
+  SEL  context-selectivity         — lineage-selectivity enrichment_class; corroboration from n lineages.
+  COND conditional / synthetic-SL  — partner-conditional-dependency (WRN×MSI-style rescue); corroboration
                                       from the partner-deficient stratification q + n.
-  CHEM chemical-genetic confirm.   — prism-crispr-concordance triangulation; reliability from PRISM n.
+  CHEM chemical-genetic confirm.   — prism-crispr-concordance triangulation; corroboration from PRISM n.
 
 KEY FIT (why dependency validates the shape): functional-requirement ALREADY separates SIGNAL from
 CONFIDENCE — it resolves the verdict from CRISPR/RNAi/concordance, and carries dependency-predictability
 + cross-consortium-dependency as CONFIDENCE ANNOTATIONS, never the verdict. Those map DIRECTLY onto the
-reliability axis, so (signal × reliability) is a natural fit here, not a presence-specific one.
+corroboration axis, so (signal × corroboration) is a natural fit here, not a presence-specific one.
 
 Verdict-INERT: reads the ALREADY-computed _headline; never feeds the dependency resolver. The
 KRAS/COADREAD offline replay guard freezes dependency_verdict byte-stable with or without this.
@@ -27,7 +27,7 @@ contract-uniformity with presence_claims but unused here.
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              bump_reliability, cap_reliability, sig_ge)
+                                              bump_corroboration, cap_corroboration, sig_ge)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # CRISPR dependency_class: common_essential | common_essential_underpowered | strongly_selective |
@@ -44,7 +44,7 @@ _DEP_SIGNAL = {
 }
 _RNAI_DEP = {"strongly_selective", "broadly_dependent", "common_essential"}
 _RNAI_NONDEP = {"non_dependent"}
-# CRISPR×RNAi concordance_class → base reliability
+# CRISPR×RNAi concordance_class → base corroboration
 _CONCORDANCE_REL = {
     "strongly_concordant_dependent": "high",
     "moderately_concordant_dependent": "moderate",
@@ -90,7 +90,7 @@ _INFORMS = {
 }
 
 
-# ── the four claims (signal_fn -> (tier, evidence, conflict); reliability_fn -> tier) ─────────────
+# ── the four claims (signal_fn -> (tier, evidence, conflict); corroboration_fn -> tier) ─────────────
 def _dep_signal(h, c):
     cls = h.get("crispr_call")
     sig = _DEP_SIGNAL.get(cls, "unmeasured")
@@ -105,26 +105,26 @@ def _dep_signal(h, c):
     return sig, ev, conflict
 
 
-def _dep_reliability(h, c):
+def _dep_corroboration(h, c):
     base = _CONCORDANCE_REL.get(h.get("concordance_call"), "unmeasured")
     if base == "unmeasured" and h.get("crispr_call") not in (None, "data_unavailable"):
         base = "low"   # a single CRISPR arm with no concordance read is still weak evidence
     crispr_dep = sig_ge(_DEP_SIGNAL.get(h.get("crispr_call")), "moderate")
     rnai = h.get("rnai_call")
-    # sub-additive: independent orthogonal-assay (RNAi) agreement lifts reliability one step
-    base = bump_reliability(base, crispr_dep and rnai in _RNAI_DEP)
+    # sub-additive: independent orthogonal-assay (RNAi) agreement lifts corroboration one step
+    base = bump_corroboration(base, crispr_dep and rnai in _RNAI_DEP)
     # independent CONSORTIUM replication (Sanger Project Score vs Broad) — stronger than intra-Broad
     cc = h.get("cross_consortium_class")
     if cc == "concordant_dependent":
-        base = bump_reliability(base, True)
+        base = bump_corroboration(base, True)
     elif cc == "discordant":
-        base = cap_reliability(base, "low")
-    # a disagreeing orthogonal assay caps reliability
+        base = cap_corroboration(base, "low")
+    # a disagreeing orthogonal assay caps corroboration
     if crispr_dep and rnai in _RNAI_NONDEP:
-        base = cap_reliability(base, "moderate")
+        base = cap_corroboration(base, "moderate")
     # omics-predictability meta-signal: own-omics-driven is a biomarker handle → confidence
     if h.get("predictability_class") == "own_omics_driven":
-        base = bump_reliability(base, True)
+        base = bump_corroboration(base, True)
     return base
 
 
@@ -135,7 +135,7 @@ def _sel_signal(h, c):
     return _SEL_SIGNAL.get(cls, "unmeasured"), ev, None
 
 
-def _sel_reliability(h, c):
+def _sel_corroboration(h, c):
     n = h.get("n_lineages_evaluated")
     if not isinstance(n, (int, float)):
         return "unmeasured"
@@ -151,7 +151,7 @@ def _cond_signal(h, c):
     return _COND_SIGNAL.get(cls, "unmeasured"), ev, None
 
 
-def _cond_reliability(h, c):
+def _cond_corroboration(h, c):
     if _COND_SIGNAL.get(h.get("partner_conditional_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
     q, n = h.get("partner_stratification_q"), h.get("n_partner_deficient")
@@ -170,7 +170,7 @@ def _chem_signal(h, c):
     return _CHEM_SIGNAL.get(cls, "unmeasured"), f"PRISM×CRISPR: {cls or 'data_unavailable'}", conflict
 
 
-def _chem_reliability(h, c):
+def _chem_corroboration(h, c):
     if _CHEM_SIGNAL.get(h.get("prism_concordance_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
     n = h.get("n_compounds_evaluated")
@@ -180,23 +180,23 @@ def _chem_reliability(h, c):
 
 
 DEPENDENCY_CLAIM_SPEC = [
-    ClaimSpec("DEP", "genetic dependency", _dep_signal, _dep_reliability, _INFORMS["DEP"]),
-    ClaimSpec("SEL", "context-selectivity", _sel_signal, _sel_reliability, _INFORMS["SEL"]),
-    ClaimSpec("COND", "conditional / synthetic-lethal", _cond_signal, _cond_reliability, _INFORMS["COND"]),
-    ClaimSpec("CHEM", "chemical-genetic confirmation", _chem_signal, _chem_reliability, _INFORMS["CHEM"]),
+    ClaimSpec("DEP", "genetic dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"]),
+    ClaimSpec("SEL", "context-selectivity", _sel_signal, _sel_corroboration, _INFORMS["SEL"]),
+    ClaimSpec("COND", "conditional / synthetic-lethal", _cond_signal, _cond_corroboration, _INFORMS["COND"]),
+    ClaimSpec("CHEM", "chemical-genetic confirmation", _chem_signal, _chem_corroboration, _INFORMS["CHEM"]),
 ]
 
 _DISCLAIMER = (
     "Modality-blind, verdict-INERT projection of the dependency cards into orthogonal claims "
     "(DEP genetic-dependency / SEL context-selectivity / COND conditional-SL / CHEM chemical-genetic-"
-    "confirmation), each signal×reliability. Claims are NOT additive; a weak SEL does not degrade a "
+    "confirmation), each signal×corroboration. Claims are NOT additive; a weak SEL does not degrade a "
     "strong DEP. Reliability carries the confidence annotations functional-requirement already separates "
     "from its verdict (CRISPR×RNAi concordance, Broad↔Sanger cross-consortium replication, omics-"
     "predictability). Never feeds the dependency_verdict.")
 
 
 def dependency_claim_vector(headline: dict, cards: list) -> dict:
-    """The modality-blind claim vector {DEP,SEL,COND,CHEM: {signal, reliability, evidence, conflict,
+    """The modality-blind claim vector {DEP,SEL,COND,CHEM: {signal, corroboration, evidence, conflict,
     informs}, _disclaimer}. Verdict-inert projection over the computed headline."""
     return build_claim_vector(DEPENDENCY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
