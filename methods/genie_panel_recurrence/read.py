@@ -100,7 +100,7 @@ def _indication_cohort(indication: str) -> tuple:
 
 
 def _percentile(value, null_vec, cutoffs=None):
-    from percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import percentile_rank, classify_percentile
     pct = percentile_rank(value, null_vec)
     return pct, classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
 

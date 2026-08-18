@@ -247,7 +247,7 @@ def _allgene_effect_percentile(df, cohort: str, effect_size):
 
     Context-matched by construction: the null is the cohort's own slice of the resident
     df (no pooling across cohorts). Zero new I/O — df is already in the lru_cache."""
-    from percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import percentile_rank, classify_percentile
     try:
         null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()
     except Exception:

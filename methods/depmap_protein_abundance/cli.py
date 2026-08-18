@@ -392,7 +392,7 @@ def target_allgene_percentile(median_abund, matrix_path=None):
     """Percentile + class of this target's median abundance among ALL proteins' medians."""
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
-    from percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import percentile_rank, classify_percentile
     null_vec = _all_protein_median_null(matrix_path)
     pct = percentile_rank(median_abund, null_vec)
     return pct, classify_percentile(pct)

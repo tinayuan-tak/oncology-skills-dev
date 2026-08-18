@@ -193,7 +193,7 @@ def _driver_recurrence_percentile(aggregate_path: Path, indication, overall_freq
     rule against it yet (verdict spine stays byte-stable). Returns (pct, class)."""
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
-    from percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import percentile_rank, classify_percentile
     null_vec = _allgene_mutation_frequency_null(str(aggregate_path), indication or "")
     pct = percentile_rank(overall_freq, null_vec)
     return pct, classify_percentile(pct, cutoffs)

@@ -75,7 +75,7 @@ def _dge_allgene_percentile(manifest_id: str, log2_fc, cutoffs: dict = None):
     import sys as _sys
     from pathlib import Path as _Path
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))  # methods/ on path
-    from percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import percentile_rank, classify_percentile
     null_vec = _allgene_log2fc_null(manifest_id)
     pct = percentile_rank(log2_fc, null_vec)
     return pct, classify_percentile(pct, cutoffs)
@@ -107,7 +107,7 @@ def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str,
     import sys as _sys
     from pathlib import Path as _Path
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
-    from percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import percentile_rank, classify_percentile
     null_vec = _sensitivity_cell_null(manifest_id, s3_uri, column)
     pct = percentile_rank(log2fc, null_vec)
     return pct, classify_percentile(pct, cutoffs)
