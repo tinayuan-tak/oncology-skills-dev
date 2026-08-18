@@ -17,6 +17,7 @@ Consumers:
 from __future__ import annotations
 
 import os
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -30,6 +31,28 @@ DEFAULT_AWS_PROFILE = "cbg"
 
 
 from methods.target_id_sidecar import ensure_aws_profile
+
+
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
+
+
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton. Constructing one costs ~0.4s (region probe +
+    client init) and this reader's functions fire several times per run for the cards it backs
+    (the tumor-vs-normal-selectivity verdict read + the all-gene-percentile null scans + the
+    GTEx-long facet), so we build it ONCE instead of per read. pyarrow's S3FileSystem is safe to
+    share across threads for reads (the parallel card-read path, skills PR #515); double-checked
+    locking so concurrent first-callers build a single instance. Region is pinned to us-east-1 (the
+    onc-compbio bucket) to skip the region-probe round-trip. Mirrors the sibling
+    tcga_gtex_expression_distribution reader's _get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
 def _load_manifest(manifest_id: str) -> dict:
@@ -54,7 +77,6 @@ def _allgene_log2fc_null(manifest_id: str, column: str = "log2FoldChange") -> tu
     target's own indication product (never pooled — the #1 correctness risk). One added
     full-column scan of a gene-sorted parquet (~30-34k rows); amortized across targets.
     Returns a tuple (hashable/cache-safe); empty on any failure → percentile is None."""
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
     ensure_aws_profile()
     try:
@@ -63,7 +85,7 @@ def _allgene_log2fc_null(manifest_id: str, column: str = "log2FoldChange") -> tu
         if not s3_uri:
             return tuple()
         path = _s3_uri_to_path(s3_uri)
-        s3 = fs.S3FileSystem()
+        s3 = _get_s3fs()
         table = pq.read_table(path, filesystem=s3, columns=[column])
         return tuple(v for v in table[column].to_pylist() if v is not None)
     except Exception:  # absence-discipline: exempt -- deliberate percentile-null; empty→percentile None, verdict comes from the sibling cell (additive context, verdict-inert)
@@ -88,12 +110,11 @@ def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
     DISTINCT comparator (A/B = TCGA-adjacent raw/ComBat, C = GTEx), so each gets its OWN
     null over its OWN column — pooling A and C would mix comparator scales. Cached per
     (manifest, column); one added full-column scan per cell. Empty on failure."""
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
     ensure_aws_profile()
     try:
         path = _s3_uri_to_path(s3_uri)
-        s3 = fs.S3FileSystem()
+        s3 = _get_s3fs()
         table = pq.read_table(path, filesystem=s3, columns=[column])
         return tuple(v for v in table[column].to_pylist() if v is not None)
     except Exception:  # absence-discipline: exempt -- deliberate per-cell percentile-null; empty→percentile None, selectivity verdict comes from the sibling cells (additive context, verdict-inert)
@@ -130,7 +151,6 @@ def read_dge_gene_row(
       Dict with gene's DGE summary, OR None if target not in Parquet.
       Includes _data_source + _data_s3_uri provenance keys.
     """
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
 
     ensure_aws_profile()
@@ -141,7 +161,7 @@ def read_dge_gene_row(
         raise ValueError(f"Manifest {manifest_id!r} has no s3_uri field")
     path = _s3_uri_to_path(s3_uri)
 
-    s3 = fs.S3FileSystem()
+    s3 = _get_s3fs()
     table = pq.read_table(path, filesystem=s3, filters=[("gene_symbol", "=", target)])
 
     if table.num_rows == 0:
@@ -644,10 +664,9 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
     or None if the target row is absent, or the indication has no tumor-vs-GTEx
     derived product (not all TCGA indications have a clean GTEx counterpart).
     """
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
     ensure_aws_profile()
-    s3fs = fs.S3FileSystem()
+    s3fs = _get_s3fs()
     try:
         # Resolve the product URI from its data-catalog manifest (single source of truth).
         # Indications without a landed manifest raise FileNotFoundError → caught → None,
@@ -696,11 +715,10 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     summary_field names (log2fc_cell_a etc). Returns None if the row/product is
     absent.
     """
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
     ensure_aws_profile()
     manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
-    s3fs = fs.S3FileSystem()
+    s3fs = _get_s3fs()
     try:
         # Resolve the product URI from its data-catalog manifest (single source of truth).
         # Indications without a landed manifest raise FileNotFoundError → caught → None.
@@ -1011,13 +1029,12 @@ def _fetch_gtex_samples_from_long_product(
     the long product's emit time (see manifests/derived/gtex-tpm-recount3-long-v1.yaml).
     """
     ensure_aws_profile()
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
 
     # The long product lives on S3 alongside the wide v1; open via pyarrow's
     # S3FileSystem so predicate pushdown short-circuits before full download.
     bucket, key = GTEX_TPM_LONG_S3_URI.replace("s3://", "").split("/", 1)
-    s3fs = fs.S3FileSystem()
+    s3fs = _get_s3fs()
     # Primary filter on ensembl_gene_id (the sort key — enables row-group pruning).
     # The GTEx long product is globally sorted by ensembl_gene_id so an IN-list filter
     # against the Ensembl map prunes to 2–3 row-groups out of ~12k.
