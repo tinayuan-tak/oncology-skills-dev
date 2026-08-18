@@ -18,6 +18,7 @@ metadata:
   owner: takoncoder
   requires_preflight: false
   environment: []
+status: operational    # top-level (matches compose-dashboard/render-evidence-package): read-only catalog query/explore tool, not a wired evaluation skill. Clears framework_health missing_status_field; kept OUT of composition so the composition-schema status enum (wired/not_wired/partial) doesn't reject it.
 composition:
   data_mode: catalog_read
   synthesis: [none]

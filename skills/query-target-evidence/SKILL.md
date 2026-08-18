@@ -16,6 +16,7 @@ metadata:
   requires_preflight: true
   environment:
     - AWS_PROFILE=cbg (for S3 read access to core-artifacts)
+status: operational    # top-level, no composition block: retrieval-only evidence-store query tool, not a compositional skill. Clears framework_health missing_status_field without making it a validated compositional skill.
 ---
 
 # Query Target Evidence (retrieval-only)

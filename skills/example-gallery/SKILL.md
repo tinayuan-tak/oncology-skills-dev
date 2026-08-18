@@ -12,6 +12,7 @@ metadata:
   owner: ryan.abo@takeda.com
   environment:
     - AWS_PROFILE=cbg
+status: operational    # top-level, no composition block: developer/demo generator, not a compositional skill. Clears framework_health missing_status_field without making it a validated compositional skill.
 ---
 
 # example-gallery
