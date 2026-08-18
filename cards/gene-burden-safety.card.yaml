@@ -1,6 +1,6 @@
-# Card Phase-G — human-genetics LoF-TOLERANCE via rare-variant burden (P5 Slice 2)
+# Card — human-genetics LoF-TOLERANCE via rare-variant burden
 #
-# The FIRST verdict-moving P5 card. Open Targets 26.06 rare-variant burden evidence
+# A verdict-moving human-genetics safety card. Open Targets 26.06 rare-variant burden evidence
 # (evidence_gene_burden) → does population genetics show that LOSING this gene's function is
 # HARMFUL (a WT-loss safety signal for a full-KO modality) or PROTECTIVE (a drug-positive)?
 #
@@ -16,8 +16,8 @@
 #
 # COMPOSES with the mutant-selective downgrade: an activating GoF driver drugged mutant-selectively
 # spares the WT protein the burden signal is about — that composition is in safety.resolver.yaml
-# (Slice 5, when_all_fired), NOT this card. THIS SLICE is byte-stable: the warning below is card-
-# level context; its RULE is not yet resolver-referenced (wired in Slice 5).
+# (when_all_fired), NOT this card. This card is byte-stable: the warning below is card-level
+# context; its RULE is not yet resolver-referenced.
 
 card_id: gene-burden-safety
 version: 1.0.0
@@ -58,7 +58,7 @@ outputs:
       - insufficient
 
   # NO figure: tables-only for now (would need a compose-dashboard emitter). A burden-Manhattan /
-  # direction panel is deferred with the other P5 figures.
+  # direction panel is deferred with the other safety-axis figures.
 
 warning_predicates:
   - warning_id: gene_burden_lof_risk_safety_concern
@@ -77,10 +77,10 @@ caveats:
     call rather than fire a false hold.
   - |
     This is GERMLINE population genetics — a WT-loss-tolerance signal. It does NOT capture
-    tissue-specific or adult-vs-developmental requirements (cross-reference mouse-ko-phenotype, P5
-    Slice 4, for the developmental-vs-adult distinction), and it is about the WILD-TYPE protein: a
+    tissue-specific or adult-vs-developmental requirements (cross-reference mouse-ko-phenotype
+    for the developmental-vs-adult distinction), and it is about the WILD-TYPE protein: a
     mutant-selective therapy against an activating driver spares WT and largely nullifies this
-    concern (the resolver's mechanism-conditioning downgrade, Slice 5).
+    concern (the resolver's mechanism-conditioning downgrade).
   - |
     Significance is gated at p < 1e-6 on the OT-composed p-value (mantissa × 10^exponent). `beta` is
     frequently null in OT burden evidence, so effect DIRECTION rests on directionOnTrait, with beta

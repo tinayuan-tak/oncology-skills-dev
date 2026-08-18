@@ -1,12 +1,8 @@
-# Card Phase-C-adjacent — PARALOG BUFFERING (v1)
+# Card — PARALOG BUFFERING (v1)
 #
-# REVIEWER-ADDED card (2026-07-08). Content-reviewer flagged paralog
-# buffering as a distinct dependency-hardening signal from co-mutation.
-# The plan originally folded this under differentiation-landscape (Phase E);
-# this is a category error — paralog buffering is a REQUIREMENT signal
-# (a paralog that functionally substitutes when the target is inhibited)
-# operating in Phase C, not a differentiation signal. Extends
-# functional-requirement skill.
+# Paralog buffering is a distinct dependency-hardening signal from co-mutation:
+# a REQUIREMENT signal (a paralog that functionally substitutes when the target
+# is inhibited), not a differentiation signal. Extends the functional-requirement skill.
 #
 # Data (v1): DepMap 26Q1 dual-KO paralog CRISPR screen (PARIS library design,
 # ~7,627 gene-pairs / ~4,475 genes with a screened partner) + Ensembl Compara
@@ -24,13 +20,10 @@
 #   `data_unavailable` → target not in the DepMap 26Q1 dual-KO paralog screen
 
 card_id: paralog-buffering
-version: 1.1.0   # 2026-08-11: provenance corrected to the actual v1 backing product (DepMap 26Q1 dual-KO,
-                 # not the published PARIS-2024 + Sanger-2023 screens the header formerly advertised); dropped
-                 # the never-emitted screen_source_summary field + its structurally-dead sanger_paris_disagreement
-                 # warning; added the missing tier: target.
+version: 1.1.0
 question: "Does {target.symbol} have functional paralogs that buffer its dependency, and does single-agent inhibition risk paralog-mediated escape?"
 
-tier: target   # paralog buffering is a property of the gene family (sequence paralogs + measured dual-KO buffering), independent of indication — added 2026-08-11 for target-intrinsic contract consistency (was the only such card still lacking an explicit tier).
+tier: target   # paralog buffering is a property of the gene family (sequence paralogs + measured dual-KO buffering), independent of indication.
 
 applies_when: []
 
@@ -56,7 +49,7 @@ outputs:
                                                     # CDK1 delta 1.57 edges CDK4/6 delta 1.48). Read the ranked
                                                     # `functional_paralogs` list for the full picture.
     - strongest_paralog_ohnolog                     # bool | null (null = not annotatable on this read; see status)
-    - strongest_paralog_ohnolog_status              # annotated | unknown_fallback | data_unavailable (2026-08-08):
+    - strongest_paralog_ohnolog_status              # annotated | unknown_fallback | data_unavailable:
                                                     # provenance of the ohnolog flag, so a null is never read as False
     - strongest_paralog_delta                       # float; dep_delta_paired_vs_max_single
     - method_version
@@ -83,17 +76,17 @@ warning_predicates:
   - warning_id: strong_ohnolog_paralog
     if: "paralog_buffering_class == 'strong' && strongest_paralog_ohnolog == true"
     message: "{target.symbol} has a strongly-buffering ohnolog paralog ({strongest_paralog_symbol}, delta={strongest_paralog_delta}). Single-agent inhibition risks paralog-mediated escape. Consider dual-target strategies OR degrader modalities that can hit both paralogs."
-  # 2026-08-08 false-negative fix: on the raw-CSV fallback the ohnolog flag is null (unknown), and the
-  # eval-based predicate above reads null==true as False → it silently SUPPRESSED the escape-risk
-  # warning for a strong-buffering target. This unknown-aware sibling surfaces an HONEST caveat instead
-  # of silence when the buffering is strong but the ohnolog status could not be verified.
+  # On the raw-CSV fallback the ohnolog flag is null (unknown), and the eval-based predicate above
+  # reads null==true as False → it would silently SUPPRESS the escape-risk warning for a
+  # strong-buffering target. This unknown-aware sibling surfaces an HONEST caveat instead of silence
+  # when the buffering is strong but the ohnolog status could not be verified.
   - warning_id: ohnolog_unknown
     if: "paralog_buffering_class == 'strong' && strongest_paralog_ohnolog_status == 'unknown_fallback'"
     message: "{target.symbol} shows strong paralog buffering ({strongest_paralog_symbol}, delta={strongest_paralog_delta}), but ohnolog status is UNVERIFIED (raw-CSV fallback). Paralog-mediated escape risk is possible — treat the ohnolog flag as unknown, not absent; re-run against the derived product."
-  # NOTE (2026-08-11): the former `sanger_paris_disagreement` warning was removed. Its predicate keyed on
-  # `screen_source_summary contains 'disagreement'`, but v1 ships a SINGLE screen (DepMap 26Q1 dual-KO) and
-  # the reader never emits screen_source_summary — so the warning was structurally UNREACHABLE. It returns
-  # in v2 once the Sanger screen lands and cross-screen concordance becomes computable.
+  # NOTE: v1 ships a SINGLE screen (DepMap 26Q1 dual-KO) and the reader does not emit
+  # screen_source_summary, so cross-screen disagreement is not computed and no
+  # sanger_paris_disagreement warning is emitted. It returns in v2 once the Sanger screen lands
+  # and cross-screen concordance becomes computable.
   - warning_id: data_unavailable_common_target
     if: "paralog_buffering_class == 'data_unavailable' && n_paralogs_annotated > 0"
     message: "{target.symbol} has annotated paralogs but was not screened in the DepMap 26Q1 dual-KO paralog screen. The gene is a plausible paralog-buffering candidate but the empirical evidence is missing — flag for future screen coverage."
@@ -120,20 +113,20 @@ caveats:
   - |
     Buffering strength cutoffs (strong: delta > 0.5, partial: 0.2-0.5) are
     calibrated against published SL screens (SMARCA4/2, ARID1A/B, MAGOH/
-    MAGOHB). Lineage-conditional cutoffs may be needed in iter-2.
+    MAGOHB). Lineage-conditional cutoffs may be needed in future.
   - |
     A paralog-buffered dependency does NOT invalidate the target — it
     signals that MODALITY CHOICE matters. Degrader modalities (PROTAC,
     molecular glue) can hit multiple paralogs if they share ligand-binding
     domains; small-molecule active-site inhibitors typically cannot.
-    Downstream tractability-and-modality skill should read paralog_buffering
-    when reasoning about degrader vs SM tradeoffs.
+    Downstream tractability-small-molecule / surface-modality-fit skills should
+    read paralog_buffering when reasoning about degrader vs SM tradeoffs.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `paralog_buffering` claim (does a functional paralog
 # buffer the dependency / create escape risk?). A distinct dependency-hardening axis, not a slice of
 # crispr_lof_dependency (shown alongside it — concordance test → separate type).
 measurement_type: paralog_buffering
-# P4 (2026-07-24): declaration-only routing key — buffering opposes SM active-site but is neutral for a degrader (which can clear both paralogs) — discriminating. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+# declaration-only routing key — buffering opposes SM active-site but is neutral for a degrader (which can clear both paralogs) — discriminating. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

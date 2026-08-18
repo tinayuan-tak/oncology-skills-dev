@@ -1,6 +1,6 @@
-# Card Phase-F — SURFACEOME FAMILY CLASSIFICATION (v1)
+# Card — SURFACEOME FAMILY CLASSIFICATION (v1)
 #
-# Reviewer-driven Phase F card. Fuses SURFY 2018 (ML surface residency) +
+# Fuses SURFY 2018 (ML surface residency) +
 # HPA v25.1 (protein_class + subcellular_main_location) + UniProt Enzyme
 # Nomenclature + IUPHAR/BPS receptor families into one per-UniProt-AC
 # surface-protein family categorical. Reviewer flagged that SURFY alone
@@ -113,7 +113,7 @@ caveats:
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `surfaceome_family` claim (is the target a surface
 # protein + which family, for modality-fit). tier: target above already marks it scope-invariant.
 measurement_type: surfaceome_family
-# P4 (2026-07-24): declaration-only routing key — surface family/residency = surface-modality gating; not-surface killer. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+# declaration-only routing key — surface family/residency = surface-modality gating; not-surface killer. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1

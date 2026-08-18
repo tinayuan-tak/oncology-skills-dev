@@ -1,6 +1,6 @@
-# Card Phase-G — ClinVar germline-pathogenicity safety (P5 follow-on, 4th human-genetics leg)
+# Card — ClinVar germline-pathogenicity safety (4th human-genetics leg)
 #
-# A verdict-moving P5 card (MEASURED tier — curated variant pathogenicity). ClinVar via Open Targets
+# A verdict-moving safety card (MEASURED tier — curated variant pathogenicity). ClinVar via Open Targets
 # 26.06 evidence_eva: does {target.symbol} carry curated GERMLINE PATHOGENIC variants — evidence that
 # altering/losing its function causes heritable disease, a WT-loss safety signal for a full-KO modality?
 #
@@ -51,7 +51,7 @@ outputs:
       - no_clinvar_entry
       - insufficient
 
-  # NO figure: tables-only (deferred with the other P5 figures).
+  # NO figure: tables-only (deferred with the other safety-axis figures).
 
 warning_predicates:
   - warning_id: clinvar_germline_pathogenic_safety_concern

@@ -1,6 +1,6 @@
-# Card Phase-G — mouse-KO normal-physiology safety (P5 Slice 4)
+# Card — mouse-KO normal-physiology safety
 #
-# A verdict-moving P5 card (INFERRED tier — mouse is a MODEL of human physiology, so it never fires a
+# A verdict-moving safety card (INFERRED tier — mouse is a MODEL of human physiology, so it never fires a
 # measured-strength killer). MGI knockout phenotypes via Open Targets 26.06: does knocking out
 # {target.symbol} cause death or severe organ dysfunction, implying an essential function a full-KO
 # therapy might recapitulate?
@@ -56,7 +56,7 @@ outputs:
       - no_phenotype
       - insufficient
 
-  # NO figure: tables-only (deferred with the other P5 figures).
+  # NO figure: tables-only (deferred with the other safety-axis figures).
 
 warning_predicates:
   - warning_id: mouse_ko_lethal_safety_concern
@@ -77,7 +77,7 @@ caveats:
   - |
     Bare "lethality" with no developmental stage is conservatively classed developmental_only (not an
     adult killer). A mutant-selective therapy against an activating driver spares the WT copy, further
-    nullifying an adult-essentiality concern (resolver mechanism-conditioning downgrade, Slice 5).
+    nullifying an adult-essentiality concern (resolver mechanism-conditioning downgrade).
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mouse_ko_phenotype_safety` claim (mouse-KO normal-
 # physiology, developmental-guardrailed). Provider: opentargets-26-06 mouse_phenotype (INFERRED — model).

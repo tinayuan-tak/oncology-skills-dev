@@ -32,7 +32,7 @@ derived_from:
 
 methods:
   - call: ppi-interactome
-    module: ppi_interactome          # T11: generic-dispatch wiring (no bespoke _dispatch_* needed)
+    module: ppi_interactome          # generic-dispatch wiring (no bespoke _dispatch_* needed)
     entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
@@ -86,7 +86,7 @@ caveats:
     Target-intrinsic (cancer-independent): the same regardless of indication. This card takes no
     indication and emits no verdict — descriptive molecular context for the target-intrinsic dossier.
   - |
-    THIRD signal (method 1.1.0, SHIPPED 2026-08-05): BioGRID experimental-PHYSICAL interactions
+    THIRD signal (method 1.1.0): BioGRID experimental-PHYSICAL interactions
     (physical_interactome_class + n_physical_interactors + top_physical_partners), from
     biogrid-physical-interactions-per-gene-v1 (BioGRID 5.0.259). Unlike STRING's functional score,
     these are experimentally-OBSERVED physical bindings, ranked by distinct supporting-publication

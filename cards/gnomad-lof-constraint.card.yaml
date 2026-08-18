@@ -1,10 +1,8 @@
-# Card Phase-G — gnomAD LoF CONSTRAINT (v1)
+# Card — gnomAD LoF CONSTRAINT (v1)
 #
-# REVIEWER-DRIVEN card (2026-07-08). Wires the gnomAD constraint signal into
-# the framework via the gene-keyed derived product gnomad-constraint-per-gene-v1
-# (distilled from the v4.1.1 source; supersedes the v4.1 snapshot this card
-# originally pinned). Graduates on-target-safety-liability from placeholder →
-# partial by adding a germline LoF-tolerance safety signal.
+# Wires the gnomAD constraint signal into the framework via the gene-keyed
+# derived product gnomad-constraint-per-gene-v1 (distilled from the v4.1.1
+# source). Adds a germline LoF-tolerance safety signal to on-target-safety-liability.
 #
 # Interpretation surface (constraint_class is PRIMARY). Semantics are OR across
 # metrics — a gene qualifies for a band if EITHER pLI OR LOEUF clears it (LOEUF
@@ -49,7 +47,7 @@ outputs:
     - obs_lof_count                                 # int; observed LoF variants
     - exp_lof_count                                 # float; expected LoF variants under neutrality
     - gene_length_bp                                # int; for context
-    # Human OBSERVED-KO facet (additive, 2026-08-07, roadmap #1). The DIRECT-observation
+    # Human OBSERVED-KO facet (additive). The DIRECT-observation
     # complement to constraint_class: constraint INFERS LoF intolerance; obs_hom_lof OBSERVES
     # healthy individuals HOMOZYGOUS for a predicted-LoF variant (natural human knockouts). A
     # natural KO is the strongest on-target safety reassurance for a full-KO modality (degrader,
@@ -106,7 +104,7 @@ caveats:
     at the germline / developmental level may be dispensable in adult
     tissues (e.g. hedgehog pathway components tolerated post-development).
     Governance readers should cross-reference IMPC mouse-KO phenotypes
-    (iter-2 backlog) for tissue-specific requirements.
+    for tissue-specific requirements.
   - |
     LOEUF is preferred over pLI for confidence intervals — pLI is a binary-
     ish score whereas LOEUF encodes uncertainty directly. Recent literature
@@ -117,10 +115,10 @@ caveats:
     validated oncology targets (e.g. TP53) are highly constrained. The
     signal informs modality choice + safety monitoring, not go/no-go.
   - |
-    Iter-2 upgrades: pair with IMPC mouse KO phenotypes (tissue-specific
+    Future upgrades: pair with IMPC mouse KO phenotypes (tissue-specific
     lethality), ClinVar germline (population variant health outcomes),
     OMIM disease associations (autosomal dominant / recessive contexts).
-    All three are docs-first Phase-G expansions beyond this card.
+    All three are expansions beyond this card.
   - |
     human_ko_observed_class complements constraint_class with DIRECT observation: obs_hom_lof
     counts healthy individuals HOMOZYGOUS for a predicted-LoF variant (natural human knockouts).
@@ -136,7 +134,7 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gnomad_lof_constraint` claim.
 measurement_type: gnomad_lof_constraint
-# P4 (2026-07-24): declaration-only routing key — high LoF-constraint = full-KO safety concern → discriminating on SM/degrader (a degrader/full-inhibition risk the SM active-site story may partly spare). Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+# declaration-only routing key — high LoF-constraint = full-KO safety concern → discriminating on SM/degrader (a degrader/full-inhibition risk the SM active-site story may partly spare). Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

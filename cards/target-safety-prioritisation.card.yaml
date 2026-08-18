@@ -1,6 +1,6 @@
-# Card Phase-G — OT target-PRIORITISATION safety context (P5 Slice 1, walking skeleton)
+# Card — OT target-PRIORITISATION safety context
 #
-# The first card of the P5 human-genetics safety leg. A CONTEXT view of Open Targets 26.06's
+# The first card of the human-genetics safety leg. A CONTEXT view of Open Targets 26.06's
 # engineered target-prioritisation scores — it ORIENTS the safety reader across OT's harmonized
 # priors, it does NOT make a call. Deliberately verdict-inert (byte-stable): no warning_predicates,
 # and its interpretation rule is skill-consumed only (never resolver-referenced), so it cannot move
@@ -11,7 +11,7 @@
 # is OT's normalized score, NOT a raw gnomAD LOEUF; isInMembrane is a normalized membership score,
 # NOT a boolean. Recasting them as facts would misread OT's sign conventions. The AUTHORITATIVE
 # per-fact reads live in the dedicated cards — gnomad-lof-constraint (raw pLI/LOEUF),
-# surfaceome-family-classification (surface residency), mouse-ko-phenotype (P5 Slice 4). This card is
+# surfaceome-family-classification (surface residency), mouse-ko-phenotype. This card is
 # the OT-prioritisation orientation layer that sits alongside them.
 #
 # Interpretation surface (three neutral CONTEXT bands per safety-relevant score):
@@ -67,18 +67,18 @@ outputs:
       - unfavorable
       - not_scored
 
-  # NO figure: this walking-skeleton context card ships tables-only. A figure (OT prioritisation
+  # NO figure: this context card ships tables-only. A figure (OT prioritisation
   # radar) is deferred — it would need an emitter registered in compose-dashboard; not warranted for
-  # a verdict-inert orientation card. Figures for the verdict-moving P5 Slices 2-4 come with those.
+  # a verdict-inert orientation card. Figures for the verdict-moving cards come with those.
 
 # NO warning_predicates: this card is verdict-inert context. It surfaces OT priors for the safety
 # skill to display alongside the authoritative per-fact cards; it never fires a hold or a killer.
-# The verdict-moving human-genetics signals arrive in P5 Slices 2-4 (gene_burden / clingen /
-# mouse_phenotype) as dedicated measured cards.
+# The verdict-moving human-genetics signals arrive in the gene_burden / clingen /
+# mouse_phenotype dedicated measured cards.
 
 # NO modality_relevance: this is a SAFETY-axis context card (routes to the safety gate only). It is
 # not a modality-fit card — declaring modality_relevance without a modality-axis rule would be the
-# exact "declared-relevant-but-mute" anti-state (see the P4 sweep). Safety is axis-1, not axis-2.
+# exact "declared-relevant-but-mute" anti-state. Safety is axis-1, not axis-2.
 
 caveats:
   - |
@@ -92,7 +92,7 @@ caveats:
     prioritisation profile for this target", not as a negative safety signal.
   - |
     OT's prioritisation sign convention is subtle and version-specific; this card is intentionally
-    verdict-inert so a sign-convention misread cannot flip a safety call. The dedicated Slices 2-4
+    verdict-inert so a sign-convention misread cannot flip a safety call. The dedicated per-fact
     cards carry the actual measured human-genetics safety signals.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `target_safety_prioritisation` claim (OT engineered

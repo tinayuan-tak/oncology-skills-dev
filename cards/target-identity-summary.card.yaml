@@ -1,8 +1,8 @@
-# Card iter-1b/6 — TARGET IDENTITY (NEW; promotes the resolver from invisible substrate to first-class card)
+# Card — TARGET IDENTITY (promotes the resolver from invisible substrate to first-class card)
 # First card in every dashboard. Runs the resolver, emits a structured summary, and gates
-# every downstream card via applies_when on resolution_status. See plan A2 + iter-1b
-# rationale: identity resolution failure (deprecated alias, ambiguous symbol) should be a
-# visible dashboard outcome, not a silent upstream crash.
+# every downstream card via applies_when on resolution_status. Identity resolution failure
+# (deprecated alias, ambiguous symbol) should be a visible dashboard outcome, not a silent
+# upstream crash.
 
 card_id: target-identity-summary
 version: 1.0.0

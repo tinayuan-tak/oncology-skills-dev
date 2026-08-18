@@ -1,12 +1,11 @@
-# Card iter-1b/6 — NORMAL TISSUE LIABILITY  (HPA IHC-derived)
+# Card — NORMAL TISSUE LIABILITY  (HPA IHC-derived)
 #
 # The load-bearing on-target-off-tumor SAFETY card for ADC, BiTE/TCE, and antibody
 # modalities. BiTE/TCE in particular is killed by ANY normal-tissue expression on
 # essential tissue (no payload buffer, no binding-consequence gating).
 #
-# WIRED 2026-07-20 (was data-blocked since iter-1b): the HPA master TSV (hpa-v25-1)
-# is landed + already consumed by 8 other cards. This card reads its IHC-DERIVED
-# protein-tissue fields:
+# The HPA master TSV (hpa-v25-1) is landed + already consumed by 8 other cards.
+# This card reads its IHC-DERIVED protein-tissue fields:
 #   - `Protein tissue distribution`  (Not detected | Detected in single | some |
 #     many | all) — pathologist-scored IHC BREADTH across normal tissues. 96%
 #     coverage. Primary normal-tissue-footprint signal.
@@ -111,28 +110,27 @@ caveats:
     kidney, liver, lung, bone marrow/hematopoietic, GI epithelium). Controversial
     cases (specific neuronal subpopulations) may warrant manual review.
   - |
-    Substrate reconciliation (v2.0.0, 2026-07-20): v1 was specced against a per-tissue
+    Substrate reconciliation (v2.0.0): v1 was specced against a per-tissue
     TPM product that never landed; v2 reads the landed HPA IHC categorical fields.
     TPM thresholds removed in favor of IHC-breadth categorical logic.
   - |
-    DISTINCT AXIS, not a duplicate of lineage-restriction-evidence (an earlier
-    "near-duplicate on same HPA product → collapse" note is STALE as of v2.0.0). This
+    DISTINCT AXIS, not a duplicate of lineage-restriction-evidence. This
     card = protein-IHC breadth + essential-tissue flag (measurement: protein_ihc, product
     hpa-v25-1) → on-target-off-tumor SAFETY. LRE = RNA per-tissue TPM breadth count
     (measurement: bulk_rna) → target-SELECTION window (DLL3/CLDN18.2). Different product,
     layer, question → keep both; do not collapse.
 
 measurement: protein_ihc
-# sample_context added 2026-08-05 (P8.3): the HPA IHC footprint is measured on NORMAL tissue — the
+# sample_context: the HPA IHC footprint is measured on NORMAL tissue — the
 # on-target-off-tumor safety comparator. Declaring it lets tumor-presence bucket this card into its
 # (protein_ihc, normal) ALL_CONTEXTS slot (the last hardcoded data_unavailable) as a labeled
 # comparator. Orthogonal to tier:target (the gene-grain of the property) — measurement's biological
-# sample is normal, mirroring sample_context on the expression cards (2026-07-21 taxonomy).
+# sample is normal, mirroring sample_context on the expression cards.
 sample_context: normal
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_protein_breadth` claim.
 measurement_type: normal_tissue_protein_breadth
-# P4 (2026-07-24): declaration-only routing key — on-target-off-tumor breadth → BiTE/TCE-killer on essential tissue; discriminating surface-fit. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+# declaration-only routing key — on-target-off-tumor breadth → BiTE/TCE-killer on essential tissue; discriminating surface-fit. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1

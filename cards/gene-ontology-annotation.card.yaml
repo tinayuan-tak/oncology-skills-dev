@@ -30,7 +30,7 @@ derived_from:
 
 methods:
   - call: gene-ontology-annotation
-    module: gene_ontology_annotation   # T11: generic-dispatch wiring (no bespoke _dispatch_* needed)
+    module: gene_ontology_annotation   # generic-dispatch wiring (no bespoke _dispatch_* needed)
     entrypoint: read_target_summary
     args:
       target: "{target.symbol}"

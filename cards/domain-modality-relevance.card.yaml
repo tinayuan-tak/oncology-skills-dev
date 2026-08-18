@@ -1,6 +1,6 @@
 # Card — DOMAIN → MODALITY RELEVANCE (v1; target-intrinsic)
 #
-# The INTERPRETIVE layer on top of protein-domains-class (roadmap #3, 2026-08-06). The domain
+# The INTERPRETIVE layer on top of protein-domains-class. The domain
 # ARCHITECTURE inventory (protein-domains-class: domain_names, protein_class, InterPro hits) is
 # descriptive — it says WHAT domains a target has. This card answers the modality question those
 # domains imply: does the target's domain FUNCTION favor a catalytic-site INHIBITOR, or does it
@@ -59,7 +59,7 @@ outputs:
       - removal_favored
       - removal_required_scaffolding
       - context_dependent
-      - indeterminate               # 2026-08-11 (method v0.2.0): domain architecture alone can't call
+      - indeterminate               # (method v0.2.0): domain architecture alone can't call
                                     # inhibitor-vs-removal (e.g. multi-domain enzyme — domain count is not a
                                     # scaffolding-dependence proxy; EGFR/BTK/RTKs are strong inhibitor targets).
                                     # Honest non-call; distinct from data_unavailable (which = no signal at all).
@@ -103,7 +103,7 @@ caveats:
     resolver sidecar. UniProt CC-BY-4.0; InterPro CC0.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `domain_modality_relevance` claim (target-grain).
-# P4 modality vector: this facet exists PRECISELY to discriminate small_molecule (inhibitor) vs
+# modality vector: this facet exists PRECISELY to discriminate small_molecule (inhibitor) vs
 # degrader — its whole point is the modality-routing signal protein-domains-class deliberately lacks.
 measurement_type: domain_modality_relevance
 modality_relevance: [small_molecule, degrader]

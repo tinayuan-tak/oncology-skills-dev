@@ -1,7 +1,7 @@
-# Card Phase-F — SHED-ECTODOMAIN LIABILITY (v1)
+# Card — SHED-ECTODOMAIN LIABILITY (v1)
 #
-# Gate-F surface-window no-go signal (2026-07-19). Third of the validated
-# gate-F surface-modality-fit builds (siblings: gnomad-lof-constraint safety,
+# Surface-window no-go signal. One of the validated
+# surface-modality-fit builds (siblings: gnomad-lof-constraint safety,
 # surface-topology-and-ptm epitope-viability, surfaceome-family-classification
 # not_surface/secreted-ECM). Answers a question none of those cover: for a
 # surface-PRESENT, correctly-targetable antigen, is its ectodomain proteolytically
@@ -38,18 +38,18 @@
 #                                  (structured shedding sources have systematic
 #                                  false negatives, esp. for shed RTKs).
 #
-# MEASURED facet (v1.1.0, enrichment E3 2026-08-07) — `measured_shed_class` is a
+# MEASURED facet (v1.1.0) — `measured_shed_class` is a
 # PARALLEL categorical alongside the annotation-based shed_liability_class (which is
 # UNCHANGED). It reads Olink NPX in DepMap CONDITIONED MEDIA (harmonized_olink_media_
 # 26Q1_filtered) — protein a live cancer cell actually released into supernatant, the
-# empirical shed/secreted readout the v1 header reserved as an Iter-2 upgrade. It
+# empirical shed/secreted readout the v1 header reserved as a future upgrade. It
 # corroborates (or adds honest measured nuance to) the annotation tiers; it does NOT
 # override them. The Olink media panel is bounded (1,038 proteins) + secretome-
 # preselected, so panel-ABSENCE (`not_on_secreted_panel`) is NON-informative, never a
 # measured negative — only `media_shed_high` is verdict-relevant (opposing, not killer).
 
 card_id: shed-ectodomain-liability
-version: 1.1.0   # v1.1.0 (E3, 2026-08-07): + measured Olink conditioned-media shed facet (parallel; annotation classes unchanged)
+version: 1.1.0
 question: "Is the extracellular domain of {target.symbol} proteolytically shed as a soluble circulating decoy, creating an antigen-sink liability for antibody / ADC / T-cell-engager modalities?"
 
 tier: target   # scope-invariant: ectodomain shedding is a property of the protein, not of any tumor subgroup. Never stratifies.
@@ -68,7 +68,7 @@ required_inputs:
   # UniProt SwissProt features (CHAIN/PEPTIDE + Secreted) are an additional proxy
   # source already landed (uniprot-sprot-human-2026-02-snapshot-2026-06-18); the
   # reader consumes it opportunistically where topology is available.
-  - product_id: depmap-consortium-26q1-proteomics  # MEASURED tier (E3): Olink conditioned-media NPX
+  - product_id: depmap-consortium-26q1-proteomics  # MEASURED tier: Olink conditioned-media NPX
                                                     # (harmonized_olink_media_26Q1_filtered.csv). The same
                                                     # landed source whose Gygi-TMT whole-cell leg feeds
                                                     # cellline-protein-abundance; here the media (secreted)
@@ -91,7 +91,7 @@ outputs:
     - hpa_secretome_location                        # str|null; HPA "Secretome location" value (proxy)
     - source_citation                               # str|null; primary published citation for the shed claim
     - method_version
-    # --- MEASURED Olink conditioned-media facet (E3, v1.1.0) — parallel to shed_liability_class ---
+    # --- MEASURED Olink conditioned-media facet (v1.1.0) — parallel to shed_liability_class ---
     - measured_shed_class                           # PARALLEL categorical (measured); does NOT alter shed_liability_class
     - media_mean_npx                                # float|null; mean Olink NPX in conditioned media across DepMap lines
     - media_n_lines_detected                        # int|null; number of cell lines with a detected media value
@@ -161,7 +161,7 @@ caveats:
   - |
     `indeterminate` (could-not-evidence) is deliberately NOT collapsed into
     `not_shed`. There is no clean, redistributable, structured, oncology-complete
-    shedding system-of-record (deep-research survey 2026-07-19: SheddomeDB has no
+    shedding system-of-record (per a deep-research survey: SheddomeDB has no
     bulk download, TopFIND is CC-BY-ND, MEROPS is frozen and misses shed RTKs).
     Absence of a shedding annotation therefore carries high false-negative risk
     and must not be read as a trusted negative.
@@ -180,15 +180,15 @@ caveats:
     (iii) some shed RTKs (CEACAM5, ERBB2) are off the panel entirely — the curated clinical
     tier remains the reliable cover for those.
   - |
-    Iter-2 upgrades: (a) add MEROPS sheddase→substrate cleavage evidence (ADAM10/17,
+    Future upgrades: (a) add MEROPS sheddase→substrate cleavage evidence (ADAM10/17,
     BACE1) as a mechanistic tier if LGPL redistribution is legally cleared; (b) a
     genome-wide UniProt CHAIN/PEPTIDE-vs-topology shed classifier to broaden the proxy
     tier beyond the HPA secretome column; (c) extend the curated vocab as new shed
-    antigens are characterized. [(d) DONE v1.1.0: the measured Olink-media tier.]
+    antigens are characterized.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `shed_ectodomain_liability` claim.
 measurement_type: shed_ectodomain_liability
-# P4 (2026-07-24): declaration-only routing key — shed ectodomain = antigen-sink liability; opposing across all biologics (not an SM concern). Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+# declaration-only routing key — shed ectodomain = antigen-sink liability; opposing across all biologics (not an SM concern). Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1

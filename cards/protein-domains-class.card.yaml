@@ -43,7 +43,7 @@ outputs:
     - protein_class                # list<string> — mapped molecular classes (a protein may have several)
     - protein_class_primary        # convenience: first class in UniProt keyword order (read the LIST, not this, when several)
     - uniprot_ac                   # provenance: the AC features were looked up by
-    # InterPro layer (method 1.1.0, 2026-08-05) — ADDITIVE coverage broadening from the InterPro
+    # InterPro layer (method 1.1.0) — ADDITIVE coverage broadening from the InterPro
     # domain-hit product (interpro-109-0-snapshot-2026-08-05). The CURATED fields above stay
     # authoritative + unchanged; these surface InterPro's fuller domain architecture (type=domain
     # hits), which reaches ~15,019 proteins vs the curated 8,768 (6,445 have an InterPro domain but
@@ -108,7 +108,7 @@ caveats:
     FT DOMAIN reads no_curated_domain, distinct from data_unavailable (the latter = no domain AND no
     class keyword / unresolvable). protein_features_class stays curated-only for vocabulary stability.
   - |
-    InterPro layer (SHIPPED 2026-08-05, method 1.1.0): interpro_* fields BROADEN domain coverage to
+    InterPro layer (method 1.1.0): interpro_* fields BROADEN domain coverage to
     ~15,019 proteins (6,445 have an InterPro domain but NO curated FT DOMAIN — e.g. KRAS 'Small
     GTP-binding domain', TP53 'DNA-binding domain', whose regulatory regions UniProt annotates as
     'region' not 'domain'). type=domain hits from interpro-109-0-snapshot-2026-08-05. Read

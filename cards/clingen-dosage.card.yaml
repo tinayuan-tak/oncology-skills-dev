@@ -1,6 +1,6 @@
-# Card Phase-G — dosage-sensitivity safety via ClinGen gene-disease validity (P5 Slice 3)
+# Card — dosage-sensitivity safety via ClinGen gene-disease validity
 #
-# A verdict-moving P5 card. ClinGen curated gene-disease validity (Open Targets 26.06) → is losing
+# A verdict-moving safety card. ClinGen curated gene-disease validity (Open Targets 26.06) → is losing
 # ONE copy of {target.symbol} pathogenic (haploinsufficiency / autosomal-dominant loss = the highest
 # concern for a degrader / full-inhibition modality) or does disease require BOTH copies lost
 # (recessive = lower single-allele safety concern)?
@@ -19,7 +19,7 @@
 # the dominant association wins because single-copy loss is pathogenic for at least that disease. A
 # majority-vote over allelic requirements would MISS the haploinsufficiency concern.
 #
-# BYTE-STABLE this slice: the warning below is card-level context; its RULE is resolver-wired in Slice 5.
+# BYTE-STABLE: the warning below is card-level context; its RULE is resolver-wired.
 
 card_id: clingen-dosage
 version: 1.1.0    # 1.1.0: + germline_inheritance_mode facet (recessive-only full-KO REASSURANCE the dosage class discards; the in-hand OMIM-style inheritance signal)
@@ -70,7 +70,7 @@ outputs:
       - no_mendelian_disease              # gene in ClinGen but no high-confidence disease (or absent)
       - insufficient                      # unresolvable symbol / entity unavailable
 
-  # NO figure: tables-only (deferred with the other P5 figures).
+  # NO figure: tables-only (deferred with the other safety-axis figures).
 
 warning_predicates:
   - warning_id: clingen_dominant_loss_safety_concern
@@ -88,7 +88,7 @@ caveats:
     This is a germline gene-disease-validity signal about the WILD-TYPE gene's dosage sensitivity. It
     does not capture adult-vs-developmental requirements (cross-reference mouse-ko-phenotype), and a
     mutant-selective therapy against an activating driver spares WT and largely nullifies the concern
-    (resolver mechanism-conditioning downgrade, Slice 5).
+    (resolver mechanism-conditioning downgrade).
   - |
     germline_inheritance_mode is the in-hand OMIM-style inheritance signal (same ClinGen
     allelicRequirements — no OMIM license). recessive_only = a strictly-recessive-disease gene whose

@@ -1,32 +1,33 @@
-# Card Phase-D — SIGNALING NETWORK MECHANISM (v1)
+# Card — SIGNALING NETWORK MECHANISM
 #
-# Reviewer-driven Phase D card (mechanism-and-pharmacology skill graduation).
-# Emits a directed signaling-network summary keyed on the target's UniProt-AC,
-# derived from the SIGNOR-tagged subset of OmniPath's commercially-cleared
-# interactions.tsv. The 21-class MoA ontology
-# (methods/signor_mechanism_network/moa_ontology.py v1.0.0) maps each raw
-# SIGNOR mechanism to a rules-firing categorical MoA class + modality-relevance
-# tuple.
+# Emits a directed signaling-network summary keyed on the target's UniProt-AC.
+# The network is COMPOSED (methods/mechanism_composed.read_target_summary) from a
+# UNION of curated sources — SIGNOR (Jul2026 source release; curator-tight, causal;
+# primary), CollecTRI, and Reactome — whose edges set network_class. A kinome-atlas
+# PREDICTION lane and a DepMap co-essentiality FUNCTIONAL lane are carried alongside
+# (surfaced in source_counts/sources_wired, weighted lower, never merged into
+# network_class). This card does NOT read OmniPath. The 21-class MoA ontology
+# (methods/signor_mechanism_network/moa_ontology.py) maps each curated edge to a
+# rules-firing MoA class + modality-relevance tuple.
 #
 # Interpretation surface (network_class is the PRIMARY categorical for rules):
 #   `well_characterized` → >= 3 upstream regulators AND >= 3 downstream effectors
 #   `partial`            → >= 1 upstream OR >= 1 downstream (but not both >=3)
 #   `sparse`             → 0-1 total edges to the target
-#   `data_unavailable`   → target not in the SIGNOR-via-OmniPath snapshot
+#   `data_unavailable`   → target absent from the composed curated sources
 
 card_id: signaling-network-mechanism
 version: 1.0.0
 question: "What is the upstream+downstream signaling context of {target.symbol}, and which MoA classes are candidate hooks?"
 
-tier: target   # signaling-network context is a property of the gene/protein, independent of indication (was omitted — the only target-intrinsic card lacking an explicit tier; added 2026-08-08 for contract consistency)
+tier: target   # signaling-network context is a property of the gene/protein, independent of indication
 
 applies_when:
-  - "context.data_sources.omnipath_snapshot_available == true"
+  - "context.data_sources.signor_available == true"
 
-# Repointed 2026-08-08: the derived product signor-mechanism-network-per-gene-v1 was reverted out of
-# the data-catalog and has no manifest. The signor_mechanism_network method actually composes from the
-# SOURCE release (SIGNOR_SOURCE_MANIFEST_ID = "signor-jul2026"; reads .../sources/signor/jul2026/
-# SIGNOR_Jul2026_release.txt), so required_inputs points at the real backing manifest signor-jul2026.
+# The method composes on-read from the SIGNOR Jul2026 SOURCE release
+# (.../sources/signor/jul2026/SIGNOR_Jul2026_release.txt); there is no derived per-gene manifest, so
+# required_inputs points at the backing source manifest.
 required_inputs:
   - product_id: signor-jul2026
 
@@ -109,22 +110,18 @@ warning_predicates:
     message: "More than 5% of SIGNOR edges for {target.symbol} fell to 'unmapped' MoA class. Extend moa_ontology.py or accept the reduced classification coverage; see the run's _unmapped_mechanisms.jsonl."
   - warning_id: signor_only_one_direction
     if: "n_upstream_regulators == 0 || n_downstream_effectors == 0"
-    message: "Signaling network is one-directional in SIGNOR (only upstream OR only downstream partners characterized). Interpret MoA / PD-marker calls cautiously — the other direction may exist in non-SIGNOR sources not covered here (Reactome, IntAct)."
+    message: "Signaling network is one-directional in the composed curated sources (only upstream OR only downstream partners characterized). Interpret MoA / PD-marker calls cautiously — the other direction may exist in sources not composed here (e.g. IntAct)."
 
 caveats:
   - |
-    SIGNOR is a curator-tight, causally-directed signaling database (~30k
-    human interactions). v1 reads the SIGNOR Jul2026 release DIRECTLY
-    (sources/signor/jul2026/SIGNOR_Jul2026_release.txt), not via an OmniPath
-    snapshot. Extending to the broader OmniPath commercial-cleared edge set is
-    a documented iter-2 backlog item; the trade-off is more edges vs. lower
-    directional confidence.
+    PROVENANCE / COMPOSITION. methods.call=signor-mechanism-network names SIGNOR as the primary
+    curated source, but the live dispatch composes the network via the mechanism_composed method:
+    a UNION of curated sources — SIGNOR (Jul2026 source release; curator-tight, causally-directed,
+    ~30k human interactions) + CollecTRI + Reactome — whose edges set network_class.
   - |
-    LIVE-DISPATCH COMPOSITION: methods.call=signor-mechanism-network names SIGNOR as the primary
-    curated source, but the compose-dashboard dispatch composes a 5-source UNION via the
-    mechanism_composed method — SIGNOR + CollecTRI + Reactome (curated edges → network_class) plus
-    SEPARATE kinome-atlas PREDICTION and DepMap co-essentiality lanes (in source_counts/sources_wired,
-    weighted lower, never merged). The emitted network can carry more than SIGNOR-only edges.
+    Alongside the curated edges, kinome-atlas PREDICTION and DepMap co-essentiality FUNCTIONAL lanes
+    are surfaced in source_counts/sources_wired (weighted lower, never merged into network_class), so
+    the emitted network can carry more than SIGNOR-only edges. This card does NOT read OmniPath.
   - |
     moa_ontology_version is stamped in every emitted row and in this card's
     output. A bump in the ontology (methods/signor_mechanism_network/moa_ontology.py)
@@ -133,15 +130,14 @@ caveats:
   - |
     Modality-relevance tuples on each MoA class are candidate hooks — they
     identify what modality could act at that mechanism, NOT what modality
-    will succeed against this target. The tractability-and-modality skill
-    performs the joint reasoning across MoA-relevance + structural
-    features + surface-topology to reach modality-fit conclusions.
+    will succeed against this target. The tractability-small-molecule and
+    surface-modality-fit skills perform the joint reasoning across
+    MoA-relevance + structural features + surface-topology to reach
+    modality-fit conclusions.
   - |
-    Reproducibility: this card pins to the signor-jul2026 SOURCE release. The
-    derived signor-mechanism-network-per-gene-v1 product was reverted (no
-    catalog manifest); the method composes the network on-read from the source
-    release (see required_inputs). A re-pull surfaces as a new dated SIGNOR
-    release; consumers receive an explicit version-bump signal.
+    Reproducibility: the network is composed on-read from the signor-jul2026 SOURCE release (there is
+    no derived per-gene manifest). A re-pull surfaces as a new dated SIGNOR release, giving consumers
+    an explicit version-bump signal.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `signaling_network_mechanism` claim.
 measurement_type: signaling_network_mechanism

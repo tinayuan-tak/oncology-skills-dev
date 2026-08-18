@@ -1,6 +1,6 @@
-# Card Phase-F — STRUCTURE FEATURES STATIC (v1)
+# Card — STRUCTURE FEATURES STATIC (v1)
 #
-# Reviewer-driven Phase F card. Static scalar structural features from PDB
+# Static scalar structural features from PDB
 # REST API + AlphaFold DB REST API + gdc_somatic_hotspot coordinates.
 # Emits categorical / scalar fields that rules engine consumes — NO
 # interactive viewer, NO atomic coordinates. Per user selection: "static
@@ -22,7 +22,7 @@ applies_when: []
 required_inputs:
   # The composite ligandability product is a LIVE leg (fuses 6 shipped per-UniProt
   # structure products). The hotspot-adjacency product is a DIFFERENT schema; it is ALSO
-  # LIVE (materialized 2026-08-07) — the reader loads it and the E8 hotspot rules fire
+  # LIVE — the reader loads it and the E8 hotspot rules fire
   # (KRAS/BRAF/ERBB2 -> adjacent). The reader degrades it to no_structure only on a read
   # failure or a target absent from the product (an honest coverage gap, never a false negative).
   - product_id: structure-ligandability-per-protein-v1
@@ -49,12 +49,12 @@ outputs:
     - alphafold_plddt_min_domain                   # float — lowest per-domain mean
     - n_domains_low_plddt                          # int; domains with pLDDT_mean < 70
     - disordered_fraction                          # float; fraction with pLDDT < 50
-    # Composite structural-LIGANDABILITY leg (LIVE, 2026-08-07). structural_ligandability_class
+    # Composite structural-LIGANDABILITY leg (LIVE). structural_ligandability_class
     # is the forward small-molecule ligandability call fused from 6 shipped per-UniProt products
     # (HOTPocket pockets, GenomeScreen VS-hits, PLINDER co-crystals, CryptoBench cryptic sites,
     # AlphaFold disorder, InterPro binding/active sites). Answers "is there ANY druggable handle"
     # — complements hotspot_pocket_adjacency_call ("is a specific hotspot residue in a pocket",
-    # whose product is LIVE as of 2026-08-07). VERDICT-BEARING on the SM axis (see the E8-lig rules).
+    # whose product is LIVE). VERDICT-BEARING on the SM axis (see the E8-lig rules).
     - structural_ligandability_class               # PRIMARY ligandability categorical (see vocabulary)
     - n_ligandability_axes                         # int 0-5; count of positive evidence axes
     - has_experimental_cocrystal                   # bool; PLINDER proper-ligand co-crystal
@@ -69,7 +69,7 @@ outputs:
   summary_fields_vocabulary:
     # bool field keyed by hotspot-in-druggable-pocket-sm-supportive-e8 (equals: 'true'). Declared as
     # strings (schema requires string vocab items); the rule engine + the validator coerce bool<->'true'/
-    # 'false', so a serialized native-bool reader value still matches (ENFORCED 2026-08-15).
+    # 'false', so a serialized native-bool reader value still matches.
     mutation_hotspot_in_druggable_pocket:
       - 'true'
       - 'false'
@@ -126,10 +126,10 @@ caveats:
     AlphaFold has usable coverage. Treat as data-unavailable, NOT a
     druggability call.
   - |
-    Iter-1 uses a pLDDT + SASA heuristic for pocket adjacency. Governance-
+    This card uses a pLDDT + SASA heuristic for pocket adjacency. Governance-
     grade druggability scoring should use fpocket (Le Guilloux 2009 BMC
     Bioinformatics doi:10.1186/1471-2105-10-168) or canSAR (Mitsopoulos
-    2021 NAR doi:10.1093/nar/gkaa1059). Iter-2 upgrade planned.
+    2021 NAR doi:10.1093/nar/gkaa1059). A future upgrade is planned.
   - |
     Snapshots are point-in-time (PDB + AlphaFold: 2026-07-08). Newly-
     deposited structures are not covered until snapshot refresh.
@@ -148,7 +148,7 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `structure_druggability` claim.
 measurement_type: structure_druggability
-# P4 (2026-07-24): declaration-only routing key — pocket/druggability → SM tractability; disordered/interface → degrader/glue hooks. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+# declaration-only routing key — pocket/druggability → SM tractability; disordered/interface → degrader/glue hooks. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1
