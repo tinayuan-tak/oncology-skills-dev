@@ -259,8 +259,9 @@ def test_indication_product_map_covers_v1_scope():
     # 3CA-backed indications added 2026-08-12
     assert R.INDICATION_TO_PRODUCT["PAAD"] == "sc-pseudobulk-tumor-3ca-pancreas-v1"
     assert R.INDICATION_TO_PRODUCT["HNSC"] == "sc-pseudobulk-tumor-3ca-hnsc-v1"
-    # STAD has no 3CA bucket — must remain data_unavailable
-    assert R._product_key("STAD") is None
+    # STAD wired 2026-08-17 to the Go/Lim gastric atlas (data-catalog #433) — was previously
+    # data_unavailable (no 3CA bucket); the Go/Lim atlas provides an explicit malignant compartment.
+    assert R.INDICATION_TO_PRODUCT["STAD"] == "sc-pseudobulk-tumor-stad-golim-v1"
 
 
 def test_cli_build_summary_adds_method_version(monkeypatch):

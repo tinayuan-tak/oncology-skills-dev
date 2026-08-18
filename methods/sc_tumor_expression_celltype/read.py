@@ -67,6 +67,7 @@ INDICATION_TO_PRODUCT = {
     "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",         # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
     "KIRC": "sc-pseudobulk-tumor-3ca-kidney-v1",       # 3CA Kidney — 5 studies / 125 donors / 74 malignant (pan-renal pooled)
     "OV": "sc-pseudobulk-tumor-3ca-ovarian-v1",        # 3CA Ovarian — 11 studies / 115 donors / 106 malignant (pan-gynecologic pooled)
+    "STAD": "sc-pseudobulk-tumor-stad-golim-v1",       # Go/Lim gastric atlas (2026, data-catalog #425/#433) — 95 donors / malignant in 88; malignant=Epithelial∩Phenotype==GC (adenocarcinoma proxy, no inferCNV). CLDN18/EPCAM/MUC1/TACSTD2 malignant-enriched (CLDN18 1.23 vs 0.06). Fills the previously-excluded gastric gap (Census 'unknown' tumor label + no 3CA bucket).
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",

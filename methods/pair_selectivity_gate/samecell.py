@@ -46,6 +46,7 @@ INDICATION_TO_SAMECELL_MANIFEST = {
     "HNSC": "sc-samecell-coexpr-3ca-hnsc-v1",          # 3CA HNSCC — 10 squamous/H&N pairs (EGFR/TROP2/EPCAM/MET...)
     "KIRC": "sc-samecell-coexpr-3ca-kidney-v1",        # 3CA Kidney — 8 ccRCC pairs (CA9/CD70/ENPP3/CDH16/MET...)
     "OV": "sc-samecell-coexpr-3ca-ovarian-v1",         # 3CA Ovarian — 10 pairs (FOLR1/MSLN/MUC16/EPCAM/TACSTD2/VTCN1/CLDN6...)
+    "STAD": "sc-samecell-coexpr-stad-golim-v1",        # Go/Lim gastric atlas (data-catalog #434) — 16 CLDN18.2-anchored pairs / 88 malignant donors. CLDN18 in ~56% malignant; CLDN18:MUC1 / CLDN18:EPCAM highest co-avidity (both~0.37). Fills the gastric gap (paired with the INDICATION_TO_PRODUCT STAD add).
 }
 
 # enrichment_vs_independence bands for the avidity call.

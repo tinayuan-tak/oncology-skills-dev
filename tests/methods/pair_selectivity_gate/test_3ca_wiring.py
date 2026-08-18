@@ -67,11 +67,14 @@ def test_kidney_cube_is_pan_renal_only_kirc_mapped():
     assert "KICH" not in SC.INDICATION_TO_SAMECELL_MANIFEST
 
 
-def test_stad_has_no_product_no_3ca_bucket():
-    # STAD is explicitly absent — Census gastric atlases label tumor cells 'unknown' (no malignant
-    # compartment); 3CA has no gastric bucket. Must stay data_unavailable, never silently fall back.
-    assert "STAD" not in TSC.INDICATION_TO_PRODUCT
-    assert "STAD" not in SC.INDICATION_TO_SAMECELL_MANIFEST
+def test_stad_wired_to_golim_gastric_atlas():
+    # STAD was previously data_unavailable (Census gastric atlases label tumor cells 'unknown'; no 3CA
+    # gastric bucket). RESOLVED 2026-08-17: the Go/Lim integrated gastric atlas (data-catalog #425)
+    # provides an explicit malignant compartment (Epithelial ∩ Phenotype==GC), yielding the
+    # sc-pseudobulk-tumor-stad-golim-v1 (#433) and sc-samecell-coexpr-stad-golim-v1 (#434) products.
+    # CLDN18 (CLDN18.2/zolbetuximab) is malignant-specific (1.23 vs 0.06), validating the malignant call.
+    assert TSC.INDICATION_TO_PRODUCT["STAD"] == "sc-pseudobulk-tumor-stad-golim-v1"
+    assert SC.INDICATION_TO_SAMECELL_MANIFEST["STAD"] == "sc-samecell-coexpr-stad-golim-v1"
 
 
 def test_npc_3ca_registered_but_intentionally_not_wired():
