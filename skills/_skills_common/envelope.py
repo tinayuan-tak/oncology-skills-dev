@@ -84,7 +84,15 @@ def _load_manifest_loader():
 def _known_manifest_ids() -> "set | None":
     """The set of concrete manifest ids in the catalog, or None if the catalog is unavailable.
     Used ONLY to tell a concrete-manifest `used` id from a product_id (declared input) when deciding
-    whether staleness is knowable. Best-effort; load_catalog is lru_cached in catalog_query."""
+    whether staleness is knowable. Best-effort.
+
+    PERF (2026-08-18): call load_catalog with the SAME kwargs form catalog_query.resolve_release uses
+    (`load_catalog(root=..., contracts_root=...)` — read.py:233). functools.lru_cache keys on the args
+    AS PASSED and does NOT normalize defaults, so a bare `load_catalog()` here is a DIFFERENT cache key
+    than resolve_release's kwargs call — which made build_subskill_provenance parse the entire ~450-file
+    catalog TWICE (~15s each: once in resolved_release_governance, once here). Passing the canonical
+    roots explicitly makes this a cache HIT on the entry resolved_release_governance already populated.
+    Result is byte-identical (same catalog); it just stops re-parsing it."""
     import os
     import sys
     mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
@@ -92,8 +100,10 @@ def _known_manifest_ids() -> "set | None":
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
-        from methods.catalog_query.read import load_catalog
-        return set(load_catalog().manifests)
+        # Import the module's canonical DATA_CATALOG / TARGET_CONTRACTS Paths so the lru_cache key
+        # matches resolve_release's `load_catalog(root=root, contracts_root=contracts_root)` exactly.
+        from methods.catalog_query.read import load_catalog, DATA_CATALOG, TARGET_CONTRACTS
+        return set(load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS).manifests)
     except Exception:  # noqa: BLE001 — no catalog → skip the indeterminate-staleness refinement
         return None
 

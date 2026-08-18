@@ -216,8 +216,12 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
                 for cid in card_ids]
 
     read_live = _import_dispatcher()
-    outputs: list[dict] = []
-    for card_id in card_ids:
+
+    def _read_one(card_id: str) -> dict:
+        """Read + classify ONE card into its card_output dict. Pure w.r.t. `outputs` (returns a fresh
+        dict), so it is safe to run concurrently across card_ids — the only shared state it touches is
+        the dispatcher's own (thread-safe) lru_caches. Read exceptions propagate to the caller exactly
+        as in the sequential path (they surface out of resolve_cards)."""
         if subgroup_context is not None:
             try:
                 summary = read_live(card_id, target, indication,
@@ -228,13 +232,12 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
         else:
             summary = read_live(card_id, target, indication)
         if summary is None:
-            outputs.append({
+            return {
                 "card_id": card_id, "summary": {},
                 "interpretation_call": "not_implemented",
                 "_missing": True,
                 "_missing_reason": "dispatcher_returned_none",
-            })
-            continue
+            }
         unavailable = _summary_is_unavailable(summary)
         if unavailable is not None:
             # Distinguish an HONEST data_unavailable answer (the card ran and reported
@@ -245,20 +248,38 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
             # resolver rung fires (real driving_rule_id) instead of the verdict silently
             # collapsing to the bare `insufficient` default. (M2, 2026-08-11.)
             is_honest_du = "_live_read_error" not in summary and _data_unavailable_field(summary) is not None
-            outputs.append({
+            return {
                 "card_id": card_id,
                 "summary": summary,
                 "interpretation_call": "data_unavailable",
                 "_missing": True,
                 "_missing_reason": unavailable,
                 "_data_unavailable": is_honest_du,
-            })
-            continue
-        outputs.append({
+            }
+        return {
             "card_id": card_id,
             "summary": summary,
             "interpretation_call": _primary_class_value(summary),
-        })
+        }
+
+    # PERF (2026-08-18): the per-card reads are INDEPENDENT and I/O-bound (S3 + pyarrow, both of which
+    # release the GIL), so run them concurrently on a bounded thread pool instead of summing their
+    # latencies. Measured on tumor-presence (14 cards): sequential read wall-clock ~59s (the SUM),
+    # dominated by the two expression-distribution cards (~14.5s + ~10.4s); parallelized it collapses
+    # toward the SLOWEST single read (~15s). Output is byte-identical: ThreadPoolExecutor.map preserves
+    # input order, and _read_one returns a fresh dict per card (no shared mutable state). Sequential
+    # fallback for a single card or when SKILLS_READ_WORKERS<=1 (a kill-switch for debugging / any
+    # reader later found thread-unsafe) keeps the exact former code path.
+    try:
+        _max_workers = int(os.environ.get("SKILLS_READ_WORKERS", "8"))
+    except ValueError:
+        _max_workers = 8
+    if len(card_ids) <= 1 or _max_workers <= 1:
+        outputs = [_read_one(cid) for cid in card_ids]
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(_max_workers, len(card_ids))) as _ex:
+            outputs = list(_ex.map(_read_one, card_ids))
     # PROVENANCE (2026-08-13): stamp each card_output with the manifest ids it DECLARES as inputs
     # (card_spec.required_inputs[].product_id), so the subskill default path carries the same real
     # per-card data provenance as the composed engine — the basis for the decision.json governance
