@@ -56,7 +56,7 @@ from tp_gates import (               # names main() calls directly
 )
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
-    _addressable_population_facet, _biomarker_facet, _deciding_axis, _fragility_facet,
+    _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _deciding_axis, _fragility_facet,
     _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet, _subtype_facet,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
@@ -290,6 +290,13 @@ def main() -> int:
     # never touches the recommendation.
     heterogeneity = _heterogeneity_facet(sub_results, subtypes=subtypes)
     addressable_population = _addressable_population_facet(sub_results)
+
+    # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3): the verdict-DISJOINT reliability
+    # object each opting-in sub-skill emits beside its verdict (coverage + Broad↔Sanger corroboration +
+    # measured coverage-gap unknown_mass), assembled by short. VERDICT-INERT — a reliability projection
+    # for the reader/panel, NEVER in sub_verdicts or the recommendation spine. {} until an axis opts in
+    # (functional-requirement `dependency` is the reference axis).
+    certainty_by_axis = _certainty_by_axis(sub_results)
 
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
@@ -606,6 +613,10 @@ def main() -> int:
         # subtype). A stratified-opportunity signal the pooled verdict hides; never moves the call.
         "heterogeneity": heterogeneity,
         "addressable_population": addressable_population,
+        # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3), keyed by sub-skill short. A
+        # verdict-INERT reliability projection (coverage + verdict-disjoint corroboration +
+        # coverage-gap unknown_mass) for the reader/panel; NOT in sub_verdicts, never moves the gate.
+        "certainty_by_axis": certainty_by_axis,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.

@@ -386,6 +386,19 @@ def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> di
     }
 
 
+def _strength_certainty(cards, fired=None, verdict_pair=None):
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL §3): the per-axis (strength, certainty) object the
+    composed target-profile fan-out captures, keyed by sub-skill short. Its signature mirrors
+    `_synthesis_facet` (cards, fired, verdict_pair) so the generic certainty loader calls it uniformly;
+    it reuses `_dependency_strength_certainty` (single source), so `_headline` and the sidecar cannot
+    diverge. VERDICT-INERT: emitted beside the verdict, never in sub_verdicts / GateVerdict / a shared
+    carrier, and it never enters `fired` or the resolver. Standalone-callable (derives the verdict from
+    `fired` when no verdict_pair is threaded)."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    cross_consortium_class = get_card_field(cards, "cross-consortium-dependency", "cross_consortium_class")
+    return _dependency_strength_certainty(cards, v, cross_consortium_class)
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")

@@ -85,6 +85,21 @@ def _load_sub_skill_facet_fn(skill_dir_name: str) -> Any:
     return getattr(module, "_synthesis_facet", None) if module is not None else None
 
 
+def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
+    """Return a sub-skill's OPTIONAL `_strength_certainty(cards, fired, verdict_pair) -> dict`, or None.
+
+    The uniform opt-in a sub-skill uses to hand the composed layer its per-axis (strength, certainty)
+    SIDECAR (CERTAINTY_MODEL §3) — a verdict-inert reliability object keyed by sub-skill short. Mirrors
+    `_load_sub_skill_facet_fn`: reads the prewarmed module cache, so a sub-skill without the hook pays
+    no cost. Only functional-requirement (the reference axis) supplies it today. VERDICT-INERT: the
+    certainty object never enters `fired`, the resolver, or the nomination sub_verdicts."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    return getattr(module, "_strength_certainty", None) if module is not None else None
+
+
 def _prewarm_sub_skill_imports() -> None:
     """Perf Stage 2 byte-stability guard: single-threaded, BEFORE the thread pool, trigger every
     import the concurrent workers would otherwise race on — the compose-dashboard dispatcher (via
@@ -581,6 +596,17 @@ def _run_sub_skills(target: str, indication: str,
                 synthesis_facet = _facet_fn(cards, fired, verdict_pair)
             except Exception:  # noqa: BLE001 — a facet must never break the fan-out
                 synthesis_facet = None
+        # OPTIONAL per-axis (strength, certainty) SIDECAR (CERTAINTY_MODEL §3). Best-effort +
+        # VERDICT-INERT, same discipline as synthesis_facet: a sub-skill that exposes _strength_certainty
+        # hands the composed layer its reliability object; absence / failure → None. Only
+        # functional-requirement supplies it today.
+        _cert_fn = _load_sub_skill_certainty_fn(skill_dir)
+        strength_certainty = None
+        if _cert_fn is not None:
+            try:
+                strength_certainty = _cert_fn(cards, fired, verdict_pair)
+            except Exception:  # noqa: BLE001 — a sidecar must never break the fan-out
+                strength_certainty = None
         return short, {
             "skill_dir": skill_dir,
             "cards": cards,
@@ -589,6 +615,9 @@ def _run_sub_skills(target: str, indication: str,
             # Deterministic cross-modal reconciliation for the synthesis prompt (None for every
             # sub-skill except tumor-presence). ADDITIVE / verdict-inert — see _load_sub_skill_facet_fn.
             "synthesis_facet": synthesis_facet,
+            # Per-axis (strength, certainty) sidecar (None except functional-requirement). ADDITIVE /
+            # verdict-inert — see _load_sub_skill_certainty_fn. Assembled by tp_facets._certainty_by_axis.
+            "strength_certainty": strength_certainty,
             # Stage 1b: the SAME sub-verdict, carried in the shared CompositionResult type (the
             # foundation the later --emit evidence-package stage consumes). ADDITIVE — wraps the
             # already-decided verdict_pair (post-resolver logic preserved); verdict/fired/cards and
@@ -661,6 +690,7 @@ __all__ = [
     '_SUBSKILL_FN_CACHE',
     '_load_sub_skill_verdict_fn',
     '_load_sub_skill_facet_fn',
+    '_load_sub_skill_certainty_fn',
     '_prewarm_sub_skill_imports',
     '_run_sub_skills',
     '_skipped_synthesis_output',

@@ -450,6 +450,22 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
     return expr.get("synthesis_facet")
 
 
+# --- PER-AXIS (strength, certainty) sidecar assembly (CERTAINTY_MODEL §3) ------------------------
+# Each verdict-bearing sub-skill MAY expose `_strength_certainty`; the fan-out captures it as
+# sub_results[short]['strength_certainty'] (None for skills without the hook). This thin reader
+# assembles the present ones into a {short: {strength, certainty{level, coverage, corroboration,
+# unknown_mass}, provenance, _model_ref}} block for nomination.json + the panel. VERDICT-INERT — a
+# reliability projection beside the verdict, NEVER in `sub_verdicts` / the recommendation spine.
+# Returns {} until an axis opts in (functional-requirement `dependency` is the reference axis).
+def _certainty_by_axis(sub_results: dict) -> dict:
+    out = {}
+    for short, r in (sub_results or {}).items():
+        sc = (r or {}).get("strength_certainty")
+        if isinstance(sc, dict) and sc:
+            out[short] = sc
+    return out
+
+
 # --- MODALITY-CONJUNCTION facet (cross-lens; the composed layer's job) --------------------------
 # The modality nomination presence deliberately CANNOT mint (it is modality-blind). This is where
 # it is completed: the presence CLAIM VECTOR (A abundance / C malignant-intrinsic / homogeneity)
