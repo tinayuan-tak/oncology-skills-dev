@@ -315,7 +315,6 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     # BEST-role _note carries). Reported only when both classes are populated.
     DEPENDENT_THRESHOLD = -0.5
     tp = int(np.sum(mut_arr <= DEPENDENT_THRESHOLD))          # biomarker+ & dependent
-    fp = n_mut - tp                                            # biomarker+ & not dependent
     n_dep_wt = int(np.sum(wt_arr <= DEPENDENT_THRESHOLD))      # biomarker- & dependent (FN)
     tn = n_wt - n_dep_wt                                       # biomarker- & not dependent
     n_dependent = tp + n_dep_wt

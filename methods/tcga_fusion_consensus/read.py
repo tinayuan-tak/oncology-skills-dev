@@ -210,6 +210,7 @@ def _empty_summary(note: str, target: str = None, indication: str = None) -> dic
         "fusion_frequency": None,
         "recurrent_partners": [],
         "fusion_class": "data_unavailable",
+        "fusion_recurrence_confidence": None,
         "method_version": METHOD_VERSION,
         "_data_note": note,
         "_data_source": DERIVED_MANIFEST_ID,
@@ -232,6 +233,9 @@ def read_target_summary(target: str, indication: str = None,
         recurrent_partners     — partner genes seen in >= _RECURRENT_MIN_SAMPLES samples, count-desc
         fusion_class           — recurrent_fusion_driver | sporadic_fusion | no_recurrent_fusion |
                                  data_unavailable
+        fusion_recurrence_confidence — high_recurrent_partner | moderate_promiscuous | None
+                                 (VERDICT-INERT tier for a recurrent_fusion_driver call; see the
+                                 confidence-tier note where fusion_class is assigned)
     data_unavailable (never a fabricated call) when the product is absent or the target has no rows."""
     df = _load_consensus()
     if df is None or df.empty:
@@ -271,11 +275,31 @@ def read_target_summary(target: str, indication: str = None,
                        key=lambda x: (-x[1], x[0]))
     recurrent_partners = [{"partner": p, "n_samples": n} for p, n in recurrent]
 
+    # Recurrence confidence tier (2026-08-18 panel backtest — VERDICT-INERT, additive).
+    #   high_recurrent_partner  = the SAME partner recurs across >= _RECURRENT_MIN_SAMPLES samples
+    #                             (EML4-ALK, TMPRSS2-ERG, BCR-ABL1, PML-RARA, ...). This branch is
+    #                             100% precise on a curated true/false panel — every driver with a
+    #                             recurrent partner is real; no amplification-driven passenger reaches it.
+    #   moderate_promiscuous    = the target recurs but no single partner does. This is a GENUINELY
+    #                             MIXED branch: real promiscuous kinase fusions (ROS1, NTRK1, FGFR2,
+    #                             BRAF-melanoma — a constant kinase, varying 5' partner) AND
+    #                             amplification-driven passenger SVs at an amplified oncogene locus
+    #                             (ERBB2/STAD 1.04%, ERBB2/BRCA, MDM2/SARC) both land here.
+    # The backtest showed NO structural feature in this product separates the two: frequency does not
+    # (ERBB2/STAD 1.04% ~= ROS1/LUAD 1.11%; MDM2/SARC 5.62% exceeds most true drivers), and neither
+    # does partner-count dispersion (indistinguishable distributions). The only real discriminator is
+    # gene biology (fusion-competent kinase/TF vs amplification-driven oncogene), which needs an
+    # orthogonal signal (OncoKB fusion-competence or a copy-number cross-reference) — a cross-card
+    # change, out of scope for this product. So we DO NOT demote the promiscuous branch (that would
+    # turn ROS1/NTRK1/FGFR2 true drivers into false negatives); we keep fusion_class as-is and expose
+    # the confidence tier so a downstream consumer can weight a high vs moderate recurrent call.
+    fusion_recurrence_confidence = None
     if recurrent_partners:
         fclass = "recurrent_fusion_driver"
+        fusion_recurrence_confidence = "high_recurrent_partner"
     elif n_samples >= _RECURRENT_MIN_SAMPLES:
-        # target recurs but no single partner does (promiscuous 5'/3' — still a recurrent-fusion signal)
         fclass = "recurrent_fusion_driver"
+        fusion_recurrence_confidence = "moderate_promiscuous"
     else:
         fclass = "sporadic_fusion"
 
@@ -289,6 +313,7 @@ def read_target_summary(target: str, indication: str = None,
         "n_assayed_in_tissue": n_assayed,
         "recurrent_partners": recurrent_partners,
         "fusion_class": fclass,
+        "fusion_recurrence_confidence": fusion_recurrence_confidence,
         "method_version": METHOD_VERSION,
         "_data_source": DERIVED_MANIFEST_ID,
         "_min_callers": min_callers,
