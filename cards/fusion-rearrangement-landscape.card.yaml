@@ -1,7 +1,7 @@
-# Card — FUSION / REARRANGEMENT LANDSCAPE (LIVE 2026-07-23)
+# Card — FUSION / REARRANGEMENT LANDSCAPE
 #
 # The fusion/structural-variant axis of the genomic-alteration-profile skill (SNV + CN + fusion).
-# GRADUATED placeholder -> live 2026-07-23: backed by the tcga-fusion-consensus-v1 derived product
+# Backed by the tcga-fusion-consensus-v1 derived product
 # (pan-TCGA 3-caller consensus — TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas
 # 2018 SV) via methods/tcga_fusion_consensus.read_target_summary.
 #
@@ -12,7 +12,7 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.3.0   # 1.3.0: + fusion_recurrence_confidence (verdict-inert tier); 1.2.0: +modality_relevance (P4 sweep); 1.1.0: + GENIE-SV breadth fields (genie_sv_*)
+version: 1.3.0   # includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
 applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
@@ -74,15 +74,13 @@ caveats:
   - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is n_samples_with_fusion / assayed samples in the indication tissue (sample_coverage), or None when the coverage denominator is unavailable — never a rate over an unknown cohort."
   - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-sv-recurrence-v1) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
   - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
-  - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call WITHOUT changing the verdict. high_recurrent_partner (recurrent partner) is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — real promiscuous kinase fusions (ROS1/NTRK1/FGFR2) AND amplicon passenger SVs (ERBB2/STAD, MDM2/SARC) both fall here. A 2026-08-18 backtest found no structural feature separates them, so it is NOT demoted; disambiguating needs an orthogonal signal (future refinement)."
+  - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call WITHOUT changing the verdict. high_recurrent_partner (recurrent partner) is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — real promiscuous kinase fusions (ROS1/NTRK1/FGFR2) AND amplicon passenger SVs (ERBB2/STAD, MDM2/SARC) both fall here. No structural feature separates them, so it is NOT demoted; disambiguating needs an orthogonal signal (future refinement)."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
 # [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
 measurement_type: fusion_rearrangement
-# P4 modality-vector (2026-08-07 adoption sweep): a recurrent fusion/rearrangement is a genomic
-# driver signal relevant across modalities — it informs small-molecule (inhibit the fusion product,
-# e.g. a kinase fusion) and degrader/biologics (fusion-altered protein / surface neoantigen). Mirrors
-# the all-modality routing of the sibling genomic card copy-number-distribution.
+# modality_relevance: routing key for downstream modality-fit gates (all-modality — a recurrent
+# fusion/rearrangement informs small-molecule, degrader, and biologics routing)
 modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1

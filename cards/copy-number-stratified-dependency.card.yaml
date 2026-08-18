@@ -1,12 +1,12 @@
-# Card E3.cn — COPY-NUMBER-STRATIFIED DEPENDENCY  (pure-data, target-only)
+# COPY-NUMBER-STRATIFIED DEPENDENCY  (pure-data, target-only)
 #
-# The copy-number analog of mutation-stratified-dependency (Card E3.mut): does dependency on
+# The copy-number analog of mutation-stratified-dependency: does dependency on
 # {target} stratify by {target}'s OWN amplification status across the cell-line panel? Drives the
 # amplification-addiction biomarker hypothesis (amplified cells strongly dependent ↔ copy-number-
 # stratified strategy) — the class the mutation-only stratified path MISSES for amplification-driven
 # oncogenes (ERBB2, MYC, MET-amp).
 #
-# DECOUPLED FROM INDICATION (Decision 2A, mirrors E3.mut): evaluates the FULL DepMap panel;
+# DECOUPLED FROM INDICATION (mirrors mutation-stratified-dependency): evaluates the FULL DepMap panel;
 # per-indication amplification prevalence is a downstream synthesis question. One evidence package
 # per target serves all indications.
 #
@@ -15,13 +15,13 @@
 #   - MYC:   amplified cells more dependent → amplified_moderately_dependent (delta -0.24)
 #   - MET:   dependency is exon14-skip/fusion-driven, NOT amplification → not_cn_stratified (delta +0.02)
 #
-# Single-tier CN grouping (unlike E3.mut's hotspot/damaging/any tiers — one CN vector):
+# Single-tier CN grouping (unlike mutation-stratified-dependency's hotspot/damaging/any tiers — one CN vector):
 #   - AMPLIFIED: relative CN > FOCAL_AMP (1.5) — the DepMap-side focal-amplification convention
-#   - NEUTRAL (comparator): everything NOT amplified (broad — the faithful mirror of E3.mut's
+#   - NEUTRAL (comparator): everything NOT amplified (broad — the faithful mirror of mutation-stratified-dependency's
 #     WT = "everything not mutant")
 #
 # Inputs (DepMap 26Q1):
-#   - CRISPRGeneEffect.csv (Chronos matrix; reused from Card 1+2 loader)
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from the dependency-distribution loader)
 #   - OmicsCNGeneMC_WES.csv (relative CN, primary; WGS fallback for off-WES-panel genes)
 #   - ModelCondition.csv (ModelConditionID → ModelID bridge, applied by the CN loader)
 
@@ -60,7 +60,7 @@ outputs:
     - amplification_threshold_relative_cn      # the FOCAL_AMP cutoff used (provenance)
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - cn_stratification_class
-    # Indication-conditioning provenance (T2.0, 2026-08-09) -- scope of the stratified call:
+    # Indication-conditioning provenance -- scope of the stratified call:
     - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
     - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
     - pan_lineage_cn_stratification_class  # the pan-DepMap class (audit)
@@ -83,12 +83,12 @@ outputs:
   plot_data: per_cell_line_chronos_with_cn_status
 
 thresholds:
-  # Sample-size discipline — Mann-Whitney meaningless below these (mirror E3.mut)
+  # Sample-size discipline — Mann-Whitney meaningless below these (mirror mutation-stratified-dependency)
   min_amplified_cells: 5
   min_neutral_cells: 30
   # Amplification cutoff (DepMap relative-CN convention; diploid ~ 1.0, NOT log2)
   amplification_threshold: 1.5                 # FOCAL_AMP — reused from depmap_cn_distribution
-  # Significance + effect-size cutoffs (identical to E3.mut)
+  # Significance + effect-size cutoffs (identical to mutation-stratified-dependency)
   stratification_alpha: 0.05                   # q
   strong_effect_delta: -0.5                    # amplified median >= 0.5 lower than neutral = strong
   moderate_effect_delta: -0.2                  # >= 0.2 lower = moderate
@@ -114,7 +114,7 @@ caveats:
 # copy_number_alteration is the per-line relative-CN input (the copy-number-distribution card's type),
 # crispr_lof_dependency the Chronos requirement. Both co-resident in DepMap; a type→type edge.
 measurement_type: cn_stratified_dependency
-# P4: declaration-only routing key — amplification-addiction biomarker → SM/degrader efficacy stratifier.
+# modality_relevance: routing key for downstream modality-fit gates
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

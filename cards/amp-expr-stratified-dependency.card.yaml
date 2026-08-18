@@ -1,27 +1,27 @@
-# Card E3.ae — AMPLIFICATION→OVEREXPRESSION→DEPENDENCY three-way  (pure-data, target-only)
+# AMPLIFICATION→OVEREXPRESSION→DEPENDENCY three-way  (pure-data, target-only)
 #
-# The CONJOINT sibling of copy-number-stratified-dependency (E3.cn): does dependency on {target}
+# The CONJOINT sibling of copy-number-stratified-dependency: does dependency on {target}
 # stratify by whether the cell line is BOTH amplified AND high-expression for {target}? The
 # amplification-DRIVEN oncogene-addiction signature (ERBB2/MYC/KRAS-amp) — the amp→overexpression→
-# dependency chain the CN-only path (E3.cn, expression-blind) under-weights and the expression-
-# dependency correlation facet (CN-blind) cannot establish. Closes the last A1 alteration-class gap.
+# dependency chain the CN-only path (copy-number-stratified-dependency, expression-blind) under-weights and the expression-
+# dependency correlation facet (CN-blind) cannot establish.
 #
-# DECOUPLED FROM INDICATION (Decision 2A, mirrors E3.cn/E3.fus): evaluates the FULL DepMap panel;
+# DECOUPLED FROM INDICATION (mirrors copy-number-stratified-dependency / fusion-stratified-dependency): evaluates the FULL DepMap panel;
 # per-indication amplification+expression prevalence is a downstream synthesis question.
 #
 # Demonstration cases (live-verified 26Q1, 607-line Chronos∩CN∩TPM universe):
 #   - ERBB2: amplified+overexpressed lines more dependent → amplified_overexpressed_moderately_dependent
-#            (delta -0.41, q=6e-11) — SHARPER than E3.cn's amplified-only delta (-0.31): conditioning works
+#            (delta -0.41, q=6e-11) — SHARPER than copy-number-stratified-dependency's amplified-only delta (-0.31): conditioning works
 #   - KRAS:  amplified+overexpressed subset strongly dependent → ..._strongly_dependent (delta -0.64)
 #   - MET:   dependency is exon14-skip/fusion-driven, NOT amp+expression → not_amp_expr_stratified (delta -0.009)
 #   - EGFR:  significant q but sub-moderate effect (delta -0.15) → not_amp_expr_stratified (significance != effect)
 #
 # The CONJOINT grouping (the novel part — the framework's first two-condition stratifier):
 #   - AMPLIFIED+OVEREXPRESSED: relative CN > FOCAL_AMP (1.5) AND log2TPM in the top within-panel tertile
-#   - COMPARATOR: every OTHER evaluated line (not-both) — the broad mirror of E3.cn's neutral comparator
+#   - COMPARATOR: every OTHER evaluated line (not-both) — the broad mirror of copy-number-stratified-dependency's neutral comparator
 #
 # Inputs (DepMap 26Q1):
-#   - CRISPRGeneEffect.csv (Chronos; reused from Card 1+2 loader)
+#   - CRISPRGeneEffect.csv (Chronos; reused from the dependency-distribution loader)
 #   - OmicsCNGeneMC_WES.csv (relative CN, primary; WGS fallback) — the amplification term
 #   - OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv (log2TPM) — the overexpression term
 
@@ -61,7 +61,7 @@ outputs:
     - high_expression_log2tpm_threshold             # top-tertile TPM cut among evaluated lines (provenance)
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - amp_expr_stratification_class
-    # Indication-conditioning provenance (T2.0, 2026-08-09) -- scope of the stratified call:
+    # Indication-conditioning provenance -- scope of the stratified call:
     - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
     - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
     - pan_lineage_amp_expr_stratification_class  # the pan-DepMap class (audit)
@@ -74,7 +74,7 @@ outputs:
       - not_amp_expr_stratified                       # no significant conjoint-vs-rest difference
       - insufficient_amp_expr_rate                    # <min conjoint cells OR too few lines to define the tertile
       - data_unavailable
-    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by amp-expr-indication-scoped-context (Stage 3a): only indication-scoped evidence earns a biomarker verdict
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by amp-expr-indication-scoped-context: only indication-scoped evidence earns a biomarker verdict
 
   figures:
     - id: amp_expr_vs_rest_strip
@@ -85,7 +85,7 @@ outputs:
   plot_data: per_cell_line_chronos_with_amp_expr_status
 
 thresholds:
-  min_amplified_overexpressed_cells: 5             # mirror E3.cn min_amplified
+  min_amplified_overexpressed_cells: 5             # mirror copy-number-stratified-dependency min_amplified
   min_comparator_cells: 30
   amplification_threshold: 1.5                      # FOCAL_AMP — reused from depmap_cn_distribution
   high_expression_tertile: 0.6667                   # top-tertile log2TPM among evaluated lines
@@ -105,7 +105,7 @@ caveats:
   - "The positive arm is the CONJUNCTION: amplified (relative CN > 1.5, focal-amp convention; diploid ~ 1.0, NOT log2) AND high-expression (log2TPM in the top within-panel tertile among evaluated lines). Amplified-but-low-expression and high-expression-but-not-amplified lines are EXCLUDED from the positive arm (the AND-gate) — this is what isolates amplification-DRIVEN overexpression from either signal alone."
   - "The high-expression cut is TARGET-RELATIVE (top tertile among the lines with all three measurements), not an absolute TPM. It adapts per target; the exact cut is emitted as high_expression_log2tpm_threshold for provenance."
   - "Two directional passes: a FORWARD one-sided MW (amp+overexpr more dependent) drives the amplified_overexpressed_*_dependent classes; a SECOND-PASS reverse MW (comparator more dependent) makes `amp_expr_negative_more_dependent` reachable, gated on its own BH q + a strong positive delta (>= +0.5). The conjunction is never credited with a dependency it lacks (forward classes cannot fire on a reverse pattern); the reverse class is verdict-inert."
-  - "This is the amp→expression→dependency THREE-WAY: it is the conjoint refinement E3.cn's caveat named. When BOTH E3.cn (amplified-vs-neutral) and this conjoint class stratify, the resolver's CN rung takes precedence (driving_rule names the CN path); the conjoint rung is placed LAST (most specific) so any single-alteration driver names the verdict first."
+  - "This is the amp→expression→dependency THREE-WAY: it is the conjoint refinement copy-number-stratified-dependency's caveat named. When BOTH copy-number-stratified-dependency (amplified-vs-neutral) and this conjoint class stratify, the resolver's CN rung takes precedence (driving_rule names the CN path); the conjoint rung is placed LAST (most specific) so any single-alteration driver names the verdict first."
   - "Cell-line conjoint-stratified dependency is necessary but NOT sufficient for a clinical biomarker — needs orthogonal validation (isogenic amplification models, patient copy-number + expression). It is not a mediation test: it establishes that the amplified+overexpressed subset is more dependent, not formally that expression MEDIATES the amp→dependency effect."
 
 # DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `amp_expr_stratified_dependency` claim (is
@@ -114,7 +114,7 @@ caveats:
 # sibling of cn_stratified_dependency; adds the expression term (cell_line_rna_expression, the
 # cellline-rna-distribution card's type) to the CN×Chronos join. All co-resident in DepMap.
 measurement_type: amp_expr_stratified_dependency
-# P4: declaration-only routing key — amplification-driven-addiction biomarker → SM/degrader efficacy stratifier.
+# modality_relevance: routing key for downstream modality-fit gates
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

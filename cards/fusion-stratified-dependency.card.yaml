@@ -1,13 +1,13 @@
-# Card E3.fus — FUSION-STRATIFIED DEPENDENCY  (pure-data, target-only)
+# FUSION-STRATIFIED DEPENDENCY  (pure-data, target-only)
 #
-# The gene-fusion analog of mutation-stratified-dependency (Card E3.mut) and copy-number-stratified-
-# dependency (Card E3.cn): does dependency on {target} stratify by whether the cell line carries a
+# The gene-fusion analog of mutation-stratified-dependency and copy-number-stratified-
+# dependency: does dependency on {target} stratify by whether the cell line carries a
 # fusion INVOLVING {target} across the DepMap panel? Drives the fusion-addiction biomarker hypothesis
 # (fusion-positive cells strongly dependent ↔ fusion-stratified strategy) — the class BOTH the
 # mutation-only and CN-only stratified paths MISS for fusion-driven oncogenes (EWSR1-FLI1, BCR-ABL1),
 # which are neither hotspot-mutated nor amplified.
 #
-# DECOUPLED FROM INDICATION (Decision 2A, mirrors E3.mut/E3.cn): evaluates the FULL DepMap panel;
+# DECOUPLED FROM INDICATION (mirrors mutation-stratified-dependency / copy-number-stratified-dependency): evaluates the FULL DepMap panel;
 # per-indication fusion prevalence is a downstream synthesis question. One evidence package per
 # target serves all indications.
 #
@@ -17,14 +17,14 @@
 #   - ABL1: BCR-ABL1 lines more dependent → fusion_positive_moderately_dependent (delta -0.47, q=7e-6)
 #   - ALK:  CRISPR dependency is not fusion-stratified at panel power → not_fusion_stratified (delta +0.01)
 #
-# Single-tier fusion grouping (unlike E3.mut's hotspot/damaging/any tiers — one boolean vector):
+# Single-tier fusion grouping (unlike mutation-stratified-dependency's hotspot/damaging/any tiers — one boolean vector):
 #   - FUSION-POSITIVE: target is a partner (5' LeftGene OR 3' RightGene) in ANY default high-confidence
 #     fusion call for the line — the gene-collapsed symbol-union boolean
 #   - FUSION-NEGATIVE (comparator): every OTHER fusion-PROFILED line (lines never fusion-called are
-#     EXCLUDED, not counted negative — the faithful mirror of E3.mut's WT over the profiled universe)
+#     EXCLUDED, not counted negative — the faithful mirror of mutation-stratified-dependency's WT over the profiled universe)
 #
 # Inputs (DepMap 26Q1):
-#   - CRISPRGeneEffect.csv (Chronos matrix; reused from Card 1+2 loader)
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from the dependency-distribution loader)
 #   - OmicsFusionFiltered.csv (per-event fusion calls, ModelID-native; IsDefaultEntryForModel filter)
 
 card_id: fusion-stratified-dependency
@@ -61,7 +61,7 @@ outputs:
     - fusion_stratification_effect_size              # rank-biserial correlation
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - fusion_stratification_class
-    # Indication-conditioning provenance (T2.0, 2026-08-09) -- scope of the stratified call:
+    # Indication-conditioning provenance -- scope of the stratified call:
     - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
     - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
     - pan_lineage_fusion_stratification_class  # the pan-DepMap class (audit)
@@ -84,10 +84,10 @@ outputs:
   plot_data: per_cell_line_chronos_with_fusion_status
 
 thresholds:
-  # Sample-size discipline — Mann-Whitney meaningless below these (mirror E3.mut/E3.cn)
+  # Sample-size discipline — Mann-Whitney meaningless below these (mirror mutation-stratified-dependency / copy-number-stratified-dependency)
   min_fusion_positive_cells: 5
   min_fusion_negative_cells: 30
-  # Significance + effect-size cutoffs (identical to E3.mut/E3.cn)
+  # Significance + effect-size cutoffs (identical to mutation-stratified-dependency / copy-number-stratified-dependency)
   stratification_alpha: 0.05                         # q
   strong_effect_delta: -0.5                          # fusion-positive median >= 0.5 lower than negative = strong
   moderate_effect_delta: -0.2                        # >= 0.2 lower = moderate
@@ -114,7 +114,7 @@ caveats:
 # cn_stratified_dependency; fusion_status is the per-line fusion-involvement boolean input,
 # crispr_lof_dependency the Chronos requirement. Both co-resident in DepMap; a type→type edge.
 measurement_type: fusion_stratified_dependency
-# P4: declaration-only routing key — fusion-addiction biomarker → SM/degrader efficacy stratifier.
+# modality_relevance: routing key for downstream modality-fit gates
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

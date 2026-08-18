@@ -1,4 +1,4 @@
-# Card — FUNCTIONAL GENE STATE  (harmonized two-hit / biallelic-inactivation; M6)
+# Card — FUNCTIONAL GENE STATE  (harmonized two-hit / biallelic-inactivation)
 #
 # The ALLELE-COUNT call: is the target BIALLELICALLY inactivated (a completed two-hit event → true
 # loss of function) or only MONOALLELICALLY hit (one allele still intact)? Harmonized across the
@@ -14,13 +14,13 @@
 #   - alteration-role             — functional GoF/LoF ROLE (direction, not allele count)
 #   THIS card = how many alleles are inactivated + by what mechanism (mutation / copy-loss / LOH).
 #
-# FULL PHASE-2b VOCABULARY (LIVE 2026-08-05) = genetic + EPIGENETIC states:
+# FULL VOCABULARY (genetic + EPIGENETIC states):
 #     {wt, monoallelic, biallelic-genetic, biallelic+epigenetic, epigenetic, uncertain}
 #   The method emits vocabulary_phase = genetic_epigenetic_full_phase2b. The epigenetic second hit is
 #   DETECTED on BOTH arms: patient promoter methylation (GDC SeSAMe HM450, tcga-sesame-promoter-
 #   methylation-v1) + model CCLE RRBS. A methylation-silenced allele (e.g. MLH1/BRCA1/VHL/CDKN2A) now
 #   upgrades wt→epigenetic and monoallelic→biallelic+epigenetic; the genetic-only states are the strict
-#   subset from the earlier Phase-1 slice (additive, no rework).
+#   subset (additive, no rework).
 #
 # ROUTES INTO GATES: primary = Genomic-alteration gate (the biallelic-inactivation signal corroborates
 # an LoF driver call + informs synthetic-lethality/TSG framing). ADDITIVE signal-only in this slice —
@@ -28,7 +28,7 @@
 # resolver ladder (the verdict spine stays byte-stable). Wiring INTO a verdict is a later, riskier step.
 
 card_id: functional-gene-state
-version: 0.3.0    # 2026-08-07 +modality_relevance (P4 sweep); 2026-08-05: doc-lag fix — methylation Phase-2b is LIVE (epigenetic states + methylation inputs declared)
+version: 0.3.0    # includes modality_relevance and epigenetic states (methylation inputs declared)
 question: "Is {target.symbol} biallelically inactivated (completed two-hit) or only monoallelically hit in {indication.label} — and by what mechanism (mutation, copy loss, LOH, homozygous deletion)?"
 
 # TWO grains (grain-split like cellline-rna-protein-concordance): the patient arm is target_indication
@@ -70,7 +70,7 @@ thresholds:
   depmap_loss_relative_cn_max: 0.75    # 0.20 < CN ≤ this → single-copy loss (model arm)
 
 caveats:
-  - "EPIGENETIC second hit is DETECTED (phase-2b LIVE): promoter hypermethylation (e.g. MLH1/BRCA1/VHL/CDKN2A) upgrades wt→epigenetic and monoallelic→biallelic+epigenetic. Sources: patient GDC-SeSAMe HM450 (tcga-sesame-promoter-methylation-v1; cohorts LUAD/LUSC/HNSC/PAAD/STAD/ESCA) + model CCLE RRBS. EPIC not ingested; an indication without a landed methylation cohort degrades to the genetic-only states (no false downgrade)."
+  - "EPIGENETIC second hit is DETECTED: promoter hypermethylation (e.g. MLH1/BRCA1/VHL/CDKN2A) upgrades wt→epigenetic and monoallelic→biallelic+epigenetic. Sources: patient GDC-SeSAMe HM450 (tcga-sesame-promoter-methylation-v1; cohorts LUAD/LUSC/HNSC/PAAD/STAD/ESCA) + model CCLE RRBS. EPIC not ingested; an indication without a landed methylation cohort degrades to the genetic-only states (no false downgrade)."
   - "PATIENT arm is the SHARP arm: PanCanAtlas ABSOLUTE gives PER-LOCUS allele-specific LOH (point-in-interval at the mutation locus), so copy-neutral LOH biallelic events are resolved cleanly. MODEL arm has only DepMap RELATIVE per-gene CN + GENOME-WIDE LoH, so copy-neutral per-gene LOH is undeterminable → those cell lines resolve `uncertain` rather than a false biallelic. The arms agree on mechanism but the patient arm is more sensitive to copy-neutral two-hit events."
   - "`uncertain` means a mutation is present but the second-hit background could not be confirmed (CN/LOH not measured) — it is NOT `wt`. It is EXCLUDED from the fraction_biallelic denominator (undeterminable, not not-biallelic) but COUNTED in fraction_any_alteration (the sample does carry a hit)."
   - "gene-level, not variant-resolved: a passenger mutation co-occurring with LOH is scored as a two-hit event even if the specific variant is functionally neutral. Interpret alongside alteration-role (is the gene an LoF driver at all?)."
@@ -83,11 +83,8 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: harmonized allele-count / biallelic state.
 measurement_type: functional_gene_state
-# P4 modality-vector (2026-08-07 adoption sweep): the biallelic-inactivation / two-hit state is
-# highly modality-DISCRIMINATING — a completed homozygous deletion kills a degrader (no protein to
-# degrade) and an ADC/antibody (no surface protein), while a biallelic-LoF tumour-suppressor state
-# routes small-molecule reasoning to synthetic-lethal partners rather than direct inhibition. Pulled
-# by all modality-fit gates as a killer/discriminator input.
+# modality_relevance: routing key for downstream modality-fit gates (the biallelic-inactivation /
+# two-hit state is a killer/discriminator input pulled by all modality-fit gates)
 modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target, target_indication]
 schema_version: 1

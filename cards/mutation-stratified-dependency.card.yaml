@@ -1,11 +1,11 @@
-# Card E3.mut — MUTATION-STRATIFIED DEPENDENCY  (pure-data, target-only)
+# MUTATION-STRATIFIED DEPENDENCY  (pure-data, target-only)
 #
 # Mirrors DepMap's "Mutation" page: does dependency on {target} stratify by {target}'s
 # OWN mutation status across the cell-line panel? Drives biomarker hypotheses
 # (oncogene-addiction: mutant cells strongly dependent ↔ inhibitor-stratified clinical
 # strategy).
 #
-# DECOUPLED FROM INDICATION (Decision 2A): the method evaluates the FULL DepMap panel.
+# DECOUPLED FROM INDICATION: the method evaluates the FULL DepMap panel.
 # Per-indication mutation prevalence + per-indication mutation-stratified dependency
 # are downstream synthesis questions consulting the per_hotspot_records / TCGA mutation
 # rates separately. One evidence package per target serves all indications + modalities.
@@ -23,7 +23,7 @@
 #   - "any-mutation" = either matrix true
 #
 # Inputs (DepMap 26Q1):
-#   - CRISPRGeneEffect.csv (Chronos matrix; reused from Card 1+2 loader)
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from the dependency-distribution loader)
 #   - OmicsSomaticMutationsMatrixHotspot.csv (small fast read)
 #   - OmicsSomaticMutationsMatrixDamaging.csv
 #   - OmicsSomaticMutations.csv (long-format MAF — lazy-loaded for per-hotspot figure detail)
@@ -79,14 +79,14 @@ outputs:
     - per_hotspot_stats                        # list of {protein_change, n, median_chronos, p25, p75}
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - mutation_stratification_class
-    # === Indication-conditioning provenance (T2.0, 2026-08-09) — the stratified test now runs
+    # === Indication-conditioning provenance — the stratified test now runs
     #     WITHIN the indication's DepMap lineage when powered; these say at what scope the call was made.
     - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
     - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
     - pan_lineage_mutation_stratification_class # the pan-DepMap class (audit; kept when a within-lineage scope wins)
     - indication_lineage                       # the resolved DepMap OncotreeLineage for the indication (null if unmapped)
     - pan_fallback_strong_capped_to_moderate   # True when a pan-fallback STRONG call was capped to moderate (confound unresolved)
-    # === Dependency-classification PERFORMANCE (Thread 3, 2026-08-09) — the hotspot biomarker treated
+    # === Dependency-classification PERFORMANCE — the hotspot biomarker treated
     #     as a classifier for the DepMap-dependency phenotype (Chronos <= -0.5). DEPENDENCY performance,
     #     NOT drug-response / clinical. PPV-lift (PPV / base-rate) separates rare-sharp markers (BRAF ~9.6x)
     #     from common-dependency high-PPV-low-lift markers (KRAS ~2.2x) the coarse class hides.
@@ -149,7 +149,7 @@ caveats:
 # no standalone card — the latent-unowned input the survey surfaced), distinct from the variant-class
 # spectrum. Both inputs co-resident in DepMap but still a type→type edge (appendix case 7).
 measurement_type: mutation_stratified_dependency
-# P4 (2026-07-24): declaration-only routing key — oncogene-addiction biomarker → SM/degrader efficacy stratifier. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+# modality_relevance: routing key for downstream modality-fit gates
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

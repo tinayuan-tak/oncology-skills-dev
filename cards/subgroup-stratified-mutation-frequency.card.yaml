@@ -1,4 +1,4 @@
-# Subgroup-panorama card (2026-07-16) — LIVE, descriptive-only.
+# Subgroup-panorama card — LIVE, descriptive-only.
 #
 # Enumerates {target}'s somatic mutation frequency ACROSS the molecular subgroups
 # of one indication (MSI/MSS, sidedness, and — via the GENIE registry MAF source —
@@ -7,7 +7,7 @@
 # NO verdict signal. Distinct from the whole-cohort `mutation-hotspot-frequency`
 # card, which answers the indication-level question.
 #
-# Backed by a PER-SAMPLE stratified reader (filter 2 of the two-filter rule met):
+# Backed by a PER-SAMPLE stratified reader:
 #   methods/gdc_somatic_hotspot/read.py :: build_mutation_frequency_panorama
 #   (fans read_stratified_mutation_frequency across strata via @subgroup_iterable;
 #    recomputes frequency WITHIN each stratum member-set — not an emit-time slice).

@@ -1,4 +1,4 @@
-# Card — GENOMIC INSTABILITY STATE  (M7 genome-state slice: aneuploidy / CIN burden)
+# Card — GENOMIC INSTABILITY STATE  (genome-state slice: aneuploidy / CIN burden)
 #
 # INDICATION-LEVEL, TARGET-INDEPENDENT context: how chromosomally unstable is this cancer's
 # cohort? Aneuploidy / chromosomal instability (CIN) is a genome-WIDE phenotype, not a per-gene
@@ -20,7 +20,7 @@
 # resolver rung.
 
 card_id: genomic-instability-state
-version: 0.5.0   # 0.5.0: + MODEL mutational-signature arm (MMR-sig cross-validates MSI + weak SBS3-HRD proxy); 0.4.0: + MODEL MSI; 0.3.0: + patient MSI; 0.2.0: + WGD
+version: 0.5.0   # includes MODEL mutational-signature arm (MMR-sig cross-validates MSI + weak SBS3-HRD proxy), MODEL MSI, patient MSI, WGD
 question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome; how prevalent are whole-genome doubling and microsatellite instability — and where does its genome-instability burden sit?"
 
 tier: indication
@@ -33,9 +33,10 @@ required_inputs:
   - product_id: gdc-pancanatlas-clinical-2018   # merged_sample_quality_annotations (barcode→cancer type)
 
 methods:
-  # ONE method module (tcga_aneuploidy_burden) supplies BOTH genome-state axes: the skill dispatcher
-  # merges aneuploidy_burden_for_indication() + wgd_summary_for_indication() (ABSOLUTE abs_tables,
-  # sibling source), the same two-function-merge pattern the fusion card uses for GENIE-SV.
+  # ONE method module (tcga_aneuploidy_burden) supplies ALL genome-state axes: the skill dispatcher
+  # performs a MULTI-AXIS (five-function) merge — aneuploidy_burden_for_indication() +
+  # wgd_summary_for_indication() + the patient-MSI, model-MSI, and model-signature functions — the
+  # same on-read dispatcher-merge pattern the fusion card uses for GENIE-SV.
   - call: tcga-aneuploidy-burden
     args:
       indication: "{indication}"

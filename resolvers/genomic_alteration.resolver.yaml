@@ -39,6 +39,10 @@ resolve:
   - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
   - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
   - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
+  #    The amp-expr rungs (this one + the moderate twin below) list the scope-gate rule LAST in
+  #    when_all_fired, so they MUST keep driving_rule set explicitly — otherwise the interpreter's
+  #    rids[-1] fallback would name amp-expr-indication-scoped-context (the scope gate) as the driver
+  #    instead of the dependency rule. Do NOT drop driving_rule when editing these two rungs.
   - {verdict: biomarker_stratified_dependency, when_all_fired: [amp-expr-strongly-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-strongly-dependent-supportive}
   #    MODERATE tier (|delta| 0.2-0.5):
   - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}

@@ -1,6 +1,6 @@
-# Card E3.drug — GENOTYPE × DRUG-RESPONSE biomarker  (pure-data, target-only)
+# GENOTYPE × DRUG-RESPONSE biomarker  (pure-data, target-only)
 #
-# The PHARMACOLOGICAL sibling of mutation-stratified-dependency (Card E3.mut). Where E3.mut asks
+# The PHARMACOLOGICAL sibling of mutation-stratified-dependency. Where mutation-stratified-dependency asks
 # "are mutant lines more genetically DEPENDENT (CRISPR/Chronos)?", this asks "are mutant lines more
 # SENSITIVE to a DRUG that TARGETS this gene (PRISM Log2AUC)?" — the missing biomarker→drug-response
 # link (PRISM was genotype-blind by design; every prior biomarker contrast used DepMap genetic
@@ -117,7 +117,7 @@ caveats:
 # [mutation_status, prism_compound_activity]. The pharmacological analog of
 # mutation_stratified_dependency (which is derived_from [mutation_status, crispr_lof_dependency]).
 measurement_type: mutation_drug_response
-# P4 routing key — a genotype→drug-response biomarker informs small-molecule patient-selection.
+# modality_relevance routing key — a genotype→drug-response biomarker informs small-molecule patient-selection.
 modality_relevance: [small_molecule]
 entity_grains: [target]
 schema_version: 1

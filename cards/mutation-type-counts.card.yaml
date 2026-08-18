@@ -1,4 +1,4 @@
-# Card E4 — MUTATION-TYPE COUNTS  (cell-line cohort, MAF-based)
+# MUTATION-TYPE COUNTS  (cell-line cohort, MAF-based)
 #
 # Counts mutations per gene across DepMap cell lines, stratified by variant class
 # (missense / nonsense / frameshift / splice / inframe-indel / etc.). The
@@ -107,7 +107,7 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_variant_class_spectrum` claim.
 measurement_type: mutation_variant_class_spectrum
-# P4 (2026-07-24): declaration-only routing key — oncogene(missense)/TSG(LoF) spectrum → SM/degrader supportive. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+# modality_relevance: routing key for downstream modality-fit gates
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage]
 schema_version: 1

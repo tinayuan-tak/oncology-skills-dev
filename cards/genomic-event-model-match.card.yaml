@@ -1,15 +1,15 @@
-# Card — GENOMIC EVENT MODEL MATCH (patient↔model genomic-event correspondence; canonical P3 / M11)
+# Card — GENOMIC EVENT MODEL MATCH (patient↔model genomic-event correspondence)
 #
-# The GENOMIC sibling of recommended-models (Q4). Which DepMap models carry the SAME functional
+# The GENOMIC sibling of recommended-models. Which DepMap models carry the SAME functional
 # genomic event in the target as the indication's tumors — and of those genotype-matched models,
 # which are the positive / resistance screen lines by Chronos dependency?
 #
 # SCOPE: the FUNCTIONAL-GENOTYPE-IDENTITY correspondence — matches models to the tumor cohort's
-# dominant functional gene state (functional_gene_state / M6: biallelic-genetic for a two-hit TSG,
+# dominant functional gene state (functional_gene_state: biallelic-genetic for a two-hit TSG,
 # monoallelic for a single-hit activating oncogene), then classifies screen role from Chronos. This
-# is the genomic-plan slice of the shared master-plan P3 patient↔model primitive, complementary to
+# is the genomic slice of the shared patient↔model primitive, complementary to
 # the expression-similarity slice (recommended-models). It is NOT:
-#   - the EXPRESSION-similarity join (recommended-models / Q4 — that ranks by target TPM fit), nor
+#   - the EXPRESSION-similarity join (recommended-models — that ranks by target TPM fit), nor
 #   - full-transcriptome Celligner alignment.
 #
 # WHY IT ADDS OVER EXPRESSION MATCHING: a model can be expression-matched yet GENOTYPE-mismatched
@@ -17,10 +17,10 @@
 # loss-of-function-driven dependency that line is a poor model even though recommended-models ranks
 # it well. This card catches the genotype mismatch the expression join cannot see.
 #
-# ZERO new ingestion — reuses functional_gene_state (M6, both arms) + the DepMap Chronos/lineage
-# loader (same as Q4).
+# ZERO new ingestion — reuses functional_gene_state (both arms) + the DepMap Chronos/lineage
+# loader (same as recommended-models).
 #
-# ROUTES INTO GATES (master-sequencing Part 3): primary = Patient↔model correspondence (P3); also
+# ROUTES INTO GATES: primary = Patient↔model correspondence; also
 # corroborates Required (C) — a target with in-lineage genotype-matched + dependent models has a
 # genotype-backed dependency basis stronger than expression-match alone.
 
@@ -31,15 +31,15 @@ question: "Which DepMap models carry the same functional genomic event in {targe
 tier: indication
 
 applies_when:
-  # needs BOTH a patient functional-state distribution (indication mapped in M6's TCGA map) AND a DepMap lineage.
+  # needs BOTH a patient functional-state distribution (indication mapped in functional-gene-state's TCGA map) AND a DepMap lineage.
   - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'GC', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC']"
 
 required_inputs:
-  # M11 is a DERIVED join; its inputs are the M6 substrate + DepMap dependency (declared here as the
-  # underlying products the derived read touches).
-  - product_id: tcga-mc3-public-v0-2-8       # patient mutation (M6 patient arm)
-  - product_id: gdc-pancanatlas-cnv-2018     # patient ABSOLUTE allele-specific LOH + GISTIC (M6 patient arm)
-  - product_id: depmap-consortium-26q1       # model functional state (M6 model arm) + Chronos + lineage
+  # This is a DERIVED join; its inputs are the functional-gene-state substrate + DepMap dependency
+  # (declared here as the underlying products the derived read touches).
+  - product_id: tcga-mc3-public-v0-2-8       # patient mutation (functional-gene-state patient arm)
+  - product_id: gdc-pancanatlas-cnv-2018     # patient ABSOLUTE allele-specific LOH + GISTIC (functional-gene-state patient arm)
+  - product_id: depmap-consortium-26q1       # model functional state (functional-gene-state model arm) + Chronos + lineage
 
 methods:
   - call: genomic-event-model-match
@@ -52,7 +52,7 @@ outputs:
     - event_correspondence_class             # PRIMARY categorical (drives Tier-2 rules)
     - patient_event_state                     # the tumor cohort's dominant functional event being matched
     - patient_event_fraction                  # fraction of tumors carrying it
-    - patient_functional_state_class          # M6 headline for context
+    - patient_functional_state_class          # functional-gene-state headline for context
     - matched_models                          # the ranked genotype-matched table (record schema below)
     - n_models_considered
     - n_event_matched
@@ -85,9 +85,9 @@ thresholds:
   not_dependent_chronos: -0.2         # model NOT dependent (resistance_model gate)
 
 caveats:
-  - "GENOTYPE-identity correspondence, NOT expression-similarity (recommended-models / Q4) and NOT full-transcriptome Celligner. The two P3 joins are complementary — a model can match on one axis and mismatch on the other; that disagreement is the signal (expression-matched but genotype-mismatched = poor model for a LoF-driven dependency)."
+  - "GENOTYPE-identity correspondence, NOT expression-similarity (recommended-models) and NOT full-transcriptome Celligner. The two patient↔model joins are complementary — a model can match on one axis and mismatch on the other; that disagreement is the signal (expression-matched but genotype-mismatched = poor model for a LoF-driven dependency)."
   - "The tumor EVENT matched is the dominant ALTERED state (biallelic-genetic preferred over monoallelic; ≥10% of tumors). When tumors are rarely altered there is no recurrent genotype to match → event_correspondence_class = no_target_event (an honest 'no target event', not forced to wild-type)."
-  - "Model genotype inherits M6's model-arm caveat: DepMap has relative per-gene CN + genome-wide LoH only, so copy-neutral per-gene LOH resolves `uncertain` (not biallelic). A model that is truly copy-neutral-LOH biallelic may read `uncertain` and miss an event_match — a false-negative-leaning bias, documented."
+  - "Model genotype inherits functional-gene-state's model-arm caveat: DepMap has relative per-gene CN + genome-wide LoH only, so copy-neutral per-gene LOH resolves `uncertain` (not biallelic). A model that is truly copy-neutral-LOH biallelic may read `uncertain` and miss an event_match — a false-negative-leaning bias, documented."
   - "event_match is STRICT genotype identity on the dominant event; a model with a DIFFERENT alteration (e.g. monoallelic where the tumor is biallelic) is not counted as matched even though it is altered."
   - "Chronos is pan-lineage per-model dependency; a positive_model is genotype-matched + dependent but the dependency may be context-driven. Screen role is a starting panel, not a validated model set."
 

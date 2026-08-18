@@ -1,8 +1,5 @@
-# Card 3 of 5 — iter-1 vertical slice
-# Exercises: another NEW iter-1 product end-to-end (somatic-MAF mutation profile)
-
 card_id: mutation-hotspot-frequency
-version: 1.2.0    # 2026-08-06: + GENIE panel-coverage-correct recurrence comparator (genie_driver_recurrence_*, display facet)
+version: 1.2.0    # GENIE panel-coverage-correct recurrence comparator (genie_driver_recurrence_*, display facet)
 question: "What is the somatic mutation frequency and hotspot landscape of {target.symbol} in {indication.label}?"
 
 applies_when:

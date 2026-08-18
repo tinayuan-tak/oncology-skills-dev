@@ -13,7 +13,7 @@
 #
 # Interpretation surface (oncogenic_pathway_class is PRIMARY):
 #   frequently_altered  → >=1 pathway altered in >= 50% of the cohort (e.g. TP53/OV 96%, WNT/COAD 90%,
-#                         PI3K/UCEC 93%, RTK-RAS/PAAD 78% — validated 2026-08-10)
+#                         PI3K/UCEC 93%, RTK-RAS/PAAD 78%)
 #   profiled            → alteration computed, no pathway clears the 50% bar
 #   data_unavailable    → indication not in the Sanchez-Vega product
 #

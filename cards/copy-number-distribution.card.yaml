@@ -1,4 +1,4 @@
-# Card E3b — COPY-NUMBER DISTRIBUTION  (pure-data, gene-level CN across cell lines)
+# COPY-NUMBER DISTRIBUTION  (pure-data, gene-level CN across cell lines)
 #
 # Mirrors DepMap's per-gene "Copy Number" target panel. Emits descriptive
 # categorical labels + numerics describing the CN landscape across ~1500 cell
@@ -23,24 +23,16 @@
 #   CN > 4     = high-level amplification
 # (per DepMap portal docs + Mermel et al GISTIC2 conventions for relative-CN matrices)
 #
-# ASYMMETRY + FOCAL-VS-ARM CAVEAT (known + BACKTESTED):
-#   The recurrent-DELETION score counts BOTH deep (<0.5, biallelic) AND shallow
-#   (0.5-0.92, hemizygous/one-copy) loss, while the recurrent-AMPLIFICATION score
-#   counts ONLY focal/high gain (>1.5) and EXCLUDES shallow gain (1.07-1.5). Both
-#   are compared to the same >=20% recurrence threshold, so the del side fires more
-#   readily (on hemizygous/arm-level loss) and the amp side under-calls (focal-amp
-#   targets with mostly shallow gains — e.g. ERBB2/CCND1 on COADREAD — read
-#   broadly_neutral). copy_number_class is therefore a pan-cancer relative-CN class,
-#   NOT a focal-vs-arm call. The focal-vs-arm distinction lives in the ADDITIVE
-#   patient_focal_cn_class (GISTIC, indication-specific); the biallelic-LoF signal
-#   lives in cn_homozygous_deletion_recurrent / the deep-del fraction.
-#   A 2026-08-14 focal-driver backtest VALIDATED keeping these thresholds — every
-#   symmetric alternative is strictly worse: +shallow-amp raises amp-recall 2/6->6/6
-#   but collapses neutral-specificity 3/4->0/4 (shallow gain is genome-wide background),
-#   and -shallow-del drops del-recall 4/4->1/4 (erases real hemizygous TSG deletions).
-#   The amp-driver signal belongs to patient_focal_cn_class + the copy-number-
-#   stratified-dependency card, NOT this classifier. Do NOT re-tune these bands
-#   (see analysis-methods/methods/depmap_cn_distribution/cli.py).
+# ASYMMETRY + FOCAL-VS-ARM CAVEAT:
+#   The recurrent-amplification score counts ONLY focal/high gain (>1.5); the
+#   recurrent-deletion score also includes shallow (hemizygous) loss. This asymmetry
+#   is intentional and validated — do NOT symmetrize (adding shallow gain destroys
+#   neutral-specificity; dropping shallow loss erases real hemizygous TSG deletions).
+#   copy_number_class is therefore a pan-cancer relative-CN class, NOT a focal-vs-arm
+#   call. The focal-vs-arm distinction lives in the ADDITIVE patient_focal_cn_class
+#   (GISTIC, indication-specific); the biallelic-LoF signal lives in
+#   cn_homozygous_deletion_recurrent / the deep-del fraction. Do NOT re-tune these
+#   bands (see analysis-methods/methods/depmap_cn_distribution/cli.py).
 #
 # Data source: dmc-26q1/OmicsCNGeneMC_WES.csv. Matrix shape: cell-line-rows ×
 # gene-columns (similar to CRISPR matrix); first physical column is
@@ -53,7 +45,7 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.3.0    # 1.3.0: + patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient); 1.2.0: patient CN cross-check; 1.1.0: homdel flag
+version: 1.3.0    # includes patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient), patient CN cross-check, homdel flag
 question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
 
 applies_when:
@@ -216,14 +208,8 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `copy_number_alteration` claim.
 measurement_type: copy_number_alteration
-# P4 (2026-07-24): copy-number is a CROSS-AXIS card — it already fires interpretation rules on BOTH
-# modality axes (homozygous deletion → degrader/SM dependency context on the intracellular axis;
-# amplification → surface antigen-DOSAGE on the ADC/TCE/antibody axis). Those rules exist and fire,
-# but without this routing key the modality-fit gates (axis-2) never PULL the card and its evidence
-# strands on the biology axis. Declaring all five lands the amplification signal in the surface gate
-# (the ADC antigen-density argument alteration-role's comment references) AND the homdel signal in the
-# SM/degrader gate. Declaration-only slice: matching rules pre-exist in
-# interpretation-rules/{intracellular-intrinsic,surface-intrinsic}.rules.yaml.
+# modality_relevance: routing key for downstream modality-fit gates (cross-axis — amplification routes
+# to the surface ADC/TCE/antibody gates, homozygous deletion to the SM/degrader gates)
 modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target, target_lineage]
 schema_version: 1
