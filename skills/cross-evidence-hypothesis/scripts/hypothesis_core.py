@@ -772,9 +772,54 @@ def surface_coherence_tensions(coherence_v: dict) -> list:
     return out_tensions
 
 
+# --- per-subskill GROUNDED SUBSTRATE (the design-correct literature path, §13) ----------------------
+def parse_grounded_substrate(substrate: Optional[dict]) -> dict:
+    """Project the per-axis `ground_axis` blocks (the SHARED grounded substrate) into an
+    agent-consumable per-axis finding list + the set of grounded PMIDs (which become CITABLE, traceable
+    evidence) + the axes whose literature CONTRADICTS the deterministic verdict (engine↔literature
+    discordance).
+
+    This is the DESIGN-CORRECT literature path (grounded-substrate two-projection design §13):
+    literature reaches the hypothesis via the per-subskill grounding DIRECTLY, NOT via the risk
+    projection (the two projections are siblings; neither feeds the other). ESCALATE-ONLY BY
+    CONSTRUCTION: the findings + PMIDs only ENRICH the panel + can RAISE a discordance tension; they
+    never touch the deterministic ceiling (gate_ceiling consults ONLY the package hard_gates), so
+    grounded literature can raise a concern but never lower a deterministic one.
+
+    Tolerates absence + BOTH record shapes: the full `ground_axis` record
+    {axis, deterministic, grounded:{...}} OR a bare grounded block. Cited PMIDs already passed
+    confab-containment in build_grounded_block (unretrieved PMIDs were dropped), so they are trusted
+    here as the retrieved-and-cited set."""
+    if not isinstance(substrate, dict) or not substrate:
+        return {"present": False, "per_axis": [], "pmids": set(),
+                "discordant_axes": [], "n_findings": 0}
+    per_axis, pmids, discordant, n_findings = [], set(), [], 0
+    for axis, rec in substrate.items():
+        if not isinstance(rec, dict):
+            continue
+        g = rec.get("grounded", rec) or {}
+        findings = []
+        for f in (g.get("findings") or g.get("liability_findings") or []):
+            if not isinstance(f, dict):
+                f = {"finding": f, "kind": "", "cited_pmids": []}
+            cp = [str(p) for p in (f.get("cited_pmids") or [])]
+            pmids.update(cp)
+            findings.append({"finding": f.get("finding"), "kind": f.get("kind"), "cited_pmids": cp})
+        n_findings += len(findings)
+        contra = bool(g.get("contradicts_deterministic"))
+        if contra:
+            discordant.append(axis)
+        per_axis.append({"axis": axis, "anchor_verdict": g.get("anchor_verdict"),
+                         "findings": findings, "corroborations": g.get("corroborations") or [],
+                         "contradicts_deterministic": contra, "corpus_pin": g.get("corpus_pin"),
+                         "escalate_only": bool(g.get("escalate_only", True))})
+    return {"present": True, "per_axis": per_axis, "pmids": pmids,
+            "discordant_axes": discordant, "n_findings": n_findings}
+
+
 # --- panel assembly + citation surface --------------------------------------------------------------
 def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str],
-             modality: str) -> dict:
+             modality: str, substrate: Optional[dict] = None) -> dict:
     """Assemble the panel + citation surface the two LLM calls reason over. READ-ONLY consumer:
     parses the target-profile evidence_package + optional target-intrinsic dossier + optional 6-dim
     risk read; never modifies any emitting skill."""
@@ -812,12 +857,20 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
         risk_present = True
 
     subtype = parse_subtype_resolved(pkg)
-    substrate = substrate_independence(pkg)
+    substrate_ind = substrate_independence(pkg)
+
+    # per-subskill GROUNDED SUBSTRATE (the design-correct literature path, §13). Its cited PMIDs join
+    # the citation surface so a hypothesis clause may cite grounded literature and stay TRACEABLE;
+    # the findings ride the panel (below) for the LLM to reason over. Escalate-only: they never touch
+    # the deterministic ceiling (computed downstream purely from the package hard_gates).
+    grounded = parse_grounded_substrate(substrate)
+    allowed_pmids |= grounded["pmids"]
 
     ctx = pkg.get("context", {})
     return {
         "pkg": pkg, "conviction": conviction, "risk": risk, "context": ctx,
-        "dossier": dossier, "subtype": subtype, "substrate": substrate,
+        "dossier": dossier, "subtype": subtype, "substrate": substrate_ind,
+        "grounded_substrate": grounded, "grounded_substrate_present": grounded["present"],
         "dossier_present": dossier_present, "risk_present": risk_present,
         "modality": modality,
         "citation_surface": {

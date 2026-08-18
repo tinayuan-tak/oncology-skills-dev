@@ -367,3 +367,82 @@ def test_end_to_end_degraded_mode_when_inputs_missing():
     assert any("degraded inputs" in reason for reason in r["uncertainty"]["cap_reasons"])
     # with risk missing there are no allowed PMIDs → the clean stub's real PMID is now untraceable
     assert r["defensibility"]["promotable"] is False
+
+
+# ======================= [3B] NATIVE GROUNDED-SUBSTRATE WIRING (design §13) =======================
+def _substrate_discordant():
+    """A per-subskill grounded substrate (ground_axis output): safety axis whose literature
+    CONTRADICTS the deterministic verdict, plus a concordant selectivity axis in the BARE-block shape."""
+    return {
+        "safety": {"axis": "safety", "deterministic": {"verdict": "tolerant_reduced_safety_risk"},
+                   "grounded": {"findings": [{"finding": "class-wide ocular toxicity reported",
+                                              "kind": "on-target normal-tissue tox",
+                                              "cited_pmids": ["29999999"]}],
+                                "corroborations": [], "contradicts_deterministic": True,
+                                "anchor_verdict": "tolerant_reduced_safety_risk",
+                                "escalate_only": True, "corpus_pin": {"mindate": "2015"}}},
+        # BARE grounded block (no {axis, deterministic, grounded} wrapper) — tolerance
+        "selectivity": {"findings": [{"finding": "some normal expression", "kind": "normal-tissue",
+                                      "cited_pmids": ["28888888"]}],
+                        "contradicts_deterministic": False, "anchor_verdict": "selective",
+                        "escalate_only": True},
+        "junk": "not a dict — must be skipped",
+    }
+
+
+def test_parse_grounded_substrate_shapes_pmids_and_discordance():
+    g = hc.parse_grounded_substrate(_substrate_discordant())
+    assert g["present"] is True
+    assert g["pmids"] == {"29999999", "28888888"}     # collected across BOTH record shapes
+    assert g["discordant_axes"] == ["safety"]          # only the contradicting axis
+    assert g["n_findings"] == 2
+    # absence tolerated
+    empty = hc.parse_grounded_substrate(None)
+    assert empty["present"] is False and empty["pmids"] == set() and empty["discordant_axes"] == []
+
+
+def test_assemble_folds_grounded_pmids_into_citation_surface():
+    """The design-correct literature path: a grounded PMID becomes CITABLE (traceable) ONLY because the
+    substrate was fed in natively — proving literature reaches the hypothesis via grounding, not risk."""
+    sub = {"safety": {"grounded": {"findings": [{"finding": "x", "kind": "y",
+                                                 "cited_pmids": ["29999999"]}],
+                                    "contradicts_deterministic": False, "anchor_verdict": "v"}}}
+    surf = hc.assemble(str(PKG), None, None, "small_molecule", substrate=sub)["citation_surface"]
+    assert "29999999" in surf["pmids"]
+    assert hc.check_traceability(["29999999"], surf) == []          # now citable
+    # WITHOUT the substrate the same PMID is confabulation (untraceable)
+    surf0 = hc.assemble(str(PKG), None, None, "small_molecule")["citation_surface"]
+    assert hc.check_traceability(["29999999"], surf0)
+
+
+def test_run_surfaces_grounded_discordance_and_is_escalate_only():
+    base = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+                 str(DOSSIER), synthesize_fn=_stub_clean)
+    withsub = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+                    str(DOSSIER), synthesize_fn=_stub_clean, substrate=_substrate_discordant())
+    gs = withsub["grounded_substrate"]
+    assert gs["present"] is True and gs["n_findings"] == 2
+    assert gs["discordant_axes"] == ["safety"] and gs["n_grounded_pmids"] == 2
+    # the engine↔literature discordance is surfaced as a DETERMINISTIC tension
+    ts = withsub["hypothesis"]["tensions"]
+    assert any(t.get("source") == "grounded_substrate_discordance" and t.get("axis") == "safety"
+               for t in ts)
+    assert gs["n_discordance_tensions_surfaced"] == 1
+    # ESCALATE-ONLY: grounded literature never moves the deterministic ceiling / verdict / promotability
+    assert withsub["verdict"]["gate_ceiling"] == base["verdict"]["gate_ceiling"]
+    assert withsub["verdict"]["computed"] == base["verdict"]["computed"]
+    assert withsub["defensibility"]["promotable"] == base["defensibility"]["promotable"]
+    assert withsub["degraded_mode"]["grounded_substrate_present"] is True
+    json.dumps(withsub)   # fully serializable
+
+
+def test_run_without_substrate_leaves_grounded_absent_and_stable():
+    """No --substrate → grounded_substrate absent, no discordance tension, presence flag False. This is
+    the drift-CI invariant: the golden cases pass no substrate, so the deterministic spine is unmoved."""
+    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+              str(DOSSIER), synthesize_fn=_stub_clean)
+    gs = r["grounded_substrate"]
+    assert gs["present"] is False and gs["n_findings"] == 0 and gs["discordant_axes"] == []
+    assert not any(t.get("source") == "grounded_substrate_discordance"
+                   for t in r["hypothesis"]["tensions"])
+    assert r["degraded_mode"]["grounded_substrate_present"] is False

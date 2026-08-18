@@ -24,8 +24,15 @@ The LLM call is injectable (`synthesize_fn`) so the deterministic spine is unit-
 Run:  BEDROCK_AWS_PROFILE=cmp-dev python3 run.py \
         --evidence-package <target-profile evidence_package.json> \
         --target-dossier   <target-intrinsic decision.json>      (optional) \
+        --substrate safety=safety.json selectivity=sel.json ...  (optional; per-subskill ground_axis) \
         --risk             <6-dim risk decision.json>            (optional) \
         --modality small_molecule                                (controlled enum)
+
+Grounded literature enters the hypothesis NATIVELY via `--substrate` (per-subskill ground_axis blocks),
+NOT via the risk projection — the two projections (6-dim risk + this hypothesis) are SIBLINGS off the
+one shared substrate (grounded-substrate two-projection design §13). The substrate is escalate-only: it
+enriches the panel + adds citable PMIDs + surfaces engine↔literature discordance as tensions, but never
+lowers the deterministic gate ceiling.
 """
 from __future__ import annotations
 
@@ -283,6 +290,18 @@ def _panel_block(panel: dict, objective: str) -> str:
             "SUBTYPE-RESOLVED per-stratum records (cite the stratum name; a stratum axis with "
             "n_floor_met_by_axis=false is UNDERPOWERED — do not credit it):\n"
             f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}\n\n")
+    # per-subskill GROUNDED SUBSTRATE — the design-correct literature path (§13): escalate-only
+    # per-axis literature findings, each ANCHORED to the axis it augments. The engine may MISS these;
+    # they RAISE a concern, never lower one. Their PMIDs are in the citation surface (cite them).
+    grounded_block = ""
+    gs = panel.get("grounded_substrate") or {}
+    if gs.get("present") and gs.get("per_axis"):
+        grounded_block = (
+            "GROUNDED per-axis SUBSTRATE — escalate-only literature findings, EACH ANCHORED to its "
+            "axis (the deterministic engine may MISS these; a finding may RAISE that axis's concern, "
+            "never lower it). Cite the PMIDs listed. An axis with contradicts_deterministic=true "
+            "DISAGREES with that axis's deterministic verdict — you MUST surface it as a tension:\n"
+            f"{json.dumps(gs['per_axis'], indent=1, default=str)}\n\n")
     return (
         f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
         f"TARGET: {tgt}\nINDICATION: {ind}\nSCOPED SUBTYPE: {scoped_subtype}\n\n"
@@ -291,20 +310,26 @@ def _panel_block(panel: dict, objective: str) -> str:
         f"{json.dumps(panel['conviction'], indent=1, default=str)}\n\n"
         f"PANEL — per-card interpretation (card_id -> call; cite these card_ids):\n"
         f"{json.dumps(panel['cards_brief'], indent=1, default=str)}\n\n"
+        f"{grounded_block}"
         f"GROUNDED literature risk reads:\n{json.dumps(panel['risk'], indent=1, default=str)}\n\n"), \
         tgt, ind, scoped_subtype
 
 
 def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug target",
-        modality=None, dossier_path=None, synthesize_fn=None, llm_mode=None) -> dict:
+        modality=None, dossier_path=None, synthesize_fn=None, llm_mode=None,
+        substrate=None) -> dict:
     """Assemble the panel, run the two-call pipeline, clamp, and enforce the defensibility contract.
     `synthesize_fn(system, user, name, schema, max_tokens=...)` is injectable for offline testing.
     `llm_mode` labels provenance: 'bedrock' (default live), 'offline_replay', or 'injected' (a test
-    stub); it never changes the deterministic spine, only what model_id is pinned."""
+    stub); it never changes the deterministic spine, only what model_id is pinned.
+    `substrate` is the per-subskill GROUNDED SUBSTRATE (dict axis→ground_axis block): the design-correct
+    literature path (§13) — its findings enrich the panel + its PMIDs become citable, and any axis that
+    contradicts its deterministic verdict is surfaced as a tension. Escalate-only: it never lowers the
+    deterministic ceiling."""
     if llm_mode is None:
         llm_mode = "bedrock" if synthesize_fn is None else "injected"
     modality_resolved, modality_inferred = hc.resolve_modality(modality, objective)
-    panel = hc.assemble(pkg_path, risk_path, dossier_path, modality_resolved)
+    panel = hc.assemble(pkg_path, risk_path, dossier_path, modality_resolved, substrate=substrate)
     synth = synthesize_fn or _default_synthesize()
     panel_block, tgt, ind, scoped_subtype = _panel_block(panel, objective)
 
@@ -400,6 +425,26 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         tensions = tensions + coherence_surfaced_tensions
         out["tensions"] = tensions
 
+    # --- GROUNDED-SUBSTRATE discordance surfacing (§13, escalate-only): for each axis whose grounded
+    # literature CONTRADICTS its deterministic verdict, surface a DETERMINISTIC tension (tagged
+    # grounded_substrate_discordance) citing the axis + its grounded PMIDs — so the engine↔literature
+    # disagreement is carried explicitly for a reviewer/skeptic. This RAISES a concern; it never lowers
+    # the ceiling (the clamp above already ran off the package hard_gates alone). ---
+    grounded = panel.get("grounded_substrate") or {}
+    grounded_discordance_tensions = []
+    for ax in grounded.get("discordant_axes", []):
+        rec = next((r for r in grounded.get("per_axis", []) if r.get("axis") == ax), {})
+        pmids = sorted({p for f in rec.get("findings", []) for p in (f.get("cited_pmids") or [])})
+        grounded_discordance_tensions.append({
+            "statement": (f"grounded literature on the '{ax}' axis contradicts its deterministic "
+                          f"verdict '{rec.get('anchor_verdict')}' — an escalate-only concern the "
+                          "engine's narrow verdict may have missed"),
+            "citations": [ax] + pmids, "axis": ax,
+            "source": "grounded_substrate_discordance"})
+    if grounded_discordance_tensions:
+        tensions = tensions + grounded_discordance_tensions
+        out["tensions"] = tensions
+
     # --- minimum-inputs gate (§12): enough non-gap in-scope decision lines to reason over? ---
     n_supporting = sum(1 for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
     minimum_inputs_met = n_supporting >= 2
@@ -475,8 +520,22 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         },
         "degraded_mode": {
             "dossier_present": panel["dossier_present"], "risk_present": panel["risk_present"],
+            "grounded_substrate_present": panel.get("grounded_substrate_present", False),
             "degraded_inputs": degraded_inputs, "minimum_inputs_met": minimum_inputs_met,
             "n_supporting_in_scope_lines": n_supporting,
+        },
+        # --- GROUNDED SUBSTRATE (§13): the per-axis literature findings the hypothesis reasoned over,
+        # the count of grounded PMIDs folded into the citation surface, and the engine↔literature
+        # discordant axes surfaced as tensions above. Informational (escalate-only; never caps the
+        # verdict) — but it is the auditable record that literature reached the hypothesis NATIVELY
+        # (per-subskill), not via the risk projection. ---
+        "grounded_substrate": {
+            "present": grounded.get("present", False),
+            "n_findings": grounded.get("n_findings", 0),
+            "n_grounded_pmids": len(grounded.get("pmids") or ()),
+            "discordant_axes": grounded.get("discordant_axes", []),
+            "n_discordance_tensions_surfaced": len(grounded_discordance_tensions),
+            "per_axis": grounded.get("per_axis", []),
         },
         # --- optional intrinsic-quality slot (WS5). adversarial_survival is null until the optional
         # post-check (scripts/adversarial_survival.py, needs Bedrock) is run; the deterministic
@@ -500,6 +559,11 @@ def main(argv=None) -> int:
     ap.add_argument("--target-dossier", default=None,
                     help="target-intrinsic decision.json (indication-independent target biology)")
     ap.add_argument("--risk", default=None, help="6-dim literature-risk decision.json (optional)")
+    ap.add_argument("--substrate", nargs="*", default=[], metavar="AXIS=PATH",
+                    help="per-subskill GROUNDED SUBSTRATE blocks (ground_axis output), as axis=path "
+                         "(e.g. safety=safety.json selectivity=sel.json). The DESIGN-CORRECT literature "
+                         "path (§13): findings enrich the panel + PMIDs become citable; discordant axes "
+                         "surface as tensions. Escalate-only — never lowers the deterministic ceiling.")
     ap.add_argument("--objective", default="small-molecule drug target",
                     help="free-text objective (narration only)")
     ap.add_argument("--modality", default=None, choices=sorted(hc.MODALITY_SCOPE),
@@ -521,11 +585,20 @@ def main(argv=None) -> int:
         synthesize_fn = replay_synthesize(json.loads(Path(args.llm_replay).read_text()))
         llm_mode = "offline_replay"
 
+    # load the per-subskill grounded substrate blocks (axis=path), if any
+    substrate = {}
+    for spec in (args.substrate or []):
+        if "=" not in spec:
+            print(f"--substrate expects axis=path, got {spec!r}", file=sys.stderr)
+            return 2
+        ax, p = spec.split("=", 1)
+        substrate[ax] = json.loads(Path(p).read_text())
+
     outd = Path(args.out)
     outd.mkdir(parents=True, exist_ok=True)
     print("→ assembling cross-evidence hypothesis ...", file=sys.stderr)
     r = run(args.evidence_package, args.risk, args.objective, args.modality, args.target_dossier,
-            synthesize_fn=synthesize_fn, llm_mode=llm_mode)
+            synthesize_fn=synthesize_fn, llm_mode=llm_mode, substrate=substrate or None)
     (outd / "hypothesis.json").write_text(json.dumps(r, indent=2, default=str))
 
     v = r["verdict"]
@@ -546,6 +619,11 @@ def main(argv=None) -> int:
     if d["coherence_violations"]:
         print(f"  COHERENCE: {d['n_coherence_violations']} intra-package contradiction(s): "
               f"{ {k: [x['type'] for x in v] for k, v in d['coherence_violations'].items()} }")
+    gsub = r["grounded_substrate"]
+    if gsub["present"]:
+        print(f"GROUNDED SUBSTRATE: {gsub['n_findings']} finding(s) / {gsub['n_grounded_pmids']} "
+              f"citable PMID(s) across {len(gsub['per_axis'])} axes"
+              + (f"; discordant: {gsub['discordant_axes']}" if gsub["discordant_axes"] else ""))
     print(f"PROVENANCE: model={r['provenance']['model_id']} "
           f"prompt_template_hash={r['provenance']['prompt_template_hash'][:12]}… "
           f"mode={r['provenance']['llm_mode']}")
