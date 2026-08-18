@@ -3,9 +3,9 @@ name: target-intrinsic
 description: |
   The INDICATION-INDEPENDENT target dossier: "what do we know about target X,
   independent of any cancer?" Fans out over the tier:target cards — identity,
-  on-target-safety genetics (the whole P5 axis), protein-class / structure /
-  modality biophysics, functional annotation (GO), mechanism + pathway role
-  (SIGNOR / Reactome), interactome (STRING / CORUM / BioGRID), domain
+  on-target-safety genetics, protein-class / structure / modality biophysics,
+  functional annotation (GO), mechanism + pathway role (composed signaling
+  network / Reactome), interactome (STRING / CORUM / BioGRID), domain
   architecture + domain→modality implication, and paralog buffering — the facts
   true of the PROTEIN/GENE regardless of indication. Disease/pan-cancer
   observations (tumor elevation, dependency, mutation frequency, PRISM,
@@ -13,18 +13,10 @@ description: |
   indication-scoped subskills.
 
   Invoked with --target ALONE (no --indication). A FOCUSED subskill (like
-  tumor-presence) giving a standalone portfolio-triage view — "is this target
-  worth an indication deep-dive at all?" Its cards feed the indication-scoped
-  skills at the CARD level (shared dispatcher). As of WS1 (2026-08-17) it is ALSO
-  composed into target-profile's sub-skill fan-out as a GATELESS descriptive PEER
-  (short `target_intrinsic`): the fan-out reads its target-intrinsic-EXCLUSIVE cards
-  so the indication-independent target biology reaches the cross-evidence integrator
-  (sub_verdicts render + LLM synthesis) as a first-class input. Because this skill
-  has synthesis:none (no verdict) AND is deliberately absent from target-profile's
-  `_SHORT_TO_GATE`, its verdict is None and it drives NO gate — it can never gate or
-  lift a nomination (the descriptive contract holds structurally). A bundle-level
-  compute-once reuse remains a future optimization; the fan-out composes at the CARD
-  level (its non-exclusive cards are read under their existing sub-skill lenses).
+  tumor-presence) giving a standalone portfolio-triage view. It is also composed
+  into target-profile's fan-out as a GATELESS descriptive peer, contributing its
+  target-intrinsic biology to the cross-evidence synthesis without ever gating a
+  nomination.
 
   DESCRIPTIVE, not nominating (synthesis: none, no verdict): target-intrinsic
   evidence informs confidence/context but never mints a recommendation —
@@ -33,7 +25,7 @@ description: |
   grain level.
 
 metadata:
-  version: 1.2.0
+  version: 1.2.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -56,7 +48,7 @@ composition:
     - structure-features-static
     - shed-ectodomain-liability
     - protein-domains-class
-    - target-development-level            # Pharos/IDG TDL (2026-08-10): druggability/novelty tier (Tclin/Tchem/Tbio/Tdark) + family; verdict-inert
+    - target-development-level            # Pharos/IDG TDL: druggability/novelty tier (Tclin/Tchem/Tbio/Tdark) + family; verdict-inert
     - domain-modality-relevance
     - ppi-interactome
     - gene-ontology-annotation
@@ -80,7 +72,7 @@ composition:
     - structure_druggability
     - shed_ectodomain_liability
     - protein_domains_class
-    - target_development_level          # Pharos/IDG TDL (#322, 2026-08-10) — was in cards_used but missing here
+    - target_development_level          # Pharos/IDG TDL
     - domain_modality_relevance
     - ppi_interactome
     - gene_ontology_annotation
@@ -106,10 +98,9 @@ composition:
 - Answers the INDICATION-INDEPENDENT question: what is true of target X as a
   protein/gene, regardless of cancer type. Invoked with `--target` alone.
 - Fans out (via the shared run_wired_skill dispatcher, which makes `--indication`
-  optional as of 2026-08-05) over the 19 live-wired `tier: target` cards, grouped
-  by sub-axis:
+  optional) over the 19 live-wired `tier: target` cards, grouped by sub-axis:
   - **identity** — target-identity-summary
-  - **on-target-safety genetics (P5)** — gnomAD LoF constraint, gene-burden,
+  - **on-target-safety genetics** — gnomAD LoF constraint, gene-burden,
     ClinGen dosage, ClinVar pathogenicity, mouse-KO phenotype, OT safety prioritisation
     (the last is orientation-only — its safety dimension overlaps the dedicated constraint + mouse-KO cards)
   - **protein class / structure / modality biophysics** — surfaceome family, structure
@@ -145,19 +136,16 @@ portfolio-triage dossier and (b) is the intended home for the target-intrinsic
 bundle so target-profile can eventually compute it ONCE instead of re-deriving
 per indication.
 
-NOTE (updated WS1, 2026-08-17): target-intrinsic IS now in target-profile's
-sub-skill fan-out (`SUB_SKILLS` / `SUB_SKILL_CARDS` in
-target-profile/scripts/tp_fanout.py) as a GATELESS descriptive peer — but the
-fan-out composes only its target-intrinsic-EXCLUSIVE cards (target-identity-summary,
-target-development-level, protein-domains-class, domain-modality-relevance,
-ppi-interactome, gene-ontology-annotation, reactome-pathway-membership). Its OTHER
-cards (gnomAD/P5 safety, surfaceome/structure/shed/normal-tissue, signaling-network,
-paralog-buffering) are already composed under the indication-scoped sub-skills, so
-they are read there — not re-read under target_intrinsic (no double-read). This is
-still CARD-level composition (not the aspirational bundle-level compute-once reuse):
-the same live readers / CARD_DISPATCHERS back both this skill and the composed
-sub-skills, so there is no computation drift. Bundle-level compute-once reuse remains
-a tracked future optimization.
+Composition into target-profile: target-intrinsic is in target-profile's sub-skill
+fan-out (`SUB_SKILLS` / `SUB_SKILL_CARDS` in target-profile/scripts/tp_fanout.py) as
+a GATELESS descriptive peer. The fan-out reads only its target-intrinsic-EXCLUSIVE
+cards (target-identity-summary, target-development-level, protein-domains-class,
+domain-modality-relevance, ppi-interactome, gene-ontology-annotation,
+reactome-pathway-membership); its other cards are already composed under the
+indication-scoped sub-skills and read there (no double-read). This is CARD-level
+composition — the same live readers / CARD_DISPATCHERS back both this skill and the
+composed sub-skills, so there is no computation drift. Bundle-level compute-once
+reuse remains a tracked future optimization.
 
 ## Invocation
 

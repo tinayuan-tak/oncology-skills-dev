@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
 """target-intrinsic — the INDICATION-INDEPENDENT target dossier.
 
-Answers "what do we know about target X, independent of any cancer?" — the facts that are true of the
-PROTEIN/GENE regardless of indication: identity, on-target-safety genetics (the whole P5 axis is
-target-grain), protein-class / structure / modality biophysics, functional annotation (GO), mechanism
-+ pathway role (SIGNOR / Reactome), interactome (STRING / CORUM / BioGRID), domain architecture +
-domain→modality implication, and paralog buffering. These are the `tier: target` cards (target-contracts)
-— a grain that already exists on cards but had no composed entrypoint: target-profile hard-required an
-indication, so target-intrinsic facts were scattered across nominally indication-scoped subskills and
-recomputed identically for every (target × indication) run. STRICT molecular-intrinsic: pan-cancer
-DISEASE observations (tumor elevation, dependency, mutation frequency, PRISM, cell-line abundance) are
-DELIBERATELY EXCLUDED — they are aggregated cancer behavior, owned by the disease-context subskills.
+Answers "what do we know about target X, independent of any cancer?" — the facts true of the
+PROTEIN/GENE regardless of indication: identity, on-target-safety genetics, protein-class /
+structure / modality biophysics, functional annotation (GO), mechanism + pathway role (composed
+signaling network / Reactome), interactome (STRING / CORUM / BioGRID), domain architecture +
+domain→modality implication, and paralog buffering — the `tier: target` cards. Pan-cancer DISEASE
+observations (tumor elevation, dependency, mutation frequency, PRISM, cell-line abundance) are
+DELIBERATELY EXCLUDED: they are aggregated cancer behavior, owned by the disease-context subskills.
 
-This is a FOCUSED subskill (like tumor-presence / tumor-selectivity) that the composed skills reuse —
-NOT a nominating gate. It is DESCRIPTIVE: verdict_fn=None. Nomination is inherently indication-
-conditioned (a target's therapeutic value depends on the cancer), so a target-intrinsic view informs
-confidence/context but never mints a recommendation — the one-directional-gate discipline, applied at
-the grain level.
+DESCRIPTIVE, not nominating (verdict_fn=None): a target's therapeutic value is indication-conditioned,
+so target-intrinsic evidence informs confidence/context but never mints a recommendation. Invoked with
+--target ALONE; the shared dispatcher makes --indication optional and passes a pan-cancer sentinel that
+these tier:target readers ignore.
 
-Invoked with --target ALONE (no --indication): the dispatcher (2026-08-05) makes --indication optional
-and passes a pan-cancer sentinel that these tier:target readers ignore.
-
-CARDS — the live-wired tier:target roster, grouped by target-intrinsic sub-axis:
+See SKILL.md for the full rationale, card roster, and how this skill composes into target-profile.
+The CARDS list below is the single source of truth for the live-wired roster (grouped by sub-axis).
 """
 
 from __future__ import annotations
@@ -37,22 +31,15 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.2.0"   # 2026-08-11 — prod-readiness pass: fixed the catalog-visible description (dropped
-                          # the EXCLUDED pan-cancer/dependency/SL advertising), count corrected to 19 cards
-                          # (target-development-level #322 landed but prose still said 18), measurement_types
-                          # parity, and corrected the target-profile bundle-reuse claim (not wired — card-level
-                          # reuse only). Descriptive, no verdict.
-                          # (1.1.0 2026-08-08 surfaced domain-modality-relevance in the dossier headline.)
+SKILL_VERSION = "1.2.1"   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
-    # STRICT MOLECULAR-INTRINSIC only: properties TRUE OF THE MOLECULE (protein/gene), independent of
-    # any cancer. Disease/pan-cancer observations (tumor elevation, dependency, mutation frequency,
-    # PRISM, cell-line abundance) DELIBERATELY EXCLUDED — those are aggregated cancer behavior, not
-    # molecular-intrinsic facts, and remain in the disease-context subskills (tumor-presence,
-    # functional-requirement, genomic-alteration-profile, etc.) where a pan-cancer roll-up belongs.
+    # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
+    # any cancer. Pan-cancer disease observations (tumor elevation, dependency, mutation frequency,
+    # PRISM, cell-line abundance) are excluded — they belong to the disease-context subskills.
     # --- IDENTITY ------------------------------------------------------------------------------
     "target-identity-summary",           # canonical id, family, aliases
-    # --- GERMLINE GENETICS & CONSTRAINT (properties of the GENE; the P5 safety axis) -----------
+    # --- GERMLINE GENETICS & CONSTRAINT (properties of the GENE; the on-target-safety axis) -----
     "gnomad-lof-constraint",             # germline LoF intolerance (pLI/LOEUF)
     "gene-burden-safety",                # rare-variant burden safety signal
     "clingen-dosage",                    # ClinGen haploinsufficiency / triplosensitivity
@@ -61,7 +48,7 @@ CARDS = [
     "target-safety-prioritisation",      # OT composite prioritisation score. ORIENTATION-ONLY (verdict-inert):
                                          # its SAFETY dimension overlaps gnomad-lof-constraint + mouse-ko-phenotype
                                          # (the dedicated cards); retained for its tractability/precedence dimensions,
-                                         # not to be read as a standalone safety fact. (prod-readiness review 2026-08-11)
+                                         # not read as a standalone safety fact.
     # --- PROTEIN CLASS / STRUCTURE / BIOPHYSICS (properties of the PROTEIN) ---------------------
     "surfaceome-family-classification",  # surface protein family + membership (protein-class proxy)
     "structure-features-static",         # fold / pockets / ligandability (structure-intrinsic)
@@ -69,20 +56,16 @@ CARDS = [
     # --- FUNCTIONAL ANNOTATION (Gene Ontology: what it does / where it is / what processes) -----
     "gene-ontology-annotation",          # GO BP/MF/CC term membership (experimental-evidence-flagged)
     # --- MECHANISM / PATHWAY ROLE (the molecule's place in signaling) ---------------------------
-    "signaling-network-mechanism",       # SIGNOR/OmniPath upstream regulators + downstream effectors, MoA class
+    "signaling-network-mechanism",       # composed directed network (SIGNOR / CollecTRI / Reactome) + MoA class
     "reactome-pathway-membership",       # Reactome pathway/geneset MEMBERSHIP + top-level rollup (distinct from directed edges above)
     # --- INTERACTOME (physical/functional interactions + complex membership) --------------------
-    "ppi-interactome",                   # STRING high-confidence functional network + CORUM complex membership
+    "ppi-interactome",                   # STRING functional network + CORUM complexes + BioGRID physical interactions
     # --- DOMAIN ARCHITECTURE / PROTEIN CLASS (curated UniProt features) --------------------------
     "protein-domains-class",             # FT DOMAIN architecture + UniProt-keyword protein class
-    "target-development-level",          # Pharos/IDG TDL (2026-08-10): druggability/novelty tier
-                                         # (Tclin/Tchem/Tbio/Tdark) + family. VERDICT-INERT target-intrinsic facet.
-    "domain-modality-relevance",         # INTERPRETIVE domain→modality facet (inhibitor_sufficient vs
-                                         # removal_required_scaffolding, e.g. RIPK1). tier:target, verdict-inert.
-                                         # Card + method (methods/domain_modality_relevance) + dispatcher all LIVE
-                                         # (#264); was declared in SKILL.md cards_used but MISSING from run.py CARDS
-                                         # (declared-not-consumed drift) AND unread in _headline (resolved invisibly).
-                                         # 2026-08-08: added to CARDS + surfaced in _headline.
+    "target-development-level",          # Pharos/IDG TDL: druggability/novelty tier (Tclin/Tchem/Tbio/Tdark)
+                                         # + family. Verdict-inert target-intrinsic facet.
+    "domain-modality-relevance",         # INTERPRETIVE domain→modality facet: inhibitor_sufficient vs
+                                         # removal_required_scaffolding (e.g. RIPK1). tier:target, verdict-inert.
     # --- PARALOGS (gene-family redundancy — a genomic-intrinsic property) -----------------------
     "paralog-buffering",                 # sequence paralogs + buffering (dependency-hardening context)
     # --- NORMAL (non-disease) EXPRESSION --------------------------------------------------------
@@ -103,7 +86,7 @@ _HEADLINE_SPEC = [
     # identity
     ("target_symbol",                 "target-identity-summary",          "resolved_hgnc_symbol"),
     ("target_ensembl_id",             "target-identity-summary",          "resolved_ensembl_id"),
-    # safety genetics (P5)
+    # safety genetics
     ("gnomad_constraint_class",       "gnomad-lof-constraint",            "constraint_class"),
     ("clingen_dosage_class",          "clingen-dosage",                   "dosage_sensitivity_class"),
     ("clinvar_pathogenic_class",      "clinvar-pathogenicity-safety",     "clinvar_pathogenic_class"),
@@ -135,19 +118,18 @@ _HEADLINE_SPEC = [
     ("n_domains",                     "protein-domains-class",            "n_domains"),
     ("domain_architecture",           "protein-domains-class",            "domain_architecture"),
     ("protein_class",                 "protein-domains-class",            "protein_class"),
-    # Pharos/IDG Target Development Level (2026-08-10) — druggability/novelty tier (verdict-inert)
+    # Pharos/IDG Target Development Level — druggability/novelty tier (verdict-inert)
     ("tdl_class",                     "target-development-level",         "tdl_class"),
     ("tdl_target_family",             "target-development-level",         "target_family"),
     ("tdl_novelty_score",             "target-development-level",         "novelty_score"),
     # domain→modality implication (INTERPRETIVE sibling of protein-domains-class): inhibitor-sufficient
-    # vs removal-required (degrader/scaffolding). Verdict-inert (target-intrinsic is descriptive); the
-    # heuristic returns indeterminate for a multi-domain enzyme (v0.2.0), curated RIPK1 →
-    # removal_required_scaffolding.
+    # vs removal-required (degrader/scaffolding). Verdict-inert; the heuristic returns indeterminate for
+    # a multi-domain enzyme, curated RIPK1 → removal_required_scaffolding.
     ("modality_implication_class",    "domain-modality-relevance",        "modality_implication_class"),
     ("modality_implication_basis",    "domain-modality-relevance",        "modality_implication_basis"),
     ("modality_scaffolding_function", "domain-modality-relevance",        "scaffolding_function"),
     ("modality_implication_context",  "domain-modality-relevance",        "modality_context"),
-    # interactome (STRING network + CORUM complexes)
+    # interactome (STRING functional network + CORUM complexes + BioGRID physical)
     ("interactome_class",             "ppi-interactome",                  "interactome_class"),
     ("n_high_confidence_interactors", "ppi-interactome",                  "n_high_confidence_interactors"),
     ("n_corum_complexes",             "ppi-interactome",                  "n_corum_complexes"),
