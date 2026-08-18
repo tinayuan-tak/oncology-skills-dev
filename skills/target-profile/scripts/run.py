@@ -169,6 +169,13 @@ def main() -> int:
                          "executive-summary + tension synthesis on the HTML dashboard (the cross-evidence "
                          "integrator is a meta-layer above target-profile). Display-only; the deterministic "
                          "recommendation stays the header top-line.")
+    ap.add_argument("--ab-suppress-fragility-prompt", action="store_true",
+                    help="A/B CONTROL ARM (Phase-0 certainty-layer gate): suppress the per-axis "
+                         "how-solid (certainty) block in the synthesis prompt only. Verdict-INERT — "
+                         "the fragility facet is still computed and written to nomination.json, and "
+                         "the deterministic recommendation/confidence spine is byte-identical; this "
+                         "flag changes ONLY what the LLM narration sees, so an A/B run can measure "
+                         "the block's effect on the prose. Not for production use.")
     args = ap.parse_args()
 
     # --verdict-only is the umbrella fast mode: skip BOTH the LLM synthesis tail and figure/panel
@@ -313,6 +320,7 @@ def main() -> int:
             biomarker_facet=biomarker_facet,
             subtype_facet=subtype_facet,
             presence_facet=presence_facet,
+            fragility=(None if args.ab_suppress_fragility_prompt else fragility),
             axis_info=axis_info,
         )
         llm_output = synthesize_structured(

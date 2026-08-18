@@ -266,6 +266,60 @@ def _format_card_summary_for_prompt(summary: dict) -> str:
     return json.dumps(out, default=str)[:_PROMPT_CARD_CHAR_CAP]
 
 
+def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
+    """Render the per-axis how-solid (certainty) block from the ALREADY-computed fragility facet.
+
+    Purely presentational + VERDICT-INERT: it reads the facet's `per_axis` (coverage +
+    call-fragility) and `blind_decision_axes`, plus each sub-result's missing-card count, and
+    renders them for the narration to calibrate confidence. It NEVER changes the recommendation,
+    the gate, or the audited confidence tier. WEAKEST-LINK framing (do not average across axes)
+    and the MNAR discipline (a blind axis is absence-of-evidence, not a negative) are stated
+    explicitly so the LLM does not scalarize or mis-read a coverage gap as a finding."""
+    per_axis = (fragility.get("per_axis") or {})
+    if not per_axis:
+        return []
+    lines = [
+        "",
+        "### Per-axis certainty / how-solid facet (deterministic; a FACET, not a gate)",
+        "How well-supported each decision-relevant axis's CALL is — coverage (did we measure it, "
+        "with what power) and single-rule call-fragility (how easily the call flips). Read it "
+        "WEAKEST-LINK: a single thin-coverage or BLIND decision-relevant axis caps how confident "
+        "the synthesis should sound — do NOT average or sum these across axes. Coverage/blindness "
+        "is ABSENCE OF EVIDENCE (we did not measure it), NOT evidence of absence — never narrate a "
+        "blind or low-coverage axis as a negative finding.",
+        "| axis | call | coverage | call-fragility | missing cards |",
+        "|---|---|---|---|---|",
+    ]
+    for short in sorted(per_axis):
+        pa = per_axis[short]
+        r = sub_results.get(short) or {}
+        cards = r.get("cards") or []
+        n_missing = sum(1 for c in cards if c.get("_missing"))
+        missing = f"{n_missing}/{len(cards)}" if cards else "—"
+        call = pa.get("base_verdict") or "(blind — no evidenced verdict)"
+        frag = pa.get("fragility")
+        frag_s = "—" if frag is None else f"{frag}"
+        lines.append(f"| {short} | `{call}` | {pa.get('coverage', 'blind')} | {frag_s} | {missing} |")
+    ti = fragility.get("target_index")
+    rfi = fragility.get("recommendation_fragility_index")
+    contested = fragility.get("contested")
+    lines.append(
+        f"- worst call-fragility (target_index): {ti} ; worst GO/NO-GO fragility "
+        f"(recommendation_fragility_index): {rfi} ; contested: {contested}. 0 = robust; None = no "
+        "flippable/evidenced axis.")
+    blind = fragility.get("blind_decision_axes") or []
+    if blind:
+        lines.append(
+            f"- BLIND decision-relevant axes (measured GAP, not a negative — widen uncertainty and "
+            f"say the evidence is thin here, do NOT read as a null result): {blind}")
+    lines.append(
+        "  NOTE: VERDICT-INERT — this facet does NOT move the recommendation, the gate, or the "
+        "audited confidence tier. Use it ONLY to calibrate how confident the executive_summary / "
+        "tension_analysis should read and to name which axes are thin/fragile. Fragility is a "
+        "structural sensitivity measure, NOT a probability the target succeeds; never sum/average it.")
+    return lines
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -276,15 +330,23 @@ def _build_user_prompt(
     biomarker_facet: Optional[dict] = None,
     subtype_facet: Optional[dict] = None,
     presence_facet: Optional[dict] = None,
+    fragility: Optional[dict] = None,
     axis_info: Optional[dict] = None,
 ) -> str:
-    """Compose the user-message text: biology-axis governance + sub-verdicts + modality-scoped
-    matrix slice + biomarker convergence facet + card summaries + optional lens context.
+    """Compose the user-message text: biology-axis governance + sub-verdicts + per-axis
+    how-solid (certainty) block + modality-scoped matrix slice + biomarker convergence facet +
+    card summaries + optional lens context.
 
     axis_info (from _skills_common.biology_axis.resolve_biology_axis) steers modality EMPHASIS:
     it foregrounds the plausible modalities for the target's curated axis so the narration does
     not over-weight surface-antigen framing for an intracellular target (or vice versa). It is a
-    SLOT-2 emphasis steer only — the deterministic verdict + recommendation are untouched."""
+    SLOT-2 emphasis steer only — the deterministic verdict + recommendation are untouched.
+
+    fragility (the _fragility_facet emitted into nomination.json) supplies the per-axis
+    how-solid block: coverage + single-rule call-fragility per decision-relevant axis, plus the
+    blind (un-evidenced) axes. It calibrates HOW CONFIDENT the narration should read; it is
+    VERDICT-INERT — it never moves the recommendation, the gate, or the audited confidence tier
+    (which are clamped/floored deterministically in run.main), only the prose."""
     lines = [
         f"Target: {target}",
         f"Indication: {indication}",
@@ -310,6 +372,8 @@ def _build_user_prompt(
             lines.append(f"- **{short}** ({r['skill_dir']}): "
                          f"`{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
+    if fragility is not None:
+        lines.extend(_render_certainty_block(fragility, sub_results))
     if ordinal_matrix is not None:
         lines.extend(_render_matrix_slice_for_prompt(ordinal_matrix))
     if presence_facet is not None:
