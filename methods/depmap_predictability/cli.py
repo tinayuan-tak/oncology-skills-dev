@@ -12,8 +12,13 @@ v2 schema exposes:
   - pearson_r_rf + r² + bootstrap 95% CI (primary DepMap-parity scalar)
   - pearson_r_xgb + r² + CI (XGBoost companion)
   - model_agreement + delta_r2 (dual-model divergence diagnostic)
-  - top_features_rf_shap + top_features_xgb_shap (SHAP-ranked; RF importance
-    also carried per-feature for parity)
+  - top_features_rf_shap + top_features_xgb_shap: top-ranked features. NOTE: the
+    `_shap` column suffix is retained for schema-compat with v1/v2, but the shipped
+    26q1 products carry RF impurity importances / XGB gain importances, NOT SHAP
+    values (the precompute lazy-imports `shap` and took its documented fallback path
+    when shap was absent at runtime; see the derived-manifest provenance note). Human-
+    facing figure labels say "feature importance" accordingly. Re-run with `shap`
+    installed for true TreeExplainer attributions.
   - per_lineage_predictability (RF-only lineage-conditional table)
   - predictability_class (own_omics_driven / context_or_driver_dependent /
     weakly_predictable / unpredictable / data_unavailable)
@@ -188,7 +193,7 @@ def emit_feature_importance_bar(summary: dict, target: str,
         fig.savefig(out_path); plt.close(fig)
         return out_path
 
-    # Top 10 SHAP-ranked
+    # Top 10 importance-ranked (RF impurity; see module docstring on the _shap suffix)
     names = [t["feature"] for t in top]
     imps = [t["importance"] for t in top]
     classes = [t["feature_class"] for t in top]
@@ -202,7 +207,7 @@ def emit_feature_importance_bar(summary: dict, target: str,
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
     ax.invert_yaxis()
-    ax.set_xlabel("SHAP mean(|value|)  (RandomForest)")
+    ax.set_xlabel("feature importance (RF impurity)")
 
     r_rf = summary.get("pearson_r_rf")
     r2_rf = summary.get("pearson_r_squared_rf")
@@ -290,7 +295,7 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
                       contracts_root: Path = DEFAULT_TARGET_CONTRACTS) -> list:
     """Emit interactive Plotly spec SIBLING to the feature-importance SVG (Gate-C plotly debt, 2026-07-21).
 
-    Interactive twin of emit_feature_importance_bar: horizontal bar of the top-10 SHAP-ranked RF
+    Interactive twin of emit_feature_importance_bar: horizontal bar of the top-10 importance-ranked RF
     features (pred_top_features_rf), colored by feature_class (SAME FEATURE_CLASS_COLORS as the SVG),
     per-feature hover (name / class / importance), title with r² + 95% CI + predictability_class +
     RF↔XGB divergence caveat. Built from the SAME summary the SVG + v2 parquet use (no drift).
@@ -308,7 +313,7 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
 
     written = []
     try:
-        # Reverse so the TOP SHAP feature sits at the top of the horizontal bar (mirrors invert_yaxis).
+        # Reverse so the TOP importance feature sits at the top of the horizontal bar (mirrors invert_yaxis).
         top10 = list(top[:10])[::-1]
         names = [t["feature"] for t in top10]
         imps = [t["importance"] for t in top10]
@@ -318,7 +323,7 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
             x=imps, y=list(range(len(names))), orientation="h", marker_color=colors,
             customdata=list(zip(names, classes)),
             hovertemplate="%{customdata[0]}<br>%{customdata[1]}"
-                          "<br>SHAP mean(|value|) %{x:.3f}<extra></extra>"))
+                          "<br>feature importance %{x:.3f}<extra></extra>"))
         r2_rf = summary.get("pearson_r_squared_rf")
         ci_lo, ci_hi = (summary.get("pearson_r_squared_rf_ci_lo"),
                         summary.get("pearson_r_squared_rf_ci_hi"))
@@ -331,7 +336,7 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
             subtitle = f"  |  RF↔XGB divergent (Δr²={summary['delta_r2']:+.2f})"
         fig.update_layout(
             title=f"{target} — predictability ({r2_txt}, {pred_class}){subtitle}",
-            xaxis_title="SHAP mean(|value|) (RandomForest)",
+            xaxis_title="feature importance (RF impurity)",
             yaxis=dict(tickmode="array", tickvals=list(range(len(names))), ticktext=names),
             template="plotly_white", showlegend=False, margin=dict(l=160, r=20, t=50, b=50))
         (out_path / "figure_feature_importance_bar.plotly.json").write_text(fig.to_json())
