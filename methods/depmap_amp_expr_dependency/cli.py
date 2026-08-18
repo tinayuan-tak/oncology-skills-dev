@@ -21,7 +21,10 @@ METHOD_VERSION = "0.1.0"
 # conjoint uses the FOCAL HIGH-LEVEL cut (matching depmap_cn_dependency.FOCAL_AMP_HIGH), so the conjoint
 # reflects focal amplification-driven overexpression, not a shallow arm-level gain that happens to be
 # high-expression.
-FOCAL_AMP = 2.0
+# Named FOCAL_AMP_HIGH (not FOCAL_AMP) to match depmap_cn_dependency's identical 2.0 cutoff and to
+# avoid colliding with depmap_cn_distribution.FOCAL_AMP, which is a DIFFERENT value (1.5, the
+# distribution card's focal-amp bin edge) — same word, different threshold.
+FOCAL_AMP_HIGH = 2.0
 # High-expression cut: top within-panel tertile of log2TPM among EVALUATED lines (target-relative, no
 # external percentile product needed — adapts per target, mirrors the CN method's self-contained cutoff).
 HIGH_EXPR_TERTILE = 2.0 / 3.0
@@ -50,7 +53,7 @@ def _high_expression_threshold(tpm_by_model: dict, evaluated: set) -> float | No
 
 
 def compute_amp_expr_stratification(chronos_by_model: dict, cn_by_model: dict, tpm_by_model: dict,
-                                    focal_amp: float = FOCAL_AMP,
+                                    focal_amp: float = FOCAL_AMP_HIGH,
                                     strong_effect_delta: float = STRONG_EFFECT_DELTA,
                                     moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
                                     stratification_alpha: float = STRATIFICATION_ALPHA,

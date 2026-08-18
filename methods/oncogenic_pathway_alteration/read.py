@@ -53,7 +53,13 @@ def _gene_pathways(target: str):
     if _GENE_MAP_CACHE is None:
         try:
             _GENE_MAP_CACHE = _cli.load_gene_pathway_map()
-        except Exception:
+        except Exception as e:  # noqa: BLE001
+            # Absence-discipline: a genuinely-missing map is an honest empty ({} → target has no
+            # pathway membership); a transient / creds / broken-env error must re-raise, else every
+            # target silently reads as "in no pathway" — indistinguishable from a real absence.
+            from methods.target_id_sidecar import is_definitively_absent
+            if not is_definitively_absent(e):
+                raise
             _GENE_MAP_CACHE = {}
     return _GENE_MAP_CACHE.get(target, [])
 

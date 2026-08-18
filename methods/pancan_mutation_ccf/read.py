@@ -10,7 +10,6 @@ indication is absent. Mirrors precog_prognostic.read's S3-resolve pattern (aws s
 from __future__ import annotations
 
 import io
-import subprocess
 from functools import lru_cache
 from typing import Optional
 
@@ -26,22 +25,31 @@ _UNAVAILABLE = {
 }
 
 
-from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile, is_definitively_absent
 
 
 @lru_cache(maxsize=2)
 def _load_product(product_path: "Optional[str]" = None):
-    """Load the combined clonality product (local product_path override for tests, else S3)."""
+    """Load the combined clonality product (local product_path override for tests, else S3).
+
+    Absence-discipline: a genuinely-missing product/object returns None (honest data_unavailable),
+    but a transient / creds / broken-env error re-raises instead of masking as absence — a silent
+    None here would drop the clonality facet for every target on a broken S3, indistinguishable
+    from the object simply not existing.
+    """
     import pandas as pd
     if product_path:
         from pathlib import Path
         return pd.read_parquet(product_path) if Path(product_path).exists() else None
     ensure_aws_profile()
+    import boto3
+    bucket, key = _DERIVED_S3[len("s3://"):].split("/", 1)
     try:
-        raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"],
-                             capture_output=True, timeout=120).stdout
-        return pd.read_parquet(io.BytesIO(raw)) if raw else None
-    except Exception:  # absence-discipline: exempt -- verdict-inert clonality facet; genuine absence surfaces above as empty stdout (→None), so this only degrades the descriptive layer
+        obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)
+        return pd.read_parquet(io.BytesIO(obj["Body"].read()))
+    except Exception as e:  # noqa: BLE001
+        if not is_definitively_absent(e):
+            raise
         return None
 
 

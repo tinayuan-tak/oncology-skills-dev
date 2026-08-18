@@ -62,6 +62,9 @@ _DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEEP_DEL = 0.5
 SHALLOW_DEL = 0.92
 NEUTRAL_HI = 1.07
+# Distribution-card focal-amp bin edge (relative CN > 1.5). NOTE: this is a DIFFERENT threshold from
+# the stratification methods' FOCAL_AMP_HIGH (=2.0, the amplified-arm cutoff in depmap_cn_dependency /
+# depmap_amp_expr_dependency) — same "focal amp" idea, different value tuned per card.
 FOCAL_AMP = 1.5
 HIGH_AMP = 4.0
 

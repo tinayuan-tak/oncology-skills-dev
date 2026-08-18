@@ -18,7 +18,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_amp_expr_dependency.cli import (  # noqa: E402
-    compute_amp_expr_stratification, FOCAL_AMP,
+    compute_amp_expr_stratification, FOCAL_AMP_HIGH,
 )
 
 
@@ -57,7 +57,7 @@ def test_amplified_overexpressed_strongly_dependent():
     assert s["amp_expr_stratification_class"] == "amplified_overexpressed_strongly_dependent"
     assert s["delta_chronos_amp_expr_vs_rest"] <= -0.5
     assert s["n_amplified_overexpressed"] == 40
-    assert s["amplification_threshold_relative_cn"] == FOCAL_AMP
+    assert s["amplification_threshold_relative_cn"] == FOCAL_AMP_HIGH
 
 
 def test_moderate_tier():
