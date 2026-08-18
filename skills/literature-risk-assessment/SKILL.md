@@ -114,9 +114,16 @@ anchored to a narrow "tolerant" verdict otherwise re-concludes LOW and buries th
 FOLR1 safety, where the narrow on-target read misses the ADC ocular / on-target normal-tissue tox that
 `ground_axis` surfaces from the literature). It is the `grounded` block of the substrate record that
 the risk roll-up and the cross-evidence hypothesis both consume (grounded-substrate two-projection
-design). Reuses this skill's pubmed_search + the containment guard. Validated on the SAFETY axis;
-other axes reuse the machinery with an axis-appropriate finding contract (follow-on).
+design). Reuses this skill's pubmed_search + the containment guard.
+
+AXIS-PARAMETERIZED (AXIS_CONFIG): the block STRUCTURE is one contract across axes (escalate-only
+`findings` + corroborations + contradicts flag + confab-containment); only the finding NOUN + KINDS
+differ. Validated axes: `safety` (findings = liabilities — ocular/normal-tissue tox, off-target,
+immunogenicity; caught FOLR1 mirvetuximab ocular tox the narrow read missed) and `dependency` (findings
+= dependency-WEAKENING — resistance, context-dependence, paralog buffering, feedback; on KRAS/LUAD
+surfaced sotorasib acquired resistance + STK11/KEAP1 co-mutation context-dependence). Add an axis by
+extending AXIS_CONFIG.
 
     BEDROCK_AWS_PROFILE=cmp-dev python3 scripts/ground_axis.py \
-        --target FOLR1 --indication "ovarian cancer" \
-        --evidence-package <pkg.json> --axis safety --out <rec.json>
+        --target KRAS --indication "lung adenocarcinoma" \
+        --evidence-package <pkg.json> --axis dependency --out <rec.json>

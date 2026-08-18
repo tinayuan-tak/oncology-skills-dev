@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""ground_axis — per-subskill GROUNDED SUBSTRATE reader (design: grounded-substrate two-projection).
+"""ground_axis — per-subskill GROUNDED SUBSTRATE reader (grounded-substrate two-projection design).
 
-Augments ONE subskill/axis's deterministic cards with literature evidence, as ESCALATE-ONLY LIABILITY
-FINDINGS — specific, PMID-traceable liabilities the narrow deterministic verdict may miss. It does NOT
-emit a LOW/MED/HIGH score: a re-scored bin anchored to a narrow verdict propagates that verdict's
-blindness (the FOLR1 safety false-LOW: on-target gnomAD read = "tolerant" while the ADC's real ocular /
-normal-tissue liability lives elsewhere). Emitting liability FINDINGS instead is escalate-only by
-construction — the grounded read can RAISE a concern, never lower a deterministic one. Downstream
-consumers (risk roll-up, hypothesis) weigh the findings; this layer only SURFACES them.
+Augments ONE subskill/axis's deterministic cards with literature as ESCALATE-ONLY FINDINGS —
+specific, PMID-traceable evidence that RAISES that axis's risk (a liability, or evidence weakening the
+axis's positive case), which the narrow deterministic verdict may miss. It does NOT emit a LOW/MED/HIGH
+score: a re-scored bin anchored to a narrow verdict propagates that verdict's blindness (FOLR1 safety
+false-LOW). Emitting escalate-only FINDINGS avoids that structurally — the read can RAISE a concern,
+never lower a deterministic one. Downstream consumers (risk roll-up, hypothesis) weigh the findings;
+this layer only SURFACES them.
 
-Output = the `grounded` block of a substrate record:
+The contract is AXIS-PARAMETERIZED (AXIS_CONFIG): the STRUCTURE is identical across axes (escalate-only
+findings + corroborations + a contradicts flag + confab-containment); only the finding NOUN + the KINDS
+to look for differ. Validated axes: safety (findings = liabilities: ocular/normal-tissue tox, off-target,
+immunogenicity) and dependency (findings = dependency-weakening: resistance, context-dependence, paralog
+buffering, feedback). Add an axis by extending AXIS_CONFIG.
+
+Output = the `grounded` block of a substrate record consumed by both the risk roll-up and the hypothesis:
   { axis, deterministic:{verdict, driving_rule_id, cards:{id:call}},
-    grounded:{ liability_findings:[{liability, organ_or_class, cited_pmids}], corroborations,
-               contradicts_deterministic, anchor_verdict, confabulated_dropped, corpus_pin,
-               escalate_only:true, n_retrieved } }
-
-Retrieval + confab-containment reuse this skill's pubmed_search + the _skills_common LLM layer.
-Scope note: the escalate-only LIABILITY contract is validated on the SAFETY axis; other axes reuse the
-same machinery with an axis-appropriate finding contract (follow-on).
+    grounded:{ findings:[{finding, kind, cited_pmids}], corroborations, contradicts_deterministic,
+               anchor_verdict, confabulated_dropped, corpus_pin, escalate_only:true, n_retrieved } }
 """
 from __future__ import annotations
 import sys
@@ -30,30 +31,41 @@ _SKILLS = _HERE.parents[2]
 if str(_SKILLS) not in sys.path:
     sys.path.insert(0, str(_SKILLS))
 
-# Per-axis card sets whose deterministic calls the grounded read contextualizes. Safety spans the
-# on-target-safety cards PLUS the cross-axis normal-tissue signals (surface/selectivity) — because
-# safety is a modality-conditioned conjunction, not the on-target axis alone.
-AXIS_CARDS = {
-    "safety": ["gnomad-lof-constraint", "normal-tissue-liability-gtex", "clingen-dosage",
-               "mouse-ko-phenotype", "clinvar-pathogenicity-safety", "gene-burden-safety",
-               "target-safety-prioritisation", "sc-normal-celltype-expression",
-               "modality-therapeutic-window", "shed-ectodomain-liability"],
+# Per-axis config. cards = deterministic cards the grounded read contextualizes; pubmed_category = which
+# of the retrieval categories to read; verdict_key = sub_verdicts key; noun/kinds shape the extraction.
+AXIS_CONFIG = {
+    "safety": {
+        "verdict_key": "safety", "pubmed_category": "safety",
+        "cards": ["gnomad-lof-constraint", "normal-tissue-liability-gtex", "clingen-dosage",
+                  "mouse-ko-phenotype", "clinvar-pathogenicity-safety", "gene-burden-safety",
+                  "target-safety-prioritisation", "sc-normal-celltype-expression",
+                  "modality-therapeutic-window", "shed-ectodomain-liability"],
+        "finding_noun": "SAFETY LIABILITY",
+        "kinds": ("on-target normal-tissue tox (NAME the organ), off-target/secondary pharmacology, "
+                  "immunogenicity, ADC payload/ocular/hepatic")},
+    "dependency": {
+        "verdict_key": "dependency", "pubmed_category": "biological",
+        "cards": ["pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
+                  "crispr-rnai-dependency-concordance", "dependency-lineage-selectivity",
+                  "paralog-buffering", "partner-conditional-dependency", "cross-consortium-dependency"],
+        "finding_noun": "DEPENDENCY-WEAKENING finding",
+        "kinds": ("acquired/adaptive RESISTANCE, CONTEXT-dependence (works only in a subset), "
+                  "PARALOG/redundancy buffering, FEEDBACK reactivation, or failure of the dependency "
+                  "IN VIVO vs in vitro")},
 }
-_PUBMED_CATEGORY = {"safety": "safety"}
 
-SYSTEM = ("You are a retrieval-grounded safety analyst. Use ONLY the provided abstracts. Cite ONLY "
-          "PMIDs that appear in them. NEVER cite from memory. If the abstracts do not support a "
-          "liability, do not invent one.")
+SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
+          "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
+          "invent one.")
 
 TOOL_SCHEMA = {"type": "object", "properties": {
-    "liability_findings": {"type": "array", "items": {"type": "object", "properties": {
-        "liability": {"type": "string"}, "organ_or_class": {"type": "string"},
+    "findings": {"type": "array", "items": {"type": "object", "properties": {
+        "finding": {"type": "string"}, "kind": {"type": "string"},
         "cited_pmids": {"type": "array", "items": {"type": "string"}}},
-        "required": ["liability", "organ_or_class", "cited_pmids"]}},
-    "corroborations_of_deterministic": {"type": "array", "items": {"type": "string"}},
+        "required": ["finding", "kind", "cited_pmids"]}},
+    "corroborations": {"type": "array", "items": {"type": "string"}},
     "contradicts_deterministic": {"type": "boolean"}, "notes": {"type": "string"}},
-    "required": ["liability_findings", "corroborations_of_deterministic",
-                 "contradicts_deterministic", "notes"]}
+    "required": ["findings", "corroborations", "contradicts_deterministic", "notes"]}
 
 
 def _uv(x):
@@ -64,41 +76,40 @@ def _uv(x):
 def build_grounded_block(det: dict, llm_out: dict, retrieved_pmids: set, *,
                          corpus_pin: dict, n_retrieved: int) -> dict:
     """PURE (offline-testable): parse the LLM output into the escalate-only grounded block, dropping
-    any cited PMID NOT in the retrieved set (confabulation containment)."""
+    any cited PMID NOT in the retrieved set (confabulation containment). Axis-agnostic."""
     kept, dropped = [], []
-    for f in (_uv(llm_out.get("liability_findings")) or []):
+    for f in (_uv(llm_out.get("findings")) or []):
         if isinstance(f, str):
-            f = {"liability": f, "organ_or_class": "", "cited_pmids": []}
+            f = {"finding": f, "kind": "", "cited_pmids": []}
         cites = _uv(f.get("cited_pmids")) or []
         good = [str(p) for p in cites if str(p) in retrieved_pmids]
         dropped += [str(p) for p in cites if str(p) not in retrieved_pmids]
-        kept.append({"liability": _uv(f.get("liability")),
-                     "organ_or_class": _uv(f.get("organ_or_class")), "cited_pmids": good})
-    return {"liability_findings": kept,
-            "corroborations": _uv(llm_out.get("corroborations_of_deterministic")) or [],
+        kept.append({"finding": _uv(f.get("finding")), "kind": _uv(f.get("kind")), "cited_pmids": good})
+    return {"findings": kept, "corroborations": _uv(llm_out.get("corroborations")) or [],
             "contradicts_deterministic": _uv(llm_out.get("contradicts_deterministic")),
             "anchor_verdict": det.get("verdict"), "confabulated_dropped": dropped,
             "corpus_pin": corpus_pin, "escalate_only": True, "n_retrieved": n_retrieved}
 
 
 def deterministic_block(pkg: dict, axis: str) -> dict:
-    sv = pkg["synthesis"]["sub_verdicts"].get(axis, {})
+    cfg = AXIS_CONFIG[axis]
+    sv = pkg["synthesis"]["sub_verdicts"].get(cfg["verdict_key"], {})
     calls = {c["card_id"]: c.get("interpretation_call") for c in pkg.get("cards", []) if c.get("card_id")}
     return {"verdict": sv.get("verdict"), "driving_rule_id": sv.get("driving_rule_id"),
-            "cards": {k: calls.get(k) for k in AXIS_CARDS.get(axis, []) if k in calls}}
+            "cards": {k: calls.get(k) for k in cfg["cards"] if k in calls}}
 
 
-def _prompt(target, indication, anchor, abstracts):
-    lines = [f"{('SAFETY')}-axis grounding for {target} in {indication}.",
-             f"\nDETERMINISTIC on-target verdict (ANCHOR, context only): {anchor}",
-             "This is a NARROW human-genetics/gnomAD on-target read. It can MISS modality- and "
-             "tissue-specific liabilities (on-target normal-tissue tox, off-target/secondary "
-             "pharmacology, immunogenicity, ADC payload/ocular/hepatic).",
-             "\nTASK: from the abstracts ONLY, extract specific SAFETY LIABILITIES. Each finding is "
-             "ESCALATE-ONLY — it may RAISE safety concern; you may NOT use the literature to LOWER "
-             "the concern or conclude 'manageable/low risk'. Report the liability + the organ/class "
-             "+ its PMIDs. Name the organ for any on-target normal-tissue tox. Flag if the literature "
-             "CONTRADICTS the deterministic verdict.\n\nABSTRACTS:"]
+def _prompt(target, indication, axis, anchor, abstracts):
+    cfg = AXIS_CONFIG[axis]
+    lines = [f"{axis.upper()}-axis grounding for {target} in {indication}.",
+             f"\nDETERMINISTIC {axis} verdict (ANCHOR, context only): {anchor}",
+             "This is a NARROW deterministic read and may MISS what the literature reports.",
+             f"\nTASK: from the abstracts ONLY, extract each specific {cfg['finding_noun']}. "
+             f"Kinds to look for: {cfg['kinds']}.",
+             "Each finding is ESCALATE-ONLY — it may RAISE this axis's risk; you may NOT use the "
+             "literature to LOWER the deterministic concern or conclude the axis is fine. Report the "
+             "finding + its kind + its PMIDs. Flag if the literature CONTRADICTS the deterministic "
+             "verdict.\n\nABSTRACTS:"]
     for a in abstracts:
         lines.append(f"[PMID {a.pmid}] {a.title}\n{(a.abstract or '')[:900]}")
     return "\n".join(lines)
@@ -106,22 +117,23 @@ def _prompt(target, indication, anchor, abstracts):
 
 def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "safety",
                 mindate: str = "2015", maxdate: str = "2026", per_cat: int = 8) -> dict:
-    """LIVE: load the axis's deterministic block, retrieve literature, and produce the grounded block."""
+    """LIVE: load the axis's deterministic block, retrieve literature, produce the grounded block."""
     import json
     import pubmed_search as ps
     from _skills_common.llm import synthesize_structured
-    if axis not in AXIS_CARDS:
-        raise ValueError(f"axis {axis!r} not yet supported; have {sorted(AXIS_CARDS)}")
+    if axis not in AXIS_CONFIG:
+        raise ValueError(f"axis {axis!r} not configured; have {sorted(AXIS_CONFIG)}")
+    cfg = AXIS_CONFIG[axis]
     pkg = json.loads(Path(pkg_path).read_text())
     det = deterministic_block(pkg, axis)
     key = indication.strip().lower()
     if key not in ps.DISEASE_TERMS:
         ps.DISEASE_TERMS[key] = indication      # passthrough term for arbitrary indications
     res = ps.search_pubmed(target, key, abstracts_per_category=per_cat, mindate=mindate, maxdate=maxdate)
-    abstracts = res.abstracts_by_category.get(_PUBMED_CATEGORY[axis], [])
+    abstracts = res.abstracts_by_category.get(cfg["pubmed_category"], [])
     retrieved = {a.pmid for a in abstracts}
-    out = synthesize_structured(SYSTEM, _prompt(target, indication, det["verdict"], abstracts),
-                                "axis_liabilities", TOOL_SCHEMA)
+    out = synthesize_structured(SYSTEM, _prompt(target, indication, axis, det["verdict"], abstracts),
+                                "axis_findings", TOOL_SCHEMA)
     grounded = build_grounded_block(det, out, retrieved,
                                     corpus_pin={"mindate": mindate, "maxdate": maxdate},
                                     n_retrieved=len(abstracts))
@@ -134,7 +146,7 @@ if __name__ == "__main__":
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--evidence-package", required=True)
-    ap.add_argument("--axis", default="safety")
+    ap.add_argument("--axis", default="safety", choices=sorted(AXIS_CONFIG))
     ap.add_argument("--mindate", default="2015"); ap.add_argument("--maxdate", default="2026")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
