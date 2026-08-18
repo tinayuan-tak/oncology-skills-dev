@@ -524,7 +524,7 @@ def main() -> int:
             presence_facet=presence_facet,
             risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
             hypothesis=hypothesis, confidence_tier=confidence_tier,
-            risk_rollup=risk_rollup,
+            risk_rollup=risk_rollup, addressable_population=addressable_population,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)

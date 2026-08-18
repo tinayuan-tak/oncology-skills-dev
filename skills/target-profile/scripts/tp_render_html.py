@@ -1248,6 +1248,41 @@ def _safe_panel(fn, *args, _what: str = "panel") -> list[str]:
         return []
 
 
+def _render_addressable_population_html(ap: Optional[dict]) -> list[str]:
+    """DETERMINISTIC addressable-population sizing (review G2). Surfaces the reproducible
+    biomarker_prevalence the facet already computes (GENIE/MC3) — previously stored in nomination.json
+    but never rendered, so the page showed only non-reproducible AI prose. Reconciles the alteration-
+    CLASS prevalence against the currently-druggable-allele subset."""
+    if not ap or not isinstance(ap, dict):
+        return []
+    cls = ap.get("addressable_population_class")
+    basis = ap.get("selection_basis")
+    prev = ap.get("biomarker_prevalence")
+    src = ap.get("prevalence_source")
+    n = ap.get("n_samples_in_indication")
+    note = ap.get("_note")
+    if not (cls or isinstance(prev, (int, float))):
+        return []
+    prev_txt = (f"<b>{prev * 100:.1f}%</b> <span class=sub>({_esc(str(src))}"
+                + (f", n={_esc(str(n))}" if n is not None else "") + ")</span>"
+                if isinstance(prev, (int, float)) else "<span class=sub>not estimated on this axis</span>")
+    out = ["<section id=s-population class=det>"
+           "<span class=tag>Computed from the evidence — reproducible</span>"
+           "<h2>Addressable population <span class=n>— deterministic patient-sizing</span></h2>",
+           f"<p>Selection basis: <b>{_esc(_humanize(basis) if basis else '—')}</b> · "
+           f"class <span class=pill>{_esc(_humanize(cls) if cls else '—')}</span> · "
+           f"alteration-class prevalence in-indication: {prev_txt}.</p>"]
+    if isinstance(prev, (int, float)) and basis == "snv_indel_stratified":
+        out.append("<p class=sub>This is the reproducible prevalence of the <b>alteration class</b> that "
+                   "defines the treatable subgroup (GENIE/MC3) — it may EXCEED the currently-druggable-"
+                   "allele subset (an approved agent may hit only one hotspot allele). Reconcile against "
+                   "the specific therapeutic hypothesis before sizing the opportunity.</p>")
+    if note:
+        out.append(f"<p class=sub>{_esc(note)}</p>")
+    out.append("</section>")
+    return out
+
+
 def _render_target_profile_html(
     target: str,
     indication: str,
@@ -1270,6 +1305,7 @@ def _render_target_profile_html(
     hypothesis: Optional[dict] = None,
     confidence_tier: Optional[dict] = None,
     risk_rollup: Optional[dict] = None,
+    addressable_population: Optional[dict] = None,
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1393,6 +1429,8 @@ def _render_target_profile_html(
     else:
         if risk_rollup:
             nav.append("<a href='#s-risk-rollup'>Risk by category (deterministic)</a>")
+        if addressable_population:
+            nav.append("<a href='#s-population'>Addressable population</a>")
         if risk_assessment:
             nav.append("<a href='#s-litrisk'>Literature risk (context)</a>")
         if scorecard:
@@ -1450,6 +1488,12 @@ def _render_target_profile_html(
     # separate literature panel below is labeled non-reproducible context. Suppressed in presence_only.
     if risk_rollup and not presence_only:
         p.extend(_safe_panel(_render_risk_rollup_html, risk_rollup, _what="risk-rollup"))
+
+    # --- Addressable population (DETERMINISTIC sizing) — surfaces the reproducible biomarker
+    # prevalence alongside the risk lead (review G2). Suppressed in presence_only.
+    if addressable_population and not presence_only:
+        p.extend(_safe_panel(_render_addressable_population_html, addressable_population,
+                             _what="addressable-population"))
 
     # --- Synthesis (LLM) — the lead reasoning. When a cross-evidence hypothesis is supplied it
     # REPLACES the original Tier-3 executive-summary + tension narrative with the gate-clamped, cited

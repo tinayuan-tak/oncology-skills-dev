@@ -119,12 +119,36 @@ def test_no_hypothesis_keeps_original_executive_summary():
 # ---------- review fixes: header coherence / robustness / drift-guard ----------
 
 def _render2(hypothesis=None, risk_assessment=None, grounded_by_axis=None, confidence_tier=None,
-             risk_rollup=None):
+             risk_rollup=None, addressable_population=None):
     sc = tp._gate_scorecard(_sr(), None)
     return tp._render_target_profile_html(
         "KRAS", "COADREAD", _sr(), _LLM, {}, scorecard=sc, hypothesis=hypothesis,
         risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
-        confidence_tier=confidence_tier, risk_rollup=risk_rollup)
+        confidence_tier=confidence_tier, risk_rollup=risk_rollup,
+        addressable_population=addressable_population)
+
+
+_AP = {"addressable_population_class": "broad", "selection_basis": "snv_indel_stratified",
+       "biomarker_prevalence": 0.435, "prevalence_source": "genie", "n_samples_in_indication": 559,
+       "_note": None}
+
+
+def test_addressable_population_surfaces_reproducible_prevalence():
+    """Review G2: the deterministic biomarker_prevalence (previously hidden in nomination.json) is
+    rendered, with the alteration-class-vs-druggable-allele reconciliation caveat."""
+    h = _render2(addressable_population=_AP)
+    assert "id=s-population" in h
+    assert "43.5%" in h and "genie" in h and "559" in h
+    assert "alteration class" in h and "druggable-allele" in h   # the reconciliation caveat
+
+
+def test_addressable_population_absent_no_section():
+    assert "id=s-population" not in _render2(addressable_population=None)
+
+
+def test_malformed_addressable_population_does_not_crash():
+    h = _render2(addressable_population={"biomarker_prevalence": "not-a-number"})
+    assert "id=s-evidence" in h and "</html>" in h
 
 
 def test_header_surfaces_deterministic_tier_and_flags_ai_provenance():
