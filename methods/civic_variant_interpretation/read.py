@@ -11,10 +11,8 @@ plus gene-level rollups (has_oncogenic_variant, resistance_variant_count, …). 
 from __future__ import annotations
 
 import io
-import os
 from functools import lru_cache
 
-DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 CIVIC_PREFIX = "data-catalog/sources/civic/nightly-snapshot-2026-07-02"
 _VARIANT_KEY = f"{CIVIC_PREFIX}/nightly-VariantSummaries.tsv"
@@ -58,7 +56,7 @@ def _read_tsv(key: str):
     import pandas as pd
     ensure_aws_profile()
     import boto3
-    s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
+    s3 = boto3.client("s3")   # ensure_aws_profile() has set AWS_PROFILE in the environment
     body = s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
     return pd.read_csv(io.BytesIO(body), sep="\t", dtype=str)
 

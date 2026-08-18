@@ -505,7 +505,8 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "_uncomputable_tiers": [
             k for k, td in (("hotspot", hot), ("damaging", dam), ("any", any_))
             if td.get("_uncomputable")],
-        # === Per-hotspot breakdown (populated by load_per_hotspot_records if MAF available) ===
+        # === Per-hotspot breakdown: reserved, currently always empty (no per-hotspot loader is
+        #     wired). The per-hotspot Chronos plot therefore renders its <3-hotspots placeholder. ===
         "per_hotspot_stats": [],
         # === Categorical ===
         "mutation_stratification_class": cls,

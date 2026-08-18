@@ -10,7 +10,6 @@ import io
 import json
 import zipfile
 from functools import lru_cache
-from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for
 
@@ -56,11 +55,6 @@ def _boto3():
     return boto3.Session().client("s3")
 
 
-# Module-level breadcrumb: set to a short token when a loader hit a NON-absent (transient/creds/
-# broken-env) error, so read_alteration_role can surface it. A genuine 404/NoSuchKey leaves it None
-# (honest data_unavailable — the object simply isn't there).
-_live_read_error: Optional[str] = None
-
 
 @lru_cache(maxsize=1)
 def _load_oncokb_roles() -> dict:
@@ -77,12 +71,10 @@ def _load_oncokb_roles() -> dict:
         return out
     except Exception as e:  # noqa: BLE001
         # Genuine 404/NoSuchKey → honest empty. A transient/creds/broken-env error must NOT be masked
-        # as an empty role map (would silently strip driver-role evidence for every target) — record a
-        # breadcrumb + re-raise (lru_cache never memoizes the raise, so it is retried).
+        # as an empty role map (would silently strip driver-role evidence for every target) —
+        # re-raise (lru_cache never memoizes the raise, so it is retried).
         from methods.target_id_sidecar import is_definitively_absent
         if not is_definitively_absent(e):
-            global _live_read_error
-            _live_read_error = f"oncokb_load_failed:{type(e).__name__}"
             raise
         return {}
 
@@ -104,12 +96,10 @@ def _load_intogen_compendium():
         return df
     except Exception as e:  # noqa: BLE001
         # Genuine 404/NoSuchKey → honest empty. A transient/creds/broken-env error must NOT be masked
-        # as an empty compendium (would silently strip indication-scoped driver evidence) — record a
-        # breadcrumb + re-raise (lru_cache never memoizes the raise, so it is retried).
+        # as an empty compendium (would silently strip indication-scoped driver evidence) —
+        # re-raise (lru_cache never memoizes the raise, so it is retried).
         from methods.target_id_sidecar import is_definitively_absent
         if not is_definitively_absent(e):
-            global _live_read_error
-            _live_read_error = f"intogen_load_failed:{type(e).__name__}"
             raise
         return pd.DataFrame(columns=["SYMBOL", "CANCER_TYPE", "ROLE", "QVALUE_COMBINATION",
                                      "%_SAMPLES_COHORT", "IS_DRIVER"])

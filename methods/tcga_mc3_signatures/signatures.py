@@ -38,7 +38,3 @@ SIGNATURE_TO_PROCESS: dict[str, str] = {
 # near-universal baseline, so it never counts as an "enriched" process for dominance.
 INFORMATIVE_PROCESSES = ["apobec", "mmr_deficiency", "hrd", "tobacco", "uv", "pole", "clock"]
 NON_BASELINE_PROCESSES = [p for p in INFORMATIVE_PROCESSES if p != "clock"]
-
-
-def process_of(signature: str) -> str | None:
-    return SIGNATURE_TO_PROCESS.get(signature)

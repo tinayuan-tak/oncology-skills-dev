@@ -210,7 +210,6 @@ def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_
     # Aggregate counts per framework category
     counts = {"missense": 0, "nonsense": 0, "frameshift": 0, "splice": 0,
                "inframe_indel": 0, "synonymous": 0, "other": 0}
-    per_class_counts = []
 
     mutated_cell_lines = set()
     for row in target_rows:
@@ -218,10 +217,6 @@ def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_
         vc = _resolve_dominant_variant_class(row.get("VariantInfo", ""))
         cat = _category_for_class(vc)
         counts[cat] = counts.get(cat, 0) + 1
-        per_class_counts.append({"model_id": row.get("ModelID"),
-                                  "variant_class": vc,
-                                  "category": cat,
-                                  "protein_change": row.get("ProteinChange")})
 
     n_mutated = len(mutated_cell_lines)
     n_total_mutations = len(target_rows)

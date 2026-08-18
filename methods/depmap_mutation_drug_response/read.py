@@ -17,7 +17,9 @@ PRISM Log2AUC scale: (-inf, 0]; active drug typically -0.3..-1.0; near-flat > -0
 from __future__ import annotations
 
 import io
+import math
 import os
+import statistics
 from typing import Optional
 
 # Single-source release-pin → PRISM OncRef source prefix (mirrors depmap_prism_precompute v3).
@@ -130,25 +132,11 @@ def load_drug_response_by_model(release_pin: str, sample_ids: list,
     sub = mat[present]
     out = {}
     for model_id, row in sub.iterrows():
-        vals = [v for v in row.tolist() if v is not None and not _isnan(v)]
+        vals = [float(v) for v in row.tolist() if v is not None and not math.isnan(v)]
         if not vals:
             continue
-        out[str(model_id)] = float(min(vals)) if aggregate == "best" else float(_median(vals))
+        out[str(model_id)] = min(vals) if aggregate == "best" else statistics.median(vals)
     return out, []
-
-
-def _isnan(v) -> bool:
-    try:
-        return v != v  # NaN != NaN
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def _median(vals: list) -> float:
-    s = sorted(vals)
-    n = len(s)
-    mid = n // 2
-    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2.0
 
 
 def read_mutation_drug_response(target: str, indication: Optional[str] = None,

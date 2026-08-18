@@ -19,8 +19,6 @@ from typing import Optional
 
 from . import cli as _cli
 
-DEFAULT_AWS_PROFILE = "cbg"
-
 
 from methods.target_id_sidecar import ensure_aws_profile
 

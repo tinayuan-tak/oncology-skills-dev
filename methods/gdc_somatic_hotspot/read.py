@@ -27,8 +27,6 @@ from methods.subgroup_common.panorama import (
     evidence_state,
 )
 
-DEFAULT_AWS_PROFILE = "cbg"
-
 # Per-sample MC3 MAF cache (the raw substrate for subgroup-stratified frequency;
 # distinct from the pre-aggregated hotspot Parquet read_hotspot_summary consumes).
 DEFAULT_MC3_MAF_CACHE = Path.home() / ".cache" / "framework-gdc-pancohort-somatic"

@@ -27,7 +27,6 @@ from pathlib import Path
 
 import click
 
-DEFAULT_AWS_PROFILE = "cbg"
 MC3_S3_BUCKET = "onc-compbio"
 MC3_S3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf.gz"
 

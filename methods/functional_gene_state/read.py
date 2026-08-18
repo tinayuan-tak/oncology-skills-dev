@@ -470,8 +470,13 @@ def _load_ccle_colname_to_model_id() -> dict:
         return {}
 
 
+@lru_cache(maxsize=64)
 def _read_model_methylation(target: str) -> dict:
     """{ModelID: is_methylated (bool)} for `target` from CCLE RRBS TSS-1kb file.
+
+    Cached (matching the patient-arm sibling _read_patient_methylation): the CCLE RRBS object is a
+    full-file download + parse, and read_model_states_per_model can be called more than once per
+    process (e.g. the model-match assembler reads functional_gene_state then re-derives model states).
 
     Algorithm:
       1. Stream the gzipped TSS-1kb matrix, filter rows where locus_id starts
