@@ -195,8 +195,15 @@ a modifier so amplification/deletion-driven targets aren't collapsed to passenge
   cBioPortal-TCGA-SV, 3-caller consensus). VERDICT-DRIVING: a `recurrent_fusion_driver`
   fusion_class fires the `recurrent_fusion_driver` resolver rung (§3c, the fusion analog
   of recurrent focal amplification) — so it CAN set the deterministic verdict (it is in
-  rules_scope). Non-recurrent fusion classes stay narrative-only. TCGA-only,
-  presence-not-frequency (denominator is a fast-follow). GENIE-SV breadth is a future source.
+  rules_scope). Non-recurrent fusion classes stay narrative-only. `fusion_frequency`
+  (fused / assayed samples in the tissue) IS computed, and pan-cohort GENIE-SV breadth
+  is LIVE (`genie_sv_*`, backed by `genie-sv-recurrence-v1`). A verdict-inert
+  `fusion_recurrence_confidence` tier flags whether a `recurrent_fusion_driver` call rests
+  on a recurrent partner (`high_recurrent_partner`, reliable) or a promiscuous recurrence
+  (`moderate_promiscuous`) — the latter also catches amplicon-artifact SVs at amplified
+  oncogenes (e.g. ERBB2/STAD ~1%); a panel backtest showed no frequency/structural cut
+  separates those from real promiscuous kinase fusions (ROS1/NTRK1), so the fix is a future
+  fusion-competence / copy-number gate, not a threshold change.
 
 ## What this skill does NOT do
 

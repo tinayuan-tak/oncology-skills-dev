@@ -193,6 +193,10 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
 
     # ── Fusion / rearrangement axis (TCGA consensus verdict + GENIE-SV breadth facet) ──
     ("fusion_class",                        "fusion-rearrangement-landscape", "fusion_class"),
+    # Verdict-inert confidence tier on a recurrent_fusion_driver call: high_recurrent_partner (a
+    # recurrent partner — reliable) vs moderate_promiscuous (target recurs, no recurrent partner — a
+    # mixed bucket that also catches amplicon-artifact SVs at amplified oncogenes). Does not move the verdict.
+    ("fusion_recurrence_confidence",        "fusion-rearrangement-landscape", "fusion_recurrence_confidence"),
     ("genie_sv_recurrence_class",           "fusion-rearrangement-landscape", "genie_sv_recurrence_class"),
     ("genie_sv_frequency",                  "fusion-rearrangement-landscape", "genie_sv_frequency"),
     ("genie_sv_recurrent_partners",         "fusion-rearrangement-landscape", "genie_sv_recurrent_partners"),
