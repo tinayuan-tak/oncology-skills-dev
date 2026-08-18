@@ -203,4 +203,65 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
     return {"headline": head, "supports": supports, "caveat": caveat}
 
 
-__all__ = ["presence_claim_vector", "presence_key_signals", "CLAIM_NAME", "CLAIM_INFORMS"]
+# ── SUBTYPE-scoped claim vector (per stratum) ─────────────────────────────────────────────────
+# When a (target, indication, SUBTYPE) is the question, the pooled indication vector flattens the
+# per-stratum signal (e.g. CD274 is broadly-low pooled in COADREAD but a strong MSI-H signal). This
+# projects the strata-varying claims per molecular subtype from the ALREADY-resolved
+# tumor-rna-distribution-by-subtype card's per_subgroup_metrics (LIVE): Claim A (abundance) and a
+# distributional Claim B (fraction of stratum tumours above GTEx-normal p95) are computable per
+# stratum NOW. Claim C (single-cell) and protein-confirmation stay INDICATION-grain (whole-cohort /
+# pooled) — carried + labelled, never faked per stratum. Verdict-inert, like the pooled vector.
+def _tier_from_median(med):
+    if not isinstance(med, (int, float)):
+        return "unmeasured"
+    return "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak" if med >= 1 else "absent"
+
+
+def _tier_from_fraction_above_normal(fa):
+    if not isinstance(fa, (int, float)):
+        return "unmeasured"
+    return "strong" if fa >= 0.5 else "moderate" if fa >= 0.2 else "weak" if fa >= 0.05 else "absent"
+
+
+def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
+    """Per-stratum claim vector (A abundance + distributional B) from per_subgroup_metrics. Returns
+    None when the indication has no subtype axis. C / protein remain indication-grain (flagged)."""
+    c = _by_id(cards)
+    s = c.get("tumor-rna-distribution-by-subtype", {})
+    if not isinstance(s, dict) or not s.get("subtype_axis_available"):
+        return None
+    strata = {}
+    for r in (s.get("per_subgroup_metrics") or []):
+        if not isinstance(r, dict):   # tolerate simplified/frozen fixtures where rows aren't full dicts
+            continue
+        sid = r.get("stratum_id")
+        if not sid:
+            continue
+        med, fa, n = r.get("median_log2tpm"), r.get("fraction_tumor_above_normal_p95"), r.get("n_tumor_samples")
+        rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
+        strata[sid] = {
+            "A": {"signal": _tier_from_median(med), "reliability": rel,
+                  "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"},
+            "B": {"signal": _tier_from_fraction_above_normal(fa), "reliability": "moderate" if isinstance(fa, (int, float)) else "unmeasured",
+                  "evidence": (f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+                               if isinstance(fa, (int, float)) else "no per-stratum normal window")},
+            "n_tumor_samples": n,
+        }
+    return {
+        "stratification_class": s.get("subtype_stratification_class"),
+        "subtype_variance_explained": s.get("subtype_variance_explained"),
+        "subtype_effect_size_class": s.get("subtype_effect_size_class"),
+        "which_subtypes_separate": s.get("which_subtypes_separate"),
+        "n_subtypes_measured": s.get("n_subtypes_measured"),
+        "strata": strata,
+        "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified "
+                                    "(single-cell pooled; CPTAC whole-cohort) — read them from the pooled claim_vector.",
+        "_disclaimer": ("Per-stratum claim vector — verdict-INERT. Only claims A (abundance) and a distributional "
+                        "B (fraction > GTEx-normal p95) are live per subtype (from per_subgroup_metrics); a pooled "
+                        "indication read can flatten a subtype-concentrated signal (cf. CD274/MSI-H). ε² negligible "
+                        "→ subtype is NOT a useful selection axis; small-n strata are underpowered."),
+    }
+
+
+__all__ = ["presence_claim_vector", "presence_claim_vector_by_subtype", "presence_key_signals",
+           "CLAIM_NAME", "CLAIM_INFORMS"]

@@ -44,7 +44,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.presence_matrix import emit_presence_matrix
-from _skills_common.presence_claims import presence_claim_vector, presence_key_signals
+from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
+                                            presence_key_signals)
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
 
 
@@ -516,6 +517,11 @@ def _headline(cards, fired, verdict_pair):
     # into the composed target-profile. See _skills_common/presence_claims.py.
     hl["claim_vector"] = presence_claim_vector(hl, cards)
     hl["key_signals"] = presence_key_signals(hl, cards)
+    # SUBTYPE-scoped claim vector (per stratum) — when a (target, indication, subtype) is the question,
+    # the pooled vector flattens the per-stratum signal (cf. CD274 broadly-low pooled but MSI-H-strong).
+    # Projects A + distributional-B per stratum from the already-resolved per_subgroup_metrics; None when
+    # the indication has no subtype axis. Verdict-inert, like the pooled vector.
+    hl["claim_vector_by_subtype"] = presence_claim_vector_by_subtype(cards)
     return hl
 
 
@@ -543,7 +549,7 @@ _SYNTHESIS_FACET_KEYS = (
     "sc_normal_expression_class", "sc_normal_safety_essential_class",
     "sc_normal_max_det_cell_type", "sc_normal_max_det_fraction", "sc_normal_top_essential_cell_types",
     # Modality-blind claim vector + brief cited read (the within-lens integration this subskill owns).
-    "claim_vector", "key_signals",
+    "claim_vector", "claim_vector_by_subtype", "key_signals",
 )
 
 
