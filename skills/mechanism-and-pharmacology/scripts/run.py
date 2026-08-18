@@ -28,7 +28,10 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.5.0"                       # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
+SKILL_VERSION = "1.6.0"                       # 1.6.0: + dependency-predictability feature-attribution
+                                              #        facet (verdict-inert; SIGNOR cross-referenced)
+                                              # 1.5.0: pathway-activity-context (PROGENy)
+                                              # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
 
 CARDS = [
     "signaling-network-mechanism",
@@ -48,6 +51,13 @@ CARDS = [
                                                 # pathway-ACTIVITY context (Schubert 2018). VERDICT-INERT
                                                 # (like phospho) — upgrades Mechanism from topology-only
                                                 # to quantitative activity; keys no resolver rung.
+    # dependency-predictability (added 2026-08-18) — DepMap predictability feature attribution as a
+    # DATA-DRIVEN complement to the curated SIGNOR network: the genome-wide omics features that best
+    # predict the target's Chronos dependency are candidate mechanistic co-dependencies, cross-referenced
+    # against SIGNOR's upstream/downstream partner set. DISPLAY-ONLY facet: feeds NO resolver rung
+    # (mechanism_verdict byte-stable), and NOT in rules_scope. Correlational (importance, not causal) —
+    # hypothesis-generating; confounder feature-classes (arm/lineage/signature/metabolite) are filtered out.
+    "dependency-predictability",
 ]
 
 QUESTION = ("For {target} in {indication}, what upstream regulators + "
@@ -64,10 +74,85 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "mechanism")
 
-def _headline(cards, fired, verdict_pair):
-    """Skill-specific headline: SIGNOR-network descriptive fields."""
-    v, drv = verdict_pair or ("insufficient", None)
+# --- dependency-predictability feature-attribution facet (verdict-inert) ---------------------------
+# feature_class -> the prefix its `feature` name carries a PARTNER gene symbol under. These cross-gene
+# omics classes are mechanistically interpretable AND name a single partner gene we can cross-reference
+# against the SIGNOR partner set. (Reader emits feature names like "expr_EDA2R", "cn_NLK", "ms_SPINT2".)
+_PARTNER_FEATURE_PREFIX = {
+    "cross_gene_expression":  "expr_",
+    "cross_gene_copy_number": "cn_",
+    "ms_protein":             "ms_",
+    "rppa_protein":           "rppa_",
+    "paralog_dep":            "paralog_dep_",
+    "methylation_tss":        "methyl_",
+}
+# own_* features = the TARGET's OWN omics predict its own dependency (self-driven, e.g. KRAS->own hotspot):
+# mechanistically meaningful but NOT a partner — surfaced separately as pred_self_driven.
+_SELF_FEATURE_CLASSES = {"own_expression", "own_copy_number", "own_mut_hotspot", "own_mut_damaging"}
+# Everything else (arm_level_cn, lineage, mol_signature, metabolomics, msi_status, oncokb_gof/lof,
+# fusion, sv_gene) names no single mechanistic partner gene → dropped from the mechanism lens.
+
+
+def _predictability_mechanism_facet(cards):
+    """VERDICT-INERT facet: DepMap dependency-predictability feature attribution as a DATA-DRIVEN
+    complement to the curated SIGNOR network.
+
+    The predictability model's top features (genome-wide omics that best predict the target's Chronos
+    dependency) are candidate mechanistic co-dependencies. We keep only the mechanistically-plausible,
+    partner-gene-bearing feature classes and cross-reference each partner gene against SIGNOR's
+    upstream/downstream partner symbols: overlap = curated+empirical CONVERGENCE (a stronger MoA/PD-marker
+    hypothesis); a predictive partner ABSENT from SIGNOR = a data-driven hypothesis the curated network
+    does not yet capture. NOTE: importance is RF-impurity / XGB-gain (NOT SHAP; see the predictability
+    manifest) and CORRELATIONAL, not causal — hypothesis-generating only. Feeds NO resolver."""
+    pclass   = get_card_field(cards, "dependency-predictability", "predictability_class")
+    dom_class = get_card_field(cards, "dependency-predictability", "pred_dominant_feature_class")
+    top_rf   = get_card_field(cards, "dependency-predictability", "pred_top_features_rf") or []
+
+    # SIGNOR partner symbol set (upstream regulators + downstream effectors). The reader emits the
+    # per-edge key `partner_gene_symbol`; the card doc calls it `partner_symbol` — read both defensively.
+    signor_partners = set()
+    for key in ("upstream_regulators", "downstream_effectors"):
+        edges = get_card_field(cards, "signaling-network-mechanism", key)
+        if not isinstance(edges, list):
+            continue   # frozen-fixture placeholder string, or field absent -> no partner symbols to x-ref
+        for e in edges:
+            if isinstance(e, dict):
+                sym = e.get("partner_gene_symbol") or e.get("partner_symbol")
+            elif isinstance(e, str):
+                sym = e   # some emitters carry a bare partner symbol string
+            else:
+                sym = None
+            if sym:
+                signor_partners.add(str(sym).upper())
+
+    partner_features = []
+    for f in top_rf:
+        prefix = _PARTNER_FEATURE_PREFIX.get((f or {}).get("feature_class"))
+        if not prefix:
+            continue                                   # self (own_*) or confounder — not a partner feature
+        name = f.get("feature") or ""
+        gene = name[len(prefix):] if name.startswith(prefix) else name
+        partner_features.append({
+            "gene":          gene,
+            "feature_class": f.get("feature_class"),
+            "importance":    f.get("importance"),
+            "in_signor":     gene.upper() in signor_partners,
+        })
+    corroborated = [pf["gene"] for pf in partner_features if pf["in_signor"]]
     return {
+        "pred_predictability_class":         pclass,
+        "pred_dominant_feature_class":       dom_class,
+        "pred_self_driven":                  dom_class in _SELF_FEATURE_CLASSES,
+        "pred_mechanistic_partner_features": partner_features[:10],
+        "pred_signor_corroborated_partners": corroborated,
+        "pred_n_signor_corroborated":        len(corroborated),
+    }
+
+
+def _headline(cards, fired, verdict_pair):
+    """Skill-specific headline: SIGNOR-network descriptive fields + verdict-inert facets."""
+    v, drv = verdict_pair or ("insufficient", None)
+    headline = {
         "mechanism_verdict":         v,
         "driving_rule_id":           drv,
         "network_class":             get_card_field(cards, "signaling-network-mechanism",
@@ -111,6 +196,9 @@ def _headline(cards, fired, verdict_pair):
         "tahoe_top_inducing_drugs":  get_card_field(cards, "tahoe-drug-perturbation",
                                           "top_inducing_drugs"),
     }
+    # Predictability feature-attribution facet (verdict-inert; SIGNOR-cross-referenced).
+    headline.update(_predictability_mechanism_facet(cards))
+    return headline
 
 
 if __name__ == "__main__":

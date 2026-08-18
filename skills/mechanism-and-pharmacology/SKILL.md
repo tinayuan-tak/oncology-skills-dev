@@ -18,13 +18,14 @@ description: |
   hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
     signor_mechanism_network: '0.1.0'
     moa_ontology: '1.0.0'
     tahoe_drug_perturbation: '0.1.0'
+    depmap_predictability: '0.2.0'
 
 composition:
   data_mode: derived_read
@@ -40,6 +41,11 @@ composition:
                                         # ACTIVITY / signaling-state readout (CPTAC phosphoproteomics),
                                         # a mechanism signal not a presence one. DISPLAY-ONLY facet —
                                         # feeds NO resolver (mechanism_verdict byte-stable).
+    - dependency-predictability         # ADDED 2026-08-18: DepMap predictability FEATURE-ATTRIBUTION facet —
+                                        # the genome-wide omics features that best predict the target's Chronos
+                                        # dependency, filtered to mechanistically-plausible partner-gene classes
+                                        # and cross-referenced against SIGNOR partners. DISPLAY-ONLY facet —
+                                        # feeds NO resolver (mechanism_verdict byte-stable); NOT in rules_scope.
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims pulled, ONE per card in cards_used.
   # 2026-08-14 review: added pathway_activity_context — the pathway-activity-context card (PROGENy,
   # added 2026-08-10) was in cards_used but its type was omitted here. test_mechanism_measurement_types.py
@@ -49,6 +55,7 @@ composition:
     - tahoe_drug_perturbation                # tahoe-drug-perturbation
     - phospho_pathway_activity               # phospho-pathway-activity
     - pathway_activity_context               # pathway-activity-context (PROGENy)
+    - dependency_predictability              # dependency-predictability (feature-attribution facet)
   rules_scope:
     - all
   synthesis:
