@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import pickle
 import re
+import subprocess
 import sys
 import tempfile
 import time
@@ -51,6 +52,36 @@ from . import features as feat
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.2.0"
+
+
+def _git_provenance() -> dict:
+    """Capture the producing repo's git HEAD + working-tree cleanliness so
+    run_manifest.json records the exact code that produced the artifact,
+    rather than leaving downstream consumers (e.g. the data-catalog derived
+    manifest) to infer the commit from checkout state.
+
+    Degrades gracefully — provenance capture must NEVER fail the precompute.
+    Returns {commit: None, dirty: None} if git or the repo is unavailable
+    (e.g. running from an installed package outside a git checkout)."""
+    repo_dir = METHOD_DIR.parents[1]
+
+    def _git(*args: str) -> Optional[str]:
+        try:
+            r = subprocess.run(
+                ["git", "-C", str(repo_dir), *args],
+                capture_output=True, text=True, timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return r.stdout.strip() if r.returncode == 0 else None
+
+    commit = _git("rev-parse", "HEAD")
+    status = _git("status", "--porcelain") if commit is not None else None
+    return {
+        "commit": commit,
+        "dirty": (status != "") if status is not None else None,
+        "repo_dir": str(repo_dir),
+    }
 
 # Classification thresholds (v2). See card YAML for the authoritative copy.
 R2_HIGH_CI_LO = 0.35    # CI lower bound above → strong-predictor bucket
@@ -796,9 +827,12 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
     click.echo(f"Writing final parquet → {parquet_path}", err=True)
     write_parquet(records, parquet_path)
 
+    _prov = _git_provenance()
     run_manifest = {
         "method_id": "depmap-predictability-precompute",
         "method_version": METHOD_VERSION,
+        "git_commit": _prov["commit"],
+        "git_dirty": _prov["dirty"],
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "gene_set_mode": gene_set,
