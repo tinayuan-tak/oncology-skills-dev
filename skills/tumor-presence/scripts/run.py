@@ -48,14 +48,17 @@ from _skills_common.presence_claims import (presence_claim_vector, presence_clai
                                             presence_key_signals)
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
+from _skills_common.presence_cardboard_figure import emit_card_board_figure
 
 
 def _emit_skill_figures(decision, figures_root):
     """Combined --figures emitter: the Presence × Context hero matrix, the claim-vector
-    (signal × reliability) figure, and — when the indication has a subtype axis — the per-stratum
-    subtype-refinement figure. All additive / display-only; best-effort per emitter."""
+    (signal × reliability) figure, the per-card card-board (ternary signal/no-signal/not-measured
+    grouped by claim), and — when the indication has a subtype axis — the subtype-refinement figure.
+    All additive / display-only; best-effort per emitter."""
     return (emit_presence_matrix(decision, figures_root)
             + emit_claim_vector_figure(decision, figures_root)
+            + emit_card_board_figure(decision, figures_root)
             + emit_subtype_refinement_figure(decision, figures_root))
 
 
