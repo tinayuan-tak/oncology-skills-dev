@@ -127,3 +127,18 @@ extending AXIS_CONFIG.
     BEDROCK_AWS_PROFILE=cmp-dev python3 scripts/ground_axis.py \
         --target KRAS --indication "lung adenocarcinoma" \
         --evidence-package <pkg.json> --axis dependency --out <rec.json>
+
+## risk_rollup — projection [3A]: 6-dim risk roll-up from the substrate (scripts/risk_rollup.py)
+
+The sibling projection to the cross-evidence hypothesis (grounded-substrate two-projection design). Each
+risk dim = a DETERMINISTIC bin (pure function of the evidence-package sub_verdicts — a modality-conditioned
+worst-case CONJUNCTION; reproducible + cross-target comparable; the LLM never sets it) + GROUNDED
+escalate-only findings from ground_axis substrate blocks (PMID-traceable; can only RAISE a flag, never
+change the bin) + a per-dim engine↔literature discordance flag + declared blind-spots. The safety
+conjunction (on-target-safety ∧ surface-normal-antigen ∧ tumor-selectivity-normal-breadth) catches the
+FOLR1 ADC safety false-LOW that a 1:1 on-target-only mapping misses (validated). Thresholds are v0/
+illustrative; the CONTRACT (conjunction + escalate-only fusion + declared blind-spots + reproducible bin)
+is the contribution. clinical/commercial are engine-blind (literature-only).
+
+    python3 scripts/risk_rollup.py --evidence-package <pkg.json> --modality adc \
+        --substrate safety=<ground_axis_safety.json> dependency=<ground_axis_dep.json> --out <matrix.json>
