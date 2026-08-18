@@ -246,7 +246,14 @@ def _read_cards_process(card_ids, target, indication, subgroup_context, max_work
     The reader CPU (pandas assembly, per-row dict builds) is GIL-bound, so a thread pool serializes it
     — profiling showed the cold parallel read is GIL-limited, and a fork pool did 12.8s -> 8.7s.
 
-    Safety (fork-after-clean-state + degrade-never-break):
+    Safety (fork-from-clean-state + degrade-never-break):
+      - MAIN THREAD ONLY — forking a MULTITHREADED process can deadlock: the child inherits copies of
+        locks held by threads that do not exist in it. The composed target-profile fans its sub-skills
+        out over a ThreadPoolExecutor, and each worker thread calls resolve_cards; if SKILLS_READ_POOL=
+        process is set globally, those calls would fork from a worker thread. So we fork ONLY when
+        resolve_cards runs on the main thread of a single-threaded process; off the main thread we use
+        the thread pool (safe + still parallel). This makes SKILLS_READ_POOL=process safe to export
+        globally — a standalone skill run forks; a composed fan-out silently stays on threads.
       - fork ONLY — children inherit the parent's warm imports at ~zero cost. If the `fork` start
         method is unavailable (non-Linux), fall back to threads. Forking AFTER boto3/SSL client init
         can deadlock; resolve_cards is the run's FIRST S3 touch and we pre-warm only IMPORTS (no
@@ -255,6 +262,15 @@ def _read_cards_process(card_ids, target, indication, subgroup_context, max_work
         must never break because of the pool.
     Order preserved (Pool.map); results are the same fresh card_output dicts, pickled back."""
     import multiprocessing as mp
+    import threading
+    # Fork-from-thread guard (see docstring): fork ONLY on the main thread. The composed
+    # target-profile fan-out calls resolve_cards from ThreadPoolExecutor WORKER threads, so this is
+    # false there and we transparently use the thread pool — never forking a live multithreaded
+    # process. (A standalone skill run is always on the main thread, so the fork pool engages as
+    # before; verified by test.) Checked on the thread identity, not active_count(), so a stray
+    # daemon thread in some environment cannot silently disable the fork pool for standalone runs.
+    if threading.current_thread() is not threading.main_thread():
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers)
     try:
         ctx = mp.get_context("fork")
     except ValueError:
