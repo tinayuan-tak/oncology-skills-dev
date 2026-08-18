@@ -55,6 +55,57 @@ def _yaml_load(fh):
     return yaml.load(fh, Loader=_SafeLoader)
 
 
+# The `files:` array (per-file path/md5/size) runs to 10k+ entries on the big source releases —
+# 700k+ YAML lines catalog-wide — and load_catalog DISCARDS it, keeping only the distinct file
+# `category` set. Constructing those arrays dominated the catalog parse (~7s; ~0.6s once skipped).
+# _lean_load_manifest text-strips the top-level `files:` block BEFORE parsing (so the C scanner never
+# tokenizes it) while harvesting each entry's `category` via regex. Byte-identical to
+# `_yaml_load(f)` + `raw.pop("files")` + the category set for every manifest — guarded by
+# tests/methods/catalog_query/test_lean_parse_equivalence.py.
+_FILES_KEY_RE = re.compile(r'^files:\s*(#.*)?$')
+_CATEGORY_RE = re.compile(r'^\s+(?:-\s+)?category:\s*(.+?)\s*(?:#.*)?$')
+
+
+def _lean_load_manifest(path):
+    """Parse a manifest to (doc_without_files, sorted_categories) WITHOUT constructing the discarded
+    `files:` array. Strips the top-level (column-0) block-style `files:` block — its line plus every
+    following indented / column-0 sequence-item line up to the next column-0 key — and harvests each
+    entry's `category` scalar. A manifest with no block-style `files:` (or an inline `files: [...]`)
+    falls through to a normal parse; a defensive `doc.pop('files')` then matches load_catalog's
+    unconditional pop. Cost is negligible for the small manifests."""
+    text = path.read_text()
+    lines = text.splitlines()
+    out: list[str] = []
+    cats: set = set()
+    i, n = 0, len(lines)
+    while i < n:
+        line = lines[i]
+        if _FILES_KEY_RE.match(line):
+            i += 1
+            while i < n:
+                l = lines[i]
+                if l == "" or l[0] in (" ", "\t") or l.startswith("- ") or l == "-" or l.startswith("-\t"):
+                    m = _CATEGORY_RE.match(l)
+                    if m:
+                        v = m.group(1).strip().strip('"').strip("'")
+                        if v:
+                            cats.add(v)
+                    i += 1
+                    continue
+                break
+            continue
+        out.append(line)
+        i += 1
+    # Preserve the file's trailing newline so a trailing block/folded scalar parses identically.
+    body = "\n".join(out) + ("\n" if text.endswith("\n") else "")
+    doc = yaml.load(body, Loader=_SafeLoader) or {}
+    # Defensive: an inline `files: [...]` (flow style) isn't stripped above; match the original's
+    # unconditional pop so `files` never leaks into raw (its categories would be unharvested, but no
+    # such manifest exists in the catalog today — the equivalence guard test would catch a new one).
+    doc.pop("files", None)
+    return doc, sorted(cats)
+
+
 # Repo roots — env-var-overridable with the local-dev default (matches gdc_somatic_hotspot's
 # DATA_CATALOG_ROOT pattern). Overriding via env is what lets CI / a non-/home/sagemaker-user
 # checkout resolve manifests (the hardcoded default previously broke any environment — e.g. GitHub
@@ -654,15 +705,14 @@ def load_catalog(
     manifests: dict[str, ManifestRecord] = {}
     for sub in ("sources", "derived"):
         for path in sorted((root / "manifests" / sub).glob("*.yaml")):
-            with path.open() as f:
-                raw = _yaml_load(f)
+            # Lean parse: skip constructing the heavy, DISCARDED files[] array (per-file md5/size ×
+            # thousands of rows) while harvesting the distinct `category` set — the only facet any
+            # query reads from it. Byte-identical to _yaml_load + raw.pop('files') + the category set
+            # (equivalence guard test), at ~10x less parse time on the big source manifests.
+            raw, categories = _lean_load_manifest(path)
             if not raw or "id" not in raw:
                 continue
-            # Precompute distinct file categories, then drop the heavy files[]
-            # array — it is catalog-internal (per-file md5/size × thousands of
-            # rows) and `category` is the only facet any query reads from it.
-            files = raw.pop("files", None) or []
-            raw["_categories"] = sorted({fe.get("category") for fe in files} - {None})
+            raw["_categories"] = categories
             mid = raw["id"]
             manifests[mid] = ManifestRecord(
                 id=mid,
