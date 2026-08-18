@@ -27,7 +27,7 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
-_SKILLS = _HERE.parents[2]
+_SKILLS = _HERE.parents[1]        # .../skills (so `import _skills_common` resolves)
 if str(_SKILLS) not in sys.path:
     sys.path.insert(0, str(_SKILLS))
 
@@ -52,6 +52,29 @@ AXIS_CONFIG = {
         "kinds": ("acquired/adaptive RESISTANCE, CONTEXT-dependence (works only in a subset), "
                   "PARALOG/redundancy buffering, FEEDBACK reactivation, or failure of the dependency "
                   "IN VIVO vs in vitro")},
+    "selectivity": {
+        "verdict_key": "selectivity", "pubmed_category": "safety",
+        "cards": ["tumor-vs-normal-selectivity", "modality-therapeutic-window",
+                  "sc-normal-celltype-expression", "tumor-vs-normal-percentile-crossing"],
+        "finding_noun": "TUMOR-SELECTIVITY-WEAKENING finding",
+        "kinds": ("reported NORMAL-TISSUE expression of the target, on-target normal-tissue/BYSTANDER "
+                  "toxicity, lack of a tumor-vs-normal therapeutic WINDOW, or antigen expression on "
+                  "CRITICAL normal cells")},
+    "surface_modality": {
+        "verdict_key": "surface_modality", "pubmed_category": "druggability",
+        "cards": ["adc-tce-modality-fit", "surfaceome-family-classification", "surface-topology-and-ptm",
+                  "shed-ectodomain-liability", "surface-abundance-density", "protein-surface-evidence"],
+        "finding_noun": "SURFACE-MODALITY-WEAKENING finding",
+        "kinds": ("antigen SHEDDING (soluble antigen sink), poor/absent INTERNALIZATION, tumor "
+                  "HETEROGENEITY of surface expression, LOW surface density, or lack of a validated "
+                  "biologics format")},
+    "tractability_sm": {
+        "verdict_key": "tractability_sm", "pubmed_category": "druggability",
+        "cards": ["known-drug-tractability", "structure-features-static", "measured-potency-tractability",
+                  "prism-compound-activity", "degradation-feasibility"],
+        "finding_noun": "SMALL-MOLECULE-TRACTABILITY-WEAKENING finding",
+        "kinds": ("lack of a druggable POCKET / intrinsically-disordered / undruggable, poor PK or "
+                  "cell/CNS permeability, or resistance to chemical inhibition")},
 }
 
 SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "

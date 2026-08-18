@@ -118,7 +118,7 @@ design). Reuses this skill's pubmed_search + the containment guard.
 
 AXIS-PARAMETERIZED (AXIS_CONFIG): the block STRUCTURE is one contract across axes (escalate-only
 `findings` + corroborations + contradicts flag + confab-containment); only the finding NOUN + KINDS
-differ. Validated axes: `safety` (findings = liabilities — ocular/normal-tissue tox, off-target,
+differ. Validated axes: safety/dependency/selectivity/surface_modality (live) + tractability_sm (config). `safety` (findings = liabilities — ocular/normal-tissue tox, off-target,
 immunogenicity; caught FOLR1 mirvetuximab ocular tox the narrow read missed) and `dependency` (findings
 = dependency-WEAKENING — resistance, context-dependence, paralog buffering, feedback; on KRAS/LUAD
 surfaced sotorasib acquired resistance + STK11/KEAP1 co-mutation context-dependence). Add an axis by

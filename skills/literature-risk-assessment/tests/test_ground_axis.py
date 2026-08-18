@@ -54,12 +54,19 @@ def test_unwraps_structured_output_and_tolerates_string_finding():
     assert g["contradicts_deterministic"] is True
 
 
-def test_axis_config_has_validated_axes_with_distinct_framing():
-    assert {"safety", "dependency"} <= set(ga.AXIS_CONFIG)
-    assert ga.AXIS_CONFIG["safety"]["finding_noun"] != ga.AXIS_CONFIG["dependency"]["finding_noun"]
-    # each axis maps to a verdict_key + a retrieval category
+def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
+    assert {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"} <= set(ga.AXIS_CONFIG)
+    nouns = {cfg["finding_noun"] for cfg in ga.AXIS_CONFIG.values()}
+    assert len(nouns) == len(ga.AXIS_CONFIG)      # each axis has a DISTINCT finding noun
     for ax, cfg in ga.AXIS_CONFIG.items():
-        assert cfg["verdict_key"] and cfg["pubmed_category"] and cfg["cards"]
+        assert cfg["verdict_key"] and cfg["pubmed_category"] and cfg["cards"] and cfg["kinds"]
+
+
+def test_skills_path_resolves_for_live_imports():
+    # regression guard: _SKILLS must point at skills/ so `_skills_common` imports at call time
+    # (the merged code used parents[2] = repo root, which broke the live path).
+    from pathlib import Path
+    assert (Path(ga._SKILLS) / "_skills_common").is_dir()
 
 
 def test_deterministic_block_selects_axis_cards():
