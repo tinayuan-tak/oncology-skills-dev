@@ -56,8 +56,14 @@ S3_BUCKET, TUMOR_RANK_KEY = bucket_key_for(TUMOR_RANK_MANIFEST_ID)
 _, DEPMAP_RANK_KEY = bucket_key_for(DEPMAP_RANK_MANIFEST_ID)
 
 
-def _s3fs():
-    """A pyarrow S3FileSystem bound to the cbg profile (the bucket denies the default
+import threading as _threading
+
+_S3FS = None
+_S3FS_LOCK = _threading.Lock()
+
+
+def _build_s3fs():
+    """Build a pyarrow S3FileSystem bound to the cbg profile (the bucket denies the default
     role — see feedback_compose_dashboard_aws_profile). Import-local so a non-S3 unit
     test never needs boto3/pyarrow at module import."""
     import pyarrow.fs as fs
@@ -68,6 +74,22 @@ def _s3fs():
         return fs.S3FileSystem(access_key=frozen.access_key, secret_key=frozen.secret_key,
                                session_token=frozen.token, region="us-east-1")
     return fs.S3FileSystem(region="us-east-1")
+
+
+def _s3fs():
+    """Process-wide S3FileSystem singleton. Building one is ~0.4s — dominated by the boto3
+    credential fetch (get_frozen_credentials) — and this accessor is hit once per gene lookup:
+    control_position_cellline alone resolves the target + ~18 curated control genes, so a
+    per-call rebuild spent ~4s of a cold run re-freezing the SAME credentials. The frozen
+    credentials are a process-lifetime snapshot (framework runs are short CLI invocations), and
+    pyarrow's S3FileSystem is thread-safe for reads (the parallel card-read path since skills
+    PR #515). Double-checked locking so concurrent first-callers build one."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                _S3FS = _build_s3fs()
+    return _S3FS
 
 
 @lru_cache(maxsize=4096)
