@@ -207,9 +207,10 @@ def _load_absolute_segtabs():
 
 
 def hrd_score_for_indication(indication: str) -> dict:
-    """Per-indication homologous-recombination-deficiency (HRD) genomic-scar summary — a REAL scar
-    score (HRD-LOH + LST + ntAI), the rigorous completion of the genome-state family that the
-    model-signature arm's SBS3 could only weakly proxy. Cohort-level, target-independent.
+    """Per-indication homologous-recombination-deficiency (HRD) genomic-scar summary — a scar
+    score (HRD-LOH + LST + ntAI). Cohort-level, target-independent. NOTE: this function is
+    implemented but NOT wired into any card (deferred); the card currently surfaces only the
+    SBS3 signature proxy.
 
     Computes the three-component HRD score per sample from the PanCanAtlas ABSOLUTE allele-specific
     segments (see hrd.py), scopes to the indication's TCGA project(s) via the same barcode→cancer-type

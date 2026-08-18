@@ -1,4 +1,4 @@
-"""CLI + emitter for genomic_event_model_match (M11 — canonical P3 genomic join)."""
+"""CLI + emitter for genomic_event_model_match (patient↔model genotype-match assembler)."""
 from __future__ import annotations
 import os
 

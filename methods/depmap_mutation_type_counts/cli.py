@@ -85,7 +85,7 @@ VEP_SEVERITY = {
 }
 
 
-# Class groupings for the descriptive vocabulary
+# Pick the most-severe sequence-ontology class from a compound VEP string
 def _resolve_dominant_variant_class(variant_info: str) -> Optional[str]:
     """Resolve a (possibly-compound) VEP VariantInfo string to its single most-severe
     sequence-ontology class. Returns None only for empty/non-string input. Unknown

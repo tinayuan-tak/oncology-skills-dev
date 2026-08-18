@@ -1,4 +1,4 @@
-"""per_sample_maf producer (2026-08-05): the ALT-2 subtype-panorama substrate.
+"""per_sample_maf producer: the subtype-panorama substrate.
 
 The subgroup-stratified-mutation-frequency panorama recomputes frequency WITHIN each
 stratum member-set from a per-sample MAF at ~/.cache/framework-gdc-pancohort-somatic/

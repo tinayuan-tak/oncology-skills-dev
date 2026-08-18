@@ -49,7 +49,8 @@ def _load_product():
 
 def _combine_rows(rows) -> dict:
     """Combine multiple TCGA-disease rows (e.g. COADREAD = COAD+READ) into one context read.
-    Sample-weighted mean of frac_hrd_high; re-classify on the pooled fraction."""
+    frac_hrd_high is a sample-weighted mean; median_hrd_score is a sample-weighted mean of the
+    per-cohort medians (an approximation, not the true pooled median). Re-classify on the pooled fraction."""
     total_n = int(sum(r["n_samples"] for r in rows))
     if total_n == 0:
         return {}

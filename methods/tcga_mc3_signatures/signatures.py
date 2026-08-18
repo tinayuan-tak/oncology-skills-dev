@@ -28,7 +28,7 @@ SIGNATURE_TO_PROCESS: dict[str, str] = {
     "SBS10a": "pole", "SBS10b": "pole", "SBS10c": "pole", "SBS10d": "pole", "SBS28": "pole",
     # Clock-like (spontaneous deamination / age)
     "SBS1": "clock", "SBS5": "clock",
-    # Prior-therapy / exposure (reported but secondary)
+    # Prior-therapy / exposure: mapped but NOT surfaced (not in INFORMATIVE_PROCESSES)
     "SBS31": "platinum", "SBS35": "platinum", "SBS11": "temozolomide",
     "SBS32": "azathioprine", "SBS22": "aristolochic_acid", "SBS24": "aflatoxin",
     "SBS9": "pol_eta",

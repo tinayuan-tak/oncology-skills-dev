@@ -1,7 +1,7 @@
 """Pure two-hit classifier for functional_gene_state — no I/O, fully unit-testable.
 
 Takes STRUCTURED per-sample evidence (mutation present? copy-number integer/class? LOH at locus?)
-and returns one of the Phase-1 genetic-only states. The read layer assembles this evidence from the
+and returns one of the genetic-only states. The read layer assembles this evidence from the
 patient (TCGA) or model (DepMap) substrate and calls `classify_functional_state` once per sample;
 keeping the biology here means the two-hit logic is testable with dict fixtures, no S3.
 
@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-# Phase-1 + Phase-2 vocabulary. Phase 2 adds epigenetic states (model-side RRBS landed;
-# patient-side HM450 pending). Consumers should treat this as an OPEN set.
+# Genetic-only states plus the planned epigenetic states (model-side RRBS landed; patient-side
+# HM450 pending). Consumers should treat this as an OPEN set.
 FUNCTIONAL_STATES = (
     "wt",
     "monoallelic",
@@ -39,7 +39,7 @@ class SampleEvidence:
                           (None = LOH not determinable on this side — e.g. model-side copy-neutral).
       mutation_is_lof   : is the mutation a clear loss-of-function class (nonsense, frameshift,
                           splice, etc.) vs. a missense of unknown consequence? CAPTURED evidence
-                          (surfaced to rules + reserved for Phase-2 refinement); NOT a Phase-1
+                          (surfaced to rules + reserved for future refinement); NOT a
                           decision input — the current two-hit call does not branch on it.
     """
     has_mutation: bool

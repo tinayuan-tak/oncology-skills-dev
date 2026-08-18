@@ -1,4 +1,4 @@
-"""read_genomic_event_model_match — the canonical P3 patient↔model join on functional genomic event.
+"""read_genomic_event_model_match — the patient↔model join on functional genomic event.
 
 Joins FOUR reused sources (no new substrate, no new ingestion):
   1. alteration_role (OncoKB × IntOGen) → the driver DIRECTION, which selects the MATCH MODE.
@@ -8,15 +8,15 @@ Joins FOUR reused sources (no new substrate, no new ingestion):
   4. depmap_expression_dependency Chronos + lineage metadata → screen role + lineage match.
 
 DIRECTION-AWARE matching (two modes, so both driver classes are served):
-  - LoF / ambiguous / unknown → ALLELE-COUNT mode: match models on M6 state identity
+  - LoF / ambiguous / unknown → ALLELE-COUNT mode: match models on functional-state identity
     (biallelic-genetic two-hit TSG, or monoallelic). The tumor-suppressor path (TP53 works cleanly).
   - ACTIVATING driver → MUTATION-PRESENCE mode: the characterizing event is "activating mutation
-    present" (M6's allele-count vocabulary scatters an activating hotspot across monoallelic +
+    present" (the functional-state allele-count vocabulary scatters an activating hotspot across monoallelic +
     uncertain, so no allele-count state is recurrent); match models on has_mutation, recurrence from
     the patient arm's fraction_mutated. Resolves the KRAS-class gap (KRAS/COADREAD ~40% mutated).
 
 Emits a ranked table of GENOTYPE-MATCHED models (event_match + screen_role + lineage_match) + an
-event_correspondence_class rollup. Mirrors patient_model_expression_correspondence (expression-Q4)
+event_correspondence_class rollup. Mirrors patient_model_expression_correspondence (the expression join)
 one-for-one, swapping the match axis from expression-similarity to functional-genotype-identity.
 data_unavailable-safe throughout.
 """
@@ -30,7 +30,7 @@ from typing import Optional
 # "Esophagus/Stomach"), so gastric within-lineage scoping silently matched zero models.
 from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE  # noqa: E402
 
-# Chronos dependency cutoffs (DepMap convention — identical to expression-Q4).
+# Chronos dependency cutoffs (DepMap convention — identical to the expression join).
 DEPENDENT_CHRONOS = -0.5
 NOT_DEPENDENT_CHRONOS = -0.2
 
@@ -44,17 +44,17 @@ def _patient_dominant_event(patient_arm: dict,
     """The tumor cohort's characterizing genomic event to match + its fraction + the MATCH MODE.
 
     Returns (event_key, fraction, match_mode) where match_mode is:
-      - "allele_count" : event_key is an M6 state (biallelic-genetic / monoallelic); match models on
+      - "allele_count" : event_key is a functional-gene-state (biallelic-genetic / monoallelic); match models on
                          state identity. The BIALLELIC-LOSS / tumor-suppressor path (TP53 works cleanly).
       - "mutation_presence" : event_key == "activating_mutation"; match models on has_mutation. The
                          ACTIVATING-ONCOGENE path — resolves the scope gap where a recurrent activating
-                         hotspot (e.g. KRAS ~40% mutated) scatters across M6 monoallelic + uncertain and
+                         hotspot (e.g. KRAS ~40% mutated) scatters across monoallelic + uncertain and
                          clears no single allele-count floor. Selected when alteration_role's
                          functional_direction == "activating".
       - "none" : no recurrent event to match.
 
-    DIRECTION-AWARE (the fix): M6 is intentionally an ALLELE-COUNT primitive (biallelic loss), so for
-    an ACTIVATING driver we match on the biologically-correct event (mutation present) using M6's
+    DIRECTION-AWARE: functional_gene_state is intentionally an ALLELE-COUNT primitive (biallelic loss), so for
+    an ACTIVATING driver we match on the biologically-correct event (mutation present) using its
     additive fraction_mutated, rather than forcing the activation into an allele-count state. LoF /
     ambiguous / unknown-direction targets keep the allele-count matching (unchanged → TP53 byte-stable)."""
     counts = (patient_arm or {}).get("state_counts")
@@ -94,7 +94,7 @@ def _screen_role(chronos: Optional[float]) -> str:
 
 def read_genomic_event_model_match(target: str, indication: str, release_pin: str = "26q1",
                                    top_n: int = 15) -> dict:
-    """M11 assembler — genotype-matched DepMap models for a (target, indication). Returns the
+    """Genotype-match assembler — genotype-matched DepMap models for a (target, indication). Returns the
     ranked matched-models table + rollup. data_unavailable-safe.
 
     Ranking: genotype-matched models first, then lineage-matched, then dependency strength (more
@@ -121,7 +121,7 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
             raise
         functional_direction = None
 
-    # 1) patient event to match (M6 patient arm), direction-aware
+    # 1) patient event to match (functional_gene_state patient arm), direction-aware
     fgs = read_functional_gene_state(sym, indication)
     patient_arm = fgs.get("patient") or {}
     event, event_frac, match_mode = _patient_dominant_event(patient_arm, functional_direction)
@@ -143,7 +143,7 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
                                     else "no patient functional-state distribution")})
         return base
 
-    # 2) per-model genotypes (M6 model accessor)
+    # 2) per-model genotypes (functional_gene_state model accessor)
     per_model = read_model_states_per_model(sym)
     if not per_model:
         base.update({"event_correspondence_class": "data_unavailable", "matched_models": [],
@@ -151,7 +151,7 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
                      "_data_note": "target absent from DepMap model substrate"})
         return base
 
-    # 3) Chronos + lineage metadata (reuse the expression-Q4 loader)
+    # 3) Chronos + lineage metadata (reuse the expression-join loader)
     try:
         chronos_by_model, _tpm, meta, errs = _dep.load_depmap_files_for_card4(
             release_pin=release_pin, target_symbol=sym)
@@ -208,7 +208,7 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
 
 def _classify_event_correspondence(n_matched, n_matched_dependent, n_matched_dep_lineage,
                                    has_lineage) -> str:
-    """Categorical for the card/rules (mirrors expression-Q4's _classify_correspondence, on
+    """Categorical for the card/rules (mirrors the expression join's _classify_correspondence, on
     genotype-match + dependency):
       event_matched_dependent_in_lineage  — ≥1 genotype-matched + DEPENDENT model IN the lineage
       event_matched_dependent_off_lineage — matched+dependent models exist, none in the lineage

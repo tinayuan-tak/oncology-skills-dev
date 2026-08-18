@@ -1,6 +1,6 @@
-"""Reader manifest-resolution (2026-08-05): the MC3 products resolve LOCAL-CACHE-FIRST,
+"""Reader manifest-resolution: the MC3 products resolve LOCAL-CACHE-FIRST,
 then the registered S3 derived manifests (tcga-mc3-hotspot-frequency-v1 /
-tcga-mc3-per-sample-maf-v1). This makes ALT-2/ALT-3 portable to a fresh environment instead
+tcga-mc3-per-sample-maf-v1). This makes the products portable to a fresh environment instead
 of dying on a machine-local cache file.
 
 These test the resolution LOGIC without S3 — a synthetic local parquet (local-first wins) +

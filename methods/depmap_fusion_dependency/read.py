@@ -143,7 +143,7 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
             "fusion_stratification_class": "data_unavailable",
         }
 
-    # INDICATION-CONDITIONED ladder (T2.0) — within-lineage when powered, else pan-DepMap
+    # INDICATION-CONDITIONED ladder — within-lineage when powered, else pan-DepMap
     # (strong→moderate). Compute kernel unchanged. See depmap_common.lineage_ladder.
     from methods.depmap_common.lineage_ladder import apply_lineage_ladder
 

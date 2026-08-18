@@ -11,7 +11,7 @@ depmap_mutation_dependency), so the statistics are identical to the mutation/CN 
   - Chronos via depmap_chronos_distribution.load_depmap_files ({ModelID -> chronos})
   - fusion-involvement bool from DepMap 26Q1 OmicsFusionFiltered.csv (ModelID-native; the target
     symbol appearing as EITHER the 5' (LeftGene) OR 3' (RightGene) partner in any high/medium-
-    confidence call — the gene-collapsed symbol-union boolean, per sign-off 2026-08-06).
+    confidence call — the gene-collapsed symbol-union boolean).
   - fusion-negative (comparator) = every other screened line.
 
 Emits fusion_stratification_class ∈ {fusion_positive_strongly_dependent,

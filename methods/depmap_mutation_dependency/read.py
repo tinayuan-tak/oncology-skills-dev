@@ -31,7 +31,7 @@ def read_mutation_stratified_dependency(
 ) -> dict:
     """Compute mutation-stratified dependency for target across the DepMap panel.
 
-    `indication` drives the INDICATION-CONDITIONED ladder (T2.0, 2026-08-08): when it maps to a
+    `indication` drives the INDICATION-CONDITIONED ladder: when it maps to a
     DepMap lineage and the within-lineage mutant-vs-WT split clears the floor, the stratified test
     runs WITHIN that lineage (evidence_scope=within_indication) — so a lineage-context-dependent
     oncogene (BRAF: addicted in melanoma/thyroid, NOT in CRC) no longer reads a pan-cancer strong
@@ -76,7 +76,7 @@ def read_mutation_stratified_dependency(
             "mutation_stratification_class": "data_unavailable",
         }
 
-    # INDICATION-CONDITIONED ladder (T2.0): compute within-lineage when powered, else pan-DepMap
+    # INDICATION-CONDITIONED ladder: compute within-lineage when powered, else pan-DepMap
     # (strong→moderate downgraded). The compute kernel is unchanged (pure, byte-stable); the ladder
     # only restricts the model dicts + attaches evidence_scope. `restrict=None` → pan-DepMap.
     from methods.depmap_common.lineage_ladder import apply_lineage_ladder

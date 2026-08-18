@@ -275,24 +275,13 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
     frac_focal_amp = float(np.mean((cn_arr > FOCAL_AMP) & (cn_arr <= HIGH_AMP)))
     frac_high_amp = float(np.mean(cn_arr > HIGH_AMP))
 
-    # ASYMMETRY (KNOWN + BACKTESTED — see copy-number-distribution.card.yaml +
-    # intracellular-intrinsic.rules.yaml cn-recurrently-*-supportive rationales):
-    # the amp score counts ONLY focal/high gain (>1.5) while the del score counts
-    # hemizygous/shallow loss (0.5-0.92) alongside deep loss. A 2026-08-14 focal-driver
-    # backtest (curated COADREAD panel: 6 amp-drivers / 4 del-drivers / 4 mutation-only /
-    # 3 LOH; the real _classify_cn, only band-membership varied) VALIDATED keeping these
-    # thresholds — every symmetric alternative is STRICTLY WORSE:
-    #   - +shallow-amp (symmetric-inclusive): amp-recall 2/6→6/6 BUT neutral-specificity
-    #     3/4→0/4. Shallow gain is genome-wide background (mutation-only KRAS/BRAF/PIK3CA
-    #     all carry shallow_amp 0.34-0.40), so including it calls everything amplified.
-    #     focal_amp alone doesn't separate drivers either (ERBB2 focal 0.053 < KRAS 0.111)
-    #     — amplification is indication-specific, diluted in this pan-cancer readout.
-    #   - -shallow-del (symmetric-focal): del-recall 4/4→1/4 (erases SMAD4/PTEN/RB1, real
-    #     TSG deletions seen as recurrent hemizygous loss in lines; only CDKN2A is deep).
-    # The amp under-call is NOT a threshold bug: the real amp-driver signal belongs to the
-    # indication-specific GISTIC patient_focal_cn_class + the copy-number-stratified-
-    # dependency card (amplified-lines-more-dependent → biomarker_stratified_dependency),
-    # NOT this pan-cancer distribution classifier. Do NOT re-tune these bands.
+    # Intentionally ASYMMETRIC: the amp score counts ONLY focal/high gain (>1.5), while the
+    # del score includes hemizygous/shallow loss (0.5-0.92) alongside deep loss. Do NOT
+    # symmetrize — including shallow gain calls everything amplified (shallow gain is
+    # genome-wide background), and dropping shallow loss erases real TSG deletions seen as
+    # recurrent hemizygous loss. The amp-driver signal belongs to the indication-specific
+    # GISTIC focal-CN class + the copy-number-stratified-dependency card, not this
+    # pan-cancer distribution classifier. Do NOT re-tune these bands.
     fraction_recurrent_amp = frac_focal_amp + frac_high_amp   # focal + high (excludes shallow — validated)
     fraction_recurrent_del = frac_deep_del + frac_shallow_del  # deep + shallow (hemizygous — validated)
 
@@ -322,7 +311,7 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
         fraction_recurrent_amp, fraction_recurrent_del,
         recurrent_threshold=recurrent_threshold,
     )
-    # Homozygous-deletion recurrence flag (2026-08-06, DISPLAY facet). copy_number_class folds deep +
+    # Homozygous-deletion recurrence flag (DISPLAY facet). copy_number_class folds deep +
     # shallow deletion into one `recurrently_deleted` value; this SEPARATE companion isolates recurrent
     # DEEP (homozygous, CN < DEEP_DEL) deletion — the degrader-relevant pattern (no protein to degrade).
     # Emitted as its OWN field, NOT a copy_number_class value: copy_number_class is verdict-driving (in

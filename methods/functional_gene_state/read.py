@@ -10,7 +10,7 @@ Two arms sharing ONE classifier (classify.py):
 READ-PATH DISCIPLINE: the raw inputs are large (ABSOLUTE 253 MB, MC3 MAF + DepMap matrices hundreds
 of MB). We NEVER stream a full matrix on the render path. Each arm reads BOUNDED slices — one gene's
 mutation rows, one gene's CN row, the indication's sample set — so a target-profile call touches only
-kilobytes. A precomputed derived product (Phase-2 accelerator) is preferred when present; absent it,
+kilobytes. A precomputed derived product (an accelerator) is preferred when present; absent it,
 the bounded live read is cheap enough to ship.
 
 data_unavailable-safe: any arm that cannot read returns a structured absence, never raises.
@@ -34,7 +34,7 @@ GISTIC_KEY = f"{PANCAN_PREFIX}/all_thresholded.by_genes_whitelisted.tsv"
 SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
 DEPMAP_PREFIX = bucket_prefix_for("depmap-consortium-26q1")[1].rstrip("/")
 
-# CCLE 2019 RRBS methylation (model side, Phase-2 epigenetic arm).
+# CCLE 2019 RRBS methylation (model side, epigenetic arm).
 # Rows = TSS-1kb windows; locus_id = GENESYMBOL_CHR_START_END.
 # Columns 0-2 are meta (locus_id, CpG_sites_hg19, avg_coverage); rest are CELLLINENAME_TISSUE.
 # Values are fractional methylation beta ∈ [0,1]; NaN = not measured in that cell line.
@@ -43,7 +43,7 @@ DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
 # Standard PanCanAtlas threshold: beta > 0.3 = promoter hypermethylated (silenced).
 _RRBS_METH_THRESHOLD = 0.30
 
-# SeSAMe HM450 derived product (Phase-2b patient-side methylation).
+# SeSAMe HM450 derived product (patient-side methylation).
 # tcga-sesame-promoter-methylation-v1: 2,730 GDC per-sample SeSAMe TSVs → per-(gene,patient)
 # island-anchored promoter methylation call. 31.8M rows, 13,844 genes, 2,422 patients, 373 MB,
 # sorted by gene_symbol for pyarrow row-group predicate pushdown (reads ~14 kB per gene).
@@ -201,7 +201,7 @@ def _loh_homdel_at_locus(segs, sample: str, chrom: float, pos: float):
     return (loh, homdel)
 
 
-# ── Phase-2 accelerator: the precomputed gene-SORTED two-hit evidence product ──────────────────────
+# ── Accelerator: the precomputed gene-SORTED two-hit evidence product ──────────────────────────────
 # Replaces the ~1.6 GB per-query full-object read (MC3 + ABSOLUTE + GISTIC) with a per-gene pushdown
 # scan. The product stores only ALTERED (gene, patient) rows (has_mutation OR cn_class∈{homdel,loss});
 # an absent row is provably wt (classify rule 6), reconstructed from the indication's patient set. The
@@ -316,7 +316,7 @@ def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct
         return {"_arm": "patient", "state": "data_unavailable", "_note": "MC3 read failed"}
     segs = _absolute_segments_cached()
     gistic = _read_gistic_gene(target)
-    # Phase-2b: HM450 promoter methylation per patient (empty dict = parquet not yet available).
+    # HM450 promoter methylation per patient (empty dict = parquet not yet available).
     methylation = _read_patient_methylation(target, indication)
 
     # mutation set for this gene, restricted to the indication's patients.
@@ -371,7 +371,7 @@ def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct
                             loh_at_locus=loh, mutation_is_lof=mut_is_lof)
         genetic_state = classify_functional_state(ev)
 
-        # Phase-2b methylation upgrade: same rules as model side.
+        # Methylation upgrade: same rules as model side.
         is_methylated: Optional[bool] = methylation.get(patient)  # None = not in HM450 parquet
         if is_methylated is True:
             if genetic_state == "wt":
@@ -387,7 +387,7 @@ def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct
 
     summ = summarize_states(states)
     # mutation-presence fraction (ADDITIVE — independent of the allele-count state_counts). Needed by
-    # M11 for the ACTIVATING-oncogene case: an activating hotspot's characterizing event is "mutation
+    # the model-match assembler for the ACTIVATING-oncogene case: an activating hotspot's characterizing event is "mutation
     # present", which the allele-count vocabulary scatters across monoallelic + uncertain. This exposes
     # the raw mutation prevalence so a consumer can match on mutation presence for GoF targets.
     n_ind = len(ind_patients)
@@ -535,9 +535,9 @@ def _read_model_methylation(target: str) -> dict:
 def _read_patient_methylation(target: str, indication: str) -> dict:
     """{patient_barcode: is_methylated (bool)} for `target` from the HM450 derived parquet.
 
-    Returns {} if the derived parquet is not yet available (Phase-2b gated on pull + aggregation).
-    Graceful degradation: when the parquet is absent, _read_patient_arm behaves as Phase-2a
-    (genetic states only), with no silent failure or exception propagation.
+    Returns {} if the derived parquet is not yet available (gated on pull + aggregation).
+    Graceful degradation: when the parquet is absent, _read_patient_arm falls back to
+    genetic states only, with no silent failure or exception propagation.
 
     The `indication` parameter is NOT used for filtering here — the derived parquet spans all
     TCGA cancer types. Filtering to indication-specific patients is done at join time in
@@ -556,7 +556,7 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
         return {str(row.patient_barcode): bool(row.is_promoter_methylated)
                 for row in sub.itertuples(index=False)}
     except Exception as e:  # noqa: BLE001
-        # HM450 product genuinely absent (Phase-2b not yet landed → NoSuchKey/404) → honest {} so the
+        # HM450 product genuinely absent (not yet landed → NoSuchKey/404) → honest {} so the
         # patient arm degrades to genetic-only. A transient/creds/broken-env error must NOT be masked
         # as "no methylation" (would silently drop epigenetic upgrades) — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
@@ -670,13 +670,13 @@ def read_model_states_per_model(target: str) -> dict:
     Returns {ModelID: {state, cn_class, has_mutation, mutation_is_lof, is_methylated}} — the
     per-model rows the aggregate model arm rolls up. Empty dict when absent from all substrate.
 
-    Phase-2 methylation (CCLE RRBS TSS-1kb): when a cell line has no genetic hit (wt by genetic
+    Methylation (CCLE RRBS TSS-1kb): when a cell line has no genetic hit (wt by genetic
     evidence alone) but is_methylated=True, state is upgraded to 'epigenetic'. When a cell line
     has a genetic hit AND is methylated, state is upgraded to 'biallelic+epigenetic'. Models not
     covered by RRBS receive is_methylated=None (data_unavailable for that modality).
 
     Model-side LOH is genome-wide only (loh_at_locus=None) → copy-neutral mutations resolve
-    `uncertain` (documented model caveat). Downstream consumers (M11) join against Chronos + lineage.
+    `uncertain` (documented model caveat). Downstream consumers (the model-match assembler) join against Chronos + lineage.
     """
     damaging = _read_depmap_mut_matrix("OmicsSomaticMutationsMatrixDamaging.csv", target)
     hotspot = _read_depmap_mut_matrix("OmicsSomaticMutationsMatrixHotspot.csv", target)
@@ -696,7 +696,7 @@ def read_model_states_per_model(target: str) -> dict:
                             loh_at_locus=None, mutation_is_lof=mut_is_lof)
         genetic_state = classify_functional_state(ev)
 
-        # Phase-2 methylation upgrade: epigenetic silencing as a second-hit modality.
+        # Methylation upgrade: epigenetic silencing as a second-hit modality.
         if is_methylated is True:
             if genetic_state in ("wt", "monoallelic"):
                 state = "epigenetic" if genetic_state == "wt" else "biallelic+epigenetic"

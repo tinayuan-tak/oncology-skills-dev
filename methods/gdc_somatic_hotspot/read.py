@@ -72,7 +72,7 @@ INDICATION_TO_GDC_PROJECTS = {
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-# --- Derived-manifest resolution (2026-08-05) ---------------------------------
+# --- Derived-manifest resolution ----------------------------------------------
 # The MC3 hotspot aggregate + per-sample MAF are now REGISTERED derived products
 # (tcga-mc3-hotspot-frequency-v1 / tcga-mc3-per-sample-maf-v1). Resolve them from the
 # data-catalog manifest → S3, so a fresh environment reads the durable product instead
@@ -141,7 +141,7 @@ def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BA
     return cache_base / f"{indication.lower()}_mc3_hotspots.parquet"
 
 
-# --- Driver-recurrence percentile (Axis-1 analog, 2026-08-05) -----------------
+# --- Driver-recurrence percentile ---------------------------------------------
 # The all-gene contextualization axis for genomic alteration, mirroring what
 # tumor-presence's allgene_percentile does for expression: turn the ABSOLUTE
 # overall_mutation_frequency into a RELATIVE one — "is this gene's recurrence
@@ -231,9 +231,9 @@ def read_hotspot_summary(
       hotspot_frequencies (list of {codon, frequency}), top_cooccurring_genes,
       top_mutually_exclusive_genes.
 
-    `top_cooccurring_genes` and `top_mutually_exclusive_genes` are *iter-2 work*
-    (requires co-mutation analysis across samples; iter-1b returns empty lists
-    with a structured note).
+    `top_cooccurring_genes` and `top_mutually_exclusive_genes` are not computed
+    here (they require co-mutation analysis across samples); this returns empty
+    lists with a structured note.
     """
     ensure_aws_profile()
     if aggregate_path is None:
@@ -305,7 +305,7 @@ def read_hotspot_summary(
     ).head(top_n_hotspots)
 
     overall_freq = float(summary_row["overall_mutation_frequency"])
-    # Driver-recurrence percentile (Axis-1 analog) — where does this gene's recurrence
+    # Driver-recurrence percentile — where does this gene's recurrence
     # fall among ALL mutated genes in this indication? DISPLAY facet, verdict-inert.
     rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, indication, overall_freq)
 

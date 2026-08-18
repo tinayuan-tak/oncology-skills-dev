@@ -7,6 +7,6 @@ downstream consumers can pick their own consensus threshold
 (caller_count >= 1 for union / >= 2 for majority / == 3 for strict).
 """
 
-# Per-target reader over the derived product (2026-07-23) — the fusion-rearrangement-landscape card
+# Per-target reader over the derived product — the fusion-rearrangement-landscape card
 # dispatcher getattr's this off the package.
 from .read import read_target_summary  # noqa: F401,E402

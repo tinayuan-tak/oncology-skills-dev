@@ -2,8 +2,7 @@
 """tcga_fusion_consensus CLI — build the pan-TCGA fusion consensus product.
 
 Reads three ingested TCGA fusion callers, normalizes to sample-level TCGA
-barcodes (TCGA-{tss}-{part}-{sample_num}, vial dropped — validated 2026-07-22
-against real data), and emits two parquets:
+barcodes (TCGA-{tss}-{part}-{sample_num}, vial dropped), and emits two parquets:
 
   1. fusion_consensus_per_sample_gene.parquet
        One row per (sample_key, gene_symbol). Preserves every caller's

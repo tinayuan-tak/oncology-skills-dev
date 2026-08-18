@@ -1,4 +1,4 @@
-"""CLI + emitter for functional_gene_state (M6, genetic-only Phase 1).
+"""CLI + emitter for functional_gene_state (genetic-only vocabulary).
 
 Emits the harmonized two-hit / biallelic-inactivation summary for a (target, indication):
 patient (TCGA) + model (DepMap) state distributions + a target-level headline class.

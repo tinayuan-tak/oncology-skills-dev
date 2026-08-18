@@ -23,9 +23,9 @@ Different callers publish different suffix lengths:
     Gao 2018:      'TCGA-05-4244-01A-11R-A29S-07'         (full aliquot)
     cBioPortal:    'TCGA-05-4244-01'                      (sample-only, vial stripped)
 The one common granularity is sample-level with the vial letter dropped —
-'TCGA-05-4244-01' — which is what we normalize to. Validated 2026-07-22:
-after this normalization the three callers achieve 724 samples in all three,
-827 in >=2, 895 union across LUAD+LUSC alone (was 0 with a naive first-4-segment cut).
+'TCGA-05-4244-01' — which is what we normalize to. After this normalization the
+three callers overlap on hundreds of samples (a naive first-4-segment cut yields
+zero overlap).
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ from methods.catalog_query.read import bucket_key_for
 METHOD_VERSION = "0.3.0"   # 0.3.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort display sibling
 #                            0.2.0: + per-target read_target_summary over the derived S3 product
 
-# ---------- per-target read over the derived consensus product (2026-07-23) ----------
+# ---------- per-target read over the derived consensus product ----------
 # The builders above (load_*/build_consensus in cli.py) EMIT the derived product; this reader
 # CONSUMES it per-(target, indication) for the fusion-rearrangement-landscape card. Reads the S3
 # object with the definitive-vs-transient cache latch used by every other derived reader.
@@ -64,9 +64,9 @@ _RECURRENT_MIN_SAMPLES = 3
 # single-caller false positives inflating recurrence. This product is a 3-CALLER CONSENSUS and
 # preserves caller_count precisely so the floor can be enforced; the default is therefore MAJORITY
 # (>= 2 callers), not the union. A consumer that explicitly wants the 1-caller union passes
-# min_callers=1. (2026-08-08 genomic-alteration review: the old default of 1 discarded the consensus —
-# a single-caller fusion in >= _RECURRENT_MIN_SAMPLES samples was promoted to recurrent_fusion_driver,
-# defeating the whole point of a 3-caller product.)
+# min_callers=1. (A default of 1 would discard the consensus — a single-caller fusion in
+# >= _RECURRENT_MIN_SAMPLES samples would be promoted to recurrent_fusion_driver, defeating the
+# whole point of a 3-caller product.)
 _DEFAULT_MIN_CALLERS = 2
 
 
@@ -275,24 +275,23 @@ def read_target_summary(target: str, indication: str = None,
                        key=lambda x: (-x[1], x[0]))
     recurrent_partners = [{"partner": p, "n_samples": n} for p, n in recurrent]
 
-    # Recurrence confidence tier (2026-08-18 panel backtest — VERDICT-INERT, additive).
+    # Recurrence confidence tier — VERDICT-INERT, additive.
     #   high_recurrent_partner  = the SAME partner recurs across >= _RECURRENT_MIN_SAMPLES samples
-    #                             (EML4-ALK, TMPRSS2-ERG, BCR-ABL1, PML-RARA, ...). This branch is
-    #                             100% precise on a curated true/false panel — every driver with a
-    #                             recurrent partner is real; no amplification-driven passenger reaches it.
-    #   moderate_promiscuous    = the target recurs but no single partner does. This is a GENUINELY
-    #                             MIXED branch: real promiscuous kinase fusions (ROS1, NTRK1, FGFR2,
+    #                             (EML4-ALK, TMPRSS2-ERG, BCR-ABL1, PML-RARA, ...). Highly precise:
+    #                             every driver with a recurrent partner is real; no amplification-driven
+    #                             passenger reaches it.
+    #   moderate_promiscuous    = the target recurs but no single partner does. A GENUINELY MIXED
+    #                             branch: real promiscuous kinase fusions (ROS1, NTRK1, FGFR2,
     #                             BRAF-melanoma — a constant kinase, varying 5' partner) AND
     #                             amplification-driven passenger SVs at an amplified oncogene locus
-    #                             (ERBB2/STAD 1.04%, ERBB2/BRCA, MDM2/SARC) both land here.
-    # The backtest showed NO structural feature in this product separates the two: frequency does not
-    # (ERBB2/STAD 1.04% ~= ROS1/LUAD 1.11%; MDM2/SARC 5.62% exceeds most true drivers), and neither
-    # does partner-count dispersion (indistinguishable distributions). The only real discriminator is
-    # gene biology (fusion-competent kinase/TF vs amplification-driven oncogene), which needs an
-    # orthogonal signal (OncoKB fusion-competence or a copy-number cross-reference) — a cross-card
-    # change, out of scope for this product. So we DO NOT demote the promiscuous branch (that would
-    # turn ROS1/NTRK1/FGFR2 true drivers into false negatives); we keep fusion_class as-is and expose
-    # the confidence tier so a downstream consumer can weight a high vs moderate recurrent call.
+    #                             (ERBB2, MDM2/SARC) both land here.
+    # No structural feature in this product separates the two: neither frequency nor partner-count
+    # dispersion distinguishes them. The only real discriminator is gene biology (fusion-competent
+    # kinase/TF vs amplification-driven oncogene), which needs an orthogonal signal (OncoKB
+    # fusion-competence or a copy-number cross-reference) — out of scope for this product. So we DO NOT
+    # demote the promiscuous branch (that would turn ROS1/NTRK1/FGFR2 true drivers into false
+    # negatives); we keep fusion_class as-is and expose the confidence tier so a downstream consumer
+    # can weight a high vs moderate recurrent call.
     fusion_recurrence_confidence = None
     if recurrent_partners:
         fclass = "recurrent_fusion_driver"

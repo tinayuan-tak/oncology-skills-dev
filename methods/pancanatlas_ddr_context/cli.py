@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pancanatlas_ddr_context — per-indication DDR/HRD-deficiency cohort context (Track PI).
+"""pancanatlas_ddr_context — per-indication DDR/HRD-deficiency cohort context.
 
 A verdict-INERT, pre-integrated companion facet: how HRD/DDR-deficient is an indication's TCGA
 cohort? Consumes the PanCanAtlas DDR footprint resource (Knijnenburg 2018), which already did the
@@ -17,7 +17,7 @@ Cohort class (fraction of samples that are HRD-high, HRD_Score >= HRD_HIGH_CUT):
   data_unavailable   — indication not in the DDR resource
 
 VERDICT-INERT context facet: no resolver rung, no rescue. Surfaces the cohort HRD prior alongside
-the (separate, verdict-moving) partner-conditional dependency work; it does NOT itself flip a verdict.
+the (separate, verdict-moving) partner-conditional dependency analysis; it does NOT itself flip a verdict.
 """
 from __future__ import annotations
 

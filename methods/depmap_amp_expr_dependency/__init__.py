@@ -7,7 +7,7 @@ signature (ERBB2/MYC/MET-amp archetype) — the amp→overexpression→dependenc
 stratified path (amplified-vs-neutral, expression-blind) cannot resolve, and the expression-dependency
 FACET (expression-blind to CN) cannot establish either.
 
-The stratifying boolean is a CONJUNCTION (v1, user-approved 2026-08-06 "conditioned arm vs rest"):
+The stratifying boolean is a CONJUNCTION ("conditioned arm vs rest"):
   positive arm = amplified (CN > FOCAL_AMP 2.0) AND high-expression (TPM in the top within-panel tertile)
   comparator   = every OTHER evaluated line (not-both) — the broad mirror of the CN/fusion comparators.
 Because the stratifier collapses to a single {ModelID -> bool}, the SAME proven one-sided Mann-Whitney

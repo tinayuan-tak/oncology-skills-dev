@@ -87,17 +87,18 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
             "amp_expr_stratification_class": "data_unavailable",
         }
 
-    # INDICATION-CONDITIONED ladder (T2.0) — within-lineage when powered, else pan-DepMap
+    # INDICATION-CONDITIONED ladder — within-lineage when powered, else pan-DepMap
     # (strong→moderate). Compute kernel unchanged. See depmap_common.lineage_ladder.
     from methods.depmap_common.lineage_ladder import apply_lineage_ladder
 
     def _compute(mut_models, wt_models):
         # amp_expr's POSITIVE arm (amplified AND top-tertile-TPM) is a CONJOINT computed inside the
         # kernel from the evaluated set's tertile — it can't be split by arm at the read layer. And
-        # the high-prevalence-driver problem (rung 2's reason) doesn't arise for a conjoint (rarely
-        # >30% of a lineage). So amp_expr uses rungs 1+3 only: restrict the whole evaluated set to the
-        # in-lineage intersection of the two arms (None = all). rung 2 (L, None) degenerates to the
-        # full lineage set here — harmless, since without a separable positive arm it equals rung 1.
+        # the high-prevalence-driver problem (the reason the ladder has a lineage-restricted-comparator
+        # step) doesn't arise for a conjoint (rarely >30% of a lineage). So amp_expr restricts the whole
+        # evaluated set to the in-lineage intersection of the two arms (None = all); the
+        # lineage-restricted-comparator step degenerates to the full lineage set here — harmless, since
+        # without a separable positive arm it equals the plain within-lineage restriction.
         restrict = None
         if mut_models is not None and wt_models is not None:
             restrict = mut_models & wt_models

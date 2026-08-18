@@ -52,7 +52,7 @@ def read_clonality(gene: "Optional[str]" = None, indication: "Optional[str]" = N
     Accepts `target` as an alias for `gene` to satisfy the compose-dashboard generic-dispatch contract
     (_live_readers._generic_dispatch calls every reader as fn(target=, indication=), where `target` is
     the gene symbol). Without this the card silently errored to data_unavailable in every live
-    composition (2026-08-14 fix)."""
+    composition."""
     gene = gene or target
     df = _load_product(product_path)
     if df is None or df.empty:

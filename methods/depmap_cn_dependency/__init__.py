@@ -12,7 +12,7 @@ depmap_mutation_dependency), so the statistical treatment is identical to the mu
   - relative CN via depmap_cn_distribution.load_cn_files ({ModelID -> relative_cn})
   - amplified boolean = relative_cn > FOCAL_AMP_HIGH (2.0, the focal high-level amp cut the dependency arm uses)
   - neutral (comparator) = NOT amplified (broad; the faithful mirror of the mutation path's
-    "everything not mutant" WT group — sign-off decision 2026-08-06).
+    "everything not mutant" WT group).
 
 Emits cn_stratification_class ∈ {amplified_strongly_dependent, amplified_moderately_dependent,
 neutral_strongly_dependent, not_cn_stratified, insufficient_amplification_rate, data_unavailable}.

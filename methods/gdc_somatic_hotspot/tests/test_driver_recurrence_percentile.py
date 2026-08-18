@@ -1,4 +1,4 @@
-"""Synthetic-data test for the driver-recurrence percentile (Axis-1 analog, 2026-08-05).
+"""Synthetic-data test for the driver-recurrence percentile.
 
 read_hotspot_summary now contextualizes overall_mutation_frequency: it ranks the
 target gene's recurrence against ALL mutated genes in the SAME indication aggregate,

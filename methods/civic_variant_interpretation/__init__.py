@@ -24,9 +24,8 @@ and are EXCLUDED to keep every per-variant attribution unambiguous.
 Additive / verdict-inert DISPLAY facet — fires NO resolver rung.
 METHOD_VERSION 0.1.0.
 
-DEFERRED fast-follow (see caveat): the IntOGen 2D/3D driver-cluster residues
-(Compendium_Cancer_Genes.tsv, CC0, in-hand) as a recall-extension leg for variants CIViC
-has not curated — a variant at/near a HOTMAPS-significant residue is a positional driver signal.
+Positional driver signals from IntOGen driver-cluster residues (a variant at/near a
+significant residue) are not incorporated; only CIViC-curated variants are attributed.
 """
 from __future__ import annotations
 

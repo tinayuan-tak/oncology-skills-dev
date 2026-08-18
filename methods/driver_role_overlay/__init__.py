@@ -13,7 +13,7 @@ Sources (both LANDED + verified readable):
     ONCOGENE_AND_TSG, NEITHER, INSUFFICIENT}. The curated gene-role backbone (promotes the GoF/LoF
     logic from depmap_predictability_precompute/features.py:717-745 to a target-facing signal).
 
-DECIDED scope (2026-07-22): this FIRST slice = the alteration_role card + this overlay method only.
-Panel-aware prevalence denominators + the inline-verdict→resolver conversion are separate follow-up
-slices. The genomic M11 patient↔model same-event join is a distinct later type (genomic_event_model_match).
+Scope: this covers the alteration_role card + this overlay method only. Panel-aware prevalence
+denominators + the inline-verdict→resolver conversion are separate follow-ups. The patient↔model
+same-event join is a distinct later capability (genomic_event_model_match).
 """

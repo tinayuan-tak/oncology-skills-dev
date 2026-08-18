@@ -262,12 +262,12 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     # sample (every Chronos identical) — the U-test is meaningless there. Modern scipy does
     # NOT raise on all-ties (it returns p=1.0 with a tie-corrected U), so detect it explicitly
     # rather than relying on an exception that no longer fires. This distinguishes "tested,
-    # not significant" from "could not test" (gap #5) WITHOUT changing any numeric output —
+    # not significant" from "could not test" WITHOUT changing any numeric output —
     # the p/effect below stay byte-identical to the historical behaviour.
     combined = np.concatenate([mut_arr, wt_arr])
     uncomputable = bool(np.ptp(combined) == 0.0)
 
-    # DETERMINISM PIN (2026-08-09): method + use_continuity are set EXPLICITLY to scipy's current
+    # Determinism: method + use_continuity are set EXPLICITLY to scipy's current
     # defaults (method="auto", use_continuity=True) — verified byte-identical to leaving them unset
     # (see test_mannwhitney_determinism_pin). This is verdict-NEUTRAL: it does not change any p-value;
     # it makes the exact/asymptotic behaviour version-STABLE and transparent so a future scipy default
@@ -301,7 +301,7 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     except ValueError:
         p_reverse = None
 
-    # ── Dependency-classification PERFORMANCE (biomarker-axis Thread 3) ────────────────────
+    # ── Dependency-classification PERFORMANCE ──────────────────────────────────────────────
     # Treat the biomarker (mutant/altered = positive) as a CLASSIFIER for the DepMap-dependency
     # phenotype (dependent = Chronos <= DEPENDENT_THRESHOLD, the -0.5 CHRONOS_STRONG_DEPENDENCY
     # convention). This yields honest, computable confusion-matrix metrics ON THE ONE GROUND TRUTH
@@ -339,7 +339,7 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
         "q_value_reverse": None,              # filled by caller (reverse BH)
         "effect_size": float(effect),
         "_uncomputable": uncomputable,
-        # dependency-classification performance (Thread 3) — DepMap dependency ground truth only
+        # dependency-classification performance — DepMap dependency ground truth only
         "dependency_ppv": dependency_ppv,
         "dependency_sensitivity": dependency_sensitivity,
         "dependency_specificity": dependency_specificity,
@@ -369,7 +369,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
     applied across the three. mutation_stratification_class categorical is the
     strongest signal. Called with no lineage context, this is BYTE-IDENTICAL to the
     historical behaviour (the existing golden path). Lineage conditioning is layered
-    on top by `compute_mutation_stratification_conditioned` (T2.0)."""
+    on top by `compute_mutation_stratification_conditioned`."""
     import numpy as np
 
     # === Three parallel stratification tests ===
@@ -428,7 +428,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
             return "wt_strongly_dependent"
         return None
 
-    # HOTSPOT-GATED oncogene-addiction (T2.1, 2026-08-09): a DIRECTIONAL "mutant more dependent" call
+    # HOTSPOT-GATED oncogene-addiction: a DIRECTIONAL "mutant more dependent" call
     # (mutant_strongly/moderately_dependent = oncogene-addiction) may be set ONLY from the HOTSPOT
     # (activating) tier. The damaging/"any" tiers POOL activating + LoF + VUS mutations, so a
     # directional call arising ONLY there is biologically unsound (a KRAS-G12C-addicted line and a
@@ -436,7 +436,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
     # corroborate a hotspot call, produce not_mutation_stratified, or surface wt_strongly_dependent —
     # they just cannot MANUFACTURE oncogene-addiction on their own. (Full GoF/LoF role-conditioning of
     # the mutant arm is a larger follow-on; the resolver already conjoins alteration-role into
-    # confirmed_driver. See genomic-alteration review T2.1.)
+    # confirmed_driver.)
     _ONCOGENE_ADDICTION = {"mutant_strongly_dependent", "mutant_moderately_dependent"}
     hot_cls = _classify(hot)
     pooled_cls = _classify(dam) or _classify(any_)
@@ -474,7 +474,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "hotspot_mannwhitney_q": hot["q_value"],
         "hotspot_mannwhitney_q_reverse": hot.get("q_value_reverse"),
         "hotspot_effect_size": hot["effect_size"],
-        # Dependency-classification performance (Thread 3) — the hotspot biomarker as a classifier
+        # Dependency-classification performance — the hotspot biomarker as a classifier
         # for the DepMap-dependency phenotype (Chronos <= -0.5). DEPENDENCY performance, NOT clinical.
         "hotspot_dependency_ppv": hot.get("dependency_ppv"),
         "hotspot_dependency_sensitivity": hot.get("dependency_sensitivity"),
@@ -497,7 +497,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "delta_chronos_any_mut_vs_wt": any_["delta_mut_vs_wt"],
         "any_mannwhitney_q": any_["q_value"],
         "any_mannwhitney_q_reverse": any_.get("q_value_reverse"),
-        # === Second-pass / uncomputable diagnostics (gap #4 + #5) ===
+        # === Second-pass / uncomputable diagnostics ===
         "stratification_direction": (
             "reverse_wt_dependent" if cls == "wt_strongly_dependent"
             else "forward_mutant_dependent" if cls in _ONCOGENE_ADDICTION
@@ -509,7 +509,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "per_hotspot_stats": [],
         # === Categorical ===
         "mutation_stratification_class": cls,
-        "hotspot_gate_note": hotspot_gated_note,   # set when a pooled-tier oncogene-addiction call was NOT credited (T2.1)
+        "hotspot_gate_note": hotspot_gated_note,   # set when a pooled-tier oncogene-addiction call was NOT credited
         # === Internal for figure emitters ===
         "_hotspot_by_model": hotspot_by_model,
         "_damaging_by_model": damaging_by_model,
@@ -547,7 +547,7 @@ def compute_mutation_stratification_conditioned(
         strong_effect_delta: float = -0.5,
         moderate_effect_delta: float = -0.2,
         stratification_alpha: float = 0.05) -> dict:
-    """Lineage-conditioned mutation-stratified dependency (T2.0).
+    """Lineage-conditioned mutation-stratified dependency.
 
     Oncogenic hotspots are lineage-enriched (BRAF-V600E → melanoma/thyroid/CRC), so a
     pan-DepMap "mutant more dependent" contrast can be TISSUE-confounded. This wrapper
@@ -786,7 +786,7 @@ def emit_per_hotspot_chronos_plot(chronos_by_model: dict, per_hotspot_records: l
 def emit_plotly_specs(chronos_by_model: dict, hotspot_by_model: dict,
                       damaging_by_model: dict, target_symbol: str, summary: dict,
                       out_path: Path, contracts_root: Path) -> list:
-    """Emit interactive Plotly spec SIBLING to the mut-vs-WT strip SVG (Gate-C plotly debt, 2026-07-21).
+    """Emit interactive Plotly spec SIBLING to the mut-vs-WT strip SVG.
 
     Interactive twin of emit_mut_vs_wt_strip_plot: Chronos box+strip grouped by mutation status
     (hotspot mut/WT + damaging mut/WT — same 4 groups, same colors), reflines at 0 / -1.0

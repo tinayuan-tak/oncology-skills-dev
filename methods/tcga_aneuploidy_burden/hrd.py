@@ -1,5 +1,6 @@
-"""HRD genomic-scar score (the D3 completion — a REAL homologous-recombination-deficiency score,
-replacing the SBS3 "weak proxy" the model-signature arm caveats).
+"""HRD genomic-scar score — a homologous-recombination-deficiency score based on genomic scars.
+NOTE: this score is implemented here but NOT wired into any card (deferred); the card currently
+surfaces only the SBS3 signature proxy.
 
 HRD-score = HRD-LOH + LST + ntAI, the three orthogonal genomic-scar counts, each a distinct
 footprint of failed homologous-recombination repair (the sum is the "HRD score" / "genomic scar

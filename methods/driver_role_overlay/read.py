@@ -26,24 +26,23 @@ INTOGEN_COMPENDIUM = "2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv"
 # vocabulary; map the framework indication to the matching code(s). An indication absent here →
 # the IntOGen arm is pan-cancer-only (OncoKB still classifies the gene).
 #
-# EVERY code below is VERIFIED present in the IntOGen v2024-09-20 Compendium's CANCER_TYPE set
-# (86 codes; audited 2026-08-08). Do NOT add a guessed variant — a code absent from IntOGen
-# silently matches nothing (the failure mode this audit fixed: `OV` and `LIHC`/`HC` were phantom
-# codes, so ovarian + liver were getting ZERO indication-scoped driver evidence while APPEARING
-# mapped). If a new indication has no real IntOGen code (PCPG/THCA/KICH/KIRP/TGCT have none), leave
-# it OUT — the honest pan-cancer fallback is correct. See test_intogen_cancer_map_codes_are_real.
+# Invariant: every code below must be present in the IntOGen v2024-09-20 Compendium's CANCER_TYPE
+# set. A code absent from IntOGen silently matches nothing, so an indication mapped to a wrong code
+# gets ZERO indication-scoped driver evidence while APPEARING mapped. Do NOT add a guessed variant;
+# if a new indication has no real IntOGen code, leave it OUT (the pan-cancer fallback is correct).
+# test_intogen_cancer_map_codes_are_real enforces this.
 INDICATION_TO_INTOGEN_CANCER = {
     # colorectal — IntOGen has the merged COADREAD code AND the parts (the merged code was MISSED before)
     "COADREAD": ("COADREAD", "COAD", "READ"), "COAD": ("COAD", "COADREAD"), "READ": ("READ", "COADREAD"),
     "LUAD": ("LUAD",), "LUSC": ("LUSC",), "NSCLC": ("LUAD", "LUSC", "NSCLC"),
     "SCLC": ("SCLC",),                                     # was MISSING; IntOGen has SCLC
-    "BRCA": ("BRCA",), "PAAD": ("PAAD",),                  # PDAC phantom dropped
-    "SKCM": ("SKCM", "MEL"), "STAD": ("STAD",),            # ST phantom dropped
-    "PRAD": ("PRAD",), "OV": ("OVT",),                     # OV phantom → real code OVT
-    "KIRC": ("CCRCC",),                                    # RCCC/KIRC phantom dropped; CCRCC is real
-    "GBM": ("GBM",), "HNSC": ("HNSC",),                    # HNSCC phantom dropped
-    "BLCA": ("BLCA",), "LIHC": ("HCC",),                   # LIHC/HC phantom → real code HCC
-    "ESCA": ("ESCA", "ESCC"), "UCEC": ("UCEC",),           # ESAD phantom dropped
+    "BRCA": ("BRCA",), "PAAD": ("PAAD",),
+    "SKCM": ("SKCM", "MEL"), "STAD": ("STAD",),
+    "PRAD": ("PRAD",), "OV": ("OVT",),                     # OV maps to IntOGen code OVT
+    "KIRC": ("CCRCC",),                                    # KIRC maps to IntOGen code CCRCC
+    "GBM": ("GBM",), "HNSC": ("HNSC",),
+    "BLCA": ("BLCA",), "LIHC": ("HCC",),                   # LIHC maps to IntOGen code HCC
+    "ESCA": ("ESCA", "ESCC"), "UCEC": ("UCEC",),
     # newly-mapped framework indications (each code verified present in IntOGen 2024-09-20):
     "CESC": ("CESC",), "LGG": ("LGGNOS",), "UCS": ("UCS",), "ACC": ("ACC",),
     "CHOL": ("CHOL",), "DLBC": ("DLBCLNOS",), "LAML": ("AML",), "MESO": ("PLMESO",),

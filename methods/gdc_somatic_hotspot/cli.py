@@ -46,11 +46,11 @@ INDICATION_TO_TCGA_PROJECTS = {
     "GC": ["TCGA-STAD"],
 }
 
-# TCGA Tissue Source Site (TSS) code → project mapping for iter-1b priority indications.
+# TCGA Tissue Source Site (TSS) code → project mapping for the priority indications.
 # The 2nd 2-character segment of a TCGA barcode (TCGA-XX-...) is the TSS code.
 # Source: NCI/GDC tissue source site code list (https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tissue-source-site-codes).
 # This is method-local knowledge: the method knows how to map MC3's barcode-encoded
-# project information to a project_id. Limited to iter-1b priority indications.
+# project information to a project_id. Limited to the priority indications.
 TSS_CODE_TO_TCGA_PROJECT = {
     # TCGA-COAD (colon adenocarcinoma)
     "3L": "TCGA-COAD", "4N": "TCGA-COAD", "4T": "TCGA-COAD", "5M": "TCGA-COAD",

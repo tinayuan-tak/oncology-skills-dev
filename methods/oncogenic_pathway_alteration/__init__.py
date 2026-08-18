@@ -7,7 +7,7 @@ per-sample binary). Complements PROGENy pathway-ACTIVITY (transcriptional footpr
 ALTERATION (genomic); the same pathways, orthogonal axis.
 
 Per-(pathway x indication) alteration-frequency rollup at build time (read grain pre-aggregated).
-Live-validated (2026-08-10): TP53/OV 96%, WNT/COAD 90%, PI3K/UCEC 93%, RTK-RAS/PAAD 78% — textbook.
+Per-pathway prevalences match textbook expectations (e.g. TP53/OV, WNT/COAD, PI3K/UCEC, RTK-RAS/PAAD).
 gene->pathway map: KRAS/EGFR->RTK-RAS, CTNNB1->WNT, TP53->TP53.
 
 Emits oncogenic_pathway_class + frequently_altered_pathways + target_pathway_membership +
