@@ -59,7 +59,11 @@ def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
     nouns = {cfg["finding_noun"] for cfg in ga.AXIS_CONFIG.values()}
     assert len(nouns) == len(ga.AXIS_CONFIG)      # each axis has a DISTINCT finding noun
     for ax, cfg in ga.AXIS_CONFIG.items():
-        assert cfg["verdict_key"] and cfg["pubmed_category"] and cfg["cards"] and cfg["kinds"]
+        assert cfg["pubmed_category"] and cfg["kinds"] and cfg["finding_noun"]
+        if cfg.get("pseudo_card"):                    # engine-blind pseudo-card
+            assert cfg["verdict_key"] is None and cfg["cards"] == []
+        else:                                         # engine-anchored axis
+            assert cfg["verdict_key"] and cfg["cards"]
 
 
 def test_skills_path_resolves_for_live_imports():
@@ -78,3 +82,13 @@ def test_deterministic_block_selects_axis_cards():
     assert d["verdict"] == "lineage_selective"
     assert "dependency-lineage-selectivity" in d["cards"]      # dependency card included
     assert "gnomad-lof-constraint" not in d["cards"]           # safety card excluded from dependency axis
+
+
+def test_pseudo_cards_are_engine_blind():
+    # clinical/commercial are pseudo-cards: no verdict_key, no engine cards
+    for ax in ("clinical", "commercial"):
+        assert ax in ga.AXIS_CONFIG
+        cfg = ga.AXIS_CONFIG[ax]
+        assert cfg["verdict_key"] is None and cfg["cards"] == [] and cfg.get("pseudo_card") is True
+    d = ga.deterministic_block({"synthesis": {"sub_verdicts": {}}, "cards": []}, "clinical")
+    assert d["verdict"] is None and d["cards"] == {} and d["engine_blind"] is True

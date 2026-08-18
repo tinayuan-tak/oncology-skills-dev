@@ -66,3 +66,16 @@ def test_tolerates_both_substrate_field_names():
     # old #490 shape (liability_findings) still attaches
     sub = {"safety": {"grounded": {"liability_findings": [{"liability": "x", "cited_pmids": []}]}}}
     assert rr.project(pkg, "adc", sub)["safety"]["grounded_findings"]
+
+
+def test_pseudo_card_dims_get_coarse_literature_bin():
+    pkg = _pkg("tolerant_reduced_safety_risk", {})
+    # no substrate -> engine-blind
+    assert rr.project(pkg, "adc")["clinical"]["bin"] == "ENGINE-BLIND"
+    # a failed-trial finding escalates the clinical pseudo-card to HIGH (literature-only)
+    sub = {"clinical": {"grounded": {"findings": [{"finding": "Ph3 failed", "kind": "failed_trial", "cited_pmids": ["1"]}]}}}
+    out = rr.project(pkg, "adc", sub)["clinical"]
+    assert out["bin"] == "HIGH" and out["bin_basis"] == "literature-only (uncalibrated)"
+    # a benign finding -> MED; no findings -> LOW
+    sub2 = {"commercial": {"grounded": {"findings": [{"finding": "some context", "kind": "context", "cited_pmids": []}]}}}
+    assert rr.project(pkg, "adc", sub2)["commercial"]["bin"] == "MED"

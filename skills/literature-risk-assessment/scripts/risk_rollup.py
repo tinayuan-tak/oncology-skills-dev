@@ -24,7 +24,11 @@ SURFACE = {"adc", "bite_tce", "tce", "antibody"}
 
 # grounded axis -> the risk dim it augments
 AXIS_TO_DIM = {"safety": "safety", "dependency": "biological", "selectivity": "safety",
-               "surface_modality": "druggability", "tractability_sm": "druggability"}
+               "surface_modality": "druggability", "tractability_sm": "druggability",
+               "clinical": "clinical", "commercial": "commercial"}   # pseudo-card dims
+# coarse literature-bin escalators for the engine-blind pseudo-card dims (decision 2)
+_PSEUDO_ESCALATORS = ("fail", "discontinu", "terminat", "negative", "toxic", "crowded",
+                      "competitor", "freedom", "ip_", "lack_of")
 
 
 def _mod(m: str) -> str:
@@ -112,9 +116,22 @@ def _findings_of(block: dict) -> list:
     return g.get("findings") or g.get("liability_findings") or []   # tolerant of both field names
 
 
+def _pseudo_literature_bin(findings: list) -> str:
+    """Coarse literature-only bin for engine-blind pseudo-card dims (decision 2): a finding whose kind
+    hits an escalator → HIGH; any finding → MED; none → LOW. Uncalibrated (literature-only)."""
+    if not findings:
+        return "LOW"
+    for f in findings:
+        k = str(f.get("kind", "")).lower()
+        if any(e in k for e in _PSEUDO_ESCALATORS):
+            return "HIGH"
+    return "MED"
+
+
 def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
-    """Fuse deterministic bins with grounded escalate-only findings + discordance. Findings NEVER
-    change a bin (escalate-only)."""
+    """Fuse deterministic bins with grounded escalate-only findings + discordance. For ENGINE-anchored
+    dims, findings NEVER change the deterministic bin (escalate-only). For engine-BLIND pseudo-card dims
+    (clinical/commercial), a COARSE literature-only bin is derived from the findings (tagged uncalibrated)."""
     dims = deterministic_bins(pkg, _mod(modality))
     for axis, block in (substrate or {}).items():
         dim = AXIS_TO_DIM.get(axis)
@@ -125,6 +142,10 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
         g = block.get("grounded", block) or {}
         if g.get("contradicts_deterministic"):
             dims[dim]["engine_literature_discordance"] = True
+        # engine-blind pseudo-card dim → derive the coarse literature bin (never for engine dims)
+        if dims[dim].get("bin") == "ENGINE-BLIND":
+            dims[dim]["bin"] = _pseudo_literature_bin(dims[dim]["grounded_findings"])
+            dims[dim]["bin_basis"] = "literature-only (uncalibrated)"
     return dims
 
 

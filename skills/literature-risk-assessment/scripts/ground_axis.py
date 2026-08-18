@@ -75,7 +75,23 @@ AXIS_CONFIG = {
         "finding_noun": "SMALL-MOLECULE-TRACTABILITY-WEAKENING finding",
         "kinds": ("lack of a druggable POCKET / intrinsically-disordered / undruggable, poor PK or "
                   "cell/CNS permeability, or resistance to chemical inhibition")},
+    # PSEUDO-CARDS: engine-BLIND dims (no deterministic verdict/cards — verdict_key=None). Literature-only
+    # NOW; upgradeable later by adding real `cards` (then they gain a deterministic bin like any axis).
+    "clinical": {
+        "verdict_key": None, "pubmed_category": "clinical", "cards": [], "pseudo_card": True,
+        "finding_noun": "CLINICAL-PRECEDENT risk finding",
+        "kinds": ("FAILED/DISCONTINUED trials for this target or its antibody/ADC/modality class, clinical "
+                  "toxicity signals, negative pivotal readouts, or lack of clinical validation")},
+    "commercial": {
+        "verdict_key": None, "pubmed_category": "commercial", "cards": [], "pseudo_card": True,
+        "finding_noun": "COMMERCIAL risk finding",
+        "kinds": ("a CROWDED competitive landscape, approved/late-stage COMPETITORS on the same target/"
+                  "pathway, IP/freedom-to-operate concerns, or a small addressable population")},
 }
+# Coarse literature-bin escalators for pseudo-card dims (decision 2: literature-only, uncalibrated bin
+# for portfolio-sortability). A finding whose kind hits these → escalate the dim.
+PSEUDO_ESCALATOR_KINDS = ("fail", "discontinu", "terminat", "negative", "toxic", "crowded",
+                          "competitor", "freedom", "ip_")
 
 SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
           "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
@@ -116,6 +132,8 @@ def build_grounded_block(det: dict, llm_out: dict, retrieved_pmids: set, *,
 
 def deterministic_block(pkg: dict, axis: str) -> dict:
     cfg = AXIS_CONFIG[axis]
+    if cfg.get("verdict_key") is None:      # pseudo-card: engine-blind, no deterministic verdict/cards
+        return {"verdict": None, "driving_rule_id": None, "cards": {}, "engine_blind": True}
     sv = pkg["synthesis"]["sub_verdicts"].get(cfg["verdict_key"], {})
     calls = {c["card_id"]: c.get("interpretation_call") for c in pkg.get("cards", []) if c.get("card_id")}
     return {"verdict": sv.get("verdict"), "driving_rule_id": sv.get("driving_rule_id"),
@@ -124,9 +142,13 @@ def deterministic_block(pkg: dict, axis: str) -> dict:
 
 def _prompt(target, indication, axis, anchor, abstracts):
     cfg = AXIS_CONFIG[axis]
+    anchor_line = (f"\nDETERMINISTIC {axis} verdict (ANCHOR, context only): {anchor}"
+                   if anchor is not None else
+                   f"\nThis is an ENGINE-BLIND pseudo-card dim ({axis}) — NO deterministic engine verdict "
+                   "exists; it is LITERATURE-ONLY.")
     lines = [f"{axis.upper()}-axis grounding for {target} in {indication}.",
-             f"\nDETERMINISTIC {axis} verdict (ANCHOR, context only): {anchor}",
-             "This is a NARROW deterministic read and may MISS what the literature reports.",
+             anchor_line,
+             "The engine may MISS what the literature reports; surface it.",
              f"\nTASK: from the abstracts ONLY, extract each specific {cfg['finding_noun']}. "
              f"Kinds to look for: {cfg['kinds']}.",
              "Each finding is ESCALATE-ONLY — it may RAISE this axis's risk; you may NOT use the "

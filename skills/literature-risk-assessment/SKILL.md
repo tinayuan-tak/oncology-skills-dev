@@ -142,3 +142,8 @@ is the contribution. clinical/commercial are engine-blind (literature-only).
 
     python3 scripts/risk_rollup.py --evidence-package <pkg.json> --modality adc \
         --substrate safety=<ground_axis_safety.json> dependency=<ground_axis_dep.json> --out <matrix.json>
+
+
+### Pseudo-cards: clinical + commercial (engine-blind, literature-only)
+
+clinical and commercial are ENGINE-BLIND — no deterministic card measures them — so they are PSEUDO-CARDS in AXIS_CONFIG (verdict_key=None, cards=[], pseudo_card=True): ground_axis runs literature-only with no anchor and emits escalate-only findings (failed/discontinued trials, class tox, crowded landscape, IP/FTO). risk_rollup derives a COARSE literature-only bin for these dims (escalator kind -> HIGH; any finding -> MED; none -> LOW), tagged bin_basis='literature-only (uncalibrated)'. Both the hypothesis and the risk matrix consume them. UPGRADE PATH: when a clinical-trials / commercial data source is ingested, add real `cards` to the config -> the dim gains a deterministic bin like any engine axis (zero rework).
