@@ -202,6 +202,7 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     # summaries (display-only fields the readers now emit).
     crispr = cards.get("pan-cancer-crispr-dependency-distribution", {})
     lineage = cards.get("dependency-lineage-selectivity", {})
+    organoid = cards.get("organoid-crispr-dependency", {})
 
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
@@ -283,6 +284,15 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "PATIENT↔MODEL CORROBORATION (render facet — is the dependency backed by lineage-matched models?):",
         f"  model_correspondence_class: {h.get('model_correspondence_class')}  "
         f"n_positive_models_in_lineage: {h.get('n_positive_models_in_lineage')}",
+        "",
+        "ORGANOID CORROBORATION (render facet — is the dependency seen in patient-derived 3D organoids? "
+        "CORROBORATING only; the organoid cohort is small [n~114] + GI-dominated, so a POSITIVE organoid "
+        "read strengthens the call but a negative one is NOT a trusted veto — do not over-read it):",
+        f"  organoid_dependency_class: {organoid.get('organoid_dependency_class')}   "
+        f"(organoid-crispr-dependency: {_card_state('organoid-crispr-dependency')})",
+        f"  frac_dependent: {_fmt(organoid.get('frac_dependent'))}  "
+        f"median organoid Chronos: {_fmt(organoid.get('median_gene_effect'))}  "
+        f"n_models_screened: {organoid.get('n_models_screened')}",
         "",
         "TASK: using emit_dependency_synthesis, judge how much the DEPENDENCY lens informs whether "
         f"{target} is worth pursuing in {indication}. Reason ACROSS the evidence — do not just restate "

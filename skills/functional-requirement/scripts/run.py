@@ -110,6 +110,16 @@ CARDS = [
                                                 # well_modeled (a screenable, model-backed dependency basis);
                                                 # ADDITIVE — feed NO resolver ladder → dependency verdict
                                                 # byte-stable. Also in target-profile SUB_SKILL_CARDS.
+    "organoid-crispr-dependency",               # Organoid-native Chronos facet (2026-08-18). The organoid
+                                                # READING of the same screens (OrganoidGeneEffect.csv, 114
+                                                # GI-dominated organoid models, normalized within-organoid).
+                                                # Its organoid-{selective,broad}-dependency-supportive rules
+                                                # emit SM/degrader SUPPORTIVE; pan-essential/rare/not-dependent
+                                                # NEUTRAL; data_unavailable insufficient. ADDITIVE — feeds NO
+                                                # resolver ladder → dependency verdict byte-stable (the small
+                                                # GI-skewed cohort corroborates a positive dependency but is
+                                                # NEVER a trusted independent veto; the pan-cancer card owns
+                                                # the killer). Target-grain; indication accepted-not-consumed.
 ]
 
 # SUBTYPE axis (2026-08-06) — kept OUT of the scalar CARDS list ON PURPOSE, mirroring

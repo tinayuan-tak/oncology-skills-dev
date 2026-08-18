@@ -44,6 +44,7 @@ composition:
     - expression-dependency-correlation  # RNA arm: mRNA predicts dependency (was in run.py CARDS, missing here)
     - recommended-models                 # Q4 patient↔model correspondence: model-backed-dependency (was in run.py CARDS, missing here)
     - abundance-dependency               # Q7 PROTEIN arm: protein abundance predicts dependency (2026-07-22)
+    - organoid-crispr-dependency         # Organoid-native Chronos facet (2026-08-18): dependency in patient-derived 3D organoids (GI-dominated n~114). ADDITIVE, verdict-inert — corroborates a positive call but is never a trusted veto
     - subgroup-stratified-dependency     # SUBTYPE axis (2026-08-06): per-molecular-subgroup Chronos (MSI_H/MSS…); tier:subtype, DESCRIPTIVE panorama (emits NO verdict — display facet like genomic-alteration's by-subgroup card); resolves ONLY on the --subtypes path (SUBTYPE_CARDS), never the whole-cohort spine
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type CLAIMS this gate PULLs (resolves against
   # target-contracts/vocabularies/measurement_types.yaml; the 2 CRISPR cards fold into one type).

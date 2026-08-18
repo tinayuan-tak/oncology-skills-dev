@@ -236,3 +236,27 @@ def test_prompt_omits_subgroup_block_when_no_panorama():
     """Without --subtypes (no panorama in the headline), the subgroup block must not appear."""
     p = SD.build_user_prompt(_decision(prism_missing=False))
     assert "MOLECULAR-SUBGROUP DEPENDENCY" not in p
+
+
+# ---- organoid corroboration facet (2026-08-18) ----
+def test_prompt_renders_organoid_corroboration_present():
+    """build_user_prompt surfaces the organoid-crispr-dependency card as a CORROBORATING facet
+    with its class + fraction, and states the 'not a trusted veto' discipline."""
+    d = _decision()
+    d["cards"].append({"card_id": "organoid-crispr-dependency", "_missing": False, "summary": {
+        "organoid_dependency_class": "broad_organoid_dependency",
+        "frac_dependent": 0.746, "median_gene_effect": -0.87, "n_models_screened": 114}})
+    prompt = SD.build_user_prompt(d)
+    assert "ORGANOID CORROBORATION" in prompt
+    assert "broad_organoid_dependency" in prompt
+    assert "0.75" in prompt  # frac_dependent rendered via _fmt (2dp)
+    assert "not a trusted veto" in prompt.lower()
+
+
+def test_prompt_renders_organoid_data_unavailable_not_dropped():
+    """A measured-null organoid card is rendered DATA_UNAVAILABLE, never silently dropped (H1)."""
+    d = _decision()
+    d["cards"].append({"card_id": "organoid-crispr-dependency", "_missing": True, "summary": {}})
+    prompt = SD.build_user_prompt(d)
+    assert "ORGANOID CORROBORATION" in prompt
+    assert "DATA_UNAVAILABLE" in prompt

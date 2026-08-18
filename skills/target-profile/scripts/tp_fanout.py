@@ -266,6 +266,11 @@ SUB_SKILL_CARDS = {
         "recommended-models",                    # Q4 patient↔model correspondence (2026-07-22) — model-
                                                  # backed-dependency corroboration; paired with
                                                  # functional-requirement CARDS (composer-consistency).
+        "organoid-crispr-dependency",            # Organoid-native Chronos facet (2026-08-18) — corroborating
+                                                 # dependency read in patient-derived 3D organoids. Paired
+                                                 # with functional-requirement CARDS (composer-consistency).
+                                                 # ADDITIVE render-only facet (verdict-inert: its supportive/
+                                                 # neutral rules feed NO resolver ladder).
         "abundance-dependency",                  # Q7 (2026-07-23) — protein abundance→dependency (protein
                                                  # arm of expression-as-biomarker-of-dependency); render facet.
         "partner-conditional-dependency",        # 2026-08-10 REVIEW FIX (H1): Track PC verdict-bearing card.
