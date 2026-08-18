@@ -24,7 +24,6 @@ so a STRONG-only rung would rescue nothing real (empirically established 2026-08
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import yaml
@@ -109,14 +108,11 @@ def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_
     partner-deficient lines MORE dependent; second-pass reverse for the neutral-more-dependent
     class). Returns the card's summary_fields shape + partner_stratification_class.
     """
-    METHODS_REPO = Path(__file__).resolve().parent.parent.parent
-    if str(METHODS_REPO) not in sys.path:
-        sys.path.insert(0, str(METHODS_REPO))
-    from methods.depmap_mutation_dependency.cli import _mannwhitney_stratification
+    from methods.depmap_common.boolean_stratification import mannwhitney_stratification
 
-    res = _mannwhitney_stratification(
+    res = mannwhitney_stratification(
         chronos_by_model, partner_deficient_by_model,
-        min_mutant=min_deficient, min_wildtype=min_neutral,
+        min_positive=min_deficient, min_comparator=min_neutral,
     )
 
     q = res.get("p_value")               # single test → q == p (no multi-tier BH)

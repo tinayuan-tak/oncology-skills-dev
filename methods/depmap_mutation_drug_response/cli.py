@@ -70,16 +70,16 @@ def compute_drug_response_stratification(
     relevant question is 'does carrying an alteration predict drug sensitivity', and the hotspot/
     damaging distinction (which matters for oncogene-addiction GoF vs LoF in the dependency path)
     is less load-bearing here; the class name is direction-explicit regardless."""
-    from methods.depmap_mutation_dependency.cli import _mannwhitney_stratification
+    from methods.depmap_common.boolean_stratification import mannwhitney_stratification
 
     compound_records = compound_records or []
     any_by_model = {}
     for m in set(hotspot_by_model) | set(damaging_by_model):
         any_by_model[m] = bool(hotspot_by_model.get(m) or damaging_by_model.get(m))
 
-    res = _mannwhitney_stratification(
+    res = mannwhitney_stratification(
         drug_response_by_model, any_by_model,
-        min_mutant=min_mutant, min_wildtype=min_wildtype,
+        min_positive=min_mutant, min_comparator=min_wildtype,
     )
     q = res.get("p_value")                # single test → q == p (no multi-tier BH)
     q_reverse = res.get("p_value_reverse")
