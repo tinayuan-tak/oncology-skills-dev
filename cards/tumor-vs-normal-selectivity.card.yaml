@@ -43,7 +43,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.6.0    # 2026-08-18 UNBLOCK subgroup stratification (COADREAD/msi_status) via emit-time per-subgroup DESeq2
+version: 3.7.0    # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 tier: indication   # indication-scoped whole-cohort call is the PRIMARY grain; subtype grain now LIVE for
@@ -66,10 +66,25 @@ tier: indication   # indication-scoped whole-cohort call is the PRIMARY grain; s
 subgroup_stratification:
   eligible: true
   status: live
-  axes: [msi_status]
-  product: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1   # first live (indication × axis)
-  assignments_manifest: tcga-subgroup-assignments-coadread-v1        # MSI_H (38) / MSS (193) member sets
-  rationale: "Selectivity recomputed within each stratum's tumor set by a full per-subgroup DESeq2 fit (emit-time), against the shared whole-cohort normals — an honest per-stratum contrast, not a re-sliced aggregate."
+  # Axes live across the wired indications (each axis is indication-specific; the reader resolves the
+  # per-indication product and filters by subgroup_axis). msi_status + cms: COADREAD;
+  # tcga_molecular_subtype (EBV/MSI/GS/CIN): STAD. Coverage grows one (indication x axis) per emit.
+  axes: [msi_status, cms, tcga_molecular_subtype]
+  # `product` / `assignments_manifest` name the CANONICAL first-live example (COADREAD); they are
+  # provenance hints, not load-bearing — read_stratified_tumor_vs_normal_selectivity resolves the
+  # product per indication as {indication}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1.
+  product: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  assignments_manifest: tcga-subgroup-assignments-coadread-v1
+  live_products:                                                     # all landed (indication x axes) products
+    - product: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+      indication: COADREAD
+      axes: [msi_status, cms]
+      assignments_manifest: tcga-subgroup-assignments-coadread-v1
+    - product: stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+      indication: STAD
+      axes: [tcga_molecular_subtype]
+      assignments_manifest: tcga-subgroup-assignments-stad-v1
+  rationale: "Selectivity recomputed within each stratum's tumor set by a full per-subgroup DESeq2 fit (emit-time), against the shared whole-cohort normals — an honest per-stratum contrast, not a re-sliced aggregate. Live for COADREAD (msi_status, cms) + STAD (tcga_molecular_subtype)."
 
 applies_when:
   - "context.data_sources.recount3_tcga_gtex_available == true"

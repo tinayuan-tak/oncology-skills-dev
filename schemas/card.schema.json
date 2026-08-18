@@ -399,6 +399,23 @@
           "type": "string",
           "minLength": 1,
           "description": "When live: the subgroup-assignments derived-manifest id that supplied the stratum member sets at emit time (e.g. tcga-subgroup-assignments-coadread-v1)."
+        },
+        "live_products": {
+          "type": "array",
+          "description": "When live across MULTIPLE (indication x axis) products: the coverage registry. Each entry names a per-indication by-subgroup product, its indication, the axes it carries, and the assignments manifest that supplied its member sets. product/assignments_manifest above name the canonical first example; this is the exhaustive list. Provenance/coverage hint (the reader resolves the product per indication).",
+          "items": {
+            "type": "object",
+            "required": ["product", "indication", "axes"],
+            "additionalProperties": false,
+            "properties": {
+              "product": {"type": "string", "minLength": 1},
+              "indication": {"type": "string", "minLength": 1},
+              "axes": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+              "assignments_manifest": {"type": "string", "minLength": 1}
+            }
+          },
+          "minItems": 1,
+          "maxItems": 50
         }
       }
     },
