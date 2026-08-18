@@ -11,6 +11,7 @@ normal-tissue-of-origin per indication is the D2/D3 comparator.
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -274,15 +275,73 @@ def _ensure_sidecar_cached() -> Optional[Path]:
     return None
 
 
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
+
+
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton. Constructing one costs ~0.4s (region probe +
+    client init) and _read_gene fires several times per run across the cards this reader backs, so
+    we build it once. pyarrow's S3FileSystem is safe to share across threads for reads (the parallel
+    card-read path since skills PR #515). Double-checked-locking so concurrent first-callers build one."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
+
+
+# Run-scoped memo of per-gene long-product reads, keyed by (which, normalized target). The SAME
+# (which, target) slice is read up to ~7x per tumor-presence run (6 cards share this reader, each
+# re-deriving tumor / normal / subtype views), and — since skills PR #515 parallelized card reads —
+# those calls now fire CONCURRENTLY. The pushdown read is already minimal (2-3 row-groups), so the
+# waste is the REPEAT S3 round-trips, not bytes. Memoize the result; a per-key lock collapses the
+# parallel thundering-herd to ONE read the other threads reuse. The long product is immutable within
+# a process, so a (which, target) entry never goes stale mid-run, and callers treat the frame
+# read-only (they slice into fresh frames before any assignment — verified across all 4 call sites).
+# Only SUCCESSFUL reads are cached: a transient-S3 raise propagates uncached so a retry can succeed.
+# Kill-switch: TCGA_GTEX_READ_CACHE=0 (debugging / any future in-place-mutation regression).
+_READ_GENE_CACHE: dict = {}
+_READ_GENE_KEYLOCKS: dict = {}
+_READ_GENE_GUARD = threading.Lock()
+
+
 def _read_gene(which: str, target: str):
+    """Memoized wrapper over _read_gene_uncached (which does the S3 pushdown read). Cache is
+    process-scoped, keyed by (which, normalized target), and thread-safe via a per-key lock so a
+    concurrent herd for the same key blocks on ONE read. An empty DataFrame (gene genuinely absent)
+    is a valid cached value — hence the `is not None` checks, never truthiness."""
+    import os
+    if os.environ.get("TCGA_GTEX_READ_CACHE") == "0":
+        return _read_gene_uncached(which, target)
+    key = (which, target.upper().strip())
+    hit = _READ_GENE_CACHE.get(key)
+    if hit is not None:
+        return hit
+    with _READ_GENE_GUARD:
+        keylock = _READ_GENE_KEYLOCKS.setdefault(key, threading.Lock())
+    with keylock:
+        hit = _READ_GENE_CACHE.get(key)      # another thread may have filled it while we waited
+        if hit is not None:
+            return hit
+        result = _read_gene_uncached(which, target)
+        _READ_GENE_CACHE[key] = result
+        return result
+
+
+def _read_gene_uncached(which: str, target: str):
     """Stream one gene from a long product directly from S3 via HTTP range requests.
 
     Both long products are globally sorted by ensembl_gene_id (rg=65536), so an
     IN-list filter prunes to 2-3 row-groups via pyarrow predicate pushdown — no
     full-file download needed. Falls back to gene_symbol if the Ensembl map is
     unavailable (still correct, but scans the full file).
+
+    This is the UNCACHED read; callers go through _read_gene, which memoizes the result
+    per (which, target) for the duration of the process (see _read_gene).
     """
-    import pyarrow.fs as fs
     import pyarrow.parquet as pq
     import pandas as pd
 
@@ -296,7 +355,7 @@ def _read_gene(which: str, target: str):
     group_col = "tissue" if which == "gtex" else "study"
     cols = ["gene_symbol", "ensembl_gene_id", "sample_id", group_col, "log2_tpm"]
     try:
-        s3fs = fs.S3FileSystem(region="us-east-1")
+        s3fs = _get_s3fs()
         ensembl_ids = _symbol_to_ensembl_ids(target)
         if ensembl_ids:
             filters = [("ensembl_gene_id", "in", ensembl_ids)]
