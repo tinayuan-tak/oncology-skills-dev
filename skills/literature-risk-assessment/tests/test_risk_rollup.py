@@ -75,8 +75,23 @@ def test_new_target_biology_axes_fold_into_biological_dim():
     assert "tumor-suppressive in this context" in findings
     assert "alteration is a passenger" in findings                   # both new axes fold in
     assert bio["engine_literature_discordance"] is True              # mechanism contradiction propagates
-    # differentiation is intentionally NOT mapped to a [3A] dim (translational dim is a follow-up)
-    assert "differentiation" not in rr.AXIS_TO_DIM
+
+
+def test_differentiation_folds_into_translational_dim():
+    # follow-up: differentiation (patient-selection) now escalates the TRANSLATIONAL dim, completing the
+    # 6-dim map. translational is engine-blind → its bin is the coarse literature bin from the findings.
+    assert rr.AXIS_TO_DIM["differentiation"] == "translational"
+    pkg = _pkg("tolerant_reduced_safety_risk", {})
+    dims_no_sub = rr.project(pkg, "small_molecule")
+    # engine-blind: with NO substrate the bin stays ENGINE-BLIND (same as clinical/commercial)
+    assert dims_no_sub["translational"]["bin"] == "ENGINE-BLIND"
+    substrate = {"differentiation": {"grounded": {"findings": [
+        {"finding": "KRAS co-mutation predicts resistance", "kind": "resistance", "cited_pmids": ["7"]}],
+        "contradicts_deterministic": False}}}
+    tr = rr.project(pkg, "small_molecule", substrate)["translational"]
+    assert tr["grounded_findings"][0]["finding"] == "KRAS co-mutation predicts resistance"
+    assert tr["bin"] in ("MED", "HIGH")                             # a finding raises the coarse lit bin
+    assert tr["bin_basis"] == "literature-only (uncalibrated)"
 
 
 def test_engine_blind_dims_present():

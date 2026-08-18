@@ -24,17 +24,17 @@ SURFACE = {"adc", "bite_tce", "tce", "antibody"}
 
 # grounded axis -> the risk dim it augments. The 12 subskills map many-to-few onto the 6 risk dims
 # (5R-style decomposition): the target-biology axes (dependency + mechanism/genomic/SL/combinatorial/
-# expression, rolled out 2026-08-18) all escalate the BIOLOGICAL (Right Target) dim; safety/selectivity
-# escalate SAFETY; the two tractability axes escalate DRUGGABILITY; clinical/commercial are the
-# engine-blind pseudo-card dims. `differentiation` is patient-selection (a TRANSLATIONAL dim not yet
-# modelled here) → intentionally unmapped: it feeds the cross-evidence hypothesis [3B] (axis-agnostic)
-# but not this [3A] roll-up until a translational dim is added (documented follow-up, not a silent drop).
+# expression) all escalate the BIOLOGICAL (Right Target) dim; safety/selectivity escalate SAFETY; the
+# two tractability axes escalate DRUGGABILITY; `differentiation` (patient-selection) escalates the
+# TRANSLATIONAL dim; clinical/commercial are the engine-blind pseudo-card dims. This completes the
+# 6-dim map (biological/druggability/safety/translational/clinical/commercial) — every grounded axis
+# now reaches a risk dim in [3A] (parity with [3B], which is axis-agnostic).
 AXIS_TO_DIM = {"safety": "safety", "dependency": "biological", "selectivity": "safety",
                "surface_modality": "druggability", "tractability_sm": "druggability",
                "mechanism": "biological", "genomic_alteration": "biological",
                "synthetic_lethal_partners": "biological", "combinatorial_dependency": "biological",
-               "expression": "biological",
-               "clinical": "clinical", "commercial": "commercial"}   # pseudo-card dims
+               "expression": "biological", "differentiation": "translational",
+               "clinical": "clinical", "commercial": "commercial"}   # translational + clinical/commercial = engine-blind
 # coarse literature-bin escalators for the engine-blind pseudo-card dims (decision 2)
 _PSEUDO_ESCALATORS = ("fail", "discontinu", "terminat", "negative", "toxic", "crowded",
                       "competitor", "freedom", "ip_", "lack_of")
@@ -136,8 +136,15 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
         blind = ["PK/exposure", "CNS penetration", "synthesis"]
     dims["druggability"] = {"pillar": "Right Molecule", "bin": INV[r], "chain": chain, "mitigation": None, "blind_spots": blind}
 
-    # engine-BLIND dims (literature-only via grounded/Tier-2)
-    for d, pil in [("clinical", "Right Patient (clinical precedent)"), ("commercial", "Right Commercial")]:
+    # engine-BLIND dims (literature-only via grounded/Tier-2). translational (patient-selection /
+    # readiness) is engine-blind HERE even though `differentiation` carries a sub-verdict: that verdict
+    # is a co-mutation/patient-selection LANDSCAPE, not a risk ordinal, and the translational-readiness
+    # engine leg is a placeholder — so the dim is honestly literature-only until a translational engine
+    # bin exists (mirrors clinical/commercial). Its grounded differentiation findings set the coarse
+    # literature bin in project().
+    for d, pil in [("clinical", "Right Patient (clinical precedent)"),
+                   ("commercial", "Right Commercial"),
+                   ("translational", "Right Patient (translational readiness / patient-selection)")]:
         dims[d] = {"pillar": pil, "bin": "ENGINE-BLIND", "chain": [], "mitigation": None,
                    "blind_spots": ["entire dim — literature-only"]}
     return dims
