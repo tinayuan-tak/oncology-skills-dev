@@ -142,6 +142,16 @@ def main() -> int:
                          "(literature-risk-assessment/ground_axis). Each subskill section whose axis has "
                          "a record shows its escalate-only, PMID-cited literature findings inline. "
                          "Display-only; never a verdict input.")
+    ap.add_argument("--ground", nargs="?", const="engine", default=None, metavar="AXES",
+                    help="AUTO-GROUND (fanout-integration): after the fan-out, run "
+                         "literature-risk-assessment/ground_axis over the assembled evidence_package to "
+                         "PRODUCE per-axis grounded_<axis>.json (escalate-only, PMID-cited literature "
+                         "findings) in --out — feeding BOTH the inline HTML render AND downstream "
+                         "--substrate (risk_rollup [3A] + cross-evidence-hypothesis [3B]). Value: "
+                         "'engine' (default: the 5 engine axes), 'all' (+ clinical/commercial "
+                         "pseudo-cards), or a comma-list (e.g. safety,dependency). Requires Bedrock + "
+                         "network (BEDROCK_AWS_PROFILE); VERDICT-INERT + best-effort. Off by default "
+                         "(a run without --ground is byte-identical + makes no network call).")
     ap.add_argument("--hypothesis", default=None, type=Path,
                     help="OPTIONAL: path to a cross-evidence-hypothesis hypothesis.json. When given, the "
                          "gate-clamped, cited 6-part hypothesis REPLACES the original Tier-3 LLM "
@@ -385,10 +395,12 @@ def main() -> int:
     # evidence-package emitter and the nomination path below share ONE construction.
     validation_summary = _validation_summary_from_sub_results(sub_results)
 
-    # --emit evidence-package: emit the deterministic machine envelope from the verdict spine and
-    # RETURN, skipping every nomination-oriented render (composite panel / md / html / nomination.json
-    # / provenance). The spine it reads is byte-identical to a nomination run.
-    if args.emit == "evidence-package":
+    # Write the deterministic evidence_package if EITHER the emit mode OR auto-grounding needs it
+    # (once, shared). ground_axis reads this envelope (synthesis.sub_verdicts + cards); the emit-mode
+    # return path reuses the same file. When neither is requested, ep_path stays None → nothing written
+    # → a default nomination run is byte-identical.
+    ep_path = None
+    if args.emit == "evidence-package" or args.ground:
         ep_path = _write_evidence_package(
             args=args, sub_results=sub_results, gate_action=gate_action,
             recommendation_gate=recommendation_gate, confidence_tier=confidence_tier,
@@ -397,6 +409,29 @@ def main() -> int:
             # subtype_resolved block ONLY when the run is subtype-scoped (byte-stable default).
             subtypes=subtypes, subtype_facet=subtype_facet,
         )
+
+    # AUTO-GROUND (fanout-integration): PRODUCE the per-axis grounded substrate in one pass over the
+    # just-written evidence package. VERDICT-INERT (reads the finished spine) + best-effort (any failure
+    # degrades to 'not grounded'). Populates grounded_by_axis so the inline HTML render shows the
+    # findings, and persists grounded_<axis>.json in --out for downstream --substrate consumers.
+    if args.ground and ep_path is not None:
+        try:
+            from tp_grounding import resolve_axes, auto_ground
+            axes = resolve_axes(args.ground)
+            print(f"[target-profile] auto-grounding axes {axes} over {ep_path.name} "
+                  f"(literature-risk-assessment/ground_axis; verdict-inert)...", file=sys.stderr)
+            produced = auto_ground(args.target, args.indication, ep_path, args.out, axes)
+            grounded_by_axis.update(produced)
+            print(f"[target-profile] auto-grounded {sorted(produced)} → grounded_<axis>.json in {args.out}",
+                  file=sys.stderr)
+        except Exception as e:  # noqa: BLE001 — grounding is substrate/display context, never blocks a run
+            print(f"[target-profile] WARN: auto-grounding failed ({type(e).__name__}: {e}); "
+                  "continuing without grounded substrate", file=sys.stderr)
+
+    # --emit evidence-package: RETURN after emitting the deterministic machine envelope (written above),
+    # skipping every nomination-oriented render (composite panel / md / html / nomination.json /
+    # provenance). The spine it reads is byte-identical to a nomination run.
+    if args.emit == "evidence-package":
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
         print(f"Recommendation: {gate_action or '(no gate fired)'}")
         return 0
@@ -571,7 +606,10 @@ def main() -> int:
         ] + ([] if args.no_figures else [
             "figures/target_profile_at_a_glance.png",
             "figures/target_profile_at_a_glance.svg",
-        ]),
+        ]) + ([f"grounded_{ax}.json" for ax in sorted(grounded_by_axis)] if args.ground else []),
+        # fanout-integration: the per-axis grounded substrate produced this run (empty unless --ground).
+        # Verdict-inert; feeds the inline render + downstream --substrate (risk_rollup + hypothesis).
+        "grounded_axes": sorted(grounded_by_axis) if args.ground else [],
     }
     (args.out / "provenance.yaml").write_text(yaml.safe_dump(provenance, sort_keys=False))
 

@@ -169,6 +169,26 @@ composition:
   re-resolution. `governance.data_mode` is `exploratory` (live, unpinned, not
   concurrence-reviewed).
 
+## Literature grounding (`--ground`) — fanout-integration
+
+`--ground` AUTO-PRODUCES the per-axis **grounded substrate** in one pass: after the fan-out, it runs
+`literature-risk-assessment/ground_axis` over the just-assembled `evidence_package.json` and writes
+`grounded_<axis>.json` (escalate-only, PMID-cited literature findings) into `--out`. Those records
+feed **both** downstream consumers of the shared substrate (grounded-substrate two-projection design):
+the inline per-subskill grounded blocks on the HTML dashboard, **and** `--substrate axis=path` on
+`risk_rollup` (6-dim risk [3A]) + `cross-evidence-hypothesis` ([3B]).
+
+- `--ground` / `--ground engine` — the 5 engine axes (`safety`, `dependency`, `selectivity`,
+  `surface_modality`, `tractability_sm`) that anchor to a sub-verdict.
+- `--ground all` — engine axes **+** the `clinical` / `commercial` pseudo-cards (engine-blind,
+  literature-only).
+- `--ground safety,dependency` — an explicit comma-list (validated against `ground_axis.AXIS_CONFIG`).
+
+VERDICT-INERT (grounding reads the finished spine; it never changes a sub-verdict) and **best-effort**
+(a failing axis is logged + skipped; the run's other artifacts are never blocked). Requires Bedrock +
+network (`BEDROCK_AWS_PROFILE`). **Off by default** — a run without `--ground` makes no network call and
+is byte-identical. Coverage grows as axes are added to `AXIS_CONFIG`; this step picks them up for free.
+
 ## Optional lenses
 
 - `--modality <M>` — projects each sub-skill's fired rules onto a
