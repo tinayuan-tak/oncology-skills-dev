@@ -21,7 +21,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field, resolve_cards
+from _skills_common import get_card_field, resolve_cards, _summary_is_unavailable
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_dependency import synthesize_dependency
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
@@ -290,7 +290,20 @@ _DEP_MOD_POS = {"lineage_selective", "selective_dependent", "partner_conditional
 _DEP_NEG = {"non_dependent", "non_dependent_paralog_buffered", "discordant"}
 _DEP_INSUFF = {"insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential", None}
 _ORD = {"low": 0, "medium": 1, "high": 2}
-_UNKNOWN_MASS = {"high": 0.1, "medium": 0.4, "low": 0.7}
+
+# The DECISION-RELEVANT dependency cards — the verdict-bearing set that bears on the dependency CALL.
+# unknown_mass is the fraction of THESE that came back blind this run (CERTAINTY_MODEL §1.1).
+# cross-consortium + predictability are CONFIDENCE annotations (not call-bearing) and are intentionally
+# excluded — they inform certainty's other components, not the coverage-gap of the call itself.
+_DECISION_RELEVANT_CARDS = (
+    "pan-cancer-crispr-dependency-distribution",
+    "pan-cancer-rnai-dependency-distribution",
+    "crispr-rnai-dependency-concordance",
+    "dependency-lineage-selectivity",
+    "paralog-buffering",
+    "partner-conditional-dependency",
+    "prism-crispr-concordance",
+)
 
 
 def _dependency_strength(verdict) -> str:
@@ -312,31 +325,63 @@ def _coverage_from_n(n) -> str:
     return "high" if n >= 20 else ("medium" if n >= 5 else "low")
 
 
-def _corroboration_from_concordance(concordance_call) -> str:
-    c = str(concordance_call or "")
-    if "concordant" in c:
+def _corroboration_from_cross_consortium(cross_consortium_class) -> str:
+    """CERTAINTY_MODEL §2 + worked example: dependency corroboration is Broad↔Sanger cross-consortium
+    replication — VERDICT-DISJOINT (the cross-consortium-dependency card fires NO resolver rung). The
+    CRISPR↔RNAi concordance is deliberately NOT used here: it RESOLVES the verdict
+    (concordant_dependent / discordant), so reusing it as corroboration would count one signal as both
+    strength and certainty (the disjointness rule). Two independent consortia agreeing (dependent OR
+    non-dependent) is corroboration; disagreeing is low; a single consortium is `unmeasured` — never a
+    fabricated `medium` (an absent comparator raises ignorance, it does not manufacture agreement)."""
+    c = str(cross_consortium_class or "")
+    if c in ("concordant_dependent", "concordant_non_dependent"):
         return "high"
-    if "discordant" in c:
+    if c == "discordant":
         return "low"
-    return "medium"   # single-assay / unknown
+    if c == "single_consortium_only":
+        return "medium"
+    return "unmeasured"   # data_unavailable / absent → no verdict-disjoint comparator this run
 
 
-def _dependency_strength_certainty(cards, verdict, concordance_call) -> dict:
+def _unknown_mass(cards) -> float:
+    """CERTAINTY_MODEL §1.1: the fraction of the axis's DECISION-RELEVANT cards that came back
+    data_unavailable / blind THIS run — a MEASURED coverage-gap (ignorance) term. This replaces the
+    prior fixed level-lookup, which conflated measured-null with never-measured (a well-powered
+    discordant call and a never-measured axis both landed at 0.7). Orthogonal to `corroboration`
+    (disagreement): this says *we didn't look*, corroboration says *we looked and lines disagree*.
+    A card absent from the resolved set OR flagged `_missing` OR whose PRIMARY class is
+    data_unavailable counts as blind."""
+    by_id = {c["card_id"]: c for c in (cards or []) if isinstance(c, dict) and "card_id" in c}
+    n = len(_DECISION_RELEVANT_CARDS)
+    blind = 0
+    for cid in _DECISION_RELEVANT_CARDS:
+        c = by_id.get(cid)
+        if c is None or c.get("_missing") or _summary_is_unavailable(c.get("summary") or {}):
+            blind += 1
+    return round(blind / n, 3)
+
+
+def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> dict:
     """(strength, certainty{coverage, corroboration, weakest-link level, unknown_mass}) for the
-    dependency axis. coverage = n_cell_lines power; corroboration = CRISPR<->RNAi concordance."""
+    dependency axis (CERTAINTY_MODEL #dependency reference axis). coverage = n_cell_lines power;
+    corroboration = VERDICT-DISJOINT Broad↔Sanger cross-consortium; unknown_mass = §1.1 coverage-gap
+    fraction. `level` = weakest-link over the MEASURED certainty components (an `unmeasured`
+    corroboration drops out of the min rather than forcing low — absence is carried in unknown_mass,
+    not punished as disagreement)."""
     n = get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "n_cell_lines_evaluated")
     frac = get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "fraction_strongly_dependent")
     coverage = _coverage_from_n(n)
-    corroboration = _corroboration_from_concordance(concordance_call)
-    level = min((coverage, corroboration), key=lambda c: _ORD[c])   # weakest-link
+    corroboration = _corroboration_from_cross_consortium(cross_consortium_class)
+    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
+    level = min(components, key=lambda c: _ORD[c])   # weakest-link over MEASURED components
     if verdict in _DEP_INSUFF:
         level = "low"
     return {
         "strength": _dependency_strength(verdict),
         "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
-                      "unknown_mass": _UNKNOWN_MASS[level]},
+                      "unknown_mass": _unknown_mass(cards)},
         "provenance": {"n_cell_lines_evaluated": n, "fraction_strongly_dependent": frac,
-                       "concordance_call": concordance_call},
+                       "cross_consortium_class": cross_consortium_class},
         "_model_ref": "CERTAINTY_MODEL.md#dependency",
     }
 
@@ -349,11 +394,10 @@ def _headline(cards, fired, verdict_pair):
     hl = {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
-        # (strength, certainty) — Step-3 reference axis (CERTAINTY_MODEL.md). ADDITIVE + verdict-inert.
-        "strength_certainty":       _dependency_strength_certainty(
-                                        cards, v,
-                                        get_card_field(cards, "crispr-rnai-dependency-concordance",
-                                                       "concordance_class")),
+        # (strength, certainty) — CERTAINTY_MODEL #dependency reference axis. ADDITIVE + verdict-inert.
+        # corroboration is Broad↔Sanger cross-consortium (verdict-DISJOINT), NOT CRISPR↔RNAi concordance
+        # (which resolves the verdict). See _dependency_strength_certainty.
+        "strength_certainty":       _dependency_strength_certainty(cards, v, cross_consortium_class),
         "crispr_call":              get_card_field(cards, "pan-cancer-crispr-dependency-distribution",
                                           "dependency_class"),
         "rnai_call":                get_card_field(cards, "pan-cancer-rnai-dependency-distribution",
