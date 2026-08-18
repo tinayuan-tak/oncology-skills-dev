@@ -63,6 +63,14 @@ PER_SAMPLE_STRATIFIABLE_CALLS = {
     'tcga-gtex-expression-distribution',  # methods/tcga_gtex_expression_distribution: read_tumor_expression_subtype_landscape
                                           # recomputes the per-sample distribution WITHIN each stratum member-set
                                           # (UUID→barcode→stratum bridge), NOT an emit-time aggregate — AM #82.
+    'dge-tumor-vs-normal-selectivity-by-subgroup',  # methods/dge_deseq2: read_stratified_tumor_vs_normal_selectivity
+                                          # HONEST per-stratum recomputation, but EMIT-TIME not read-time: the
+                                          # sensitivity-by-subgroup product ran a full DESeq2 fit WITHIN each
+                                          # stratum's tumor set (steps/07_stratified_four_cell_driver.R). The
+                                          # reader returns genuine per-stratum log2FC — NOT a whole-cohort
+                                          # aggregate re-sliced — so it satisfies the honesty invariant this
+                                          # allowlist protects. (Distinct from the three above, which recompute
+                                          # from per-sample source data at read time.) — 2026-08-18.
     'depmap-expression-distribution',     # methods/depmap_expression_distribution: read_stratified_expression +
                                           # build_expression_subtype_panorama — recomputes the cell-line RNA
                                           # distribution WITHIN each DepMap-shard stratum member-set (ModelID-keyed,

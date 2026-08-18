@@ -43,25 +43,43 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.5.0    # 2026-08-07 + selective_but_broadly_normal (axis-B/E therapeutic-window veto, conjunction redesign)
+version: 3.6.0    # 2026-08-18 UNBLOCK subgroup stratification (COADREAD/msi_status) via emit-time per-subgroup DESeq2
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
-tier: indication   # indication-scoped tumor-vs-normal selectivity; subtype-eligible once a per-sample expression reader ships
+tier: indication   # indication-scoped whole-cohort call is the PRIMARY grain; subtype grain now LIVE for
+                   # indications with a per-subgroup sensitivity product (COADREAD/msi_status as of 2026-08-18).
 
-# BLOCKED (2026-07-16): selectivity varies by molecular subgroup (filter 1 met),
-# but dge-tumor-vs-normal-selectivity emits whole-cohort comparators baked at
-# emit time (filter 2 FAILS). Tagged not-live pending a per-sample reader.
+# UNBLOCKED (2026-08-18): the emit-time per-subgroup DESeq2 layer shipped. The
+# whole-cohort comparators are still baked whole-cohort, BUT selectivity is now
+# recomputed WITHIN each stratum's tumor set by a full DESeq2 fit
+# (analysis-methods steps/07_stratified_four_cell_driver.R) and emitted as
+# coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1 — a genuine
+# per-stratum recomputation, not a whole-cohort aggregate re-sliced. The read
+# layer (read_stratified_tumor_vs_normal_selectivity) projects one card record
+# per stratum, reusing the SAME classifier so a stratum's selectivity_class
+# means what it means whole-cohort. Molecular subgroups are TUMOR properties, so
+# only the tumor arm is subset; the TCGA-adjacent + GTEx normals stay
+# whole-cohort (the shared baseline every stratum is contrasted against).
+# History: BLOCKED 2026-07-16 (whole-cohort comparators baked at emit time,
+# filter 2 failed) → LIVE 2026-08-18. Coverage grows one (indication × axis)
+# per-subgroup product at a time; COADREAD/msi_status is the first.
 subgroup_stratification:
   eligible: true
-  status: blocked_needs_per_sample_reader
+  status: live
   axes: [msi_status]
-  rationale: "Selectivity varies by subgroup but the four comparators are whole-cohort aggregates; needs a per-sample expression reader."
+  product: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1   # first live (indication × axis)
+  assignments_manifest: tcga-subgroup-assignments-coadread-v1        # MSI_H (38) / MSS (193) member sets
+  rationale: "Selectivity recomputed within each stratum's tumor set by a full per-subgroup DESeq2 fit (emit-time), against the shared whole-cohort normals — an honest per-stratum contrast, not a re-sliced aggregate."
 
 applies_when:
   - "context.data_sources.recount3_tcga_gtex_available == true"
 
 required_inputs:
   - product_id: coadread-dge-tumor-vs-normal-sensitivity-v1
+  # Per-subgroup sensitivity product (subtype grain). Present only for
+  # indications with a landed (indication × axis) product; the reader returns
+  # status=data_unavailable where it is absent, so this is a soft dependency.
+  - product_id: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
 
 methods:
   - call: dge-tumor-vs-normal-selectivity
@@ -70,6 +88,16 @@ methods:
     args:
       target: "{target.symbol}"
       indication: "{indication}"
+  # Subtype-grain per-subgroup panorama (2026-08-18). Emit-time per-stratum
+  # DESeq2 → descriptive per-stratum records + cross-stratum reducer scalars.
+  # Bound as a PER_SAMPLE_STRATIFIABLE_CALL in validators/validate_cards.py.
+  - call: dge-tumor-vs-normal-selectivity-by-subgroup
+    module: dge_deseq2
+    entrypoint: read_stratified_tumor_vs_normal_selectivity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      subgroup_axis: "{subgroup_axis}"
 
 outputs:
   summary_fields:
@@ -103,6 +131,23 @@ outputs:
     - selectivity_allgene_percentile_context  # string — product + comparator column the null was drawn from (anti-pooling audit)
     - selectivity_allgene_percentile_cell_b    # float — cell-B (TCGA-adjacent ComBat) corroborating rank
     - selectivity_allgene_percentile_cell_c    # float — cell-C (GTEx population) corroborating rank
+
+    # --- SUBTYPE GRAIN (2026-08-18) — per-subgroup panorama, emitted only when a
+    # per-subgroup sensitivity product exists for the indication (else absent).
+    # DESCRIPTIVE (shows the landscape across strata; emits no signal / verdict change).
+    # Produced by read_stratified_tumor_vs_normal_selectivity.
+    - per_subgroup_metrics                      # LIST — one record per stratum: {stratum, subgroup_n,
+                                                #   subgroup_n_floor_met, evidence_state, selectivity_class,
+                                                #   comparator_concordance, dominant_direction, max_abs_log2fc,
+                                                #   cells_supporting, cells_ran, log2fc_cell_{a,b,c}, q_value_cell_{a,b,c}}
+    - subgroup_axis                             # axis the panorama stratifies on (e.g. msi_status)
+    - n_subgroups_with_data                     # cross-stratum reducer: strata with a non-zero tumor n
+    - max_subgroup_log2fc                       # max over strata of per-stratum max_abs_log2fc (measured strata)
+    - min_subgroup_log2fc                       # min over strata of per-stratum max_abs_log2fc (measured strata)
+    - cross_subgroup_delta_log2fc               # max_subgroup_log2fc − min_subgroup_log2fc (selectivity spread across strata)
+    - selectivity_class_by_subgroup             # dict {stratum: selectivity_class}
+    - cross_subgroup_selectivity_divergence     # bool — do MEASURED strata land in >1 selectivity_class? (the actionable subtype signal)
+    - any_subgroup_strong_selective             # bool — any measured stratum strong/field-effect tumor-selective
 
   summary_fields_vocabulary:
     dominant_direction:
@@ -223,5 +268,7 @@ sample_context: tumor         # patient tumor vs normal comparators (recount3 TC
 measurement_type: tumor_vs_normal_selectivity
 # P4 Tier-2 (2026-07-24): cross-axis — the tumor-vs-normal window feeds SM efficacy AND is the biologics therapeutic-index / off-tumor-tox basis (surface rules J). Rules on BOTH axes. Declaration lands WITH the matching surface rules (PR feat/p4-surface-rules-tier2) — never declare without a rule.
 modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
-entity_grains: [target_indication]
+# target_subtype grain LIVE 2026-08-18 (per-subgroup DESeq2 sensitivity product);
+# the whole-cohort target_indication grain remains the primary read.
+entity_grains: [target_indication, target_subtype]
 schema_version: 1

@@ -389,6 +389,16 @@
           "type": "string",
           "maxLength": 500,
           "description": "One-line attestation of why the biology varies by subgroup (or, for blocked/out_of_scope, what the blocker is)."
+        },
+        "product": {
+          "type": "string",
+          "minLength": 1,
+          "description": "When live: the derived per-subgroup product id the panorama reads (e.g. coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1). First live (indication × axis); coverage grows one product at a time."
+        },
+        "assignments_manifest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "When live: the subgroup-assignments derived-manifest id that supplied the stratum member sets at emit time (e.g. tcga-subgroup-assignments-coadread-v1)."
         }
       }
     },
