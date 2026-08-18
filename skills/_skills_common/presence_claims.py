@@ -100,12 +100,21 @@ def _claim_B(h, c):
     if not arms:
         return {"signal": "unmeasured", "reliability": "unmeasured", "evidence": "no tumor-vs-normal arm", "conflict": None, "informs": CLAIM_INFORMS["B"]}
     ups = [a for a in arms if a[1][0] == "up"]; downs = [a for a in arms if a[1][0] == "down"]
+    flats = [a for a in arms if a[1][0] == "flat"]
     conflict = None
     if ups and downs:
         conflict, sig, rel = "RNA/protein DISAGREE on direction", "weak", "low"
     elif ups:
         sig = "strong" if max(a[1][1] for a in ups) == 3 else "moderate"
         rel = "high" if len(ups) >= 2 else "moderate"
+        # comparator/post-transcriptional discordance: one arm elevated, another measured-FLAT (e.g.
+        # CEACAM5 — RNA vs adjacent-colon flat, but CPTAC protein vs population-normal up). Surface it
+        # (the elevation is real but not corroborated across arms/comparators) without moving the tier;
+        # reliability is capped since the arms don't agree. See P1 calibration finding (2026-08-18).
+        if flats:
+            up_names = "/".join(a[0] for a in ups); flat_names = "/".join(a[0] for a in flats)
+            conflict = f"comparator discordance: {up_names} elevated but {flat_names} flat"
+            rel = "moderate" if rel == "high" else rel
     else:
         sig, rel = "absent", "moderate"
     ev = "; ".join(f"{n}:{d[0]}(fc/eff={_f(fc)},q={q:.0e})" if isinstance(q, (int, float)) else f"{n}:{d[0]}" for n, d, fc, q in arms)
