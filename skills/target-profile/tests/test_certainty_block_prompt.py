@@ -68,7 +68,7 @@ def _fragility():
 
 def test_prompt_includes_certainty_block_when_provided():
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(), fragility=_fragility())
-    assert "### Per-axis certainty / how-solid facet" in prompt
+    assert "### Per-axis how-solid facet" in prompt
     # per-axis rows: evidenced axis shows its call + coverage + fragility; blind axis shows the gap
     assert "| dependency | `lineage_selective` | high | 0.5 |" in prompt
     assert "| selectivity | `strong_tumor_selective` | medium | 0.0 |" in prompt
@@ -88,7 +88,7 @@ def test_certainty_block_shows_missing_card_count():
 
 def test_certainty_block_carries_weakest_link_and_mnar_framing():
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(), fragility=_fragility())
-    seg = prompt[prompt.find("### Per-axis certainty"):]
+    seg = prompt[prompt.find("### Per-axis how-solid facet"):]
     seg = seg[:seg.find("### ", 5)] if "### " in seg[5:] else seg
     assert "WEAKEST-LINK" in seg
     assert "ABSENCE OF EVIDENCE" in seg and "NOT evidence of absence" in seg
@@ -97,11 +97,26 @@ def test_certainty_block_carries_weakest_link_and_mnar_framing():
     assert "do NOT average" in seg or "never sum/average" in seg
 
 
+def test_certainty_block_separates_fragility_from_evidence_strength():
+    """Phase 0.5 (MET/LUAD A/B fix): the block must tell the LLM that CALL-FRAGILITY is a
+    STRUCTURAL property of the resolver ladder, NOT a measure of evidence strength — so a
+    flip-fragile-but-concordant negative (MET dependency) is not narrated as evidentiary doubt."""
+    prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(), fragility=_fragility())
+    seg = prompt[prompt.find("### Per-axis how-solid facet"):]
+    seg = seg[:seg.find("### ", 5)] if "### " in seg[5:] else seg
+    assert "do NOT conflate" in seg
+    assert "CALL-FRAGILITY" in seg
+    assert "NOT a measure of evidence strength" in seg
+    assert "sensitive rule boundary" in seg
+    # the two failure modes are named distinctly (thin coverage vs flip-fragile-but-complete)
+    assert "COVERAGE" in seg and "EVIDENCE signal" in seg
+
+
 def test_prompt_backward_compatible_without_fragility():
     """Omitting `fragility` (the pre-Phase-0 call shape) must still produce a valid prompt with NO
     certainty block — purely additive, so the spine and every existing prompt test are unaffected."""
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results())  # no fragility
-    assert "### Per-axis certainty / how-solid facet" not in prompt
+    assert "### Per-axis how-solid facet" not in prompt
     assert "### Sub-verdicts" in prompt
 
 
@@ -110,4 +125,4 @@ def test_certainty_block_empty_per_axis_renders_nothing():
     than a header with an empty table."""
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(),
                                    fragility={"per_axis": {}, "blind_decision_axes": []})
-    assert "### Per-axis certainty / how-solid facet" not in prompt
+    assert "### Per-axis how-solid facet" not in prompt

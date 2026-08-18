@@ -267,27 +267,40 @@ def _format_card_summary_for_prompt(summary: dict) -> str:
 
 
 def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
-    """Render the per-axis how-solid (certainty) block from the ALREADY-computed fragility facet.
+    """Render the per-axis how-solid block from the ALREADY-computed fragility facet.
 
     Purely presentational + VERDICT-INERT: it reads the facet's `per_axis` (coverage +
     call-fragility) and `blind_decision_axes`, plus each sub-result's missing-card count, and
     renders them for the narration to calibrate confidence. It NEVER changes the recommendation,
-    the gate, or the audited confidence tier. WEAKEST-LINK framing (do not average across axes)
-    and the MNAR discipline (a blind axis is absence-of-evidence, not a negative) are stated
-    explicitly so the LLM does not scalarize or mis-read a coverage gap as a finding."""
+    the gate, or the audited confidence tier.
+
+    The framing keeps TWO signals explicitly DISTINCT (the Phase-0.5 fix, motivated by the MET/LUAD
+    A/B, where the LLM read a high flip-fragility on a biologically-solid concordant negative as
+    evidentiary doubt): COVERAGE is an EVIDENCE signal (did we measure it), while CALL-FRAGILITY is
+    a STRUCTURAL property of the resolver ladder (how sensitive the verdict LABEL is to a single
+    rule toggle) — NOT a measure of evidence strength. A fully-covered, independently-corroborated
+    call can still be flip-fragile, and vice versa; flip-fragility must not be narrated as an
+    'unresolved gap'. WEAKEST-LINK (do not average across axes) and the MNAR discipline (a blind
+    axis is absence-of-evidence, not a negative) are stated so the LLM does not scalarize or
+    mis-read a coverage gap as a finding."""
     per_axis = (fragility.get("per_axis") or {})
     if not per_axis:
         return []
     lines = [
         "",
-        "### Per-axis certainty / how-solid facet (deterministic; a FACET, not a gate)",
-        "How well-supported each decision-relevant axis's CALL is — coverage (did we measure it, "
-        "with what power) and single-rule call-fragility (how easily the call flips). Read it "
-        "WEAKEST-LINK: a single thin-coverage or BLIND decision-relevant axis caps how confident "
-        "the synthesis should sound — do NOT average or sum these across axes. Coverage/blindness "
-        "is ABSENCE OF EVIDENCE (we did not measure it), NOT evidence of absence — never narrate a "
-        "blind or low-coverage axis as a negative finding.",
-        "| axis | call | coverage | call-fragility | missing cards |",
+        "### Per-axis how-solid facet (deterministic; a FACET, not a gate)",
+        "TWO DISTINCT per-axis signals — do NOT conflate them, and do NOT average or sum either "
+        "across axes (read WEAKEST-LINK):",
+        "  (1) COVERAGE — did we measure this axis, and with what power (an EVIDENCE signal). "
+        "`blind` / low coverage = ABSENCE OF EVIDENCE (we did not look), NOT evidence of absence; "
+        "never narrate a blind or low-coverage axis as a negative finding.",
+        "  (2) CALL-FRAGILITY — how sensitive the verdict LABEL is to toggling a single rule in the "
+        "resolver ladder. This is a STRUCTURAL property of the scoring boundary, NOT a measure of "
+        "evidence strength. A fully-covered, independently-corroborated call can still be "
+        "flip-fragile, and vice versa. Do NOT read flip-fragility as evidentiary doubt or an "
+        "'unresolved gap': a flip-fragile call whose underlying data is complete and concordant is a "
+        "SOLID call sitting on a sensitive rule boundary — narrate it that way, not as 'we don't know'.",
+        "| axis | call | coverage (evidence) | call-fragility (structural) | missing cards |",
         "|---|---|---|---|---|",
     ]
     for short in sorted(per_axis):
@@ -315,8 +328,11 @@ def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
     lines.append(
         "  NOTE: VERDICT-INERT — this facet does NOT move the recommendation, the gate, or the "
         "audited confidence tier. Use it ONLY to calibrate how confident the executive_summary / "
-        "tension_analysis should read and to name which axes are thin/fragile. Fragility is a "
-        "structural sensitivity measure, NOT a probability the target succeeds; never sum/average it.")
+        "tension_analysis should read, and name the two failure modes DISTINCTLY: a THIN-COVERAGE "
+        "axis = 'evidence is limited here' (go measure more); a FLIP-FRAGILE axis with complete "
+        "coverage = 'the call is solid but rests on a sensitive rule boundary' (a scoring caveat, "
+        "not an evidence gap). Fragility is a structural sensitivity measure, NOT a probability the "
+        "target succeeds and NOT a statement about evidence strength; never sum/average it.")
     return lines
 
 
