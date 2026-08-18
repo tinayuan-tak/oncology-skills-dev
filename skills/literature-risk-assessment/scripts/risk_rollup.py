@@ -44,10 +44,25 @@ def _sv(pkg): return {k: (v.get("verdict") if isinstance(v, dict) else v)
                       for k, v in pkg["synthesis"]["sub_verdicts"].items()}
 def _calls(pkg): return {c["card_id"]: c.get("interpretation_call")
                          for c in pkg.get("cards", []) if c.get("card_id")}
+def _card(pkg, cid):
+    for c in pkg.get("cards", []):
+        if c.get("card_id") == cid: return c.get("summary") or {}
+    return {}
+def _q(pkg, cid, field):
+    """Raw anchoring quantity from a card summary, surfaced in the chain for traceability."""
+    v = _card(pkg, cid).get(field)
+    try: return round(float(v), 3)
+    except (TypeError, ValueError): return v
 
 
 def deterministic_bins(pkg: dict, modality: str) -> dict:
-    """Pure, reproducible per-dim bins (illustrative thresholds; the conjunction structure is the point)."""
+    """Pure, reproducible per-dim bins. CALIBRATION (ryan.abo 2026-08-17): the bin is the spine's
+    already-CONDITIONED sub-verdict (safety = gnomAD LOEUF<0.35 THEN GoF/mutant-selective downgrade;
+    biological = DepMap Chronos<=-0.5 WITHIN the indication lineage; both applied by the resolvers) —
+    re-thresholding the raw PAN-cancer quantity would discard that conditioning and re-introduce
+    false-HIGHs. So the bin stays the conditioned verdict; the RAW anchoring quantity + published
+    threshold is SURFACED in the chain for defensibility. druggability additionally anchors to raw
+    Pharos TDL (its verdict is a lossy roll-up)."""
     sv, calls = _sv(pkg), _calls(pkg)
     surf = modality in SURFACE
     dims = {}
@@ -58,7 +73,9 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
            "moderately_constrained_safety": 1, "moderately_constrained_safety_concern": 1,
            "wt_constraint_mechanism_mismatch": 0, "wt_human_genetics_mechanism_mismatch": 0,
            "tolerant_reduced_safety_risk": 0}.get(sv.get("safety"), 0)
-    sig = max(sig, ots); chain.append(("on-target-safety", sv.get("safety"), INV[ots]))
+    _loeuf = _q(pkg, "gnomad-lof-constraint", "loeuf_score")
+    sig = max(sig, ots)
+    chain.append(("on-target-safety", f"{sv.get('safety')} [LOEUF={_loeuf}; <0.35 LoF-intolerant]", INV[ots]))
     esc = 2 if surf else 1
     if calls.get("normal-tissue-liability-gtex") == "critical_organ_liability":
         sig = max(sig, esc); chain.append(("normal-tissue-gtex", "critical_organ_liability", INV[esc]))
@@ -80,11 +97,15 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     # BIOLOGICAL — dependency (oos for surface) ∧ mechanism ∧ driver-role
     sig, chain = 0, []
     if not surf:
-        dep = {"non_dependent": 2, "pan_essential_killer": 2, "discordant": 1, "insufficient": 1,
+        # pan_essential_killer = a dependency but NOT tumor-selective -> its tox routes to SAFETY (not a
+        # target-validity failure) -> MED, not HIGH. Only non_dependent is HIGH biological risk.
+        dep = {"non_dependent": 2, "pan_essential_killer": 1, "discordant": 1, "insufficient": 1,
                "concordant_dependent": 0, "lineage_selective": 0, "selective_dependent": 0,
                "biomarker_stratified_dependency": 0, "partner_conditional_dependent": 0,
                "chemical_genetic_confirmed_dependent": 0, "non_dependent_paralog_buffered": 1}.get(sv.get("dependency"), 1)
-        sig = max(sig, dep); chain.append(("dependency", sv.get("dependency"), INV[dep]))
+        _chr = _q(pkg, "dependency-lineage-selectivity", "median_chronos_panel")
+        sig = max(sig, dep)
+        chain.append(("dependency", f"{sv.get('dependency')} [lineage-scoped; Chronos<=-0.5 in-lineage; panel median {_chr}]", INV[dep]))
     else:
         chain.append(("dependency", "out-of-scope (surface)", "N/A"))
     mech = 0 if sv.get("mechanism") == "well_characterized" else 1
@@ -101,7 +122,9 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     else:
         r = {"well_covered": 0, "chemically_active": 0, "discordant": 1, "chemically_unhit": 2,
              "structurally_intractable": 2}.get(sv.get("tractability_sm"), 1)
-        chain.append(("tractability-SM", sv.get("tractability_sm"), INV[r])); blind = ["PK/exposure", "CNS penetration", "synthesis"]
+        _tdl = _q(pkg, "target-development-level", "tdl_class")   # raw Pharos tier (Tclin>Tchem>Tbio>Tdark)
+        chain.append(("tractability-SM", f"{sv.get('tractability_sm')} [Pharos TDL={_tdl}]", INV[r]))
+        blind = ["PK/exposure", "CNS penetration", "synthesis"]
     dims["druggability"] = {"pillar": "Right Molecule", "bin": INV[r], "chain": chain, "mitigation": None, "blind_spots": blind}
 
     # engine-BLIND dims (literature-only via grounded/Tier-2)

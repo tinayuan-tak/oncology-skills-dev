@@ -79,3 +79,25 @@ def test_pseudo_card_dims_get_coarse_literature_bin():
     # a benign finding -> MED; no findings -> LOW
     sub2 = {"commercial": {"grounded": {"findings": [{"finding": "some context", "kind": "context", "cited_pmids": []}]}}}
     assert rr.project(pkg, "adc", sub2)["commercial"]["bin"] == "MED"
+
+
+def test_pan_essential_is_MED_biological_not_high():
+    # pan_essential = a dependency but not tumor-selective -> MED biological (tox routes to safety), NOT HIGH
+    pkg = {"synthesis": {"sub_verdicts": {"safety": {"verdict": "tolerant_reduced_safety_risk"},
+            "dependency": {"verdict": "pan_essential_killer"}, "mechanism": {"verdict": "well_characterized"}}},
+           "cards": []}
+    assert rr.deterministic_bins(pkg, "small_molecule")["biological"]["bin"] == "MED"
+    # non_dependent is the HIGH biological case
+    pkg["synthesis"]["sub_verdicts"]["dependency"]["verdict"] = "non_dependent"
+    assert rr.deterministic_bins(pkg, "small_molecule")["biological"]["bin"] == "HIGH"
+
+
+def test_calibration_surfaces_raw_anchoring_quantities():
+    pkg = {"synthesis": {"sub_verdicts": {"safety": {"verdict": "highly_constrained_safety_concern"},
+            "dependency": {"verdict": "lineage_selective"}, "mechanism": {"verdict": "well_characterized"},
+            "tractability_sm": {"verdict": "well_covered"}}},
+           "cards": [{"card_id": "gnomad-lof-constraint", "summary": {"loeuf_score": 0.23}},
+                     {"card_id": "target-development-level", "summary": {"tdl_class": "Tclin"}}]}
+    dims = rr.deterministic_bins(pkg, "small_molecule")
+    assert any("LOEUF=0.23" in str(n[1]) for n in dims["safety"]["chain"])       # raw LOEUF surfaced
+    assert any("Pharos TDL=Tclin" in str(n[1]) for n in dims["druggability"]["chain"])  # raw TDL surfaced
