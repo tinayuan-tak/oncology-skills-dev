@@ -56,6 +56,29 @@ def test_grounded_findings_escalate_only_never_change_bin():
     assert out["engine_literature_discordance"] is True      # discordance flag propagates
 
 
+def test_new_target_biology_axes_fold_into_biological_dim():
+    # ROLLOUT 2026-08-18: mechanism/genomic/SL/combinatorial/expression grounded findings escalate the
+    # BIOLOGICAL (Right Target) dim; the bin stays deterministic (escalate-only).
+    pkg = _pkg("tolerant_reduced_safety_risk", {})
+    bin_no_sub = rr.project(pkg, "small_molecule")["biological"]["bin"]
+    substrate = {
+        "mechanism": {"grounded": {"findings": [{"finding": "tumor-suppressive in this context",
+                                                 "kind": "moa", "cited_pmids": ["9"]}],
+                                   "contradicts_deterministic": True}},
+        "genomic_alteration": {"grounded": {"findings": [{"finding": "alteration is a passenger",
+                                            "kind": "driver", "cited_pmids": ["8"]}],
+                                            "contradicts_deterministic": False}},
+    }
+    bio = rr.project(pkg, "small_molecule", substrate)["biological"]
+    assert bio["bin"] == bin_no_sub                                   # escalate-only: bin unchanged
+    findings = [f["finding"] for f in bio["grounded_findings"]]
+    assert "tumor-suppressive in this context" in findings
+    assert "alteration is a passenger" in findings                   # both new axes fold in
+    assert bio["engine_literature_discordance"] is True              # mechanism contradiction propagates
+    # differentiation is intentionally NOT mapped to a [3A] dim (translational dim is a follow-up)
+    assert "differentiation" not in rr.AXIS_TO_DIM
+
+
 def test_engine_blind_dims_present():
     dims = rr.project(_pkg("tolerant_reduced_safety_risk", {}), "small_molecule")
     assert dims["clinical"]["bin"] == "ENGINE-BLIND" and dims["commercial"]["bin"] == "ENGINE-BLIND"

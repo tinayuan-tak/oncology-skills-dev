@@ -22,9 +22,18 @@ RANK = {"LOW": 0, "MED": 1, "HIGH": 2}
 INV = {0: "LOW", 1: "MED", 2: "HIGH"}
 SURFACE = {"adc", "bite_tce", "tce", "antibody"}
 
-# grounded axis -> the risk dim it augments
+# grounded axis -> the risk dim it augments. The 12 subskills map many-to-few onto the 6 risk dims
+# (5R-style decomposition): the target-biology axes (dependency + mechanism/genomic/SL/combinatorial/
+# expression, rolled out 2026-08-18) all escalate the BIOLOGICAL (Right Target) dim; safety/selectivity
+# escalate SAFETY; the two tractability axes escalate DRUGGABILITY; clinical/commercial are the
+# engine-blind pseudo-card dims. `differentiation` is patient-selection (a TRANSLATIONAL dim not yet
+# modelled here) → intentionally unmapped: it feeds the cross-evidence hypothesis [3B] (axis-agnostic)
+# but not this [3A] roll-up until a translational dim is added (documented follow-up, not a silent drop).
 AXIS_TO_DIM = {"safety": "safety", "dependency": "biological", "selectivity": "safety",
                "surface_modality": "druggability", "tractability_sm": "druggability",
+               "mechanism": "biological", "genomic_alteration": "biological",
+               "synthetic_lethal_partners": "biological", "combinatorial_dependency": "biological",
+               "expression": "biological",
                "clinical": "clinical", "commercial": "commercial"}   # pseudo-card dims
 # coarse literature-bin escalators for the engine-blind pseudo-card dims (decision 2)
 _PSEUDO_ESCALATORS = ("fail", "discontinu", "terminat", "negative", "toxic", "crowded",

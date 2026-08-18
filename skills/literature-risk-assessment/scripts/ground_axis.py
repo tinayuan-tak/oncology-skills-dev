@@ -11,9 +11,14 @@ this layer only SURFACES them.
 
 The contract is AXIS-PARAMETERIZED (AXIS_CONFIG): the STRUCTURE is identical across axes (escalate-only
 findings + corroborations + a contradicts flag + confab-containment); only the finding NOUN + the KINDS
-to look for differ. Validated axes: safety (findings = liabilities: ocular/normal-tissue tox, off-target,
-immunogenicity) and dependency (findings = dependency-weakening: resistance, context-dependence, paralog
-buffering, feedback). Add an axis by extending AXIS_CONFIG.
+to look for differ. Every axis is ESCALATE-ONLY in the same sense — a finding WEAKENS that axis's
+positive case (raises a concern the narrow deterministic verdict may miss), never lowers one.
+Axes now cover ALL of target-profile's indication-conditioned subskills (verdict_key == the SUB_SKILLS
+short): the 5 original engine axes (safety, dependency, selectivity, surface_modality, tractability_sm)
++ 6 rolled out 2026-08-18 (mechanism, genomic_alteration, differentiation, synthetic_lethal_partners,
+combinatorial_dependency, expression[=tumor-presence]) + 2 engine-blind pseudo-cards (clinical,
+commercial). Add an axis by extending AXIS_CONFIG. (target_intrinsic is intentionally NOT grounded here:
+it is gateless + indication-INDEPENDENT, so the escalate-the-indication-case frame does not apply.)
 
 Output = the `grounded` block of a substrate record consumed by both the risk roll-up and the hypothesis:
   { axis, deterministic:{verdict, driving_rule_id, cards:{id:call}},
@@ -75,6 +80,60 @@ AXIS_CONFIG = {
         "finding_noun": "SMALL-MOLECULE-TRACTABILITY-WEAKENING finding",
         "kinds": ("lack of a druggable POCKET / intrinsically-disordered / undruggable, poor PK or "
                   "cell/CNS permeability, or resistance to chemical inhibition")},
+    # --- ROLLOUT 2026-08-18: the remaining indication-conditioned subskills. Each is ESCALATE-ONLY in
+    # the SAME sense as dependency/selectivity — the finding WEAKENS that axis's positive case (raises a
+    # concern the narrow deterministic verdict may miss); it can never LOWER a concern. verdict_key ==
+    # the target-profile SUB_SKILLS short (tp_fanout). Retrieval reuses an existing pubmed_category
+    # (search_pubmed unchanged); the axis-specific extraction is carried by finding_noun + kinds.
+    "mechanism": {
+        "verdict_key": "mechanism", "pubmed_category": "biological",
+        "cards": ["signaling-network-mechanism", "pathway-activity-context", "phospho-pathway-activity",
+                  "tahoe-drug-perturbation"],
+        "finding_noun": "MECHANISM-DISCORDANCE finding",
+        "kinds": ("a CONTRADICTORY pathway role for the target in this context (e.g. reported "
+                  "tumor-suppressive where an oncogenic driver role is assumed), CONTEXT-dependent "
+                  "signaling, FEEDBACK/BYPASS reactivation that undercuts the proposed mechanism of "
+                  "action, or absence of the assumed pathway dependency")},
+    "genomic_alteration": {
+        "verdict_key": "genomic_alteration", "pubmed_category": "biological",
+        "cards": ["alteration-role", "copy-number-distribution", "mutation-hotspot-frequency",
+                  "oncogenic-pathway-alteration", "variant-level-interpretation", "functional-gene-state",
+                  "fusion-rearrangement-landscape"],
+        "finding_noun": "ALTERATION-INTERPRETATION-WEAKENING finding",
+        "kinds": ("evidence the recurrent alteration is a PASSENGER not a driver, that the "
+                  "amplification/mutation is NOT functionally activating, SUBCLONAL/heterogeneous "
+                  "alteration, or CO-OCCURRING alterations that confound attributing the phenotype to "
+                  "this target")},
+    "differentiation": {
+        "verdict_key": "differentiation", "pubmed_category": "translational",
+        "cards": ["co-mutation-and-mutual-exclusivity", "expression-clinical-association",
+                  "precog-prognostic-association", "pathway-node-leverage", "stemness-context"],
+        "finding_noun": "DIFFERENTIATION/PATIENT-SELECTION-WEAKENING finding",
+        "kinds": ("a CO-MUTATION that predicts RESISTANCE or poor response, a mutual-exclusivity that "
+                  "NARROWS the addressable population, a PROGNOSTIC association OPPOSITE to the "
+                  "therapeutic hypothesis, or the lack of a differentiating patient-selection biomarker")},
+    "synthetic_lethal_partners": {
+        "verdict_key": "synthetic_lethal_partners", "pubmed_category": "biological",
+        "cards": ["synthetic-lethal-partners", "partner-conditional-dependency"],
+        "finding_noun": "SYNTHETIC-LETHAL-WEAKENING finding",
+        "kinds": ("FAILURE of the synthetic-lethal interaction to validate IN VIVO or across models, "
+                  "GENOTYPE/context-dependence of the SL, ADAPTIVE RESISTANCE that bypasses it, or the "
+                  "SL partner not being pharmacologically ACTIONABLE")},
+    "combinatorial_dependency": {
+        "verdict_key": "combinatorial_dependency", "pubmed_category": "biological",
+        "cards": ["combinatorial-dependency"],
+        "finding_noun": "COMBINATION-WEAKENING finding",
+        "kinds": ("a combination that is ADDITIVE-not-SYNERGISTIC, combination TOXICITY that closes the "
+                  "window, RESISTANCE emerging to the combination, or the co-dependency NOT HOLDING "
+                  "across genetic backgrounds")},
+    "expression": {
+        "verdict_key": "expression", "pubmed_category": "biological",
+        "cards": ["tumor-rna-distribution", "tumor-protein-abundance-cptac", "cellline-rna-distribution",
+                  "tumor-scrna-celltype-expression", "tumor-rna-vs-adjacent", "tumor-elevation-breadth"],
+        "finding_noun": "TUMOR-PRESENCE-WEAKENING finding",
+        "kinds": ("reported ABSENCE or LOW/heterogeneous expression of the target in this tumor type, "
+                  "RNA-ONLY evidence with no protein confirmation, expression restricted to a MINOR "
+                  "subpopulation, or DISCORDANCE across cohorts/assays")},
     # PSEUDO-CARDS: engine-BLIND dims (no deterministic verdict/cards — verdict_key=None). Literature-only
     # NOW; upgradeable later by adding real `cards` (then they gain a deterministic bin like any axis).
     "clinical": {

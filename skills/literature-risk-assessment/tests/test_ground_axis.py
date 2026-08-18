@@ -84,6 +84,36 @@ def test_deterministic_block_selects_axis_cards():
     assert "gnomad-lof-constraint" not in d["cards"]           # safety card excluded from dependency axis
 
 
+def test_all_indication_conditioned_subskill_axes_configured():
+    # ROLLOUT 2026-08-18: every indication-conditioned target-profile SUB_SKILLS short now has a
+    # grounded axis (target_intrinsic intentionally excluded — gateless + indication-independent).
+    expected = {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
+                "mechanism", "genomic_alteration", "differentiation", "synthetic_lethal_partners",
+                "combinatorial_dependency", "expression"}
+    assert expected <= set(ga.AXIS_CONFIG)
+    assert "target_intrinsic" not in ga.AXIS_CONFIG        # deliberately deferred
+    # each newly-rolled-out axis anchors to a real sub-verdict (not a pseudo-card) with complete framing
+    for ax in (expected - {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"}):
+        cfg = ga.AXIS_CONFIG[ax]
+        assert cfg["verdict_key"] == ax and cfg["cards"]           # engine-anchored
+        assert not cfg.get("pseudo_card")
+        assert cfg["pubmed_category"] in {"biological", "druggability", "translational",
+                                          "clinical", "safety", "commercial"}
+        assert "WEAKENING" in cfg["finding_noun"] or "DISCORDANCE" in cfg["finding_noun"]  # escalate-only
+
+
+def test_new_axis_deterministic_block_reads_its_verdict():
+    # a mechanism axis reads the mechanism sub-verdict + its cards, ignoring other axes' cards
+    pkg = {"synthesis": {"sub_verdicts": {"mechanism": {"verdict": "well_characterized",
+            "driving_rule_id": "m1"}}},
+           "cards": [{"card_id": "signaling-network-mechanism", "interpretation_call": "clear_moa"},
+                     {"card_id": "gnomad-lof-constraint", "interpretation_call": "tolerant"}]}
+    d = ga.deterministic_block(pkg, "mechanism")
+    assert d["verdict"] == "well_characterized"
+    assert "signaling-network-mechanism" in d["cards"]
+    assert "gnomad-lof-constraint" not in d["cards"]
+
+
 def test_pseudo_cards_are_engine_blind():
     # clinical/commercial are pseudo-cards: no verdict_key, no engine cards
     for ax in ("clinical", "commercial"):
