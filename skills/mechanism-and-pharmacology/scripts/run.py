@@ -2,9 +2,9 @@
 """mechanism-and-pharmacology — Phase-D wired skill (graduated 2026-07-08).
 
 Signaling-network mechanism + candidate MoA hooks + PD-marker suggestions.
-Consumes the signaling-network-mechanism card (SIGNOR-tagged edges from
-OmniPath, classified into a 21-class MoA ontology). Emits a data-package
-output tree with rule-derived per-modality signals.
+Consumes the signaling-network-mechanism card (a directed network composed
+from SIGNOR + CollecTRI + Reactome, classified into a 21-class MoA ontology).
+Emits a data-package output tree with rule-derived per-modality signals.
 
 W4c refactor (2026-07-09): now uses the shared
 _skills_common.dispatcher.run_wired_skill(...) entry point. Skill-
@@ -28,7 +28,7 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.6.0"                       # 1.6.0: + dependency-predictability feature-attribution
+SKILL_VERSION = "1.6.1"                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                                               #        facet (verdict-inert; SIGNOR cross-referenced)
                                               # 1.5.0: pathway-activity-context (PROGENy)
                                               # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)

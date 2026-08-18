@@ -3,22 +3,21 @@ name: mechanism-and-pharmacology
 description: |
   Phase-D skill — signaling-network mechanism + candidate MoA hooks + PD-
   marker suggestions for a target. Consumes the signaling-network-mechanism
-  evidence card, which fuses SIGNOR-tagged edges from OmniPath into a
-  21-class MoA ontology.
+  evidence card — a directed signaling network composed from curated sources
+  (SIGNOR + CollecTRI + Reactome) and classified into a 21-class MoA ontology.
 
-  GRADUATED 2026-07-08: placeholder → wired. Uses OmniPath's
-  license=commercial-filtered interactions.tsv (SIGNOR-tagged subset only)
-  via the signor_mechanism_network method module. Provenance flows through
-  the omnipath-snapshot-2026-06-29 source manifest + signor-mechanism-
-  network-per-gene-v1 derived manifest.
+  The network is composed on-read (methods/mechanism_composed) from the SIGNOR
+  Jul2026 source release plus the CollecTRI and Reactome curated edge sets;
+  lower-weighted kinome-atlas prediction and DepMap co-essentiality lanes are
+  carried alongside (never merged into network_class). It does NOT read OmniPath.
 
   Question this skill answers:
   For {target} in {indication}, what upstream regulators + downstream
-  effectors are catalogued in SIGNOR, and which MoA classes are candidate
-  hooks for small-molecule / degrader / molecular-glue programs?
+  effectors are catalogued in the composed network, and which MoA classes are
+  candidate hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.6.0
+  version: 1.6.1
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
@@ -73,8 +72,9 @@ composition:
 ## What this skill does
 
 Given a target + indication:
-  1. Loads the target's SIGNOR-tagged signaling network from
-     `signor-mechanism-network-per-gene-v1` (per-UniProt-AC edge parquet).
+  1. Loads the target's composed signaling network (SIGNOR + CollecTRI +
+     Reactome) on-read via methods/mechanism_composed, keyed on the target's
+     UniProt-AC.
   2. Classifies each edge under the 21-class MoA ontology
      (methods/signor_mechanism_network/moa_ontology.py v1.0.0).
   3. Emits a MoA opportunities table (upstream regulators, per-edge
@@ -107,18 +107,19 @@ Given a target + indication:
 ## Provenance discipline
 
 Every emitted decision.json + summary.yaml stamps:
-  - `omnipath_snapshot`: manifest ID pin
+  - `data_provenance`: the composed sources' manifest pins (the SIGNOR Jul2026
+    source release + the CollecTRI / Reactome edge sets)
   - `moa_ontology_version`: from methods/signor_mechanism_network/moa_ontology.py
-  - `moa_ontology_unmapped_fraction`: fraction of SIGNOR edges that fell
+  - `moa_ontology_unmapped_fraction`: fraction of curated edges that fell
     to 'unmapped' class (target <5%; CI test enforces)
-  - `method_version`: signor_mechanism_network v0.1.0
+  - `method_version`: the composing method version
 
 ## Data gaps (iter-2 upgrade path)
 
-- **Pathway centrality (Reactome/PID betweenness):** SIGNOR-via-OmniPath
-  gives edge-level MoA classification but not pathway-topological
-  centrality. Reactome v96 is catalogued but not yet consumed by this
-  skill; iter-2 extension.
+- **Pathway centrality (betweenness):** the composed network gives edge-level
+  MoA classification and Reactome pathway membership, but not pathway-topological
+  centrality (betweenness). Computing centrality over the composed graph is a
+  future extension.
 - **Downstream PD-signature datasets:** the MoA ontology names PD markers
   by mechanism (e.g. "monitor KRAS-RAF1 association") but does not link
   to published PD signature datasets. Consumers of this skill's output
