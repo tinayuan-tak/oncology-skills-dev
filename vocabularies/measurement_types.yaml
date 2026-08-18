@@ -250,9 +250,11 @@ measurement_types:
     claim: "What is the shape of CRISPR (Chronos) LOF dependency on target, incl. lineage and molecular-subgroup slices?"
     evidence_substrate: depmap_crispr_chronos   # the base genome-wide Chronos screen — the substrate the derived dependency cluster inherits
     entity_grains: [target, target_lineage, target_subtype]   # target_subtype LIVE (subgroup-stratified-dependency binds a per-sample reader)
-    cards: [pan-cancer-crispr-dependency-distribution, dependency-lineage-selectivity, subgroup-stratified-dependency]
+    cards: [pan-cancer-crispr-dependency-distribution, dependency-lineage-selectivity, subgroup-stratified-dependency, organoid-crispr-dependency]
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+      # organoid-crispr-dependency reads organoid-crispr-dependency-26q1-v1 (derived from
+      # depmap-consortium-26q1 OrganoidGeneEffect.csv) — organoid-native Chronos normalization.
 
   rnai_lof_dependency:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance

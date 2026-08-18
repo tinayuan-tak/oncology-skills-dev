@@ -4113,3 +4113,97 @@ rules:
     rationale: |
       No E3-substrate, precedent, or location signal for this target — degradation feasibility is a
       coverage gap, not evidence for or against a degrader. Never touches SM.
+
+  # ============================================================================
+  # E1-organoid — Organoid CRISPR dependency (Card: organoid-crispr-dependency)
+  # ============================================================================
+  # The ORGANOID-NATIVE reading of the same Chronos screens (OrganoidGeneEffect.csv, 114
+  # organoid models, GI-dominated). CORROBORATING facet only: it strengthens a dependency
+  # call in a more physiological 3D context, but its small lineage-SKEWED cohort is NEVER a
+  # trusted independent veto — so no rule here fires a KILLER. The authoritative pan-cancer
+  # veto lives on pan-cancer-crispr-dependency-distribution (measured-vs-null discipline).
+  # Rules keyed on this card_id so the cell-line CRISPR rules above do not fire for it.
+
+  - rule_id: organoid-selective-dependency-supportive
+    when:
+      card_id: organoid-crispr-dependency
+      field: organoid_dependency_class
+      equals: selective_organoid_dependency
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Dependency in 20-50% of organoid models — a context-selective dependency confirmed in
+      patient-derived 3D organoids that retain architecture/differentiation 2D lines lose. This
+      is the headline organoid-supportive signal: corroborates a therapeutic window in a more
+      physiological model system. Corroborating (not dominant) — the pan-cancer + lineage cards
+      carry the primary window call.
+
+  - rule_id: organoid-broad-dependency-supportive
+    when:
+      card_id: organoid-crispr-dependency
+      field: organoid_dependency_class
+      equals: broad_organoid_dependency
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Dependency in 50-90% of organoid models — a broad, reproducible organoid dependency short
+      of pan-essential. Corroborates a real functional requirement in physiological organoids.
+      NOTE the cohort is GI-skewed, so "broad" here can reflect a GI-concentrated dependency;
+      pair with the pan-cancer + lineage-selectivity cards for the cross-lineage picture.
+
+  - rule_id: organoid-pan-essential-neutral
+    when:
+      card_id: organoid-crispr-dependency
+      field: organoid_dependency_class
+      equals: pan_organoid_essential
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Dependency in >=90% of organoid models — common-essential-like (low therapeutic window).
+      NEUTRAL, not killer: the organoid cohort is small (n~114) and GI-skewed, so it CORROBORATES
+      a common-essential liability but must not independently fire the pan-essential veto — that
+      veto is owned by pan-cancer-crispr-dependency-distribution over the full panel.
+
+  - rule_id: organoid-rare-dependency-neutral
+    when:
+      card_id: organoid-crispr-dependency
+      field: organoid_dependency_class
+      equals: rare_organoid_dependency
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Dependency in 5-20% of organoid models — a rare dependency that may reflect a small
+      responsive subset (e.g. an MSI or molecular-subtype fraction of the GI-heavy cohort).
+      Surface it, but it does not move the verdict on its own; the mutation/subgroup-stratified
+      cards carry the discriminating-context read.
+
+  - rule_id: organoid-not-dependent-neutral
+    when:
+      card_id: organoid-crispr-dependency
+      field: organoid_dependency_class
+      equals: not_organoid_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Dependency in <5% of organoid models. NEUTRAL, not killer: the organoid cohort is small and
+      GI-skewed, so an organoid-negative is NOT a trusted measured negative — a target dependent
+      only in a non-GI lineage would read negative here purely from cohort composition. Absence of
+      organoid dependency is a coverage/composition gap, not evidence-against (measured-vs-null
+      discipline). The full-panel + lineage cards own the negative call.
+
+  - rule_id: organoid-dependency-data-unavailable-insufficient
+    when:
+      card_id: organoid-crispr-dependency
+      field: organoid_dependency_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the organoid gene-effect matrix (or the product is unavailable) — a
+      coverage gap, not evidence for or against a dependency. Never a veto.
