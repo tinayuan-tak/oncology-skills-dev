@@ -103,3 +103,20 @@ Per RISK_ASSESSMENT_INTEGRATION.md §5, the ONLY defensible future gate-affectin
 behind five preconditions (corpus pin, determinism, null≠MEDIUM, drop commercial/translational,
 staleness TTL). This skill implements the corpus-pin + null≠MEDIUM preconditions but stays
 context-tier; enabling the ramp is a separate, reviewed decision.
+
+## ground_axis — per-subskill grounded-substrate reader (scripts/ground_axis.py)
+
+A sibling entrypoint that augments ONE subskill/axis's deterministic cards with literature as
+ESCALATE-ONLY LIABILITY FINDINGS (specific, PMID-traceable), NOT a LOW/MED/HIGH score. Emitting
+findings rather than a re-scored bin is escalate-only by construction: it can RAISE a concern, never
+lower a deterministic one — which structurally avoids the anchor-propagation failure (a grounded read
+anchored to a narrow "tolerant" verdict otherwise re-concludes LOW and buries the real liability; e.g.
+FOLR1 safety, where the narrow on-target read misses the ADC ocular / on-target normal-tissue tox that
+`ground_axis` surfaces from the literature). It is the `grounded` block of the substrate record that
+the risk roll-up and the cross-evidence hypothesis both consume (grounded-substrate two-projection
+design). Reuses this skill's pubmed_search + the containment guard. Validated on the SAFETY axis;
+other axes reuse the machinery with an axis-appropriate finding contract (follow-on).
+
+    BEDROCK_AWS_PROFILE=cmp-dev python3 scripts/ground_axis.py \
+        --target FOLR1 --indication "ovarian cancer" \
+        --evidence-package <pkg.json> --axis safety --out <rec.json>
