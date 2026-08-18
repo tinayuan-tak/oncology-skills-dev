@@ -30,6 +30,15 @@ from typing import Optional
 
 import yaml
 
+# Prefer the libyaml C loader — ~10x faster parsing the per-axis rules files (the
+# intracellular-intrinsic axis is ~200 KB and sits on the compute critical path of every wired
+# skill run). Fall back to the pure-Python loader if libyaml is not built into the local PyYAML;
+# the parse result is byte-identical either way. Mirrors methods/catalog_query/read.py.
+try:
+    _SafeLoader = yaml.CSafeLoader
+except AttributeError:  # pragma: no cover - depends on local libyaml build
+    _SafeLoader = yaml.SafeLoader
+
 
 # Same TARGET_CONTRACTS constant compose-dashboard uses. We duplicate rather
 # than import so this module has no compose-dashboard dependency — that's the
@@ -76,7 +85,7 @@ def load_interpretation_rules(
     if not rules_path.is_file():
         return None
     try:
-        doc = yaml.safe_load(rules_path.read_text())
+        doc = yaml.load(rules_path.read_text(), Loader=_SafeLoader)
     except Exception:
         return None
     if not isinstance(doc, dict) or doc.get("axis") != axis:
