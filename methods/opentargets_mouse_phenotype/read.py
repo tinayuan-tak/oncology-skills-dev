@@ -1,4 +1,4 @@
-"""opentargets_mouse_phenotype — P5 Slice 4: mouse-KO normal-physiology safety (with the
+"""opentargets_mouse_phenotype — mouse-KO normal-physiology safety (with the
 developmental-vs-adult guardrail).
 
 Reads Open Targets 26.06 `mouse_phenotype` (MGI knockout phenotypes, ENSG-keyed, ~11,869 genes ×
@@ -6,7 +6,7 @@ avg 17 phenotype rows) → ko_phenotype_class. The normal-physiology safety ques
 out the gene in a mouse cause death or severe organ dysfunction — implying an essential function a
 full-KO therapy might recapitulate?
 
-THE DEVELOPMENTAL GUARDRAIL (schema-verified 2026-07-24): lethal labels split into two
+THE DEVELOPMENTAL GUARDRAIL: lethal labels split into two
 developmentally-distinct buckets, and conflating them OVER-estimates adult on-target tox:
   - DEVELOPMENTAL lethality (prenatal / embryonic / fetal / perinatal / neonatal / preweaning) —
     reflects a role in DEVELOPMENT; a gene essential for embryogenesis may be dispensable in adult

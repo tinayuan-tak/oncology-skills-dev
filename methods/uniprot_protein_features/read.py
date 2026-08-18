@@ -17,7 +17,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + additive InterPro domain layer (coverage-broadening)
+METHOD_VERSION = "1.1.0"   # + additive InterPro domain layer (coverage-broadening)
 S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "uniprot-protein-features-v1"
 _PREFIX = f"data-catalog/derived/{DERIVED_MANIFEST_ID}"

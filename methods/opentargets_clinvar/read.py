@@ -1,4 +1,4 @@
-"""opentargets_clinvar — P5 follow-on: germline-pathogenic ClinVar safety leg (a 4th corroborating
+"""opentargets_clinvar — germline-pathogenic ClinVar safety leg (a 4th corroborating
 human-genetics signal alongside gene_burden / clingen / mouse_phenotype).
 
 Reads Open Targets 26.06 `evidence_eva` (ClinVar, ENSG-keyed, ~17,418 genes × avg 230 variant-level
@@ -6,7 +6,7 @@ rows, ~4.0M total) → clinvar_pathogenic_class. The safety question: does the g
 GERMLINE PATHOGENIC variants — evidence that losing/altering its function causes heritable disease,
 a WT-loss safety signal for a full-KO modality?
 
-THREE GATES the data demands (schema-verified 2026-07-24):
+THREE GATES the data demands:
   1. PATHOGENICITY — count only `pathogenic` / `likely_pathogenic` clinicalSignificances. The bulk of
      ClinVar is `uncertain significance` (1.7M) + `likely benign` (1.08M) — noise, must NOT fire.
   2. GERMLINE guardrail — gate on alleleOrigins ∈ {germline, inherited, de_novo, maternal, paternal,

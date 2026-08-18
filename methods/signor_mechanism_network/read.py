@@ -12,7 +12,7 @@ Hybrid cache-then-compute pattern:
   3. Cache result to local ~/.cache/framework-signor/ for subsequent invocations
   4. Return per-target aggregated summary matching the card's summary_fields shape
 
-SIGNOR direct source (not OmniPath's SIGNOR-tagged subset) chosen 2026-07-10 because:
+SIGNOR direct source (not OmniPath's SIGNOR-tagged subset) chosen because:
   - Canonical SIGNOR curation without OmniPath aggregation drift
   - Full 27-column schema preserves ENTITYA/B gene symbols + EFFECT + MECHANISM
     + PMID + verbatim SENTENCE — the OmniPath TSV catalogued has only 8 stripped
@@ -36,7 +36,6 @@ read_target_summary aggregates to per-target categorical:
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -103,7 +102,7 @@ def _load_signor_rows_indexed() -> tuple[list[dict], dict]:
 
     Filters to Homo sapiens (TAX_ID=9606) at parse time.
 
-    Runtime discipline (2026-07-10 perf fix): the previous per-target read
+    Runtime discipline: the previous per-target read
     re-streamed + re-parsed all 130k rows on every call, giving ~0.78s/call
     at warm-cache. This function caches the parse; per-target reads then
     become O(k) where k = rows-involving-target (~10-100). New warm-call
@@ -158,14 +157,14 @@ def _compute_edges_for_target(target: str) -> tuple[list[dict], int, int]:
     symbol), classify each edge via MoA ontology, return (edges, total, unmapped).
 
     Only protein entities are emitted (SIGNOR types: protein, TYPEA/B == 'protein').
-    Complexes (SIGNOR-PF, SIGNOR-C) are skipped for iter-1; downstream mechanism
+    Complexes (SIGNOR-PF, SIGNOR-C) are skipped; downstream mechanism
     reasoning is easier with atomic gene-symbol partners.
     """
     edges: list[dict] = []
     unmapped = 0
     total = 0
 
-    # Fast path (2026-07-10 perf fix): use the pre-indexed target lookup
+    # Fast path: use the pre-indexed target lookup
     # rather than scanning all 130k rows on every call.
     for row in _iter_signor_rows_for_target(target):
         entity_a = row.get("ENTITYA", "").strip()
@@ -178,7 +177,7 @@ def _compute_edges_for_target(target: str) -> tuple[list[dict], int, int]:
         type_a = row.get("TYPEA", "").strip().lower()
         type_b = row.get("TYPEB", "").strip().lower()
         if "protein" not in type_a or "protein" not in type_b:
-            # skip complex-involved edges; iter-2 backlog
+            # skip complex-involved edges
             continue
 
         id_a = row.get("IDA", "").strip()
@@ -304,7 +303,7 @@ def _read_from_derived_parquet(target: str) -> Optional[dict]:
     """Try to satisfy the request from the pre-computed derived parquet.
     Returns None if the parquet doesn't exist locally or on S3.
 
-    Runtime discipline (2026-07-10 perf fix): module-level negative cache
+    Runtime discipline: module-level negative cache
     prevents re-trying the S3 download on every per-target read. Without
     this, every warm-cache read cost ~500ms just to confirm the derived
     parquet still doesn't exist.

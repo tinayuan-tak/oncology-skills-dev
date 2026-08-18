@@ -1,12 +1,12 @@
 """shed_ectodomain_liability.cli — shed-antigen classifier + loaders + CLI.
 
-Answers the gate-F surface-window question the topology/family cards do NOT:
+Answers the surface-window question the topology/family cards do NOT:
 for a surface-present, correctly-targetable antigen, is its ectodomain
 proteolytically SHED into circulation as a soluble decoy ("antigen sink") that
 neutralizes an antibody / ADC / T-cell-engager before tumor delivery?
 
-TWO EVIDENCE TIERS (deep-research verdict 2026-07-19 — no clean redistributable
-structured shedding system-of-record exists):
+TWO EVIDENCE TIERS (no clean redistributable structured shedding
+system-of-record exists):
 
   1. RELIABLE `clinical` tier — the curated serum-marker crosswalk
      `target-contracts/vocabularies/shed_antigen_targets.yaml`. A serum tumor
@@ -41,7 +41,7 @@ import yaml
 
 from methods.catalog_query.read import bucket_prefix_for
 
-METHOD_VERSION = "0.2.0"  # 0.2.0 (E3): + MEASURED Olink conditioned-media shed facet (media.py)
+METHOD_VERSION = "0.2.0"  # + MEASURED Olink conditioned-media shed facet (media.py)
 
 # --- reliable tier: curated vocab in target-contracts ---
 DEFAULT_TARGET_CONTRACTS = Path(
@@ -62,7 +62,7 @@ HPA_SECRETOME_COL = "Secretome location"
 # HPA "Secretome location" values that indicate a soluble/circulating form. The
 # blood/ECM/systemic values are the shed-relevant ones; a purely local secretion
 # (e.g. "Secreted in male reproductive system") is a much weaker circulating-sink
-# signal, so we tier it. Verified against live value_counts (2026-07-19).
+# signal, so we tier it. Verified against live value_counts.
 HPA_BLOOD_LOCATIONS = {
     "secreted to blood",
     "secreted to extracellular matrix",
@@ -217,12 +217,12 @@ def load_and_classify(gene_symbol: str,
                       with_measured: bool = True,
                       media_path=None, idmap_path=None) -> dict:
     """Full pipeline for one gene: curated lookup + HPA proxy → card summary, PLUS the
-    MEASURED Olink conditioned-media facet (E3, 2026-08-07).
+    MEASURED Olink conditioned-media facet.
 
     The measured facet is a PARALLEL categorical (`measured_shed_class` + media_* fields);
     it is ADDITIVE and NEVER alters the primary `shed_liability_class`/`shed_evidence_tier`
     that the two annotation tiers produce — so every gene's primary class is byte-stable.
-    `with_measured=False` reproduces the pre-E3 summary exactly (used by the byte-stability
+    `with_measured=False` reproduces the annotation-only summary exactly (used by the byte-stability
     test). `media_path`/`idmap_path` override S3 for offline tests.
     """
     clinical = lookup_clinical_shed(gene_symbol, target_contracts_dir, vocab=vocab)

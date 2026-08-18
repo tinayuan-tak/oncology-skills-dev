@@ -20,7 +20,6 @@ License: Reactome CC0-1.0 (public domain).
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -39,25 +38,6 @@ PATHWAYS_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathways.txt"
 PATHWAYS_RELATION_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathwaysRelation.txt"
 
 CACHE_DIR = Path.home() / ".cache" / "framework-reactome"
-
-# Canonical Reactome top-level signaling parents. These are the R-HSA-NNNNNNN
-# pathway stable IDs at the highest hierarchy level (parent has no parent).
-# Used to compute the top-level pathway rollup for a target's pathway set.
-# Extracted 2026-07-10 from ReactomePathways.txt filtered to Homo sapiens
-# + roots of ReactomePathwaysRelation.txt hierarchy.
-_TOP_LEVEL_HINT_STRINGS = {
-    "signal transduction", "cell cycle", "immune system",
-    "gene expression", "metabolism", "programmed cell death",
-    "developmental biology", "hemostasis", "extracellular matrix organization",
-    "dna repair", "dna replication", "chromatin organization",
-    "transport of small molecules", "vesicle-mediated transport",
-    "reproduction", "cell-cell communication", "muscle contraction",
-    "digestion and absorption", "sensory perception",
-    "neuronal system", "circadian clock",
-    "protein localization", "autophagy",
-    "metabolism of proteins", "metabolism of rna",
-    "organelle biogenesis and maintenance",
-}
 
 
 from methods.target_id_sidecar import s3_client as _boto3_client
@@ -158,12 +138,8 @@ def _walk_to_top(pid: str, child_to_parent: dict) -> str:
 def _hgnc_to_uniprot_ac(target: str, sidecar_path: Optional[str] = None) -> Optional[str]:
     """Resolve HGNC gene symbol → primary UniProt accession.
 
-    iter-1 uses the framework's identifier resolver (if available) or a
-    minimal fallback that reads uniprot-sprot-human-2026-02 gene-name-to-
-    accession mapping from S3.
-
-    For iter-1 v0.1, we accept target as EITHER an HGNC symbol OR a
-    UniProt-AC (P/Q-shape prefix).
+    Accepts target as EITHER a UniProt-AC (matched by the strict pattern below)
+    or an HGNC symbol (looked up in the Reactome resolver-sidecar crosswalk).
 
     UniProt-AC pattern (strict): [OPQ][0-9][A-Z0-9]{3}[0-9] (6 chars) OR
     [A-N,R-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2} (6-10 chars). The strict
@@ -214,17 +190,6 @@ def _hgnc_symbol_to_uniprot_ac_cached(symbol: str, sidecar_path: Optional[str] =
     return _load_hgnc_uniprot_crosswalk(sidecar_path).get(symbol.upper())
 
 
-def _classify_top_level(pathway_name: str) -> str:
-    """Categorize a top-level pathway name into the framework's canonical
-    top-level bucket (mostly signal-adjacent for oncology-target work).
-    """
-    lower = pathway_name.lower().strip()
-    for hint in _TOP_LEVEL_HINT_STRINGS:
-        if hint in lower:
-            return pathway_name.strip()
-    return pathway_name.strip()  # fallback: preserve verbatim
-
-
 def read_target_summary(target: str, indication: str = None, *,
                         uniprot2reactome_path: Optional[str] = None,
                         pathways_path: Optional[str] = None,
@@ -270,7 +235,7 @@ def read_target_summary(target: str, indication: str = None, *,
             id_to_name.get(pid, pid) for pid in top_level_ids
         })
         top_level_classified = sorted({
-            _classify_top_level(n) for n in top_level_names
+            n.strip() for n in top_level_names
         })
 
         # Signaling flag: does any top-level pathway contain "Signal

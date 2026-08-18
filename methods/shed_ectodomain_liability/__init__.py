@@ -1,18 +1,18 @@
 """shed-ectodomain-liability method module.
 
-Gate-F surface-window no-go signal: is a surface-present antigen's ectodomain
+Surface-window no-go signal: is a surface-present antigen's ectodomain
 proteolytically SHED into circulation as a soluble decoy ("antigen sink") that
 neutralizes an antibody / ADC / T-cell-engager before tumor delivery?
 
-Two evidence tiers (deep-research verdict 2026-07-19 — no clean redistributable
-structured shedding system-of-record exists):
+Two evidence tiers (no clean redistributable structured shedding
+system-of-record exists):
   1. RELIABLE `clinical` — curated serum-marker crosswalk
      (target-contracts/vocabularies/shed_antigen_targets.yaml). A serum tumor
      marker IS a shed ectodomain (CA125=MUC16, SMRP=MSLN, shed-HER2-ECD, CEA).
      The ONLY tier that reliably covers shed receptors (HPA misses ERBB2/CEACAM5).
   2. PROXY `secretome_proxy` — HPA v25-1 "Secretome location" column.
 
-Plus a MEASURED facet (E3, 2026-08-07): Olink NPX in DepMap CONDITIONED MEDIA
+Plus a MEASURED facet: Olink NPX in DepMap CONDITIONED MEDIA
 (`media.py`) — protein a live cancer cell actually released into supernatant. A
 PARALLEL categorical (`measured_shed_class`), additive: it never alters the primary
 `shed_liability_class` the two annotation tiers produce. The media panel is bounded +

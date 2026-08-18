@@ -31,7 +31,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + BioGRID experimental-physical leg
+METHOD_VERSION = "1.1.0"   # + BioGRID experimental-physical leg
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 STRING_MANIFEST_ID = "string-v12-human-snapshot-2026-06-30"
@@ -53,13 +53,13 @@ _, UNIPROT_SIDECAR_KEY = sidecar_bucket_key_for(_UNIPROT_SIDECAR_SOURCE_MANIFEST
 
 STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_score cutoff (0-999)
 
-# Gene-sorted derived product (perf, 2026-08-05): pre-resolved symbol-keyed high-confidence edges,
+# Gene-sorted derived product (perf): pre-resolved symbol-keyed high-confidence edges,
 # physically sorted by gene_symbol so a pushdown read fetches one gene's row-group(s) instead of
 # streaming the 83MB links gz (~6.6s → sub-second, measured). Byte-identical output. See derive.py.
 STRING_HC_PRODUCT_MANIFEST_ID = "uniprot-string-hc-edges-per-gene-v1"
 _, STRING_HC_PRODUCT_KEY = bucket_key_for(STRING_HC_PRODUCT_MANIFEST_ID)
 
-# BioGRID experimental-PHYSICAL edges product (2026-08-05): gene-sorted human physical interactions
+# BioGRID experimental-PHYSICAL edges product: gene-sorted human physical interactions
 # with per-pair distinct-publication counts. The complement to STRING's functional score — direct
 # experimental physical evidence, ranked by literature depth. Symbol-keyed pushdown on gene_symbol.
 _, BIOGRID_PHYSICAL_PRODUCT_KEY = bucket_key_for(BIOGRID_MANIFEST_ID)

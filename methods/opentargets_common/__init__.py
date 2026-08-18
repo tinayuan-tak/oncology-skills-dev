@@ -1,4 +1,4 @@
-"""opentargets_common — shared read layer for the P5 human-genetics safety leg.
+"""opentargets_common — shared read layer for the human-genetics safety leg.
 
 Every OT 26.06 safety reader (target_prioritisation, gene_burden, clingen,
 mouse_phenotype) imports from here so the S3 cache-latch discipline and the
@@ -17,7 +17,6 @@ data_unavailable-safe: any read that cannot resolve returns empty structures, ne
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -109,7 +108,6 @@ def read_entity(entity: str, columns: Optional[list] = None):
     if local_dir is None:
         return pd.DataFrame(columns=columns or [])
     try:
-        import pyarrow.parquet as pq
         import pyarrow.dataset as ds
         dataset = ds.dataset(str(local_dir), format="parquet")
         table = dataset.to_table(columns=columns) if columns else dataset.to_table()

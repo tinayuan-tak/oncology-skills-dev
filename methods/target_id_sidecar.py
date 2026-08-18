@@ -1,7 +1,7 @@
 """Shared target-id resolver-sidecar loader + S3 client, with a definitive-vs-transient error
 discipline. Consolidates the copy-pasted `read symbol→native-id sidecar parquet → build map →
 except Exception: return {}` logic that lived in gene_ontology_annotation, reactome_pathway_context,
-uniprot_protein_features, ppi_interactome, and opentargets_common (P5.1, 2026-08-11).
+uniprot_protein_features, ppi_interactome, and opentargets_common.
 
 WHY the discipline matters (ref methods/expression_clinical_association/read.py:44-76 + the
 feedback_bare_except_masks_broken_env lesson): a resolver crosswalk either loads or it does NOT.
@@ -33,12 +33,12 @@ def s3_client(profile: Optional[str] = None):
     """boto3 s3 client with a preferred AWS profile (default `cbg`) and an ADAPTIVE-retry Config.
 
     The retry Config absorbs transient throttling (SlowDown / 503 / RequestTimeout) — the batch-read
-    failure mode that silently dropped ~5/19 cards on a full target-intrinsic run (EGFR, 2026-08-11):
+    failure mode that silently dropped ~5/19 cards on a full target-intrinsic run (EGFR):
     near-concurrent per-card S3 reads got throttled, the readers' bare excepts converted the throttle
     into `data_unavailable`, and a quarter of the dossier vanished with no diagnostic. Adaptive mode
     adds client-side rate-limiting on top of standard retries.
 
-    PROFILE FALLBACK (2026-08-15): `cbg` is a developer SSO profile — it does NOT exist in CI, prod,
+    PROFILE FALLBACK: `cbg` is a developer SSO profile — it does NOT exist in CI, prod,
     or on an instance-role host. The reader-hardening burndown routed several readers (uniprot_gpi_anchor,
     cspa_surface_confirmation, surfaceome_family_fusion, ...) from a bare `boto3.client("s3")` (which
     used the ambient credential chain) onto this helper; that surfaced a latent break where an UNMOCKED

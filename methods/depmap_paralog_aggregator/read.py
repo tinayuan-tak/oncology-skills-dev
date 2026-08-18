@@ -7,7 +7,7 @@ from DepMap 26Q1 dual-paralog CRISPR knockout screens.
 Data: dmc-26q1-paralogs/ParalogGeneEffect.csv (Chronos-style gene-effect
 scores per (paralog-pair, cell-line) dual knockout, ~69MB CSV).
 
-Runtime discipline (Sprint 2 patterns):
+Runtime discipline:
   - @lru_cache(maxsize=1) on parse-and-index
   - Module-level negative cache on S3-absent
   - Per-target reads O(k) where k = paralog-pairs-involving-target
@@ -19,7 +19,6 @@ Companion: data-catalog:manifests/sources/depmap-consortium-26q1-paralogs.yaml
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -91,7 +90,7 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
     effect (essential when both paralogs are knocked out) but each single
     KO is neutral.
 
-    Buffering metric (2026-07-17, aligns reader to the card + rules contract):
+    Buffering metric (aligns reader to the card + rules contract):
     the buffering signal is NOT the dual-KO effect alone — it is how much MORE
     lethal the dual KO is than the best single KO:
         dep_delta_paired_vs_max_single(A,B) = median_dual(A,B) - max(single(A), single(B))
@@ -236,7 +235,7 @@ def _classify_buffering(delta: Optional[float]) -> str:
     return "none"
 
 
-# ---- Derived-product read path (preferred; 2026-08-05) -----------------------------------
+# ---- Derived-product read path (preferred) -----------------------------------
 # The gene-sorted derived product depmap-paralog-buffering-per-gene-v1 carries everything the
 # live raw-CSV recompute produces PLUS the Ensembl-Compara ohnolog_flag the card declares
 # (strongest_paralog_ohnolog). It is now materialized on S3, so this is the PRIMARY read:
@@ -321,7 +320,7 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
         "strongest_paralog_symbol": row.get("strongest_partner") or "",
         # The card-declared field, POPULATED from the product's Ensembl-Compara ohnolog_flag.
         "strongest_paralog_ohnolog": (strongest.get("ohnolog_flag") if strongest else None),
-        # Tri-state provenance for the ohnolog flag (2026-08-08): on this PRIMARY path the flag is a
+        # Tri-state provenance for the ohnolog flag: on this PRIMARY path the flag is a
         # real annotation → `annotated`. The fallback path emits `unknown_fallback` so a None ohnolog
         # there is never confused with a genuine False by the strong_ohnolog_paralog predicate.
         "strongest_paralog_ohnolog_status": "annotated",

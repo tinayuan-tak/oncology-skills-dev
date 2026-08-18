@@ -5,14 +5,13 @@ Emits scalar per-UniProt-AC summary fields for the structure-features-static
 card (Phase F). No interactive viewer; no atomic coordinates. Categorical
 fields drive the rules engine + downstream ADC/TCE tractability reasoning.
 
-Reviewer-driven design (2026-07-08): the plan called out that
 `alphafold_plddt_min_domain` alone is a start but a real druggability call
 needs pocket-adjacency reasoning. This CLI's `mutation_hotspot_in_druggable_pocket`
 is a categorical boolean derived from (a) known mutation hotspots for the gene
 (joined from gdc_somatic_hotspot output) + (b) pocket-adjacency scoring from
 AlphaFold pLDDT-low + surface-exposed regions. The full scoring uses fpocket
 or canSAR as external tools OR a simple pLDDT + SASA heuristic as first-pass;
-iter-1 scaffolds the heuristic.
+the scaffold implements the heuristic.
 
 Output schema (per row):
     uniprot_ac                             str
@@ -35,14 +34,13 @@ Reviewer note: hotspot_pocket_adjacency_call = 'no_structure' when neither PDB
 nor AlphaFold has usable coverage — clearer than a nullable boolean. Rules
 consume the categorical directly.
 
-B0 (2026-08-07): the row-building COMPUTE now lives in compute.py (pure kernels:
+The row-building COMPUTE now lives in compute.py (pure kernels:
 HGVSp→residue, pLDDT aggregation, per-domain min, PDB coverage, and the v1 pLDDT
 pocket-adjacency heuristic — all unit-tested against fixtures, no live I/O). The
 compute emits the 4th enum value `no_hotspots_annotated` (structure present, no
 annotated hotspot) that this scaffold could not. What remains GATED is the SOURCE
 I/O: this CLI writes a 0-row scaffold until the greenfield PDB + AlphaFold source
-snapshots land on S3 (the pull is a separate, infra-gated step — see the B0 plan
-~/.claude/plans/b0-structure-features-materialization.md). Once the sources exist,
+snapshots land on S3 (the pull is a separate, infra-gated step). Once the sources exist,
 the source-loading layer feeds compute.build_row per UniProt-AC to emit real rows.
 
 Usage:
@@ -69,7 +67,7 @@ HOTSPOT_S3_PREFIX = "data-catalog/derived/"  # gdc_somatic_hotspot output
 def main(out: Path):
     """Extract PDB + AlphaFold static structural features per UniProt-AC.
 
-    iter-1 SCAFFOLD: row schema + caveats sidecar; full compute defers to a
+    SCAFFOLD: row schema + caveats sidecar; full compute defers to a
     Layer 2 delivery follow-up.
     """
     import pandas as pd
@@ -77,7 +75,7 @@ def main(out: Path):
     os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
 
     click.echo(
-        f"[structure_features_static] scaffold: PDB + AlphaFold + hotspot join",
+        "[structure_features_static] scaffold: PDB + AlphaFold + hotspot join",
         err=True,
     )
 

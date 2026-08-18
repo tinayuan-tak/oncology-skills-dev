@@ -20,7 +20,6 @@ favorable window — do not read absence as safety).
 
 from __future__ import annotations
 
-import io
 import os
 import sys
 import zipfile
@@ -39,7 +38,7 @@ S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(SOURCE_MANIFEST_ID)
 HPA_KEY = f"{_SOURCE_PREFIX}proteinatlas.tsv.zip"
 DEFAULT_AWS_PROFILE = "cbg"
 
-# Perf Stage 3 (2026-07-23): the HPA master zip was previously re-downloaded from S3 on EVERY call
+# The HPA master zip was previously re-downloaded from S3 on EVERY call
 # (no lru, no disk cache) — paid multiple times per target-profile run (verdict pass + figure pass)
 # and every process start. Add a disk cache (download once per machine) + an lru_cache on the parsed
 # DataFrame (reuse across calls in a process). Mirrors the depmap_common/parquet.py disk-latch pattern.
@@ -62,7 +61,7 @@ _DIST_TO_CLASS = {
 
 # Essential-tissue set (exact membership over HPA's closed 16-name vocabulary): life-critical
 # tissues where on-target-off-tumor toxicity is catastrophic. The strict-modality (BiTE/TCE/cell)
-# killer keys off ANY hit here. SINGLE-SOURCED (cards review 2026-08-17, S1-3) from
+# killer keys off ANY hit here. SINGLE-SOURCED from
 # normal_tissue_safety_common — this ADDS "blood vessel" (was omitted though it IS in HPA's vocab;
 # an endothelial-restricted TCE antigen previously escaped the killer). NOTE: thyroid / adrenal /
 # pituitary do NOT exist in HPA's 16-name grouped-intensity field, so endocrine coverage here is a
@@ -197,7 +196,6 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
 
 def load_and_classify(gene: str, hpa_path=None) -> dict:
     """Full pipeline: look up the gene's HPA row → normal-tissue-liability summary."""
-    import pandas as pd
     df = _read_hpa(hpa_path)
     hit = df[df[HPA_GENE_COL].astype(str).str.upper() == gene.strip().upper()]
     if not len(hit):

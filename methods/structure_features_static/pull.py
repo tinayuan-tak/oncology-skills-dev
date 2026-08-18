@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""structure_features_static.pull — the live PDB + AlphaFold per-UniProt sweep (B0, 2026-08-07).
+"""structure_features_static.pull — the live PDB + AlphaFold per-UniProt sweep.
 
 Produces the derived product `pdb-alphafold-structure-features-per-uniprot-v1`: one row per reviewed
 human SwissProt accession, joining
@@ -248,8 +248,8 @@ def _load_domains(ac_gene: list) -> dict:
 
 
 # Recurrence floor for a hotspot to count as a druggability signal. The MC3 product is whole-exome
-# (any codon), so most hotspot_protein_change rows are passengers / low-recurrence noise — pilot showed
-# ~19k genes carry SOME hotspot, which saturated the pocket call. Requiring hotspot_n_samples >= this
+# (any codon), so most hotspot_protein_change rows are passengers / low-recurrence noise — ~19k genes
+# carry SOME hotspot, which saturated the pocket call. Requiring hotspot_n_samples >= this
 # keeps recurrent oncogenic positions (KRAS G12C n=17, BRAF V600E, etc.) and drops the long tail.
 _HOTSPOT_MIN_SAMPLES = 5
 
@@ -258,7 +258,7 @@ def _load_hotspots() -> dict:
     """Bulk-load {GENE -> [HGVSp strings]} of RECURRENT hotspots (hotspot_n_samples >= _HOTSPOT_MIN_SAMPLES)
     from the MC3 product, deduped across indications. Genes with only sub-threshold/passenger variants →
     absent → pocket call `no_hotspots_annotated` (honest). This recurrence filter is half of the
-    pilot-driven fix that stops the pocket call from saturating to all-adjacent (the other half is the
+    fix that stops the pocket call from saturating to all-adjacent (the other half is the
     disorder-dominated guard in compute.pocket_adjacency)."""
     try:
         import os

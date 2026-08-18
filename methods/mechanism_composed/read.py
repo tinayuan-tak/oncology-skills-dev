@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Ensure methods/ is on sys.path for sibling imports
 _METHODS_ROOT = Path(__file__).resolve().parent.parent
@@ -76,13 +75,12 @@ FUNCTIONAL_SOURCE_KEYS = {SOURCE_KEY_COESSENTIALITY}
 
 
 def _edge_key(edge: dict) -> tuple:
-    """Deduplication key for an edge across sources: (partner_symbol,
-    partner_uniprot_ac, direction). We union on this key.
+    """Deduplication key for an edge across sources: (partner_symbol, direction).
+    We union on this key.
 
-    Partners are identified by both HGNC symbol and UniProt-AC because
-    SIGNOR carries both while CollecTri carries only symbol (leaves AC
-    empty). When SIGNOR + CollecTri call the same partner, the symbol
-    matches even if only SIGNOR has the AC.
+    Partners are keyed by HGNC symbol only (not UniProt-AC): SIGNOR carries both
+    while CollecTri carries only the symbol (AC left empty). Keying on symbol lets
+    SIGNOR + CollecTri union the same partner even when only SIGNOR has the AC.
     """
     return (
         (edge.get("partner_gene_symbol") or "").strip().upper(),

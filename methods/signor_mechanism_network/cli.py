@@ -42,8 +42,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
-from collections import defaultdict
 from pathlib import Path
 
 import click
@@ -71,7 +69,6 @@ def _stream_interactions(s3_uri: str):
     method contract with other TSV-based derived-manifest pipelines.
     """
     import boto3
-    import io
 
     os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
     s3 = boto3.client("s3")
@@ -107,7 +104,7 @@ def _emit_edges_for_row(row: dict):
     tgt = row.get("target", "").strip()
     if not src or not tgt:
         return
-    # Gene-symbol columns (W3a fix, 2026-07-09). OmniPath emits *_genesymbol
+    # Gene-symbol columns. OmniPath emits *_genesymbol
     # columns alongside the UniProt-AC source/target; the card summary_fields
     # + downstream mechanism-and-pharmacology dispatcher expect a
     # `target_gene_symbol` column for HGNC-symbol-based filtering. Fall back
@@ -125,7 +122,7 @@ def _emit_edges_for_row(row: dict):
 
     # SIGNOR's effect / mechanism column. OmniPath aggregates this as
     # `consensus_direction` + a per-source effect column; we prefer the SIGNOR-
-    # specific effect if present. W3e fix (2026-07-09): when the effect
+    # specific effect if present. When the effect
     # strings are empty, DERIVE a mechanism from is_stimulation /
     # is_inhibition rather than hard-coding "binding" — the previous fallback
     # misclassified inhibitory edges as `molecular_glue_disruptor` MoA class.
@@ -232,14 +229,14 @@ def main(out: Path, target_symbol: str, unmapped_log_path: Path):
 
     if target_symbol:
         # Symbol-based filtering requires a UniProt-AC ↔ HGNC-symbol join.
-        # For iter-1 we emit the FULL parquet and expect card dispatchers
+        # We emit the FULL parquet and expect card dispatchers
         # to filter at read time using the framework's identifier-resolver
         # sidecar (target-contracts/vocabularies). Emit a warning to make
         # this explicit.
         click.echo(
-            f"[signor_mechanism_network] WARNING: --target-symbol filtering "
-            f"delegates to the identifier-resolver sidecar at read time. "
-            f"Emitting FULL parquet; card dispatcher must filter downstream.",
+            "[signor_mechanism_network] WARNING: --target-symbol filtering "
+            "delegates to the identifier-resolver sidecar at read time. "
+            "Emitting FULL parquet; card dispatcher must filter downstream.",
             err=True,
         )
 

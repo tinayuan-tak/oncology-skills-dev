@@ -14,20 +14,19 @@ Iter-1 wiring approach:
     ETL that produces the derived parquet).
 
 Runtime discipline: @lru_cache + module-level negative cache — same patterns
-as SIGNOR/CollecTri/Reactome (Sprint 2).
+as SIGNOR/CollecTri/Reactome.
 
 Companion:
   data-catalog:manifests/derived/pdb-alphafold-structure-features-per-uniprot-v1.yaml
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
 
-# 0.1.0 -> 0.2.0: + composite structural_ligandability_class leg (LIVE, from
+# + composite structural_ligandability_class leg (LIVE, from
 # structure-ligandability-per-protein-v1) merged onto the hotspot-adjacency fields.
 METHOD_VERSION = "0.2.0"
 
@@ -44,12 +43,10 @@ DERIVED_S3_KEY = (
 # pockets, GenomeScreen VS-hits, PLINDER co-crystals, CryptoBench cryptic sites, AlphaFold
 # disorder, InterPro binding/active sites) into one ordinal structural_ligandability_class.
 # The hotspot-adjacency product above (DERIVED_MANIFEST_ID) is a DIFFERENT schema
-# (mutation-hotspot-in-pocket). It is ALSO LIVE (materialized 2026-08-07; the read below
+# (mutation-hotspot-in-pocket). It is ALSO LIVE (the read below
 # loads it) — KRAS/BRAF/ERBB2 -> hotspot_pocket_adjacency_call='adjacent',
 # mutation_hotspot_in_druggable_pocket=True; a target with no oncogenic hotspot in a
 # druggable pocket -> 'no_hotspots_annotated'. Both legs feed the E8 SM-ligandability rules.
-# (Historical note: this comment previously said the hotspot product was 'still-unmaterialized'
-# — it was authored 2026-08-07 hours before the product landed and was never updated.)
 LIGAND_MANIFEST_ID = "structure-ligandability-per-protein-v1"
 LIGAND_S3_KEY = (
     "data-catalog/derived/structure-ligandability-per-protein-v1/"
@@ -89,7 +86,7 @@ def _ensure_derived_cached() -> Optional[Path]:
             # @lru_cache on _load_structure_indexed would otherwise memoize an EMPTY index off one
             # blip and poison the whole process (the None-latch "retry" never re-fired because lru
             # never re-invoked this). lru_cache never memoizes a raise, so the next call retries.
-            # (403/AccessDenied dropped from "definitive" per RD8 — it is almost always transient.)
+            # (403/AccessDenied dropped from "definitive" — it is almost always transient.)
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
             definitive = (code in ("404", "NoSuchKey")
@@ -162,7 +159,7 @@ def _ensure_ligand_cached() -> Optional[Path]:
             # Same transient-vs-definitive discipline as _ensure_derived_cached: latch False + return
             # None ONLY on genuine absence (404/NoSuchKey); RAISE on transient/creds/broken-env so the
             # outer @lru_cache on _load_ligandability_indexed does not memoize an empty index off one
-            # blip (would poison the SM-ligandability call process-wide). 403 is NOT definitive (RD8).
+            # blip (would poison the SM-ligandability call process-wide). 403 is NOT definitive.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
             definitive = (code in ("404", "NoSuchKey")

@@ -1,7 +1,7 @@
 """Single source of truth for the SAFETY-ESSENTIAL normal-organ set shared by the three
 normal-tissue liability cards.
 
-Motivation (cards review 2026-08-17, S1-3): the three normal-tissue cards each maintained their
+Motivation: the three normal-tissue cards each maintained their
 OWN essential/critical-organ list, and they DIVERGED. `tcga_gtex_expression_distribution.stats.
 CRITICAL_NORMAL_TISSUES` (the safety-comparator card) OMITTED THYROID / ADRENAL_GLAND / PITUITARY /
 BLOOD_VESSEL — and carried a dead `ARTERY` entry that never matches the recount3/GTEx vocabulary
@@ -17,8 +17,8 @@ vocabulary. `None` in a crosswalk means the organ is NOT representable in that s
 SUBSTRATE gap, not a list omission; closing it requires a new normal-tissue proteomics source).
 
 SPLEEN is intentionally EXCLUDED from the canonical set: immunologically important but not a
-classic dose-limiting vital organ, and its inclusion is a judgment call reserved for review
-(cards review 2026-08-17). The CI guard asserts COVERAGE (each source covers the canonical organs
+classic dose-limiting vital organ, and its inclusion is a judgment call reserved for review.
+The CI guard asserts COVERAGE (each source covers the canonical organs
 its vocab supports), NOT equality — so a source that ADDITIONALLY lists SPLEEN (the GTEx window
 card does) is fine, and promoting spleen to canonical later is a one-line change here.
 """
@@ -29,7 +29,7 @@ from __future__ import annotations
 CANONICAL_VITAL_ORGANS = frozenset({
     "heart", "brain", "liver", "lung", "kidney", "nerve", "muscle", "blood", "bone_marrow",
     "pancreas", "adrenal_gland", "pituitary", "thyroid", "vasculature",
-    # "spleen": HELD — see module docstring (pending review 2026-08-17).
+    # "spleen": HELD — see module docstring (pending review).
 })
 
 # The endocrine / vascular / CNS organs whose ABSENCE from a source's essential set WAS the S1-3

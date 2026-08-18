@@ -1,8 +1,8 @@
-"""domain_modality_relevance.read — per-target domain→MODALITY implication (roadmap #3).
+"""domain_modality_relevance.read — per-target domain→MODALITY implication.
 
 The domain ARCHITECTURE inventory already exists (uniprot_protein_features / protein-domains-class
-card: domain_names, protein_class, InterPro hits). What was MISSING is the interpretive step the
-roadmap #3 note asked for: does a target's domain FUNCTION favor a catalytic-site inhibitor, or
+card: domain_names, protein_class, InterPro hits). What was MISSING is the interpretive step:
+does a target's domain FUNCTION favor a catalytic-site inhibitor, or
 does it call for REMOVAL (degrader / molecular glue) because the therapeutic function is
 scaffolding / non-catalytic? The canonical case is RIPK1 — a kinase whose pathological signalling
 is largely kinase-INDEPENDENT scaffolding, so an inhibitor and a degrader are not interchangeable.
@@ -34,7 +34,7 @@ modality_implication_class:
 Additive / verdict-inert DISPLAY facet — informs the modality skills' LLM synthesis + reviewer;
 fires no resolver rung.
 
-v0.2.0 (2026-08-11): the heuristic previously labelled ANY multi-domain enzyme `removal_favored`,
+v0.2.0: the heuristic previously labelled ANY multi-domain enzyme `removal_favored`,
 mislabelling well-drugged inhibitor targets (EGFR/BTK/RTKs) as degrader-favored. Domain count is not
 a scaffolding-dependence proxy → those cases now return `indeterminate` (honest non-call). Curated
 overrides (RIPK1/STAT3/BRD4/…) remain authoritative; the non-catalytic-class → `removal_favored`

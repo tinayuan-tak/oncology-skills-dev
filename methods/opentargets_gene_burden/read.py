@@ -1,10 +1,10 @@
-"""opentargets_gene_burden — P5 Slice 2: human-genetics LoF-tolerance safety signal.
+"""opentargets_gene_burden — human-genetics LoF-tolerance safety signal.
 
 Reads Open Targets 26.06 `evidence_gene_burden` (rare-variant burden associations, ENSG-keyed,
 ~2,091 genes × avg 21 disease/study rows) and emits the `gene-burden-safety` card summary — the
-FIRST verdict-moving P5 card.
+FIRST verdict-moving card.
 
-THE DIRECTION GUARDRAIL (schema-verified 2026-07-24): every burden row is LoF-on-target
+THE DIRECTION GUARDRAIL: every burden row is LoF-on-target
 (`directionOnTarget` is uniformly 'LoF'), so the discriminating signal is `directionOnTrait`:
   - `risk`    → LoF variants INCREASE disease risk → WT-loss is harmful → the safety signal that,
                 for a full-KO modality (degrader / full-inhibition SM), warrants a hold.
@@ -13,7 +13,7 @@ THE DIRECTION GUARDRAIL (schema-verified 2026-07-24): every burden row is LoF-on
                 honest non-firing, never a false hold).
 Only `lof_risk_phenotype` fires the WT-loss warning; gof/protective/unresolved are caveats. Composes
 with the mutant-selective downgrade (an activating GoF driver drugged mutant-selectively spares the
-WT protein the burden signal is about) — wired in Slice 5's resolver, not here.
+WT protein the burden signal is about) — wired in the resolver, not here.
 
 Significance from the p-value (pValueMantissa × 10^pValueExponent); `beta` is frequently null so it
 is corroborating only, not the gate. data_unavailable-safe.

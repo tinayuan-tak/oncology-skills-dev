@@ -1,4 +1,4 @@
-"""opentargets_clingen — P5 Slice 3: dosage-sensitivity safety from ClinGen gene-disease validity.
+"""opentargets_clingen — dosage-sensitivity safety from ClinGen gene-disease validity.
 
 Reads Open Targets 26.06 `evidence_clingen` (ClinGen curated gene-disease validity, ENSG-keyed,
 ~2,887 genes × avg 1.6 rows) → dosage_sensitivity_class. The dosage-sensitivity question for
@@ -6,7 +6,7 @@ safety: is losing ONE copy pathogenic (haploinsufficiency / autosomal-dominant l
 degrader/full-inhibition concern), or does disease require BOTH copies lost (recessive = lower
 single-allele concern)?
 
-SCHEMA-VERIFIED (2026-07-24): ClinGen has NO explicit dosage column. The signal is DERIVED from
+SCHEMA-VERIFIED: ClinGen has NO explicit dosage column. The signal is DERIVED from
 `allelicRequirements` (AR 2,387 / AD 1,709 / XL / MT / SD / UD), gated on `confidence`
 (Definitive 2,895 / Strong 98 / Moderate / Limited / Disputed / Refuted).
 

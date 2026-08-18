@@ -49,7 +49,6 @@ from __future__ import annotations
 
 import argparse
 import gzip
-import io
 import os
 import re
 import sys
@@ -64,7 +63,7 @@ import pandas as pd
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 
-# Source S3 keys (all landed sources per data-catalog audit 2026-07-10).
+# Source S3 keys (all landed sources per data-catalog audit).
 SURFY_S3_KEY = "data-catalog/sources/surfacome-ethz-2018/table_S3_surfaceome.xlsx"
 HPA_S3_KEY = "data-catalog/sources/hpa/v25-1/proteinatlas.tsv.zip"
 UNIPROT_DAT_S3_KEY = (
@@ -280,7 +279,7 @@ def _load_iuphar(local_path: Path) -> pd.DataFrame:
         source_iuphar_family (from `Type`, then Family-name refinement),
         iuphar_type_lower (helper for surface flag).
 
-    Family-name refinement (2026-07-10 fix for ITGA6-class failures):
+    Family-name refinement (fixes ITGA6-class failures):
     IUPHAR's `Type` = catalytic_receptor is a signaling-mode label; the
     more-specific molecular class lives in `Family name`. When `Family name`
     contains 'Integrin' or 'cadherin' (not "Adhesion Class GPCRs", which
@@ -327,7 +326,7 @@ def _load_iuphar(local_path: Path) -> pd.DataFrame:
 def _classify_family(row) -> str:
     """Family assignment across 4 sources.
 
-    Precedence (refined 2026-07-10 during biology validation):
+    Precedence (refined during biology validation):
       1. UniProt EC 2.7.* (kinase EC) WINS — even over HPA's family
          assignment. Rationale: HPA v25.1 under-annotates the Kinases class
          (ERBB2 lacks it despite EC 2.7.10.1). UniProt EC is authoritative
@@ -567,7 +566,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
 
     # Coverage stats
     print("[surfaceome_family_fusion.derive] coverage:", file=sys.stderr)
-    print(f"  family_class value counts:", file=sys.stderr)
+    print("  family_class value counts:", file=sys.stderr)
     print(fused["family_class"].value_counts().to_string(), file=sys.stderr)
     print(f"  n_surface_protein: {int(fused['is_surface_protein'].sum()):,}", file=sys.stderr)
     return fused

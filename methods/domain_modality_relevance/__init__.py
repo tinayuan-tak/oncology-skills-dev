@@ -1,8 +1,8 @@
-"""domain_modality_relevance — per-target domain→MODALITY implication (roadmap #3).
+"""domain_modality_relevance — per-target domain→MODALITY implication.
 
 Turns the EXISTING domain-architecture inventory (uniprot_protein_features / protein-domains-class:
-protein_class + domain_names + InterPro hits) into the interpretive signal the roadmap #3 note
-asked for: does a target's domain FUNCTION favor a catalytic-site inhibitor, or REMOVAL (degrader /
+protein_class + domain_names + InterPro hits) into an interpretive signal: does a target's
+domain FUNCTION favor a catalytic-site inhibitor, or REMOVAL (degrader /
 molecular glue) because the therapeutic function is scaffolding / non-catalytic?
 
 Fuses a CURATED override (target-contracts/vocabularies/domain_modality_targets.yaml — the

@@ -69,7 +69,7 @@ def _ensure_ensembl_cached() -> Path | None:
     try:
         import boto3
         s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
-        click.echo(f"  Downloading Ensembl compara paralog subtypes (~188 MB)...", err=True)
+        click.echo("  Downloading Ensembl compara paralog subtypes (~188 MB)...", err=True)
         s3.download_file(S3_BUCKET, ENSEMBL_PARALOG_S3_KEY, str(ENSEMBL_CACHE_TSV))
         return ENSEMBL_CACHE_TSV
     except Exception as e:  # absence-discipline: exempt -- build-time OPTIONAL ohnolog enrichment; failure WARNs to stderr + skips (not a silent card-facing gap)

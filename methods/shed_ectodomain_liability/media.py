@@ -1,6 +1,6 @@
 """shed_ectodomain_liability.media — the MEASURED wet-lab shed tier (Olink conditioned-media).
 
-The third evidence leg of shed-ectodomain-liability, added 2026-08-07 (enrichment E3).
+The third evidence leg of shed-ectodomain-liability.
 The curated `clinical` tier (7 serum markers) and the HPA `secretome_proxy` tier are both
 ANNOTATION-derived. This leg adds a MEASURED signal: Olink NPX (normalized protein
 expression) in CONDITIONED MEDIA across the DepMap cell-line panel — protein that a live

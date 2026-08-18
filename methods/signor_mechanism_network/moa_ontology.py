@@ -7,7 +7,7 @@ to a curated MoA class + modality-relevance tags, so the downstream
 mechanism-and-pharmacology skill emits categorical rule-fireable signals
 rather than raw text.
 
-Ontology discipline (reviewer-driven arch upgrade, 2026-07-08):
+Ontology discipline:
   1. Every edge has ONE and only ONE MoA class (no overlap; no orphans).
   2. Unmapped mechanism strings log to `_unmapped_mechanisms.jsonl` in the
      run directory + increment a counter — a `test_signor_moa_ontology_coverage`
@@ -86,7 +86,7 @@ UPSTREAM_ROWS = [
     # Transcriptional / translational regulation upstream
     ("transcriptional regulation", "upstream_transcriptional_modulation",
      ("rna_therapeutic", "small_molecule_transcription_factor")),
-    # CollecTri signed TF→target edges (extension 2026-07-10). Splits
+    # CollecTri signed TF→target edges. Splits
     # generic "transcriptional regulation" into signed variants so
     # downstream reasoning can distinguish activator-loss (loss-of-function
     # target when the activating TF is drugged) from repressor-loss.
@@ -94,7 +94,7 @@ UPSTREAM_ROWS = [
      ("rna_therapeutic", "small_molecule_transcription_factor")),
     ("transcriptional repression", "upstream_transcriptional_repressor",
      ("rna_therapeutic", "small_molecule_transcription_factor")),
-    # Kinome-atlas PWM-derived predictions (Sprint 3, 2026-07-10).
+    # Kinome-atlas PWM-derived predictions.
     # Distinct from curated `phosphorylation` — these are PREDICTIONS from
     # positional-scanning peptide-array PWMs (Johnson 2023 + Yaron-Barir
     # 2024 Nature). Downstream synthesis should weight lower than curated.
@@ -125,7 +125,7 @@ DOWNSTREAM_ROWS = [
      ("pd_biomarker",)),
     ("transcriptional regulation", "transcriptional_pd_marker",
      ("pd_biomarker_transcriptional", "rna_ihc_readout")),
-    # CollecTri signed TF→target edges (extension 2026-07-10) — when target
+    # CollecTri signed TF→target edges — when target
     # IS a TF acting on downstream genes, split signed variants for
     # PD-marker reasoning (rna_ihc_readout on activator target ≠ same on
     # repressor target).
@@ -133,7 +133,7 @@ DOWNSTREAM_ROWS = [
      ("pd_biomarker_transcriptional", "rna_ihc_readout")),
     ("transcriptional repression", "downstream_transcriptional_repression_readout",
      ("pd_biomarker_transcriptional", "rna_ihc_readout")),
-    # Kinome-atlas PWM-derived downstream predictions (Sprint 3, 2026-07-10).
+    # Kinome-atlas PWM-derived downstream predictions.
     # Target-as-KINASE case: predicted substrates → phospho PD readouts.
     ("predicted phosphorylation (ser_thr)", "downstream_predicted_phospho_readout",
      ("pd_biomarker_phospho_predicted",)),

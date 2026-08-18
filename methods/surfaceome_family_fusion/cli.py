@@ -6,8 +6,7 @@ categorical (`surface_protein_family`) + a `surfaceome_confidence_score`
 (0.0-1.0) derived from source agreement. Consumer: the surfaceome-family-
 classification evidence card (Phase F).
 
-Reviewer-driven design (2026-07-08): the plan called out that SURFY 2018
-alone misses ~15% of clinically-validated ADC targets by our audit; HPA's
+SURFY 2018 alone misses ~15% of clinically-validated ADC targets by our audit; HPA's
 protein_class covers kinases/enzymes better but adhesion molecules worse.
 Fusing four sources produces a family field robust to any single source's
 gap.
@@ -51,7 +50,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 import click
@@ -103,7 +101,7 @@ _HPA_CLASS_TO_FAMILY = {
 def main(out: Path):
     """Fuse SURFY + HPA + UniProt EC + IUPHAR into a per-UniProt-AC family table.
 
-    iter-1 SCAFFOLD implementation:
+    SCAFFOLD implementation:
       This CLI emits an empty-schema parquet with the row shape documented in
       the module docstring, plus a caveats sidecar. The full compute path
       (SURFY XLSX read via openpyxl + HPA TSV zip stream + UniProt DAT keyword
@@ -120,7 +118,7 @@ def main(out: Path):
     os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
 
     click.echo(
-        f"[surfaceome_family_fusion] scaffold: fusing 4 sources into a per-UniProt-AC family taxonomy",
+        "[surfaceome_family_fusion] scaffold: fusing 4 sources into a per-UniProt-AC family taxonomy",
         err=True,
     )
 

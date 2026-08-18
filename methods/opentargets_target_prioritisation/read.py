@@ -1,8 +1,8 @@
-"""opentargets_target_prioritisation — the P5 walking-skeleton safety-context reader.
+"""opentargets_target_prioritisation — the safety-context reader.
 
 Reads Open Targets 26.06 `target_prioritisation` (ONE row per target, targetId=ENSG) and
 emits the `target-safety-prioritisation` card summary — a CONTEXT view of OT's engineered
-target-priority scores, NOT a verdict-moving signal (Slice 1 is byte-stable: its rule is
+target-priority scores, NOT a verdict-moving signal (byte-stable: its rule is
 skill-consumed only, never resolver-referenced).
 
 IMPORTANT — these are OT-NORMALIZED PRIORITISATION SCORES, not raw facts. Each column is a

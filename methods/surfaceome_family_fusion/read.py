@@ -4,7 +4,7 @@ Consumer: surfaceome-family-classification evidence card (Phase F) via
 tractability-and-modality skill. Emits per-target surface-protein family
 classification fused from 4 upstream sources with source-agreement scoring.
 
-Runtime discipline (v2, 2026-07-10 — mirrors kinome-atlas PR #7 pattern):
+Runtime discipline:
   - pd.read_parquet with no predicate pushdown (20K rows total, small enough)
   - Column-array iteration (df.col.values) to build gene_symbol + uniprot_ac
     indices — NOT iterrows (which is O(rows) Python-object materialization)
@@ -17,7 +17,6 @@ Companion:
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional

@@ -32,7 +32,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
-METHOD_VERSION = "0.3.0"  # 0.2.0 -> 0.3.0: + human_ko_observed_class (v2.1.1 obs_hom_lof, roadmap #1)
+METHOD_VERSION = "0.3.0"  # + human_ko_observed_class (v2.1.1 obs_hom_lof)
 
 # --- source location (landed derived manifest gnomad-constraint-per-gene-v1) ---
 SOURCE_MANIFEST_ID = "gnomad-constraint-per-gene-v1"
@@ -190,7 +190,7 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
         "obs_lof_count": _to_int(row.get(COL_OBS_LOF)),
         "exp_lof_count": _to_float(row.get(COL_EXP_LOF)),
         "gene_length_bp": None,  # not in the constraint TSV; card field kept for contract, null
-        # Human OBSERVED-KO facet (roadmap #1) — v2.1.1 natural human knockouts. Additive/verdict-inert.
+        # Human OBSERVED-KO facet — v2.1.1 natural human knockouts. Additive/verdict-inert.
         "human_ko_observed_class": ko_class,
         "obs_hom_lof_count": obs_hom,
         "exp_hom_lof_count": _to_float(row.get(COL_EXP_HOM_LOF)),

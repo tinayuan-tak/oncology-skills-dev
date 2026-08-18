@@ -1,15 +1,15 @@
 """structure_features_static.compute — PURE compute kernels for the per-UniProt structural-feature row.
 
 Separated from cli.py (the I/O + orchestration layer) so the row-building LOGIC is unit-testable against
-synthetic fixtures WITHOUT any live PDB/AlphaFold/S3 read (B0, 2026-08-07). Each function takes already-
+synthetic fixtures WITHOUT any live PDB/AlphaFold/S3 read. Each function takes already-
 loaded inputs (a pLDDT array, InterPro domain coords, HGVSp hotspot strings, PDB entry dicts) and returns
 the raw columns the derived parquet stores; read.py then derives the display CLASSES from those raw columns.
 
 v1 pocket-adjacency is a pLDDT + domain-context HEURISTIC (no external structure lib): a hotspot residue
 sitting in a high-confidence, structured (high-pLDDT) region is a candidate druggable-pocket location; a
 hotspot in a low-pLDDT / intrinsically-disordered region is NOT. Real solvent-accessibility (freesasa) +
-cavity detection (fpocket / canSAR) is the documented iter-2 upgrade (see the card caveats + the B0 plan).
-The card's own caveat prescribes exactly this pLDDT-heuristic for iter-1.
+cavity detection (fpocket / canSAR) is the documented upgrade (see the card caveats).
+The card's own caveat prescribes exactly this pLDDT-heuristic.
 """
 from __future__ import annotations
 
@@ -161,15 +161,15 @@ def pdb_coverage(pdb_entries: list) -> dict:
 
 
 # Disorder-dominated guard: a protein whose structure is mostly low-confidence is not a credible
-# small-molecule pocket scaffold regardless of where a hotspot lands (pilot 2026-08-07: without this,
+# small-molecule pocket scaffold regardless of where a hotspot lands (without this,
 # AR/BRD4/NR3C1 at 55-61% disorder all falsely called 'adjacent'). The pLDDT-only heuristic SATURATES
-# to all-adjacent without it — see the B0 plan / pilot note.
+# to all-adjacent without it.
 DISORDER_DOMINATED_FRACTION = 0.50
 
 
 def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
                      has_structure: bool) -> dict:
-    """v1 pLDDT+domain HEURISTIC pocket-adjacency call (HARDENED after the 2026-08-07 pilot).
+    """v1 pLDDT+domain HEURISTIC pocket-adjacency call.
 
     Returns mutation_hotspot_in_druggable_pocket (bool) + hotspot_pocket_adjacency_call (the 4-value
     card enum). `hotspot_residues` MUST be pre-filtered to RECURRENT hotspots by the caller (drop
@@ -186,9 +186,9 @@ def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
                                 sits in a HIGH-confidence structured region (pLDDT >= PLDDT_POCKET_MIN) —
                                 a candidate druggable-pocket location.
     mutation_hotspot_in_druggable_pocket is True iff 'adjacent'. pLDDT is a CONFIDENCE proxy, not a
-    cavity/SASA measurement — 'adjacent' is a CANDIDATE, upgraded by fpocket/canSAR (iter-2). The
+    cavity/SASA measurement — 'adjacent' is a CANDIDATE, upgraded by fpocket/canSAR. The
     disorder-dominated guard + the recurrent-hotspot pre-filter are what keep the call from saturating
-    to all-adjacent (the pilot failure mode)."""
+    to all-adjacent."""
     vals = [float(v) if v is not None else None for v in (plddt or [])]
     structured = has_structure and any(v is not None for v in vals)
     if not structured:
@@ -201,7 +201,7 @@ def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
                 "hotspot_pocket_adjacency_call": "no_hotspots_annotated"}
 
     # Disorder-dominated proteins are not a credible SM-pocket scaffold — call distant regardless of
-    # where the hotspot lands (the key discrimination the pilot forced).
+    # where the hotspot lands (the key discrimination).
     present = [v for v in vals if v is not None]
     disordered_fraction = (sum(1 for v in present if v < PLDDT_DISORDERED_MAX) / len(present)
                            if present else 1.0)
