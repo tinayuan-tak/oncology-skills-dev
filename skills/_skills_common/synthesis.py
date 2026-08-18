@@ -208,6 +208,30 @@ def _card_line(cards: dict, missing: set, present_ids: set, card_id: str, fields
     return f"  {card_id}: {shown if shown else '(no listed fields present)'}"
 
 
+def _claim_vector_block(cv: Optional[dict]) -> str:
+    """Render the pre-computed presence CLAIM VECTOR as grounding substrate for the narration, so the
+    relevance enum + confidence derive from the deterministic (signal × reliability) per claim rather
+    than the LLM re-deriving them. Additive / backward-compatible: a no-op note when the decision
+    predates claim_vector (spine byte-stable either way)."""
+    if not isinstance(cv, dict):
+        return "  (claim vector not present in this decision — narrate from the fields above.)"
+    rows = []
+    for k, name in (("A", "abundance"), ("B", "tumor-elevation"),
+                    ("C", "malignant-intrinsic"), ("D", "generality")):
+        cl = cv.get(k) or {}
+        rows.append(f"    {k} {name}: signal={cl.get('signal')} reliability={cl.get('reliability')} "
+                    f"— {cl.get('evidence')}" + (f"  CONFLICT: {cl['conflict']}" if cl.get("conflict") else ""))
+    if cv.get("homogeneity"):
+        rows.append(f"    homogeneity: {cv.get('homogeneity')}")
+    rows.append(
+        "  DIRECTIVE: your confidence_qualifier MUST track the claim reliability tiers (a decision-critical "
+        "claim of reliability=low/insufficient cannot yield well_supported). expression_relevance_for_target "
+        "MUST reflect claims A (abundance) AND B (tumor-elevation) TOGETHER — a strong B with a weak/mid A is "
+        "NOT strongly_supports; do NOT upgrade on fold-change alone. Claims are ORTHOGONAL — a weak C does not "
+        "degrade a strong B; never average them.")
+    return "\n".join(rows)
+
+
 def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> str:
     """Assemble the LLM input from the DETERMINISTIC decision spine. Narrates the computed
     interpretation (contextualized axes) grounded in the FULL gathered evidence — the verdict-
@@ -347,6 +371,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"  tumor_expression_class: {tumor_rna.get('tumor_expression_class')}  "
         f"median_log2tpm: {_fmt(tumor_rna.get('median_log2tpm'), 2)}",
         f"  purity_confound_class: {h.get('purity_confound_class')}",
+        "",
+        "DETERMINISTIC CLAIM VECTOR (pre-computed within-lens integration; treat as ground truth — "
+        "obey its DIRECTIVE on confidence + relevance):",
+        _claim_vector_block(h.get("claim_vector")),
         "",
         "TASK: using emit_presence_synthesis, judge how much this EXPRESSION lens informs whether "
         f"{target} is a relevant drug target for {indication} (and, where measured, which subtype). "
