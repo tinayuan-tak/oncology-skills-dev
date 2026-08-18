@@ -152,6 +152,12 @@ def main() -> int:
                          "pseudo-cards), or a comma-list (e.g. safety,dependency). Requires Bedrock + "
                          "network (BEDROCK_AWS_PROFILE); VERDICT-INERT + best-effort. Off by default "
                          "(a run without --ground is byte-identical + makes no network call).")
+    ap.add_argument("--ground-indication", default=None, metavar="TERM",
+                    help="OPTIONAL natural-language disease term for --ground's PubMed retrieval (e.g. "
+                         "'colorectal cancer'). ground_axis searches PubMed by term, so an OncoTree code "
+                         "(--indication COADREAD) retrieves almost nothing; pass the disease name here. "
+                         "Defaults to --indication when omitted. Affects ONLY grounding retrieval — the "
+                         "fan-out / verdict spine still key on --indication.")
     ap.add_argument("--risk-rollup", default=None, type=Path,
                     help="OPTIONAL: path to a risk_rollup.json (literature-risk-assessment/risk_rollup [3A]). "
                          "Renders the DETERMINISTIC, reproducible 'Risk by category' 5R lead table (the "
@@ -429,9 +435,12 @@ def main() -> int:
         try:
             from tp_grounding import resolve_axes, auto_ground
             axes = resolve_axes(args.ground)
+            # ground_axis retrieves PubMed BY TERM → use the natural-language --ground-indication when
+            # given (an OncoTree code retrieves ~nothing); default to --indication otherwise.
+            ground_ind = args.ground_indication or args.indication
             print(f"[target-profile] auto-grounding axes {axes} over {ep_path.name} "
-                  f"(literature-risk-assessment/ground_axis; verdict-inert)...", file=sys.stderr)
-            produced = auto_ground(args.target, args.indication, ep_path, args.out, axes)
+                  f"(indication term {ground_ind!r}; verdict-inert)...", file=sys.stderr)
+            produced = auto_ground(args.target, ground_ind, ep_path, args.out, axes)
             grounded_by_axis.update(produced)
             print(f"[target-profile] auto-grounded {sorted(produced)} → grounded_<axis>.json in {args.out}",
                   file=sys.stderr)
