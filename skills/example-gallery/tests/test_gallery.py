@@ -425,3 +425,130 @@ def test_presence_question_table_leads(tmp_path):
     # the table leads; the scope layout is inside the demoted drill-down
     assert page.index("Presence at a glance") < page.index("Detailed evidence by lens")
     assert page.index("Detailed evidence by lens") < page.index("Patient tumor")
+
+
+# --- functional-requirement claim×scope layout (Phase 1, renderer-only, verdict-inert) --------------
+
+def _dependency_decision():
+    """A realistic functional-requirement decision.json (KRAS/COADREAD-shaped) for render tests."""
+    return {
+        "skill": "functional-requirement", "target": "KRAS", "indication": "COADREAD",
+        "headline": {
+            "dependency_verdict": "lineage_selective",
+            "driving_rule_id": "lineage-selective-supportive",
+            "crispr_call": "strongly_selective", "rnai_call": "strongly_selective",
+            "concordance_call": "moderately_concordant_dependent",
+            "lineage_selectivity": "lineage_selective",
+            "cross_consortium_class": "concordant_dependent",
+            "predictability_class": "own_omics_driven",
+            "claim_vector": {
+                "DEP": {"signal": "strong", "corroboration": "high", "evidence": "CRISPR strongly_selective; RNAi strongly_selective",
+                        "conflict": None, "informs": "genetic dependency — is loss lethal?"},
+                "SEL": {"signal": "strong", "corroboration": "moderate",
+                        "evidence": "lineage enrichment: lineage_selective (target-grain)", "conflict": None,
+                        "informs": "context-selectivity"},
+                "COND": {"signal": "unmeasured", "corroboration": "unmeasured",
+                         "evidence": "partner-conditional: no_partner_mapped", "conflict": None, "informs": "conditional / SL"},
+                "CHEM": {"signal": "moderate", "corroboration": "moderate",
+                         "evidence": "PRISM×CRISPR: crispr_confirmed_engagement", "conflict": None, "informs": "chemical-genetic"},
+                "_disclaimer": "modality-blind, verdict-inert",
+            },
+            "key_signals": {"headline": "Selective genetic dependency, chemically confirmed.",
+                            "supports": ["Genetic dependency — CRISPR strongly_selective, RNAi strongly_selective [CRISPR + RNAi distributions]"],
+                            "caveat": None},
+        },
+        "cards": [
+            {"card_id": "pan-cancer-crispr-dependency-distribution",
+             "summary": {"dependency_class": "strongly_selective", "median_chronos_panel": -0.457,
+                         "fraction_strongly_dependent": 0.31, "dep_control_position_class": "between_controls",
+                         "n_cell_lines_evaluated": 1538}},
+            {"card_id": "pan-cancer-rnai-dependency-distribution",
+             "summary": {"rnai_dependency_class": "strongly_selective", "rnai_median_dep_score": -0.3}},
+            {"card_id": "crispr-rnai-dependency-concordance",
+             "summary": {"concordance_class": "moderately_concordant_dependent", "fraction_agree": 0.746}},
+            {"card_id": "dependency-lineage-selectivity",
+             "summary": {"enrichment_class": "lineage_selective", "n_enriched_lineages": 3,
+                         "lineage_variance_explained": 0.186,
+                         "enriched_lineages": [
+                             {"lineage": "Pancreas", "n": 74, "median_chronos": -1.83, "effect_size": 0.73, "q_value": 2.7e-25},
+                             {"lineage": "Bowel", "n": 88, "median_chronos": -1.18, "effect_size": 0.53, "q_value": 3.8e-16}]}},
+            {"card_id": "paralog-buffering", "summary": {"paralog_buffering_class": "none"}},
+            {"card_id": "partner-conditional-dependency",
+             "summary": {"partner_stratification_class": "no_partner_mapped"}},
+            {"card_id": "prism-crispr-concordance",
+             "summary": {"crispr_prism_concordance_class": "crispr_confirmed_engagement", "n_compounds_evaluated": 4}},
+            {"card_id": "cross-consortium-dependency",
+             "summary": {"cross_consortium_class": "concordant_dependent", "broad_frac_dependent": 0.449}},
+            {"card_id": "dependency-predictability",
+             "summary": {"predictability_class": "own_omics_driven", "pearson_r_squared_rf": 0.42}},
+            {"card_id": "expression-dependency-correlation",
+             "summary": {"correlation_class": "moderate_negative", "pearson_r": -0.35}},
+            {"card_id": "recommended-models",
+             "summary": {"correspondence_class": "well_modeled_in_lineage", "n_positive_models_in_lineage": 12}},
+        ],
+        "fired_rules": [
+            {"rule_id": "lineage-selective-supportive", "card_id": "dependency-lineage-selectivity",
+             "field": "enrichment_class", "value": "lineage_selective", "dominant": True}],
+    }
+
+
+def test_dependency_claim_scope_layout(tmp_path):
+    page = G.render_page(_dependency_decision(), tmp_path, fig_map={}, interactive=False)
+    # verdict in header (verdict-inert layout does not change it)
+    assert "lineage_selective" in page and "lineage-selective-supportive" in page
+    # claim strip present with all four claim codes + the deterministic key-signals headline
+    assert "Dependency claims" in page
+    for code in (">DEP<", ">SEL<", ">COND<", ">CHEM<"):
+        assert code in page
+    assert "Selective genetic dependency, chemically confirmed." in page
+    # claim SECTION headers (grouped, not flat-by-source)
+    assert "DEP · Genetic dependency" in page
+    assert "SEL · Context-selectivity" in page
+    assert "COND · Conditional / synthetic-lethal" in page
+    assert "CHEM · Chemical-genetic confirmation" in page
+    # confidence band + biomarker fold rendered
+    assert "Confidence" in page and "Broad ↔ Sanger" in page
+    assert "Biomarker &amp; model context" in page
+    # per-lineage breakdown promoted (Bowel + Pancreas rows, the SEL scope rung)
+    assert "Enriched lineages" in page and "Bowel" in page and "Pancreas" in page
+    # cards still render as collapsible blocks with flow tabs (same _render_card_block as flat path)
+    assert '<details class="card"' in page and 'class="flowtabs"' in page
+
+
+def test_dependency_layout_only_for_functional_requirement(tmp_path):
+    # a skill that is NEITHER functional-requirement NOR tumor-presence must get the FLAT cardlist
+    # (no claim layout, no presence scope layout) — the byte-stable path for every other skill.
+    d = _dependency_decision(); d["skill"] = "tumor-selectivity"
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "Dependency claims" not in page and "DEP · Genetic dependency" not in page
+    assert "Evidence at a glance" in page   # the flat header
+
+
+def test_dependency_catchall_no_card_dropped(tmp_path):
+    # a card not mapped to any claim still renders under "Other evidence"
+    d = _dependency_decision()
+    d["cards"].append({"card_id": "some-unmapped-dep-card", "summary": {"foo_class": "hub"}})
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "Other evidence" in page and "some-unmapped-dep-card" in page
+
+
+def test_dependency_subgroup_panorama_and_scope_when_present(tmp_path):
+    # --subtypes path: the subgroup panorama card renders in the drill-down with the per-stratum table;
+    # dependency_verdict_by_scope (Phase 3/4 forward-compat) renders a scope grid when present.
+    d = _dependency_decision()
+    d["headline"]["dependency_verdict_by_scope"] = {
+        "pan_cancer": {"verdict": "lineage_selective"},
+        "indication": {"verdict": "selective_in_indication"},
+        "subtype": {"verdict": "MSI_H_dependent"}}
+    d["cards"].append({"card_id": "subgroup-stratified-dependency",
+                       "summary": {"subtype_dependency_pattern": "subgroup_specific_dependency",
+                                   "cross_subgroup_delta_dependency": 0.4,
+                                   "per_subgroup_metrics": [
+                                       {"stratum": "MSI_H", "subgroup_n": 30, "median_chronos": -0.9,
+                                        "class": "strong_dependency", "evidence_state": "measured"},
+                                       {"stratum": "MSS", "subgroup_n": 106, "median_chronos": -0.4,
+                                        "class": "not_dependent", "evidence_state": "measured"}]}})
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "Verdict by scope" in page and "selective_in_indication" in page
+    assert "Molecular-subgroup panorama" in page
+    assert "Per-subgroup dependency" in page and "MSI_H" in page and "MSS" in page

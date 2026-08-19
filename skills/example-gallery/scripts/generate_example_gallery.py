@@ -280,6 +280,91 @@ CARD_DISPLAY = {
         "title": "Phospho pathway activity", "headline": "phospho_activity_class",
         "metrics": [("n_phosphosites", "Phosphosites"), ("max_site_detection_fraction", "Top-site detection"),
                     ("phospho_exceeds_abundance", "Exceeds abundance")]},
+    # ── functional-requirement (dependency) cards. Curated so the claim×scope layout renders good
+    #    metrics; the *dep_control_* fields carry the INVERTED window semantics (near pan-essential
+    #    ceiling = broad-tox liability, NOT a win), surfaced on the CRISPR card.
+    "pan-cancer-crispr-dependency-distribution": {
+        "title": "CRISPR dependency (pan-cancer)", "headline": "dependency_class",
+        "metrics": [("median_chronos_panel", "Median Chronos"),
+                    ("fraction_strongly_dependent", "Frac strongly dependent"),
+                    ("selectivity_index", "Selectivity index"),
+                    ("dep_control_position_class", "vs controls (window)"),
+                    ("dep_control_position", "Control position"),
+                    ("n_cell_lines_evaluated", "n cell lines")]},
+    "pan-cancer-rnai-dependency-distribution": {
+        "title": "RNAi dependency (pan-cancer)", "headline": "rnai_dependency_class",
+        "metrics": [("rnai_median_dep_score", "Median dep score"),
+                    ("rnai_fraction_strongly_dependent", "Frac strongly dependent"),
+                    ("rnai_selectivity_index", "Selectivity index"),
+                    ("rnai_n_cell_lines_evaluated", "n cell lines")]},
+    "crispr-rnai-dependency-concordance": {
+        "title": "CRISPR ↔ RNAi concordance", "headline": "concordance_class",
+        "metrics": [("fraction_agree", "Fraction agree"),
+                    ("fraction_dependent_in_both", "Dependent in both"),
+                    ("n_in_both", "n in both assays")]},
+    "dependency-lineage-selectivity": {
+        "title": "Lineage selectivity", "headline": "enrichment_class",
+        # Axis-3 omnibus (ε²) + which lineages separate; the per-lineage table is a BREAKDOWN_PANEL
+        "metrics": [("n_enriched_lineages", "Enriched lineages"),
+                    ("lineage_omnibus_effect_size_class", "Omnibus effect (ε²)"),
+                    ("lineage_variance_explained", "Variance explained (ε²)"),
+                    ("median_chronos_panel", "Median Chronos (panel)"),
+                    ("n_lineages_evaluated", "n lineages")]},
+    "paralog-buffering": {
+        "title": "Paralog buffering", "headline": "paralog_buffering_class",
+        "metrics": [("strongest_paralog_symbol", "Strongest paralog"),
+                    ("strongest_paralog_delta", "Buffer Δ (dual-KO)"),
+                    ("n_paralogs_functionally_buffering", "Functional paralogs")]},
+    "partner-conditional-dependency": {
+        "title": "Partner-conditional (synthetic-lethal)", "headline": "partner_stratification_class",
+        "metrics": [("partner", "Partner gene"), ("deficiency_type", "Deficiency"),
+                    ("delta_chronos_deficient_vs_neutral", "Δ Chronos (def vs neutral)"),
+                    ("partner_stratification_mannwhitney_q", "q (stratification)"),
+                    ("n_partner_deficient", "n partner-deficient")]},
+    "prism-crispr-concordance": {
+        "title": "Chemical-genetic confirmation (PRISM)", "headline": "crispr_prism_concordance_class",
+        "metrics": [("best_spearman_r_crispr", "Best r (CRISPR)"),
+                    ("best_spearman_r_rnai", "Best r (RNAi)"),
+                    ("n_dual_responders", "Dual responders"),
+                    ("n_compounds_evaluated", "n compounds")]},
+    "cross-consortium-dependency": {
+        "title": "Cross-consortium (Broad ↔ Sanger)", "headline": "cross_consortium_class",
+        "metrics": [("broad_frac_dependent", "Broad frac dependent"),
+                    ("sanger_frac_dependent", "Sanger frac dependent"),
+                    ("broad_median_chronos", "Broad median Chronos"),
+                    ("sanger_median_chronos", "Sanger median Chronos")]},
+    "dependency-predictability": {
+        "title": "Omics-predictability of the dependency", "headline": "predictability_class",
+        "metrics": [("pred_dominant_feature_class", "Dominant feature"),
+                    ("pearson_r_squared_rf", "R² (RF)"),
+                    ("pred_n_cell_lines_evaluated", "n cell lines")]},
+    "expression-dependency-correlation": {
+        "title": "mRNA ↔ dependency (biomarker)", "headline": "correlation_class",
+        "metrics": [("pearson_r", "Pearson r"),
+                    ("delta_chronos_top_vs_bottom_quartile", "Δ Chronos (hi vs lo expr)"),
+                    ("n_cell_lines_evaluated", "n cell lines")]},
+    "abundance-dependency": {
+        "title": "Protein abundance ↔ dependency (biomarker)", "headline": "abundance_dependency_class",
+        "metrics": [("protein_dependency_pearson_r", "Pearson r"),
+                    ("abundance_layer", "Proteomics layer"),
+                    ("n_paired_models", "n paired models")]},
+    "recommended-models": {
+        "title": "Patient ↔ model correspondence", "headline": "correspondence_class",
+        "metrics": [("n_positive_models_in_lineage", "Positive models in lineage"),
+                    ("n_positive_models", "Positive models"),
+                    ("depmap_lineage", "DepMap lineage")]},
+    "organoid-crispr-dependency": {
+        "title": "Organoid-native dependency", "headline": "organoid_dependency_class",
+        "metrics": [("median_gene_effect", "Median gene effect"),
+                    ("frac_strongly_dependent", "Frac strongly dependent"),
+                    ("n_models_screened", "n organoid models")]},
+    "subgroup-stratified-dependency": {
+        # headline = the descriptive panorama pattern; per-stratum table is a BREAKDOWN_PANEL
+        "title": "Dependency by molecular subgroup", "headline": "subtype_dependency_pattern",
+        "metrics": [("cross_subgroup_delta_dependency", "Cross-subgroup Δ"),
+                    ("n_subgroups_with_data", "Subgroups w/ data"),
+                    ("max_subgroup_dependency", "Max subgroup dep"),
+                    ("min_subgroup_dependency", "Min subgroup dep")]},
 }
 
 # class value -> chip color category (good/neutral/weak/unavailable) for the at-a-glance strip.
@@ -287,13 +372,31 @@ _POS = {"broadly_high", "strongly_upregulated", "lineage_restricted", "strongly_
         "phospho_active", "above_all_positives", "broad", "broadly_tumor_elevated", "physical_hub",
         "well_characterized", "modest_up", "multi_domain", "supports",
         # a target that separates BY subtype (enriched/restricted in some strata) is the informative case
-        "subtype_enriched", "subtype_restricted", "subtype_differential"}
+        "subtype_enriched", "subtype_restricted", "subtype_differential",
+        # ── dependency (functional-requirement). The therapeutic-WINDOW wins are green; note the
+        #    INVERSION — common_essential (pan-essential) is NOT here (it is a broad-tox liability →
+        #    neutral). strongly_selective is the sought-after selective dependency.
+        "strongly_selective", "strongly_concordant_dependent", "moderately_concordant_dependent",
+        "lineage_selective", "partner_conditional_strongly_dependent",
+        "partner_conditional_moderately_dependent", "triangulated_target_engaged",
+        "crispr_confirmed_engagement", "concordant_dependent", "own_omics_driven",
+        "strong_negative", "protein_predicts_dependency", "well_modeled_in_lineage",
+        "selective_organoid_dependency", "between_controls",
+        "subgroup_specific_dependency"}
 _WEAK = {"not_informative", "no_curated_domain", "data_unavailable", "not_phosphoprotein",
          "no_high_confidence_interactors", "neutral_uninformative", "argues_against", "sparse",
          "not_tumor_elevated", "ns", "subtype_axis_unavailable", "no_subtype_axis",
          # depleted = an UNfavorable deviation from pooled; muted so it reads distinct from uniform
          # (neutral) yet not as the sought-after enriched/restricted signal (good/green)
-         "subtype_depleted"}
+         "subtype_depleted",
+         # ── dependency: absent / uninformative / off-target reads (muted)
+         "non_dependent", "non_dependent_underpowered", "common_essential_underpowered",
+         "no_lineage_enrichment", "not_partner_stratified", "no_partner_mapped",
+         "insufficient_partner_deficient_rate", "discordant", "discordant_off_target_likely",
+         "thin_evidence", "no_protein_dependency_link", "insufficient_paired_models",
+         "poorly_modeled", "not_organoid_dependent", "rare_organoid_dependency",
+         "no_correlation", "positive_anomaly", "unpredictable", "no_paralog",
+         "not_informative"}
 
 
 # Some cards carry a per-stratum BREAKDOWN (a list-of-dicts in the summary — e.g. one row per
@@ -313,6 +416,20 @@ BREAKDOWN_PANELS = {
                     ("tumor_expression_class", "Class"),
                     ("fraction_tumor_above_normal_p95", "Frac > normal p95"),
                     ("subtype_signal", "Subtype signal")]},
+    # dependency — the enriched-lineage hits (the SEL scope rung: which lineages carry the dependency)
+    "dependency-lineage-selectivity": {
+        "title": "Enriched lineages (dependency)", "field": "enriched_lineages",
+        "label": "lineage", "signal": "",
+        "columns": [("n", "n lines"), ("median_chronos", "Median Chronos"),
+                    ("effect_size", "Effect size"), ("q_value", "q-value"),
+                    ("delta_vs_rest", "Δ vs rest")]},
+    # dependency — the per-molecular-subgroup panorama (only present on the --subtypes path); the
+    # signal column is the per-stratum dependency class, and evidence_state guards underpowered strata.
+    "subgroup-stratified-dependency": {
+        "title": "Per-subgroup dependency", "field": "per_subgroup_metrics",
+        "label": "stratum", "signal": "class",
+        "columns": [("subgroup_n", "n"), ("median_chronos", "Median Chronos"),
+                    ("class", "Class"), ("evidence_state", "Power")]},
 }
 
 
@@ -483,6 +600,16 @@ details.drill[open]>.drillhead::before{transform:rotate(90deg)}
 .caveat{font-size:11.5px;color:#8a5a2b;background:#fdf6ec;border-radius:5px;padding:5px 9px;margin:4px 0}
 .crosslens{border:1px solid #e3e6ea;border-radius:10px;background:#fff;margin:14px 0;padding:6px 15px 12px}
 .crosslens .ct{font-size:14px;font-weight:700;margin:8px 0 2px}
+/* functional-requirement claim×scope layout (renderer-only, verdict-inert) */
+.claimstrip{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 8px}
+.claim{flex:1 1 200px;min-width:200px;border:1px solid #e3e6ea;border-radius:8px;padding:8px 11px;background:#fff}
+.claim .claimhd{font-size:12px;margin-bottom:5px} .claim .claimhd b{color:#1e3a8a}
+.corrob{margin-left:8px;color:#667;font-size:11px}
+.conflict{color:#8a5a2b;font-size:11px;margin-top:5px}
+.claim-read{background:#fff;border:1px solid #e3e6ea;border-left:3px solid #1e3a8a;border-radius:8px;padding:10px 14px;margin:6px 0 4px}
+.claim-read ul{margin:6px 0 0;padding-left:18px} .claim-read li{font-size:12px;color:#334}
+.claim-sec{margin:6px 0} .secnote{color:#667;font-size:12px;margin:0 0 6px}
+.scopegrid{gap:8px 30px}
 """
 
 # tiny vanilla-JS lightbox: click a figure to toggle .zoomed (SVG is vector → crisp at any size).
@@ -798,8 +925,8 @@ def _card_block_html(c: dict, run_dir: Path, fig_map: dict, interactive: bool, f
                      open_: bool = False) -> str:
     """The full collapsible block for one resolved card: headline chip + key metrics + per-stratum
     breakdown + figures + Data→…→Verdict flow tabs + full-field drill-down. Factored out of render_page
-    so the flat cardlist AND the scope-hierarchical presence layout render cards identically. `open_`
-    expands the <details> (used to expand the rung at the query's scope depth)."""
+    so the flat cardlist AND the scope-hierarchical presence / dependency claim layouts render cards
+    identically. `open_` expands the <details> (used to expand the rung at the query's scope depth)."""
     cid = c.get("card_id", "?")
     summary = c.get("summary") or {}
     missing = c.get("_missing", False)
@@ -1141,6 +1268,144 @@ def _question_table_html(decision: dict, h: dict) -> str:
     return f'{cap}<table class="qtable"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table>'
 
 
+# ── functional-requirement (dependency) claim×scope layout ────────────────────────────────────────
+# Groups the dependency cards by ORTHOGONAL CLAIM (DEP/SEL/COND/CHEM — the same decomposition the
+# skill's own claim_vector emits) rather than a flat by-data-source list, then leads with the
+# modality-blind claim strip. Renderer-only + verdict-INERT: the dependency_verdict spine is untouched;
+# every card renders via the SHARED _card_block_html (identical to the flat path + the presence layout).
+# Any card not placed here falls into a trailing "Other evidence" group — nothing is dropped.
+#   (claim_code, title, hint, [card_ids])
+_DEP_CLAIM_SECTIONS = [
+    ("DEP", "Genetic dependency",
+     "is loss-of-function lethal? — CRISPR + RNAi + their agreement",
+     ["pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
+      "crispr-rnai-dependency-concordance"]),
+    ("SEL", "Context-selectivity",
+     "therapeutic window (vs pan-essential ceiling — near it = tox liability) + which lineage",
+     ["dependency-lineage-selectivity"]),
+    ("COND", "Conditional / synthetic-lethal",
+     "does a pooled-negative hide a partner- or paralog-conditional dependency?",
+     ["paralog-buffering", "partner-conditional-dependency"]),
+    ("CHEM", "Chemical-genetic confirmation",
+     "does compound kill track the genetic dependency?",
+     ["prism-crispr-concordance"]),
+]
+# CONFIDENCE band (verdict-inert corroboration; annotates the DEP call, does not resolve it)
+_DEP_CONFIDENCE_CARDS = ["cross-consortium-dependency", "dependency-predictability"]
+# patient-selection FOLD (verdict-inert biomarker/model facets)
+_DEP_FACET_CARDS = ["expression-dependency-correlation", "abundance-dependency",
+                    "recommended-models", "organoid-crispr-dependency"]
+# molecular-subgroup drill-down (only present on the --subtypes path)
+_DEP_SUBTYPE_CARDS = ["subgroup-stratified-dependency"]
+
+_DEP_CLAIM_ORDER = ("DEP", "SEL", "COND", "CHEM")
+
+
+def _dep_claim_strip_html(headline: dict) -> str:
+    """The modality-blind claim strip (DEP/SEL/COND/CHEM each signal×corroboration) + the deterministic
+    key-signals headline. Reads the ALREADY-computed headline.claim_vector / key_signals (verdict-inert
+    projections run.py emits). Absent → ''. This is what lets the scope-led layout lead with the skill's
+    own within-lens integration instead of a data-source dump."""
+    cv = headline.get("claim_vector")
+    ks = headline.get("key_signals")
+    if not isinstance(cv, dict):
+        return ""
+    chips = []
+    for code in _DEP_CLAIM_ORDER:
+        claim = cv.get(code)
+        if not isinstance(claim, dict):
+            continue
+        sig = claim.get("signal", "unmeasured")
+        corr = claim.get("corroboration", "unmeasured")
+        conflict = claim.get("conflict")
+        kind = "good" if str(sig) in _POS or str(sig) in ("strong", "moderate") else \
+               ("weak" if str(sig) in ("absent", "unmeasured", "negative") else "neutral")
+        title = _esc(claim.get("informs", code))
+        chips.append(
+            f'<div class="claim" title="{title}">'
+            f'<div class="claimhd"><b>{code}</b> <span class="hint">{_esc(claim.get("evidence",""))}</span></div>'
+            f'<div><span class="chip {kind}">{_esc(sig)}</span>'
+            f'<span class="corrob">corrob: {_esc(corr)}</span></div>'
+            + (f'<div class="conflict">⚠ {_esc(conflict)}</div>' if conflict else '')
+            + '</div>')
+    head = ""
+    if isinstance(ks, dict) and ks.get("headline"):
+        sup = "".join(f"<li>{_esc(s)}</li>" for s in (ks.get("supports") or []))
+        cav = f'<div class="conflict">⚠ {_esc(ks["caveat"])}</div>' if ks.get("caveat") else ""
+        head = (f'<div class="claim-read"><b>{_esc(ks["headline"])}</b>'
+                + (f'<ul>{sup}</ul>' if sup else '') + cav + '</div>')
+    return ('<div class="lab" style="margin:18px 0 6px">Dependency claims '
+            '<span class="hint">— DEP genetic-dependency · SEL context-selectivity · '
+            'COND conditional-SL · CHEM chemical-genetic (signal × corroboration; not additive)</span></div>'
+            f'{head}<div class="claimstrip">' + "".join(chips) + '</div>')
+
+
+def _render_dependency_layout(decision: dict, run_dir: Path, fig_map: dict, fired_by_card: dict,
+                              tables_dir: Path, target: str, indication: str, interactive: bool) -> str:
+    """functional-requirement claim×scope layout (renderer-only; verdict-inert). Claim sections
+    (DEP/SEL/COND/CHEM) → confidence band → patient-selection fold → molecular-subgroup drill-down →
+    trailing 'Other evidence' catch-all so no card is dropped."""
+    h = decision.get("headline", {}) or {}
+    cards = decision.get("cards", []) or []
+    by_id = {c.get("card_id"): c for c in cards}
+    used: set = set()
+    idx = 0
+    parts = [_dep_claim_strip_html(h)]
+
+    # forward-compatible scope banner: render dependency_verdict_by_scope when Phase 3/4 emits it
+    # (pan-cancer → indication-lineage → subtype). Typed-empty / absent today → nothing rendered.
+    by_scope = h.get("dependency_verdict_by_scope")
+    if isinstance(by_scope, dict) and by_scope:
+        rows = "".join(
+            f'<div class="metric"><span class="ml">{_esc(_prettify(k))}</span>'
+            f'<span class="mv">{_esc(_fmt_val(v.get("verdict") if isinstance(v, dict) else v))}</span></div>'
+            for k, v in by_scope.items())
+        parts.append('<div class="lab" style="margin:18px 0 6px">Verdict by scope '
+                     '<span class="hint">— pooled pan-cancer vs the queried indication lineage vs '
+                     'molecular subgroup</span></div>'
+                     f'<div class="metrics scopegrid">{rows}</div>')
+
+    def _section(title: str, hint: str, card_ids: list, note: str = "") -> None:
+        nonlocal idx
+        present = [cid for cid in card_ids if cid in by_id]
+        if not present:
+            return
+        parts.append(f'<div class="claim-sec"><div class="lab" style="margin:16px 0 6px">{_esc(title)} '
+                     f'<span class="hint">— {_esc(hint)}</span></div>')
+        if note:
+            parts.append(f'<div class="secnote">{_esc(note)}</div>')
+        parts.append('<div class="cardlist">')
+        for cid in present:
+            parts.append(_card_block_html(by_id[cid], run_dir, fig_map, interactive, fired_by_card,
+                                          tables_dir, target, indication, uid=f"dep{idx}"))
+            used.add(cid)
+            idx += 1
+        parts.append('</div></div>')
+
+    for code, title, hint, card_ids in _DEP_CLAIM_SECTIONS:
+        _section(f"{code} · {title}", hint, card_ids)
+        if code == "DEP":
+            _section("Confidence", "independent-consortium + omics corroboration (tunes confidence, "
+                     "not the verdict)", _DEP_CONFIDENCE_CARDS)
+    _section("Biomarker & model context", "patient-selection facets (expression / abundance / "
+             "model correspondence) — additive, verdict-inert", _DEP_FACET_CARDS)
+    _section("Molecular-subgroup panorama", "dependency within this indication's subgroups "
+             "(--subtypes); underpowered strata (n<30) are not over-read", _DEP_SUBTYPE_CARDS)
+
+    # catch-all so nothing is silently dropped (typed-empty discipline)
+    leftover = [c for c in cards if c.get("card_id") not in used]
+    if leftover:
+        parts.append('<div class="claim-sec"><div class="lab" style="margin:16px 0 6px">Other evidence '
+                     '<span class="hint">— cards not mapped to a dependency claim</span></div>'
+                     '<div class="cardlist">')
+        for c in leftover:
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card,
+                                          tables_dir, target, indication, uid=f"dep{idx}"))
+            idx += 1
+        parts.append('</div></div>')
+    return "".join(parts)
+
+
 def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool) -> str:
     """One self-contained, DIGESTIBLE HTML page for a subskill run: exec summary + at-a-glance
     evidence strip + per-card (title + headline chip + key metrics + figure + collapsible full data)."""
@@ -1205,8 +1470,10 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     for r in decision.get("fired_rules", []) or []:
         fired_by_card.setdefault(r.get("card_id"), []).append(r)
 
-    # tumor-presence: the scope-hierarchical layout (sample-context × data-type × scope ladder),
-    # coordinate-driven. Every OTHER skill keeps the flat "Evidence at a glance" collapsible list.
+    # Skill-gated layout. tumor-presence: sample-context × data-type × scope ladder (#549).
+    # functional-requirement: the DEP/SEL/COND/CHEM claim×scope layout. Every OTHER skill keeps the
+    # flat "Evidence at a glance" collapsible list. All three render each card via the SAME
+    # _card_block_html, so the per-card HTML is identical across paths.
     if skill == "tumor-presence" and cards:
         # LEADING view: the 7-question × (data · signal · confidence) summary table — one glance.
         parts.append(_question_table_html(decision, h))
@@ -1219,8 +1486,15 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
         parts.append(_presence_scope_html(decision, run_dir, fig_map, interactive, fired_by_card,
                                           tables_dir, target, indication))
         parts.append('</div></details>')
+    elif skill == "functional-requirement":
+        parts.append('<div class="lab" style="margin:18px 0 6px">Evidence by dependency claim '
+                     '<span class="hint">— grouped by DEP / SEL / COND / CHEM; click a row to expand</span></div>')
+        parts.append(_render_dependency_layout(decision, run_dir, fig_map, fired_by_card,
+                                               tables_dir, target, indication, interactive))
     else:
         # ONE unified "Evidence at a glance" section: the table of cards IS the collapsible list.
+        # Each row = title + headline chip (collapsed); click to expand INLINE → key metrics + the
+        # shrunk-but-vector-crisp plot + the Data→…→Verdict flow tabs + full-field drill-down.
         parts.append('<div class="lab" style="margin:18px 0 6px">Evidence at a glance '
                      '<span class="hint">— click a row to expand</span></div>')
         parts.append('<div class="cardlist">')
