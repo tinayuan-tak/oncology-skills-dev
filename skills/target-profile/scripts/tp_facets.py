@@ -1170,6 +1170,107 @@ def _addressable_population_facet(sub_results: dict) -> dict:
     }
 
 
+# ── actionability_mode facet (2026-08-19) ─────────────────────────────────────────────────────────
+# VERDICT-INERT descriptive conditioner: HOW is the target actioned — what IS the patient-selection
+# handle — orthogonal to biology_axis (WHERE the drug acts) and the necessity/sufficiency questions.
+# A PROFILE, never a partition: cis_feature / abundance / mixed / dependency_relational / insufficient,
+# with per-arm tiers (dominant|supporting|none|unknown) + a dominant call. Pure post-hoc function over
+# already-fired sub_results (like _biomarker_facet); absent from _SHORT_TO_GATE → structurally cannot
+# move the verdict spine. PHASE 0: emitted into nomination.json only — NO routing, NO prompt change.
+# `unknown` (read-failure/uncurated) is strictly distinct from `none` (measured-absent): a blind arm
+# lowers confidence and never cedes to another mode. Thresholds are Phase-1-calibratable; unrecognized
+# card values degrade to none/unknown (honest), never crash. See the actionability-mode design doc.
+_ABUNDANCE_FIT = frozenset({"both_viable", "adc_preferred", "tce_preferred",
+                            "ADC_preferred", "TCE_preferred"})
+_ABUNDANCE_DENSITY = frozenset({"high", "moderate"})
+_SELECTIVE_VERDICTS = frozenset({"strong_tumor_selective", "modest_tumor_selective",
+                                 "selective_with_normal_liability"})
+
+
+def _actionability_mode_facet(sub_results: dict) -> dict:
+    """VERDICT-INERT selection-basis profile: cis_feature vs abundance vs dependency_relational (+ mixed
+    / insufficient). Post-hoc over fired sub_results; never touches the gate (Phase 0: annotation only)."""
+    def _cs(card_id, field):
+        return (_find_card_summary(sub_results, card_id) or {}).get(field)
+    def _v(short):
+        vv = (sub_results.get(short) or {}).get("verdict")
+        return vv[0] if vv else None
+
+    deriv: list[str] = []
+
+    # ---- CIS-FEATURE arm: a specific lesion/feature IS the handle (patient-selection = the biomarker) ----
+    role, hotspot = _cs("alteration-role", "alteration_role"), _cs("mutation-hotspot-frequency", "pooled_driver_recurrence_class")
+    fusion, cn, gen_v = _cs("fusion-rearrangement-landscape", "fusion_class"), _cs("copy-number-distribution", "patient_focal_cn_class"), _v("genomic_alteration")
+    # a LoF/TSG driver is NOT a positive cis handle (you cannot target an absence) → route it to the
+    # dependency_relational arm (MDM2/SL/context), never cis. Suppress the cis arm when role is LoF.
+    _lof = (role == "direct_driver_lof")
+    cis_dom = (not _lof) and (role == "direct_driver_gof" or hotspot == "top_1pct" or fusion == "recurrent_fusion_driver"
+               or gen_v in _SNV_SELECTION_VERDICTS or gen_v in _CN_FUSION_SELECTION_VERDICTS)
+    cis_sup = (not _lof) and (role == "predictive_biomarker" or hotspot == "top_decile" or fusion == "sporadic_fusion")
+    cis_seen = any(x not in (None, "data_unavailable") for x in (role, hotspot, fusion, cn, gen_v))
+    cis_tier = "dominant" if cis_dom else "supporting" if cis_sup else "none" if cis_seen else "unknown"
+    if cis_dom:
+        deriv += [f"{k}={x} -> cis:dominant" for k, x in (("role", role), ("hotspot", hotspot),
+                  ("fusion", fusion), ("genomic_verdict", gen_v)) if x]
+
+    # ---- ABUNDANCE arm: selectively over-present (patient-selection = an expression/density cutoff) ----
+    dens_abs, dens_cls = _cs("surface-abundance-density", "absolute_density_class"), _cs("surface-abundance-density", "surface_density_class")
+    fit, sel_v = _cs("adc-tce-modality-fit", "fit_class"), _v("selectivity")
+    ab_dom = (dens_abs in _ABUNDANCE_DENSITY or dens_cls in _ABUNDANCE_DENSITY or fit in _ABUNDANCE_FIT)
+    ab_sup = (dens_cls == "low" or sel_v in _SELECTIVE_VERDICTS)
+    ab_seen = any(x not in (None, "data_unavailable", "unmeasured") for x in (dens_abs, dens_cls, fit, sel_v))
+    ab_tier = "dominant" if ab_dom else "supporting" if ab_sup else "none" if ab_seen else "unknown"
+    if ab_dom:
+        deriv += [f"{k}={x} -> abundance:dominant" for k, x in (("surface_density", dens_abs or dens_cls), ("adc_tce_fit", fit)) if x]
+
+    # ---- DEPENDENCY_RELATIONAL arm: no positive cis handle / not over-abundant — actioned via a
+    #      partner/context (LoF-driver → MDM2/SL; partner-conditional SL [WRN×MSI]; combinatorial) ----
+    dep_v, sl_v, combo_v = _v("dependency"), _v("synthetic_lethal_partners"), _v("combinatorial_dependency")
+    rel_dom = (role == "direct_driver_lof" or dep_v == "partner_conditional_dependent" or sl_v == "has_experimental_sl_partner")
+    rel_sup = (sl_v == "has_computational_sl_partner" or combo_v in ("constitutive_combinatorial_dependency", "context_combinatorial_dependency"))
+    rel_seen = any(x not in (None, "data_unavailable", "") for x in (role, dep_v, sl_v, combo_v))
+    rel_tier = "dominant" if rel_dom else "supporting" if rel_sup else "none" if rel_seen else "unknown"
+    if rel_dom:
+        deriv += [f"{k}={x} -> dependency_relational:dominant" for k, x in
+                  (("role", role if role == "direct_driver_lof" else None),
+                   ("dependency", dep_v if dep_v == "partner_conditional_dependent" else None),
+                   ("sl_partner", sl_v if sl_v == "has_experimental_sl_partner" else None)) if x]
+
+    arms = {"cis_feature": cis_tier, "abundance": ab_tier, "dependency_relational": rel_tier}
+    dom_arms = [a for a, t in arms.items() if t == "dominant"]
+    secondary = None
+    if len(dom_arms) >= 2:
+        dominant = "mixed"                              # both leading arms ARE the story (HER2/EGFR/MET guarantee)
+    elif len(dom_arms) == 1:
+        dominant = dom_arms[0]
+    else:
+        sup_arms = [a for a, t in arms.items() if t == "supporting"]
+        dominant = sup_arms[0] if len(sup_arms) == 1 else "insufficient"
+    _rank = {"dominant": 3, "supporting": 2, "none": 1, "unknown": 0}
+    if dominant not in ("mixed", "insufficient"):
+        others = sorted((a for a in arms if a != dominant), key=lambda a: _rank[arms[a]], reverse=True)
+        secondary = others[0] if others and _rank[arms[others[0]]] >= 2 else None
+
+    if dominant == "insufficient":
+        confidence = "low"
+    elif dominant == "mixed" or arms.get(dominant) == "dominant":
+        confidence = "moderate" if any(t == "unknown" for t in arms.values()) else "high"
+    else:
+        confidence = "low"
+
+    return {
+        "dominant": dominant,
+        "secondary": secondary,
+        "arms": arms,
+        "confidence": confidence,
+        "derivation": deriv,
+        "note": ("VERDICT-INERT selection-basis profile (Phase 0: annotation only, no routing). "
+                 "Orthogonal to biology_axis; `unknown` != `none`. cis_feature=biomarker handle, "
+                 "abundance=expression/density cutoff, dependency_relational=partner/context handle, "
+                 "mixed=both (e.g. HER2 amplification is BOTH the cis handle AND the abundance readout)."),
+    }
+
+
 __all__ = [
     '_ADDRESSABLE_POPULATION_LEGEND',
     '_BIOMARKER_INPUTS',
@@ -1181,6 +1282,7 @@ __all__ = [
     '_NON_DEPENDENT',
     '_SNV_SELECTION_VERDICTS',
     '_SUBTYPE_INPUTS',
+    '_actionability_mode_facet',
     '_addressable_population_class',
     '_addressable_population_facet',
     '_biomarker_facet',

@@ -56,6 +56,7 @@ from tp_gates import (               # names main() calls directly
 )
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
+    _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _deciding_axis, _dependency_facet,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _subtype_facet,
@@ -297,6 +298,11 @@ def main() -> int:
     # never touches the recommendation.
     heterogeneity = _heterogeneity_facet(sub_results, subtypes=subtypes)
     addressable_population = _addressable_population_facet(sub_results)
+    # Actionability-mode facet (2026-08-19): VERDICT-INERT selection-basis profile — cis_feature vs
+    # abundance vs dependency_relational (+ mixed / insufficient), the HANDLE by which the target is
+    # actioned, orthogonal to biology_axis. Post-hoc over sub_results; PHASE 0 = emitted into
+    # nomination.json only (no routing, no prompt change → verdict spine + prompt_hash byte-stable).
+    actionability_mode = _actionability_mode_facet(sub_results)
 
     # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3): the verdict-DISJOINT reliability
     # object each opting-in sub-skill emits beside its verdict (coverage + Broad↔Sanger corroboration +
@@ -624,6 +630,7 @@ def main() -> int:
         # subtype). A stratified-opportunity signal the pooled verdict hides; never moves the call.
         "heterogeneity": heterogeneity,
         "addressable_population": addressable_population,
+        "actionability_mode": actionability_mode,
         # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3), keyed by sub-skill short. A
         # verdict-INERT reliability projection (coverage + verdict-disjoint corroboration +
         # coverage-gap unknown_mass) for the reader/panel; NOT in sub_verdicts, never moves the gate.
