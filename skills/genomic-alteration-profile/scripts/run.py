@@ -40,6 +40,7 @@ from _skills_common.resolver import resolve_or_raise
 from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr, _bh_qvalues,
 )
+from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
 
 SKILL_NAME = "genomic-alteration-profile"
 SKILL_VERSION = "2.7.0"
@@ -484,6 +485,14 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
         headline[key] = _lift_field(card_by_id, card_id, field)
     headline["cards_available"] = sum(1 for c in cards if not c.get("_missing"))
     headline["cards_missing"]   = [c["card_id"] for c in cards if c.get("_missing")]
+    # Additive, verdict-INERT: the claim vector (SNV/CN/FUS driver + DEP alteration-confers-dependency,
+    # signal×corroboration) + a brief cited key-signals read — the WITHIN-lens integration this subskill
+    # owns, built on the SHARED claim_vector_core contract (genomic-alteration is the fourth concrete
+    # after presence + dependency + selectivity). Both PROJECT the headline just built (reusing
+    # genomic_alteration_by_class as the single source of the per-class primaries); they NEVER touch the
+    # genomic_alteration_profile spine (byte-stable). See _skills_common/genomic_claims.py.
+    headline["claim_vector"] = genomic_claim_vector(headline, cards)
+    headline["key_signals"] = genomic_key_signals(headline, cards)
     return headline
 
 

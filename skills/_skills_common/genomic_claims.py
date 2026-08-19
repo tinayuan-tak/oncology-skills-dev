@@ -1,0 +1,272 @@
+"""genomic_claims — genomic-alteration-profile's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT projection
+of the alteration cards into (signal × corroboration) per orthogonal claim.
+
+The FOURTH concrete instance of the shared claim_vector_core contract (presence, dependency,
+selectivity are the first three). Genomic-alteration is inherently MULTI-CLASS — its whole point is
+"which alteration class drives" — so the claim decomposition is by alteration class:
+
+  SNV recurrent SNV/indel driver — driver-recurrence (pooled TCGA-MC3 + GENIE + MSK) + mutation
+                                   landscape; corroboration = cross-cohort agreement.
+  CN  copy-number driver         — cell-line amplification/deletion + patient-tumour focal CN;
+                                   corroboration = cell-line ↔ patient agreement.
+  FUS fusion driver              — recurrent fusion/rearrangement; corroboration = GENIE-SV recurrence.
+  DEP alteration confers dependency — the "so what": is the target a biomarker-stratified genetic
+                                   dependency (max over the 4 stratified-dependency classes — mutation /
+                                   CN / fusion / amp-expr)? corroboration = mutation-drug-response
+                                   (pharmacological confirmation). A WT/neutral-dependent signal is
+                                   `absent` here (the ALTERATION does not confer the dependency).
+
+FIT: like dependency + selectivity (and unlike presence), genomic's claims are cleanly SEPARABLE — a
+class primary call for the signal, a distinct provenance for corroboration — so they map onto the
+core's signal_fn / corroboration_fn ClaimSpec contract directly. The per-class primaries are read from
+the skill's own `genomic_alteration_by_class` breakdown (single source — cannot drift from the cards).
+
+Verdict-INERT: reads the ALREADY-computed headline; never feeds the genomic_alteration resolver. All
+inputs come from `headline` (its `genomic_alteration_by_class` block + the guard-covered _HEADLINE_FIELDS
+lifts); the `cards` param is accepted for contract-uniformity but unused.
+"""
+from __future__ import annotations
+
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              SIGNAL_ORD, bump_corroboration, sig_ge)
+
+# ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
+# driver_recurrence_class / pooled_driver_recurrence_class / genie_sv_recurrence_class (percentile bands)
+_RECURRENCE_SIGNAL = {"top_1pct": "strong", "top_decile": "moderate", "mid": "weak",
+                      "bottom_decile": "absent", "data_unavailable": "unmeasured"}
+# copy_number_class / patient_copy_number_class
+_CN_SIGNAL = {"recurrently_amplified": "moderate", "recurrently_deleted": "moderate",
+              "mixed": "weak", "broadly_neutral": "absent", "data_unavailable": "unmeasured"}
+_CN_FOCAL_POS = {"recurrent_focal_amplification", "recurrent_focal_deletion"}
+# fusion_class
+_FUS_SIGNAL = {"recurrent_fusion_driver": "strong", "sporadic_fusion": "weak",
+               "no_recurrent_fusion": "absent", "data_unavailable": "unmeasured"}
+# the four stratified-dependency classes → "does the ALTERATION-positive subgroup selectively depend?"
+# POSITIVE (alteration-positive dependent) vs NEGATIVE (WT/neutral dependent = alteration doesn't confer)
+_STRAT_SIGNAL = {
+    "mutant_strongly_dependent": "strong", "mutant_moderately_dependent": "moderate",
+    "amplified_strongly_dependent": "strong", "amplified_moderately_dependent": "moderate",
+    "fusion_positive_strongly_dependent": "strong", "fusion_positive_moderately_dependent": "moderate",
+    "amplified_overexpressed_strongly_dependent": "strong", "amplified_overexpressed_moderately_dependent": "moderate",
+    # WT/neutral/negative dependent → the alteration does NOT confer the dependency
+    "wt_strongly_dependent": "absent", "neutral_strongly_dependent": "absent",
+    "fusion_negative_strongly_dependent": "absent", "amp_expr_negative_more_dependent": "absent",
+    # measured, not stratified by the alteration
+    "not_mutation_stratified": "absent", "not_cn_stratified": "absent",
+    "not_fusion_stratified": "absent", "not_amp_expr_stratified": "absent",
+    # underpowered = gap, NOT absent
+    "insufficient_mutation_rate": "unmeasured", "insufficient_amplification_rate": "unmeasured",
+    "insufficient_fusion_rate": "unmeasured", "insufficient_amp_expr_rate": "unmeasured",
+    "data_unavailable": "unmeasured",
+}
+# mutation-drug-response.drug_response_stratification_class → DEP corroboration (pharmacology)
+_DRUG_CORR = {
+    "mutant_strongly_drug_sensitive": "high", "mutant_moderately_drug_sensitive": "moderate",
+    "mutant_drug_resistant": "low",
+    "not_drug_response_stratified": "moderate",
+    "insufficient_mutant_or_drug_data": "unmeasured", "no_on_target_compound": "unmeasured",
+    "data_unavailable": "unmeasured",
+}
+_INDICATION_SCOPES = {"within_indication", "within_indication_mut_vs_pan_wt"}
+
+_INFORMS = {
+    "SNV": "recurrent SNV/indel driver — patient-selection (mutation-defined subgroup)",
+    "CN": "copy-number driver — amplification/deletion biomarker",
+    "FUS": "fusion driver — rearrangement-defined subgroup",
+    "DEP": "alteration confers a genetic dependency — the actionability 'so what' (biomarker-stratified)",
+}
+
+
+def _by_class(h):
+    return (h.get("genomic_alteration_by_class") or {}) if isinstance(h, dict) else {}
+
+
+def _f(v, nd=0):
+    return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
+
+
+# ── the four claims (signal_fn -> (tier, evidence, conflict); corroboration_fn -> tier) ───────────
+def _snv_signal(h, c):
+    bc = _by_class(h).get("snv_indel") or {}
+    landscape = bc.get("verdict")   # mutation_landscape_class
+    if landscape == "no_mutations":
+        return "absent", "no SNV/indel mutations in cohort", None
+    rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class") or bc.get("recurrence_class")
+    sig = _RECURRENCE_SIGNAL.get(rec, "unmeasured")
+    ev = (f"SNV: {landscape or 'data_unavailable'}, recurrence {rec or 'data_unavailable'}"
+          + (f" ({_f((h.get('pooled_mutation_frequency') or h.get('overall_mutation_frequency') or 0) * 100, 1)}% freq)"
+             if isinstance(h.get("pooled_mutation_frequency") or h.get("overall_mutation_frequency"), (int, float)) else ""))
+    return sig, ev, None
+
+
+def _snv_corroboration(h, c):
+    rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")
+    if _RECURRENCE_SIGNAL.get(rec, "unmeasured") == "unmeasured":
+        return "unmeasured"
+    cohorts = h.get("pooled_recurrence_cohorts")
+    n_cohorts = len(cohorts) if isinstance(cohorts, (list, tuple)) else (cohorts if isinstance(cohorts, int) else 0)
+    genie = h.get("genie_driver_recurrence_class")
+    base = "moderate"
+    if n_cohorts and n_cohorts >= 2:
+        base = bump_corroboration(base, True)   # independent multi-cohort recurrence
+    if genie in ("bottom_decile",) and rec in ("top_1pct", "top_decile"):
+        base = "low"                            # WES says driver, panel says not — disagreement
+    return base
+
+
+def _cn_signal(h, c):
+    bc = _by_class(h).get("copy_number") or {}
+    cls = bc.get("verdict")   # copy_number_class (cell-line)
+    sig = _CN_SIGNAL.get(cls, "unmeasured")
+    focal = h.get("patient_focal_cn_class")
+    if sig_ge(sig, "moderate") and focal in _CN_FOCAL_POS:
+        sig = "strong"        # patient-tumour focal CN confirms the cell-line recurrence → strong
+    ev = f"CN: cell-line {cls or 'data_unavailable'}, patient-focal {focal or 'data_unavailable'}"
+    return sig, ev, None
+
+
+def _cn_corroboration(h, c):
+    bc = _by_class(h).get("copy_number") or {}
+    cls = bc.get("verdict")
+    if _CN_SIGNAL.get(cls, "unmeasured") == "unmeasured":
+        return "unmeasured"
+    focal = h.get("patient_focal_cn_class")
+    amp = cls == "recurrently_amplified"
+    deld = cls == "recurrently_deleted"
+    if (amp and focal == "recurrent_focal_amplification") or (deld and focal == "recurrent_focal_deletion"):
+        return "high"         # cell-line + patient-tumour agree on direction
+    if focal in ("focal_neutral",) and cls in ("recurrently_amplified", "recurrently_deleted"):
+        return "low"          # cell-line recurrent but patient tumour focal-neutral — disagreement
+    return "moderate"
+
+
+def _fus_signal(h, c):
+    bc = _by_class(h).get("fusion") or {}
+    cls = bc.get("verdict")   # fusion_class
+    return _FUS_SIGNAL.get(cls, "unmeasured"), f"fusion: {cls or 'data_unavailable'}", None
+
+
+def _fus_corroboration(h, c):
+    bc = _by_class(h).get("fusion") or {}
+    if _FUS_SIGNAL.get(bc.get("verdict"), "unmeasured") == "unmeasured":
+        return "unmeasured"
+    return _RECURRENCE_SIGNAL_TO_CORR.get(bc.get("genie_sv_recurrence_class"), "moderate")
+
+
+# GENIE-SV recurrence percentile → corroboration tier (top bands corroborate; low band doesn't)
+_RECURRENCE_SIGNAL_TO_CORR = {"top_1pct": "high", "top_decile": "high", "mid": "moderate",
+                              "bottom_decile": "low", "data_unavailable": "moderate"}
+
+
+def _dep_signal(h, c):
+    bc = _by_class(h)
+    fields = [
+        h.get("mutation_stratification_class") or (bc.get("snv_indel") or {}).get("stratified_dependency_class"),
+        h.get("cn_stratification_class") or (bc.get("copy_number") or {}).get("stratified_dependency_class"),
+        h.get("amp_expr_stratification_class") or (bc.get("copy_number") or {}).get("amp_expr_dependency_class"),
+        h.get("fusion_stratification_class") or (bc.get("fusion") or {}).get("stratified_dependency_class"),
+    ]
+    tiers = [_STRAT_SIGNAL.get(f, "unmeasured") for f in fields if f is not None]
+    measured = [t for t in tiers if SIGNAL_ORD.get(t) is not None]
+    if not measured:
+        return "unmeasured", "no biomarker-stratified dependency measured", None
+    best = max(measured, key=lambda t: SIGNAL_ORD[t])
+    fired = [f for f in fields if f and _STRAT_SIGNAL.get(f) == best]
+    return best, f"biomarker-stratified dependency: strongest = {fired[0] if fired else best}", None
+
+
+def _dep_corroboration(h, c):
+    # only meaningful when the alteration confers a dependency (a positive DEP signal)
+    drug = h.get("drug_response_stratification_class")
+    base = _DRUG_CORR.get(drug, "unmeasured")
+    # within-indication (not a pan-cancer extrapolation) localisation raises confidence
+    scopes = [h.get("stratified_evidence_scope"), h.get("cn_stratified_evidence_scope"),
+              h.get("fusion_stratified_evidence_scope"), h.get("amp_expr_stratified_evidence_scope")]
+    if base in ("moderate", "low") and any(s in _INDICATION_SCOPES for s in scopes):
+        base = bump_corroboration(base, True)
+    return base
+
+
+SNV, CN, FUS, DEP = "SNV", "CN", "FUS", "DEP"
+GENOMIC_CLAIM_SPEC = [
+    ClaimSpec(SNV, "recurrent SNV/indel driver", _snv_signal, _snv_corroboration, _INFORMS["SNV"]),
+    ClaimSpec(CN, "copy-number driver", _cn_signal, _cn_corroboration, _INFORMS["CN"]),
+    ClaimSpec(FUS, "fusion driver", _fus_signal, _fus_corroboration, _INFORMS["FUS"]),
+    ClaimSpec(DEP, "alteration confers dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"]),
+]
+
+_DISCLAIMER = (
+    "Verdict-INERT projection of the alteration cards into orthogonal per-class claims (SNV recurrent "
+    "SNV/indel driver / CN copy-number driver / FUS fusion driver / DEP alteration-confers-dependency), "
+    "each signal×corroboration. Claims are NOT additive; genomic-alteration is a MIX — a strong CN does "
+    "not degrade a weak SNV, and the strongest class is what drives. DEP asks whether the ALTERATION "
+    "confers a genetic dependency (a WT/neutral-dependent signal is `absent` here). corroboration is a "
+    "within-claim support tier, NOT the axis certainty. Never feeds the genomic_alteration verdict.")
+
+
+def genomic_claim_vector(headline: dict, cards: list) -> dict:
+    """The verdict-inert claim vector {SNV,CN,FUS,DEP: {signal, corroboration, evidence, conflict,
+    informs}, _disclaimer}. Projection over the computed headline."""
+    return build_claim_vector(GENOMIC_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+
+
+def genomic_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, direct, CITED read (deterministic; available without the LLM)."""
+    vec = genomic_claim_vector(headline, cards)
+    h = headline
+
+    def sup_snv(claim):
+        rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")
+        return f"Recurrent SNV/indel driver — {rec} recurrence [mutation-hotspot-frequency]"
+
+    def sup_cn(claim):
+        bc = _by_class(h).get("copy_number") or {}
+        return (f"Copy-number driver — {bc.get('verdict')} (patient-focal {h.get('patient_focal_cn_class')}) "
+                f"[copy-number-distribution]")
+
+    def sup_fus(claim):
+        return f"Fusion driver — {(_by_class(h).get('fusion') or {}).get('verdict')} [fusion-rearrangement-landscape]"
+
+    def sup_dep(claim):
+        return (f"Alteration confers a dependency — {vec['DEP']['evidence'].split('= ')[-1]} "
+                f"(drug-response {h.get('drug_response_stratification_class')}) [stratified-dependency + drug-response]")
+
+    def cav_snv(claim):
+        return f"Not a recurrent SNV driver — {h.get('pooled_driver_recurrence_class') or h.get('driver_recurrence_class')} recurrence [mutation-hotspot-frequency]"
+
+    def cav_cn(claim):
+        return f"No recurrent copy-number alteration — {(_by_class(h).get('copy_number') or {}).get('verdict')} [copy-number-distribution]"
+
+    def cav_dep(claim):
+        return "Alteration does not confer a measured genetic dependency (WT/neutral or not-stratified) [stratified-dependency]"
+
+    def head(v, supports):
+        drivers = [k for k in (SNV, CN, FUS) if sig_ge(v[k]["signal"], "moderate")]
+        names = {SNV: "SNV/indel", CN: "Copy-number", FUS: "Fusion"}
+        if len(drivers) >= 2:
+            base = "Multi-class alteration driver (" + " + ".join(names[k] for k in drivers) + ")."
+        elif len(drivers) == 1:
+            base = f"{names[drivers[0]]}-driven alteration."
+        elif any(v[k]["signal"] == "weak" for k in (SNV, CN, FUS)):
+            base = "Sub-threshold alteration signal (passenger-leaning)."
+        elif all(v[k]["signal"] in ("absent", "unmeasured") for k in (SNV, CN, FUS)):
+            base = "No recurrent alteration (passenger / not altered)."
+        else:
+            base = "Alteration profile largely unmeasured."
+        if sig_ge(v[DEP]["signal"], "moderate"):
+            base = base.rstrip(".") + ", biomarker-stratified dependency."
+        return base
+
+    return build_key_signals(
+        vec,
+        rank_keys=(SNV, CN, FUS, DEP),
+        support_fns={SNV: sup_snv, CN: sup_cn, FUS: sup_fus, DEP: sup_dep},
+        # DEP first: the decision-critical caveat for a genomic call is "the alteration is a passenger /
+        # confers no dependency"; then the class drivers.
+        critical_keys=(DEP, SNV, CN, FUS),
+        caveat_fns={SNV: cav_snv, CN: cav_cn, FUS: cav_cn, DEP: cav_dep},
+        headline_fn=head,
+    )
+
+
+__all__ = ["genomic_claim_vector", "genomic_key_signals", "GENOMIC_CLAIM_SPEC"]
