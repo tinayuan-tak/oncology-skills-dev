@@ -40,7 +40,7 @@
 #     no snapshot yet (the test skips its hard assertion, reports as pending).
 #   - Extending is cheap — add an entry + (for measured ones) a snapshot; bump version.
 
-version: 1.1.0
+version: 1.2.0
 snapshot_date: "2026-07-19"
 curator: ryan.abo@takeda.com
 depmap_release_pin: depmap-consortium-26q1   # snapshots captured against this release
@@ -178,6 +178,11 @@ abstention_cases:
 #   window_veto_cohort_confounded — vetoed, but scored in a non-approved cohort (confounds the read).
 #   discordant_flag             — validated antigen not landing selective (comparator conflict).
 #   not_selective_control       — a non-over-expressed control correctly read not_selective.
+#   selective_with_liability_correct — Phase S FIX (skills #554 + contracts #417): the sc-normal
+#                                 critical-organ arm now reads selective_with_normal_liability (a
+#                                 named-organ SAFETY flag), NOT the housekeeping selective_but_broadly_
+#                                 normal KILL. DLL3/ERBB2/FOLR1/MET flipped here from over_veto_false_
+#                                 negative — the intended regression signal.
 # This is the FOUNDATION that gates every verdict-moving selectivity change; snapshots captured
 # from ~/dev/framework-runs/full/tumor-selectivity (recount3 tcga-gtex-2023-01-04 substrate).
 # ---------------------------------------------------------------------------
@@ -223,11 +228,10 @@ selectivity_cases:
     assertion_type: selectivity_verdict_expected
     measured: true
     snapshot: dll3_sclc.tumor-selectivity.json
-    expected_selectivity_class: selective_but_broadly_normal
+    expected_selectivity_class: selective_with_normal_liability
     expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
-    disposition: over_veto_false_negative
-    should_be: strong_tumor_selective
-    note: "APPROVED DRUG mis-vetoed. sc-normal fires on 'neuron of the forebrain' (critical_organ_liability). COMPOUND defect: SCLC not in TCGA → cells_ran=1 (GTEx-only) → axis_a=strong off a single confounded comparator (plan V1). Flip target when Phase S/V land."
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S (sc-normal veto split, skills #554 + contracts #417). Was over_veto_false_negative (selective_but_broadly_normal); now selective_with_normal_liability — the approved drug reads SELECTIVE with a named forebrain-neuron liability, no longer lumped with housekeeping. The named-organ SAFETY severity is owned by on-target-safety-liability."
 
   ERBB2:
     indication: BRCA
@@ -236,11 +240,10 @@ selectivity_cases:
     assertion_type: selectivity_verdict_expected
     measured: true
     snapshot: erbb2_brca.tumor-selectivity.json
-    expected_selectivity_class: selective_but_broadly_normal
+    expected_selectivity_class: selective_with_normal_liability
     expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
-    disposition: over_veto_false_negative
-    should_be: strong_tumor_selective
-    note: "The biologics flagship, mis-vetoed. Cardiomyocyte liability is biologically REAL (HER2 cardiotox) but HER2 is approved → the modality/therapeutic-index tension the plan's modality-aware clamp (V3) addresses. Pinned as the calibration tension case."
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S. The biologics flagship now reads SELECTIVE with a named nephron/cardiomyocyte liability (HER2 cardiotox is REAL but HER2 is approved) — the modality/therapeutic-index tension is now surfaced as a named liability rather than a blunt kill. Safety severity owned by on-target-safety-liability + modality-fit."
 
   FOLR1:
     indication: OV
@@ -249,11 +252,10 @@ selectivity_cases:
     assertion_type: selectivity_verdict_expected
     measured: true
     snapshot: folr1_ov.tumor-selectivity.json
-    expected_selectivity_class: selective_but_broadly_normal
+    expected_selectivity_class: selective_with_normal_liability
     expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
-    disposition: over_veto_false_negative
-    should_be: strong_tumor_selective
-    note: "APPROVED DRUG mis-vetoed. sc-normal fires on renal loop-of-Henle. Renal expression is real, but mirvetuximab is approved → over-veto. Flip target."
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S. mirvetuximab (approved OV) now reads SELECTIVE with a named renal loop-of-Henle liability — real renal expression surfaced as a named safety concern, not loss of selectivity."
 
   MET:
     indication: COADREAD
@@ -262,11 +264,10 @@ selectivity_cases:
     assertion_type: selectivity_verdict_expected
     measured: true
     snapshot: met_coadread.tumor-selectivity.json
-    expected_selectivity_class: selective_but_broadly_normal
+    expected_selectivity_class: selective_with_normal_liability
     expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
-    disposition: over_veto_false_negative
-    should_be: strong_tumor_selective
-    note: "sc-normal critical-organ veto; watch case for the sc-normal over-veto cluster."
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S. Now reads SELECTIVE with a named renal (outer-medulla collecting-duct) liability rather than the blunt broadly-normal kill."
 
   TACSTD2:
     indication: COADREAD

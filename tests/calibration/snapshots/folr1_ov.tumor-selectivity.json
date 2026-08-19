@@ -3,9 +3,9 @@
   "skill": "tumor-selectivity",
   "target": "FOLR1",
   "indication": "OV",
-  "_source_run": "FOLR1-OV",
+  "_source_run": "live-phase-S-newclamp/FOLR1-OV",
   "headline": {
-    "selectivity_class": "selective_but_broadly_normal",
+    "selectivity_class": "selective_with_normal_liability",
     "driving_rule_id": "tvn-sc-normal-critical-organ-veto",
     "axis_a_selectivity_class": "strong_tumor_selective",
     "cells_supporting": 1.0,

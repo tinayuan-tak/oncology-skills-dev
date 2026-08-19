@@ -3,9 +3,9 @@
   "skill": "tumor-selectivity",
   "target": "DLL3",
   "indication": "SCLC",
-  "_source_run": "DLL3-SCLC",
+  "_source_run": "live-phase-S-newclamp/DLL3-SCLC",
   "headline": {
-    "selectivity_class": "selective_but_broadly_normal",
+    "selectivity_class": "selective_with_normal_liability",
     "driving_rule_id": "tvn-sc-normal-critical-organ-veto",
     "axis_a_selectivity_class": "strong_tumor_selective",
     "cells_supporting": 1.0,

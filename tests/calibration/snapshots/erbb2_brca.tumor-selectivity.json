@@ -3,9 +3,9 @@
   "skill": "tumor-selectivity",
   "target": "ERBB2",
   "indication": "BRCA",
-  "_source_run": "ERBB2-BRCA",
+  "_source_run": "live-phase-S-newclamp/ERBB2-BRCA",
   "headline": {
-    "selectivity_class": "selective_but_broadly_normal",
+    "selectivity_class": "selective_with_normal_liability",
     "driving_rule_id": "tvn-sc-normal-critical-organ-veto",
     "axis_a_selectivity_class": "strong_tumor_selective",
     "cells_supporting": 3.0,

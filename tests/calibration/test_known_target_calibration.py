@@ -42,6 +42,7 @@ SELECTIVITY_VETO_VERDICT = "selective_but_broadly_normal"
 _SELECTIVITY_DISPOSITIONS = {
     "clean_positive", "over_veto_false_negative", "window_veto_cohort_confounded",
     "discordant_flag", "not_selective_control", "true_negative_veto",
+    "selective_with_liability_correct",   # Phase S: sc-normal over-veto FIXED → named-organ liability
 }
 
 
