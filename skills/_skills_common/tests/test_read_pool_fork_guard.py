@@ -45,7 +45,7 @@ def _install_fakes(monkeypatch):
     monkeypatch.setattr(multiprocessing, "get_context", lambda method: _FakeCtx())
     monkeypatch.setattr(
         skc, "_read_cards_threaded",
-        lambda card_ids, target, indication, subgroup_context, max_workers:
+        lambda card_ids, target, indication, subgroup_context, max_workers, plot_data_root=None:
             [f"THREAD:{c}" for c in card_ids])
 
 

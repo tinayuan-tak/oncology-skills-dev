@@ -560,7 +560,8 @@ def _dispatch_phospho_pathway_activity(target: str, indication: str) -> Optional
 #   3. Returns the method's summary dict unchanged
 
 
-def _dispatch_expression_distribution(target: str, indication: str) -> Optional[dict]:
+def _dispatch_expression_distribution(target: str, indication: str,
+                                      plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route cellline-rna-distribution card (E3.a) to
     methods/depmap_expression_distribution/read.py.
 
@@ -575,7 +576,10 @@ def _dispatch_expression_distribution(target: str, indication: str) -> Optional[
     `n_models` is remapped to the card field `isoform_n_models` to avoid colliding with the
     expression panel's own cell-line count."""
     expr_module = _import_method("depmap_expression_distribution")
-    out = dict(expr_module.read_expression_distribution(target=target, indication=indication))
+    _expr_kw = {"target": target, "indication": indication}
+    if plot_data_out is not None:  # figure Stage 1: persist plot_data during resolution
+        _expr_kw["plot_data_out"] = plot_data_out
+    out = dict(expr_module.read_expression_distribution(**_expr_kw))
     try:
         iso_mod = _import_method("depmap_isoform_expression")
         iso = iso_mod.isoform_summary_for_gene(target)
@@ -1576,7 +1580,8 @@ PANORAMA_DISPATCHERS = {
 
 def read_live_summary(card_id: str, target: str, indication: str,
                        subgroup_context: Optional[dict] = None,
-                       data_context: Optional[dict] = None) -> Optional[dict]:
+                       data_context: Optional[dict] = None,
+                       plot_data_root: Optional[Path] = None) -> Optional[dict]:
     """Dispatch a live-read for the named card to its corresponding method module.
 
     Two dispatch paths:
@@ -1634,17 +1639,22 @@ def read_live_summary(card_id: str, target: str, indication: str,
         # data-driven path. If the card_spec's method declares a `module` + `entrypoint`, invoke it
         # directly, so a new pure-passthrough card needs NO hand-written _dispatch_* function. Returns
         # None only when the card has no generic wiring either (genuinely unwired → caller stubs/fails).
-        return _generic_dispatch(card_id, target, indication, data_context=_dctx)
+        return _generic_dispatch(card_id, target, indication, data_context=_dctx,
+                                 plot_data_root=plot_data_root)
     try:
         # T4: forward data_context ONLY to dispatchers whose signature declares it (release-aware
         # readers); single-release dispatchers keep the (target, indication) signature untouched.
+        # Figure Stage 1: same introspection forwards plot_data_out (a per-card dir) to dispatchers
+        # that declare it, so card RESOLUTION persists plot_data. Inert for dispatchers that don't.
         kwargs = {"target": target, "indication": indication}
         import inspect
         try:
             params = inspect.signature(dispatcher).parameters
-            if _dctx and ("data_context" in params
-                          or any(p.kind == p.VAR_KEYWORD for p in params.values())):
+            _accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in params.values())
+            if _dctx and ("data_context" in params or _accepts_var_kw):
                 kwargs["data_context"] = _dctx
+            if plot_data_root is not None and ("plot_data_out" in params or _accepts_var_kw):
+                kwargs["plot_data_out"] = Path(plot_data_root) / "cards" / card_id
         except (ValueError, TypeError):
             pass
         return dispatcher(**kwargs)
@@ -1653,7 +1663,8 @@ def read_live_summary(card_id: str, target: str, indication: str,
 
 
 def _generic_dispatch(card_id: str, target: str, indication: str,
-                      data_context: Optional[dict] = None) -> Optional[dict]:
+                      data_context: Optional[dict] = None,
+                      plot_data_root: Optional[Path] = None) -> Optional[dict]:
     """Data-driven dispatch (T11): resolve (module, entrypoint) from the card_spec's first method
     and call it as fn(target=, indication=). This collapses the ~30 pure-passthrough dispatchers
     (mod = _import_method(X); return mod.read_Y(target=, indication=)) into card_spec data, so a new
@@ -1706,6 +1717,10 @@ def _generic_dispatch(card_id: str, target: str, indication: str,
                 pin = _dctx.get("release_pin")
                 if pin is not None:
                     kwargs["release_pin"] = pin
+            # Figure Stage 1: forward a per-card plot_data dir ONLY to readers that declare
+            # plot_data_out (or **kwargs). Omitted otherwise → byte-identical to the legacy call.
+            if plot_data_root is not None and (accepts_var_kw or "plot_data_out" in params):
+                kwargs["plot_data_out"] = Path(plot_data_root) / "cards" / card_id
         except (ValueError, TypeError):
             # signature() can fail on some builtins/C callables — fall back to the legacy call.
             kwargs = {"target": target, "indication": indication}

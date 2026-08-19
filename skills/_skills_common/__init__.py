@@ -185,20 +185,27 @@ def _summary_is_unavailable(summary: dict) -> Optional[str]:
 
 
 def _resolve_one_card(card_id: str, target: str, indication: str,
-                      subgroup_context: "Optional[dict]") -> dict:
+                      subgroup_context: "Optional[dict]",
+                      plot_data_root: "Optional[Path]" = None) -> dict:
     """Read + classify ONE card into its card_output dict. MODULE-LEVEL (picklable) so it can run in
     either a thread or a FORKED worker process. Imports the live-reader dispatcher internally (cached
     — a no-op in a forked child, which inherits the parent's already-imported modules). Returns a
     fresh dict per card (no shared mutable state), and read exceptions propagate to the caller exactly
-    as in the sequential path."""
+    as in the sequential path.
+
+    plot_data_root (figure Stage 1): OPT-IN. When set, forwarded to the dispatcher so the method
+    persists its plot_data under <plot_data_root>/cards/<card_id>/ DURING resolution. None => the
+    exact former scalar call (byte-identical)."""
     read_live = _import_dispatcher()
+    _read_kw = {}
     if subgroup_context is not None:
-        try:
-            summary = read_live(card_id, target, indication, subgroup_context=subgroup_context)
-        except TypeError:
-            # Dispatcher predates the subgroup_context kwarg — scalar fallback.
-            summary = read_live(card_id, target, indication)
-    else:
+        _read_kw["subgroup_context"] = subgroup_context
+    if plot_data_root is not None:
+        _read_kw["plot_data_root"] = plot_data_root
+    try:
+        summary = read_live(card_id, target, indication, **_read_kw)
+    except TypeError:
+        # Dispatcher predates one of these kwargs — scalar fallback (backward-compat).
         summary = read_live(card_id, target, indication)
     if summary is None:
         return {
@@ -234,14 +241,17 @@ def _resolve_one_card_star(args: tuple) -> dict:
     return _resolve_one_card(*args)
 
 
-def _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers) -> list:
+def _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
+                         plot_data_root=None) -> list:
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=min(max_workers, len(card_ids))) as ex:
         return list(ex.map(
-            lambda c: _resolve_one_card(c, target, indication, subgroup_context), card_ids))
+            lambda c: _resolve_one_card(c, target, indication, subgroup_context, plot_data_root),
+            card_ids))
 
 
-def _read_cards_process(card_ids, target, indication, subgroup_context, max_workers) -> list:
+def _read_cards_process(card_ids, target, indication, subgroup_context, max_workers,
+                        plot_data_root=None) -> list:
     """OPT-IN (SKILLS_READ_POOL=process): read cards in FORKED worker processes to bypass the GIL.
     The reader CPU (pandas assembly, per-row dict builds) is GIL-bound, so a thread pool serializes it
     — profiling showed the cold parallel read is GIL-limited, and a fork pool did 12.8s -> 8.7s.
@@ -270,24 +280,28 @@ def _read_cards_process(card_ids, target, indication, subgroup_context, max_work
     # before; verified by test.) Checked on the thread identity, not active_count(), so a stray
     # daemon thread in some environment cannot silently disable the fork pool for standalone runs.
     if threading.current_thread() is not threading.main_thread():
-        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers)
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
+                                    plot_data_root)
     try:
         ctx = mp.get_context("fork")
     except ValueError:
         # No fork on this platform — thread pool is the safe equivalent.
-        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers)
-    args = [(c, target, indication, subgroup_context) for c in card_ids]
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
+                                    plot_data_root)
+    args = [(c, target, indication, subgroup_context, plot_data_root) for c in card_ids]
     try:
         with ctx.Pool(processes=min(max_workers, len(card_ids))) as pool:
             return pool.map(_resolve_one_card_star, args)
     except Exception as e:  # noqa: BLE001 — the pool is an optimization; never break the run
         print(f"[resolve_cards] SKILLS_READ_POOL=process failed ({type(e).__name__}: {e}); "
               f"falling back to the thread pool.", file=sys.stderr)
-        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers)
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
+                                    plot_data_root)
 
 
 def resolve_cards(card_ids: list[str], target: str, indication: str,
-                  subgroup_context: Optional[dict] = None) -> list[dict]:
+                  subgroup_context: Optional[dict] = None,
+                  plot_data_root: Optional[Path] = None) -> list[dict]:
     """Fetch live summaries for a list of card_ids via the compose-dashboard
     dispatcher registry. Returns one card_output dict per card_id.
 
@@ -301,6 +315,12 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
     subgroup_context (optional): when provided, threaded to the dispatcher so
     panorama cards (subgroup-stratified-*) fan out across the resolved strata.
     Scalar cards ignore it. None → scalar-only (backward-compat).
+
+    plot_data_root (optional, figure Stage 1): when provided, forwarded to each dispatcher so the
+    method persists its plot_data under <plot_data_root>/cards/<card_id>/ AS AN ARTIFACT OF
+    RESOLUTION (not a figure re-read). Only readers whose signature declares plot_data_out receive
+    it (signature-introspected, like data_context); all others are untouched. None → no persistence
+    (byte-identical to the former call).
 
     FRAMEWORK_HEALTH_SMOKE (env flag): when set, SKIP all live dispatcher reads and
     return a synthetic minimal card output per card_id. This lets the framework-health
@@ -339,11 +359,14 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
         _max_workers = 8
     _pool_mode = os.environ.get("SKILLS_READ_POOL", "thread").strip().lower()
     if len(card_ids) <= 1 or _max_workers <= 1:
-        outputs = [_resolve_one_card(cid, target, indication, subgroup_context) for cid in card_ids]
+        outputs = [_resolve_one_card(cid, target, indication, subgroup_context, plot_data_root)
+                   for cid in card_ids]
     elif _pool_mode == "process":
-        outputs = _read_cards_process(card_ids, target, indication, subgroup_context, _max_workers)
+        outputs = _read_cards_process(card_ids, target, indication, subgroup_context, _max_workers,
+                                      plot_data_root)
     else:
-        outputs = _read_cards_threaded(card_ids, target, indication, subgroup_context, _max_workers)
+        outputs = _read_cards_threaded(card_ids, target, indication, subgroup_context, _max_workers,
+                                       plot_data_root)
     # PROVENANCE (2026-08-13): stamp each card_output with the manifest ids it DECLARES as inputs
     # (card_spec.required_inputs[].product_id), so the subskill default path carries the same real
     # per-card data provenance as the composed engine — the basis for the decision.json governance
