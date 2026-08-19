@@ -515,6 +515,21 @@ def test_dependency_claim_scope_layout(tmp_path):
     assert '<details class="card"' in page and 'class="flowtabs"' in page
 
 
+def test_dependency_question_table_leads(tmp_path):
+    """functional-requirement LEADS with the 7-question signal+confidence dependency table; the
+    claim×scope layout is demoted to a drill-down below it (mirrors the presence table, #553)."""
+    page = G.render_page(_dependency_decision(), tmp_path, fig_map={}, interactive=False)
+    assert "Dependency at a glance" in page
+    # signal meters (7 rows × 5 segs) + confidence dots present
+    assert page.count('class="seg') >= 35
+    assert 'class="dot"' in page or 'class="dot on"' in page
+    # the table LEADS; the claim×scope layout is inside the demoted drill-down
+    assert page.index("Dependency at a glance") < page.index("Detailed evidence by dependency claim")
+    assert page.index("Detailed evidence by dependency claim") < page.index("DEP · Genetic dependency")
+    # Q2 window question present (the inverted therapeutic-window read)
+    assert "Selective, or pan-essential?" in page
+
+
 def test_dependency_layout_only_for_functional_requirement(tmp_path):
     # a skill that is NEITHER functional-requirement, tumor-presence, NOR tumor-selectivity must get
     # the FLAT cardlist (no claim layout, no scope/question-table layout) — the byte-stable path for

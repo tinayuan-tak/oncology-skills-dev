@@ -1215,20 +1215,32 @@ def _question_table_html(decision: dict, h: dict) -> str:
     """The LEADING question × (data · signal · confidence) summary table, rendered by the SHARED
     renderer (`render_question_table_html`) so the gallery and the composed target-profile dashboard
     produce the identical table. GENERIC: prefers the rows the skill already EMITTED on
-    `headline['question_table']` (tumor-presence's 7-question + tumor-selectivity's 8-question tables
-    both emit it); falls back to computing the presence table live for older packages. Verdict-inert;
-    best-effort (absent → nothing rendered). include_css=True ships the shared table CSS inline."""
+    `headline['question_table']` (presence 7-question, selectivity 8-question, dependency 7-question all
+    emit it); falls back to computing the presence table live for older packages. The caption title +
+    signal-header are per-skill (Presence / Selectivity / Dependency). Verdict-inert; best-effort."""
     try:
         if str(SKILLS_DIR) not in sys.path:
             sys.path.insert(0, str(SKILLS_DIR))
         from _skills_common.presence_question_table import (presence_question_table,
                                                             render_question_table_html)
-        # the skill's own verdict field for the caption (presence_verdict | selectivity_class)
-        verdict = h.get("presence_verdict") or h.get("selectivity_class")
+        skill = decision.get("skill", "")
+        # per-skill caption title + verdict field + signal-header (default = presence, back-compat)
+        title, verdict, sig_hdr = "Presence", h.get("presence_verdict"), "Signal — supports presence →"
+        if skill == "functional-requirement":
+            title, verdict = "Dependency", h.get("dependency_verdict")
+            sig_hdr = "Signal — selective dependency →"
+        elif skill == "tumor-selectivity":
+            title, verdict = "Selectivity", h.get("selectivity_class")
+            sig_hdr = "Signal — tumor-selective →"
         rows = h.get("question_table")           # emitted by the skill (generic, preferred)
-        if not rows:                             # fallback: recompute the presence table live
-            rows = presence_question_table(h, decision.get("cards", []))
-        return render_question_table_html(rows, verdict=verdict, include_css=True)
+        if not rows:                             # fallback: recompute the table live, per skill
+            if skill == "functional-requirement":
+                from _skills_common.dependency_question_table import dependency_question_table
+                rows = dependency_question_table(h, decision.get("cards", []))
+            else:
+                rows = presence_question_table(h, decision.get("cards", []))
+        return render_question_table_html(rows, verdict=verdict, include_css=True,
+                                          title=title, signal_header=sig_hdr)
     except Exception as e:  # noqa: BLE001 — the table is additive; never break the page
         print(f"[gallery] question table unavailable ({type(e).__name__}: {e})", file=sys.stderr)
         return ""
@@ -1525,10 +1537,17 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                                           tables_dir, target, indication))
         parts.append('</div></details>')
     elif skill == "functional-requirement":
-        parts.append('<div class="lab" style="margin:18px 0 6px">Evidence by dependency claim '
-                     '<span class="hint">— grouped by DEP / SEL / COND / CHEM; click a row to expand</span></div>')
+        # LEADING view: the 7-question dependency summary table via the SHARED generic renderer (reads
+        # headline['question_table'] the skill emits). The DEP/SEL/COND/CHEM claim×scope layout is
+        # demoted to a drill-down below.
+        parts.append(_question_table_html(decision, h))
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence by dependency '
+                     'claim <span class="hint">— DEP genetic-dependency / SEL context-selectivity / '
+                     'COND conditional-SL / CHEM chemical-genetic; click a row to expand. Display only.'
+                     '</span></summary><div class="drillbody">')
         parts.append(_render_dependency_layout(decision, run_dir, fig_map, fired_by_card,
                                                tables_dir, target, indication, interactive))
+        parts.append('</div></details>')
     elif skill == "genomic-alteration-profile" and cards:
         # LEADING view: the class badge (which of SNV/CN/fusion drove) + the scope lamp
         # (indication-anchored vs pan-cancer extrapolation) — the two facets the one-word verdict hides.

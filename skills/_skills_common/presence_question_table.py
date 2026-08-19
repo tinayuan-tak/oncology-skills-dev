@@ -237,9 +237,13 @@ QUESTION_TABLE_CSS = (
 )
 
 
-def render_question_table_html(rows: list, verdict: Optional[str] = None, include_css: bool = True) -> str:
-    """Render the 7-question table (rows from `presence_question_table`) to self-contained HTML.
-    `include_css` emits the <style> block (set False when the host page already ships QUESTION_TABLE_CSS)."""
+def render_question_table_html(rows: list, verdict: Optional[str] = None, include_css: bool = True,
+                               title: str = "Presence",
+                               signal_header: str = "Signal — supports presence →") -> str:
+    """Render a question × (data · Signal meter · Confidence dots) table to self-contained HTML. Shared
+    across skills: `title` sets the "<X> at a glance" caption (Presence / Selectivity / Dependency) and
+    `signal_header` the Signal column header — both default to presence (back-compat). `include_css`
+    emits the <style> block (set False when the host page already ships QUESTION_TABLE_CSS)."""
     if not rows:
         return ""
     esc = _html.escape
@@ -257,12 +261,12 @@ def render_question_table_html(rows: list, verdict: Optional[str] = None, includ
             f'<td class="qsig"><span class="meter">{meter}</span>'
             f'<span class="siglab {pol}">{esc(str(s.get("label","")))}</span></td>'
             f'<td class="qconf"><span class="dots">{dots}</span></td></tr>')
-    cap = ('<div class="qtcap">Presence at a glance'
+    cap = (f'<div class="qtcap">{esc(title)} at a glance'
            + (f' · verdict <span class="verdict">{esc(str(verdict))}</span>' if verdict else "")
-           + ' <span class="hint">— Signal (strength · polarity toward presence) &amp; Confidence '
+           + ' <span class="hint">— Signal (strength · polarity) &amp; Confidence '
              '(corroboration), computed from the claim-vector; verdict-inert.</span></div>')
-    head = ('<tr><th>Q</th><th>Question</th><th>Data / read</th>'
-            '<th>Signal — supports presence →</th><th>Conf</th></tr>')
+    head = (f'<tr><th>Q</th><th>Question</th><th>Data / read</th>'
+            f'<th>{esc(signal_header)}</th><th>Conf</th></tr>')
     css = f"<style>{QUESTION_TABLE_CSS}</style>" if include_css else ""
     return f'{css}{cap}<table class="qtable"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table>'
 
