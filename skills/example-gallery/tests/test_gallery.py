@@ -569,3 +569,68 @@ def test_dependency_subgroup_panorama_and_scope_when_present(tmp_path):
     assert "Verdict by scope" in page and "selective_in_indication" in page
     assert "Molecular-subgroup panorama" in page
     assert "Per-subgroup dependency" in page and "MSI_H" in page and "MSS" in page
+
+
+def _genomic_decision():
+    """A KRAS/COADREAD-shaped genomic-alteration-profile decision.json for the Phase-R hero tests.
+    Mutation dependency is within_indication → scope_of_driving_verdict = indication_anchored."""
+    return {
+        "skill": "genomic-alteration-profile", "target": "KRAS", "indication": "COADREAD",
+        "headline": {
+            "genomic_alteration_profile": "biomarker_stratified_dependency",
+            "driving_rule_id": "mutant-strongly-dependent-supportive",
+            "genomic_alteration_by_class": {
+                "snv_indel":   {"verdict": "missense_dominant", "evidence_state": "measured",
+                                "stratified_dependency_class": "mutant_strongly_dependent"},
+                "copy_number": {"verdict": "broadly_neutral", "evidence_state": "measured"},
+                "fusion":      {"verdict": "no_recurrent_fusion", "evidence_state": "measured"},
+            },
+            "genomic_alteration_by_scope": {
+                "scope_of_driving_verdict": "indication_anchored",
+                "pan_cancer": {"evidence_present": True, "mutation_dependency_class": "mutant_strongly_dependent",
+                               "mutation_dependency_scope": "within_indication"},
+                "indication": {"evidence_present": True, "driver_recurrence_class": "top_1pct",
+                               "alteration_role": "direct_driver_gof", "intogen_scope": "indication"},
+                "subtype": {"evidence_present": False, "note": "pass --subtypes to populate"},
+            },
+        },
+        "cards": [
+            {"card_id": "mutation-stratified-dependency",
+             "summary": {"mutation_stratification_class": "mutant_strongly_dependent",
+                         "evidence_scope": "within_indication"}},
+            {"card_id": "copy-number-distribution", "summary": {"copy_number_class": "broadly_neutral"}},
+        ],
+    }
+
+
+def test_genomic_hero_renders_scope_lamp_and_class_badge(tmp_path):
+    page = G.render_page(_genomic_decision(), tmp_path, fig_map={}, interactive=False)
+    # leads with the genomic hero (not the flat "Evidence at a glance")
+    assert "Genomic alteration at a glance" in page
+    assert "Evidence at a glance" not in page.split("Detailed evidence")[0]
+    # verdict + driving rule surfaced in the hero
+    assert "biomarker_stratified_dependency" in page
+    assert "mutant-strongly-dependent-supportive" in page
+    # SCOPE lamp: indication-anchored, rendered green (#0ca30c)
+    assert "scope: indication-anchored" in page and "#0ca30c" in page
+    # CLASS badge: the SNV/indel class marked as the driver
+    assert "SNV/indel: missense_dominant ◄ drives" in page
+    # by-scope evidence chips
+    assert "pan-cancer: evidence" in page and "indication: evidence" in page and "subtype: none" in page
+    # detailed per-card evidence demoted to a drill-down
+    assert '<details class="drill"' in page
+
+
+def test_genomic_hero_pan_cancer_extrapolation_lamp(tmp_path):
+    """A pan-lineage-only driver reads the AMBER extrapolation lamp — the scope leak made visible."""
+    d = _genomic_decision()
+    d["headline"]["genomic_alteration_by_scope"]["scope_of_driving_verdict"] = "pan_cancer_extrapolation"
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "scope: pan-cancer extrapolation" in page and "#fab219" in page
+
+
+def test_genomic_hero_only_for_genomic_alteration(tmp_path):
+    d = _genomic_decision(); d["skill"] = "mechanism-and-pharmacology"
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "Genomic alteration at a glance" not in page
+    assert "Evidence at a glance" in page   # the flat fallback path

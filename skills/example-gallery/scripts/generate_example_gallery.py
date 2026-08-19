@@ -1372,6 +1372,77 @@ def _render_dependency_layout(decision: dict, run_dir: Path, fig_map: dict, fire
     return "".join(parts)
 
 
+# Scope-of-driving-verdict → (lamp fill, ink, label). The load-bearing genomic scope facet: at what
+# scope the collapsed verdict was earned. Mirrors the selectivity SAFE-lamp palette (green/amber/grey).
+_GENOMIC_SCOPE_LAMP = {
+    "indication_anchored":      ("#0ca30c", "#ffffff", "indication-anchored"),
+    "pan_cancer_extrapolation": ("#fab219", "#1a1a19", "pan-cancer extrapolation"),
+    "mixed":                    ("#eab308", "#1a1a19", "mixed (pan-cancer + indication corroboration)"),
+    "subtype_specific":         ("#3730a3", "#ffffff", "subtype-specific"),
+    "not_applicable":           ("#b8bcc2", "#1a1a19", "n/a"),
+    "unclassified":             ("#b8bcc2", "#1a1a19", "unclassified"),
+}
+_GENOMIC_CLASS_LABEL = {"snv_indel": "SNV/indel", "copy_number": "copy-number", "fusion": "fusion"}
+
+
+def _genomic_driving_class(rule: str | None) -> str | None:
+    """Map a genomic driving_rule_id to the alteration class it belongs to (for the class badge)."""
+    if not rule:
+        return None
+    if rule.startswith("mutant") or rule.startswith("mut-") or rule.startswith("snv-recurrence"):
+        return "snv_indel"
+    if rule.startswith("cn-") or rule.startswith("amp-expr"):
+        return "copy_number"
+    if rule.startswith("fusion"):
+        return "fusion"
+    return None
+
+
+def _genomic_hero_html(decision: dict, h: dict) -> str:
+    """Phase-R hero for genomic-alteration-profile: the collapsed verdict + a CLASS badge (which of
+    SNV/indel / copy-number / fusion drove) + a SCOPE lamp (indication-anchored vs pan-cancer
+    extrapolation vs mixed) — the two facets the one-word verdict hides. Reads the verdict-inert headline
+    blocks genomic_alteration_by_class + genomic_alteration_by_scope. Display-only."""
+    verdict = h.get("genomic_alteration_profile") or "insufficient"
+    drv = h.get("driving_rule_id") or "—"
+    by_scope = h.get("genomic_alteration_by_scope") or {}
+    by_class = h.get("genomic_alteration_by_class") or {}
+    scope = by_scope.get("scope_of_driving_verdict") or "not_applicable"
+    fill, ink, scope_label = _GENOMIC_SCOPE_LAMP.get(scope, _GENOMIC_SCOPE_LAMP["unclassified"])
+    dclass = _genomic_driving_class(h.get("driving_rule_id"))
+
+    class_chips = []
+    for cls in ("snv_indel", "copy_number", "fusion"):
+        entry = by_class.get(cls) or {}
+        cv = entry.get("verdict") or "—"
+        measured = entry.get("evidence_state") == "measured"
+        kind = "good" if (cls == dclass and measured) else ("neutral" if measured else "weak")
+        drives = ' ◄ drives' if cls == dclass else ''
+        class_chips.append(f'<span class="chip {kind}" title="{_esc(cls)}">'
+                           f'{_GENOMIC_CLASS_LABEL[cls]}: {_esc(str(cv))}{drives}</span>')
+
+    scope_chips = []
+    for sk, slabel in (("pan_cancer", "pan-cancer"), ("indication", "indication"), ("subtype", "subtype")):
+        present = bool((by_scope.get(sk) or {}).get("evidence_present"))
+        scope_chips.append(f'<span class="chip {"good" if present else "weak"}">'
+                           f'{slabel}: {"evidence" if present else "none"}</span>')
+
+    return (
+        '<div class="lab" style="margin:18px 0 6px">Genomic alteration at a glance '
+        '<span class="hint">— which alteration CLASS drives, and at what SCOPE it was earned</span></div>'
+        '<div class="ghero" style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:14px">'
+        f'<div style="font-size:18px;font-weight:700">{_esc(str(verdict))}</div>'
+        f'<div class="hint" style="margin:2px 0 10px">driving rule: <code>{_esc(str(drv))}</code></div>'
+        '<div style="margin-bottom:10px">'
+        f'<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-weight:700;'
+        f'background:{fill};color:{ink}">scope: {scope_label}</span></div>'
+        '<div style="margin-bottom:6px"><span class="hint">class mix — </span>'
+        + " ".join(class_chips) + '</div>'
+        '<div><span class="hint">evidence by scope — </span>' + " ".join(scope_chips) + '</div>'
+        '</div>'
+    )
+
+
 def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool) -> str:
     """One self-contained, DIGESTIBLE HTML page for a subskill run: exec summary + at-a-glance
     evidence strip + per-card (title + headline chip + key metrics + figure + collapsible full data)."""
@@ -1380,6 +1451,7 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     indication = decision.get("indication") or "target-grain"
     h = decision.get("headline", {}) or {}
     verdict = h.get("presence_verdict") or h.get("verdict") or h.get("mechanism_verdict") \
+        or h.get("genomic_alteration_profile") \
         or next((v for k, v in h.items() if k.endswith("_verdict")), None)
     driving = h.get("driving_rule_id")
 
@@ -1457,6 +1529,20 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                      '<span class="hint">— grouped by DEP / SEL / COND / CHEM; click a row to expand</span></div>')
         parts.append(_render_dependency_layout(decision, run_dir, fig_map, fired_by_card,
                                                tables_dir, target, indication, interactive))
+    elif skill == "genomic-alteration-profile" and cards:
+        # LEADING view: the class badge (which of SNV/CN/fusion drove) + the scope lamp
+        # (indication-anchored vs pan-cancer extrapolation) — the two facets the one-word verdict hides.
+        parts.append(_genomic_hero_html(decision, h))
+        # Detailed evidence, demoted to a drill-down: the flat per-card list (same _card_block_html).
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
+                     '<span class="hint">— per-card: the SNV / copy-number / fusion classes + '
+                     'dependency / recurrence / role + cohort context; click a row to expand. '
+                     'Display only.</span></summary><div class="drillbody">')
+        parts.append('<div class="cardlist">')
+        for idx, c in enumerate(cards):
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                          target, indication, uid=f"{idx}"))
+        parts.append('</div></div></details>')
     elif skill == "tumor-selectivity" and cards:
         # LEADING view: the 8-question × (data · signal · confidence) selectivity table (WIN-drives /
         # SAFE-gates), rendered from the emitted headline['question_table'] via the shared renderer.
