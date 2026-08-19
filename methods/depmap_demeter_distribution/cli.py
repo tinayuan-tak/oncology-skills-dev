@@ -78,7 +78,7 @@ def _parse_gene_symbol(label: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, list]:
+def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, list, "Optional[pd.DataFrame]"]:
     """Load D2_combined_gene_dep_scores for target + sample_info + Model.csv.
 
     Returns:
@@ -166,14 +166,14 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
             "detail": str(e),
             "remediation": f"Install boto3 or provide local RNAi cache at one of {[str(d) for d in RNAI_LOCAL_FALLBACK_DIRS]}",
         })
-        return {}, {}, load_errors
+        return {}, {}, load_errors, sample_info_df
     except Exception as e:
         load_errors.append({
             "_live_read_error": "s3_read_failed",
             "detail": str(e),
             "remediation": f"Ensure AWS credentials are set and {RNAI_S3_PREFIX} is accessible.",
         })
-        return {}, {}, load_errors
+        return {}, {}, load_errors, sample_info_df
 
     # === 3. Extract target gene row ===
     # Parquet path already produced target_row_dict ({ccle_id: score}); CSV path
@@ -193,7 +193,7 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
             "detail": f"Target {target_symbol} not found in D2_combined_gene_dep_scores.csv (RNAi panel)",
             "remediation": "Confirm HGNC symbol spelling; check whether target was screened in Achilles/DRIVE/Marcotte RNAi panels.",
         })
-        return {}, {}, load_errors
+        return {}, {}, load_errors, sample_info_df
 
     # === 4. Bridge CCLE_ID columns -> ModelID via Model.csv's CCLEName ===
     # Model.csv columns: ModelID, CCLEName, OncotreeLineage, ...
@@ -203,7 +203,7 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
             "detail": "Model.csv lacks CCLEName or ModelID columns required for CCLE_ID -> ModelID bridge",
             "remediation": "Verify Model.csv schema; the 26Q1 release should carry both columns.",
         })
-        return {}, {}, load_errors
+        return {}, {}, load_errors, sample_info_df
 
     ccle_to_model = dict(zip(model_df["CCLEName"], model_df["ModelID"]))
     model_metadata_by_id = {row["ModelID"]: row.to_dict() for _, row in model_df.iterrows()}
@@ -224,7 +224,7 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
         click.echo(f"  Note: {n_unbridged} RNAi cell lines could not be bridged to ModelID (CCLE_ID not in Model.csv)",
                    err=True)
 
-    return demeter_by_model_id, model_metadata_by_id, load_errors
+    return demeter_by_model_id, model_metadata_by_id, load_errors, sample_info_df
 
 
 def compute_summary_stats(demeter_by_model: dict, model_metadata: dict,
@@ -643,7 +643,7 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
          moderate_dependency_threshold: float, out: Path) -> None:
     """CLI entrypoint — load RNAi data, compute summary, emit figures + manifest."""
     out.mkdir(parents=True, exist_ok=True)
-    demeter_by_model, model_metadata, load_errors = load_rnai_files(release_pin, target)
+    demeter_by_model, model_metadata, load_errors, sample_info_df = load_rnai_files(release_pin, target)
     if load_errors:
         click.echo(f"  Load errors: {load_errors}", err=True)
         # Write an _live_read_error summary.json + exit
@@ -658,6 +658,7 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
 
     summary = compute_summary_stats(
         demeter_by_model, model_metadata,
+        sample_info_df=sample_info_df,   # Track C fix: was dropped → rnai_screens_contributing always []
         strong_threshold=strong_dependency_threshold,
         moderate_threshold=moderate_dependency_threshold,
     )

@@ -26,7 +26,7 @@ def read_pan_cancer_rnai_distribution(target: str, indication: Optional[str] = N
     Returns scalars only; no figures or plot_data. Figure emission is the
     figure-emitter's job (called by compose-dashboard's _figure_emitters.py).
     """
-    demeter_by_model, model_metadata, load_errors = _cli.load_rnai_files(
+    demeter_by_model, model_metadata, load_errors, sample_info_df = _cli.load_rnai_files(
         release_pin="26q1", target_symbol=target
     )
     if load_errors:
@@ -46,6 +46,7 @@ def read_pan_cancer_rnai_distribution(target: str, indication: Optional[str] = N
 
     summary = _cli.compute_summary_stats(
         demeter_by_model, model_metadata,
+        sample_info_df=sample_info_df,   # Track C fix: was dropped → rnai_screens_contributing always []
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
     )

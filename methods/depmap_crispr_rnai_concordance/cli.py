@@ -70,9 +70,9 @@ def load_concordance_inputs(target_symbol: str, release_pin: str = "26q1") -> tu
     if crispr_errors:
         return {}, {}, {}, [{"_live_read_error": "crispr_load_failed", "underlying": crispr_errors}]
 
-    demeter_by_model, _meta_rnai, rnai_errors = rnai_cli.load_rnai_files(
+    demeter_by_model, _meta_rnai, rnai_errors, _si = rnai_cli.load_rnai_files(
         release_pin=release_pin, target_symbol=target_symbol
-    )
+    )   # 4th return (sample_info_df) added for rnai_screens_contributing; unused here
     if rnai_errors:
         return {}, {}, {}, [{"_live_read_error": "rnai_load_failed", "underlying": rnai_errors}]
 
