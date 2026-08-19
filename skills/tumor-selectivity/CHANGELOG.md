@@ -4,6 +4,13 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.11.1
+- Doc hygiene: documented the Phase S normal-breadth veto SPLIT in SKILL.md — the sc-normal
+  critical-organ arm now downgrades to `selective_with_normal_liability` (selectivity-preserving
+  named-organ safety flag), distinct from the therapeutic-window arms' `selective_but_broadly_normal`
+  KILL; corrected the sc-tumor coverage list (STAD = 8th cube). No behavior change (Phase S behavior
+  shipped in _skills_common via #554); this aligns the skill docs + version with it.
+
 ## 1.11.0
 - Added `tumor-protein-abundance-cptac` as an 11th card — an RNA→PROTEIN tumor-vs-normal
   CORROBORATION arm (verdict-INERT). Projects `protein_tumor_vs_normal_effect_size` +

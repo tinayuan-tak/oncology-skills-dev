@@ -7,8 +7,11 @@ description: |
   cards across three roles. VERDICT-DRIVING (4): tumor-vs-normal-selectivity (v3,
   four-cell sensitivity; the aggregate axis-A verdict) + the normal-breadth VETO
   instruments modality-therapeutic-window (2 arms) and sc-normal-celltype-expression
-  (1 arm) that DOWNGRADE an axis-A-selective call to selective_but_broadly_normal when
-  there is no therapeutic window vs the worst critical normal. CORROBORATION (1):
+  (1 arm) that DOWNGRADE an axis-A-selective call. The SPLIT (Phase S): the therapeutic-window
+  arms (tumor below the worst critical/full normal — housekeeping) → selective_but_broadly_normal
+  (the KILL); the sc-normal critical-organ arm → selective_with_normal_liability (a selectivity-
+  PRESERVING named-organ SAFETY flag — approved antigens DLL3/ERBB2/FOLR1 land here; severity owned
+  by on-target-safety-liability + modality-fit). CORROBORATION (1):
   tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (6):
   expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac
   (RNA→protein tumor-vs-normal corroboration), and the tumor
@@ -29,7 +32,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.11.0
+  version: 1.11.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -120,12 +123,19 @@ composition:
 - Runs the tvn-* + tumor-vs-normal-crossing-* subset of the intracellular-intrinsic
   rules against the summaries. The selectivity RESOLVER stays keyed to the aggregate
   card's classes (verdict byte-stable); the crossing rules add SM/degrader signal.
-- NORMAL-BREADTH VETO: after the resolver returns an
-  axis-A verdict, `run.py::_verdict` applies a one-directional post-resolver clamp — if
-  the verdict is selective AND a normal-breadth veto rule fired (a gene
-  broadly expressed in normal tissue with no therapeutic window), it downgrades to
-  `selective_but_broadly_normal`. This is a 2-card conjunction the single-rule resolver
-  cannot express; it exists to stop a housekeeping-like gene passing as tumor-selective.
+- NORMAL-BREADTH VETO (SPLIT, Phase S): after the resolver returns an axis-A verdict,
+  `run.py::_verdict` applies a one-directional post-resolver clamp with TWO distinct outcomes —
+  (a) a therapeutic-window arm (`tvn-no-therapeutic-window-veto` / `tvn-no-full-normal-window-veto`:
+  tumor BELOW the worst critical/full normal — a housekeeping/no-window gene) downgrades to
+  `selective_but_broadly_normal` (the KILL — no real window at all); (b) the sc-normal critical-organ
+  arm (`tvn-sc-normal-critical-organ-veto`: a real window but an essential-cell liability in a
+  NON-origin critical organ) downgrades to `selective_with_normal_liability` — a SELECTIVITY-
+  PRESERVING named-organ flag (the target IS tumor-selective; approved antigens DLL3/ERBB2/FOLR1
+  land here — their normal expression is real but they are drugs via modality/accessibility/
+  precedent; the SAFETY severity is owned by on-target-safety-liability + modality-fit). Precedence
+  when both fire: window > full-normal > sc-normal (a no-window KILL outranks a liability flag, e.g.
+  TROP2). This is a 2-card conjunction the single-rule resolver cannot express; it exists to stop a
+  housekeeping-like gene passing as tumor-selective WITHOUT lumping approved antigens into that KILL.
   The clamp is applied in ALL THREE consumers — the
   standalone skill (`_verdict`), the composed target-profile (its fan-out calls `_verdict`, and
   all three veto cards are in `SUB_SKILL_CARDS[tumor-selectivity]`), and the compose-dashboard /
@@ -154,9 +164,11 @@ composition:
     the single-cell + spatial facets: `sc_tumor_expression_class`,
     `sc_malignant_detection_fraction`, `sc_caf_vs_malignant_class`, `spatial_rna_class`,
     `spatial_coloc_class`, `spatial_normal_epithelium_adjacency_fraction`, `spatial_protein_class`.
-  - `verdict`: the resolved selectivity verdict, which may be the veto outcome
-    `selective_but_broadly_normal` (axis-A selective but no therapeutic window) via the
-    `_verdict` clamp; `driving_rule_id` names the rule that set it.
+  - `verdict`: the resolved selectivity verdict, which may be a veto-clamp outcome —
+    `selective_but_broadly_normal` (axis-A selective but no therapeutic window — the housekeeping
+    KILL) or `selective_with_normal_liability` (a real window but a NON-origin critical-organ
+    liability — selectivity preserved, a named-organ safety flag) via the `_verdict` clamp;
+    `driving_rule_id` names the rule that set it.
   - `fired_rules`: which rules matched
   - `modality_lenses`: optional SM+degrader tally for callers who want it
   - `llm_synthesis` (only with --synthesize): a two-slot selectivity-lens narration.

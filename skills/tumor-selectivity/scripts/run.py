@@ -35,7 +35,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.11.0"
+SKILL_VERSION = "1.11.1"
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -97,7 +97,7 @@ CARDS = [
                                              # (real, druggable) or microenvironment-driven (a false ADC/TCE
                                              # window). This is the signal the roadmap stromal-confound veto
                                              # will key on (SKILL.md § Roadmap). Measured for COADREAD/NSCLC/
-                                             # LUSC/PAAD/HNSC/KIRC/OV, else sc_expression_class ==
+                                             # LUSC/PAAD/HNSC/KIRC/OV/STAD (8 cubes), else sc_expression_class ==
                                              # data_unavailable (abstain).
     "spatial-region-rna-expression",         # In-situ spatial (GeoMx WTA) tumour-vs-microenvironment RNA
                                              # enrichment — a deconvolution-free, orthogonal confirmation of
