@@ -20,7 +20,7 @@
 # resolver rung.
 
 card_id: genomic-instability-state
-version: 0.5.0   # includes MODEL mutational-signature arm (MMR-sig cross-validates MSI + weak SBS3-HRD proxy), MODEL MSI, patient MSI, WGD
+version: 0.6.0   # + PATIENT HRD genomic-SCAR arm (ABSOLUTE segtabs, Myriad myChoice >= 42); on top of MODEL signature/MSI, patient MSI, WGD
 question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome; how prevalent are whole-genome doubling and microsatellite instability — and where does its genome-instability burden sit?"
 
 tier: indication
@@ -34,9 +34,10 @@ required_inputs:
 
 methods:
   # ONE method module (tcga_aneuploidy_burden) supplies ALL genome-state axes: the skill dispatcher
-  # performs a MULTI-AXIS (five-function) merge — aneuploidy_burden_for_indication() +
-  # wgd_summary_for_indication() + the patient-MSI, model-MSI, and model-signature functions — the
-  # same on-read dispatcher-merge pattern the fusion card uses for GENIE-SV.
+  # performs a MULTI-AXIS (six-function) merge — aneuploidy_burden_for_indication() +
+  # wgd_summary_for_indication() + the patient-MSI, model-MSI, model-signature, and HRD-scar
+  # (hrd_score_for_indication, remapped to hrd_scar_*) functions — the same on-read dispatcher-merge
+  # pattern the fusion card uses for GENIE-SV.
   - call: tcga-aneuploidy-burden
     args:
       indication: "{indication}"
@@ -69,11 +70,20 @@ outputs:
     - model_msi_context                  # human-readable model MSI summary
     # ---- Mutational-SIGNATURE arm, MODEL (Phase 3a; DepMap OmicsMolecularSignatureMatrix) — all lineages ----
     # MMR-signature = an INDEPENDENT cross-validation of MSI (mutation spectrum, not microsatellite length).
-    # HRD (SBS3) is a WEAK PARP proxy only — a real HRD/genomic-scar score (scarHRD) is deferred.
+    # HRD (SBS3) is a WEAK PARP proxy only — the actionable segment-based HRD scar score is the hrd_scar_* arm below.
     - model_mmr_signature_class          # cohort MMR-deficiency-signature prevalence class
     - model_mmr_signature_high_fraction  # fraction of lines with MMR SBS >= 20% of burden
     - model_hrd_signature_present_fraction  # fraction with SBS3 >= 10% (WEAK HRD/PARP proxy)
     - model_signature_context            # human-readable signature summary
+    # ---- HRD genomic-SCAR arm, PATIENT (scope-coherence Phase 4; PanCanAtlas ABSOLUTE allele-specific segtabs) ----
+    # Segment-based HRD score (HRD-LOH + LST + ntAI, Myriad myChoice >= 42) — the ACTIONABLE HRD read, the
+    # complement to the WEAK SBS3 signature proxy above. Distinct semantics from the SBS3 `hrd` process in
+    # mutational-signature-context — hence the `hrd_scar_*` prefix. Verdict-inert cohort context.
+    - hrd_scar_class                     # cohort HRD-scar prevalence class (frac scar-high >= 0.20 → enriched)
+    - frac_hrd_scar_high                 # fraction of cohort with HRD scar score >= 42
+    - n_hrd_scar_high                    # HRD-scar-high patient count
+    - median_hrd_scar_score              # cohort median HRD scar score
+    - hrd_scar_context                   # human-readable HRD-scar summary
   summary_fields_vocabulary:
     aneuploidy_burden_class:
       - highly_aneuploid                 # cohort median frac_altered >= 0.40
@@ -100,6 +110,11 @@ outputs:
       - mmr_signature_intermediate       # 5% < fraction < 15% (ovary ~10%, gastric ~5%)
       - mmr_signature_rare               # <= 5% — MMR-clean cohort (lung ~0%, pancreas ~1%)
       - data_unavailable                 # no DepMap lineage mapping or signature matrix unresolvable
+    hrd_scar_class:                      # PATIENT genome-scar HRD prevalence (ABSOLUTE segtabs; Phase 4)
+      - hrd_enriched                     # >= 20% of cohort HRD-scar-high (myChoice score >= 42)
+      - hrd_intermediate                 # 5% < fraction < 20%
+      - hrd_rare                         # <= 5% — HRD-scar-clean cohort
+      - data_unavailable                 # no ABSOLUTE segtabs or TCGA-project mapping
 
 thresholds:
   high_median_frac_altered: 0.40         # method bins median → highly_aneuploid
@@ -112,6 +127,9 @@ thresholds:
   mmr_signature_high_model_fraction: 0.20  # per-cell-line: MMR SBS fraction >= this = MMR-sig-high
   mmr_signature_cohort_enriched: 0.15    # cohort: >= this fraction of lines MMR-sig-high → enriched
   hrd_signature_present_model_fraction: 0.10  # per-cell-line: SBS3 >= this = HRD-signature-present (weak)
+  hrd_scar_high_score: 42                # PATIENT Myriad myChoice HRD-scar cutoff (HRD-LOH + LST + ntAI)
+  hrd_scar_cohort_enriched_fraction: 0.20  # cohort: >= this fraction HRD-scar-high → hrd_enriched
+  hrd_scar_cohort_rare_fraction: 0.05      # cohort: <= this → hrd_rare
 
 caveats:
   - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy + WGD are genome-wide cohort phenotypes, not per-gene calls. The classes describe the indication's chromosomal instability / doubling prevalence, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
