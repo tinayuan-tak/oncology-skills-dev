@@ -366,17 +366,17 @@ skill_objectives:
       # answers Q2 (this-indication-vs-others) — a card may serve multiple questions.
       - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, tumor-rna-distribution, tumor-protein-abundance-cptac]}
       - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
-      - {q: "Elevated vs normals (adjacent + GTEx)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability]}
+      - {q: "Elevated vs normals (adjacent + normal-tissue footprint)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability, sc-normal-celltype-expression]}
       - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype]}
-      - {q: "Absolute abundance vs all genes?", answered_by: [tumor-protein-abundance-cptac]}
+      - {q: "Absolute abundance vs all genes?", answered_by: [tumor-protein-abundance-cptac, cellline-protein-abundance, cellline-rna-distribution, tumor-rna-distribution]}
       - {q: "Do RNA and protein agree?", answered_by: [cellline-rna-protein-concordance, rna-protein-concordance-tumor]}
-      - {q: "Is the tumor signal malignant-cell-intrinsic (not stroma)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound, sc-normal-celltype-expression]}
+      - {q: "Is the tumor signal malignant-cell-intrinsic (not stroma)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
   - skill: tumor-selectivity
     objective: "Is the target selective for tumor vs normal, robustly across bulk / single-cell / spatial comparators?"
     primary_axis: selectivity
     questions:
-      - {q: "Selective vs adjacent normal (efficacy window)?", answered_by: [tumor-vs-normal-selectivity]}
-      - {q: "Selective vs population normals / GTEx breadth (safety)?", answered_by: [modality-therapeutic-window, tumor-protein-abundance-cptac]}
+      - {q: "Selective vs adjacent normal (efficacy window)?", answered_by: [tumor-vs-normal-selectivity, tumor-protein-abundance-cptac]}
+      - {q: "Selective vs population normals / GTEx breadth (safety)?", answered_by: [modality-therapeutic-window]}
       - {q: "Does the window hold at single-cell normal resolution (critical-organ veto)?", answered_by: [sc-normal-celltype-expression]}
       - {q: "Malignant-cell vs stroma (purity confound)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
       - {q: "In-situ spatial tumour-vs-TME enrichment?", answered_by: [spatial-region-rna-expression, spatial-tumor-normal-colocalization, spatial-surface-protein-abundance]}
@@ -393,15 +393,15 @@ skill_objectives:
       - {q: "Lineage / indication / subtype-selective dependency?", answered_by: [dependency-lineage-selectivity, subgroup-stratified-dependency]}
       - {q: "Biomarker / partner / paralog-conditional dependency?", answered_by: [partner-conditional-dependency, paralog-buffering, expression-dependency-correlation, abundance-dependency]}
       - {q: "Chemical-genetic confirmation?", answered_by: [prism-crispr-concordance]}
-      - {q: "How predictable / corroborated (confidence)?", answered_by: [dependency-predictability, cross-consortium-dependency, organoid-crispr-dependency, recommended-models]}
+      - {q: "How predictable / corroborated (confidence)?", answered_by: [dependency-predictability, cross-consortium-dependency, organoid-crispr-dependency, recommended-models, genomic-event-model-match, coessential-module]}
   - skill: genomic-alteration-profile
     objective: "How is the target genomically altered (SNV/CN/fusion), and which class drives?"
     primary_axis: genomic_alteration
     questions:
       - {q: "Recurrent SNV/indel driver (overall + by subtype)?", answered_by: [mutation-type-counts, mutation-hotspot-frequency, alteration-role, variant-level-interpretation, subgroup-stratified-mutation-frequency]}
-      - {q: "Copy-number driven (amplification / deletion)?", answered_by: [copy-number-distribution]}
-      - {q: "Fusion / rearrangement driven?", answered_by: [fusion-rearrangement-landscape]}
-      - {q: "Which alteration class carries a biomarker-stratified dependency?", answered_by: [mutation-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, amp-expr-stratified-dependency]}
+      - {q: "Copy-number driven (amplification / deletion)?", answered_by: [copy-number-distribution, subgroup-stratified-copy-number, alteration-role]}
+      - {q: "Fusion / rearrangement driven?", answered_by: [fusion-rearrangement-landscape, subgroup-stratified-fusion, alteration-role]}
+      - {q: "Which alteration class carries a biomarker-stratified dependency?", answered_by: [mutation-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, amp-expr-stratified-dependency, cross-consortium-dependency, dependency-predictability]}
       - {q: "Genotype → drug-response biomarker?", answered_by: [mutation-drug-response]}
       - {q: "Clonal / biallelic state of the alteration?", answered_by: [target-clonality, functional-gene-state]}
       - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration]}
@@ -432,10 +432,11 @@ skill_objectives:
       - {q: "Is it a surface protein (topology / family)?", answered_by: [surface-topology-and-ptm, surfaceome-family-classification, protein-surface-evidence]}
       - {q: "Surface abundance / density sufficient for the modality?", answered_by: [surface-abundance-density]}
       - {q: "ADC vs TCE vs antibody fit class?", answered_by: [adc-tce-modality-fit]}
-      - {q: "Normal-tissue surface safety window (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability, modality-therapeutic-window, tumor-scrna-celltype-expression]}
+      - {q: "Normal-tissue surface safety window (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability, modality-therapeutic-window, sc-surface-normal-safety]}
+      - {q: "Is the antigen homogeneously expressed across malignant cells (TCE heterogeneity liability)?", answered_by: [tumor-scrna-celltype-expression]}
       - {q: "Shed / soluble ectodomain decoy liability?", answered_by: [shed-ectodomain-liability]}
       - {q: "Epitope / exon window (splice/isoform) + stratified surface signal?", answered_by: [modality-exon-window, mutation-stratified-surface, pathway-stratified-surface]}
-      - {q: "Antigen density from amplification + RNA↔protein proxy quality?", answered_by: [copy-number-distribution, rna-protein-concordance-tumor]}   # H3: was a grab-bag; density arm only
+      - {q: "Antigen density from amplification + RNA↔protein proxy quality?", answered_by: [copy-number-distribution, rna-protein-concordance-tumor, sc-surface-rna-protein-concordance]}   # H3 fix + M6 sc twin
       - {q: "Small-molecule pocket cross-reference (DISPLAYED — drives the SM sibling, NOT the biologics fit_class)?", answered_by: [structure-features-static]}   # H3: structure is an SM card, not a surface-antigen answer
       - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, cd-antigen-backbone]}
   - skill: on-target-safety-liability
