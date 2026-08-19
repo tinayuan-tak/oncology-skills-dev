@@ -160,6 +160,9 @@ caveats:
 
 measurement: bulk_rna
 sample_context: cell_line     # DepMap cell lines — NOT patient tumor (orthogonal to measurement; 2026-07-21)
+tier: target                  # pan-cancer DepMap panel — scope-invariant (no per-indication/subtype grain);
+                              # completes the (measurement × sample_context × tier) coordinate the presence
+                              # renderers group on. The per-lineage sub-view is a projection, not a tier.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `cell_line_rna_expression` claim.
 measurement_type: cell_line_rna_expression
