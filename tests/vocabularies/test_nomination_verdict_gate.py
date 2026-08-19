@@ -105,13 +105,23 @@ def test_positives_only_from_cross_target_axes():
     strongly_upregulated_in_tumor ONLY — the target's own tumor-vs-normal biology, distinct from the
     modality-scoped broadly_high_expression which stays excluded (the KRAS-guard symmetry)."""
     v = _load()
-    allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration", "expression"}
+    # subtype_fit added v1.4.0 (2026-08-19, subtype-verdict-shifting review §5): a MEASURED,
+    # floor-cleared STRONG subtype-restricted dependency is a genuine CROSS-TARGET requirement (a
+    # stratified dependency signal), positive-eligible ONLY for subtype_restricted_dependency — the
+    # negative subtype verdict (subtype_specific_non_dependence) stays a hold, never a positive.
+    allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration", "expression",
+               "subtype_fit"}
     used = {p["sub_skill"] for p in v["positive_signals"]}
     assert used <= allowed, f"positive from disallowed axis: {used - allowed}"
     # expression is positive-eligible ONLY for the target-intrinsic verdict, never the modality-scoped one.
     expr_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "expression"}
     assert expr_pos <= {"strongly_upregulated_in_tumor"}, \
         f"only the target-intrinsic expression verdict may be a positive; got {expr_pos}"
+    # subtype_fit is positive-eligible ONLY for the measured subtype-restricted dependency (the
+    # negative subtype hold must never leak into positives — same guard shape as expression).
+    subtype_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "subtype_fit"}
+    assert subtype_pos <= {"subtype_restricted_dependency"}, \
+        f"only subtype_restricted_dependency may be a subtype_fit positive; got {subtype_pos}"
     excl = {(e["sub_skill"], e["verdict"]) for e in v["excluded_positive_modality_scoped"]}
     # the modality-scoped/advisory positives are explicitly documented as excluded.
     # 2026-08-15: the surface_modality tokens must be the ones the resolver ACTUALLY

@@ -262,6 +262,23 @@ veto_suppressors:
       Does NOT touch pan_essential_killer (an essential target is not rescued by an SL
       partner — different failure mode).
 
+  # (A3) Subtype-restricted dependency (2026-08-19, subtype-verdict-shifting review §5). UNLIKE the SL
+  # suppressor above (annotation → abstain only), this is a MEASURED, floor-cleared STRONG dependency
+  # confined to a molecular subtype: the pooled pan-cancer `non_dependent` is a DILUTION artifact of a
+  # genuine subtype-restricted requirement. So it both SUPPRESSES the veto AND — because it is measured,
+  # not annotation — carries the target through the positive tier as SUPPORTIVE (the positive_signal
+  # above), with the subtype as the patient-selection population. Opt-in-by-scope (--subtypes only).
+  - suppresses: {sub_skill: dependency, verdict: non_dependent}
+    when_present:
+      - {sub_skill: subtype_fit, verdict: subtype_restricted_dependency}
+    rationale: |
+      A MEASURED, floor-cleared strong CRISPR dependency confined to a molecular subtype means the
+      pooled pan-cancer `non_dependent` read is a dilution artifact, not a trusted negative — the target
+      is genuinely required in that subtype (POU2F3/SCLC-P; CMS4/CRC). Suppress the veto; the subtype +
+      its classifier assay are the patient-selection biomarker. Distinct from the SL suppressor
+      (annotation → insufficient): this is measured, so it ALSO enters the positive tier (supportive,
+      never dominant — subtype strata are thinner than a mutation call). Does NOT touch pan_essential_killer.
+
 # (B) Modality-scoped: for a BIOLOGICS query (ADC / TCE / naked antibody) the target
 # is engaged via a surface antigen regardless of genetic essentiality (CD19, TROP2,
 # DLL3 are approved and none are dependencies). Dependency is INFORMATIVE-only for
@@ -316,6 +333,16 @@ positive_signals:
   # significant MODERATE-or-stronger partner-conditional dependency, the same bar as the stratified
   # family. DISTINCT verdict from biomarker_stratified_dependency (partner-SL != own-oncogene addiction).
   - {sub_skill: dependency,      verdict: partner_conditional_dependent,  weight: dominant}
+  # Subtype-restricted dependency (2026-08-19, subtype-verdict-shifting review §5): a MEASURED,
+  # floor-cleared STRONG dependency in a specific molecular subtype (POU2F3/SCLC-P, CMS4/CRC) is a
+  # precision-oncology win — the subtype label + its classifier assay ARE the patient-selection
+  # biomarker. SUPPORTIVE, not dominant: transcriptional/cell-line subtype strata are thinner + noisier
+  # than a mutation call, so it lifts confidence / rescues a diluted pooled negative (see veto_suppressors)
+  # but never mints a `nominate` alone. OPT-IN-BY-SCOPE (fires only under --subtypes); the pooled spine is
+  # byte-identical without it. The POSITIVE counterpart of subtype_specific_non_dependence (one-directional
+  # negative HOLD) — this closes the framework's population-DEFINITION asymmetry (genomic subgroups could
+  # already positively nominate via biomarker_stratified_dependency; transcriptional ones could only hold).
+  - {sub_skill: subtype_fit,     verdict: subtype_restricted_dependency,  weight: supportive}
   - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
   - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
   # 2026-07-21: target-INTRINSIC expression positive. strongly_upregulated_in_tumor comes from the

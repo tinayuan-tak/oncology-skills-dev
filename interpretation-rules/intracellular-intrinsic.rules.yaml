@@ -3257,6 +3257,41 @@ rules:
       efficacy basis. Subtype-scoped (→ hold, not veto): the target may remain a
       valid dependency in other subtypes of the same indication.
 
+  # POSITIVE subtype-restricted dependency (2026-08-19, subtype-verdict-shifting review §5) — the
+  # positive counterpart of subtype-non-dependence-opposing. This intentionally REVISES the prior
+  # "positive subtype findings stay descriptive" stance for the STRONG, floor-cleared case ONLY: a
+  # MEASURED strong CRISPR dependency confined to a molecular subtype IS a precision-oncology
+  # nomination basis (POU2F3/SCLC-P; CMS4/CRC). It closes the population-DEFINITION asymmetry — a
+  # genomically-defined subgroup could already positively nominate via biomarker_stratified_dependency,
+  # but a transcriptional subtype could previously only HOLD. Emits subtype_fit_genomic: supportive →
+  # _subtype_verdict maps it to subtype_restricted_dependency → the nomination gate treats it as a
+  # SUPPORTIVE positive + a non_dependent veto-suppressor (never dominant — subtype strata are thinner
+  # + noisier than a mutation call). Opt-in-by-scope: only fires under --subtypes; pooled spine unchanged.
+  - rule_id: subtype-restricted-dependency-supportive
+    when:
+      card_id: subgroup-stratified-dependency
+      field: per_subgroup_metrics
+      in_record:
+        class: strong_dependency
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_genomic: supportive
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: genomic
+      subgroup_n_source: depmap-subgroup-assignments (Chronos per-ModelID cohort_size)
+      min_n_required: 30
+    rationale: |
+      The queried molecular subtype shows a MEASURED strong CRISPR dependency on the target (median
+      Chronos in the strong-dependency band, on a cohort that clears the subgroup-n floor of 30).
+      Because the row is floor-cleared this is a trusted positive, not an unknown — the target is
+      genuinely required for survival in this subtype's cell models, even where the pooled pan-cancer
+      read dilutes to non_dependent. The subtype label (+ its classifier assay) is the patient-selection
+      biomarker. SUPPORTIVE (not dominant): a subtype cell-line stratum is thinner + noisier than a
+      mutation-defined stratum, so it rescues a diluted pooled negative / raises confidence but never
+      mints a nominate alone. Subtype-scoped: nominates FOR this subtype, not pan-subtype.
+
   # ----------------------------------------------------------------------------
   # SUBTYPE TIER — EXPRESSION (presence) context, 2026-07-22
   # ----------------------------------------------------------------------------
