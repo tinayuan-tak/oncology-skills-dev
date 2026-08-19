@@ -61,3 +61,7 @@ examples:
   # Mouse-KO / ClinVar; strong = LoF-tolerant/safe, absent = a liability).
   - {skill: on-target-safety-liability, target: KRAS, indication: COADREAD}   # activating GoF → mechanism-downgrade
   - {skill: on-target-safety-liability, target: EGFR, indication: LUAD}       # kinase; constraint + normal-tissue
+
+  # synthetic-lethal-partners — compact SL hero (Partner / Support). Target-grain (no indication).
+  - {skill: synthetic-lethal-partners, target: WRN}     # MSI synthetic-lethal (well-established)
+  - {skill: synthetic-lethal-partners, target: KRAS}    # curated SL partners (SHP2/etc.)

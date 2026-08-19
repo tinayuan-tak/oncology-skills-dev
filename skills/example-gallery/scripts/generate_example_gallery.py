@@ -1246,6 +1246,9 @@ def _question_table_html(decision: dict, h: dict) -> str:
         elif skill == "tractability-small-molecule":
             title, verdict = "Small-molecule tractability", h.get("druggability_snapshot")
             sig_hdr = "Signal — druggability →"
+        elif skill == "synthetic-lethal-partners":
+            title, verdict = "Synthetic-lethal partners", h.get("sl_partner_verdict")
+            sig_hdr = "Signal — SL support →"
         elif skill == "on-target-safety-liability":
             title, verdict = "On-target safety", h.get("safety_verdict")
             sig_hdr = "Signal — LoF-tolerant (safe) →"
@@ -1263,6 +1266,9 @@ def _question_table_html(decision: dict, h: dict) -> str:
             elif skill == "tractability-small-molecule":
                 from _skills_common.tractability_sm_question_table import tractability_sm_question_table
                 rows = tractability_sm_question_table(h, decision.get("cards", []))
+            elif skill == "synthetic-lethal-partners":
+                from _skills_common.sl_question_table import sl_question_table
+                rows = sl_question_table(h, decision.get("cards", []))
             elif skill == "on-target-safety-liability":
                 from _skills_common.safety_question_table import safety_question_table
                 rows = safety_question_table(h, decision.get("cards", []))
@@ -1619,6 +1625,18 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                      '<span class="hint">— per-card: PRISM activity / chemical-genetic concordance / '
                      'structure / known-drug / degrader lens; click a row to expand. Display only.</span>'
                      '</summary><div class="drillbody">')
+        parts.append('<div class="cardlist">')
+        for idx, c in enumerate(cards):
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                          target, indication, uid=f"{idx}"))
+        parts.append('</div></div></details>')
+    elif skill == "synthetic-lethal-partners" and cards:
+        # LEADING view: the compact Partner / Support SL table (shared renderer) — a thin single-card
+        # skill, so a small honest hero. Detailed per-card evidence follows as a drill-down.
+        parts.append(_question_table_html(decision, h))
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
+                     '<span class="hint">— per-card: SynLethDB SL partners + evidence tier; '
+                     'click a row to expand. Display only.</span></summary><div class="drillbody">')
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
             parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
