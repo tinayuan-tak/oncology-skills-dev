@@ -60,9 +60,12 @@ _CARD_META_CACHE: Optional[dict] = None
 
 
 def _card_meta() -> dict:
-    """card_id -> {question, measurement_type, methods[], required_inputs[]} from the target-contracts
-    card YAMLs. Indexed by the YAML's own card_id (filename != id for some). Empty {} if the repo is
-    absent — the flow tabs then degrade to what's derivable from the run alone."""
+    """card_id -> {question, measurement_type, methods[], required_inputs[], sample_context, measurement,
+    tier} from the target-contracts card YAMLs. Indexed by the YAML's own card_id (filename != id for
+    some). `sample_context`/`measurement`/`tier` back the scope-hierarchical presence layout (they are
+    the same tags run.py's CARD_CONTEXT mirrors); `tier` (target/indication/subtype) maps to the
+    pan-cancer/indication/subtype scope rung. Empty {} if the repo is absent — the flow tabs then
+    degrade to what's derivable from the run alone, and the presence layout falls back to its static map."""
     global _CARD_META_CACHE
     if _CARD_META_CACHE is not None:
         return _CARD_META_CACHE
@@ -86,6 +89,9 @@ def _card_meta() -> dict:
                     "methods": [m.get("call") for m in (d.get("methods") or []) if m.get("call")],
                     "required_inputs": [x.get("product_id") or x.get("card_id")
                                         for x in (d.get("required_inputs") or [])],
+                    "sample_context": d.get("sample_context"),
+                    "measurement": d.get("measurement") or d.get("measurement_type"),
+                    "tier": d.get("tier"),
                 }
         except Exception:  # noqa: BLE001
             pass
@@ -196,10 +202,12 @@ CARD_DISPLAY = {
                     ("fraction_expressed", "Fraction expressed"), ("control_position_class", "vs controls"),
                     ("n_cell_lines_evaluated", "n cell lines"), ("n_lineages_evaluated", "n lineages")]},
     "tumor-rna-vs-adjacent": {
-        "title": "Tumor vs normal RNA (DEG: adjacent + GTEx)", "headline": "expression_call_class",
-        # adjacent contrast (cell A, drives the call) + GTEx contrast (cell C, display-only) side by side
+        # PRESENCE view = the ADJACENT-normal DEG contrast (cell A) that drives the call. The GTEx
+        # (population-normal, cell C) metrics are DISPLAY-ONLY and are population-normal SELECTIVITY —
+        # owned by tumor-selectivity — so they are dropped from the presence curated view (rendered once
+        # as a labeled reference in the normal-comparator band). Verdict-inert: no rule keys on gtex_*.
+        "title": "Tumor vs adjacent-normal RNA (DEG)", "headline": "expression_call_class",
         "metrics": [("log2_fc", "log2FC vs adjacent"), ("q_value", "q vs adjacent"),
-                    ("gtex_log2_fc", "log2FC vs GTEx"), ("gtex_q_value", "q vs GTEx"),
                     ("n_tumor", "n tumor"), ("n_adjacent", "n adjacent")]},
     "tumor-protein-abundance-cptac": {
         "title": "Tumor protein abundance (CPTAC)", "headline": "protein_expression_class",
@@ -214,11 +222,13 @@ CARD_DISPLAY = {
         "metrics": [("n_cohorts_elevated", "Cohorts elevated"), ("n_cohorts_tested", "Cohorts tested"),
                     ("most_elevated_cohorts", "Most elevated")]},
     "tumor-rna-distribution": {
+        # PRESENCE view = the per-sample tumor distribution. The GTEx normal band (matched_normal_tissue /
+        # n_normal_samples) is a population-normal reference (selectivity framing) → dropped from the
+        # presence metrics and rendered once in the normal-comparator band. Verdict-inert.
         "title": "Tumor RNA distribution (per-sample)", "headline": "tumor_expression_class",
         "metrics": [("median_log2tpm", "Median log2TPM"), ("allgene_percentile", "All-gene %ile"),
                     ("control_position_class", "vs controls"),
-                    ("n_tumor_samples", "n tumor (TCGA)"), ("studies", "TCGA studies"),
-                    ("matched_normal_tissue", "Normal (GTEx)"), ("n_normal_samples", "n normal")]},
+                    ("n_tumor_samples", "n tumor (TCGA)"), ("studies", "TCGA studies")]},
     "tumor-rna-distribution-by-subtype": {
         # headline = the subtype VERDICT (pan_subtype_uniform / subtype_enriched / …), not the
         # effect-size adjective — that's the field the framework's subgroup-analysis constraint fires on.
@@ -427,6 +437,27 @@ table{border-collapse:collapse;font-size:12px;margin:8px 0} th,td{border:1px sol
 .unavail{color:#8a5a2b;background:#fdf6ec;border-radius:6px;padding:7px 11px;font-size:13px;margin:10px 0}
 .idx td a{color:#2554c7;text-decoration:none} .idx td a:hover{text-decoration:underline}
 .plotly-fig{margin:12px 0}
+/* scope-hierarchical presence layout: sample-context sections → data-type subsections → scope rungs */
+.crumb{font-size:12px;color:#667;margin:14px 0 4px} .crumb b{color:#111}
+.crumb .on{background:#1e3a8a;color:#fff;border-radius:4px;padding:1px 7px}
+.crumb .off{color:#99a;padding:1px 4px}
+.ctxsec{border:1px solid #e3e6ea;border-radius:10px;background:#fff;margin:14px 0;overflow:hidden}
+.ctxhead{padding:11px 15px;background:#f5f6f8;border-bottom:1px solid #e8ebef}
+.ctxhead .ct{font-size:15px;font-weight:700} .ctxhead .cn{font-size:12px;color:#667;margin-top:2px}
+.ctxsec.want-low .ctxhead{background:#fdf6ec}
+.subsec{padding:6px 15px 12px} .subsec .dt{font-size:12px;font-weight:600;color:#334;
+  text-transform:uppercase;letter-spacing:.04em;margin:12px 0 4px;border-bottom:1px solid #eef0f3;padding-bottom:3px}
+.rung{margin:6px 0 6px 6px;border-left:2px solid #e3e6ea;padding-left:10px}
+.rung.leads{border-left-color:#1e3a8a}
+.scopetag{display:inline-block;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;
+  color:#556;background:#eef2ff;border-radius:4px;padding:1px 6px;margin-right:6px}
+.scopetag.leads{background:#1e3a8a;color:#fff} .rungrole{font-size:11px;color:#99a}
+.projbox,.emptybox,.refbox{border:1px dashed #d9dde3;border-radius:6px;padding:8px 11px;margin:4px 0;font-size:12.5px}
+.emptybox{background:#fafbfc;color:#889} .refbox{background:#fbfcfd;color:#667}
+.emptybox .etype{font-size:10.5px;font-weight:700;text-transform:uppercase;color:#a08040;margin-right:6px}
+.caveat{font-size:11.5px;color:#8a5a2b;background:#fdf6ec;border-radius:5px;padding:5px 9px;margin:4px 0}
+.crosslens{border:1px solid #e3e6ea;border-radius:10px;background:#fff;margin:14px 0;padding:6px 15px 12px}
+.crosslens .ct{font-size:14px;font-weight:700;margin:8px 0 2px}
 """
 
 # tiny vanilla-JS lightbox: click a figure to toggle .zoomed (SVG is vector → crisp at any size).
@@ -449,11 +480,28 @@ def _esc(v) -> str:
     return html.escape(str(v))
 
 
-def _summary_table(summary: dict) -> str:
-    """Scalar summary fields (skip _private + big list/dict values) as a compact KV table."""
+# Verdict-INERT "molecular-form" fields (isoform dominance, splice-switch) that describe WHICH
+# transcript/form is expressed — a target-intrinsic question on the same RNA data, not a presence-level
+# signal. They ride along on the expression cards but clutter the presence read, so the full-field view
+# folds them into a separately-labeled section rather than interleaving them. (Suppression is
+# renderer-only — the fields stay on the card for the skills that DO ask the isoform question.)
+_MOLECULAR_FORM_PREFIXES = ("isoform", "dominant_isoform", "n_expressed_isoform", "splice", "splicing")
+
+
+def _is_molecular_form_field(k: str) -> bool:
+    kl = k.lower()
+    return any(kl.startswith(p) or f"_{p}" in kl for p in _MOLECULAR_FORM_PREFIXES)
+
+
+def _summary_table(summary: dict, exclude=None) -> str:
+    """Scalar summary fields (skip _private + big list/dict values) as a compact KV table.
+    `exclude` (a predicate on the field name) drops matching fields — used to fold molecular-form
+    (isoform/splice) fields out of the main table into their own labeled section."""
     rows = []
     for k, v in summary.items():
         if k.startswith("_"):
+            continue
+        if exclude is not None and exclude(k):
             continue
         if isinstance(v, (dict, list)):
             if len(str(v)) > 120:
@@ -586,13 +634,22 @@ def _breakdown_panel_html(cid: str, summary: dict) -> str:
 
 
 def _full_details_html(cid: str, summary: dict, tables_dir: Path) -> str:
-    """The exhaustive data — all summary fields + this card's CSVs — behind a collapsed <details>."""
-    body = _summary_table(summary)   # all non-private fields (prettified)
+    """The exhaustive data — all summary fields + this card's CSVs — behind a collapsed <details>.
+    Molecular-form (isoform/splice) fields are folded into their own labeled, verdict-inert section so
+    they do not clutter the presence-level fields."""
+    has_form = any(_is_molecular_form_field(k) for k in summary if not str(k).startswith("_"))
+    body = _summary_table(summary, exclude=_is_molecular_form_field if has_form else None)
+    form_html = ""
+    if has_form:
+        form_tbl = _summary_table({k: v for k, v in summary.items() if _is_molecular_form_field(k)})
+        form_html = ('<div class="cardmeta"><b>Molecular-form detail</b> (isoform dominance / splicing) '
+                     '— verdict-inert; describes WHICH transcript is expressed, not presence level.</div>'
+                     + form_tbl)
     csv_html = ""
     if tables_dir.exists():
         for csvf in sorted(tables_dir.glob(f"{cid}_*.csv")):
             csv_html += f'<div class="cardmeta">{_esc(csvf.name)}</div>' + _csv_table(csvf)
-    inner = body + csv_html
+    inner = body + form_html + csv_html
     if not inner:
         return ""
     return f'<details><summary>show all fields + tables</summary>{inner}</details>'
@@ -711,6 +768,313 @@ def _skill_hero_html(run_dir: Path) -> str:
             '<div class="hero">' + "".join(blocks) + '</div>')
 
 
+def _card_block_html(c: dict, run_dir: Path, fig_map: dict, interactive: bool, fired_by_card: dict,
+                     tables_dir: Path, target: str, indication: str, uid: str,
+                     open_: bool = False) -> str:
+    """The full collapsible block for one resolved card: headline chip + key metrics + per-stratum
+    breakdown + figures + Data→…→Verdict flow tabs + full-field drill-down. Factored out of render_page
+    so the flat cardlist AND the scope-hierarchical presence layout render cards identically. `open_`
+    expands the <details> (used to expand the rung at the query's scope depth)."""
+    cid = c.get("card_id", "?")
+    summary = c.get("summary") or {}
+    missing = c.get("_missing", False)
+    _, kind, hval = _card_headline_html(cid, summary, missing)
+    out = [f'<details class="card"{" open" if open_ else ""} id="c_{_esc(cid)}">',
+           f'<summary class="cardhead"><span class="ctitle">{_esc(_card_title(cid))}</span>'
+           f'<span class="chip {kind}">{_esc(hval)}</span></summary>',
+           '<div class="cardbody">']
+    if missing:
+        reason = c.get("_missing_reason") or summary.get("_data_note") or "measured gap"
+        out.append(f'<div class="unavail">Data unavailable — {_esc(reason)}</div>')
+    else:
+        out.append(_key_metrics_html(cid, summary))
+        out.append(_breakdown_panel_html(cid, summary))   # per-stratum table (e.g. subtype)
+    figs = _card_figures_html(run_dir, fig_map.get(cid, []), interactive)
+    if figs:
+        out.append(f'<div class="figwrap">{figs}</div>')
+    out.append(_flow_tabs_html(cid, summary, fired_by_card.get(cid, []), uid=uid,
+                               target=target, indication=indication))
+    out.append(_full_details_html(cid, summary, tables_dir))
+    out.append('</div></details>')
+    return "".join(out)
+
+
+# ── Scope-hierarchical presence layout (renderer-only; skill-gated on tumor-presence) ──────────────
+# Regroups the flat per-card list into SAMPLE-CONTEXT sections (patient tumor = the answer / cell-line =
+# the proxy / normal = the want-low comparator), each with DATA-TYPE subsections, each a
+# pan-cancer → indication|lineage → subtype SCOPE LADDER. Cards PROJECT into cells: a card renders its
+# full block once at its "home" rung and compact projections elsewhere (tumor-elevation-breadth carries
+# both an RNA and a protein layer); relations (RNA↔protein concordance) live in a cross-lens band. The
+# rung at the query's scope depth is expanded ("leads"); broader rungs are backing, narrower are
+# drill-down. DISPLAY ONLY — presence_verdict + the ladders are byte-stable and each card still shows its
+# own driving rule, so a scope-led layout can never silently contradict the pooled spine.
+_SCOPE_ORD = {"pan-cancer": 0, "lineage": 1, "indication": 1, "subtype": 2}
+
+
+def _query_depth(decision: dict) -> str:
+    """Scope depth of the invocation: subtype if a subgroup/subtype was queried, else indication if an
+    indication was given, else pan-cancer. Drives which rung leads (is expanded)."""
+    for k in ("subtype", "subgroup", "subgroup_id", "target_subtype"):
+        if decision.get(k):
+            return "subtype"
+    return "indication" if decision.get("indication") else "pan-cancer"
+
+
+# Card `tier` (validated card-schema enum) → the display scope rung. `None`/absent → pan-cancer (the
+# only presence card lacking a tier is cellline-rna-distribution, a pan-cancer proxy).
+_TIER_TO_SCOPE = {"target": "pan-cancer", "indication": "indication", "subtype": "subtype", None: "pan-cancer"}
+# Fallback coordinate for cards whose YAML omits a tag (belt-and-suspenders; the drift test keeps these honest).
+_COORD_FALLBACK = {"cellline-rna-distribution": ("cell_line", "bulk_rna", "pan-cancer")}
+
+# ── Policy layer — only what the coordinates can't express ─────────────────────────────────────────
+# Section order + framing (sample_context is the row axis); the rung LABELS per section (cell-line's
+# middle rung is `lineage`, the cell-line analog of `indication`); data-type order + labels.
+_SECTION_POLICY = [
+    {"ctx": "tumor", "title": "Patient tumor — the answer", "polarity": "want-high",
+     "note": "The primary presence read: is the target expressed in the actual tumor tissue?",
+     "rungs": ["pan-cancer", "indication", "subtype"]},
+    {"ctx": "cell_line", "title": "Cell-line models — the proxy", "polarity": "want-high",
+     "note": "A 2D-culture proxy for tumor expression — read against the tumor lens. Lineage is the "
+             "cell-line analog of indication.",
+     "rungs": ["pan-cancer", "lineage", "subtype"]},
+]
+_DATATYPE_ORDER = ["bulk_rna", "bulk_protein_ms", "sc_rna"]
+_DATATYPE_LABEL = {"bulk_rna": "Bulk RNA", "bulk_protein_ms": "Bulk protein (MS)",
+                   "sc_rna": "Single-cell RNA", "protein_ihc": "IHC"}
+
+# Cards that PROJECT a compact rung at a cell OTHER than their coordinate home (spanning roll-ups + the
+# cell-line lineage sub-view). Keyed by the (ctx, data_type, rung) the projection appears at.
+_PROJECTIONS = {
+    ("tumor", "bulk_rna", "pan-cancer"): {
+        "card": "tumor-elevation-breadth",
+        "fields": [("rna_tumor_elevation_breadth_class", "Breadth class"),
+                   ("rna_tumor_elevation_n_indications_elevated", "Indic. elevated"),
+                   ("rna_tumor_elevation_n_indications_tested", "tested")],
+        "note": "K-of-N tumor-elevation breadth across indications — a PREVALENCE estimand, not a "
+                "per-sample distribution. Full card under Bulk protein."},
+    ("cell_line", "bulk_rna", "lineage"): {
+        "card": "cellline-rna-distribution",
+        "fields": [("n_lineages_evaluated", "Lineages evaluated"),
+                   ("n_lineage_restricted_lineages", "Lineage-restricted")],
+        "note": "Lineage = the cell-line analog of indication; per-lineage rows live in the card's "
+                "per_lineage_stats table (full card at pan-cancer above)."},
+}
+# Typed-empty slots — an expected (ctx, data_type, rung) with no card, distinguished honestly. `None`
+# suppresses the slot entirely (not expected).
+_TYPED_EMPTY = {
+    ("tumor", "bulk_protein_ms", "subtype"): {"type": "not-yet-built",
+        "note": "Tumor protein × subtype — awaiting a per-sample CPTAC protein reader."},
+    ("tumor", "sc_rna", "pan-cancer"): {"type": "not-yet-built", "note": "Pan-cancer single-cell tumor atlas not wired."},
+    ("tumor", "sc_rna", "subtype"): {"type": "not-yet-built", "note": "Subtype-resolved single-cell not wired."},
+    ("cell_line", "sc_rna", "pan-cancer"): {"type": "not-applicable-by-design",
+        "note": "No cell-line single-cell layer (by design)."},
+}
+# Per-card caveats surfaced above the card block.
+_CARD_CAVEAT = {
+    "cellline-rna-distribution-by-subtype":
+        "Grouped by DepMap DRIVER subtype (genotype) — NOT the tumor molecular taxonomy (CMS…). "
+        "Cross-lens subtype alignment awaits a cell-line molecular-subtype product."}
+# Cross-lens RELATION cards (RNA↔protein concordance) — belong to no single cell; own band.
+_PRESENCE_CROSS_LENS = [
+    ("cellline-rna-protein-concordance", "Cell-line RNA ↔ protein concordance"),
+    ("rna-protein-concordance-tumor", "Tumor RNA ↔ protein concordance"),
+]
+# Normal-tissue comparator band: two reference notes (Q3 relative context) + the normal cards.
+_NORMAL_REF_NOTES = [
+    "Adjacent-normal is the DEG denominator — shown inside the tumor Bulk-RNA cards above (not repeated here).",
+    "Population-normal (GTEx) is shown for orientation only; the tumor-vs-GTEx SELECTIVITY call is owned "
+    "by the tumor-selectivity skill.",
+]
+
+
+def _card_coord(cid: str) -> tuple:
+    """(sample_context, data_type/measurement, scope-rung) for a card, read from its DECLARED coordinates
+    (card-schema `sample_context` + `measurement` + `tier`). Placement is coordinate-DRIVEN — no hardcoded
+    card→cell map — so a card lands where its contract says. Falls back for a tag-less card."""
+    m = _card_meta().get(cid, {})
+    ctx, dt = m.get("sample_context"), m.get("measurement")
+    scope = _TIER_TO_SCOPE.get(m.get("tier")) if "tier" in m else None
+    if not (ctx and dt and scope):
+        fb = _COORD_FALLBACK.get(cid)
+        if fb:
+            ctx, dt, scope = ctx or fb[0], dt or fb[1], scope or fb[2]
+    return ctx, dt, scope
+
+
+def _proj_box_html(card: Optional[dict], spec: dict) -> str:
+    """Compact projection of a card whose full block lives at another rung (selected fields + a note)."""
+    summary = (card or {}).get("summary") or {}
+    missing = (card is None) or bool(card.get("_missing", False))
+    rows = ""
+    for field, label in spec.get("fields", []):
+        v = summary.get(field)
+        if v is not None:
+            rows += (f'<div class="metric"><span class="ml">{_esc(label)}</span>'
+                     f'<span class="mv">{_esc(_fmt_val(v))}</span></div>')
+    note = spec.get("note", "")
+    if missing and not rows:
+        return f'<div class="emptybox"><span class="etype">not measured</span>{_esc(note)}</div>'
+    return (f'<div class="projbox"><div class="metrics">{rows}</div>'
+            + (f'<div class="rungrole">{_esc(note)}</div>' if note else "") + '</div>')
+
+
+def _empty_box_html(spec: dict) -> str:
+    return (f'<div class="emptybox"><span class="etype">{_esc(spec.get("type", "gap"))}</span>'
+            f'{_esc(spec.get("note", ""))}</div>')
+
+
+def _ref_box_html(spec: dict) -> str:
+    return f'<div class="refbox">{_esc(spec.get("note", ""))}</div>'
+
+
+def _presence_scope_html(decision: dict, run_dir: Path, fig_map: dict, interactive: bool,
+                         fired_by_card: dict, tables_dir: Path, target: str, indication: str) -> str:
+    """The scope-hierarchical presence layout: sample-context sections → data-type subsections → a
+    coordinate-placed scope ladder (pan-cancer → indication|lineage → subtype). Placement is DRIVEN by
+    each card's declared coordinate (`_card_coord`); the policy dicts add only order, spanning
+    projections, typed-empties, per-card caveats, the normal band, and the cross-lens relation band.
+    Display-only: each card still shows its own driving rule, and the pooled verdict is unchanged."""
+    cards = decision.get("cards", [])
+    cards_by_id = {c.get("card_id"): c for c in cards}
+    relation_ids = {cid for cid, _ in _PRESENCE_CROSS_LENS}
+    qdepth = _query_depth(decision)
+    qord = _SCOPE_ORD.get(qdepth, 1)
+    uid = [0]
+
+    # Coordinate-driven placement: grid[(ctx, data_type, scope)] = [card_id]. Relations + normal handled
+    # separately. `unplaced` (no resolvable coordinate) sinks to the catch-all.
+    grid: dict = {}
+    normal_ids, unplaced = [], []
+    for c in cards:
+        cid = c.get("card_id")
+        if cid in relation_ids:
+            continue
+        ctx, dt, scope = _card_coord(cid)
+        if ctx == "normal":
+            normal_ids.append(cid)
+        elif ctx and dt and scope:
+            grid.setdefault((ctx, dt, scope), []).append(cid)
+        else:
+            unplaced.append(cid)
+
+    def _present(cid):
+        c = cards_by_id.get(cid)
+        return c is not None and not c.get("_missing", False)
+
+    def _render_card(cid, open_, scope, rung_label):
+        """Full card block + scope tag + role label + optional caveat; the subtype rung's breakdown is
+        rendered INLINE (visible) when the query is at indication depth (subtype is the drill-down)."""
+        nonlocal_uid = uid
+        nonlocal_uid[0] += 1
+        c = cards_by_id[cid]
+        o = _SCOPE_ORD.get(scope, 1)
+        role = "leads" if open_ else ("backing (broader)" if o < qord else "drill-down (narrower)")
+        parts = [f'<div class="rung{" leads" if open_ else ""}">'
+                 f'<span class="scopetag{" leads" if open_ else ""}">{_esc(rung_label)}</span>'
+                 f'<span class="rungrole">{_esc(role)}</span>']
+        if cid in _CARD_CAVEAT:
+            parts.append(f'<div class="caveat">{_esc(_CARD_CAVEAT[cid])}</div>')
+        # Always-visible subtype decomposition at indication depth: promote the per-stratum breakdown
+        # out of the collapsed card so an indication query still SEES every subtype.
+        if scope == "subtype" and qord < 2 and not c.get("_missing", False):
+            bp = _breakdown_panel_html(cid, c.get("summary") or {})
+            if bp:
+                parts.append('<div class="cardmeta"><b>How the indication read decomposes across '
+                             'subtypes</b> (verdict-inert unless a subtype query leads)</div>' + bp)
+        parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                      target, indication, uid=f"p{nonlocal_uid[0]}", open_=open_))
+        parts.append('</div>')
+        return "".join(parts)
+
+    out = []
+    for sec in _SECTION_POLICY:
+        ctx, rungs = sec["ctx"], sec["rungs"]
+        # which data-types to show for this context: any with a placed card, a projection, or a typed-empty
+        dts = [dt for dt in _DATATYPE_ORDER
+               if any((ctx, dt, r) in grid for r in rungs)
+               or any((ctx, dt, r) in _PROJECTIONS for r in rungs)
+               or any(_TYPED_EMPTY.get((ctx, dt, r)) for r in rungs)]
+        if not dts:
+            continue
+        wl = " want-low" if sec["polarity"] == "want-low" else ""
+        out.append(f'<div class="ctxsec{wl}"><div class="ctxhead"><div class="ct">{_esc(sec["title"])}</div>'
+                   f'<div class="cn">{_esc(sec["note"])}</div></div>')
+        for dt in dts:
+            out.append(f'<div class="subsec"><div class="dt">{_esc(_DATATYPE_LABEL.get(dt, dt))}</div>')
+            # headline rung = deepest rung with a PRESENT card that is ≤ query depth (else shallowest);
+            # a resolved-but-missing card is rendered as a named gap, never the headline.
+            card_ords = [_SCOPE_ORD.get(r, 1) for r in rungs
+                         if any(_present(cid) for cid in grid.get((ctx, dt, r), []))]
+            le = [o for o in card_ords if o <= qord]
+            headline_ord = max(le) if le else (min(card_ords) if card_ords else None)
+            for r in rungs:
+                placed = grid.get((ctx, dt, r), [])
+                if placed:
+                    for cid in placed:
+                        leads = _present(cid) and _SCOPE_ORD.get(r, 1) == headline_ord
+                        out.append(_render_card(cid, open_=leads, scope=r, rung_label=r))
+                elif (ctx, dt, r) in _PROJECTIONS:
+                    p = _PROJECTIONS[(ctx, dt, r)]
+                    out.append(f'<div class="rung"><span class="scopetag">{_esc(r)}</span>'
+                               + _proj_box_html(cards_by_id.get(p["card"]), p) + '</div>')
+                elif _TYPED_EMPTY.get((ctx, dt, r)):
+                    out.append(f'<div class="rung"><span class="scopetag">{_esc(r)}</span>'
+                               + _empty_box_html(_TYPED_EMPTY[(ctx, dt, r)]) + '</div>')
+            out.append('</div>')  # .subsec
+        out.append('</div>')  # .ctxsec
+
+    # Normal-tissue comparator band (want-low): reference notes + the normal cards.
+    if normal_ids or _NORMAL_REF_NOTES:
+        out.append('<div class="ctxsec want-low"><div class="ctxhead"><div class="ct">'
+                   'Normal-tissue comparator — reference only</div><div class="cn">Want-LOW. '
+                   'Reference / therapeutic-window framing — NOT a selectivity or safety verdict '
+                   '(selectivity owned by tumor-selectivity; safety by on-target-safety-liability).'
+                   '</div></div><div class="subsec">')
+        for note in _NORMAL_REF_NOTES:
+            out.append(_ref_box_html({"note": note}))
+        for cid in normal_ids:
+            if _present(cid):
+                uid[0] += 1
+                out.append(_card_block_html(cards_by_id[cid], run_dir, fig_map, interactive,
+                                            fired_by_card, tables_dir, target, indication, uid=f"n{uid[0]}"))
+        out.append('</div></div>')
+
+    # Cross-lens relations band (RNA↔protein concordance — belong to no single cell).
+    rel = []
+    for cid, title in _PRESENCE_CROSS_LENS:
+        if _present(cid):
+            uid[0] += 1
+            rel.append(f'<div class="ct">{_esc(title)}</div>'
+                       + _card_block_html(cards_by_id[cid], run_dir, fig_map, interactive,
+                                          fired_by_card, tables_dir, target, indication, uid=f"x{uid[0]}"))
+    if rel:
+        out.append('<div class="crosslens"><div class="dt" style="border:none">Cross-lens agreement '
+                   '<span class="hint">— RNA↔protein concordance (relations between lenses)</span></div>'
+                   + "".join(rel) + '</div>')
+
+    # Catch-all: any resolved card the layout did not place — nothing silently drops.
+    leftovers = [cid for cid in unplaced if _present(cid)]
+    if leftovers:
+        out.append('<div class="crosslens"><div class="dt" style="border:none">Other cards</div>')
+        for cid in leftovers:
+            uid[0] += 1
+            out.append(_card_block_html(cards_by_id[cid], run_dir, fig_map, interactive,
+                                        fired_by_card, tables_dir, target, indication, uid=f"o{uid[0]}"))
+        out.append('</div>')
+    return "".join(out)
+
+
+def _scope_breadcrumb_html(decision: dict, indication: str) -> str:
+    """pan-cancer › INDICATION › subtype eyebrow, active rung highlighted per the query depth."""
+    depth = _query_depth(decision)
+    active = "subtype" if depth == "subtype" else ("indication" if depth == "indication" else "pan-cancer")
+    rungs = [("pan-cancer", "pan-cancer"), ("indication", indication or "indication"), ("subtype", "subtype")]
+    inner = ' <span class="off">›</span> '.join(
+        f'<span class="{"on" if key == active else "off"}">{_esc(lbl)}</span>' for key, lbl in rungs)
+    return (f'<div class="crumb">Query scope: {inner} '
+            f'<span class="hint">— the rung at this scope leads; broader = backing, narrower = drill-down</span></div>')
+
+
 def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool) -> str:
     """One self-contained, DIGESTIBLE HTML page for a subskill run: exec summary + at-a-glance
     evidence strip + per-card (title + headline chip + key metrics + figure + collapsible full data)."""
@@ -775,37 +1139,25 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     for r in decision.get("fired_rules", []) or []:
         fired_by_card.setdefault(r.get("card_id"), []).append(r)
 
-    # ONE unified "Evidence at a glance" section: the table of cards IS the collapsible list.
-    # Each row = title + headline chip (collapsed); click to expand INLINE → key metrics + the
-    # shrunk-but-vector-crisp plot (click to enlarge) + the Data→…→Verdict flow tabs + full-field
-    # drill-down. No separate strip (that was the duplication).
-    parts.append('<div class="lab" style="margin:18px 0 6px">Evidence at a glance '
-                 '<span class="hint">— click a row to expand</span></div>')
-    parts.append('<div class="cardlist">')
-    for idx, c in enumerate(cards):
-        cid = c.get("card_id", "?")
-        summary = c.get("summary") or {}
-        missing = c.get("_missing", False)
-        _, kind, hval = _card_headline_html(cid, summary, missing)
-        parts.append(f'<details class="card" id="c_{_esc(cid)}">')
-        parts.append(f'<summary class="cardhead"><span class="ctitle">{_esc(_card_title(cid))}</span>'
-                     f'<span class="chip {kind}">{_esc(hval)}</span></summary>')
-        parts.append('<div class="cardbody">')
-        if missing:
-            reason = c.get("_missing_reason") or summary.get("_data_note") or "measured gap"
-            parts.append(f'<div class="unavail">Data unavailable — {_esc(reason)}</div>')
-        else:
-            parts.append(_key_metrics_html(cid, summary))
-            parts.append(_breakdown_panel_html(cid, summary))   # per-stratum table (e.g. subtype)
-        figs = _card_figures_html(run_dir, fig_map.get(cid, []), interactive)
-        if figs:
-            parts.append(f'<div class="figwrap">{figs}</div>')
-        # flow tabs: Data → Method → Measurement → Rules → Verdict (question placeholders filled)
-        parts.append(_flow_tabs_html(cid, summary, fired_by_card.get(cid, []), uid=f"{idx}",
-                                     target=target, indication=indication))
-        parts.append(_full_details_html(cid, summary, tables_dir))
-        parts.append('</div></details>')
-    parts.append('</div>')
+    # tumor-presence: the scope-hierarchical layout (sample-context × data-type × scope ladder),
+    # coordinate-driven. Every OTHER skill keeps the flat "Evidence at a glance" collapsible list.
+    if skill == "tumor-presence" and cards:
+        parts.append(_scope_breadcrumb_html(decision, indication))
+        parts.append('<div class="lab" style="margin:18px 0 6px">Evidence by lens &amp; scope '
+                     '<span class="hint">— sample context → data type → pan-cancer / indication (lineage) '
+                     '/ subtype; the rung at your query scope leads, broader = backing, narrower = '
+                     'drill-down. Display only — the driving rule is shown per card.</span></div>')
+        parts.append(_presence_scope_html(decision, run_dir, fig_map, interactive, fired_by_card,
+                                          tables_dir, target, indication))
+    else:
+        # ONE unified "Evidence at a glance" section: the table of cards IS the collapsible list.
+        parts.append('<div class="lab" style="margin:18px 0 6px">Evidence at a glance '
+                     '<span class="hint">— click a row to expand</span></div>')
+        parts.append('<div class="cardlist">')
+        for idx, c in enumerate(cards):
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                          target, indication, uid=f"{idx}"))
+        parts.append('</div>')
 
     boot = _ZOOM_JS   # click-to-enlarge lightbox (static SVG); always present
     if interactive:

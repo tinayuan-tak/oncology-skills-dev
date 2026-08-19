@@ -41,8 +41,8 @@ def test_page_has_verdict_synthesis_and_card(tmp_path):
     assert "expression-lineage-restricted-supportive" in page
     # exec summary surfaces the LLM narrative
     assert "strongly_supports" in page and "Summary" in page
-    # at-a-glance strip present
-    assert "Evidence at a glance" in page
+    # tumor-presence uses the scope-hierarchical layout (sample-context sections), not the flat list
+    assert "Evidence by lens" in page and "Patient tumor" in page
     # headline chip value shown
     assert "broadly_high" in page
     # cards are COLLAPSIBLE (details.card) with a header summary
@@ -334,8 +334,10 @@ def test_scrna_card_surfaces_indication_and_atlas_provenance(tmp_path):
     assert "Malignant donors" in page and "115" in page
 
 
-def test_deg_card_surfaces_gtex_contrast_when_present(tmp_path):
-    """The DEG card must co-show the GTEx contrast (display-only) alongside the adjacent contrast."""
+def test_deg_card_adjacent_only_gtex_moves_to_normal_band(tmp_path):
+    """In the presence view the DEG card shows the ADJACENT-normal contrast (which drives the call);
+    the population-normal GTEx contrast (selectivity, owned by tumor-selectivity) is NOT shown as a
+    DEG-card metric — it is rendered once in the normal-comparator band as a labeled reference."""
     decision = {
         "skill": "tumor-presence", "target": "CEACAM5", "indication": "LUAD",
         "headline": {"presence_verdict": "tumor_broadly_expressed"},
@@ -345,5 +347,61 @@ def test_deg_card_surfaces_gtex_contrast_when_present(tmp_path):
                                "gtex_log2_fc": 3.1, "gtex_q_value": 1e-20}}],
     }
     page = G.render_page(decision, tmp_path, fig_map={}, interactive=False)
+    # adjacent contrast still on the DEG card
     assert "log2FC vs adjacent" in page
-    assert "log2FC vs GTEx" in page and "3.1" in page
+    # GTEx is NOT a curated DEG-card metric anymore
+    assert "log2FC vs GTEx" not in page and "q vs GTEx" not in page
+    # GTEx surfaces once in the normal-comparator band, labeled as selectivity-owned reference
+    assert "Population-normal (GTEx)" in page and "tumor-selectivity" in page
+
+
+def test_presence_scope_layout_placement_and_ladder(tmp_path, monkeypatch):
+    """The tumor-presence scope layout places cards by their DECLARED coordinate into sample-context
+    sections → data-type subsections → scope ladder; the rung at query depth leads; the subtype
+    decomposition is inline at indication depth; typed-empty + cross-lens band render. Hermetic:
+    the coordinate map is injected (no dependency on the sibling target-contracts checkout)."""
+    monkeypatch.setattr(G, "_CARD_META_CACHE", {
+        # (sample_context, measurement, tier) — tier absent on cellline-rna-distribution → fallback pan-cancer
+        "cellline-rna-distribution":            {"sample_context": "cell_line", "measurement": "bulk_rna"},
+        "tumor-rna-distribution":               {"sample_context": "tumor", "measurement": "bulk_rna", "tier": "indication"},
+        "tumor-rna-distribution-by-subtype":    {"sample_context": "tumor", "measurement": "bulk_rna", "tier": "subtype"},
+        "tumor-scrna-celltype-expression":      {"sample_context": "tumor", "measurement": "sc_rna", "tier": "indication"},
+        "sc-normal-celltype-expression":        {"sample_context": "normal", "measurement": "sc_rna", "tier": "target"},
+        "cellline-rna-protein-concordance":     {"sample_context": "cell_line", "measurement": "bulk_rna", "tier": "target"},
+    })
+    decision = {
+        "skill": "tumor-presence", "target": "CEACAM5", "indication": "COADREAD",
+        "headline": {"presence_verdict": "tumor_broadly_expressed"},
+        "cards": [
+            {"card_id": "cellline-rna-distribution", "summary": {"expression_class": "broadly_high"}},
+            {"card_id": "tumor-rna-distribution", "summary": {"tumor_expression_class": "broadly_high", "median_log2tpm": 10.9}},
+            {"card_id": "tumor-rna-distribution-by-subtype",
+             "summary": {"subtype_stratification_class": "subtype_enriched",
+                         "per_subgroup_metrics": [
+                             {"stratum_id": "CMS1", "n_tumor_samples": 40, "median_log2tpm": 11.2,
+                              "tumor_expression_class": "broadly_high",
+                              "fraction_tumor_above_normal_p95": 0.9, "subtype_signal": "subtype_enriched"},
+                             {"stratum_id": "MSS", "n_tumor_samples": 300, "median_log2tpm": 10.7,
+                              "tumor_expression_class": "broadly_high",
+                              "fraction_tumor_above_normal_p95": 0.7, "subtype_signal": "pan_subtype_uniform"}]}},
+            {"card_id": "tumor-scrna-celltype-expression", "summary": {"sc_expression_class": "sc_malignant_detected"}},
+            {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_expression_class": "MODERATE"}},
+            {"card_id": "cellline-rna-protein-concordance", "summary": {"rna_as_biomarker": "adequate_proxy"}},
+        ],
+        "fired_rules": [],
+    }
+    page = G.render_page(decision, tmp_path, fig_map={}, interactive=False)
+    # three sample-context sections
+    assert "Patient tumor — the answer" in page
+    assert "Cell-line models — the proxy" in page
+    assert "Normal-tissue comparator" in page
+    # scope ladder: indication rung leads (query is target+indication)
+    assert 'scopetag leads">indication' in page
+    # cell-line pan-cancer leads (no indication-tier cell-line card; tier absent → fallback pan-cancer)
+    assert 'scopetag leads">pan-cancer' in page
+    # inline subtype decomposition at indication depth + a stratum row
+    assert "How the indication read decomposes across subtypes" in page and "CMS1" in page
+    # typed-empty: cell-line has no single-cell layer by design
+    assert "not-applicable-by-design" in page
+    # cross-lens relation band for the concordance card
+    assert "Cross-lens agreement" in page and "Cell-line RNA ↔ protein concordance" in page
