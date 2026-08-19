@@ -1,0 +1,104 @@
+# Subgroup-panorama card — LIVE, descriptive-only.
+#
+# Enumerates {target}'s patient copy-number prevalence ACROSS the molecular subgroups
+# of one indication (MSI/MSS, sidedness, CMS). The DESCRIPTIVE subgroup panorama for the
+# COPY-NUMBER axis: it shows the per-stratum focal amp/del landscape (every stratum row,
+# positive AND negative) and emits NO verdict signal. Distinct from the whole-cohort
+# `copy-number-distribution` card, which answers the indication-level question. The CN
+# analog of `subgroup-stratified-mutation-frequency` (scope-coherence Phase 3, gap c).
+#
+# Backed by a PER-SAMPLE stratified reader:
+#   methods/tcga_patient_cn/stratified.py :: build_copy_number_panorama
+#   (fans read_stratified_copy_number across strata via @subgroup_iterable; recomputes GISTIC
+#    amp/del fractions + patient_focal_cn_class WITHIN each stratum member-set — not an emit-time
+#    slice). Ids are normalized to the 3-segment PATIENT grain before the assignment join.
+# Related: [[subgroup-stratified-mutation-frequency]], [[copy-number-distribution]].
+
+card_id: subgroup-stratified-copy-number
+version: 1.0.0
+question: "How does {target.symbol} patient copy-number prevalence vary across the molecular subgroups of {indication.label}?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [msi_status, sidedness, cms]
+  rationale: "Focal amplification/deletion prevalence can vary by molecular subgroup (e.g. a HER2-amp or MYC-amp gradient enriched in a molecular subset); backed by per-sample GISTIC the reader recomputes within each stratum member-set. TCGA-patient (GISTIC) only — the higher-power subtype CN axis (~600 COADREAD samples)."
+
+applies_when:
+  - "subgroup_spec != null"
+  - "indication.subgroup_catalog_available == true"
+  - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"
+
+required_inputs:
+  - product_id: gdc-pancanatlas-cnv-2018
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  - product_id: subgroup-catalog
+    indication: "{indication}"
+    subgroup_catalog: "{subgroup_spec}"
+
+methods:
+  - call: tcga-patient-cn
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      stratify_by: subgroup_catalog
+      subgroup_spec: "{subgroup_spec}"
+
+outputs:
+  # Per-subgroup panorama record — one entry per stratum; shape matches _cn_freq_projection exactly.
+  summary_fields:
+    - per_subgroup_metrics
+    # Cross-stratum reducer scalars (delta_reducer over patient_high_amp_fraction):
+    - n_subgroups_with_data
+    - max_subgroup_high_amp_fraction
+    - min_subgroup_high_amp_fraction
+    - cross_subgroup_delta_high_amp_fraction
+  summary_fields_record_schemas:
+    per_subgroup_metrics:
+      stratum: string
+      # `class` = the FOCAL (high-level +2 / homdel -2) CN class — the verdict-consensus vocabulary,
+      # recomputed within the stratum. `insufficient` when the stratum has no measured samples.
+      class: {enum: [recurrent_focal_amplification, recurrent_focal_deletion, focal_neutral, insufficient], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      patient_focal_cn_class: {enum: [recurrent_focal_amplification, recurrent_focal_deletion, focal_neutral, insufficient], type: string}
+      patient_copy_number_class: {enum: [recurrently_amplified, recurrently_deleted, mixed, broadly_neutral], type: string}
+      patient_high_amp_fraction: number
+      patient_homdel_fraction: number
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      subtype_defining_data: string
+      source_cohort: string
+  # No figure declared — the per_subgroup_metrics table is the render surface (a per-subgroup CN
+  # figure emitter is future viz-debt, like the SNV sibling's).
+
+interpretation_hints:
+  - if: "cross_subgroup_delta_high_amp_fraction >= THRESHOLD.meaningful_subgroup_delta"
+    call: "subgroup-specific copy-number pattern"
+  - if: "cross_subgroup_delta_high_amp_fraction < THRESHOLD.meaningful_subgroup_delta && n_subgroups_with_data >= THRESHOLD.min_subgroups_for_call"
+    call: "uniform copy-number across subgroups"
+  - if: "n_subgroups_with_data < THRESHOLD.min_subgroups_for_call"
+    call: "not informative"
+
+thresholds:
+  min_samples_with_maf: 50           # gates admission (same cohort-size floor as the SNV sibling)
+  meaningful_subgroup_delta: 0.10    # max-min focal-high-amp fraction delta across strata
+  min_subgroups_for_call: 2          # need >=2 measured strata to speak to cross-subgroup variation
+
+caveats:
+  - "DESCRIPTIVE panorama only — emits no verdict signal; per-subgroup rows inform via render, not synthesis."
+  - "Underpowered strata (subgroup_n < SUBGROUP_N_FLOOR=30) are tagged `underpowered` and are INADMISSIBLE in comparative prose — a real focal_neutral (measured, floor-met) is distinct from an underpowered unknown."
+  - "`class` is the FOCAL high-level (+2/homdel) CN call, NOT the any-gain patient_copy_number_class (which lumps arm-level gain); the focal class is the actionable oncogene signal, mirroring the whole-cohort card's patient_focal_cn_class."
+  - "TCGA-patient (PanCanAtlas GISTIC) only — no cell-line or GENIE arm; coverage limited to indications with a molecular subgroup-assignments shard."
+
+# Advisory routing metadata (copy_number_alteration is a modality-relevant type); the card is
+# DESCRIPTIVE/verdict-inert, so this documents which modality gates the CN axis informs, not routing.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `copy_number_alteration` at target_subtype grain (LIVE per-sample slice).
+measurement_type: copy_number_alteration
+entity_grains: [target_subtype]
+schema_version: 1

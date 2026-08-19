@@ -1,0 +1,102 @@
+# Subgroup-panorama card — LIVE, descriptive-only.
+#
+# Enumerates {target}'s fusion recurrence ACROSS the molecular subgroups of one indication
+# (MSI/MSS, sidedness). The DESCRIPTIVE subgroup panorama for the FUSION axis: per-stratum
+# fusion frequency + recurrence class (every stratum row), NO verdict signal. Distinct from
+# the whole-cohort `fusion-rearrangement-landscape` card. The fusion analog of
+# `subgroup-stratified-mutation-frequency` (scope-coherence Phase 3, gap c).
+#
+# HONEST-POWER note: per-tissue fusion counts are already small (fusion-rearrangement-landscape
+# notes ~5 ALK-fusion LUAD samples); split across strata, most strata will be underpowered/absent.
+# This card exists for completeness + honesty (it NAMES the gap per stratum), not because
+# fusion-by-subtype is usually informative — the CN sibling is the higher-power subtype axis.
+#
+# Backed by a PER-SAMPLE stratified reader:
+#   methods/tcga_fusion_consensus/stratified.py :: build_fusion_panorama
+#   (fans read_stratified_fusion across strata via @subgroup_iterable; denominator = fusion-ASSAYED
+#    patients ∩ stratum, numerator = distinct fused stratum patients — recomputed within the member-set).
+#    Ids normalized to the 3-segment PATIENT grain before the assignment join.
+# Related: [[subgroup-stratified-mutation-frequency]], [[fusion-rearrangement-landscape]].
+
+card_id: subgroup-stratified-fusion
+version: 1.0.0
+question: "How does {target.symbol} fusion recurrence vary across the molecular subgroups of {indication.label}?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [msi_status, sidedness]
+  rationale: "Fusion recurrence can differ by molecular subgroup, but per-tissue fusion counts are small and split across strata are usually underpowered — the reader names that gap honestly (evidence_state keys on the assayed denominator, so a well-assayed zero-fusion stratum is a measured negative, not absent)."
+
+applies_when:
+  - "subgroup_spec != null"
+  - "indication.subgroup_catalog_available == true"
+  - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"
+
+required_inputs:
+  - product_id: tcga-fusion-consensus-v1
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  - product_id: subgroup-catalog
+    indication: "{indication}"
+    subgroup_catalog: "{subgroup_spec}"
+
+methods:
+  - call: tcga-fusion-consensus
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      stratify_by: subgroup_catalog
+      subgroup_spec: "{subgroup_spec}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics
+    # Cross-stratum reducer scalars (delta_reducer over fusion_frequency):
+    - n_subgroups_with_data
+    - max_subgroup_fusion_frequency
+    - min_subgroup_fusion_frequency
+    - cross_subgroup_delta_fusion_frequency
+  summary_fields_record_schemas:
+    per_subgroup_metrics:
+      stratum: string
+      class: {enum: [recurrent_fusion_driver, sporadic_fusion, no_recurrent_fusion, data_unavailable], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      fusion_class: {enum: [recurrent_fusion_driver, sporadic_fusion, no_recurrent_fusion, data_unavailable], type: string}
+      fusion_recurrence_confidence: {enum: [high_recurrent_partner, moderate_promiscuous], type: string}  # nullable
+      fusion_frequency: number
+      n_samples_with_fusion: integer
+      recurrent_partners: string        # serialized [{partner, n_samples}] list
+      subgroup_n: integer               # assayed denominator in the stratum
+      subgroup_n_floor_met: boolean
+      subtype_defining_data: string
+      source_cohort: string
+  # No figure declared — the per_subgroup_metrics table is the render surface (a per-subgroup fusion
+  # figure emitter is future viz-debt, like the SNV sibling's).
+
+interpretation_hints:
+  - if: "cross_subgroup_delta_fusion_frequency >= THRESHOLD.meaningful_subgroup_delta"
+    call: "subgroup-specific fusion pattern"
+  - if: "cross_subgroup_delta_fusion_frequency < THRESHOLD.meaningful_subgroup_delta && n_subgroups_with_data >= THRESHOLD.min_subgroups_for_call"
+    call: "uniform fusion recurrence across subgroups"
+  - if: "n_subgroups_with_data < THRESHOLD.min_subgroups_for_call"
+    call: "not informative"
+
+thresholds:
+  min_samples_with_maf: 50
+  meaningful_subgroup_delta: 0.05    # fusion frequencies are small; a lower delta is meaningful here
+  min_subgroups_for_call: 2
+
+caveats:
+  - "DESCRIPTIVE panorama only — emits no verdict signal; per-subgroup rows inform via render, not synthesis."
+  - "USUALLY UNDERPOWERED: per-tissue fusion counts are small; split across strata most rows will be `underpowered`/`absent`. Built for honest completeness, not because fusion-by-subtype is typically informative — see the CN sibling for the higher-power subtype axis."
+  - "evidence_state keys on the ASSAYED denominator (sample_coverage), not the fusion count — a well-assayed zero-fusion stratum is `no_recurrent_fusion` (measured negative), NOT `absent`."
+  - "TCGA-tissue (fusion-consensus) only; the pan-cohort GENIE-SV breadth is NOT stratified here."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `fusion_rearrangement` at target_subtype grain (LIVE per-sample slice).
+measurement_type: fusion_rearrangement
+entity_grains: [target_subtype]
+schema_version: 1

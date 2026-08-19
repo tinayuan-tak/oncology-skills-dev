@@ -339,15 +339,15 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "Is target recurrently amplified/deleted or broadly copy-neutral across cell lines?"
-    entity_grains: [target, target_lineage]
-    cards: [copy-number-distribution]
+    entity_grains: [target, target_lineage, target_subtype]   # target_subtype LIVE (subgroup-stratified-copy-number, TCGA GISTIC per-sample)
+    cards: [copy-number-distribution, subgroup-stratified-copy-number]
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
 
   fusion_rearrangement:
     claim: "Is target recurrently involved in gene fusions or structural rearrangements?"
-    entity_grains: [target_indication]
-    cards: [fusion-rearrangement-landscape]
+    entity_grains: [target_indication, target_subtype]   # target_subtype LIVE (subgroup-stratified-fusion, TCGA fusion-consensus per-sample)
+    cards: [fusion-rearrangement-landscape, subgroup-stratified-fusion]
     providers:
       # kind: dataset (not derived_from) — tcga-fusion-consensus-v1 is a RAW data-catalog product, not a
       # composition of upstream measurement_types. derived_from's `inputs:` must be registered

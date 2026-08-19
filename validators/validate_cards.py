@@ -60,6 +60,10 @@ RECOGNIZED_CONTEXT_ROOTS = {'target', 'indication', 'subgroup_spec', 'release_pi
 PER_SAMPLE_STRATIFIABLE_CALLS = {
     'gdc-somatic-hotspot',   # methods/gdc_somatic_hotspot: read_stratified_mutation_frequency + build_mutation_frequency_panorama
     'depmap-chronos',        # methods/depmap_chronos: read_stratified_dependency + build_dependency_panorama
+    'tcga-patient-cn',       # methods/tcga_patient_cn/stratified: read_stratified_copy_number + build_copy_number_panorama
+                             # (recomputes GISTIC amp/del fractions WITHIN each stratum member-set; patient-grain join)
+    'tcga-fusion-consensus', # methods/tcga_fusion_consensus/stratified: read_stratified_fusion + build_fusion_panorama
+                             # (per-stratum fusion recurrence; assayed-denominator ∩ stratum, patient-grain join)
     'tcga-gtex-expression-distribution',  # methods/tcga_gtex_expression_distribution: read_tumor_expression_subtype_landscape
                                           # recomputes the per-sample distribution WITHIN each stratum member-set
                                           # (UUID→barcode→stratum bridge), NOT an emit-time aggregate — AM #82.
