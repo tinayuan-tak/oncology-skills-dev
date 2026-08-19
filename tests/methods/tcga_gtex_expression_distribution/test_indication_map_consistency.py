@@ -49,3 +49,14 @@ def test_sclc_routes_nontcga_not_tcga():
     assert R.INDICATION_TO_NONTCGA_SOURCE["SCLC"] == ("sclc", "SCLC")
     assert "SCLC" not in R.INDICATION_TO_TCGA_STUDIES   # not a TCGA study
     assert R._tumor_source("SCLC") == ("sclc", ["SCLC"])
+
+
+def test_rare_cohort_coverage_resolves_studies_and_tissue():
+    """A3 (2026-08-19): the 8 rare cohorts added for per-sample percentile-crossing coverage each
+    resolve BOTH a TCGA study and a matched GTEx tissue (recount3 substrate verified live). Kept in
+    lockstep — a study without a tissue would compute a fraction-above with no normal reference."""
+    rare = {"ACC": "ADRENAL_GLAND", "PCPG": "ADRENAL_GLAND", "KICH": "KIDNEY", "KIRP": "KIDNEY",
+            "TGCT": "TESTIS", "THCA": "THYROID", "UCS": "UTERUS", "UCEC": "UTERUS"}
+    for code, tissue in rare.items():
+        assert R.INDICATION_TO_TCGA_STUDIES.get(code) == [code], f"{code}: no TCGA study"
+        assert R.INDICATION_TO_GTEX_TISSUE.get(code) == tissue, f"{code}: wrong/absent GTEx tissue"

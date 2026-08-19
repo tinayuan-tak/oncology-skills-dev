@@ -211,6 +211,13 @@ INDICATION_TO_TCGA_STUDIES = {
     "SKCM": ["SKCM"], "STAD": ["STAD"], "GC": ["STAD"], "PRAD": ["PRAD"], "OV": ["OV"],
     "KIRC": ["KIRC"], "GBM": ["GBM"], "LGG": ["LGG"], "HNSC": ["HNSC"], "HNSCC": ["HNSC"],
     "BLCA": ["BLCA"], "LIHC": ["LIHC"], "CESC": ["CESC"], "ESCA": ["ESCA"],
+    # Rare-cohort coverage (2026-08-19, A3): the recount3 substrate carries per-sample tumor + matched
+    # GTEx normal for these 8 (verified n_tumor/n_normal live), so the per-sample percentile-crossing
+    # card can answer them — the pooled aggregate selectivity card already did via dynamic manifest
+    # resolution. Each has a clean single-tissue GTEx match (below). No subtype shard → not in the
+    # subtype-assignment map (consistency invariant unaffected).
+    "ACC": ["ACC"], "KICH": ["KICH"], "KIRP": ["KIRP"], "PCPG": ["PCPG"],
+    "TGCT": ["TGCT"], "THCA": ["THCA"], "UCS": ["UCS"], "UCEC": ["UCEC"],
 }
 # NOTE: NSCLC/GC/HNSCC are canonical/alias codes the subtype-assignment map already accepts;
 # they are mirrored here (+ in INDICATION_TO_GTEX_TISSUE) so all three interpretation axes
@@ -228,6 +235,11 @@ INDICATION_TO_GTEX_TISSUE = {
     # shadow a mislabeled matched channel. .get() returns None either way, so removal is behavior-
     # preserving for the sole consumer and restores lockstep with the proxy-map guard.)
     "BLCA": "BLADDER", "LIHC": "LIVER", "CESC": "CERVIX_UTERI", "ESCA": "ESOPHAGUS",
+    # Rare-cohort matched-normal tissue (2026-08-19, A3) — verified live to resolve real GTEx normals:
+    # adrenal (ACC/PCPG, 274), kidney (KICH/KIRP, 98), testis (TGCT, 410), thyroid (THCA, 706),
+    # uterus (UCS/UCEC, 159). Kept in lockstep with INDICATION_TO_TCGA_STUDIES above.
+    "ACC": "ADRENAL_GLAND", "PCPG": "ADRENAL_GLAND", "KICH": "KIDNEY", "KIRP": "KIDNEY",
+    "TGCT": "TESTIS", "THCA": "THYROID", "UCS": "UTERUS", "UCEC": "UTERUS",
 }
 
 # PROXY normal tissues — for indications with NO true GTEx tissue-of-origin (e.g. HNSC: GTEx has no
