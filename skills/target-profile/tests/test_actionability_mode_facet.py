@@ -93,3 +93,38 @@ def test_shape_is_wellformed():
     for k in ("dominant", "secondary", "arms", "confidence", "derivation", "note"):
         assert k in m
     assert set(m["arms"]) == {"cis_feature", "abundance", "dependency_relational"}
+
+
+# ── Phase-4 curated OVERRIDE ──────────────────────────────────────────────────────────────────────
+def _cis_signals():
+    return {"genomic_alteration": _R("biomarker_stratified_dependency",
+            [("alteration-role", "alteration_role", "direct_driver_gof")])}
+
+
+def test_curated_override_pins_mode_and_keeps_derived(monkeypatch):
+    """A listed high-value dual (ERBB2) is pinned `mixed` even when the run derived only `cis_feature` —
+    the collapse-guard. The derived call is retained for audit; source flags the override."""
+    import tp_facets as F
+    monkeypatch.setattr(F, "_actionability_mode_overrides",
+                        lambda: {"ERBB2": {"mode": "mixed", "rationale": "amp is both cis + abundance"},
+                                 "HER2": {"mode": "mixed", "rationale": "alias"}})
+    m = F._actionability_mode_facet(_cis_signals(), target="ERBB2")
+    assert m["dominant"] == "mixed" and m["derived_dominant"] == "cis_feature"
+    assert m["source"] == "curated_override" and m["confidence"] == "high"
+    # alias resolves too
+    assert F._actionability_mode_facet(_cis_signals(), target="HER2")["dominant"] == "mixed"
+
+
+def test_no_override_for_unlisted_target_is_pure_derived(monkeypatch):
+    import tp_facets as F
+    monkeypatch.setattr(F, "_actionability_mode_overrides", lambda: {"ERBB2": {"mode": "mixed"}})
+    m = F._actionability_mode_facet(_cis_signals(), target="KRAS")
+    assert m["dominant"] == "cis_feature" and m["source"] == "derived"
+    assert m["derived_dominant"] == "cis_feature"
+
+
+def test_override_graceful_skip_when_lookup_absent(monkeypatch):
+    import tp_facets as F
+    monkeypatch.setattr(F, "_actionability_mode_overrides", lambda: {})
+    m = F._actionability_mode_facet(_cis_signals(), target="ERBB2")
+    assert m["dominant"] == "cis_feature" and m["source"] == "derived"   # no lookup → pure derived

@@ -302,7 +302,7 @@ def main() -> int:
     # abundance vs dependency_relational (+ mixed / insufficient), the HANDLE by which the target is
     # actioned, orthogonal to biology_axis. Post-hoc over sub_results; PHASE 0 = emitted into
     # nomination.json only (no routing, no prompt change → verdict spine + prompt_hash byte-stable).
-    actionability_mode = _actionability_mode_facet(sub_results)
+    actionability_mode = _actionability_mode_facet(sub_results, target=args.target)
 
     # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3): the verdict-DISJOINT reliability
     # object each opting-in sub-skill emits beside its verdict (coverage + Broad↔Sanger corroboration +

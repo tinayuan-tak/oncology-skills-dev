@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import functools
 import importlib.util
 import json
 import os
@@ -1187,9 +1188,34 @@ _SELECTIVE_VERDICTS = frozenset({"strong_tumor_selective", "modest_tumor_selecti
                                  "selective_with_normal_liability"})
 
 
-def _actionability_mode_facet(sub_results: dict) -> dict:
+@functools.lru_cache(maxsize=1)
+def _actionability_mode_overrides() -> dict:
+    """Curated actionability_mode overrides (Phase 4) — symbol/alias (UPPER) -> {mode, rationale}. From
+    target-contracts vocabularies/actionability_mode_lookup.yaml; graceful-skip → {} if absent. Pins the
+    documented multi-axis duals (ERBB2/HER2, EGFR, MET) as `mixed` so a thin run can't collapse them."""
+    path = _CONTRACTS_REPO / "vocabularies" / "actionability_mode_lookup.yaml"
+    if not path.exists():
+        return {}
+    try:
+        doc = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError:
+        return {}
+    out: dict = {}
+    for o in (doc.get("overrides") or []):
+        if not isinstance(o, dict) or not o.get("hgnc_symbol") or not o.get("mode"):
+            continue
+        entry = {"mode": o["mode"], "rationale": o.get("rationale")}
+        out[o["hgnc_symbol"].upper()] = entry
+        for a in (o.get("aliases") or []):
+            out[str(a).upper()] = entry
+    return out
+
+
+def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> dict:
     """VERDICT-INERT selection-basis profile: cis_feature vs abundance vs dependency_relational (+ mixed
-    / insufficient). Post-hoc over fired sub_results; never touches the gate (Phase 0: annotation only)."""
+    / insufficient). Post-hoc over fired sub_results; never touches the gate. A curated override
+    (actionability_mode_lookup.yaml, Phase 4) pins `dominant` for listed high-value duals; the derived
+    value is retained as `derived_dominant` for audit."""
     def _cs(card_id, field):
         return (_find_card_summary(sub_results, card_id) or {}).get(field)
     def _v(short):
@@ -1258,8 +1284,23 @@ def _actionability_mode_facet(sub_results: dict) -> dict:
     else:
         confidence = "low"
 
+    # Curated OVERRIDE (Phase 4): a listed high-value dual (ERBB2/EGFR/MET) is pinned so a thin/one-sided
+    # run can't collapse it; the derived call is retained as derived_dominant for audit.
+    source = "derived"
+    derived_dominant = dominant
+    override = _actionability_mode_overrides().get((target or "").upper())
+    if override:
+        dominant = override["mode"]
+        source = "curated_override"
+        if dominant == "mixed":
+            secondary = None
+        confidence = "high"
+        deriv.append(f"curated_override(target={target}) -> {dominant} [{(override.get('rationale') or '')[:80]}]")
+
     return {
         "dominant": dominant,
+        "derived_dominant": derived_dominant,
+        "source": source,
         "secondary": secondary,
         "arms": arms,
         "confidence": confidence,
