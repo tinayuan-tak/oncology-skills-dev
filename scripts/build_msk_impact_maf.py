@@ -1,6 +1,6 @@
-"""build_msk_chord_maf — materialize msk-chord-per-sample-maf-v1 (scope-coherence Phase 2).
+"""build_msk_impact_maf — materialize msk-impact-50k-per-sample-maf-v1 (scope-coherence Phase 2).
 
-MSK-CHORD ships mutations as JSONL (mutations.jsonl.gz) with `entrezGeneId` (NOT a Hugo symbol) and a
+MSK-IMPACT-50k ships mutations as JSONL (mutations.jsonl.gz) with `entrezGeneId` (NOT a Hugo symbol) and a
 `sampleId`. This builds the per-sample MAF product that mirrors genie-registry-per-sample-maf-v1:
   - entrezGeneId → HGNC symbol via hgnc_entrez_crosswalk
   - sample → indication via data_clinical_sample.txt CANCER_TYPE (reverse of MSK_CANCER_TYPE)
@@ -9,7 +9,7 @@ Emits per-indication rows: indication, gene_symbol, effect, sample_id, protein_c
 source_native_id, patient_id. Writes one pan-indication parquet (sort key gene_symbol) + optional upload.
 
 Usage:
-    AWS_PROFILE=cbg python -m scripts.build_msk_chord_maf --out /tmp/msk_maf.parquet [--upload]
+    AWS_PROFILE=cbg python -m scripts.build_msk_impact_maf --out /tmp/msk_maf.parquet [--upload]
     DRY_RUN=1 ... --upload    # prints S3 key + md5 without uploading
 """
 from __future__ import annotations
@@ -27,10 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ impo
 from methods.msk_panel_coverage.read import MSK_CANCER_TYPE  # framework indication → MSK CANCER_TYPE
 
 S3_BUCKET = "onc-compbio"
-MSK_PREFIX = "data-catalog/sources/cbioportal/msk_chord_2024"
+MSK_PREFIX = "data-catalog/sources/cbioportal/msk_impact_50k_2026"
 MUTATIONS_KEY = f"{MSK_PREFIX}/mutations.jsonl.gz"
 CLINICAL_KEY = f"{MSK_PREFIX}/data_clinical_sample.txt"
-S3_KEY = "data-catalog/derived/msk-chord-per-sample-maf-v1/per_sample_maf.parquet"
+S3_KEY = "data-catalog/derived/msk-impact-50k-per-sample-maf-v1/per_sample_maf.parquet"
 
 # Same non-synonymous vocabulary the GENIE MAF builder retains (MSK mutationType is title-case).
 _NON_SYNONYMOUS = {
@@ -79,7 +79,7 @@ def build() -> "pandas.DataFrame":
             sid = r.get("sampleId")
             ind = sample_ind.get(sid)
             if ind is None:
-                continue                       # sample not in a framework indication MSK-CHORD carries
+                continue                       # sample not in a framework indication MSK-IMPACT-50k carries
             try:
                 sym = entrez_to_symbol.get(int(r.get("entrezGeneId")))
             except (TypeError, ValueError):
@@ -99,7 +99,7 @@ def build() -> "pandas.DataFrame":
 
 def main(argv=None) -> int:
     import argparse
-    ap = argparse.ArgumentParser(description="Materialize msk-chord-per-sample-maf-v1.")
+    ap = argparse.ArgumentParser(description="Materialize msk-impact-50k-per-sample-maf-v1.")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--upload", action="store_true")
     args = ap.parse_args(argv)

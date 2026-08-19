@@ -12,12 +12,13 @@ def test_panel_id_normalization():
     assert m._normalize_panel_id("") == "" and m._normalize_panel_id("  ") == ""
 
 
-def test_indication_map_covers_chord_tumours_not_gc():
-    # MSK-CHORD is a 5-tumour cohort; GC/STAD is deliberately absent (the pool omits MSK there).
+def test_indication_map_covers_pan_cancer_incl_gc():
+    # MSK-IMPACT-50k is PAN-CANCER (unlike CHORD), so GC/STAD IS carried (Esophagogastric Cancer).
     assert m.MSK_CANCER_TYPE["COADREAD"] == "Colorectal Cancer"
     assert m.MSK_CANCER_TYPE["NSCLC"] == "Non-Small Cell Lung Cancer"
     assert m.MSK_CANCER_TYPE["BRCA"] == "Breast Cancer"
-    assert "GC" not in m.MSK_CANCER_TYPE and "STAD" not in m.MSK_CANCER_TYPE
+    assert m.MSK_CANCER_TYPE["GC"] == "Esophagogastric Cancer"
+    assert m.MSK_CANCER_TYPE["STAD"] == "Esophagogastric Cancer"
 
 
 def test_covered_gene_frequencies_recomputes_within_cohort(monkeypatch):
