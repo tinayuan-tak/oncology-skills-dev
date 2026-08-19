@@ -94,8 +94,11 @@ outputs:
     sc_normal_safety_essential_class:      # organ-aware axis-D veto instrument (2026-08-07)
       - critical_organ_liability   # essential-cell expression in a NON-origin critical organ
                                    # (heart/liver/kidney/marrow) — the hard-veto class (HER2-CAR-lung /
-                                   # MAGE-A3-cardiac / CEA-colitis failure mode). Downstream: downgrades
-                                   # a selective tumor-selectivity call to selective_but_broadly_normal.
+                                   # MAGE-A3-cardiac / CEA-colitis failure mode). Downstream: the selectivity
+                                   # clamp maps this arm to selective_with_normal_liability (a SELECTIVITY-
+                                   # PRESERVING named-organ flag), NOT the housekeeping selective_but_broadly_
+                                   # normal (that stays owned by the therapeutic-window veto). The named-organ
+                                   # SAFETY severity is arbitrated by on-target-safety-liability + modality.
       - origin_tissue_liability    # essential-cell expression ONLY in the tumor's tissue-of-origin
                                    # (e.g. MSLN pleural/lung in NSCLC) — on-tissue, therapeutic-window-
                                    # arbitrated, NOT a hard veto (a validated ADC target must survive).

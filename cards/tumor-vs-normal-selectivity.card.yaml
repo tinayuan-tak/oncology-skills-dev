@@ -179,11 +179,22 @@ outputs:
       - selective_but_broadly_normal        # over-expressed vs tissue-of-origin (axis A) BUT no therapeutic
                                             # window vs the broad normal atlas (modality-therapeutic-window
                                             # therapeutic_window_class == no_therapeutic_window: tumor BELOW
-                                            # worst critical normal). The housekeeping veto — a conjunction
+                                            # worst critical normal). The HOUSEKEEPING veto — a conjunction
                                             # downgrade applied at the skill layer (axis-A selective is
                                             # NECESSARY but not SUFFICIENT; a broadly-normal gene is not a
                                             # target regardless of tumor-vs-origin fold-change). See the
                                             # selectivity conjunction redesign (best-practice: worst-axis).
+      - selective_with_normal_liability     # axis-A SELECTIVE and a REAL tumor-vs-normal window, but a
+                                            # cell-type-resolved liability in a NON-origin critical organ
+                                            # (sc-normal-celltype-expression sc_normal_safety_essential_class
+                                            # == critical_organ_liability) that bulk medians dilute. Distinct
+                                            # from selective_but_broadly_normal: the target IS tumor-selective
+                                            # (approved antigens DLL3/ERBB2/FOLR1 land here — their normal
+                                            # expression is real but modality/accessibility/precedent make
+                                            # them drugs); the named-organ liability is a SAFETY/therapeutic-
+                                            # index concern owned by on-target-safety-liability + modality-fit,
+                                            # NOT loss of selectivity. Clamp-produced at the skill layer; the
+                                            # sc-normal arm no longer collapses into the housekeeping kill.
       - field_effect_tumor_selective        # discordant BUT adjacent-flat/down + GTEx-population strongly up
                                             # (>=1.5): field-cancerization signature — the adjacent 'normal'
                                             # already over-expresses (Aran/Butte 2017), so defer to the GTEx

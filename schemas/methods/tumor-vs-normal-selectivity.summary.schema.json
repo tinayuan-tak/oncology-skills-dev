@@ -98,6 +98,7 @@
         "strong_tumor_selective",
         "modest_tumor_selective",
         "selective_but_broadly_normal",
+        "selective_with_normal_liability",
         "field_effect_tumor_selective",
         "discordant_across_comparators",
         "not_selective",
