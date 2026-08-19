@@ -19,9 +19,27 @@
 # Uterus/Bowel/Ovary/Stomach lineages (biologically correct).
 
 version: 1.0.0
-schema: {target: str, partner: str, deficiency_type: "msi_signature|lof_mutation", note: str}
+schema: {target: str, partner: str, deficiency_type: "msi_signature|lof_mutation|cn_loss", note: str}
 
 partners:
+  # ── Codeletion synthetic-lethality (cn_loss arm, 2026-08-19) ──────────────────────────────────────
+  # MTAP is co-deleted with CDKN2A (9p21) in ~15% of cancers; MTAP-deleted cells accumulate MTA, which
+  # partially inhibits PRMT5 → they become SELECTIVELY dependent on PRMT5 and its substrate supplier
+  # MAT2A. The marquee codeletion SL (clinical PRMT5/MAT2A programs). Only reachable via the cn_loss
+  # deficiency arm (MTAP loss is a deep DELETION, not a mutation/MSI signature).
+  PRMT5:
+    - partner: MTAP
+      deficiency_type: cn_loss
+      note: >
+        MTAP-deletion → PRMT5 dependency (Kryukov/Marjon 2016). MTAP-null cells accumulate MTA which
+        partially inhibits PRMT5, sensitizing to further PRMT5 loss. Expected STRONG partner-conditional.
+  MAT2A:
+    - partner: MTAP
+      deficiency_type: cn_loss
+      note: >
+        MTAP-deletion → MAT2A dependency (Marjon 2016; the SAM-supplier arm of the same axis). Paired
+        with PRMT5; MTAP-null selectively depends on MAT2A.
+
   WRN:
     - partner: MSI            # MSI-high genome state (mismatch-repair deficiency), NOT a single gene
       deficiency_type: msi_signature

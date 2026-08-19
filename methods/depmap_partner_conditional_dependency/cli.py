@@ -11,6 +11,9 @@ is substrate-agnostic: chronos + {ModelID -> bool}). The only new machinery is t
 boolean loader, which dispatches on the curated partner_map.yaml deficiency_type:
   - msi_signature : canonical MSI-H boolean from OmicsInferredMolecularSubtypes.csv
   - lof_mutation  : partner damaging-LoF from the DepMap damaging matrix (reuse mutation loader)
+  - cn_loss       : partner DEEP deletion (relative CN < 0.5) from the DepMap CN matrix (reuse the CN
+                    loader). Unlocks codeletion synthetic-lethality (MTAP/CDKN2A-deletion → PRMT5/MAT2A)
+                    that the mutation/MSI arms cannot see.
 
 Emits partner_stratification_class ∈ {partner_conditional_strongly_dependent,
 partner_conditional_moderately_dependent, partner_neutral_strongly_dependent,
@@ -87,12 +90,34 @@ def _partner_lof_by_model(release_pin: str, partner_gene: str) -> dict:
     return {m: bool(v) for m, v in (damaging_by_model or {}).items()}
 
 
+# Deep (homozygous-like) deletion cut on the DepMap relative-CN scale (median ~1.0 = diploid). Mirrors
+# depmap_cn_distribution.DEEP_DEL — a partner is CN-LOST when its relative CN falls below this.
+_PARTNER_DEEP_DEL = 0.5
+
+
+def _partner_cn_loss_by_model(release_pin: str, partner_gene: str) -> dict:
+    """Partner deep-deletion (CN-loss) boolean per ModelID. Reuses depmap_cn_distribution.load_cn_files
+    (the WES→WGS relative-CN loader with the ModelConditionID→ModelID bridge) and thresholds at
+    _PARTNER_DEEP_DEL. Returns {ModelID -> bool}; True = partner deeply deleted. Models absent from the
+    CN panel are OMITTED (honest exclusion, not a fabricated CN-intact). Unlocks the codeletion SL
+    family (MTAP/CDKN2A-deletion → PRMT5/MAT2A) that the mutation/MSI arms structurally cannot see."""
+    from methods.depmap_cn_distribution.cli import load_cn_files
+
+    cn_by_model, _meta, _assay, errs = load_cn_files(release_pin, partner_gene)
+    if errs or not cn_by_model:
+        return {}
+    return {m: (cn < _PARTNER_DEEP_DEL) for m, cn in cn_by_model.items()
+            if isinstance(cn, (int, float)) and cn == cn}   # skip NaN
+
+
 def build_partner_deficiency_vector(release_pin: str, partner: str, deficiency_type: str) -> dict:
     """Dispatch on deficiency_type → {ModelID -> bool} partner-deficient vector."""
     if deficiency_type == "msi_signature":
         return _msi_high_by_model(release_pin)
     if deficiency_type == "lof_mutation":
         return _partner_lof_by_model(release_pin, partner)
+    if deficiency_type == "cn_loss":
+        return _partner_cn_loss_by_model(release_pin, partner)
     raise ValueError(f"unknown deficiency_type: {deficiency_type!r} (partner={partner})")
 
 
