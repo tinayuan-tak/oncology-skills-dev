@@ -61,14 +61,16 @@ HPA_CROSSWALK = {
 }
 
 # Single-cell normal-tissue ALWAYS-ON shard slug (must be a `TISSUE_TO_PRODUCT` key). None where the
-# organ has no dedicated always-on single-cell normal shard. NOTE: lung/pancreas shards exist but
-# are queried INDICATION-MATCHED (NSCLC/PAAD), not always-on — kept out of the always-on set here
-# to preserve current behavior; brain + adrenal_gland shards exist and are promoted to always-on
-# (they were the S1-3 CNS + endocrine holes).
+# organ has no dedicated always-on single-cell normal shard. brain + adrenal_gland were promoted first
+# (S1-3 CNS + endocrine holes); lung + pancreas promoted 2026-08-19 — a target expressed in normal
+# pneumocytes (the ADC-pneumonitis organ) or pancreatic islet is a cross-indication safety liability
+# previously visible only for NSCLC/PAAD (indication-matched). Safe to promote now that the sc-normal
+# critical-organ arm produces a NAMED-organ liability FLAG (selective_with_normal_liability), not the
+# blunt selective_but_broadly_normal kill (Phase S).
 SC_NORMAL_CROSSWALK = {
     "heart": "heart", "liver": "liver", "kidney": "kidney", "bone_marrow": "bone_marrow",
     "brain": "brain", "adrenal_gland": "adrenal_gland",
-    "lung": None, "pancreas": None,   # shards exist but queried indication-matched (see note above)
+    "lung": "lung", "pancreas": "pancreas",   # PROMOTED to always-on (pneumonitis / islet safety) 2026-08-19
     "nerve": None, "muscle": None, "blood": None,
     "pituitary": None, "thyroid": None, "vasculature": None,
 }

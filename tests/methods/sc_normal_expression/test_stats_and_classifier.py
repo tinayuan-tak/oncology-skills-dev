@@ -237,7 +237,7 @@ def test_read_target_summary_full_path(monkeypatch):
     assert out["sc_normal_expression_class"] == "HIGH_LIABILITY"
     assert out["indication"] == "COADREAD"
     # COADREAD now queries the matched tissue (colon) UNION the always-on safety-essential tissues
-    assert out["tissues_queried"] == ["colon", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
+    assert out["tissues_queried"] == ["colon", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
 
 
 def test_read_target_summary_unknown_indication_still_reads_safety_essential(monkeypatch):
@@ -247,7 +247,7 @@ def test_read_target_summary_unknown_indication_still_reads_safety_essential(mon
     monkeypatch.setattr(R, "read_gene_celltype_rows", lambda t, ts: None)
     out = R.read_target_summary("EPCAM", "UNKNOWN_IND")
     assert out["sc_normal_expression_class"] == "data_unavailable"
-    assert out["tissues_queried"] == ["heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
+    assert out["tissues_queried"] == ["heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
     assert "_data_note" in out
 
 
@@ -270,15 +270,16 @@ def test_read_target_summary_gene_absent(monkeypatch):
 
 def test_tissues_for_indication_unions_matched_and_safety_essential():
     """tumor-matched tissue(s) UNION the always-on safety-essential tissues, de-duplicated."""
-    # Census-backed indications
-    assert R.tissues_for_indication("COADREAD") == ["colon", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
-    assert R.tissues_for_indication("NSCLC") == ["lung", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
+    # Census-backed indications. Always-on safety-essential set now includes lung + pancreas
+    # (promoted 2026-08-19: pneumocyte / islet safety), de-duped against the matched tissue.
+    assert R.tissues_for_indication("COADREAD") == ["colon", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
+    assert R.tissues_for_indication("NSCLC") == ["lung", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "pancreas"]
     # 3CA-backed indications added 2026-08-12
-    assert R.tissues_for_indication("PAAD") == ["pancreas", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
-    assert R.tissues_for_indication("HNSC") == ["esophagus", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
-    assert R.tissues_for_indication("STAD") == ["stomach", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
+    assert R.tissues_for_indication("PAAD") == ["pancreas", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung"]
+    assert R.tissues_for_indication("HNSC") == ["esophagus", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
+    assert R.tissues_for_indication("STAD") == ["stomach", "heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
     # Unknown indication → safety-essential only (never empty)
-    assert R.tissues_for_indication("UNKNOWN") == ["heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland"]
+    assert R.tissues_for_indication("UNKNOWN") == ["heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
 
 
 def test_all_tissue_products_resolve():
