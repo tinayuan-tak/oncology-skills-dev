@@ -26,6 +26,18 @@ status: dormant_pending_data
 # `per_subgroup_metrics` record field is dropped until a per-sample stratified
 # expression reader (a `read_stratified_expression` / `build_expression_panorama`
 # in methods/) ships. The grain-check in validators/validate_cards.py enforces this.
+#
+# DISPOSITION UPDATE (2026-08-19): the per-stratum tumor-vs-normal question is now COVERED for the
+# common case by two LIVE per-sample subtype cards, both backed by the tcga-gtex-expression-distribution
+# per-sample stratified reader (the "per-sample reader" this card waited for — via median-based
+# per-stratum recompute, the framework's established subtype-panorama convention):
+#   - tumor-rna-distribution-by-subtype        — per-stratum median + fraction-above-matched-normal window
+#   - tumor-vs-normal-percentile-crossing-by-subtype (Phase B, 2026-08-19) — per-stratum crossing selectivity
+# This card stays DORMANT because its DISTINCT value over those two is specifically a per-stratum
+# DESeq2 NB-GLM contrast vs TCGA-ADJACENT normal (not GTEx-matched, not median-based) — which still
+# requires the dge-deseq2 R pipeline to gain a genuine per-stratum refit (the stubbed `stratify_by`
+# path). That is an owner-gated data-engineering effort; graduating this card with a median-based
+# GTEx-normal reader would merely DUPLICATE the two live cards above, so it is deliberately NOT done.
 subgroup_stratification:
   eligible: true
   status: blocked_needs_per_sample_reader
