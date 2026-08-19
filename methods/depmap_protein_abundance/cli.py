@@ -52,6 +52,12 @@ S3_BUCKET, _PROT_PREFIX = bucket_prefix_for(PROT_SOURCE_MANIFEST_ID)
 _PROT_PREFIX = _PROT_PREFIX.rstrip("/")
 MATRIX_KEY = f"{_PROT_PREFIX}/harmonized_MS_CCLE_Gygi.csv"
 SIDECAR_KEY = f"{_PROT_PREFIX}/harmonized_MS_CCLE_Gygi.csv.target_resolution.parquet"
+# Olink FALLBACK (Track C): antibody-NPX proteomics, UniProt-accession cols × ModelID rows (same shape
+# as Gygi). Covers surface/secreted antigens the Gygi MS panel misses (MSLN/MUC16/CLDN18…). Its
+# symbol→UniProt resolution uses the GENERAL uniprot_hugo mapping (NOT the Gygi-only target_resolution
+# sidecar, which cannot resolve a non-Gygi symbol).
+OLINK_MATRIX_KEY = f"{_PROT_PREFIX}/harmonized_Olink_2023_best_dilution_v2.csv"
+_UNIPROT_MAP_KEY = f"{_PROT_PREFIX}/uniprot_hugo_entrez_id_mapping_26q1.csv"
 # Model.csv (ModelID -> OncotreeLineage) lives in the sister RNA/omics source.
 _MODEL_PREFIX = bucket_prefix_for("depmap-consortium-26q1")[1].rstrip("/")
 MODEL_KEY = f"{_MODEL_PREFIX}/Model.csv"
@@ -145,16 +151,18 @@ def resolve_accession(target: str, sidecar_path=None) -> Optional[str]:
     return str(val) if val is not None and str(val) != "nan" else None
 
 
-def load_abundance_column(accession: str, matrix_path=None):
+def load_abundance_column(accession: str, matrix_path=None, matrix_key: str = MATRIX_KEY):
     """Return (abundance_by_model, panel_size) for the protein column.
 
     abundance_by_model = {ModelID: log2_abundance} dropping NaNs (undetected);
     panel_size = total ModelID rows in the matrix (the detection denominator).
     The matrix is ModelID-rows x accession-cols; the first column is the ModelID
     (ACH-*). Returns (None, panel_size) if the accession is absent from the matrix.
-    Single read of the matrix (panel size + column come from the same load)."""
+    Single read of the matrix (panel size + column come from the same load).
+    `matrix_key` selects the source matrix (default Gygi MS; OLINK_MATRIX_KEY for the fallback) —
+    both share the ModelID-rows × UniProt-accession-cols shape, so the same column logic applies."""
     import pandas as pd
-    df = _read_csv(matrix_path, S3_BUCKET, MATRIX_KEY)
+    df = _read_csv(matrix_path, S3_BUCKET, matrix_key)
     id_col = df.columns[0]  # unnamed index col holding ACH-* ids
     panel_size = len(df)
     # accession columns may be isoform-suffixed (e.g. Q8WY21-3); prefer the exact
@@ -173,6 +181,43 @@ def load_abundance_column(accession: str, matrix_path=None):
         if v is not None and pd.notna(v):
             out[str(row[id_col])] = float(v)
     return out, panel_size
+
+
+import functools
+
+
+@functools.lru_cache(maxsize=1)
+def _symbol_to_uniprot_map() -> dict:
+    """HGNC symbol (upper) -> [UniprotID,...] from the GENERAL uniprot_hugo mapping in the proteomics
+    prefix. NOT the Gygi target_resolution sidecar (which only covers Gygi-present symbols) — this
+    resolves surface/secreted antigens the Gygi panel misses, so the Olink fallback can find them.
+    {} on any failure (fallback then degrades to data_unavailable — honest)."""
+    import pandas as pd
+    try:
+        df = _read_csv(None, S3_BUCKET, _UNIPROT_MAP_KEY)
+    except Exception:  # noqa: BLE001
+        return {}
+    if "Symbol" not in df.columns or "UniprotID" not in df.columns:
+        return {}
+    m: dict = {}
+    for sym, acc in zip(df["Symbol"], df["UniprotID"]):
+        if isinstance(sym, str) and isinstance(acc, str):
+            m.setdefault(sym.strip().upper(), []).append(acc.strip())
+    return m
+
+
+def load_olink_abundance_column(symbol: str):
+    """Olink-NPX FALLBACK: (abundance_by_model, panel_size, accession_used) for a target absent from the
+    Gygi MS panel. Resolves symbol→UniProt via the general mapping, then reads the Olink matrix column
+    (ModelID-rows × UniProt-cols) via load_abundance_column. Tries each mapped accession; returns the
+    first with data. (None, panel_size, None) when the symbol/accession is not Olink-measured."""
+    uniprots = _symbol_to_uniprot_map().get(symbol.strip().upper()) or []
+    panel_size = 0
+    for acc in uniprots:
+        col, panel_size = load_abundance_column(acc, matrix_key=OLINK_MATRIX_KEY)
+        if col:
+            return col, panel_size, acc
+    return None, panel_size, None
 
 
 def load_model_lineage(model_path=None) -> dict:

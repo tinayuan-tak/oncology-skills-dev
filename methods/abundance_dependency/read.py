@@ -50,23 +50,33 @@ def read_abundance_dependency(target: str, indication: Optional[str] = None,
     base = {"target": target, "indication": indication or "", "release_pin": release_pin,
             "abundance_layer": "protein_gygi_ms"}
 
-    # 1) protein abundance per model (reuse depmap_protein_abundance loaders)
+    # 1) protein abundance per model (reuse depmap_protein_abundance loaders). PRIMARY = Gygi MS;
+    #    FALLBACK = Olink NPX (Track C) when the target is absent from Gygi — rescues surface/secreted
+    #    antigens (MSLN/MUC16/CLDN18…) the MS panel misses. abundance_layer records which platform was used.
+    abundance_by_model, panel_size = None, 0
     try:
         from methods.depmap_protein_abundance import cli as _prot
         accession = _prot.resolve_accession(sym)
-        if not accession:
-            base.update({"abundance_dependency_class": "data_unavailable",
-                         "_data_note": f"{sym} not resolvable to a UniProt accession in the Gygi sidecar"})
-            return base
-        abundance_by_model, panel_size = _prot.load_abundance_column(accession)
+        if accession:
+            abundance_by_model, panel_size = _prot.load_abundance_column(accession)
     except Exception as e:  # noqa: BLE001
         base.update({"abundance_dependency_class": "data_unavailable",
                      "_live_read_error": f"protein_load_failed:{type(e).__name__}"})
         return base
     if not abundance_by_model:
-        base.update({"abundance_dependency_class": "data_unavailable",
-                     "_data_note": f"{sym} undetected in the Gygi MS panel (n_panel={panel_size})"})
-        return base
+        # Gygi miss → Olink NPX fallback (general symbol→UniProt resolution; not the Gygi sidecar).
+        try:
+            olink_by_model, olink_panel, olink_acc = _prot.load_olink_abundance_column(sym)
+        except Exception:  # noqa: BLE001 — fallback is best-effort; never break the primary path
+            olink_by_model, olink_panel, olink_acc = None, 0, None
+        if olink_by_model:
+            abundance_by_model, panel_size = olink_by_model, olink_panel
+            base["abundance_layer"] = "protein_olink_npx"
+            base["_fallback_note"] = f"{sym} absent from Gygi MS → Olink NPX (accession {olink_acc})"
+        else:
+            base.update({"abundance_dependency_class": "data_unavailable",
+                         "_data_note": f"{sym} undetected in Gygi MS or Olink (Gygi n_panel={panel_size})"})
+            return base
 
     # 2) Chronos per model (reuse the card4 loader)
     try:
