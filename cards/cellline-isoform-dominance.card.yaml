@@ -1,0 +1,48 @@
+# cellline-isoform-dominance — MOLECULAR-FORM (transcript identity) card, split out of
+# cellline-rna-distribution (presence-coherence Phase 3b). "Which transcript isoform dominates the
+# target's mRNA across DepMap cell lines" is a target-INTRINSIC question about transcript FORM — a
+# different claim from the "is it expressed / how much" presence-abundance claim of the parent card.
+# Binds the already-separate depmap-isoform-expression method (no new emitter). VERDICT-INERT.
+card_id: cellline-isoform-dominance
+version: 1.0.0
+schema_version: 1
+
+question: "Which transcript isoform dominates {target.symbol}'s mRNA across DepMap cell lines — is expression concentrated in a single isoform or spread across several (modality / epitope-choice relevance)?"
+
+tier: target                  # indication-independent transcript property of the gene
+measurement: bulk_rna
+sample_context: cell_line
+measurement_type: cell_line_isoform_dominance
+entity_grains:
+  - target
+
+applies_when:
+  - "context.data_sources.depmap_expression_available == true"
+
+required_inputs:
+  - product_id: depmap-isoform-expression-per-gene-v1
+
+methods:
+  - call: depmap-isoform-expression
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - isoform_expression_class
+    - dominant_isoform_fraction
+    - n_expressed_isoforms
+    - dominant_isoform
+    - isoform_n_models
+    - isoform_context
+  summary_fields_vocabulary:
+    isoform_expression_class:
+      - single_isoform_dominant
+      - balanced
+      - isoform_diverse
+      - data_unavailable
+
+caveats:
+  - "MODEL-side (DepMap cell lines), transcript-level TPM; patient-tumour isoform usage (TCGA SpliceSeq) is a separate axis (see tumor-splice-dysregulation)."
+  - "The dominant-isoform fraction is computed over transcript columns mapping to GENCODE v26 (~83% of the matrix) — a within-mapped-isoform dominance, not a claim over unannotated transcripts."
+  - "VERDICT-INERT: flags single-transcript (modality/epitope simplicity) vs isoform-diverse (a functional/druggable isoform must be specified) targets; fires no interpretation rule and moves no verdict."

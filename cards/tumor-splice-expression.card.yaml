@@ -1,0 +1,51 @@
+# Card — TUMOR SPLICE EXPRESSION (molecular-form: PATIENT splicing dysregulation)
+#
+# The MOLECULAR-FORM (splicing) facet promoted to a STANDALONE card (2026-08-19; card→skill
+# organizing-layer plan Part 6.3). Is the target's SPLICING dysregulated in patient tumours (TCGA
+# SpliceSeq PSI) — tumour-shifted vs matched normal, or highly variable across the cohort? The
+# PATIENT complement to the model-arm isoform facet (cellline-isoform-expression). ORTHOGONAL to
+# expression-LEVEL (how MUCH) — this says which SPLICE EVENTS shift. Reads tcga-spliceseq-psi-per-gene-v1.
+#
+# Conditioner axis `molecular_form`. It refines EXPRESSION (which form is made) and — the
+# scientifically load-bearing edge — SELECTIVITY (a tumour-specific splice variant is a strong
+# selectivity signal / near-ideal target), so this card is composed by tumor-selectivity as well as
+# tumor-presence. VERDICT-INERT: display + LLM context; fires no interpretation rule; never moves a verdict.
+# ADDITIVE (byte-stable): the SAME facet is ALSO emitted as a sub-call inside tumor-rna-distribution
+# (kept for now; de-duping the parent sub-call is a deliberate follow-on).
+card_id: tumor-splice-expression
+version: 0.1.0
+status: wired
+question: "Is {target.symbol}'s splicing dysregulated in {indication.label} patient tumours — tumour-shifted or highly variable across the cohort?"
+tier: indication
+measurement_type: tumor_splice_expression
+entity_grains:
+  - target_indication
+applies_when:
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA']"
+required_inputs:
+  - product_id: tcga-spliceseq-psi-per-gene-v1
+methods:
+  - call: tcga-spliceseq-psi
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+outputs:
+  summary_fields:
+    - splicing_dysregulation_class               # categorical (vocabulary below); verdict-inert
+    - n_splice_events                            # annotated alternative-splicing events for the gene
+    - max_event_psi_std                          # max across events of tumour PSI std (variability)
+    - median_event_psi_std                       # median event PSI std
+    - n_variable_events                          # events with tumour PSI std >= 0.10
+    - n_tumor_shifted_events                     # events shifted vs matched normal (null if no normals)
+    - dominant_event_splice_type                 # splice class (ES/AA/AD/RI/AP/AT/ME) of the most-variable event
+    - splicing_context                           # human-readable splicing summary (audit)
+  summary_fields_vocabulary:
+    splicing_dysregulation_class:
+      - tumor_shifted                            # >=1 event with |median tumour - median normal| PSI >= 0.10
+      - highly_variable                          # >=1 event with tumour PSI std >= 0.10 (no normal contrast)
+      - stable                                   # no variable/shifted event — splicing flat across the cohort
+      - data_unavailable
+caveats:
+  - "Verdict-inert molecular-form facet: display + context; fires no interpretation rule; never moves tumor_expression_class or any verdict."
+  - "Bulk-cohort POPULATION view: a low-frequency/context-specific cancer isoform (e.g. AR-V7 in castration-resistant disease, largely absent from treatment-naive TCGA) reads 'stable' because it does not move cohort PSI variance. Orthogonal to the curated isoform_selective_targets guardrail by design; absence of a shift is not absence of a clinically-relevant isoform."
+schema_version: 1
