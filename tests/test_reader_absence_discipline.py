@@ -289,13 +289,10 @@ _BASELINE_REASON = (
 # residuals below. The 2 verdict-contributing HIGH-danger handlers (pair_selectivity_gate same-cell +
 # normal cubes) were FIXED in this PR; the remaining 6 are recorded here for a follow-up burndown.
 _BASELINE_RESIDUALS: dict[str, str] = {
-    "allgene_percentile_precompute/lookup.py::_depmap_row":
-        "broad except over a gene-filtered pushdown read of the DepMap all-gene rank product "
-        "returns None; render-path percentile lookup. RD-class residual newly surfaced by the "
-        "*/*.py glob; burndown follow-up (convert to is_definitively_absent + FileNotFoundError).",
-    "allgene_percentile_precompute/lookup.py::_tumor_rows":
-        "broad except over a pushdown read of the tumor all-gene rank product returns (); "
-        "render-path percentile lookup. RD-class residual; burndown follow-up.",
+    # allgene_percentile_precompute/lookup.py::_depmap_row + ::_tumor_rows — BURNDOWN COMPLETE
+    # (fix/allgene-lookup-read-error-vs-absent): both now raise a typed _RankReadError on a READ
+    # failure and return None/() ONLY for genuine absence, so the accessors distinguish "rank read
+    # failed" from "target absent". No longer masking handlers → removed from the residual allowlist.
     "immune_context/antigen_conditioned.py::_antigen_tpm_by_uuid_study":
         "broad except masks catalog RESOLUTION (s3_uri_for) → None; the pq.read itself is "
         "unguarded (propagates). Low danger (resolution only), but a transient catalog read is "

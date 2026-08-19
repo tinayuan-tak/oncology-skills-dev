@@ -62,6 +62,13 @@ _S3FS = None
 _S3FS_LOCK = _threading.Lock()
 
 
+class _RankReadError(Exception):
+    """The rank precompute product could not be READ (S3/auth/parse). Distinct from a gene being
+    genuinely ABSENT from the product — so a transient infra failure is never silently reported as
+    'target absent' (which reads downstream as 'not measured'). See the CEACAM5/COADREAD stale-run
+    diagnosis: a failed rank read had masqueraded as absence."""
+
+
 def _build_s3fs():
     """Build a pyarrow S3FileSystem bound to the cbg profile (the bucket denies the default
     role — see feedback_compose_dashboard_aws_profile). Import-local so a non-S3 unit
@@ -107,11 +114,13 @@ def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
                             columns=["group", "allgene_percentile", "allgene_rank",
                                      "n_genes_in_group", "median"])
         df = tbl.to_pandas()
-        return tuple((str(r.group), float(r.allgene_percentile), int(r.allgene_rank),
-                      int(r.n_genes_in_group), float(r.median))
-                     for r in df.itertuples(index=False))
-    except Exception:  # noqa: BLE001 — render-path safe
-        return ()
+    except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
+        raise _RankReadError(str(e)) from e
+    # An empty frame here means the gene(s) are genuinely absent from the product (→ () is correct);
+    # a read/auth/parse failure raised above instead, so the caller can tell the two apart.
+    return tuple((str(r.group), float(r.allgene_percentile), int(r.allgene_rank),
+                  int(r.n_genes_in_group), float(r.median))
+                 for r in df.itertuples(index=False))
 
 
 def tumor_allgene_percentile(ensembl_ids: Sequence[str], studies: Sequence[str],
@@ -132,7 +141,12 @@ def tumor_allgene_percentile(ensembl_ids: Sequence[str], studies: Sequence[str],
     want = {str(s).upper().strip() for s in (studies or [])}
     if not ids or not want:
         return out
-    rows = _tumor_rows(ids, source)
+    try:
+        rows = _tumor_rows(ids, source)
+    except _RankReadError as e:
+        out["allgene_percentile_context"] = (
+            f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — rank read failed: {e}")
+        return out
     by_study = {g: pct for (g, pct, _rank, _n, _med) in rows if g.upper() in want}
     if not by_study:
         out["allgene_percentile_context"] = (
@@ -162,13 +176,13 @@ def _depmap_row(gene_symbol: str) -> Optional[tuple]:
                             columns=["allgene_percentile", "allgene_rank", "n_genes",
                                      "panel_median_log2tpm"])
         df = tbl.to_pandas()
-        if df.empty:
-            return None
-        r = df.iloc[0]
-        return (float(r["allgene_percentile"]), int(r["allgene_rank"]),
-                int(r["n_genes"]), float(r["panel_median_log2tpm"]))
-    except Exception:  # noqa: BLE001 — render-path safe
+    except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
+        raise _RankReadError(str(e)) from e
+    if df.empty:            # genuinely absent from the product (→ None is correct)
         return None
+    r = df.iloc[0]
+    return (float(r["allgene_percentile"]), int(r["allgene_rank"]),
+            int(r["n_genes"]), float(r["panel_median_log2tpm"]))
 
 
 def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) -> dict:
@@ -180,10 +194,15 @@ def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) 
     out = {"allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
            "allgene_percentile_context": None}
     sym = (gene_symbol or "").strip()
-    row = _depmap_row(sym)
+    try:
+        row = _depmap_row(sym)
+    except _RankReadError as e:
+        out["allgene_percentile_context"] = (
+            f"DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — rank read failed: {e}")
+        return out
     if row is None:
         out["allgene_percentile_context"] = (
-            f"DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — target absent")
+            "DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — target absent")
         return out
     pct, rank, n_genes, _median = row
     out["allgene_percentile"] = pct
