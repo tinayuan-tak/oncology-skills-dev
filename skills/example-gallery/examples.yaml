@@ -56,3 +56,8 @@ examples:
   # Structure / Known-drug question table).
   - {skill: tractability-small-molecule, target: KRAS, indication: COADREAD}   # covalent G12C precedent
   - {skill: tractability-small-molecule, target: EGFR, indication: LUAD}       # approved TKI, ligandable kinase
+
+  # on-target-safety-liability — the 5-leg human-genetics safety hero (Constraint / Burden / Dosage /
+  # Mouse-KO / ClinVar; strong = LoF-tolerant/safe, absent = a liability).
+  - {skill: on-target-safety-liability, target: KRAS, indication: COADREAD}   # activating GoF → mechanism-downgrade
+  - {skill: on-target-safety-liability, target: EGFR, indication: LUAD}       # kinase; constraint + normal-tissue

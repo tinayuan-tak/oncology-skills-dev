@@ -1246,6 +1246,9 @@ def _question_table_html(decision: dict, h: dict) -> str:
         elif skill == "tractability-small-molecule":
             title, verdict = "Small-molecule tractability", h.get("druggability_snapshot")
             sig_hdr = "Signal — druggability →"
+        elif skill == "on-target-safety-liability":
+            title, verdict = "On-target safety", h.get("safety_verdict")
+            sig_hdr = "Signal — LoF-tolerant (safe) →"
         elif skill == "surface-modality-fit":
             title, verdict = "Surface modality", h.get("fit_class")
             sig_hdr = "Signal — modality-favorable →"
@@ -1260,6 +1263,9 @@ def _question_table_html(decision: dict, h: dict) -> str:
             elif skill == "tractability-small-molecule":
                 from _skills_common.tractability_sm_question_table import tractability_sm_question_table
                 rows = tractability_sm_question_table(h, decision.get("cards", []))
+            elif skill == "on-target-safety-liability":
+                from _skills_common.safety_question_table import safety_question_table
+                rows = safety_question_table(h, decision.get("cards", []))
             elif skill == "surface-modality-fit":
                 from _skills_common.surface_modality_question_table import surface_modality_question_table
                 rows = surface_modality_question_table(h, decision.get("cards", []))
@@ -1627,6 +1633,20 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                      '<span class="hint">— per-card: topology / family / density / shed / homogeneity '
                      '/ pMHC / normal-tissue window; click a row to expand. Display only.</span>'
                      '</summary><div class="drillbody">')
+        parts.append('<div class="cardlist">')
+        for idx, c in enumerate(cards):
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                          target, indication, uid=f"{idx}"))
+        parts.append('</div></div></details>')
+    elif skill == "on-target-safety-liability" and cards:
+        # LEADING view: the 5-leg human-genetics safety table (Constraint / Burden / Dosage / Mouse-KO
+        # / ClinVar) via the shared renderer — strong = LoF-tolerant (safe), absent = a liability.
+        # Detailed per-card evidence follows as a drill-down (same _card_block_html).
+        parts.append(_question_table_html(decision, h))
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
+                     '<span class="hint">— per-card: gnomAD constraint / gene-burden / ClinGen dosage '
+                     '/ mouse-KO / ClinVar / GTEx normal-tissue; click a row to expand. Display only.'
+                     '</span></summary><div class="drillbody">')
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
             parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
