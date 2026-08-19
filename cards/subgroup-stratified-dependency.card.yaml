@@ -1,9 +1,16 @@
-# Subgroup-panorama card (2026-07-16) — LIVE, descriptive-only.
+# Subgroup-panorama card (2026-07-16) — LIVE. Display-first in the FOCUSED skill;
+# feeds a ONE-DIRECTIONAL (negative) composer HOLD in target-profile --subtypes.
 #
 # Enumerates {target}'s CRISPR (Chronos) dependency ACROSS the molecular subgroups
 # of one indication (e.g. MSI/MSS), using the DepMap ModelID side of the subgroup
-# assignments. DESCRIPTIVE subgroup panorama: shows every stratum row (positive
-# AND negative), emits NO verdict signal.
+# assignments. Shows every stratum row (positive AND negative). VERDICT ROLE (corrected
+# 2026-08-19, subtype-verdict-shifting review M2): NOT verdict-inert. In functional-requirement
+# it is display-only, BUT in the composed target-profile subtype tier (opt-in --subtypes) its
+# rule `subtype-non-dependence-opposing` (interpretation-rules/intracellular-intrinsic.rules.yaml)
+# fires on a MEASURED, floor-cleared (n>=30), NON-dependent stratum → subtype_fit_genomic:opposing
+# → verdict subtype_specific_non_dependence → nomination HOLD. It is ONE-DIRECTIONAL: a
+# subtype-RESTRICTED (positive) dependency deliberately fires no rule and cannot nominate (see the
+# subtype-verdict-shifting review; a positive subtype_restricted_dependency rung is planned).
 #
 # DISTINCT from `dependency-lineage-selectivity` (tier: target, pan-cancer — how
 # dependency stratifies across DepMap LINEAGES) and from `mutation-stratified-
@@ -87,7 +94,7 @@ thresholds:
   min_subgroups_for_call: 2          # need ≥2 measured strata to speak to cross-subgroup variation
 
 caveats:
-  - "DESCRIPTIVE panorama only — emits no verdict signal; per-subgroup rows inform via render, not synthesis."
+  - "Display-first: in the focused functional-requirement skill the per-subgroup rows inform via render, not the verdict. In the COMPOSED target-profile subtype tier (opt-in --subtypes) this card DOES move the verdict — one-directionally NEGATIVE: a measured, floor-cleared (n>=30), non-dependent stratum fires subtype-non-dependence-opposing → subtype_specific_non_dependence → nomination HOLD. A subtype-restricted POSITIVE dependency fires no rule (cannot nominate) by current design."
   - "Underpowered strata (subgroup_n < SUBGROUP_N_FLOOR=30) are tagged `underpowered` and INADMISSIBLE in comparative prose. DepMap per-indication cell-line strata are frequently underpowered (few lines per molecular subgroup) — read the evidence_state tag before comparing."
   - "Chronos dependency is cell-line-derived; in-vivo dependency may differ (microenvironment, immune context)."
   - "When the subgroup axis is defined by the target's OWN mutation status, mind the double-source-of-truth: DepMap computes mutant/WT internally too. MSI-defined strata are clean of this; a KRAS-mut-defined stratum on a KRAS dependency query is not."
