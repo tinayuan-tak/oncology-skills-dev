@@ -113,3 +113,8 @@ jobs:
 
       - name: Framework-discrimination calibration
         run: python -m pytest tests/calibration/test_framework_discrimination.py -q
+
+      # Card CONCEPT-DISCIPLINE ratchet: no NEW molecular-form (isoform/splice) fields on a bulk_rna
+      # expression-abundance card (a card owns ONE concept). Baselined debt burns down via Phase 3b.
+      - name: Card concept-discipline ratchet
+        run: python -m pytest tests/validators/test_card_concept_discipline.py -q
