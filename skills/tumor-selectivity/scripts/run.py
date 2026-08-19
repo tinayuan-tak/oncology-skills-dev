@@ -21,6 +21,7 @@ from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_selectivity import synthesize_selectivity
+from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
 from _skills_common.selectivity_hero import emit_selectivity_hero
 # The normal-breadth VETO clamp is single-sourced in _skills_common.selectivity_veto so that BOTH
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
@@ -146,7 +147,7 @@ def _headline(cards, fired, verdict_pair):
     # selective_but_broadly_normal — while the raw pre-veto axis-A class is preserved separately for
     # transparency/audit (and so the synthesis narrator cannot over-claim off the pre-veto class).
     resolved_verdict, resolved_driving = (verdict_pair or (tvn.get("selectivity_class"), None))
-    return {
+    hl = {
         "selectivity_class":  resolved_verdict,               # RESOLVED (post-veto) — the audit spine
         "driving_rule_id":    resolved_driving,               # the rule that set it (e.g. the veto rule)
         "axis_a_selectivity_class": tvn.get("selectivity_class"),  # raw tumor-vs-origin class (pre-veto)
@@ -206,6 +207,15 @@ def _headline(cards, fired, verdict_pair):
         "spatial_normal_epithelium_adjacency_fraction": spatial_coloc.get("normal_epithelium_adjacency_fraction"),
         "spatial_protein_class":            spatial_protein.get("spatial_protein_class"),
     }
+    # Additive, verdict-INERT: the claim vector (WIN/DIST/INT/SAFE signal×corroboration) + a brief
+    # cited key-signals read — the WITHIN-lens evidence integration this subskill owns, built on the
+    # SHARED claim_vector_core contract (tumor-selectivity is the third concrete after presence +
+    # dependency). Both are projections over the headline just built; they NEVER touch the
+    # selectivity_class spine or the normal-breadth veto (byte-stable, frozen by the CEACAM5/TACSTD2
+    # replay guard). See _skills_common/selectivity_claims.py + claim_vector_core.py.
+    hl["claim_vector"] = selectivity_claim_vector(hl, cards)
+    hl["key_signals"] = selectivity_key_signals(hl, cards)
+    return hl
 
 
 if __name__ == "__main__":
