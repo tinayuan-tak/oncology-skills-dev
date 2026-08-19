@@ -152,3 +152,57 @@ def test_subtype_verdict_present_in_panorama_block(monkeypatch):
     assert block["subtype_verdict"]["by_stratum"] == {"MSI_H": "dependent", "MSS": "not_dependent"}
     # descriptive pattern still computed alongside the verdict
     assert block["subtype_dependency_pattern"] == "subgroup_specific_dependency"
+
+
+# --- Phase 3b consumer: sublineage de-confounding of shared coarse lineages -----------------
+
+def _lineage_card_with_codes(code_rows):
+    """A dependency-lineage-selectivity card carrying per_oncotree_code_stats (+ a coarse Esophagus/
+    Stomach row so the fallback path is also exercisable)."""
+    return [
+        {"card_id": "dependency-lineage-selectivity",
+         "summary": {"enriched_lineages": [], "per_lineage_stats": [
+             {"lineage": "Esophagus/Stomach", "n": 40, "median_chronos": -0.55}],
+                     "per_oncotree_code_stats": code_rows}},
+        {"card_id": "abundance-dependency", "summary": {"indication": "STAD"}},
+    ]
+
+
+def test_sublineage_read_n_weighted_aggregate():
+    rows = [{"oncotree_code": "STAD", "n": 60, "median_chronos": -0.8, "fraction_strongly_dependent": 0.5},
+            {"oncotree_code": "TSTAD", "n": 20, "median_chronos": -0.4, "fraction_strongly_dependent": 0.2},
+            {"oncotree_code": "ESCA", "n": 50, "median_chronos": 0.1, "fraction_strongly_dependent": 0.0}]
+    sub = M._sublineage_read(_lineage_card_with_codes(rows), ["STAD", "TSTAD", "DSTAD"])
+    assert sub["matched_codes"] == ["STAD", "TSTAD"]        # ESCA excluded; DSTAD absent
+    assert sub["n"] == 80
+    # n-weighted median = (-0.8*60 + -0.4*20)/80 = -0.7
+    assert sub["median_chronos"] == -0.7
+
+
+def test_indication_read_sublineage_resolves_shared_caveat(monkeypatch):
+    # STAD → shared Esophagus/Stomach lineage + a curated code-set → sublineage read RESOLVES the caveat
+    monkeypatch.setattr(M, "_indication_lineage_map", lambda: {
+        "STAD": {"depmap_lineage": "Esophagus/Stomach", "depmap_oncotree_lineage": "Stomach_Adenocarcinoma",
+                 "depmap_oncotree_codes": ["STAD", "TSTAD", "DSTAD", "SSRCC"]}})
+    rows = [{"oncotree_code": "STAD", "n": 60, "median_chronos": -0.9, "fraction_strongly_dependent": 0.6},
+            {"oncotree_code": "ESCA", "n": 50, "median_chronos": 0.1, "fraction_strongly_dependent": 0.0}]
+    read = M._indication_lineage_read(_lineage_card_with_codes(rows), "STAD")
+    assert read["sublineage_resolved"] is True
+    assert read["shared_lineage_caveat"] is False          # resolved, not merely flagged
+    assert read["matched_oncotree_codes"] == ["STAD"]      # ESCA de-confounded out
+    assert read["class"] == "dependent_not_enriched"       # STAD median -0.9 <= -0.5, de-confounded from ESCA
+    assert read["n"] == 60
+
+
+def test_indication_read_falls_back_to_coarse_without_code_stats(monkeypatch):
+    # code-set present but the card has NO per_oncotree_code_stats (e.g. old run) → coarse path, caveat stays
+    monkeypatch.setattr(M, "_indication_lineage_map", lambda: {
+        "STAD": {"depmap_lineage": "Esophagus/Stomach", "depmap_oncotree_codes": ["STAD", "TSTAD"]}})
+    cards = [{"card_id": "dependency-lineage-selectivity",
+              "summary": {"enriched_lineages": [],
+                          "per_lineage_stats": [{"lineage": "Esophagus/Stomach", "n": 40, "median_chronos": -0.6}]}},
+             {"card_id": "abundance-dependency", "summary": {"indication": "STAD"}}]
+    read = M._indication_lineage_read(cards, "STAD")
+    assert read.get("sublineage_resolved") is not True
+    assert read["shared_lineage_caveat"] is True           # unresolved → still flagged (honest)
+    assert read["class"] == "dependent_not_enriched"       # coarse Esophagus/Stomach median -0.6

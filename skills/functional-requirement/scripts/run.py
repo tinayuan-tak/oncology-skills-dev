@@ -479,18 +479,52 @@ _SHARED_DEPMAP_LINEAGES = {"Lung", "Esophagus/Stomach"}   # SCLC/NSCLC ; STAD/ES
 
 @functools.lru_cache(maxsize=1)
 def _indication_lineage_map() -> dict:
-    """canonical_code -> {depmap_lineage, depmap_oncotree_lineage} from target-contracts'
-    indication_crosswalk.yaml. Read-only; {} if unavailable (the by-scope layer then degrades to a
-    typed-empty indication rung — honest, never a crash)."""
+    """canonical_code -> {depmap_lineage, depmap_oncotree_lineage, depmap_oncotree_codes} from
+    target-contracts' indication_crosswalk.yaml. Read-only; {} if unavailable (the by-scope layer then
+    degrades to a typed-empty indication rung — honest, never a crash). `depmap_oncotree_codes` is the
+    OncotreeCode SET present ONLY for shared-lineage indications (STAD/ESCA, NSCLC/SCLC) — it drives the
+    sublineage-aware reduction that de-confounds the shared coarse DepMap lineage; absent otherwise."""
     try:
         import yaml
         path = DEFAULT_CONTRACTS_REPO / "vocabularies" / "indication_crosswalk.yaml"
         data = yaml.safe_load(path.read_text()) or {}
         return {e["canonical_code"]: {"depmap_lineage": e.get("depmap_lineage"),
-                                      "depmap_oncotree_lineage": e.get("depmap_oncotree_lineage")}
+                                      "depmap_oncotree_lineage": e.get("depmap_oncotree_lineage"),
+                                      "depmap_oncotree_codes": e.get("depmap_oncotree_codes")}
                 for e in data.get("indications", []) if e.get("canonical_code")}
     except Exception:   # noqa: BLE001 — additive/verdict-inert; absence must not break the spine
         return {}
+
+
+def _sublineage_read(cards, codes: list) -> dict | None:
+    """Aggregate the ADDITIVE per_oncotree_code_stats (AM #412) over an indication's OncotreeCode SET —
+    the de-confounded read for a SHARED coarse lineage (e.g. STAD = STAD+TSTAD+… separate from ESCA;
+    NSCLC = LUAD+LUSC+… separate from SCLC). Returns {n, median_chronos, fraction_strongly_dependent,
+    matched_codes, per_code} or None when the field / matching codes are unavailable (→ caller falls back
+    to the coarse-lineage path). median is n-WEIGHTED across codes (per-code raw scores aren't retained
+    in the summary) — an approximation adequate for the indication-scope classification; the verdict is
+    pan-cancer and untouched."""
+    rows = get_card_field(cards, "dependency-lineage-selectivity", "per_oncotree_code_stats")
+    if not isinstance(rows, list) or not rows or not codes:
+        return None
+    codeset = {str(c) for c in codes}
+    matched = [r for r in rows if isinstance(r, dict) and str(r.get("oncotree_code")) in codeset]
+    matched = [r for r in matched if isinstance(r.get("n"), (int, float)) and r.get("median_chronos") is not None]
+    if not matched:
+        return None
+    n_total = sum(r["n"] for r in matched)
+    if n_total <= 0:
+        return None
+    wmed = sum(r["median_chronos"] * r["n"] for r in matched) / n_total
+    wfrac = sum((r.get("fraction_strongly_dependent") or 0.0) * r["n"] for r in matched) / n_total
+    return {
+        "n": int(n_total),
+        "median_chronos": round(wmed, 4),
+        "fraction_strongly_dependent": round(wfrac, 4),
+        "matched_codes": sorted(r["oncotree_code"] for r in matched),
+        "per_code": [{"oncotree_code": r["oncotree_code"], "n": r["n"],
+                      "median_chronos": r["median_chronos"]} for r in matched],
+    }
 
 
 def _infer_indication(cards) -> str | None:
@@ -519,12 +553,42 @@ def _indication_lineage_read(cards, indication) -> dict:
     if not indication:
         read["_note"] = "no indication in query (target-grain run) — indication rung not computed"
         return read
-    lineage = (_indication_lineage_map().get(indication) or {}).get("depmap_lineage")
+    xw = _indication_lineage_map().get(indication) or {}
+    lineage = xw.get("depmap_lineage")
     read["depmap_lineage"] = lineage
     if not lineage:
         read["_note"] = f"no DepMap lineage crosswalk for indication {indication}"
         return read
     read["shared_lineage_caveat"] = lineage in _SHARED_DEPMAP_LINEAGES
+
+    # SUBLINEAGE de-confounding (Phase 3b): when the indication maps to a SHARED coarse lineage (STAD/ESCA
+    # → Esophagus/Stomach; NSCLC/SCLC → Lung) AND the crosswalk supplies its OncotreeCode set, reduce at
+    # the SUBLINEAGE grain (per_oncotree_code_stats aggregated over the code-set) instead of the confounded
+    # coarse lineage — this RESOLVES the shared_lineage_caveat rather than merely flagging it. Falls back to
+    # the coarse-lineage path when the field or code-set is unavailable (e.g. the offline fixture).
+    codes = xw.get("depmap_oncotree_codes")
+    if read["shared_lineage_caveat"] and codes:
+        sub = _sublineage_read(cards, codes)
+        if sub is not None:
+            read["shared_lineage_caveat"] = False   # resolved at sublineage grain
+            read["sublineage_resolved"] = True
+            read["matched_oncotree_codes"] = sub["matched_codes"]
+            read["per_oncotree_code"] = sub["per_code"]
+            n, med = sub["n"], sub["median_chronos"]
+            read.update(median_chronos=med, n=n)
+            if n < _LINEAGE_UNDERPOWER_FLOOR:
+                read.update(**{"class": "underpowered",
+                               "_note": f"{indication} sublineage {sub['matched_codes']} n={n} (< floor)"})
+            elif med <= _LINEAGE_DEPENDENCY_CUT:
+                read.update(**{"class": "dependent_not_enriched",
+                               "_note": (f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
+                                         f"n={n}): n-weighted median {med:.2f} — dependent, de-confounded "
+                                         f"from the shared {lineage} lineage")})
+            else:
+                read.update(**{"class": "not_dependent_in_indication",
+                               "_note": (f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
+                                         f"n={n}): n-weighted median {med:.2f} above the dependency cut")})
+            return read
 
     def _row(rows, key):
         if not isinstance(rows, list):
