@@ -227,7 +227,11 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
     for mid, c in chronos_by_model.items():
         meta = model_metadata.get(mid, {})
         lineage = meta.get("OncotreeLineage") or meta.get("lineage") or "unknown"
-        rows.append({"ModelID": mid, "chronos": c, "OncotreeLineage": lineage})
+        # OncotreeCode disambiguates SHARED coarse lineages that merge >1 indication (Esophagus/Stomach
+        # → STAD/ESCA/ESCC; Lung → LUAD/SCLC/LUSC/…) — the substrate for a per-oncotree-sublineage read.
+        oncotree_code = meta.get("OncotreeCode") or "unknown"
+        rows.append({"ModelID": mid, "chronos": c, "OncotreeLineage": lineage,
+                     "OncotreeCode": oncotree_code})
     merged = pd.DataFrame(rows)
 
     n_panel = len(merged)
@@ -240,6 +244,8 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
             "enriched_lineages": [],
             "n_enriched_lineages": 0,
             "enrichment_class": "data_unavailable",
+            "per_oncotree_code_stats": [],
+            "n_oncotree_codes_evaluated": 0,
         }
     median_panel = float(merged["chronos"].median())
 
@@ -258,6 +264,30 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
         })
     per_lineage_stats.sort(key=lambda x: x["median_chronos"])
     n_lineages_evaluated = len(per_lineage_stats)
+
+    # ADDITIVE per-OncotreeCode SUBLINEAGE table (2026-08-19) — the substrate for disambiguating the
+    # SHARED coarse lineages an indication reduction confounds (Esophagus/Stomach → STAD/ESCA/ESCC;
+    # Lung → LUAD/SCLC/LUSC/…). Same descriptive shape as per_lineage_stats, keyed by OncotreeCode +
+    # its parent OncotreeLineage. VERDICT-INERT: additive field; per_lineage_stats / enriched_lineages /
+    # enrichment_class (the verdict-driving outputs) are untouched. The indication→OncotreeCode-set
+    # aggregation (e.g. NSCLC = LUAD+LUSC+NSCLC+LCLC+LUAS) is a CONSUMER concern (skill reduction +
+    # crosswalk), NOT computed here — this emits the granular per-code stats so the consumer can sum them.
+    per_oncotree_code_stats = []
+    if "OncotreeCode" in merged.columns:
+        for code, subset in merged.groupby("OncotreeCode"):
+            if code in (None, "unknown", "") or len(subset) < min_n_lineage:
+                continue
+            parent = subset["OncotreeLineage"].iloc[0]
+            per_oncotree_code_stats.append({
+                "oncotree_code": str(code),
+                "oncotree_lineage": str(parent),
+                "n": int(len(subset)),
+                "median_chronos": float(subset["chronos"].median()),
+                "p25_chronos": float(subset["chronos"].quantile(0.25)),
+                "p75_chronos": float(subset["chronos"].quantile(0.75)),
+                "fraction_strongly_dependent": float((subset["chronos"] <= strong_threshold).mean()),
+            })
+        per_oncotree_code_stats.sort(key=lambda x: x["median_chronos"])
 
     # DepMap-style enrichment test: Mann-Whitney U each lineage vs rest of panel,
     # one-sided (alternative: lineage more dependent = lower Chronos). BH multiple-
@@ -359,6 +389,10 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
         "enriched_lineages": enriched_lineages,
         "n_enriched_lineages": n_enriched,
         "enrichment_class": enrichment_class,
+        # ADDITIVE per-OncotreeCode sublineage table (verdict-inert) — disambiguates shared coarse
+        # lineages (STAD/ESCA, NSCLC/SCLC) for a consumer-side indication reduction; see above.
+        "per_oncotree_code_stats": per_oncotree_code_stats,
+        "n_oncotree_codes_evaluated": len(per_oncotree_code_stats),
         # Axis-3 across-lineage omnibus (display-only; complements enrichment_class):
         **omnibus,
         # Internal-only payload preserved for the figure emitters (which need the
