@@ -1,0 +1,23 @@
+{
+  "_snapshot_kind": "tumor-selectivity-calibration-minimal",
+  "skill": "tumor-selectivity",
+  "target": "TACSTD2",
+  "indication": "COADREAD",
+  "_source_run": "TACSTD2-COADREAD",
+  "headline": {
+    "selectivity_class": "selective_but_broadly_normal",
+    "driving_rule_id": "tvn-no-therapeutic-window-veto",
+    "axis_a_selectivity_class": "strong_tumor_selective",
+    "cells_supporting": 3.0,
+    "cells_ran": 3.0,
+    "max_abs_log2fc": 5.017518713226957,
+    "selectivity_allgene_percentile_class": "top_decile",
+    "sc_normal_safety_essential_class": "critical_organ_liability",
+    "sc_normal_max_detection_cell_type": "papillary tips cell",
+    "percentile_crossing_class": "strongly_tumor_enriched",
+    "purity_confound_class": "purity_independent",
+    "sc_tumor_expression_class": "malignant_subset_detected",
+    "sc_malignant_detection_fraction": 0.113615,
+    "sc_caf_vs_malignant_class": "caf_low"
+  }
+}

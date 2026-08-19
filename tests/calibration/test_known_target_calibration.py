@@ -36,6 +36,14 @@ SNAP_DIR = Path(__file__).resolve().parent / "snapshots"
 # Dependency verdicts the nomination gate converts to a VETO (nomination_verdict_gate.yaml).
 VETO_VERDICTS = {"non_dependent", "pan_essential_killer"}
 
+# The tumor-selectivity normal-breadth veto downgrade class.
+SELECTIVITY_VETO_VERDICT = "selective_but_broadly_normal"
+# Disposition tags for selectivity_cases entries (documentation taxonomy; asserted well-formed).
+_SELECTIVITY_DISPOSITIONS = {
+    "clean_positive", "over_veto_false_negative", "window_veto_cohort_confounded",
+    "discordant_flag", "not_selective_control", "true_negative_veto",
+}
+
 
 def _load_fixtures() -> dict:
     return yaml.safe_load(FIXTURES.read_text())
@@ -49,7 +57,8 @@ def _load_snapshot(name: str) -> dict:
 
 def _all_entries(fixtures: dict):
     """Yield (bucket, name, entry) across all fixture buckets."""
-    for bucket in ("positive_controls", "known_gap_watchlist", "abstention_cases"):
+    for bucket in ("positive_controls", "known_gap_watchlist", "abstention_cases",
+                   "selectivity_cases"):
         for name, entry in (fixtures.get(bucket) or {}).items():
             yield bucket, name, entry
 
@@ -65,7 +74,8 @@ def test_fixture_set_loads_and_versioned():
 
 
 def test_every_entry_well_formed():
-    valid_types = {"must_not_veto", "abstention_expected", "known_gap_expected_fail"}
+    valid_types = {"must_not_veto", "abstention_expected", "known_gap_expected_fail",
+                   "selectivity_verdict_expected"}
     for bucket, name, e in _all_entries(_load_fixtures()):
         assert e.get("indication"), f"{name}: missing indication"
         assert e.get("assertion_type") in valid_types, f"{name}: bad assertion_type {e.get('assertion_type')!r}"
@@ -74,6 +84,25 @@ def test_every_entry_well_formed():
         if e.get("measured"):
             assert e.get("snapshot"), f"{name}: measured:true but no snapshot named"
             assert (SNAP_DIR / e["snapshot"]).exists(), f"{name}: snapshot file absent"
+
+
+def test_selectivity_cases_well_formed():
+    """The selectivity panel carries a documented disposition; the ones we get WRONG today
+    (over_veto_false_negative / discordant_flag) must name the intended post-fix verdict so a
+    future fix is a clean diff."""
+    for name, e in (_load_fixtures().get("selectivity_cases") or {}).items():
+        assert e.get("assertion_type") == "selectivity_verdict_expected", (
+            f"{name}: selectivity_cases entry must be selectivity_verdict_expected")
+        assert e.get("expected_selectivity_class"), f"{name}: missing expected_selectivity_class"
+        assert e.get("disposition") in _SELECTIVITY_DISPOSITIONS, (
+            f"{name}: bad disposition {e.get('disposition')!r}")
+        if e["disposition"] in {"over_veto_false_negative", "discordant_flag"}:
+            assert e.get("should_be"), (
+                f"{name}: {e['disposition']} must name `should_be` (the flip target)")
+        # true_negative_veto entries assert the veto SHOULD fire
+        if e["disposition"] == "true_negative_veto":
+            assert e["expected_selectivity_class"] == SELECTIVITY_VETO_VERDICT, (
+                f"{name}: a true_negative_veto must expect {SELECTIVITY_VETO_VERDICT!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +159,25 @@ def test_known_target_calibration(bucket, name, entry):
         drv = headline.get("driving_rule_id")
         assert drv == entry.get("expected_driving_rule_current"), (
             f"{name}: driving rule changed: {drv!r}")
+
+    elif atype == "selectivity_verdict_expected":
+        # SELECTIVITY gate: pin headline.selectivity_class to the CURRENT measured value (a
+        # regression anchor). over_veto_false_negative / discordant_flag entries pin a verdict
+        # the framework gets WRONG today; when a veto/robustness fix lands (plan Phase V/S/A5)
+        # this assertion flips — update expected_selectivity_class (→ the entry's `should_be`)
+        # and disposition→clean_positive. That flip IS the intended, reviewable regression signal.
+        sc = headline.get("selectivity_class")
+        assert sc is not None, f"{name}: no selectivity_class in snapshot"
+        exp = entry.get("expected_selectivity_class")
+        assert exp is not None, f"{name}: selectivity entry missing expected_selectivity_class"
+        assert sc == exp, (
+            f"{name}: selectivity_class drifted: {sc!r} != expected {exp!r}. If a veto/robustness "
+            f"fix landed, update expected_selectivity_class (over_veto/discordant entries flip to "
+            f"their `should_be` + disposition→clean_positive).")
+        exp_drv = entry.get("expected_driving_rule_current")
+        if exp_drv is not None:
+            drv = headline.get("driving_rule_id")
+            assert drv == exp_drv, f"{name}: driving_rule_id drifted: {drv!r} != {exp_drv!r}"
 
 
 # ---------------------------------------------------------------------------

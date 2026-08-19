@@ -1,0 +1,23 @@
+{
+  "_snapshot_kind": "tumor-selectivity-calibration-minimal",
+  "skill": "tumor-selectivity",
+  "target": "APC",
+  "indication": "COADREAD",
+  "_source_run": "APC-COADREAD",
+  "headline": {
+    "selectivity_class": "not_selective",
+    "driving_rule_id": "tvn-not-selective-neutral",
+    "axis_a_selectivity_class": "not_selective",
+    "cells_supporting": 3.0,
+    "cells_ran": 3.0,
+    "max_abs_log2fc": 0.9360173613924156,
+    "selectivity_allgene_percentile_class": "mid",
+    "sc_normal_safety_essential_class": "critical_organ_liability",
+    "sc_normal_max_detection_cell_type": "L5 extratelencephalic projecting glutamatergic cortical neuron",
+    "percentile_crossing_class": "not_enriched",
+    "purity_confound_class": "purity_independent",
+    "sc_tumor_expression_class": "malignant_subset_detected",
+    "sc_malignant_detection_fraction": 0.15622,
+    "sc_caf_vs_malignant_class": "caf_low"
+  }
+}
