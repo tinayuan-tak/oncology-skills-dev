@@ -51,3 +51,8 @@ examples:
   # surface-modality-fit — the biologics ADC/TCE hero (Surface / Density / ADC / TCE question table).
   - {skill: surface-modality-fit, target: CEACAM5, indication: COADREAD}   # clean surface antigen (ADC)
   - {skill: surface-modality-fit, target: FOLR1,   indication: OV}         # folate-receptor ADC target
+
+  # tractability-small-molecule — the chemical-genetic druggability hero (Compound / Concordance /
+  # Structure / Known-drug question table).
+  - {skill: tractability-small-molecule, target: KRAS, indication: COADREAD}   # covalent G12C precedent
+  - {skill: tractability-small-molecule, target: EGFR, indication: LUAD}       # approved TKI, ligandable kinase
