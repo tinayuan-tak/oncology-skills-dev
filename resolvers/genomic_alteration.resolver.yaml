@@ -23,7 +23,7 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.3.0
+version: 1.4.0
 description: |
   Multi-class genomic-alteration verdict. A Chronos stratified-dependency (any alteration class) is
   the strongest signal and leads the ladder; copy-number and fusion landscape recurrence keep an
@@ -35,19 +35,21 @@ resolve:
   #    Leads the ladder so a dependency signal wins first-match over confirmed_driver / multi_class
   #    (both nomination-inert). All four classes reuse the same two verdicts; the distinct
   #    driving_rule_id preserves the audit trail of which class drove.
+  #    ALL FOUR classes are indication-scope-GATED (scope-coherence Phase 1): each biomarker rung requires
+  #    the matching *-indication-scoped-context gate (evidence_scope within_indication[_mut_vs_pan_wt]), so
+  #    a pan-lineage-only dependency in a lineage the queried indication does not belong to no longer earns
+  #    a biomarker verdict — it falls through to confirmed_driver / *_dominant_pattern / recurrent_* below.
+  #    Every rung lists the gate LAST in when_all_fired and MUST keep driving_rule set explicitly, else the
+  #    interpreter's rids[-1] fallback would name the scope gate (not the dependency rule) as the driver.
   #    STRONG tier (|delta| >= 0.5):
-  - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
-  #    The amp-expr rungs (this one + the moderate twin below) list the scope-gate rule LAST in
-  #    when_all_fired, so they MUST keep driving_rule set explicitly — otherwise the interpreter's
-  #    rids[-1] fallback would name amp-expr-indication-scoped-context (the scope gate) as the driver
-  #    instead of the dependency rule. Do NOT drop driving_rule when editing these two rungs.
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [mutant-strongly-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-strongly-dependent-supportive}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [cn-amplified-strongly-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-strongly-dependent-supportive}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [fusion-positive-strongly-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-strongly-dependent-supportive}
   - {verdict: biomarker_stratified_dependency, when_all_fired: [amp-expr-strongly-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-strongly-dependent-supportive}
   #    MODERATE tier (|delta| 0.2-0.5):
-  - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_all_fired: [mutant-moderately-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_all_fired: [cn-amplified-moderately-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_all_fired: [fusion-positive-moderately-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-moderately-dependent-supportive}
   - {verdict: moderate_biomarker_dependency,   when_all_fired: [amp-expr-moderately-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-moderately-dependent-supportive}
 
   # ── 2. multi_class_driver — a mutation-class driver AND a copy-number driver ─────────────────────

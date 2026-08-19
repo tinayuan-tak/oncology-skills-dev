@@ -67,6 +67,7 @@ outputs:
     - pan_lineage_fusion_stratification_class  # the pan-DepMap class (audit)
 
   summary_fields_vocabulary:
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by fusion-positive-indication-scoped-context: only indication-scoped evidence earns a biomarker verdict (scope-coherence Phase 1)
     fusion_stratification_class:
       - fusion_positive_strongly_dependent           # fusion-positive median chronos significantly < negative (delta <= -0.5); fusion-addiction
       - fusion_positive_moderately_dependent         # significant but smaller effect (delta <= -0.2)

@@ -92,3 +92,46 @@ def test_mixed_pattern_unaffected_by_guard():
 
 def test_nothing_fired_is_default_insufficient():
     assert resolve() == ("insufficient", None)
+
+
+# --- scope-coherence Phase 1: dependency-rung indication-scope gate (the old→new flip golden) ------
+# All four stratified biomarker rungs now require their <class>-indication-scoped-context gate. These
+# pins encode the reviewed flip list: within_indication drivers RETAIN biomarker_stratified_dependency;
+# pan-lineage-only dependencies fall through to the next driver rung (confirmed_driver / recurrent_*),
+# and an ISOLATED pan-lineage dependency (no recurrence/role/landscape support in-indication) drops to
+# insufficient (honest — no indication-level evidence). Realistic co-signals accompany each class.
+
+def test_within_indication_dependency_retains_biomarker_all_classes():
+    """The gate FIRES (evidence_scope within_indication) → the biomarker rung stands. KRAS/BRAF COADREAD
+    (both mutation-strong @ within_indication) live here — they retain their verdict under the gate."""
+    assert resolve("mutant-strongly-dependent-supportive", "mutant-indication-scoped-context",
+                   "mut-missense-dominant-supportive", "alteration-role-gof-driver-supportive") == (
+        "biomarker_stratified_dependency", "mutant-strongly-dependent-supportive")
+    assert resolve("cn-amplified-strongly-dependent-supportive", "cn-amplified-indication-scoped-context",
+                   "cn-recurrently-amplified-supportive")[0] == "biomarker_stratified_dependency"
+    assert resolve("fusion-positive-strongly-dependent-supportive", "fusion-positive-indication-scoped-context",
+                   "fusion-landscape-recurrent-driver-supportive")[0] == "biomarker_stratified_dependency"
+
+
+def test_pan_lineage_dependency_with_cosignals_downgrades_to_driver_not_biomarker():
+    """The gate is ABSENT (pan_lineage_evidence_only) → the biomarker rung fails when_all_fired and the
+    call falls to the next positive-driver rung. Still a driver, no longer an indication biomarker."""
+    # mutation: → confirmed_driver (mut shape + role)
+    assert resolve("mutant-strongly-dependent-supportive",
+                   "mut-missense-dominant-supportive", "alteration-role-gof-driver-supportive") == (
+        "confirmed_driver", "mut-missense-dominant-supportive")
+    # copy-number: → confirmed_driver (CN recurrence + role)
+    assert resolve("cn-amplified-strongly-dependent-supportive",
+                   "cn-recurrently-amplified-supportive", "alteration-role-gof-driver-supportive") == (
+        "confirmed_driver", "cn-recurrently-amplified-supportive")
+    # fusion: → recurrent_fusion_driver (landscape recurrence)
+    assert resolve("fusion-positive-strongly-dependent-supportive",
+                   "fusion-landscape-recurrent-driver-supportive")[0] == "recurrent_fusion_driver"
+
+
+def test_isolated_pan_lineage_dependency_is_insufficient():
+    """A pan-lineage dependency with NO indication-native corroboration (no recurrence/role/landscape)
+    now honestly reads insufficient rather than an unearned indication biomarker."""
+    assert resolve("mutant-strongly-dependent-supportive")[0] == "insufficient"
+    assert resolve("cn-amplified-strongly-dependent-supportive")[0] == "insufficient"
+    assert resolve("fusion-positive-strongly-dependent-supportive")[0] == "insufficient"

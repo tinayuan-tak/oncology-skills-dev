@@ -97,6 +97,7 @@ outputs:
     - hotspot_dependency_ppv_lift              # PPV / base-rate — informativeness above the prior
 
   summary_fields_vocabulary:
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by mutant-indication-scoped-context: only indication-scoped evidence earns a biomarker verdict (scope-coherence Phase 1)
     mutation_stratification_class:
       - mutant_strongly_dependent              # mutant median chronos significantly < WT (oncogene-addiction)
       - mutant_moderately_dependent            # significant but smaller effect

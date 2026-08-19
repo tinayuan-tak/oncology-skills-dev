@@ -580,6 +580,60 @@ rules:
       pan-lineage-only amp-expr falls through to the driver/pattern rungs. Neutral: scope context, not a
       biology call. (Mutation-stratified veto-suppressor rescues — EGFR/IDH1/FLT3 — are UNAFFECTED.)
 
+  # ── Indication-scope GATES for the mutation / CN / fusion biomarker verdicts (scope-coherence Phase 1) ──
+  # These three mirror amp-expr-indication-scoped-context above, HARMONIZING the scope treatment across
+  # all four stratified-dependency siblings: previously only amp-expr's biomarker rungs required
+  # indication-scoped evidence, while the mutation / cn / fusion rungs — which LEAD the genomic resolver
+  # ladder — fired on the pan-cancer/pan-lineage class alone, so a pan-lineage-only dependency in a lineage
+  # the queried indication does not belong to could still set biomarker_stratified_dependency. The genomic
+  # resolver's dependency rungs now require the matching gate (when_all_fired), so only INDICATION-scoped
+  # KO-dependency evidence earns a biomarker verdict; pan-lineage-only evidence falls through to the
+  # driver / variant-pattern / landscape rungs (never disappears). Neutral: scope context, not a biology
+  # call. The genomic_alteration_by_scope headline block (skills Phase 0) surfaces which lineage each call
+  # rests on. Backtest-gated: KRAS/ERBB2/EWSR1/BRAF/MET retain (indication-scoped); a pan-lineage-only-in-
+  # wrong-tissue signal downgrades.
+  - rule_id: mutant-indication-scoped-context
+    when:
+      card_id: mutation-stratified-dependency
+      field: evidence_scope
+      in: [within_indication, within_indication_mut_vs_pan_wt]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Indication-scope GATE for the mutation biomarker verdict (scope-coherence Phase 1). The mutation
+      stratified-dependency signal can be computed from PAN-LINEAGE evidence only when the indication has
+      too few mutant lines; a pan-lineage signal is not an indication-level biomarker. Required by the
+      genomic resolver's mutant-*-dependent biomarker rungs (when_all_fired) so pan-lineage-only mutation
+      dependency falls through to the confirmed_driver / *_dominant_pattern rungs. Twin of
+      amp-expr-indication-scoped-context.
+  - rule_id: cn-amplified-indication-scoped-context
+    when:
+      card_id: copy-number-stratified-dependency
+      field: evidence_scope
+      in: [within_indication, within_indication_mut_vs_pan_wt]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Indication-scope GATE for the copy-number-amplified biomarker verdict (scope-coherence Phase 1).
+      Required by the genomic resolver's cn-amplified-*-dependent biomarker rungs (when_all_fired) so
+      pan-lineage-only amplification dependency falls through to the confirmed_driver /
+      recurrent_amplification_driver rungs. Twin of amp-expr-indication-scoped-context.
+  - rule_id: fusion-positive-indication-scoped-context
+    when:
+      card_id: fusion-stratified-dependency
+      field: evidence_scope
+      in: [within_indication, within_indication_mut_vs_pan_wt]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Indication-scope GATE for the fusion-positive biomarker verdict (scope-coherence Phase 1). Required
+      by the genomic resolver's fusion-positive-*-dependent biomarker rungs (when_all_fired) so
+      pan-lineage-only fusion dependency falls through to the confirmed_driver / recurrent_fusion_driver
+      rungs. Twin of amp-expr-indication-scoped-context.
+
   - rule_id: wt-strongly-dependent-neutral
     when:
       card_id: mutation-stratified-dependency

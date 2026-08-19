@@ -66,6 +66,7 @@ outputs:
     - pan_lineage_cn_stratification_class  # the pan-DepMap class (audit)
 
   summary_fields_vocabulary:
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by cn-amplified-indication-scoped-context: only indication-scoped evidence earns a biomarker verdict (scope-coherence Phase 1)
     cn_stratification_class:
       - amplified_strongly_dependent           # amplified median chronos significantly < neutral (delta <= -0.5); amplification-addiction
       - amplified_moderately_dependent         # significant but smaller effect (delta <= -0.2)
