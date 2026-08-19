@@ -489,3 +489,37 @@ def test_dashboard_md_embeds_figure_references(tmp_path):
         "Alternate figure not embedded in markdown"
     assert "<details><summary>Alternate views</summary>" in md, \
         "Alternate-views collapsible block missing"
+
+
+def test_organoid_crispr_dependency_figure_emission(tmp_path):
+    """Organoid per-lineage dependency bar: self-contained on per_lineage_stats (no method/S3).
+    Renders one bar per lineage + a primary SVG; highlights the indication-matched lineage."""
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    summary = {
+        "organoid_dependency_class": "broad_organoid_dependency", "frac_dependent": 0.746,
+        "organoid_lineage": "Bowel",
+        "per_lineage_stats": [
+            {"lineage": "Bowel", "n_models_screened": 22, "frac_dependent": 0.955,
+             "n_strongly_dependent": 15, "median_gene_effect": -1.1},
+            {"lineage": "Pancreas", "n_models_screened": 23, "frac_dependent": 0.826,
+             "n_strongly_dependent": 12, "median_gene_effect": -0.9},
+            {"lineage": "Breast", "n_models_screened": 16, "frac_dependent": 0.625,
+             "n_strongly_dependent": 6, "median_gene_effect": -0.6},
+        ],
+    }
+    figs = emit_figures_for_card("organoid-crispr-dependency", summary, out_root, "KRAS", "COADREAD")
+    assert len(figs) >= 1
+    assert [f for f in figs if f.get("primary")]
+    for f in figs:
+        assert (out_root / f["path"]).exists(), f"figure missing: {f['path']}"
+
+
+def test_organoid_crispr_dependency_figure_no_lineage_data(tmp_path):
+    """No per_lineage_stats (product unavailable / target absent) → no figure, graceful []."""
+    from _figure_emitters import emit_figures_for_card
+    figs = emit_figures_for_card(
+        "organoid-crispr-dependency",
+        {"organoid_dependency_class": "data_unavailable", "per_lineage_stats": []},
+        tmp_path / "out", "MADEUP", "COADREAD")
+    assert figs == []

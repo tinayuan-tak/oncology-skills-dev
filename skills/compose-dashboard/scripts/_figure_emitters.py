@@ -1194,6 +1194,61 @@ def _emit_phospho_pathway_activity(
     ]
 
 
+def _emit_organoid_crispr_dependency(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Organoid CRISPR dependency figure: a horizontal bar of frac_dependent by ORGANOID LINEAGE
+    (from the card's per_lineage_stats), with dependency-band reference lines (0.2 selective / 0.5
+    broad / 0.9 pan-essential) and the indication-matched lineage highlighted. Self-contained (reads
+    the summary the card already emitted — no method re-run). On _live_read_error / no per-lineage
+    data → [] (the pan-organoid summary still renders numerically without a figure)."""
+    if _has_live_read_error(summary):
+        return []
+    stats = (summary or {}).get("per_lineage_stats") or []
+    if not stats:
+        return []
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    try:
+        style = TARGET_CONTRACTS / "plot_styles" / "takeda_oncology.mplstyle"
+        if style.exists():
+            plt.style.use(str(style))
+    except Exception:  # noqa: BLE001 — style is cosmetic
+        pass
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    rows = sorted(stats, key=lambda r: (r.get("frac_dependent") or 0.0))  # ascending → longest on top
+    labels = [f"{r.get('lineage')} (n={r.get('n_models_screened')})" for r in rows]
+    fracs = [float(r.get("frac_dependent") or 0.0) for r in rows]
+    hi_lineage = summary.get("organoid_lineage")
+    # Highlight the indication-matched lineage; others muted.
+    colors = ["#cf2828" if r.get("lineage") == hi_lineage else "#1f4e79" for r in rows]
+
+    fig, ax = plt.subplots(figsize=(6.0, max(2.0, 0.5 * len(rows) + 1.2)))
+    ax.barh(range(len(rows)), fracs, color=colors, edgecolor="#0a2540", linewidth=0.5, zorder=3)
+    ax.set_yticks(range(len(rows))); ax.set_yticklabels(labels, fontsize=9)
+    ax.set_xlim(0, 1.0)
+    ax.set_xlabel("fraction of organoids dependent (Chronos gene-effect < -0.5)")
+    for cut, lab in [(0.2, "selective"), (0.5, "broad"), (0.9, "pan-ess.")]:
+        ax.axvline(cut, color="#888", linestyle="--", linewidth=0.7, zorder=1)
+        ax.text(cut, len(rows) - 0.4, lab, fontsize=6.5, color="#666", ha="center", va="bottom")
+    pan = summary.get("frac_dependent")
+    title = f"{target} — organoid CRISPR dependency by lineage"
+    if pan is not None:
+        title += f"  (pan-organoid {pan:.2f})"
+    if hi_lineage:
+        title += f"\nindication {indication} → {hi_lineage} (red)"
+    ax.set_title(title, fontsize=10)
+    ax.grid(axis="x", alpha=0.25, linewidth=0.4)
+    fig.tight_layout()
+    out_path = out_dir / "figure_organoid_lineage_dependency.svg"
+    fig.savefig(out_path); plt.close(fig)
+    return [{"id": "organoid_lineage_dependency",
+             "path": "figure_organoid_lineage_dependency.svg",
+             "type": "organoid_lineage_dependency_bar", "primary": True}]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-rna-distribution": _emit_tumor_expression_distribution,
     "tumor-scrna-celltype-expression": _emit_sc_tumor_celltype_expression,
@@ -1233,6 +1288,9 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     # TARGET-GRAIN breadth (2026-07-22): pan-cancer by-tissue TPM distribution (TCGA tumor + GTEx
     # normal, one axis) from the quantile product — the RNA companion to the breadth K-of-N roll-up.
     "tumor-elevation-breadth": _emit_tumor_elevation_breadth,
+    # ORGANOID tier (2026-08-19): per-lineage dependency bar from the organoid card's
+    # per_lineage_stats (no method re-run — self-contained on the summary).
+    "organoid-crispr-dependency": _emit_organoid_crispr_dependency,
 }
 
 
