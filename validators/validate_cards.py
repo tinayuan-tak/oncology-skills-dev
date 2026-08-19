@@ -193,6 +193,48 @@ def _modality_relevant_types() -> Optional[set[str]]:
             if isinstance(entry, dict) and entry.get('modality_relevance')}
 
 
+_AXES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
+              / 'target_profiling_axes.yaml')
+# The `self_contained` sentinel: a consumed_by.lens value for hosts that resolve their verdict
+# inline (no gate short) — see target_profiling_axes.yaml homing_rule / skill_objectives role_note.
+_LENS_SENTINELS = frozenset({'self_contained'})
+
+
+@functools.lru_cache(maxsize=1)
+def _ontology_axis_shorts() -> Optional[set[str]]:
+    """Valid `lens` / `reports_into` referents: the question `short`s + conditioner ids declared in
+    vocabularies/target_profiling_axes.yaml. Returns None if the ontology is absent (→ graceful-skip;
+    a checkout mid-migration may predate it)."""
+    if not _AXES_PATH.exists():
+        return None
+    try:
+        with _AXES_PATH.open() as f:
+            doc = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return None
+    questions = doc.get('questions')
+    if not isinstance(questions, list):
+        return None
+    shorts = {q.get('short') for q in questions if isinstance(q, dict) and q.get('short')}
+    shorts |= {c.get('id') for c in (doc.get('conditioner_axes') or [])
+               if isinstance(c, dict) and c.get('id')}
+    return shorts
+
+
+def _question_shorts_only() -> Optional[set[str]]:
+    """The question `short`s alone (no conditioners) — axis_edge.reports_into must name a QUESTION."""
+    if not _AXES_PATH.exists():
+        return None
+    try:
+        doc = yaml.safe_load(_AXES_PATH.read_text()) or {}
+    except yaml.YAMLError:
+        return None
+    questions = doc.get('questions')
+    if not isinstance(questions, list):
+        return None
+    return {q.get('short') for q in questions if isinstance(q, dict) and q.get('short')}
+
+
 _CARD_ID_ALIASES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
                          / 'card_id_aliases.yaml')
 
@@ -823,6 +865,36 @@ def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
                     f'emitting the {sorted(mute)} signal, or drop the lens from modality_relevance.')
 
 
+def _axis_binding_check(spec: dict, report: ValidationReport) -> None:
+    """Cross-check the card→skill binding metadata (consumed_by / axis_edge, plan Part 5) against the
+    canonical ontology vocabularies/target_profiling_axes.yaml:
+      - each consumed_by[].lens names a question `short`, a conditioner id, or the `self_contained`
+        sentinel (inline-verdict hosts);
+      - axis_edge.reports_into (if present) names a QUESTION short (not a conditioner).
+    Graceful-skip if the ontology is absent (mid-migration checkout). role:verdict⇒verdict_source is
+    enforced by the JSON Schema; not re-checked here."""
+    lens_ok = _ontology_axis_shorts()
+    consumed_by = spec.get('consumed_by')
+    if isinstance(consumed_by, list) and lens_ok is not None:
+        valid_lens = lens_ok | _LENS_SENTINELS
+        for i, entry in enumerate(consumed_by):
+            if not isinstance(entry, dict):
+                continue
+            lens = entry.get('lens')
+            if lens is not None and lens not in valid_lens:
+                report.add_error(
+                    f'CONSUMED_BY_LENS: consumed_by[{i}].lens {lens!r} is not a question short, '
+                    f'conditioner id, or `self_contained` in target_profiling_axes.yaml')
+    axis_edge = spec.get('axis_edge')
+    q_only = _question_shorts_only()
+    if isinstance(axis_edge, dict) and q_only is not None:
+        ri = axis_edge.get('reports_into')
+        if ri is not None and ri not in q_only:
+            report.add_error(
+                f'AXIS_EDGE_REPORTS_INTO: axis_edge.reports_into {ri!r} is not a question short '
+                f'in target_profiling_axes.yaml')
+
+
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
     """Validate a single card_spec YAML file. Returns a ValidationReport."""
     path = Path(path)
@@ -853,6 +925,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _measurement_type_check(spec, report)
         _sample_context_check(spec, report)
         _modality_relevance_check(spec, report)
+        _axis_binding_check(spec, report)
     return report
 
 

@@ -65,6 +65,102 @@
       "minItems": 1,
       "maxItems": 10
     },
+    "consumed_by": {
+      "type": "array",
+      "description": "OPTIONAL. The card→skill binding, MANY-TO-MANY with per-host role (plan Part 5 / card-binding SoT). One entry per skill that hosts this card; a multi-homed card carries N entries with per-host role. Cross-checks (in validators/validate_cards.py): (a) `lens` names a question `short` or conditioner id in vocabularies/target_profiling_axes.yaml (or the `self_contained` sentinel for inline-verdict skills); (b) role/verdict_source consistency vs the resolver; (c) reconciliation against the skills-side CARDS/SUB_SKILL_CARDS literals (validate-only). The verdict-bearing edge set stays DERIVED from rule_id→resolver→gate; this block records + reconciles it, it does not author it.",
+      "items": {
+        "type": "object",
+        "required": ["skill", "lens", "role", "verdict_source"],
+        "additionalProperties": false,
+        "properties": {
+          "skill": {
+            "type": "string",
+            "description": "Skill DIR name under claude-oncology-skills/skills/<skill>/.",
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "lens": {
+            "type": "string",
+            "description": "The ontology axis this host reads the card under: a question `short` or conditioner id from target_profiling_axes.yaml, OR the `self_contained` sentinel when the host resolves its verdict inline (no gate short).",
+            "minLength": 2,
+            "maxLength": 60
+          },
+          "role": {
+            "type": "string",
+            "description": "The card's role in this host. verdict=feeds a verdict; corroboration=confidence; stratification=patient-selection; display=verdict-inert render facet.",
+            "enum": ["verdict", "corroboration", "stratification", "display"]
+          },
+          "verdict_source": {
+            "type": "string",
+            "description": "How the host resolves its verdict: resolver (declarative resolvers/<gate>.resolver.yaml), inline (in the skill's run.py), or none (display/descriptive). role:verdict requires resolver|inline.",
+            "enum": ["resolver", "inline", "none"]
+          },
+          "compose_into_profile": {
+            "type": "boolean",
+            "description": "OPTIONAL (default true). false = standalone-only; the card is NOT composed into target-profile under this host's lens."
+          },
+          "compose_reason": {
+            "type": "string",
+            "description": "OPTIONAL. Why this (often foreign-composition) edge exists, e.g. which resolver rung needs the card's rule in this host's fired-set.",
+            "maxLength": 300
+          },
+          "order_hint": {
+            "type": "integer",
+            "description": "OPTIONAL. Advisory ordinal within the host's card list. NOT the byte-order authority — the committed literal governs order (validate-only phase).",
+            "minimum": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {"role": {"const": "verdict"}},
+              "required": ["role"]
+            },
+            "then": {
+              "properties": {"verdict_source": {"enum": ["resolver", "inline"]}}
+            }
+          }
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 12
+    },
+    "axis_edge": {
+      "type": "object",
+      "description": "OPTIONAL. Marks this card as a CROSS-AXIS EDGE — evidence that joins two biological axes (rather than a single-axis measurement). Formalizes what was previously only header prose (plan Part 5 / Part 6). `reports_into` (a question short in target_profiling_axes.yaml) is cross-checked in validators/validate_cards.py.",
+      "required": ["anchor", "partner", "edge_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "type": "string",
+          "description": "The outcome/anchor axis of the edge (a measurement_type or question short), e.g. crispr_lof_dependency, clinical_outcome_os.",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "partner": {
+          "type": "string",
+          "description": "The conditioning/stratifying axis, e.g. mutation_status, paralog_family, genomic_alteration_status.",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "edge_kind": {
+          "type": "string",
+          "enum": ["stratified_dependency", "conditional_dependency", "co_occurrence",
+                   "drug_response", "paralog", "colocalization", "prognostic_association"]
+        },
+        "reports_into": {
+          "type": "string",
+          "description": "The question `short` (target_profiling_axes.yaml) this edge modulates.",
+          "minLength": 2,
+          "maxLength": 60
+        }
+      }
+    },
     "required_inputs": {
       "type": "array",
       "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory). May be empty ONLY for COMPOSED cards (cards that declare `derived_from:` upstream card_ids); leaf cards must declare at least one product_id. Composed-card empty-array eligibility is checked by the cross-reference validator, not the JSON Schema.",
