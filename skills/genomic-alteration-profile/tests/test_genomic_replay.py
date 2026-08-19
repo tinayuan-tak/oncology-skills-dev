@@ -61,6 +61,7 @@ _DRIVER_OUTCOMES = {
     "moderate_biomarker_dependency", "recurrent_amplification_driver",
     "recurrent_deletion_driver", "recurrent_fusion_driver", "drug_response_biomarker",
     "missense_dominant_pattern", "lof_dominant_pattern", "mixed_pattern",
+    "recurrent_snv_driver",
 }
 
 

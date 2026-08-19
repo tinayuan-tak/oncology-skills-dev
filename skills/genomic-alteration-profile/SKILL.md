@@ -25,7 +25,7 @@ description: |
   --modality flag. See CHANGELOG.md for development history.
 
 metadata:
-  version: 2.5.0
+  version: 2.6.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -48,9 +48,10 @@ composition:
                                              # recurrent_fusion_driver fusion_class fires the fusion rung
     - mutation-drug-response                 # genotype → on-target drug response (PRISM); the STRONG class
                                              # (mutant_strongly_drug_sensitive) fires the drug_response_biomarker rung
-    # RECURRENCE FACET — composed + surfaced in the headline, but fires ZERO rules (display-only), so
-    # NOT in rules_scope:
-    - mutation-hotspot-frequency             # recurrence frequency + driver-recurrence percentile
+    # RECURRENCE — VERDICT-DRIVING as of Phase 2: the POOLED multi-cohort pooled_driver_recurrence_class
+    # (TCGA-MC3 + GENIE + MSK-CHORD) fires the snv-recurrence-top-driver rule → recurrent_snv_driver rung.
+    # (The single-cohort MC3/GENIE driver_recurrence_* fields remain display-only comparators.)
+    - mutation-hotspot-frequency             # recurrence frequency + pooled driver-recurrence (VERDICT-DRIVING)
     # ADDITIVE signal-only layers — feed the LLM/matrix + headline; fire NO resolver rung, so they are
     # NOT in rules_scope and the verdict spine is byte-stable:
     - variant-level-interpretation           # CIViC per-variant oncogenicity + resistance alleles
@@ -96,8 +97,8 @@ composition:
     - ddr_deficiency_context                 # ddr-deficiency-context (indication-level cohort context)
     - oncogenic_pathway_alteration           # oncogenic-pathway-alteration (indication-level cohort context)
   # rules_scope = cards whose rules actually enter the genomic_alteration resolver.
-  # mutation-hotspot-frequency is deliberately absent: it fires zero rules (its
-  # overall_mutation_frequency is display-only, never a verdict input). See CHANGELOG.md.
+  # mutation-hotspot-frequency is VERDICT-DRIVING as of Phase 2: its POOLED pooled_driver_recurrence_class
+  # (not the display-only single-cohort overall_mutation_frequency) fires the recurrent_snv_driver rung.
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency
@@ -111,6 +112,8 @@ composition:
     - mutation-drug-response                 # resolver §2d-drug: drug_response_stratification_class==
                                              # mutant_strongly_drug_sensitive fires mutation-drug-response-strongly-
                                              # sensitive-supportive → drug_response_biomarker (STRONG class only)
+    - mutation-hotspot-frequency             # resolver tier 6 (Phase 2): pooled_driver_recurrence_class==top_1pct
+                                             # fires snv-recurrence-top-driver-supportive → recurrent_snv_driver
   synthesis:
     - rule_engine
     - structured_llm    # opt-in --synthesize (genomic-alteration-lens narrator, two-slot; verdict-inert)

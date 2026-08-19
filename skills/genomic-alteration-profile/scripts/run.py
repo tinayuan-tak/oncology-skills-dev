@@ -42,7 +42,7 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 )
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.5.0"
+SKILL_VERSION = "2.6.0"
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
 # cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
@@ -51,7 +51,7 @@ CARDS = [
     # ── SNV / indel ──────────────────────────────────────────────────────────
     "mutation-type-counts",            # verdict-driving: variant-class landscape (missense/truncating mix)
     "mutation-stratified-dependency",  # verdict-driving: are mutant cell lines more Chronos-dependent?
-    "mutation-hotspot-frequency",      # signal-only: recurrence frequency + driver-recurrence percentile
+    "mutation-hotspot-frequency",      # verdict-driving (Phase 2): pooled top_1pct patient recurrence → recurrent_snv_driver
 
     # ── Copy number (amplification / deletion) ───────────────────────────────
     "copy-number-distribution",           # verdict-driving: focal amp/deletion recurrence
@@ -285,6 +285,7 @@ def _genomic_alteration_by_scope(cards: list[dict], driving_rule: str | None) ->
                    "drug_response_class")
     # INDICATION (patient tissue) — recurrence, patient-focal CN, TCGA fusion, IntOGen role, clonality.
     ind = {
+        "pooled_driver_recurrence_class": f("mutation-hotspot-frequency", "pooled_driver_recurrence_class"),
         "driver_recurrence_class":       f("mutation-hotspot-frequency", "driver_recurrence_class"),
         "genie_driver_recurrence_class": f("mutation-hotspot-frequency", "genie_driver_recurrence_class"),
         "patient_focal_cn_class":        f("copy-number-distribution", "patient_focal_cn_class"),
@@ -293,8 +294,8 @@ def _genomic_alteration_by_scope(cards: list[dict], driving_rule: str | None) ->
         "intogen_scope":                 f("alteration-role", "intogen_scope"),
         "clonality_class":               f("target-clonality", "clonality_class"),
     }
-    _ind_signal = ("driver_recurrence_class", "genie_driver_recurrence_class", "patient_focal_cn_class",
-                   "fusion_class", "alteration_role")
+    _ind_signal = ("pooled_driver_recurrence_class", "driver_recurrence_class", "genie_driver_recurrence_class",
+                   "patient_focal_cn_class", "fusion_class", "alteration_role")
     return {
         "scope_of_driving_verdict": _scope_of_driving_verdict(card_by_id, driving_rule),
         "pan_cancer":  {"evidence_present": any(_measured(pan[k]) for k in _pan_signal), **pan},
@@ -328,6 +329,12 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     ("driver_recurrence_percentile",        "mutation-hotspot-frequency",     "driver_recurrence_percentile"),
     ("genie_driver_recurrence_class",       "mutation-hotspot-frequency",     "genie_driver_recurrence_class"),
     ("genie_mutation_frequency",            "mutation-hotspot-frequency",     "genie_mutation_frequency"),
+    # POOLED multi-cohort recurrence (scope-coherence Phase 2) — VERDICT-DRIVING: top_1pct fires the
+    # recurrent_snv_driver rung. TCGA-MC3 + GENIE + MSK-CHORD, summed-counts/summed-coverage.
+    ("pooled_driver_recurrence_class",      "mutation-hotspot-frequency",     "pooled_driver_recurrence_class"),
+    ("pooled_driver_recurrence_percentile", "mutation-hotspot-frequency",     "pooled_driver_recurrence_percentile"),
+    ("pooled_mutation_frequency",           "mutation-hotspot-frequency",     "pooled_mutation_frequency"),
+    ("pooled_recurrence_cohorts",           "mutation-hotspot-frequency",     "cohorts_contributing"),
 
     # ── Copy-number axis (cell-line verdict-driving + patient-tumour cross-check) ──
     ("copy_number_class",                   "copy-number-distribution",       "copy_number_class"),

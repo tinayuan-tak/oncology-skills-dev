@@ -4,6 +4,17 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-08-19 (v2.6.0)
+- Wired the POOLED multi-cohort patient recurrence into the verdict (scope-coherence Phase 2, the SNV
+  indication-anchor gap). mutation-hotspot-frequency is now VERDICT-DRIVING: its pooled_driver_recurrence_class
+  (TCGA-MC3 + GENIE + MSK-CHORD, backed by pooled-snv-recurrence-v1) fires snv-recurrence-top-driver-supportive
+  -> the new recurrent_snv_driver resolver rung (tier 6, last — a dually-altered gene keeps its CN/fusion
+  verdict). run.py surfaces the pooled fields in _HEADLINE_FIELDS + the genomic_alteration_by_scope.indication
+  block (a top-recurrent SNV now reads scope=indication_anchored); added mutation-hotspot-frequency to
+  rules_scope. Regenerated the _skills_common resolver golden (genomic gate: 12->13 rule_ids, 405->810
+  combos) + added recurrent_snv_driver to the replay driver-outcomes. Full skills suite (1055) green.
+  Pooled COADREAD recovers the canonical drivers as top_1pct (APC/TP53/KRAS/PIK3CA/SMAD4/FBXW7/BRAF).
+
 ## 2026-08-19 (v2.5.0)
 - Broadened the subtype scope beyond SNV frequency (scope-coherence Phase 3, gap c): wired the two new
   DESCRIPTIVE panorama cards `subgroup-stratified-copy-number` + `subgroup-stratified-fusion` into
