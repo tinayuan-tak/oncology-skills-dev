@@ -288,6 +288,12 @@ SUB_SKILL_CARDS = {
                                                  # (no interpretation rules → feeds no resolver rung), so
                                                  # composing it is byte-stable on the verdict spine; it only
                                                  # restores the render facet to the composed target-profile.
+        "coessential-module",                    # 2026-08-19 (enrichment review #1): co-essential-module
+                                                 # CONFIDENCE facet (is the dependency embedded in a coherent
+                                                 # module?). In functional-requirement CARDS; composed here so
+                                                 # it is not dropped from the profile. VERDICT-INERT (no
+                                                 # resolver rung; folds into dependency_confidence_note) →
+                                                 # byte-stable on the verdict spine.
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",

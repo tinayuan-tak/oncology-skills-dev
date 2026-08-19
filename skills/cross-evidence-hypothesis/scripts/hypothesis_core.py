@@ -51,7 +51,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "dependency-lineage-selectivity", "expression-dependency-correlation",
         "pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
         "paralog-buffering", "partner-conditional-dependency", "prism-crispr-concordance",
-        "recommended-models", "organoid-crispr-dependency"}),
+        "recommended-models", "organoid-crispr-dependency", "coessential-module"}),
     "differentiation": frozenset({
         "co-mutation-and-mutual-exclusivity", "expression-clinical-association",
         "pathway-node-leverage", "precog-prognostic-association", "stemness-context"}),

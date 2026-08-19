@@ -123,6 +123,14 @@ CARDS = [
                                                 # GI-skewed cohort corroborates a positive dependency but is
                                                 # NEVER a trusted independent veto; the pan-cancer card owns
                                                 # the killer). Target-grain; indication accepted-not-consumed.
+    "coessential-module",                       # Co-essential-module CONFIDENCE facet (2026-08-19) — the
+                                                # enrichment-review #1 item (depmap-coessentiality-26q1-v1 was
+                                                # orphaned). Is the dependency embedded in a COHERENT co-essential
+                                                # module (complex/pathway partners) or ISOLATED? A module-anchored
+                                                # call is more mechanism-credible. VERDICT-INERT — feeds NO resolver
+                                                # rung; folds into dependency_confidence_note (sibling of cross-
+                                                # consortium + predictability). Generic-dispatch wired via the
+                                                # card's methods.entrypoint. Target-grain; indication not consumed.
 ]
 
 # SUBTYPE axis (2026-08-06) — kept OUT of the scalar CARDS list ON PURPOSE, mirroring
@@ -283,9 +291,10 @@ _CONFIDENCE_LADDER = ("unknown", "standard", "moderate", "high")
 
 
 def _dependency_confidence_note(verdict: str, predictability_class: str | None,
-                                cross_consortium_class: str | None = None) -> dict:
+                                cross_consortium_class: str | None = None,
+                                coessential_module_class: str | None = None) -> dict:
     """Gate-C gap 1 (Option A): a CONFIDENCE ANNOTATION over the dependency verdict. NEVER changes
-    the verdict or the resolver. Composed from TWO independent meta-signals:
+    the verdict or the resolver. Composed from THREE independent meta-signals:
 
       1. dependency-predictability — "how omics-learnable is this dependency, and by what feature?"
          (own_omics_driven→high, context_or_driver_dependent→moderate, weak/unpredictable→standard,
@@ -296,6 +305,11 @@ def _dependency_confidence_note(verdict: str, predictability_class: str | None,
          `concordant_dependent` RAISES confidence (lifts a bare standard/unknown to moderate) and
          `discordant` appends a caution caveat. NEVER a verdict downgrade — the resolver owns the
          verdict; corroboration only tunes CONFIDENCE (the card's own role: corroboration discipline).
+      3. coessential-module (2026-08-19) — is the dependency embedded in a COHERENT co-essential module
+         (complex/pathway partners co-essential across the same cell lines)? A module-anchored
+         dependency is more mechanism-credible, so `in_coherent_module` RAISES confidence (lifts a bare
+         standard/unknown to moderate); `isolated_dependency` appends a caveat. Same corroboration
+         discipline — never a verdict move.
 
     Returns {confidence, note} where confidence ∈ {high, moderate, standard, unknown}. Annotates only
     on an actual dependency call (_DEPENDENCY_CALL_VERDICTS); otherwise `standard` with no meta-claim."""
@@ -328,6 +342,16 @@ def _dependency_confidence_note(verdict: str, predictability_class: str | None,
     elif cross_consortium_class == "discordant":
         note += (" CAUTION: an independent consortium (Sanger Project Score) does NOT corroborate "
                  "the Broad dependency call — a confidence caveat, not a veto.")
+
+    # Co-essential-module coherence (mechanism-anchoring corroboration).
+    if coessential_module_class == "in_coherent_module":
+        if _CONFIDENCE_LADDER.index(conf) < _CONFIDENCE_LADDER.index("moderate"):
+            conf = "moderate"   # a module-anchored dependency is itself a mechanism-credibility handle
+        note += (" Module-anchored — the dependency sits in a coherent co-essential module "
+                 "(complex/pathway partners co-essential across cell lines).")
+    elif coessential_module_class == "isolated_dependency":
+        note += (" Note: the dependency is NOT co-essential with a coherent module "
+                 "(isolated) — a mechanism-anchoring caveat, not a veto.")
     return {"confidence": conf, "note": note}
 
 QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
@@ -650,7 +674,9 @@ def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
     cross_consortium_class = get_card_field(cards, "cross-consortium-dependency", "cross_consortium_class")
-    confidence = _dependency_confidence_note(v, predictability_class, cross_consortium_class)
+    coessential_module_class = get_card_field(cards, "coessential-module", "coessential_module_class")
+    confidence = _dependency_confidence_note(v, predictability_class, cross_consortium_class,
+                                             coessential_module_class)
     hl = {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
@@ -682,6 +708,12 @@ def _headline(cards, fired, verdict_pair):
         # adds a caveat) AND surfaced here so the narrative can cite it. VERDICT-INERT — the card
         # fires no resolver rung; it only tunes gate-C confidence (was computed but consumed by nothing).
         "cross_consortium_class":   cross_consortium_class,
+        # Co-essential-module coherence (2026-08-19) — mechanism-anchoring CONFIDENCE facet (enrichment
+        # review #1; was orphaned). Folded into dependency_confidence above (in_coherent_module RAISES;
+        # isolated adds a caveat) AND surfaced here for the narrative. VERDICT-INERT — no resolver rung.
+        "coessential_module_class": coessential_module_class,
+        "n_coessential_partners":   get_card_field(cards, "coessential-module", "n_strong_partners"),
+        "strongest_coessential_partner": get_card_field(cards, "coessential-module", "strongest_partner_symbol"),
         "dependency_confidence":    confidence["confidence"],
         "dependency_confidence_note": confidence["note"],
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
@@ -735,7 +767,7 @@ _SYNTHESIS_FACET_KEYS = (
     "partner_conditional_class", "prism_concordance_class",
     # confidence annotations FR separates from its verdict (narrative context; the numeric certainty
     # roll-up lives in certainty_by_axis, not here)
-    "predictability_class", "cross_consortium_class",
+    "predictability_class", "cross_consortium_class", "coessential_module_class",
     "dependency_confidence", "dependency_confidence_note",
     # biomarker render facets (patient-selection context)
     "model_correspondence_class", "abundance_dependency_class",

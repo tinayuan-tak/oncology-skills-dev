@@ -134,3 +134,37 @@ def test_corroboration_ignored_on_non_call_verdict():
     c = fr._dependency_confidence_note("insufficient", "own_omics_driven", "concordant_dependent")
     assert c["confidence"] == "standard"
     assert "actual dependency call" in c["note"]
+
+
+# --- co-essential-module confidence fold (2026-08-19, enrichment-review #1) -----------------
+
+def test_coessential_module_card_is_composed():
+    assert "coessential-module" in fr.CARDS
+
+
+def test_coherent_module_raises_confidence_and_annotates():
+    # a bare (unknown-predictability) dependency call lifted to moderate by module coherence
+    note = fr._dependency_confidence_note("concordant_dependent", None, None,
+                                          coessential_module_class="in_coherent_module")
+    assert note["confidence"] == "moderate"
+    assert "Module-anchored" in note["note"]
+
+
+def test_coherent_module_never_exceeds_high_and_composes_with_predictability():
+    # own_omics_driven already high → module coherence keeps it high (never a downgrade)
+    note = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven",
+                                          "concordant_dependent", "in_coherent_module")
+    assert note["confidence"] == "high" and "Module-anchored" in note["note"]
+
+
+def test_isolated_module_is_a_caveat_not_a_downgrade():
+    base = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven", None, None)
+    iso = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven", None,
+                                         "isolated_dependency")
+    assert iso["confidence"] == base["confidence"] == "high"   # caveat text only, no downgrade
+    assert "isolated" in iso["note"]
+
+
+def test_coessential_module_inert_on_non_call_verdict():
+    note = fr._dependency_confidence_note("insufficient", None, None, "in_coherent_module")
+    assert note["confidence"] == "standard" and "Module-anchored" not in note["note"]
