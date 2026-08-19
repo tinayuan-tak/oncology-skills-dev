@@ -21,7 +21,8 @@ from . import cli as _cli
 
 def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
                                    strong_threshold: float = -1.0,
-                                   moderate_threshold: float = -0.5) -> Optional[dict]:
+                                   moderate_threshold: float = -0.5,
+                                   plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Compute the pan-cancer dependency distribution for target. Returns the
     summary dict matching the pan-cancer-crispr-dependency-distribution card's
     outputs.summary_fields. The `indication` parameter is intentionally ignored
@@ -72,5 +73,16 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
     except Exception as e:  # noqa: BLE001 — the control axis is a display facet, never load-bearing
         summary.setdefault("dep_control_position_class", "data_unavailable")
         summary.setdefault("_dep_control_note", f"control axis unavailable: {type(e).__name__}")
+
+    # Figure-consolidation Stage 1: OPT-IN persist plot_data as an artifact of card RESOLUTION (not a
+    # figure re-read side effect), from the chronos_by_model we already hold — so figures.render_from_
+    # plot_data draws WITHOUT a second live read. Best-effort: never break the verdict read.
+    if plot_data_out is not None:
+        try:
+            _pd_dir = Path(plot_data_out)
+            _pd_dir.mkdir(parents=True, exist_ok=True)
+            _cli.emit_plot_data(chronos_by_model, model_metadata, strong_threshold, _pd_dir)
+        except Exception:  # noqa: BLE001 — plot_data persistence is additive; never break resolution
+            pass
 
     return summary
