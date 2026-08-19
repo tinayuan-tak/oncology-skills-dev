@@ -170,6 +170,53 @@ def test_candidate_edges_report_into_real_questions():
             assert tgt in qs, f"{e['proposed_card']}: reports_into unknown question {tgt!r}"
 
 
+def _real_card_ids():
+    cards_dir = REPO / "cards"
+    ids = set()
+    for p in cards_dir.glob("*.card.yaml"):
+        try:
+            doc = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        if doc.get("card_id"):
+            ids.add(doc["card_id"])
+    # resolve historical renames via the alias map
+    alias_path = REPO / "vocabularies" / "card_id_aliases.yaml"
+    if alias_path.exists():
+        adoc = yaml.safe_load(alias_path.read_text()) or {}
+        for entry in (adoc.get("aliases") or []):
+            if isinstance(entry, dict) and entry.get("from"):
+                ids.add(entry["from"])
+    return ids
+
+
+def test_skill_question_sets_wellformed_and_reference_real_cards():
+    """Every skill_objectives.questions entry has a q + a non-empty answered_by, and every
+    answered_by card_id resolves to a real card (or historical alias). This is the declarative
+    per-skill question set the user asked to build out (like tumor-presence / tumor-selectivity)."""
+    real = _real_card_ids()
+    assert real, "expected to load some real card_ids"
+    n_with_questions = 0
+    for s in AX["skill_objectives"]:
+        qs = s.get("questions")
+        if not qs:
+            continue
+        n_with_questions += 1
+        for entry in qs:
+            assert entry.get("q"), f"{s['skill']}: a question needs a `q`"
+            ab = entry.get("answered_by")
+            assert ab, f"{s['skill']}: question {entry.get('q')!r} needs a non-empty answered_by"
+            unknown = [c for c in ab if c not in real]
+            assert not unknown, f"{s['skill']}: answered_by names unknown cards {unknown}"
+    # the whole nomination fan-out (+ the descriptive/relational skills) should be built out now
+    assert n_with_questions >= 15, f"expected >=15 skills with question sets, got {n_with_questions}"
+
+
+def test_every_skill_objective_has_at_least_an_objective():
+    for s in AX["skill_objectives"]:
+        assert s.get("objective"), f"{s['skill']}: needs an objective"
+
+
 def test_scientific_gaps_cover_every_hard_gap_axis():
     """The gaps backlog must name every question whose standing is a HARD gap
     (`blind` or `license_blocked`) — the axes the framework genuinely cannot evidence.

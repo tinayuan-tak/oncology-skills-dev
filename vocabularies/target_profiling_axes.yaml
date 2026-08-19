@@ -327,55 +327,138 @@ skill_objectives:
     objective: "Is the target present in the tumor, across cell lines vs tumor samples at RNA / protein / single-cell?"
     primary_axis: expression
     decomposes_to: {template: _skills_common/presence_question_table.py, n_questions: 7}
+    questions:
+      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance]}
+      - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
+      - {q: "Elevated vs normals (adjacent + GTEx)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability]}
+      - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype]}
+      - {q: "Absolute abundance vs all genes?", answered_by: [tumor-protein-abundance-cptac]}
+      - {q: "Do RNA and protein agree?", answered_by: [cellline-rna-protein-concordance, rna-protein-concordance-tumor]}
+      - {q: "Is the tumor signal malignant-cell-intrinsic (not stroma)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound, sc-normal-celltype-expression]}
   - skill: tumor-selectivity
     objective: "Is the target selective for tumor vs normal, robustly across bulk / single-cell / spatial comparators?"
     primary_axis: selectivity
+    questions:
+      - {q: "Selective vs adjacent normal (efficacy window)?", answered_by: [tumor-vs-normal-selectivity]}
+      - {q: "Selective vs population normals / GTEx breadth (safety)?", answered_by: [modality-therapeutic-window, tumor-protein-abundance-cptac]}
+      - {q: "Does the window hold at single-cell normal resolution (critical-organ veto)?", answered_by: [sc-normal-celltype-expression]}
+      - {q: "Malignant-cell vs stroma (purity confound)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
+      - {q: "In-situ spatial tumour-vs-TME enrichment?", answered_by: [spatial-region-rna-expression, spatial-tumor-normal-colocalization, spatial-surface-protein-abundance]}
+      - {q: "Absolute surface-density floor for the modality?", answered_by: [surface-abundance-density]}
+      - {q: "Percentile-crossing robustness of the window?", answered_by: [tumor-vs-normal-percentile-crossing]}
   - skill: functional-requirement
     objective: "Is the target a genetic dependency, and how does the call hold across CRISPR + RNAi + lineage?"
     primary_axis: dependency
     decomposes_to: {template: _skills_common/dependency_question_table.py, n_questions: 7}
+    questions:
+      - {q: "Required by CRISPR LOF?", answered_by: [pan-cancer-crispr-dependency-distribution]}
+      - {q: "Required by RNAi (orthogonal LOF)?", answered_by: [pan-cancer-rnai-dependency-distribution]}
+      - {q: "Do CRISPR and RNAi agree?", answered_by: [crispr-rnai-dependency-concordance]}
+      - {q: "Lineage / indication / subtype-selective dependency?", answered_by: [dependency-lineage-selectivity, subgroup-stratified-dependency]}
+      - {q: "Biomarker / partner / paralog-conditional dependency?", answered_by: [partner-conditional-dependency, paralog-buffering, expression-dependency-correlation, abundance-dependency]}
+      - {q: "Chemical-genetic confirmation?", answered_by: [prism-crispr-concordance]}
+      - {q: "How predictable / corroborated (confidence)?", answered_by: [dependency-predictability, cross-consortium-dependency, organoid-crispr-dependency, recommended-models]}
   - skill: genomic-alteration-profile
     objective: "How is the target genomically altered (SNV/CN/fusion), and which class drives?"
     primary_axis: genomic_alteration
+    questions:
+      - {q: "Recurrent SNV/indel driver (overall + by subtype)?", answered_by: [mutation-type-counts, mutation-hotspot-frequency, alteration-role, variant-level-interpretation, subgroup-stratified-mutation-frequency]}
+      - {q: "Copy-number driven (amplification / deletion)?", answered_by: [copy-number-distribution]}
+      - {q: "Fusion / rearrangement driven?", answered_by: [fusion-rearrangement-landscape]}
+      - {q: "Which alteration class carries a biomarker-stratified dependency?", answered_by: [mutation-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, amp-expr-stratified-dependency]}
+      - {q: "Genotype → drug-response biomarker?", answered_by: [mutation-drug-response]}
+      - {q: "Clonal / biallelic state of the alteration?", answered_by: [target-clonality, functional-gene-state]}
+      - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration]}
+      - {q: "Patient ↔ model genomic-event match?", answered_by: [genomic-event-model-match]}
   - skill: mechanism-and-pharmacology
     objective: "What is the target's network position / MoA hook / PD marker?"
     primary_axis: mechanism
+    questions:
+      - {q: "Network position + actionable MoA class / hook?", answered_by: [signaling-network-mechanism]}
+      - {q: "Pathway-activity context?", answered_by: [pathway-activity-context, phospho-pathway-activity]}
+      - {q: "MoA / PD-marker perturbation signature?", answered_by: [tahoe-drug-perturbation]}
+      - {q: "How omics-predictable is the mechanism (confidence)?", answered_by: [dependency-predictability]}
   - skill: tractability-small-molecule
     objective: "Is the target druggable by a small molecule, and does the chemical signal agree with the genetics?"
     primary_axis: tractability_sm
+    questions:
+      - {q: "Is there a compound that hits it (PRISM)?", answered_by: [prism-compound-activity]}
+      - {q: "Does the chemical signal agree with the genetic dependency?", answered_by: [prism-crispr-concordance]}
+      - {q: "Measured potency of known ligands?", answered_by: [measured-potency-tractability]}
+      - {q: "Structurally ligandable pocket?", answered_by: [structure-features-static]}
+      - {q: "Known-drug / pharmacology precedent?", answered_by: [known-drug-tractability]}
+      - {q: "Degrader feasibility (E3 / PROTAC)?", answered_by: [degradation-feasibility]}
+      - {q: "How predictable is the dependency (confidence)?", answered_by: [dependency-predictability]}
   - skill: surface-modality-fit
     objective: "Does surface biology support an ADC / TCE / antibody modality?"
     primary_axis: surface_modality
+    questions:
+      - {q: "Is it a surface protein (topology / family)?", answered_by: [surface-topology-and-ptm, surfaceome-family-classification, protein-surface-evidence]}
+      - {q: "Surface abundance / density sufficient for the modality?", answered_by: [surface-abundance-density]}
+      - {q: "ADC vs TCE vs antibody fit class?", answered_by: [adc-tce-modality-fit]}
+      - {q: "Normal-tissue surface safety (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability]}
+      - {q: "Shed / soluble ectodomain decoy liability?", answered_by: [shed-ectodomain-liability]}
+      - {q: "Epitope / exon window (splice/isoform) + stratified surface signal?", answered_by: [modality-exon-window, mutation-stratified-surface, pathway-stratified-surface]}
+      - {q: "Structure / pocket + amplification→antigen density?", answered_by: [structure-features-static, copy-number-distribution, rna-protein-concordance-tumor, modality-therapeutic-window, tumor-scrna-celltype-expression]}
+      - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, cd-antigen-backbone]}
   - skill: on-target-safety-liability
     objective: "Is the target intolerant of LoF, and what does that imply for a full-KO modality?"
     primary_axis: safety
+    questions:
+      - {q: "Germline LoF-constrained (gnomAD)?", answered_by: [gnomad-lof-constraint]}
+      - {q: "Population burden / dosage sensitivity?", answered_by: [gene-burden-safety, clingen-dosage]}
+      - {q: "Mouse-KO normal-physiology phenotype?", answered_by: [mouse-ko-phenotype]}
+      - {q: "Germline pathogenicity (ClinVar)?", answered_by: [clinvar-pathogenicity-safety]}
+      - {q: "Normal-tissue expression breadth?", answered_by: [normal-tissue-liability-gtex]}
+      - {q: "Mechanism downgrade (GoF mutant-selective / amplification)?", answered_by: [alteration-role, copy-number-distribution]}
+      - {q: "Engineered safety prior?", answered_by: [target-safety-prioritisation]}
   - skill: differentiation-landscape
     objective: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
     primary_axis: differentiation
+    questions:
+      - {q: "Co-mutation / mutual-exclusivity partners?", answered_by: [co-mutation-and-mutual-exclusivity]}
+      - {q: "Prognostic association (expression → survival)?", answered_by: [expression-clinical-association, precog-prognostic-association]}
+      - {q: "Stemness / aggressiveness context?", answered_by: [stemness-context]}
+      - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage]}
   - skill: synthetic-lethal-partners
     objective: "Does the target have a curated SL partner that contextualizes a pooled non-dependent read?"
     primary_axis: dependency
     role_note: "relational (target×partner); surfaces as the synthetic_lethal_partners facet of dependency."
+    questions:
+      - {q: "Is there a curated SL partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
   - skill: combinatorial-dependency
     objective: "Is the target a combinatorial (dual-KO) dependency — constitutive or context-conditional?"
     primary_axis: dependency
     role_note: "relational (target×paralog); gateless additive."
+    questions:
+      - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which partner is strongest?", answered_by: [combinatorial-dependency]}
   - skill: target-intrinsic
     objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
     primary_axis: null
     role_note: "descriptive / gateless (verdict=None); spans multiple axes, owns no single question."
+    questions:
+      - {q: "Canonical identity + development level (druggability tier)?", answered_by: [target-identity-summary, target-development-level]}
+      - {q: "Protein domain architecture + modality relevance?", answered_by: [protein-domains-class, domain-modality-relevance]}
+      - {q: "Interactome + pathway / GO membership?", answered_by: [ppi-interactome, reactome-pathway-membership, gene-ontology-annotation]}
   - skill: translational-readiness
     objective: "Can the nomination be preclinically validated (patient-derived models available)?"
     primary_axis: translational
     role_note: "descriptive partial; not in the nomination fan-out."
+    questions:
+      - {q: "Are patient-derived (HCMI) models available to validate the target in this indication?", answered_by: [target-model-availability]}
   - skill: immune-context
     objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect)?"
     primary_axis: null
     role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2)."
+    questions:
+      - {q: "Is there a CD8 effector T-cell population (immune-hot vs cold) for a TCE to redirect?", answered_by: [immune-context]}
   - skill: combo-and-resistance
     objective: "Under inhibition, which co-targets become essential (combination) and which KOs rescue (resistance)?"
     primary_axis: dependency
     role_note: "relational (target×co-target); two verdicts; not in the nomination fan-out."
+    questions:
+      - {q: "Which co-targets become MORE essential under inhibition (combination)?", answered_by: [combo-crispr-screen]}
+      - {q: "Which knockouts RESCUE the cell (candidate resistance mediators)?", answered_by: [resistance-emergence-signature]}
 
 # ===========================================================================
 # CANDIDATE EDGES — cross-axis edge cards the objective NEEDS but that DO NOT EXIST yet. First
