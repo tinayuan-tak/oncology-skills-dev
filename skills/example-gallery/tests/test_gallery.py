@@ -41,8 +41,10 @@ def test_page_has_verdict_synthesis_and_card(tmp_path):
     assert "expression-lineage-restricted-supportive" in page
     # exec summary surfaces the LLM narrative
     assert "strongly_supports" in page and "Summary" in page
-    # tumor-presence uses the scope-hierarchical layout (sample-context sections), not the flat list
-    assert "Evidence by lens" in page and "Patient tumor" in page
+    # tumor-presence LEADS with the 7-question summary table; the scope-hierarchical layout
+    # (sample-context sections) is demoted to a drill-down below it.
+    assert "Presence at a glance" in page and "Expressed in cancers at all?" in page
+    assert "Detailed evidence by lens" in page and "Patient tumor" in page
     # headline chip value shown
     assert "broadly_high" in page
     # cards are COLLAPSIBLE (details.card) with a header summary
@@ -405,3 +407,21 @@ def test_presence_scope_layout_placement_and_ladder(tmp_path, monkeypatch):
     assert "not-applicable-by-design" in page
     # cross-lens relation band for the concordance card
     assert "Cross-lens agreement" in page and "Cell-line RNA ↔ protein concordance" in page
+
+
+def test_presence_question_table_leads(tmp_path):
+    """tumor-presence renders the 7-question signal+confidence table FIRST, with the scope-hierarchical
+    layout demoted to a drill-down. Signal meters + confidence dots render; the table leads the cards."""
+    page = G.render_page(_decision(), tmp_path, fig_map={}, interactive=False)
+    assert "Presence at a glance" in page
+    # all 7 question rows
+    for q in ("Expressed in cancers at all?", "This indication vs other cancers?",
+              "Elevated vs normals", "Do subtypes differ", "Absolute abundance vs all genes?",
+              "Do RNA and protein agree?", "malignant-cell-intrinsic"):
+        assert q in page, q
+    # signal meter segments (7 rows × 5) + confidence dots present
+    assert page.count('class="seg') >= 35
+    assert 'class="dot"' in page or 'class="dot on"' in page
+    # the table leads; the scope layout is inside the demoted drill-down
+    assert page.index("Presence at a glance") < page.index("Detailed evidence by lens")
+    assert page.index("Detailed evidence by lens") < page.index("Patient tumor")

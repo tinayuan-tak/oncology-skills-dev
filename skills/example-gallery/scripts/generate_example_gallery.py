@@ -437,6 +437,31 @@ table{border-collapse:collapse;font-size:12px;margin:8px 0} th,td{border:1px sol
 .unavail{color:#8a5a2b;background:#fdf6ec;border-radius:6px;padding:7px 11px;font-size:13px;margin:10px 0}
 .idx td a{color:#2554c7;text-decoration:none} .idx td a:hover{text-decoration:underline}
 .plotly-fig{margin:12px 0}
+/* leading 7-question summary table: data · Signal meter (strength+polarity) · Confidence dots */
+.qtcap{margin:18px 0 6px;font-size:13px;color:#334;font-weight:600}
+.qtable{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 8px;background:#fff;
+  border:1px solid #e3e6ea;border-radius:8px;overflow:hidden}
+.qtable th{background:#f5f6f8;text-align:left;padding:7px 10px;border-bottom:2px solid #e3e6ea;
+  font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#556}
+.qtable td{padding:9px 10px;border-top:1px solid #eef0f3;vertical-align:top}
+.qtable .qid{font-weight:700;color:#1e3a8a;white-space:nowrap}
+.qtable .qq{font-weight:600;min-width:170px}
+.qtable .qd{color:#333;max-width:340px} .qtable .qsupport{color:#8a94a0;font-size:11.5px;margin-top:3px}
+.meter{display:inline-flex;gap:2px;vertical-align:middle;margin-right:8px}
+.meter .seg{width:13px;height:10px;border-radius:2px;background:#eceef1}
+.meter .seg.on.pos{background:#166534} .meter .seg.on.neg{background:#b45309}
+.meter .seg.on.neu{background:#6366f1} .meter .seg.on.none{background:#cbd0d6}
+.siglab{font-size:11.5px} .siglab.pos{color:#166534} .siglab.neg{color:#b45309}
+.siglab.neu{color:#3730a3} .siglab.none{color:#889}
+.dots{display:inline-flex;gap:3px} .dots .dot{width:8px;height:8px;border-radius:50%;background:#e3e6ea}
+.dots .dot.on{background:#475569}
+/* the detailed scope layout, demoted to a drill-down */
+.drill{margin:10px 0;border:1px solid #e3e6ea;border-radius:8px;background:#fff;overflow:hidden}
+.drillhead{cursor:pointer;padding:11px 14px;font-weight:600;font-size:13px;list-style:none;user-select:none}
+.drillhead::-webkit-details-marker{display:none}
+.drillhead::before{content:"\\25b8";color:#889;margin-right:8px;display:inline-block;transition:transform .15s}
+details.drill[open]>.drillhead::before{transform:rotate(90deg)}
+.drillbody{padding:2px 12px 12px}
 /* scope-hierarchical presence layout: sample-context sections → data-type subsections → scope rungs */
 .crumb{font-size:12px;color:#667;margin:14px 0 4px} .crumb b{color:#111}
 .crumb .on{background:#1e3a8a;color:#fff;border-radius:4px;padding:1px 7px}
@@ -1075,6 +1100,47 @@ def _scope_breadcrumb_html(decision: dict, indication: str) -> str:
             f'<span class="hint">— the rung at this scope leads; broader = backing, narrower = drill-down</span></div>')
 
 
+_POL_CLASS = {"supports": "pos", "opposes": "neg", "neutral": "neu", "none": "none"}
+
+
+def _question_table_html(decision: dict, h: dict) -> str:
+    """The LEADING 7-question summary table: question · data read · Signal meter (strength+polarity) ·
+    Confidence dots — computed from the presence claim_vector + answer-key card fields. Verdict-inert;
+    best-effort (absent → nothing rendered)."""
+    try:
+        if str(SKILLS_DIR) not in sys.path:
+            sys.path.insert(0, str(SKILLS_DIR))
+        from _skills_common.presence_question_table import presence_question_table
+        rows = presence_question_table(h, decision.get("cards", []))
+    except Exception as e:  # noqa: BLE001 — the table is additive; never break the page
+        print(f"[gallery] question table unavailable ({type(e).__name__}: {e})", file=sys.stderr)
+        return ""
+    if not rows:
+        return ""
+    trs = []
+    for r in rows:
+        s, cf = r["signal"], r["confidence"]
+        pol = _POL_CLASS.get(s["polarity"], "none")
+        meter = "".join(f'<span class="seg{(" on " + pol) if i < s["fill"] else ""}"></span>' for i in range(5))
+        dots = "".join(f'<span class="dot{" on" if i < cf["dots"] else ""}"></span>' for i in range(3))
+        trs.append(
+            f'<tr><td class="qid">{_esc(r["id"])}</td>'
+            f'<td class="qq">{_esc(r["question"])}</td>'
+            f'<td class="qd"><div>{_esc(r["primary"])}</div>'
+            f'<div class="qsupport">{_esc(r["support"])}</div></td>'
+            f'<td class="qsig"><span class="meter">{meter}</span>'
+            f'<span class="siglab {pol}">{_esc(s["label"])}</span></td>'
+            f'<td class="qconf"><span class="dots">{dots}</span></td></tr>')
+    verdict = h.get("presence_verdict")
+    cap = ('<div class="qtcap">Presence at a glance'
+           + (f' · verdict <span class="verdict">{_esc(verdict)}</span>' if verdict else "")
+           + ' <span class="hint">— Signal (strength · polarity toward presence) &amp; Confidence '
+             '(corroboration), computed from the claim-vector; verdict-inert.</span></div>')
+    head = ('<tr><th>Q</th><th>Question</th><th>Data / read</th>'
+            '<th>Signal — supports presence →</th><th>Conf</th></tr>')
+    return f'{cap}<table class="qtable"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table>'
+
+
 def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool) -> str:
     """One self-contained, DIGESTIBLE HTML page for a subskill run: exec summary + at-a-glance
     evidence strip + per-card (title + headline chip + key metrics + figure + collapsible full data)."""
@@ -1142,13 +1208,17 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     # tumor-presence: the scope-hierarchical layout (sample-context × data-type × scope ladder),
     # coordinate-driven. Every OTHER skill keeps the flat "Evidence at a glance" collapsible list.
     if skill == "tumor-presence" and cards:
+        # LEADING view: the 7-question × (data · signal · confidence) summary table — one glance.
+        parts.append(_question_table_html(decision, h))
+        # Detailed evidence, demoted to a drill-down: the scope-hierarchical layout.
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence by lens &amp; '
+                     'scope <span class="hint">— sample context → data type → pan-cancer / indication '
+                     '(lineage) / subtype; the rung at your query scope leads. Display only.</span>'
+                     '</summary><div class="drillbody">')
         parts.append(_scope_breadcrumb_html(decision, indication))
-        parts.append('<div class="lab" style="margin:18px 0 6px">Evidence by lens &amp; scope '
-                     '<span class="hint">— sample context → data type → pan-cancer / indication (lineage) '
-                     '/ subtype; the rung at your query scope leads, broader = backing, narrower = '
-                     'drill-down. Display only — the driving rule is shown per card.</span></div>')
         parts.append(_presence_scope_html(decision, run_dir, fig_map, interactive, fired_by_card,
                                           tables_dir, target, indication))
+        parts.append('</div></details>')
     else:
         # ONE unified "Evidence at a glance" section: the table of cards IS the collapsible list.
         parts.append('<div class="lab" style="margin:18px 0 6px">Evidence at a glance '
