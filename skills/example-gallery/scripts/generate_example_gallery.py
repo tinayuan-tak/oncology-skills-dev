@@ -1243,6 +1243,9 @@ def _question_table_html(decision: dict, h: dict) -> str:
         elif skill == "genomic-alteration-profile":
             title, verdict = "Genomic alteration", h.get("genomic_alteration_profile")
             sig_hdr = "Signal — alteration-class evidence →"
+        elif skill == "surface-modality-fit":
+            title, verdict = "Surface modality", h.get("fit_class")
+            sig_hdr = "Signal — modality-favorable →"
         rows = h.get("question_table")           # emitted by the skill (generic, preferred)
         if not rows:                             # fallback: recompute the table live, per skill
             if skill == "functional-requirement":
@@ -1251,6 +1254,9 @@ def _question_table_html(decision: dict, h: dict) -> str:
             elif skill == "genomic-alteration-profile":
                 from _skills_common.genomic_question_table import genomic_question_table
                 rows = genomic_question_table(h, decision.get("cards", []))
+            elif skill == "surface-modality-fit":
+                from _skills_common.surface_modality_question_table import surface_modality_question_table
+                rows = surface_modality_question_table(h, decision.get("cards", []))
             else:
                 rows = presence_question_table(h, decision.get("cards", []))
         return render_question_table_html(rows, verdict=verdict, include_css=True,
@@ -1587,6 +1593,20 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
         parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
                      '<span class="hint">— per-card: axis-A + veto instruments + additive facets; '
                      'click a row to expand. Display only.</span></summary><div class="drillbody">')
+        parts.append('<div class="cardlist">')
+        for idx, c in enumerate(cards):
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                          target, indication, uid=f"{idx}"))
+        parts.append('</div></div></details>')
+    elif skill == "surface-modality-fit" and cards:
+        # LEADING view: the surface-modality question table (Surface / Density / ADC / TCE) via the
+        # shared renderer — the biologics analog of the presence/selectivity heroes. Detailed
+        # per-card evidence follows as a drill-down (same _card_block_html).
+        parts.append(_question_table_html(decision, h))
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
+                     '<span class="hint">— per-card: topology / family / density / shed / homogeneity '
+                     '/ pMHC / normal-tissue window; click a row to expand. Display only.</span>'
+                     '</summary><div class="drillbody">')
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
             parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,

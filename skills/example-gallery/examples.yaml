@@ -47,3 +47,7 @@ examples:
   - {skill: functional-requirement,     target: KRAS, indication: COADREAD}   # dependency (CRISPR+RNAi)
   - {skill: genomic-alteration-profile, target: KRAS, indication: COADREAD}   # SNV/CN alteration mix
   - {skill: mechanism-and-pharmacology, target: KRAS, indication: COADREAD}   # SIGNOR MoA + phospho activity
+
+  # surface-modality-fit — the biologics ADC/TCE hero (Surface / Density / ADC / TCE question table).
+  - {skill: surface-modality-fit, target: CEACAM5, indication: COADREAD}   # clean surface antigen (ADC)
+  - {skill: surface-modality-fit, target: FOLR1,   indication: OV}         # folate-receptor ADC target
