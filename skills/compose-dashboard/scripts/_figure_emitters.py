@@ -407,13 +407,24 @@ def _emit_card1b_pan_cancer_rnai_dependency_distribution(
 def _emit_expression_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs E3.a method internals to emit waterfall + per-lineage strip SVGs."""
+    """Emit E3.a figures. STAGE 3: prefer the OFFLINE render seam — if card resolution persisted
+    plot_data here (run with plot_data_root), render from it via the method's render_from_plot_data
+    (no live re-read, deterministic, byte-identical to a live run, cannot diverge from the verdict).
+    Falls back to the legacy live re-execution when no persisted plot_data is present, so every
+    consumer (subskill --figures, compose phase-2, gallery) keeps working during the migration."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.depmap_expression_distribution import cli as e3acli
-
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path (Stage 3): render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data_expression.parquet"
+    if pd_path.exists():
+        from methods.depmap_expression_distribution.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_expression_distribution import cli as e3acli
     tpm_by_model, model_metadata, load_errors = e3acli.load_expression_files(
         release_pin="26q1", target_symbol=target
     )

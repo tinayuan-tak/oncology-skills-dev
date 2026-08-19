@@ -544,7 +544,13 @@ def run_wired_skill(
         print(f"[dispatcher] --verdict-only: reading {len(_cards_to_read)}/{len(cards)} "
               f"verdict-relevant cards (enrichment reads skipped; verdict byte-identical)",
               file=sys.stderr)
-    card_outputs = resolve_cards(_cards_to_read, args.target, _indication)
+    # Figure Stage 3: under --figures, persist each card's plot_data DURING resolution into the SAME
+    # figures/cards/<id>/ dir the figure-emitter reads from, so migrated emitters render OFFLINE (from
+    # the persisted plot_data) with no second live read. Default (no --figures) => plot_data_root=None,
+    # a byte-identical no-op. The figures_root here must match _emit_card_figures' Path(out)/"figures".
+    _plot_data_root = (Path(args.out) / "figures") if getattr(args, "figures", False) else None
+    card_outputs = resolve_cards(_cards_to_read, args.target, _indication,
+                                 plot_data_root=_plot_data_root)
     _read_secs = time.perf_counter() - _t0
     _compute_start = time.perf_counter()
 
