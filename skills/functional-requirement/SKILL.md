@@ -43,6 +43,7 @@ composition:
     # Biomarker-facet render cards (ADDITIVE, verdict-inert — feed NO resolver ladder). Grouped:
     - expression-dependency-correlation  # RNA arm: mRNA predicts dependency (was in run.py CARDS, missing here)
     - recommended-models                 # Q4 patient↔model correspondence: model-backed-dependency (was in run.py CARDS, missing here)
+    - genomic-event-model-match          # GENOTYPE-matched patient↔model facet (Track C cross-wire, 2026-08-19): complements recommended-models (expression-similarity) with genotype IDENTITY. Built/homed in genomic-alteration-profile; ADDITIVE, verdict-inert (event-correspondence rules are genomic, not dependency-*)
     - abundance-dependency               # Q7 PROTEIN arm: protein abundance predicts dependency (2026-07-22)
     - organoid-crispr-dependency         # Organoid-native Chronos facet (2026-08-18): dependency in patient-derived 3D organoids (GI-dominated n~114). ADDITIVE, verdict-inert — corroborates a positive call but is never a trusted veto
     - coessential-module                 # Co-essential-module CONFIDENCE facet (2026-08-19): is the dependency embedded in a coherent co-essential module (complex/pathway partners) or isolated? ADDITIVE, verdict-inert — folds into dependency_confidence_note (sibling of cross-consortium + predictability); the enrichment-review #1 item (depmap-coessentiality-26q1-v1 was orphaned)
@@ -66,6 +67,7 @@ composition:
     - partner_conditional_dependency      # L3 parity fix (2026-08-13): partner-conditional-dependency was consumed but its measurement_type undeclared
     - cross_consortium_dependency         # L3 parity fix (2026-08-13): cross-consortium-dependency (Broad↔Sanger) was consumed but undeclared
     - coessential_module                  # coessential-module CONFIDENCE facet (2026-08-19): verdict-inert, folds into dependency_confidence_note
+    - genomic_event_model_match           # genomic-event-model-match genotype patient↔model facet (2026-08-19): ADDITIVE render facet, verdict-inert
   rules_scope:
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution

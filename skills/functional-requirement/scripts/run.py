@@ -113,6 +113,15 @@ CARDS = [
                                                 # well_modeled (a screenable, model-backed dependency basis);
                                                 # ADDITIVE — feed NO resolver ladder → dependency verdict
                                                 # byte-stable. Also in target-profile SUB_SKILL_CARDS.
+    "genomic-event-model-match",                # GENOTYPE-matched patient↔model facet (Track C cross-wire,
+                                                # 2026-08-19). Complements recommended-models (expression-
+                                                # similarity) with genotype IDENTITY: which DepMap models
+                                                # carry the SAME functional event in the target as the
+                                                # indication's tumors, and are those models dependent? Built
+                                                # + homed in genomic-alteration-profile; cross-wired here for
+                                                # a sharper patient-selection read. ADDITIVE, verdict-INERT —
+                                                # its event-correspondence rules are genomic (NOT dependency-*),
+                                                # so FR's dependency-rule filter drops them from the verdict.
     "organoid-crispr-dependency",               # Organoid-native Chronos facet (2026-08-18). The organoid
                                                 # READING of the same screens (OrganoidGeneEffect.csv, 114
                                                 # GI-dominated organoid models, normalized within-organoid).
@@ -719,6 +728,10 @@ def _headline(cards, fired, verdict_pair):
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
         "model_correspondence_class": get_card_field(cards, "recommended-models", "correspondence_class"),
         "n_positive_models_in_lineage": get_card_field(cards, "recommended-models", "n_positive_models_in_lineage"),
+        # GENOTYPE-matched patient↔model facet (Track C, 2026-08-19) — complements the expression-similarity
+        # model_correspondence above with genotype IDENTITY (does an available model carry THIS target's
+        # event?). Render facet; verdict-inert (event-correspondence rules are genomic, not dependency-*).
+        "event_correspondence_class": get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
         # Q7 protein abundance → dependency (render facet, biomarker-assay comparison vs the RNA arm):
         "abundance_dependency_class": get_card_field(cards, "abundance-dependency", "abundance_dependency_class"),
         "protein_dependency_pearson_r": get_card_field(cards, "abundance-dependency", "protein_dependency_pearson_r"),
@@ -770,7 +783,7 @@ _SYNTHESIS_FACET_KEYS = (
     "predictability_class", "cross_consortium_class", "coessential_module_class",
     "dependency_confidence", "dependency_confidence_note",
     # biomarker render facets (patient-selection context)
-    "model_correspondence_class", "abundance_dependency_class",
+    "model_correspondence_class", "event_correspondence_class", "abundance_dependency_class",
     # the modality-blind claim vector SIGNAL decomposition + brief cited read (this subskill's
     # within-lens integration; the cross-lens layer reads the per-claim SIGNALS, not a certainty)
     "claim_vector", "key_signals",
