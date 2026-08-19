@@ -22,7 +22,7 @@
 # for the dispatch contract but NOT consumed. Per-lineage organoid selectivity is a documented v2.
 
 card_id: organoid-crispr-dependency
-version: 0.2.0   # 0.2.0: additive per-lineage enrichment (organoid_lineage* + per_lineage_stats)
+version: 0.3.0   # 0.3.0: per-lineage dependency bar figure (emitter in compose-dashboard)
 question: "Across the DepMap organoid CRISPR panel (Chronos, organoid-native normalization), is {target.symbol} a dependency, and how broadly across the ~114 organoid models?"
 
 tier: target   # pan-organoid per-gene dependency; NOT indication-scoped (see header).
@@ -75,9 +75,13 @@ outputs:
       - not_organoid_dependent                  # frac_dependent < 0.05
       - data_unavailable                        # gene absent from the organoid matrix / product unavailable
 
-  # NO figures block in v1: the card is summary-driven (pure-data). A per-organoid Chronos
-  # gene-effect histogram would require a separate per-model reader (the current reader returns
-  # the per-gene summary only) — a documented v2 follow-up alongside per-lineage organoid selectivity.
+  figures:
+    - id: organoid_lineage_dependency
+      type: organoid_lineage_dependency_bar
+      description: "Fraction of organoids dependent (Chronos gene-effect < -0.5) by organoid LINEAGE, from per_lineage_stats, with dependency-band reference lines (0.2 selective / 0.5 broad / 0.9 pan-essential). The indication-matched lineage is highlighted. None when the by-lineage product is unavailable / the target is absent. (A per-organoid histogram remains a possible v3 addition — it needs a per-model reader.)"
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_lineage_organoid_dependency
 
 thresholds:
   # organoid_dependency_class fraction bands (must mirror the reader's classify_dependency).
