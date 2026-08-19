@@ -4,6 +4,16 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-08-19 (v2.7.0)
+- Added the Q4 KO-dependency CONFIDENCE annotations (deferred item, verdict-inert): cross-consortium-dependency
+  (Broad↔Sanger CRISPR agreement) + dependency-predictability (omics-learnability). Both are additive
+  signal-only cards (fire NO genomic_alteration rung; verdict spine byte-stable) surfaced in the headline
+  (cross_consortium_class, dependency_predictability_class, dependency_predictability_feature). Thematically
+  aligned with the scope-coherence effort: dependency-predictability's predictability_lineage_collapsed
+  flags the pan-cancer-vs-indication dependency scope-leak the Phase-1 biomarker rungs are gated against.
+  (Surface-2 therapy/exposure signatures remains deferred — its SigProfiler Activities.txt intermediate is
+  not stored, so it needs a full signature-assignment re-run, not a simple product re-emit.)
+
 ## 2026-08-19 (v2.6.0)
 - Wired the POOLED multi-cohort patient recurrence into the verdict (scope-coherence Phase 2, the SNV
   indication-anchor gap). mutation-hotspot-frequency is now VERDICT-DRIVING: its pooled_driver_recurrence_class

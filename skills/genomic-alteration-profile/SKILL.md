@@ -25,7 +25,7 @@ description: |
   --modality flag. See CHANGELOG.md for development history.
 
 metadata:
-  version: 2.6.0
+  version: 2.7.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -62,6 +62,8 @@ composition:
     - mutational-signature-context           # indication-level mutagenic-process context (TCGA MC3 → COSMIC v3.3 SBS)
     - ddr-deficiency-context                 # indication-level DDR/HRD cohort context (Knijnenburg 2018)
     - oncogenic-pathway-alteration           # indication-level oncogenic-pathway alteration freq (Sanchez-Vega 2018)
+    - cross-consortium-dependency            # Q4 CONFIDENCE (verdict-inert): Broad↔Sanger CRISPR agreement
+    - dependency-predictability              # Q4 CONFIDENCE (verdict-inert): omics-learnability + lineage-collapse flag
     - subgroup-stratified-mutation-frequency # DESCRIPTIVE per-stratum mutation-frequency panorama (emits no
                                              # verdict); applies only when a subgroup_spec is set
     - subgroup-stratified-copy-number        # DESCRIPTIVE per-stratum patient focal amp/del panorama (TCGA GISTIC
@@ -96,6 +98,8 @@ composition:
     - mutational_signature_context           # mutational-signature-context (indication-level cohort context)
     - ddr_deficiency_context                 # ddr-deficiency-context (indication-level cohort context)
     - oncogenic_pathway_alteration           # oncogenic-pathway-alteration (indication-level cohort context)
+    - cross_consortium_dependency            # cross-consortium-dependency (Q4 confidence; verdict-inert)
+    - dependency_predictability              # dependency-predictability (Q4 confidence; verdict-inert)
   # rules_scope = cards whose rules actually enter the genomic_alteration resolver.
   # mutation-hotspot-frequency is VERDICT-DRIVING as of Phase 2: its POOLED pooled_driver_recurrence_class
   # (not the display-only single-cohort overall_mutation_frequency) fires the recurrent_snv_driver rung.

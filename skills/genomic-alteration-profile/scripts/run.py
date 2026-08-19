@@ -42,7 +42,7 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 )
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.6.0"
+SKILL_VERSION = "2.7.0"
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
 # cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
@@ -77,6 +77,11 @@ CARDS = [
     "oncogenic-pathway-alteration",    # indication-level oncogenic-pathway alteration frequency (Sanchez-Vega 2018)
     "variant-level-interpretation",    # per-variant oncogenicity + therapy-resistance alleles (CIViC)
     "target-clonality",                # is the driver mutation truncal (durable) or subclonal (relapse-prone)?
+    # ── Q4 KO-dependency CONFIDENCE annotations (additive, verdict-inert; fire NO genomic rung) ──
+    "cross-consortium-dependency",     # Broad↔Sanger CRISPR agreement — is the dependency reproducible?
+    "dependency-predictability",       # is the dependency omics-learnable, and is it lineage-collapsed?
+                                       # (predictability_lineage_collapsed directly flags the pan-cancer-vs-
+                                       # indication scope-leak the biomarker rungs are gated against)
 ]
 
 # The subtype panorama is DELIBERATELY kept off the CARDS spine. Its card is a panorama
@@ -390,6 +395,11 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     ("civic_variant_class",                 "variant-level-interpretation",   "civic_variant_class"),
     ("civic_oncogenic_variants",            "variant-level-interpretation",   "oncogenic_variants"),
     ("civic_resistance_variants",           "variant-level-interpretation",   "resistance_variants"),
+
+    # ── Q4 dependency CONFIDENCE (additive, verdict-inert) ────────────────────
+    ("cross_consortium_class",              "cross-consortium-dependency",    "cross_consortium_class"),
+    ("dependency_predictability_class",     "dependency-predictability",      "predictability_class"),
+    ("dependency_predictability_feature",   "dependency-predictability",      "pred_dominant_feature_class"),
 ]
 
 
