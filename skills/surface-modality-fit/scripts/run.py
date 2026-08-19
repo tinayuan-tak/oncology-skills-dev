@@ -35,7 +35,7 @@ from orthogonality import score_orthogonality   # noqa: E402 — skill-local E7 
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.2.0"   # sc-normal-celltype-expression — scRNA cell-type-resolved normal-tissue safety (sc_rna/normal)
+SKILL_VERSION = "1.3.0"   # +sc-surface-normal-safety +sc-surface-rna-protein-concordance (dead-card revival 2026-08-19; additive/byte-stable)
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
 # cards reachability.verdict_relevant_cards("surface_modality") derives — adc-tce-modality-fit
@@ -61,6 +61,19 @@ CARDS = [
                                         # types (e.g. hepatocyte vs Kupffer cell). LIVE for colon+lung;
                                         # other tissues → data_unavailable (honest coverage gap). ADDITIVE
                                         # signal-only (no resolver rung → verdict byte-stable).
+    "sc-surface-normal-safety",         # REVIVE (dead-card resolution 2026-08-19): single-cell CITE-seq
+                                        # SURFACE-protein footprint on normal immune cell types — the PROTEIN
+                                        # single-cell sibling of sc-normal-celltype-expression (RNA) + normal-
+                                        # tissue-liability (bulk IHC). Method sc_surface_normal_safety LIVE; card
+                                        # was orphaned (wired to no skill). Its rules (sc-surface-high-normal-
+                                        # immune-safety-opposing / sc-surface-absent-...-supportive) feed NO
+                                        # resolver rung → ADDITIVE signal-only, verdict byte-stable.
+    "sc-surface-rna-protein-concordance", # REVIVE (dead-card resolution 2026-08-19): single-cell RNA↔surface-
+                                        # protein (CITE-seq ADT) concordance — is scRNA an adequate proxy for the
+                                        # surface antigen, or must protein be measured? Method sc_surface_concordance
+                                        # LIVE; card was orphaned. Rules (sc-surface-rna-poor-proxy-warning /
+                                        # -adequate-proxy-supportive) feed NO resolver rung → ADDITIVE, byte-stable.
+                                        # (single-cell twin of rna-protein-concordance-tumor below.)
     "copy-number-distribution",         # P4 (2026-07-23) — genomic AMPLIFICATION → surface antigen-
                                         # density argument. The SAME card is in genomic-alteration-profile
                                         # (SM/degrader read); here it fires cn-amplified-surface-antigen-

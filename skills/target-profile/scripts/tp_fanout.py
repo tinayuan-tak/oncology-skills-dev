@@ -431,6 +431,8 @@ SUB_SKILL_CARDS = {
         "mutation-stratified-surface",       # mutant-up surface-antigen signal (E4-A2).
         "pathway-stratified-surface",        # pathway-stratified surface signal (E4-A3).
         "sc-normal-celltype-expression",     # single-cell normal-tissue safety comparator (F5).
+        "sc-surface-normal-safety",          # REVIVE 2026-08-19: sc CITE-seq surface footprint on normal immune (additive; no resolver rung → composed verdict byte-stable).
+        "sc-surface-rna-protein-concordance", # REVIVE 2026-08-19: sc RNA↔surface-protein proxy quality (additive; no resolver rung → byte-stable).
         # tumor-scrna-celltype-expression is in this sub-skill's CARDS too but is composed under
         # tumor-presence (its presence home) — "composed somewhere" satisfies the invariant.
     ],

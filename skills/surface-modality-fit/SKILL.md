@@ -45,7 +45,7 @@ description: |
   target TCE-viable topologically?"
 
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -112,6 +112,10 @@ composition:
                                        # supportive on pathway_high_up_surface. Additive; byte-stable.
     - sc-normal-celltype-expression    # (in run.py CARDS) cell-type-resolved NORMAL safety comparator (sc-normal);
                                        # additive safety facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
+    - sc-surface-normal-safety         # REVIVE 2026-08-19 (dead-card): sc CITE-seq SURFACE footprint on normal immune
+                                       # (protein sibling of sc-normal + normal-tissue-liability). Additive, verdict byte-stable.
+    - sc-surface-rna-protein-concordance  # REVIVE 2026-08-19 (dead-card): sc RNA↔surface-protein proxy quality
+                                       # (single-cell twin of rna-protein-concordance-tumor). Additive, verdict byte-stable.
     - cd-antigen-backbone              # (in run.py CARDS) additive signal facet, verdict byte-stable.
                                        # Declared here 2026-08-11 (doc-drift fixed).
     - modality-exon-window             # (in run.py CARDS) isoform/exon-window surface-epitope facet; additive,
@@ -127,6 +131,7 @@ composition:
   # exactly the first-class visible state Rule 3 describes.
   measurement_types_pulled:
     - pmhc_presentation                # (2026-08-07, E1) peptide-centric HLA presentation; bite_tce
+    - sc_normal_surface_protein        # REVIVE 2026-08-19 — sc-surface-normal-safety (sc CITE-seq normal surface footprint)
     - surface_confirmation
     - surface_topology
     - surfaceome_family

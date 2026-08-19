@@ -88,6 +88,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "modality-exon-window", "modality-therapeutic-window", "mutation-stratified-surface",
         "normal-tissue-liability", "pathway-stratified-surface", "pmhc-presentation",
         "protein-surface-evidence", "rna-protein-concordance-tumor", "sc-normal-celltype-expression",
+        # revived single-cell surface facets (dead-card resolution 2026-08-19) — added to
+        # SUB_SKILL_CARDS[surface-modality-fit], so this mirror must carry them (test_dimension_cards_matches_spine).
+        "sc-surface-normal-safety", "sc-surface-rna-protein-concordance",
         "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
         "surface-topology-and-ptm", "surfaceome-family-classification"}),
     "synthetic_lethal_partners": frozenset({"synthetic-lethal-partners"}),
