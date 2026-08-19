@@ -771,8 +771,11 @@ measurement_types:
     # but the PER-SAMPLE percentile-crossing on directly-comparable recount3 matrices — NOT the aggregate
     # log2FC (dge-deseq2) and NOT presence (tumor_expression_distribution, Gate A). The headline enrichment
     # metric of the therapeutic-window framing; cross-cuts to ADC/surface-antigen selectivity.
-    entity_grains: [target_indication]
-    cards: [tumor-vs-normal-percentile-crossing]
+    entity_grains: [target_indication, target_subtype]   # target_subtype added 2026-08-19 (Phase B):
+                                                         # the per-sample subtype landscape reader recomputes
+                                                         # the crossing metric within each molecular-subtype
+                                                         # member-set (build_selectivity_crossing_subtype_panorama)
+    cards: [tumor-vs-normal-percentile-crossing, tumor-vs-normal-percentile-crossing-by-subtype]
     # tier_dominant (mirrors Q1 tumor_expression_distribution): TCGA is the dominant provider (the
     # tumor arm — the fraction-above metric is a property of the tumor population); GTEx is auxiliary,
     # supplying ONLY the matched-normal percentile cutoff. Not surface_discordance — GTEx isn't a
