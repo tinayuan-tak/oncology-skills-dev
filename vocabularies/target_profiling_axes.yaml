@@ -1,0 +1,415 @@
+# target_profiling_axes.yaml — THE canonical objective → axis → card ontology (v1.0.0)
+#
+# WHAT THIS IS: the single source of truth for the target-profiling OBJECTIVE decomposition —
+# the decision questions a full target profile must answer, the biological evidence AXIS that
+# answers each, the necessity/sufficiency BAND it sits in, the framework's coverage standing, and
+# the three orthogonal CONDITIONER axes (modality · subtype · molecular-form) that refine the
+# questions without being questions themselves. It is what the card-binding metadata
+# (`consumed_by.lens`, `axis_edge.reports_into` in card.schema.json) REFERENCES.
+#
+# WHY IT EXISTS: the objective decomposition previously lived in THREE un-reconciled generations
+# that disagreed on their letter schemes —
+#   (1) the 8-gate scaffold doc  (A Present … E DRUGGABLE … G DIFFERENTIATED, H TRANSLATIONAL)
+#   (2) gate_coverage.yaml v2     (biology_gates A–E + NAMED modality_fit)
+#   (3) per-skill SKILL.md phase: (E=Altered, F=tractability, G=Safety, I=combo, J=translational)
+# This artifact SUPERSEDES all three. It keys on the stable, letter-free `short` name (the
+# SUB_SKILLS sub-verdict slot), and carries a `legacy_letters` crosswalk that RETIRES the drifted
+# letters. gate_coverage.yaml v2's content (coverage vocab, biomarker_facets, reports_into) is
+# PORTED here verbatim; a one-time equivalence check (tests/vocabularies/test_axis_ontology_
+# supersedes_gate_coverage.py) asserts no per-axis coverage assignment regressed.
+#
+# HONESTY GUARDRAIL (inherited from gate_coverage v2 / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 3):
+# `framework_can_evidence` is the STATIC baseline standing. The deciding-axis router uses it only
+# to REPORT (name the axis that FIRED; list un-evidenced axes + their band + standing), NEVER to
+# PREDICT which axis will decide. Per-run the router may downgrade to blind/data_blocked, never up.
+#
+# VERDICT-NEUTRAL: taxonomy + routing metadata only. No resolver / nomination-gate logic changes.
+
+enum_id: target_profiling_axes
+version: 1.0.0
+supersedes:
+  - {artifact: docs/design/CARD_ARCHITECTURE_DECISION.md, scheme: "8-gate scaffold (A–H)"}
+  - {artifact: vocabularies/gate_coverage.yaml, scheme: "gate-model v2 (biology_gates A–E + named modality_fit)", relation: content_ported}
+  - {artifact: "per-skill SKILL.md composition.phase", scheme: "phase letters (drifted A–J,K)", relation: retired}
+
+description: |
+  Canonical target-profiling objective decomposition. The objective — "should we nominate target X
+  in indication Y?" — decomposes into NECESSITY questions ("is this real, actionable biology?":
+  Expressed · Selective · Required · Mechanism · Altered) and SUFFICIENCY questions ("will it become
+  a drug in a given modality?": Small-molecule druggability · Surface-biologics fit · Safety ·
+  Differentiation · Translational). Three orthogonal CONDITIONER axes (modality, subtype,
+  molecular-form) refine the questions but are not themselves questions. Relational feature×outcome
+  evidence lives as biomarker_facets reporting into the question they modulate.
+
+# ---------------------------------------------------------------------------
+# COVERAGE VOCAB — ported verbatim from gate_coverage.yaml v2 (+ shared with the calibration set).
+# ---------------------------------------------------------------------------
+coverage_vocab:
+  captured:        "framework wires real data for this axis; a correct read is expected."
+  partial:         "wired but thin / one-axis / known-gap-prone."
+  blind:           "framework does not model the deciding evidence for this axis."
+  license_blocked: "deciding data exists but is commercial-license-walled (not an eng gap)."
+  out_of_scope:    "Tier-2 / a different engine's job (dynamic-perturbation, TME)."
+
+bands:
+  necessity:   "Is this real, actionable biology? Modality-independent. (was 8-gate A–D + Altered)"
+  sufficiency: "Will it become a drug in THIS modality? Per-lens. (was 8-gate E–H)"
+
+# ---------------------------------------------------------------------------
+# THE SCIENTIFIC HOMING RULE — machine-readable statement the card-binding guard enforces.
+# ---------------------------------------------------------------------------
+homing_rule:
+  home: "A card's HOME skill = the axis-question it PRIMARILY measures (its measurement construct)."
+  foreign_consume: "A card is FOREIGN-consumed by another skill iff that skill's verdict logic needs the evidence (a resolver rung / veto fires on it). Foreign-composition edges are DERIVED from rule_id -> resolver -> gate, not authored freely."
+  reference: "consumed_by.lens (card.schema.json) MUST name a `short` defined in questions[] or a conditioner_axes[] id."
+
+# ===========================================================================
+# QUESTIONS — the objective decomposition. Keyed on the stable letter-free `short`.
+# `legacy_letters` retires the three drifted schemes. `home_skill` / `foreign_consumers`
+# encode the homing rule. `framework_can_evidence` is PORTED from gate_coverage v2.
+# ===========================================================================
+questions:
+  # ---------- NECESSITY (is this real biology?) ----------
+  - short: expression
+    question: "Is the target expressed / present in the tumor?"
+    band: necessity
+    risk_category: biological
+    home_skill: tumor-presence
+    foreign_consumers: [functional-requirement, surface-modality-fit]
+    framework_can_evidence: captured
+    legacy_letters: {scaffold_8gate: A, gate_coverage_v2: A, skill_phase: A}
+    evidences: "RNA transcribed / protein made (recount3 + DepMap + CPTAC)."
+    conditioned_by: [modality, subtype, molecular_form]
+
+  - short: selectivity
+    question: "Is the target selective for tumor vs normal (adjacent=efficacy; population=safety)?"
+    band: necessity
+    risk_category: biological
+    home_skill: tumor-selectivity
+    foreign_consumers: [surface-modality-fit]
+    framework_can_evidence: captured
+    legacy_letters: {scaffold_8gate: B, gate_coverage_v2: B, skill_phase: B}
+    evidences: "tumor-vs-normal window (recount3 4-cell DESeq2; adjacent + GTEx comparators)."
+    conditioned_by: [modality, subtype, molecular_form]
+
+  - short: dependency
+    question: "Is the target a functional dependency / driver, and in which context?"
+    band: necessity
+    risk_category: biological
+    home_skill: functional-requirement
+    foreign_consumers: []
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: C, gate_coverage_v2: C, skill_phase: C}
+    receives_facets: [mutation_stratified, expression_correlation, crispr_rnai_concordance,
+                      chemical_genetic_concordance, synthetic_lethal_partners,
+                      dependency_predictability, subtype_fit]
+    evidences: "functional requirement (DepMap CRISPR + RNAi)."
+    coverage_note: |
+      partial: pooled pan-cancer scalar conflates six dependency modes (only oncogene-addiction
+      fully wired). Context-conditional modes are biomarker_facets reporting into this question.
+
+  - short: mechanism
+    question: "What is the target's network position / MoA hook / PD marker?"
+    band: necessity
+    risk_category: biological
+    home_skill: mechanism-and-pharmacology
+    foreign_consumers: []
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: D, gate_coverage_v2: D, skill_phase: D}
+    evidences: "network position / MoA hook (SIGNOR + CollecTri + Reactome + kinome)."
+    coverage_note: "advisory-only today; does not move the deterministic verdict."
+
+  - short: genomic_alteration
+    question: "How is the target genomically altered (SNV / CN / fusion), and which class drives?"
+    band: necessity
+    risk_category: biological
+    home_skill: genomic-alteration-profile
+    foreign_consumers: [on-target-safety-liability]
+    framework_can_evidence: captured
+    reports_into: [dependency]        # biomarker-stratified-dependency modulates Required
+    legacy_letters: {scaffold_8gate: "A (overloaded)", gate_coverage_v2: E, skill_phase: E}
+    evidences: "somatic alteration landscape (TCGA-MC3 + GENIE): mutation / CN / fusion frequency."
+    conditioned_by: [subtype]
+
+  # ---------- SUFFICIENCY (will it become a drug?) — modality-conditional ----------
+  - short: tractability_sm
+    question: "Is the target druggable by a small molecule (compound exists + agrees with genetics)?"
+    band: sufficiency
+    risk_category: druggability
+    home_skill: tractability-small-molecule
+    foreign_consumers: []
+    modality_relevance: [small_molecule, degrader]
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: E, gate_coverage_v2: tractability_sm, skill_phase: F}
+    evidences: "chemical-genetic (PRISM) + forward ligandability (AlphaFold/PDB pocket structure)."
+    coverage_note: "partial: retrospective PRISM + pocket ligandability wired; degrader feasibility + medchem tractability not."
+    conditioned_by: [modality, molecular_form]
+
+  - short: surface_modality
+    question: "Does surface biology support a biologics modality (ADC / TCE / antibody)?"
+    band: sufficiency
+    risk_category: druggability
+    home_skill: surface-modality-fit
+    foreign_consumers: []
+    modality_relevance: [adc, bite_tce, antibody]
+    framework_can_evidence: blind
+    legacy_letters: {scaffold_8gate: E, gate_coverage_v2: surface_modality, skill_phase: F}
+    evidences: "surface density / internalization / topology for ADC/BiTE/antibody."
+    coverage_note: "blind on the deciding axis for most biologics: abundance/density MS + avidity data-blocked (3/5 surface cards not on S3). Family/topology only."
+    conditioned_by: [modality, molecular_form]
+
+  - short: safety
+    question: "Is the target intolerant of loss-of-function / does normal-tissue liability threaten a therapeutic window?"
+    band: sufficiency
+    risk_category: safety
+    home_skill: on-target-safety-liability
+    foreign_consumers: []
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]   # tiered severity per lens
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: F, gate_coverage_v2: safety, skill_phase: G}
+    evidences: "germline LoF constraint (gnomAD) + normal-tissue liability (HPA IHC)."
+    coverage_note: "partial: germline constraint + HPA IHC breadth wired; normal-tissue-SURFACE window (biologics-deciding) thin. Modality-tiered."
+    conditioned_by: [modality]
+
+  - short: differentiation
+    question: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
+    band: sufficiency
+    risk_category: commercial
+    home_skill: differentiation-landscape
+    foreign_consumers: []
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: G, gate_coverage_v2: differentiation, skill_phase: E}
+    evidences: "co-mutation / mutual-exclusivity + biomarker definability (TCGA-MC3 + GENIE Fisher)."
+    coverage_note: "partial -> license_blocked for the decisive axis: clinical precedent + competitive differentiation are commercial-license-walled (Cortellis/IQVIA/Flatiron)."
+    conditioned_by: [subtype]
+
+  - short: translational
+    question: "Can the nomination be preclinically validated (patient-derived models, PD/imaging assays, combination/resistance)?"
+    band: sufficiency
+    risk_category: translational
+    home_skill: translational-readiness       # descriptive; not in the nomination fan-out
+    foreign_consumers: []
+    framework_can_evidence: blind
+    status: unbuilt
+    legacy_letters: {scaffold_8gate: H, gate_coverage_v2: "unbuilt.translational", skill_phase: J}
+    evidences: "patient-derived model coverage (HCMI) — one leg wired; PD/imaging/internal-model legs unbuilt."
+    coverage_note: "blind by construction — translational-readiness is a descriptive partial skill; not in the nomination fan-out."
+
+# ===========================================================================
+# CONDITIONER AXES — orthogonal refinements of the questions (NOT questions/gates themselves).
+# "8 questions × modality × subtype × molecular-form" (GATE_SCAFFOLD_MODALITY_CONDITIONAL.md).
+# ===========================================================================
+conditioner_axes:
+  - id: modality
+    definition: "The therapeutic modality lens. Selects which sufficiency questions are relevant (via modality_relevance) and tiers their severity. NOT a question — a lens over the questions."
+    refines: [tractability_sm, surface_modality, safety, expression, selectivity]
+    values: [small_molecule, degrader, adc, bite_tce, antibody]
+    home: "vocabularies/ (MODALITY_TAXONOMY.md); already encoded as `modality_relevance` on questions + cards."
+
+  - id: subtype
+    definition: "Molecular/clinical subgroup partition of an indication. Refines a question WITHIN strata (who responds). Opt-in via --subtypes; negative-selection only, floor-gated (n>=30)."
+    refines: [expression, selectivity, dependency, genomic_alteration, differentiation]
+    values: "per-indication strata (COADREAD CMS/CIMP/MSI/sidedness; LUAD/NSCLC driver strata; ...)."
+    home: "surfaced as subtype_fit (sub_skill facet) + *-by-subtype / subgroup-stratified-* cards."
+
+  - id: molecular_form
+    definition: |
+      Which MOLECULAR FORM of the target (isoform / splice variant / exon / epitope) is present and
+      targetable. A conditioner (like subtype/modality), NOT a gate. Refines: Expressed (which form
+      is made), Selective (a tumor-specific splice/isoform is a strong selectivity signal — near-ideal
+      target), and the modality-fit questions (which epitope/exon/domain is targetable).
+    refines: [expression, selectivity, surface_modality, tractability_sm]
+    framework_can_evidence: partial
+    status: consolidating              # plan Part 6.3 — unify the four scattered pieces below
+    unifies:
+      - piece: cellline_isoform
+        card: cellline-isoform-expression        # NEW (plan 6.3): promoted from a sub-call facet
+        promoted_from: "sub-call inside cellline-rna-distribution (isoform_expression_class)"
+        method: depmap-isoform-expression
+        product: depmap-isoform-expression-per-gene-v1
+        home_skill: tumor-presence
+      - piece: tumor_splice
+        card: tumor-splice-expression            # NEW (plan 6.3): promoted from a sub-call facet
+        promoted_from: "sub-call inside tumor-rna-distribution (splicing_dysregulation_class)"
+        method: tcga-spliceseq-psi
+        product: tcga-spliceseq-psi-per-gene-v1
+        home_skill: tumor-presence
+        foreign_consumers: [tumor-selectivity]   # tumor-specific splice = selectivity signal (NEW edge)
+      - piece: exon_window
+        card: modality-exon-window               # EXISTING
+        home_skill: surface-modality-fit
+        scope_caveat: "exon-INCLUSION only; blind to transcript identity (cannot resolve CLDN18.2 / METex14 / EGFRvIII)."
+      - piece: isoform_guardrail
+        artifact: vocabularies/isoform_selective_targets.yaml   # EXISTING curated caveat
+        consumed_by_caveat: [surface-modality-fit, mechanism-and-pharmacology]
+        note: "curated selective isoforms (HER2-p95, AR-V7, METex14, EGFRvIII, CLDN18.2)."
+    scope_caveats:
+      - "bulk-cohort splice (SpliceSeq PSI) misses low-frequency isoforms (AR-V7-type read 'stable')."
+      - "measured molecular-form (isoform/splice) is orthogonal to the curated isoform_selective_targets guardrail; surface them together as one story."
+
+# ===========================================================================
+# BIOMARKER FACETS — relational feature×outcome evidence. PORTED from gate_coverage.yaml v2.
+# NOT questions: each surfaces UNDER the question it reports_into. grain: sub_skill = scorecard row;
+# grain: card = renders inside the outcome question's section only.
+# ===========================================================================
+biomarker_facets:
+  - short: synthetic_lethal_partners
+    grain: sub_skill
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: partial
+    evidences: "curated SL partner annotation (SynLethDB v3) — suppresses a pooled non-dependent veto."
+
+  - short: subtype_fit
+    grain: sub_skill
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: partial
+    evidences: "subtype-stratified dependency (DepMap panorama) — one-directional hold only."
+
+  - short: mutation_stratified
+    grain: card
+    card_id: mutation-stratified-dependency
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: captured
+    evidences: "dependency stratified by own mutation status (oncogene-addiction biomarker)."
+
+  - short: expression_correlation
+    grain: card
+    card_id: expression-dependency-correlation
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: captured
+    evidences: "own mRNA expression predicts own dependency (expression-as-biomarker)."
+
+  - short: crispr_rnai_concordance
+    grain: card
+    card_id: crispr-rnai-dependency-concordance
+    role: corroboration
+    reports_into: [dependency]
+    surfaces_as: confidence
+    framework_can_evidence: captured
+    evidences: "CRISPR and RNAi LOF assays agree the target is required."
+
+  - short: chemical_genetic_concordance
+    grain: card
+    card_id: prism-crispr-concordance
+    role: corroboration
+    reports_into: [dependency, tractability_sm]   # the genuine cross-gate case (feeds BOTH)
+    surfaces_as: confidence
+    framework_can_evidence: partial
+    evidences: "compound kill-pattern tracks CRISPR+RNAi dependency (on-target engagement)."
+
+  - short: dependency_predictability
+    grain: card
+    card_id: dependency-predictability
+    role: corroboration
+    reports_into: [dependency]
+    surfaces_as: confidence
+    framework_can_evidence: captured
+    evidences: "how omics-predictable the dependency is (meta-evidence -> C-confidence)."
+
+# ===========================================================================
+# SKILL OBJECTIVES — per-skill prevailing scientific objective + the questions it answers with its
+# card set (user requirement 2026-08-19). `primary_axis` names the question this skill owns (the
+# homing rule's HOME). `decomposes_to` records the skill-internal sub-question set the card set must
+# COVER (a coverage guard enforces: every sub-question addressed by >=1 card; every card answers
+# >=1). Seeded here; populated skill-by-skill (like consumed_by). The two 7-question tables already
+# exist in _skills_common as the template to generalize.
+# ===========================================================================
+skill_objectives:
+  - skill: tumor-presence
+    objective: "Is the target present in the tumor, across cell lines vs tumor samples at RNA / protein / single-cell?"
+    primary_axis: expression
+    decomposes_to: {template: _skills_common/presence_question_table.py, n_questions: 7}
+  - skill: tumor-selectivity
+    objective: "Is the target selective for tumor vs normal, robustly across bulk / single-cell / spatial comparators?"
+    primary_axis: selectivity
+  - skill: functional-requirement
+    objective: "Is the target a genetic dependency, and how does the call hold across CRISPR + RNAi + lineage?"
+    primary_axis: dependency
+    decomposes_to: {template: _skills_common/dependency_question_table.py, n_questions: 7}
+  - skill: genomic-alteration-profile
+    objective: "How is the target genomically altered (SNV/CN/fusion), and which class drives?"
+    primary_axis: genomic_alteration
+  - skill: mechanism-and-pharmacology
+    objective: "What is the target's network position / MoA hook / PD marker?"
+    primary_axis: mechanism
+  - skill: tractability-small-molecule
+    objective: "Is the target druggable by a small molecule, and does the chemical signal agree with the genetics?"
+    primary_axis: tractability_sm
+  - skill: surface-modality-fit
+    objective: "Does surface biology support an ADC / TCE / antibody modality?"
+    primary_axis: surface_modality
+  - skill: on-target-safety-liability
+    objective: "Is the target intolerant of LoF, and what does that imply for a full-KO modality?"
+    primary_axis: safety
+  - skill: differentiation-landscape
+    objective: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
+    primary_axis: differentiation
+  - skill: synthetic-lethal-partners
+    objective: "Does the target have a curated SL partner that contextualizes a pooled non-dependent read?"
+    primary_axis: dependency
+    role_note: "relational (target×partner); surfaces as the synthetic_lethal_partners facet of dependency."
+  - skill: combinatorial-dependency
+    objective: "Is the target a combinatorial (dual-KO) dependency — constitutive or context-conditional?"
+    primary_axis: dependency
+    role_note: "relational (target×paralog); gateless additive."
+  - skill: target-intrinsic
+    objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
+    primary_axis: null
+    role_note: "descriptive / gateless (verdict=None); spans multiple axes, owns no single question."
+  - skill: translational-readiness
+    objective: "Can the nomination be preclinically validated (patient-derived models available)?"
+    primary_axis: translational
+    role_note: "descriptive partial; not in the nomination fan-out."
+  - skill: immune-context
+    objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect)?"
+    primary_axis: null
+    role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2)."
+  - skill: combo-and-resistance
+    objective: "Under inhibition, which co-targets become essential (combination) and which KOs rescue (resistance)?"
+    primary_axis: dependency
+    role_note: "relational (target×co-target); two verdicts; not in the nomination fan-out."
+
+# ===========================================================================
+# CANDIDATE EDGES — cross-axis edge cards the objective NEEDS but that DO NOT EXIST yet. First
+# entry answers a direct user question (2026-08-19): there is NO genomic-feature × survival card
+# (the two prognostic cards — expression-clinical-association, precog-prognostic-association — are
+# EXPRESSION-keyed). Proposed, not built.
+# ===========================================================================
+candidate_edges:
+  - proposed_card: alteration-clinical-association
+    axis_edge: {anchor: clinical_outcome_os, partner: genomic_alteration_status, edge_kind: prognostic_association}
+    reports_into: [differentiation]        # prognostic value of the alteration = biomarker definability
+    home_skill: differentiation-landscape  # (or genomic-alteration-profile; decide at build)
+    question: "Does {target} mutation / CN / fusion STATUS stratify overall survival in {indication} (and by subtype)?"
+    feasibility: "buildable from TCGA MC3 alteration status + TCGA clinical OS — same OS substrate expression-clinical-association already uses; by-subtype via subgroup strata. GENIE lacks broad OS (GENIE-BPC only)."
+    gap_note: "the alteration analog of expression-clinical-association / precog-prognostic-association."
+
+# ===========================================================================
+# SCIENTIFIC GAPS — the enumerated backlog (none existed before). Blind/partial/license_blocked
+# axes the objective NEEDS but the framework cannot fully evidence. "scientific-gap #N" was an
+# informal per-skill annotation; this is its collected home.
+# ===========================================================================
+scientific_gaps:
+  - axis: surface_modality
+    standing: blind
+    gap: "surface abundance/density MS + avidity/co-expression data-blocked (3/5 surface cards not on S3)."
+  - axis: translational
+    standing: blind
+    gap: "only HCMI model-availability leg wired; PD-assay, imaging-tracer, internal-model legs unbuilt (scientific-gap #1)."
+  - axis: differentiation
+    standing: license_blocked
+    gap: "clinical precedent + competitive differentiation commercial-license-walled."
+  - axis: dependency
+    standing: partial
+    gap: "pooled pan-cancer scalar conflates six dependency modes; only oncogene-addiction fully wired."
+  - axis: molecular_form
+    standing: partial
+    gap: "bulk-cohort splice misses low-frequency isoforms; exon-window blind to transcript identity."
