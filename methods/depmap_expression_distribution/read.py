@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache, partial
+from pathlib import Path
 from typing import Optional
 
 from . import cli as _cli
@@ -26,9 +27,15 @@ _SUBTYPE_ENRICH_LOG2_DELTA = 1.0
 
 
 def read_expression_distribution(target: str, indication: Optional[str] = None,
-                                  expressed_threshold: float = 1.0) -> Optional[dict]:
+                                  expressed_threshold: float = 1.0,
+                                  plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Compute pan-cancer expression distribution for target. Returns summary dict
-    matching the cellline-rna-distribution card's outputs.summary_fields."""
+    matching the cellline-rna-distribution card's outputs.summary_fields.
+
+    plot_data_out (figure-consolidation Stage 1): OPT-IN directory. When set, the per-model long
+    frame is persisted there (plot_data_expression.parquet) as a first-class artifact of card
+    RESOLUTION — so the offline renderer draws from it without a second live read. Default None =>
+    byte-identical no-op (the frame is simply discarded, as today)."""
     tpm_by_model, model_metadata, load_errors = _cli.load_expression_files(
         release_pin="26q1", target_symbol=target
     )
@@ -65,6 +72,18 @@ def read_expression_distribution(target: str, indication: Optional[str] = None,
         summary.update(control_position_cellline(target))
     except Exception:  # noqa: BLE001
         summary.setdefault("control_position_class", "data_unavailable")
+    # Figure-consolidation Stage 1: OPT-IN persist plot_data as an artifact of card RESOLUTION (not a
+    # figure re-read side effect). Writes the same per-model long frame emit_plot_data produces from
+    # the tpm_by_model we already hold — so render_from_plot_data (Stage 2) draws WITHOUT a second
+    # live read. Best-effort: a plot_data failure must never break the verdict read (mirrors the
+    # allgene / control enrichment above).
+    if plot_data_out is not None:
+        try:
+            _pd_dir = Path(plot_data_out)
+            _pd_dir.mkdir(parents=True, exist_ok=True)
+            _cli.emit_plot_data(tpm_by_model, model_metadata, expressed_threshold, _pd_dir)
+        except Exception:  # noqa: BLE001 — plot_data persistence is additive; never break resolution
+            pass
     return summary
 
 
