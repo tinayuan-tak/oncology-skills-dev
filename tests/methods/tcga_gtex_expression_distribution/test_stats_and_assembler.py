@@ -420,3 +420,58 @@ def test_cli_subtype_panorama_carries_full_per_subgroup_metrics(monkeypatch):
     pan = cli.build_subtype_panorama("X", "COADREAD")
     assert pan["subtype_axis_available"] is True and pan["n_subtypes_measured"] == 2
     assert {r["stratum_id"] for r in pan["per_subgroup_metrics"]} == {"HI", "LO"}
+
+
+# ---- Phase B: crossing-by-subtype panorama (monkeypatched landscape, no S3) ----
+from methods.tcga_gtex_expression_distribution import cli as C  # noqa: E402
+
+
+def _fake_landscape(**over):
+    base = {
+        "subtype_axis_available": True, "matched_normal_tissue": "COLON",
+        "normal_comparator_type": "matched", "assignment_manifest": "tcga-subgroup-assignments-coadread-v1",
+        "subtype_landscape": [
+            # a strongly-enriched stratum (frac_p95 high, clean separation)
+            {"stratum_id": "MSI_H", "evidence_state": "measured", "n_tumor_samples": 60,
+             "fraction_tumor_above_normal_p95": 0.82, "fraction_tumor_above_normal_p99": 0.7,
+             "distribution_overlap_tumor_normal": 0.2},
+            # a not-enriched stratum (frac_p95 ~0)
+            {"stratum_id": "MSS", "evidence_state": "measured", "n_tumor_samples": 120,
+             "fraction_tumor_above_normal_p95": 0.03, "fraction_tumor_above_normal_p99": 0.0,
+             "distribution_overlap_tumor_normal": 0.9},
+            # an underpowered stratum → data_unavailable, excluded from rollup
+            {"stratum_id": "RARE", "evidence_state": "underpowered", "n_tumor_samples": 8,
+             "fraction_tumor_above_normal_p95": None, "fraction_tumor_above_normal_p99": None,
+             "distribution_overlap_tumor_normal": None},
+        ],
+    }
+    base.update(over)
+    return base
+
+
+def test_crossing_subtype_panorama_classifies_and_rolls_up(monkeypatch):
+    monkeypatch.setattr(C._read, "read_tumor_expression_subtype_landscape",
+                        lambda t, i: _fake_landscape())
+    out = C.build_selectivity_crossing_subtype_panorama("CEACAM5", "COADREAD")
+    by = {m["stratum_id"]: m for m in out["per_subgroup_metrics"]}
+    # per-stratum classification reuses the pooled crossing vocabulary
+    assert by["MSI_H"]["percentile_crossing_class"] == "strongly_tumor_enriched"
+    assert by["MSS"]["percentile_crossing_class"] == "not_enriched"
+    assert by["RARE"]["percentile_crossing_class"] == "data_unavailable"
+    # rollup: one strongly-enriched, measured=2 (RARE excluded), and the range spans a class boundary
+    assert out["n_subtypes_measured"] == 2
+    assert out["n_subtypes_strongly_enriched"] == 1
+    assert out["max_subtype_fraction_above_normal_p95"] == 0.82
+    assert out["crossing_varies_by_subtype"] is True
+
+
+def test_crossing_subtype_panorama_data_unavailable_safe(monkeypatch):
+    monkeypatch.setattr(C._read, "read_tumor_expression_subtype_landscape",
+                        lambda t, i: {"subtype_axis_available": False, "subtype_landscape": [],
+                                      "_subtype_note": "no landed tumor assignment shard"})
+    out = C.build_selectivity_crossing_subtype_panorama("X", "UNKNOWN")
+    assert out["per_subgroup_metrics"] == []
+    assert out["n_subtypes_measured"] == 0
+    assert out["crossing_varies_by_subtype"] is False
+    assert out["max_subtype_fraction_above_normal_p95"] is None
+    assert out["_subtype_note"] == "no landed tumor assignment shard"

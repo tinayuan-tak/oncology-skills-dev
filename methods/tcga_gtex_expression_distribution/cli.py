@@ -127,6 +127,64 @@ def build_selectivity_crossing_summary(target: str, indication: str) -> dict:
     return summary
 
 
+def build_selectivity_crossing_subtype_panorama(target: str, indication: str) -> dict:
+    """Q2-by-SUBTYPE (Phase B) — per-stratum tumor-vs-normal PERCENTILE-CROSSING selectivity.
+
+    A target may separate from normal ONLY in one molecular subtype (a patient-selection signal the
+    pooled crossing averages away). The per-sample subtype landscape reader ALREADY computes the
+    per-stratum crossing metrics (fraction_tumor_above_normal_p95/p99 + distribution_overlap) against
+    the indication-wide matched normal — this projects those into a crossing-focused panorama and
+    classifies each stratum with the SAME pooled vocabulary (_classify_percentile_crossing), so the
+    pooled `tumor-vs-normal-percentile-crossing` grain and this subtype grain never diverge.
+
+    Returns `per_subgroup_metrics` (one crossing record per measured stratum) + cross-stratum rollup
+    scalars. DESCRIPTIVE (verdict-inert): the tumor-selectivity spine stays keyed to the aggregate
+    card + the pooled crossing corroboration; this is a --subtypes panorama. data_unavailable-safe
+    (no shard / no matched normal → empty panorama)."""
+    land = _read.read_tumor_expression_subtype_landscape(target, indication)
+    strata = land.get("subtype_landscape") or []
+    per_subgroup = []
+    for rec in strata:
+        frac95 = rec.get("fraction_tumor_above_normal_p95")
+        crossing_class = (
+            _read._classify_percentile_crossing(
+                frac95, rec.get("fraction_tumor_above_normal_p99"),
+                rec.get("distribution_overlap_tumor_normal"))
+            if rec.get("evidence_state") == "measured" and frac95 is not None
+            else "data_unavailable")
+        per_subgroup.append({
+            "stratum_id": rec.get("stratum_id"),
+            "evidence_state": rec.get("evidence_state"),
+            "n_tumor_samples": rec.get("n_tumor_samples"),
+            "percentile_crossing_class": crossing_class,
+            "fraction_tumor_above_normal_p95": frac95,
+            "fraction_tumor_above_normal_p99": rec.get("fraction_tumor_above_normal_p99"),
+            "distribution_overlap_tumor_normal": rec.get("distribution_overlap_tumor_normal"),
+        })
+    # cross-stratum rollup: is crossing-selectivity a subtype-specific (patient-selection) signal?
+    measured = [m for m in per_subgroup if m["evidence_state"] == "measured"
+                and m["fraction_tumor_above_normal_p95"] is not None]
+    fracs = [m["fraction_tumor_above_normal_p95"] for m in measured]
+    n_strong = sum(1 for m in measured if m["percentile_crossing_class"] == "strongly_tumor_enriched")
+    return {
+        "target": target, "indication": indication,
+        "subtype_axis_available": land.get("subtype_axis_available", False),
+        "assignment_manifest": land.get("assignment_manifest") or land.get("_assignment_manifest"),
+        "matched_normal_tissue": land.get("matched_normal_tissue"),
+        "normal_comparator_type": land.get("normal_comparator_type"),
+        "n_subtypes_measured": len(measured),
+        "n_subtypes_strongly_enriched": n_strong,
+        "max_subtype_fraction_above_normal_p95": max(fracs) if fracs else None,
+        "min_subtype_fraction_above_normal_p95": min(fracs) if fracs else None,
+        # a subtype-specific crossing signal = some strata strongly enriched, others not (range spans a
+        # class boundary). Verdict-inert flag; the pooled crossing stays the corroboration of record.
+        "crossing_varies_by_subtype": (bool(fracs) and (max(fracs) - min(fracs) >= 0.25)),
+        "per_subgroup_metrics": per_subgroup,
+        **({"_subtype_note": land["_subtype_note"]} if "_subtype_note" in land else {}),
+        "method_version": METHOD_VERSION,
+    }
+
+
 def build_normal_liability_summary(target: str, indication: str = None) -> dict:
     """Q3 (Safety / Surface-modality-fit) — target-grain normal-tissue liability over the GTEx
     atlas. indication is accepted for the CARD_DISPATCHERS contract but NOT consumed (target-grain).
