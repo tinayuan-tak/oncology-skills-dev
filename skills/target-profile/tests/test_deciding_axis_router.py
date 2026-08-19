@@ -103,12 +103,19 @@ def test_all_cards_missing_downgrades_to_blind():
 
 
 def test_run_coverage_never_upgrades_above_baseline():
-    """surface_modality baseline is `blind`; even with a present card + a fired rule the router
-    must not UPGRADE it to captured (the framework is structurally blind on the deciding axis)."""
+    """The router only DOWNGRADES the static baseline per-run, never UPGRADES it. Tested against a
+    SYNTHETIC `blind` baseline so it is independent of any specific gate's vocab value — even with a
+    present card + a fired rule, a blind baseline stays blind."""
     r = {"cards": [{"card_id": "surf"}], "fired": [{"rule_id": "x"}], "verdict": ("something", "x")}
+    synthetic = {"anygate": {"framework_can_evidence": "blind"}}
+    assert tp._run_coverage_for_short("anygate", r, synthetic) == "blind"
+
+
+def test_surface_modality_baseline_is_blind_or_partial():
+    """surface_modality was migrated blind→partial (review H1: surface-abundance-density is LIVE).
+    Tolerant of both so the skills test can land BEFORE the gate_coverage.yaml flip (cross-repo)."""
     baseline, _ = tp._load_gate_coverage(CONTRACTS)
-    assert baseline["surface_modality"]["framework_can_evidence"] == "blind"
-    assert tp._run_coverage_for_short("surface_modality", r, baseline) == "blind"
+    assert baseline["surface_modality"]["framework_can_evidence"] in {"blind", "partial"}
 
 
 # ---------- degrade safely when the vocab is absent ----------
