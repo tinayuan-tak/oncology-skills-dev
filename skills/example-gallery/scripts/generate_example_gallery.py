@@ -149,7 +149,7 @@ def _plotly_bundle() -> Optional[str]:
 # run a subskill (subprocess — isolates each run, no in-process import coupling)
 # ---------------------------------------------------------------------------
 def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Path,
-                 synthesize: bool = False) -> Optional[dict]:
+                 synthesize: bool = False, figures: bool = True) -> Optional[dict]:
     """Invoke skills/<skill>/scripts/run.py --target ... [--indication ...] --out <run_dir>.
     With synthesize=True, adds --synthesize so decision.json carries the LLM relevance narrative
     (needs Bedrock; the subskill degrades gracefully to a note if unavailable). Returns the parsed
@@ -161,6 +161,11 @@ def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Pa
     cmd = [sys.executable, str(run_py), "--target", target, "--out", str(run_dir)]
     if indication:
         cmd += ["--indication", indication]
+    if figures:
+        # Emit the per-card figures + plot_data INSIDE the run (figure Stage 3): migrated cards render
+        # OFFLINE from persisted plot_data, and the gallery embeds this ONE package (no second live
+        # re-plot). Best-effort — a skill that doesn't accept --figures is retried without it.
+        cmd += ["--figures"]
     if synthesize:
         cmd += ["--synthesize"]
     print(f"[gallery] running: {skill} {target}" + (f"/{indication}" if indication else ""),
@@ -168,11 +173,14 @@ def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Pa
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=900)
     except subprocess.CalledProcessError as e:
-        # Not every subskill takes --synthesize (e.g. genomic-alteration-profile uses a custom
-        # main(), not the shared dispatcher). Treat --synthesize as best-effort: retry without it.
+        # Not every subskill takes --synthesize / --figures (e.g. genomic-alteration-profile uses a
+        # custom main(), not the shared dispatcher). Treat both as best-effort: retry without.
         if synthesize and "--synthesize" in (e.stderr or ""):
             print(f"[gallery] {skill} rejects --synthesize; retrying without it", file=sys.stderr)
-            return run_subskill(skill, target, indication, run_dir, synthesize=False)
+            return run_subskill(skill, target, indication, run_dir, synthesize=False, figures=figures)
+        if figures and "--figures" in (e.stderr or ""):
+            print(f"[gallery] {skill} rejects --figures; retrying without it", file=sys.stderr)
+            return run_subskill(skill, target, indication, run_dir, synthesize=synthesize, figures=False)
         print(f"[gallery] {skill} run failed (exit {e.returncode}): {e.stderr[-500:]}", file=sys.stderr)
         return None
     except subprocess.TimeoutExpired:
@@ -1728,9 +1736,14 @@ def main(argv=None) -> int:
         if decision is None:
             index_rows.append((skill, target, indication or "—", "RUN FAILED", None))
             continue
-        # emit figures per card (best-effort)
-        fig_map = {}
-        if emit_figures:
+        # Figure Stage 3: embed the figures the run just emitted (--figures) from the persisted
+        # data-package — migrated cards were rendered OFFLINE from plot_data during the run, so the
+        # gallery does NOT re-plot (no second live read). This is the same artifact --from-run-dir
+        # consumes, so the HTML matches the deterministic package.
+        fig_map = fig_map_from_existing(run_dir)
+        # Fallback (pre-Stage-3 behavior): a skill that produced no --figures package (rejected
+        # --figures) gets a live per-card re-plot via the shared emitter, so its figures still show.
+        if not fig_map and emit_figures:
             for c in decision.get("cards", []):
                 cid, summary = c.get("card_id"), (c.get("summary") or {})
                 try:
