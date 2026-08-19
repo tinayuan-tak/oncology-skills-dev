@@ -9,6 +9,11 @@ required_inputs:
   - product_id: gdc-pancohort-somatic
     indication: "{indication}"
     release_pin: "{release_pin}"
+  # Pooled multi-cohort recurrence (scope-coherence Phase 2) — the VERDICT-DRIVING pooled_driver_
+  # recurrence_class (fires the recurrent_snv_driver rung). TCGA-MC3 + GENIE + MSK-CHORD.
+  - product_id: pooled-snv-recurrence-v1
+    indication: "{indication}"
+    release_pin: "{release_pin}"
 
 methods:
   - call: gdc-somatic-hotspot
@@ -41,6 +46,16 @@ outputs:
     - genie_driver_recurrence_class              # categorical (same cutoff shape as driver_recurrence_class)
     - genie_mutation_frequency                   # float — coverage-correct GENIE frequency (n_mutated / n_covered)
     - genie_recurrence_context                   # string — n covered genes + coverage-corrected-denominator note
+    # POOLED multi-cohort recurrence (scope-coherence Phase 2, VERDICT-DRIVING). Pools TCGA-MC3 (WES) +
+    # GENIE (panel) + MSK-CHORD (panel) by summed-counts/summed-coverage; the pooled_driver_recurrence_
+    # class fires the recurrent_snv_driver resolver rung (top_1pct). Backed by pooled-snv-recurrence-v1.
+    - pooled_driver_recurrence_class             # categorical (VERDICT-DRIVING: top_1pct → recurrent_snv_driver)
+    - pooled_driver_recurrence_percentile        # float 0-100 (or null) — pooled recurrence rank in-indication
+    - pooled_mutation_frequency                  # float — Σn_mut / Σn_cov across contributing cohorts
+    - n_covered_pooled                           # int — Σ covered samples across cohorts
+    - n_mutated_pooled                           # int — Σ mutated samples across cohorts
+    - cohorts_contributing                       # list — cohorts that covered the gene (provenance)
+    - pooled_recurrence_context                  # string — cohorts pooled + n ranked genes
     - hotspot_frequencies
     - top_cooccurring_genes
     - top_mutually_exclusive_genes
@@ -57,6 +72,12 @@ outputs:
       - mid
       - bottom_decile
       - data_unavailable                         # GENIE has no cohort/coverage for this (target, indication), or coverage too thin (<20) to rank
+    pooled_driver_recurrence_class:              # VERDICT-DRIVING (top_1pct → recurrent_snv_driver rung); same bins, pooled cohorts
+      - top_1pct                                 # among the most recurrently mutated genes in-indication across pooled cohorts
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable                         # gene covered by no pooled cohort, or pooled coverage < 20 (too thin to rank)
   figure: lollipop_hotspot_frequency
   plot_data: per_sample_variants_with_hotspot_tags
 

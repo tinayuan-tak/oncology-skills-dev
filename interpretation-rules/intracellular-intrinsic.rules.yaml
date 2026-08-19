@@ -527,6 +527,27 @@ rules:
       read passenger (EWSR1-FLI1, BCR-ABL1, EML4-ALK). NOT a killer — recurrence establishes driver
       status, the modality-fit + dependency threads carry the tractability story.
 
+  - rule_id: snv-recurrence-top-driver-supportive
+    when:
+      card_id: mutation-hotspot-frequency
+      field: pooled_driver_recurrence_class
+      equals: top_1pct
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target is among the MOST RECURRENTLY MUTATED genes in the indication's patients (top 1% by
+      pooled multi-cohort frequency: TCGA-MC3 whole-exome + GENIE + MSK-CHORD panels, coverage-corrected,
+      pooled by summed-counts/summed-coverage; pooled-snv-recurrence-v1). This is the SNV analog of the
+      recurrent focal-amplification / recurrent-fusion landscape drivers — a PATIENT-recurrence signal
+      that fires the recurrent_snv_driver resolver rung (scope-coherence Phase 2). It rescues genuinely
+      indication-recurrent SNV drivers that are line-poor / absent from DepMap and carry no cell-line
+      dependency or variant-class-dominance signal, which would otherwise fall through to passenger /
+      insufficient. It sits BELOW the dependency + variant-class-pattern rungs (a KO-dependency or a
+      lof/missense-dominant spectrum is a stronger call), so KRAS/APC/TP53-style genes keep their
+      higher-tier verdict; recurrent_snv_driver is the honest floor for recurrence-only SNV drivers.
+      NOT a killer.
+
   # A1 amp→expr→dep (2026-08-06): the CONJOINT (amplified AND overexpressed) analog of the CN-stratified
   # rules above. The three-way card (amp-expr-stratified-dependency) is the amplification-DRIVEN-
   # overexpression-addiction sibling; these rules fire the SAME biomarker_stratified_dependency verdict

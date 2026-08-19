@@ -135,3 +135,31 @@ def test_isolated_pan_lineage_dependency_is_insufficient():
     assert resolve("mutant-strongly-dependent-supportive")[0] == "insufficient"
     assert resolve("cn-amplified-strongly-dependent-supportive")[0] == "insufficient"
     assert resolve("fusion-positive-strongly-dependent-supportive")[0] == "insufficient"
+
+
+# --- scope-coherence Phase 2: recurrent_snv_driver (pooled patient recurrence → verdict) ----------
+
+def test_snv_recurrence_alone_is_recurrent_snv_driver():
+    # A top-1% pooled-recurrent SNV with no dependency / variant-class / CN / fusion signal → the SNV
+    # landscape-recurrence driver (the honest floor for recurrence-only SNV drivers).
+    assert resolve("snv-recurrence-top-driver-supportive") == (
+        "recurrent_snv_driver", "snv-recurrence-top-driver-supportive")
+
+
+def test_variant_class_pattern_outranks_snv_recurrence():
+    # A lof/missense-dominant spectrum (tier 5) is a stronger call than bare recurrence (tier 6).
+    assert resolve("mut-lof-dominant-supportive", "snv-recurrence-top-driver-supportive")[0] == "lof_dominant_pattern"
+
+
+def test_cn_and_fusion_landscape_outrank_snv_recurrence():
+    # recurrent_snv_driver is LAST in tier 6 — a dually-altered gene keeps its CN/fusion verdict.
+    assert resolve("cn-recurrently-amplified-supportive", "snv-recurrence-top-driver-supportive")[0] == (
+        "recurrent_amplification_driver")
+    assert resolve("fusion-landscape-recurrent-driver-supportive", "snv-recurrence-top-driver-supportive")[0] == (
+        "recurrent_fusion_driver")
+
+
+def test_dependency_outranks_snv_recurrence():
+    # A within-indication KO-dependency (tier 1) wins over recurrence.
+    assert resolve("mutant-strongly-dependent-supportive", "mutant-indication-scoped-context",
+                   "snv-recurrence-top-driver-supportive")[0] == "biomarker_stratified_dependency"

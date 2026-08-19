@@ -23,7 +23,7 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.4.0
+version: 1.5.0
 description: |
   Multi-class genomic-alteration verdict. A Chronos stratified-dependency (any alteration class) is
   the strongest signal and leads the ladder; copy-number and fusion landscape recurrence keep an
@@ -122,6 +122,12 @@ resolve:
   - {verdict: recurrent_amplification_driver,  when_fired: cn-patient-focal-amplified-supportive}
   - {verdict: recurrent_deletion_driver,       when_fired: cn-patient-focal-deleted-supportive}
   - {verdict: recurrent_fusion_driver,         when_fired: fusion-landscape-recurrent-driver-supportive}
+  #    SNV landscape recurrence (scope-coherence Phase 2): a top-1% pooled multi-cohort recurrent SNV
+  #    driver with no KO-dependency, no variant-class dominance, and no CN/fusion landscape event. LAST
+  #    in tier 6 so it fires only when no CN/fusion landscape driver did — a dually-altered gene keeps
+  #    its existing recurrent_amplification/deletion/fusion verdict (byte-stable). The SNV analog of the
+  #    recurrent focal-amp / recurrent-fusion rescues; makes patient recurrence verdict-relevant.
+  - {verdict: recurrent_snv_driver,            when_fired: snv-recurrence-top-driver-supportive}
 
   # ── 7. mixed / passenger fallback, with a double-data-gap guard ──────────────────────────────────
   #    passenger_pattern is a substantive "not a driver" call, but its trigger fires on a rarely-mutated
