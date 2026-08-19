@@ -23,4 +23,4 @@ from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"
 
-from .read import read_coessential_partners  # noqa: F401
+from .read import read_coessential_partners, read_coessential_module_summary  # noqa: F401

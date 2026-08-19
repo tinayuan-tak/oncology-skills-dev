@@ -126,3 +126,74 @@ def read_coessential_partners(
         "method_version": METHOD_VERSION,
         "substrate_uri": path,
     }
+
+
+# |r| at/above which a co-essential partner is a STRONG module member (shared complex/pathway).
+# The substrate already floors at |r|>=0.2. CALIBRATED to 0.3 against real DepMap 26Q1 modules: at 0.3
+# the canonical module genes resolve as coherent (KRAS 4 partners incl. TCF7L2; UBA3 12 incl. NAE1/NEDD8;
+# BRAF 5; CTNNB1 9; EGFR 13), whereas 0.4 is too stringent — DepMap co-essential r peaks ~0.3-0.7 and 0.4
+# spuriously reads KRAS/UBA3 as isolated. See PR-description live smoke.
+_STRONG_MODULE_R = 0.3
+
+
+def read_coessential_module_summary(
+    target: str,
+    indication: Optional[str] = None,
+    parquet_path: Optional[str] = None,
+    aws_profile: str = DEFAULT_AWS_PROFILE,
+    strong_r: float = _STRONG_MODULE_R,
+) -> dict:
+    """CARD-READY co-essential-MODULE summary: is the target's dependency embedded in a COHERENT
+    co-essential module (complex/pathway partners co-essential in the same cell lines), or is it an
+    ISOLATED hit? A dependency sitting in a coherent module is a more credible, mechanism-anchored call
+    — a verdict-INERT CONFIDENCE signal (the sibling of cross-consortium replication + omics-
+    predictability), NOT a dependency call in itself.
+
+    `indication` is accepted for the generic-dispatch reader contract (fn(target=, indication=)) but
+    NOT consumed — co-essentiality is a pan-cancer target-grain property (tier: target).
+
+    Returns a summary keyed by `coessential_module_class`:
+      in_coherent_module   — >=3 strong (|r|>=strong_r) partners → embedded in a coherent module
+      sparse_module        — 1-2 strong partners, or >=5 partners overall → some module context
+      isolated_dependency  — no strong partner and few/no edges → not module-anchored
+      data_unavailable     — substrate could not be read / gene absent
+    plus n_partners / n_strong_partners / n_coessential / n_anti_correlated, the strongest partner,
+    a top-5 partner vector, and n_cell_lines. Reuses read_coessential_partners (single data path)."""
+    raw = read_coessential_partners(target, top_n=25, parquet_path=parquet_path, aws_profile=aws_profile)
+    base = {
+        "coessential_module_class": "data_unavailable",
+        "n_partners": 0, "n_strong_partners": 0, "n_coessential": 0, "n_anti_correlated": 0,
+        "strongest_partner_symbol": None, "strongest_partner_r": None,
+        "strong_r_threshold": strong_r, "top_partners": [],
+        "n_cell_lines": raw.get("n_cell_lines"),
+        "method_version": METHOD_VERSION,
+        "_data_source": MANIFEST_ID,
+        "_scope_note": "pan-cancer target-grain (indication accepted-not-consumed)",
+    }
+    if raw.get("_data_unavailable"):
+        base["_data_unavailable"] = True
+        base["_reason"] = raw.get("_reason") or raw.get("_error")
+        return base
+
+    partners = raw.get("partners") or []
+    strong = [p for p in partners if abs(p.get("pearson_r", 0.0)) >= strong_r]
+    n_partners, n_strong = len(partners), len(strong)
+    if n_strong >= 3:
+        cls = "in_coherent_module"
+    elif n_strong >= 1 or n_partners >= 5:
+        cls = "sparse_module"
+    else:
+        cls = "isolated_dependency"
+    strongest = partners[0] if partners else None   # partners are abs_rank-sorted (strongest first)
+    base.update(
+        coessential_module_class=cls,
+        n_partners=n_partners,
+        n_strong_partners=n_strong,
+        n_coessential=sum(1 for p in partners if p.get("pearson_r", 0.0) >= 0),
+        n_anti_correlated=sum(1 for p in partners if p.get("pearson_r", 0.0) < 0),
+        strongest_partner_symbol=(strongest or {}).get("symbol"),
+        strongest_partner_r=(strongest or {}).get("pearson_r"),
+        top_partners=[{"symbol": p.get("symbol"), "pearson_r": p.get("pearson_r"),
+                       "direction": p.get("direction")} for p in partners[:5]],
+    )
+    return base

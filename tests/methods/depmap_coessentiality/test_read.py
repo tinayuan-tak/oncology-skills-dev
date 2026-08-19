@@ -106,3 +106,69 @@ class TestReadCoessentialPartners:
     def test_method_version_carried(self, fixture_parquet):
         out = read_mod.read_coessential_partners("UBA3", parquet_path=fixture_parquet)
         assert out["method_version"] == read_mod.METHOD_VERSION
+
+
+@pytest.fixture
+def module_fixture(tmp_path) -> str:
+    """A co-essentiality fixture with a COHERENT-module gene (>=3 strong partners), a SPARSE gene
+    (1 strong), and an ISOLATED gene (only weak edges) — for read_coessential_module_summary."""
+    rows = [
+        # HUBGENE: 3 strong (|r|>=0.4) partners → in_coherent_module
+        ("HUBGENE", "PART1", 0.71, 1, 1538),
+        ("HUBGENE", "PART2", 0.55, 2, 1538),
+        ("HUBGENE", "PART3", -0.44, 3, 1538),
+        ("HUBGENE", "PART4", 0.22, 4, 1538),
+        # SPARSEGENE: 1 strong partner → sparse_module
+        ("SPARSEGENE", "S1", 0.48, 1, 1538),
+        ("SPARSEGENE", "S2", 0.25, 2, 1538),
+        # LONEGENE: only weak edges (< 0.4), < 5 partners → isolated_dependency
+        ("LONEGENE", "L1", 0.23, 1, 1538),
+    ]
+    df = pd.DataFrame(rows, columns=["gene_symbol", "partner_symbol", "pearson_r", "abs_rank", "n_cell_lines"])
+    df = df.sort_values("gene_symbol").reset_index(drop=True)
+    schema = pa.schema([
+        pa.field("gene_symbol", pa.string()),
+        pa.field("partner_symbol", pa.string()),
+        pa.field("pearson_r", pa.float32()),
+        pa.field("abs_rank", pa.int32()),
+        pa.field("n_cell_lines", pa.int32()),
+    ])
+    path = tmp_path / "coessentiality_edges.parquet"
+    pq.write_table(pa.Table.from_pandas(df, schema=schema, preserve_index=False), path)
+    return str(path)
+
+
+class TestCoessentialModuleSummary:
+    def test_coherent_module(self, module_fixture):
+        out = read_mod.read_coessential_module_summary("HUBGENE", parquet_path=module_fixture)
+        assert out["coessential_module_class"] == "in_coherent_module"
+        assert out["n_partners"] == 4 and out["n_strong_partners"] == 3
+        assert out["n_coessential"] == 3 and out["n_anti_correlated"] == 1   # PART3 is negative
+        assert out["strongest_partner_symbol"] == "PART1" and out["strongest_partner_r"] == pytest.approx(0.71, abs=1e-3)
+        assert len(out["top_partners"]) == 4
+
+    def test_sparse_module(self, module_fixture):
+        out = read_mod.read_coessential_module_summary("SPARSEGENE", parquet_path=module_fixture)
+        assert out["coessential_module_class"] == "sparse_module"
+        assert out["n_strong_partners"] == 1
+
+    def test_isolated_dependency(self, module_fixture):
+        out = read_mod.read_coessential_module_summary("LONEGENE", parquet_path=module_fixture)
+        assert out["coessential_module_class"] == "isolated_dependency"
+        assert out["n_strong_partners"] == 0
+
+    def test_absent_gene_is_data_unavailable(self, module_fixture):
+        out = read_mod.read_coessential_module_summary("NOTAGENE", parquet_path=module_fixture)
+        assert out["coessential_module_class"] == "data_unavailable"
+        assert out.get("_data_unavailable") is True
+
+    def test_indication_accepted_not_consumed(self, module_fixture):
+        # target-grain: passing an indication must not change the result (generic-dispatch contract)
+        a = read_mod.read_coessential_module_summary("HUBGENE", parquet_path=module_fixture)
+        b = read_mod.read_coessential_module_summary("HUBGENE", indication="COADREAD", parquet_path=module_fixture)
+        assert a["coessential_module_class"] == b["coessential_module_class"] == "in_coherent_module"
+
+    def test_data_source_and_version(self, module_fixture):
+        out = read_mod.read_coessential_module_summary("HUBGENE", parquet_path=module_fixture)
+        assert out["_data_source"] == "depmap-coessentiality-26q1-v1"
+        assert out["method_version"] == read_mod.METHOD_VERSION
