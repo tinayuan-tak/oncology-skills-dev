@@ -496,8 +496,16 @@ SUB_SKILL_CARDS = {
 # populated" as opt-in-by-scope.
 SUBTYPE_SHORT = "subtype_fit"
 SUBTYPE_CARDS = [
-    "subgroup-stratified-dependency",
-    "subgroup-stratified-mutation-frequency",
+    "subgroup-stratified-dependency",         # VERDICT-BEARING in this tier: its subtype-non-dependence-
+                                              # opposing rule is what _subtype_verdict reads → one-directional
+                                              # negative HOLD (subtype_specific_non_dependence).
+    "subgroup-stratified-mutation-frequency", # DISPLAY-ONLY within this tier (subtype-verdict-shifting review
+                                              # M6): NO interpretation rule keys on it, so _subtype_verdict
+                                              # (which only inspects subtype_fit_genomic from the dependency
+                                              # card) can never see it — it is resolved+fired every --subtypes
+                                              # run but emits no subtype-tier signal. Its subtype mutation
+                                              # panorama is already surfaced descriptively in genomic-alteration-
+                                              # profile. Kept here for the render panorama, NOT for the verdict.
 ]
 
 
