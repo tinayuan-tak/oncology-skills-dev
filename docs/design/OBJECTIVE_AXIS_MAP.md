@@ -26,7 +26,7 @@ drug in a given modality?* Each question has a **home skill** and a framework co
 | necessity | **mechanism** — network/MoA hook? | mechanism-and-pharmacology | partial | D / D |
 | necessity | **genomic_alteration** — how altered, which class? | genomic-alteration-profile | captured | A(overloaded) / E |
 | sufficiency | **tractability_sm** — small-molecule druggable? | tractability-small-molecule | partial | E / F |
-| sufficiency | **surface_modality** — ADC/TCE/antibody fit? | surface-modality-fit | **blind** | E / F |
+| sufficiency | **surface_modality** — ADC/TCE/antibody fit? | surface-modality-fit | partial | E / F |
 | sufficiency | **safety** — LoF-intolerant / normal liability? | on-target-safety-liability | partial | F / G |
 | sufficiency | **differentiation** — precedent/co-mutation/biomarker? | differentiation-landscape | partial→license_blocked | G / E |
 | sufficiency | **translational** — validatable (models/PD)? | translational-readiness | **blind** (unbuilt) | H / J |
@@ -90,7 +90,7 @@ facts this map made explicit:
 
 ## 6. Known gaps + candidate edges
 
-**Scientific gaps** (blind/partial axes): `surface_modality` (blind — surface MS data-blocked),
+**Scientific gaps** (blind/partial axes): `surface_modality` (partial — LIVE density; blind legs = derived surface-density MS product unmaterialized + endocytosis/turnover + avidity),
 `translational` (unbuilt), `differentiation` (license_blocked decisive axis), `dependency` (pooled
 scalar conflates 6 modes), `molecular_form` (bulk splice misses low-freq isoforms).
 

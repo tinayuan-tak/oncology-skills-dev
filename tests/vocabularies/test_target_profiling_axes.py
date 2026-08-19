@@ -79,15 +79,38 @@ def test_questions_wellformed():
 
 # --- THE equivalence guarantee ----------------------------------------------
 
+_COVERAGE_ORDER = {"blind": 0, "license_blocked": 1, "partial": 2, "captured": 3}
+# Documented supersede-upgrades: the ontology may CORRECT a stale gate_coverage v2 baseline UPWARD
+# (never downward). Each entry is (v2_value, ontology_value) and must strictly improve coverage.
+# surface_modality — review H1: v2's `blind` is stale; surface-abundance-density is LIVE → partial.
+_SUPERSEDE_UPGRADES = {"surface_modality": ("blind", "partial")}
+
+
 def test_equivalence_no_coverage_regression_vs_gate_coverage_v2():
-    """Every gate_coverage v2 short appears in the ontology with the SAME framework_can_evidence.
-    The fresh scheme ported v2 content; a silent capability downgrade fails here."""
+    """Every gate_coverage v2 short appears in the ontology; coverage is EQUAL, or a documented
+    supersede-UPGRADE (blind→partial). A silent or downward change fails here."""
     g = _gate_coverage_coverage()
     a = _ontology_coverage()
     missing = sorted(s for s in g if s not in a)
-    mismatch = {s: (g[s], a[s]) for s in g if s in a and g[s] != a[s]}
     assert not missing, f"gate_coverage shorts absent from the ontology: {missing}"
-    assert not mismatch, f"coverage regressed vs gate_coverage v2: {mismatch}"
+    for s in g:
+        if s not in a or g[s] == a[s]:
+            continue
+        exp = _SUPERSEDE_UPGRADES.get(s)
+        assert exp == (g[s], a[s]), f"undocumented coverage change {s}: v2={g[s]} ontology={a[s]}"
+        assert _COVERAGE_ORDER[a[s]] > _COVERAGE_ORDER[g[s]], \
+            f"{s}: a supersede-correction must UPGRADE, not downgrade ({g[s]}→{a[s]})"
+
+
+def test_review_fixes_applied():
+    """Guards for the review-fix corrections so they can't silently regress."""
+    q = {x["short"]: x for x in AX["questions"]}
+    # H1: surface_modality rebanded partial (not blind)
+    assert q["surface_modality"]["framework_can_evidence"] == "partial"
+    # M1: mechanism flagged characterization-only (advisory, not a gate)
+    assert q["mechanism"].get("characterization_only") is True
+    # M2: necessity band declares the ANY-OF (non-conjunctive) invariant
+    assert "ANY-OF" in AX["bands"]["necessity"]
 
 
 # --- conditioner axes --------------------------------------------------------

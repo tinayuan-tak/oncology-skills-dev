@@ -52,7 +52,7 @@ coverage_vocab:
   out_of_scope:    "Tier-2 / a different engine's job (dynamic-perturbation, TME)."
 
 bands:
-  necessity:   "Is this real, actionable biology? Modality-independent. (was 8-gate A–D + Altered)"
+  necessity:   "Is this real, actionable biology? Modality-independent. (was 8-gate A–D + Altered). ANY-OF, NOT conjunctive (M2): a target may satisfy necessity via ANY path — an antigen-driven target (FOLR1/DLL3/MSLN/CLDN18.2) carries NO recurrent somatic alteration, so an UNFIRED `genomic_alteration` must NOT be read as failing necessity. `mechanism` is a characterization member (advisory), not a gate."
   sufficiency: "Will it become a drug in THIS modality? Per-lens. (was 8-gate E–H)"
 
 # ---------------------------------------------------------------------------
@@ -115,9 +115,10 @@ questions:
     home_skill: mechanism-and-pharmacology
     foreign_consumers: []
     framework_can_evidence: partial
+    characterization_only: true        # M1: advisory — describes MoA, does NOT move the deterministic verdict; a CHARACTERIZATION member of the ANY-OF necessity set, not a conjunctive gate
     legacy_letters: {scaffold_8gate: D, gate_coverage_v2: D, skill_phase: D}
     evidences: "network position / MoA hook (SIGNOR + CollecTri + Reactome + kinome)."
-    coverage_note: "advisory-only today; does not move the deterministic verdict."
+    coverage_note: "advisory-only today; does not move the deterministic verdict (characterization, not a gate)."
 
   - short: genomic_alteration
     question: "How is the target genomically altered (SNV / CN / fusion), and which class drives?"
@@ -152,10 +153,17 @@ questions:
     home_skill: surface-modality-fit
     foreign_consumers: []
     modality_relevance: [adc, bite_tce, antibody]
-    framework_can_evidence: blind
+    framework_can_evidence: partial
     legacy_letters: {scaffold_8gate: E, gate_coverage_v2: surface_modality, skill_phase: F}
-    evidences: "surface density / internalization / topology for ADC/BiTE/antibody."
-    coverage_note: "blind on the deciding axis for most biologics: abundance/density MS + avidity data-blocked (3/5 surface cards not on S3). Family/topology only."
+    evidences: "topology + surfaceome-family + LIVE surface-abundance-density (CPTAC + calibrated copies/cell ladder vs the ~1000/cell TCE floor) + shed + therapeutic-window; ADC/TCE fit_class composed."
+    coverage_note: |
+      partial (review H1: CORRECTED from a stale `blind`). surface-abundance-density is LIVE (derives
+      estimated_copies_per_cell + a 5-level surface_density_class vs the TCE floor; resolver carries
+      measured below-floor downgrade rungs). REAL blind legs: the DERIVED surface-density MS product
+      (method built, product not yet materialized) + endocytosis/turnover for ADC-vs-TCE discrimination
+      + avidity/co-expression. NOTE: gate_coverage.yaml v2 still baselines this `blind` and the
+      target-profile deciding-axis router reads that — a coordinated router migration to `partial` is
+      tracked separately (cross-repo; skills CI asserts the current blind baseline).
     conditioned_by: [modality, molecular_form]
 
   - short: safety
@@ -401,7 +409,7 @@ skill_objectives:
       - {q: "Network position + actionable MoA class / hook?", answered_by: [signaling-network-mechanism]}
       - {q: "Pathway-activity context?", answered_by: [pathway-activity-context, phospho-pathway-activity]}
       - {q: "MoA / PD-marker perturbation signature?", answered_by: [tahoe-drug-perturbation]}
-      - {q: "How omics-predictable is the mechanism (confidence)?", answered_by: [dependency-predictability]}
+      - {q: "Which omics features (candidate mechanistic partners) best predict the dependency (feature-attribution)?", answered_by: [dependency-predictability]}   # M3: relabeled from a mis-copied 'confidence' framing
   - skill: tractability-small-molecule
     objective: "Is the target druggable by a small molecule, and does the chemical signal agree with the genetics?"
     primary_axis: tractability_sm
@@ -420,10 +428,11 @@ skill_objectives:
       - {q: "Is it a surface protein (topology / family)?", answered_by: [surface-topology-and-ptm, surfaceome-family-classification, protein-surface-evidence]}
       - {q: "Surface abundance / density sufficient for the modality?", answered_by: [surface-abundance-density]}
       - {q: "ADC vs TCE vs antibody fit class?", answered_by: [adc-tce-modality-fit]}
-      - {q: "Normal-tissue surface safety (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability]}
+      - {q: "Normal-tissue surface safety window (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability, modality-therapeutic-window, tumor-scrna-celltype-expression]}
       - {q: "Shed / soluble ectodomain decoy liability?", answered_by: [shed-ectodomain-liability]}
       - {q: "Epitope / exon window (splice/isoform) + stratified surface signal?", answered_by: [modality-exon-window, mutation-stratified-surface, pathway-stratified-surface]}
-      - {q: "Structure / pocket + amplification→antigen density?", answered_by: [structure-features-static, copy-number-distribution, rna-protein-concordance-tumor, modality-therapeutic-window, tumor-scrna-celltype-expression]}
+      - {q: "Antigen density from amplification + RNA↔protein proxy quality?", answered_by: [copy-number-distribution, rna-protein-concordance-tumor]}   # H3: was a grab-bag; density arm only
+      - {q: "Small-molecule pocket cross-reference (DISPLAYED — drives the SM sibling, NOT the biologics fit_class)?", answered_by: [structure-features-static]}   # H3: structure is an SM card, not a surface-antigen answer
       - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, cd-antigen-backbone]}
   - skill: on-target-safety-liability
     objective: "Is the target intolerant of LoF, and what does that imply for a full-KO modality?"
@@ -461,6 +470,14 @@ skill_objectives:
     objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
     primary_axis: null
     role_note: "descriptive / gateless (verdict=None); spans multiple axes, owns no single question."
+    coverage_note: |
+      H2: target-intrinsic's run.py CARDS is 19 but the questions below cover only its 7 EXCLUSIVE
+      cards. The other 12 are BORROWED/DISPLAYED indication-independent projections of cards HOMED in
+      sibling skills (safety legs → safety; surface/structure/shed/normal-tissue → surface_modality/
+      expression; signaling-network → mechanism; paralog-buffering → combination_vulnerability) — they
+      answer their sibling's question, not a new target-intrinsic question. The skill-level coverage
+      clause therefore applies to the 7 exclusive cards.
+    displays_borrowed_cards: [gnomad-lof-constraint, gene-burden-safety, clingen-dosage, clinvar-pathogenicity-safety, mouse-ko-phenotype, target-safety-prioritisation, surfaceome-family-classification, structure-features-static, shed-ectodomain-liability, normal-tissue-liability, signaling-network-mechanism, paralog-buffering]
     questions:
       - {q: "Canonical identity + development level (druggability tier)?", answered_by: [target-identity-summary, target-development-level]}
       - {q: "Protein domain architecture + modality relevance?", answered_by: [protein-domains-class, domain-modality-relevance]}
@@ -507,8 +524,8 @@ candidate_edges:
 # ===========================================================================
 scientific_gaps:
   - axis: surface_modality
-    standing: blind
-    gap: "surface abundance/density MS + avidity/co-expression data-blocked (3/5 surface cards not on S3)."
+    standing: partial
+    gap: "LIVE: topology/family + calibrated surface-abundance-density. BLIND legs: derived surface-density MS product not materialized; endocytosis/turnover for ADC-vs-TCE discrimination; avidity/co-expression. (review H1: rebanded from stale blind.)"
   - axis: translational
     standing: blind
     gap: "only HCMI model-availability leg wired; PD-assay, imaging-tracer, internal-model legs unbuilt (scientific-gap #1)."
