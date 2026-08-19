@@ -22,7 +22,7 @@
 # for the dispatch contract but NOT consumed. Per-lineage organoid selectivity is a documented v2.
 
 card_id: organoid-crispr-dependency
-version: 0.1.0
+version: 0.2.0   # 0.2.0: additive per-lineage enrichment (organoid_lineage* + per_lineage_stats)
 question: "Across the DepMap organoid CRISPR panel (Chronos, organoid-native normalization), is {target.symbol} a dependency, and how broadly across the ~114 organoid models?"
 
 tier: target   # pan-organoid per-gene dependency; NOT indication-scoped (see header).
@@ -32,6 +32,7 @@ applies_when:
 
 required_inputs:
   - product_id: organoid-crispr-dependency-26q1-v1
+  - product_id: organoid-crispr-dependency-by-lineage-26q1-v1   # v2: indication-conditioned per-lineage read
 
 methods:
   # Generic (T11) dispatch: module.entrypoint is invoked as fn(target=, indication=). No bespoke
@@ -56,6 +57,13 @@ outputs:
     - min_gene_effect                           # strongest single-model dependency
     - organoid_dependency_percentile            # 0-100 among all genes (100 = most dependent); DISPLAY context
     - organoid_dependency_context               # string — names the product + cohort size (audit / anti-pooling)
+    # === v2 per-lineage enrichment (additive; do NOT change the pan-organoid class above) ===
+    - per_lineage_stats                         # list of {lineage, n_models_screened, frac_dependent, n_strongly_dependent, median_gene_effect}; admitted organoid lineages (cohort n>=5)
+    - n_lineages_evaluated                      # count of admitted organoid lineages
+    - organoid_lineage                          # the organoid lineage matching the queried indication (null if unmapped/absent)
+    - organoid_lineage_frac_dependent           # frac_dependent WITHIN that lineage (the indication-conditioned signal)
+    - organoid_lineage_class                    # organoid_dependency_class computed on the lineage fraction
+    - organoid_lineage_n_screened               # organoids of that lineage screened for this gene
     - method_version
 
   summary_fields_vocabulary:
