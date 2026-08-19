@@ -40,7 +40,7 @@
 #     no snapshot yet (the test skips its hard assertion, reports as pending).
 #   - Extending is cheap — add an entry + (for measured ones) a snapshot; bump version.
 
-version: 1.2.0
+version: 1.2.1
 snapshot_date: "2026-07-19"
 curator: ryan.abo@takeda.com
 depmap_release_pin: depmap-consortium-26q1   # snapshots captured against this release
@@ -217,9 +217,10 @@ selectivity_cases:
     assertion_type: selectivity_verdict_expected
     measured: true
     snapshot: msln_paad.tumor-selectivity.json
-    expected_selectivity_class: modest_tumor_selective
-    disposition: clean_positive
-    note: "Retained: sc-normal reads origin_tissue_liability (pleura/lung) which by design does NOT veto — the origin-vs-critical carve-out working correctly."
+    expected_selectivity_class: selective_with_normal_liability
+    expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
+    disposition: selective_with_liability_correct
+    note: "Phase A4 (lung promoted to sc-normal always-on) SURFACED MSLN's pleural-mesothelium liability (its real serositis dose-limiting tox), previously invisible for PAAD (lung queried indication-matched only). axis-A modest_tumor_selective HOLDS — MSLN IS selective; the pleural liability is a named SAFETY concern (owned by on-target-safety-liability), not loss of selectivity. Was clean_positive pre-A4."
 
   DLL3:
     indication: SCLC
