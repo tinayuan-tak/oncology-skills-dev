@@ -59,10 +59,31 @@ def test_renders_three_svgs_from_persisted_parquet(tmp_path, monkeypatch):
     assert _svg_ok(out / "figure_waterfall_expression.svg")
     assert _svg_ok(out / "figure_lineage_strip_expression.svg")
 
-    ids = {d["id"] for d in descs}
-    assert ids == {"density_expression", "waterfall_expression", "lineage_strip_expression"}
-    primary = [d for d in descs if d["primary"]]
+    static_ids = {d["id"] for d in descs if not d.get("dynamic")}
+    assert static_ids == {"density_expression", "waterfall_expression", "lineage_strip_expression"}
+    primary = [d for d in descs if d.get("primary")]
     assert len(primary) == 1 and primary[0]["id"] == "density_expression"
+    # any plotly descriptors returned are flagged dynamic (mirrors the skills _plotly_from wrapping)
+    assert all(d.get("dynamic") for d in descs if d.get("type") == "plotly")
+
+
+def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
+    """Stage-3 parity: render_from_plot_data RETURNS the plotly-twin descriptors (dynamic:True), not
+    just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
+    import pandas as pd
+    tpm, meta = _panel()
+    summary = c.compute_summary_stats(tpm, meta)
+    src = tmp_path / "src"; src.mkdir()
+    c.emit_plot_data(tpm, meta, 1.0, src)
+
+    # deterministic plotly stub so the assertion is env-independent (real plotly may be absent)
+    monkeypatch.setattr(c, "emit_plotly_specs",
+                        lambda *a, **k: [{"id": "density_expression",
+                                          "path": "figure_density_expression.plotly.json",
+                                          "type": "plotly"}])
+    descs = f.render_from_plot_data(src / "plot_data_expression.parquet", summary, tmp_path / "out", "MYGENE")
+    dyn = [d for d in descs if d.get("dynamic")]
+    assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True
 
 
 def test_accepts_dataframe_directly(tmp_path, monkeypatch):

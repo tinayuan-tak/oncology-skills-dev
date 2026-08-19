@@ -66,17 +66,8 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_density_plot(tpm_by_model, target, summary, out_dir, tcd)
     _cli.emit_waterfall_plot(tpm_by_model, model_metadata, target, summary, out_dir, tcd)
     _cli.emit_lineage_strip(tpm_by_model, model_metadata, target, summary, out_dir, tcd)
-    # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
-    # Best-effort: the twin is additive — a plotly failure/absence must not break the SVG render.
-    try:
-        _cli.emit_plotly_specs(tpm_by_model, model_metadata, target, summary, out_dir, tcd, indication)
-    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
-        pass
 
-    # Descriptor shape mirrors the current registry emitter (_emit_expression_distribution) so this is
-    # a drop-in for the Stage-3 registry repoint. (Type canonicalization to the FIGURE_CATALOG closed
-    # enum — density_histogram / ranked_waterfall / group_strip — is a Stage-5 concern.)
-    return [
+    static = [
         {"id": "density_expression", "path": "figure_density_expression.svg",
          "type": "density_histogram_with_kde_expression", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
@@ -84,3 +75,19 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
         {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
          "type": "ranked_waterfall_expression", "primary": False},
     ]
+    # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
+    # We RETURN their descriptors (dynamic: True) too — mirroring the skills _plotly_from wrapping — so
+    # this is an EXACT drop-in for the Stage-3 registry repoint (the emitter delegates fully here, and
+    # the interactive dashboard keeps its plotly specs). Best-effort: a plotly failure/absence just
+    # contributes no dynamic descriptors; the SVGs remain the guaranteed contract.
+    dynamic: list[dict] = []
+    try:
+        specs = _cli.emit_plotly_specs(tpm_by_model, model_metadata, target, summary, out_dir, tcd,
+                                       indication) or []
+        dynamic = [{**s, "dynamic": True} for s in specs]
+    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
+        pass
+
+    # (Type canonicalization to the FIGURE_CATALOG closed enum — density_histogram / ranked_waterfall
+    # / group_strip — is a Stage-5 concern.)
+    return static + dynamic
