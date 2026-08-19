@@ -46,6 +46,7 @@ from _skills_common import get_card_field
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
                                             presence_key_signals)
+from _skills_common.presence_question_table import presence_question_table
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
 from _skills_common.presence_cardboard_figure import emit_card_board_figure
@@ -528,6 +529,10 @@ def _headline(cards, fired, verdict_pair):
     # Projects A + distributional-B per stratum from the already-resolved per_subgroup_metrics; None when
     # the indication has no subtype axis. Verdict-inert, like the pooled vector.
     hl["claim_vector_by_subtype"] = presence_claim_vector_by_subtype(cards)
+    # The 7-question (data · signal · confidence) summary rows — a projection over the just-built
+    # headline + card fields (Signal from the claim_vector, Confidence from corroboration). Verdict-inert;
+    # carried through _synthesis_facet so the composed target-profile dashboard renders the same table.
+    hl["question_table"] = presence_question_table(hl, cards)
     return hl
 
 
@@ -556,6 +561,8 @@ _SYNTHESIS_FACET_KEYS = (
     "sc_normal_max_det_cell_type", "sc_normal_max_det_fraction", "sc_normal_top_essential_cell_types",
     # Modality-blind claim vector + brief cited read (the within-lens integration this subskill owns).
     "claim_vector", "claim_vector_by_subtype", "key_signals",
+    # the 7-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
 )
 
 

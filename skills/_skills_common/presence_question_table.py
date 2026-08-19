@@ -209,4 +209,62 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
     ]
 
 
-__all__ = ["presence_question_table"]
+# ── shared HTML renderer (so the example-gallery page AND the composed target-profile dashboard render
+#    the identical table from the same rows — the gallery computes rows live; target-profile reads them
+#    off the carried presence facet) ───────────────────────────────────────────────────────────────
+import html as _html
+
+_POL_CLASS = {"supports": "pos", "opposes": "neg", "neutral": "neu", "none": "none"}
+
+QUESTION_TABLE_CSS = (
+    ".qtcap{margin:18px 0 6px;font-size:13px;color:#334;font-weight:600}"
+    ".qtable{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 8px;background:#fff;"
+    "border:1px solid #e3e6ea;border-radius:8px;overflow:hidden}"
+    ".qtable th{background:#f5f6f8;text-align:left;padding:7px 10px;border-bottom:2px solid #e3e6ea;"
+    "font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#556}"
+    ".qtable td{padding:9px 10px;border-top:1px solid #eef0f3;vertical-align:top}"
+    ".qtable .qid{font-weight:700;color:#1e3a8a;white-space:nowrap}"
+    ".qtable .qq{font-weight:600;min-width:170px} .qtable .qd{color:#333;max-width:340px}"
+    ".qtable .qsupport{color:#8a94a0;font-size:11.5px;margin-top:3px}"
+    ".meter{display:inline-flex;gap:2px;vertical-align:middle;margin-right:8px}"
+    ".meter .seg{width:13px;height:10px;border-radius:2px;background:#eceef1}"
+    ".meter .seg.on.pos{background:#166534} .meter .seg.on.neg{background:#b45309}"
+    ".meter .seg.on.neu{background:#6366f1} .meter .seg.on.none{background:#cbd0d6}"
+    ".siglab{font-size:11.5px} .siglab.pos{color:#166534} .siglab.neg{color:#b45309}"
+    ".siglab.neu{color:#3730a3} .siglab.none{color:#889}"
+    ".dots{display:inline-flex;gap:3px} .dots .dot{width:8px;height:8px;border-radius:50%;background:#e3e6ea}"
+    ".dots .dot.on{background:#475569}"
+)
+
+
+def render_question_table_html(rows: list, verdict: Optional[str] = None, include_css: bool = True) -> str:
+    """Render the 7-question table (rows from `presence_question_table`) to self-contained HTML.
+    `include_css` emits the <style> block (set False when the host page already ships QUESTION_TABLE_CSS)."""
+    if not rows:
+        return ""
+    esc = _html.escape
+    trs = []
+    for r in rows:
+        s, cf = r["signal"], r["confidence"]
+        pol = _POL_CLASS.get(s.get("polarity"), "none")
+        meter = "".join(f'<span class="seg{(" on " + pol) if i < s.get("fill", 0) else ""}"></span>' for i in range(5))
+        dots = "".join(f'<span class="dot{" on" if i < cf.get("dots", 0) else ""}"></span>' for i in range(3))
+        trs.append(
+            f'<tr><td class="qid">{esc(str(r.get("id","")))}</td>'
+            f'<td class="qq">{esc(str(r.get("question","")))}</td>'
+            f'<td class="qd"><div>{esc(str(r.get("primary","")))}</div>'
+            f'<div class="qsupport">{esc(str(r.get("support","")))}</div></td>'
+            f'<td class="qsig"><span class="meter">{meter}</span>'
+            f'<span class="siglab {pol}">{esc(str(s.get("label","")))}</span></td>'
+            f'<td class="qconf"><span class="dots">{dots}</span></td></tr>')
+    cap = ('<div class="qtcap">Presence at a glance'
+           + (f' · verdict <span class="verdict">{esc(str(verdict))}</span>' if verdict else "")
+           + ' <span class="hint">— Signal (strength · polarity toward presence) &amp; Confidence '
+             '(corroboration), computed from the claim-vector; verdict-inert.</span></div>')
+    head = ('<tr><th>Q</th><th>Question</th><th>Data / read</th>'
+            '<th>Signal — supports presence →</th><th>Conf</th></tr>')
+    css = f"<style>{QUESTION_TABLE_CSS}</style>" if include_css else ""
+    return f'{css}{cap}<table class="qtable"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table>'
+
+
+__all__ = ["presence_question_table", "render_question_table_html", "QUESTION_TABLE_CSS"]

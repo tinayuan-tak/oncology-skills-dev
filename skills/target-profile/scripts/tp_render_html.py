@@ -1381,6 +1381,21 @@ def _render_target_profile_html(
                  f"{recon}"
                  "</header>")
 
+    # --- Presence at a glance: the 7-question (data · signal · confidence) table -------------------
+    # The SAME leading table the standalone tumor-presence gallery renders, from the rows carried on the
+    # presence facet (question_table) via the SHARED renderer — so the composed dashboard inherits the
+    # one-glance presence summary. Placed above the hero. Verdict-INERT; best-effort.
+    if presence_facet and presence_facet.get("question_table"):
+        try:
+            from _skills_common.presence_question_table import render_question_table_html
+            _qt = render_question_table_html(presence_facet["question_table"],
+                                             verdict=presence_facet.get("presence_verdict"),
+                                             include_css=True)
+            if _qt:
+                p.append(f"<section id=s-presence-table class=det>{_qt}</section>")
+        except Exception:  # noqa: BLE001 — an additive summary must never break the report
+            pass
+
     # --- Presence × Context hero (deterministic VIEW) ----------------------
     # Renders tumor-presence's cross-modal reconciliation (presence_facet.presence_verdict_by_modality)
     # as a compact state-matrix: measurement layers × sample contexts, PRESENCE block + normal-tissue

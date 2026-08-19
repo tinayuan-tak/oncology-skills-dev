@@ -55,6 +55,17 @@ def _facet():
             "sc_rna/normal": {"verdict": "HIGH_LIABILITY", "evidence_state": "comparator",
                               "driving_rule_id": None},
         },
+        # the 7-question rows carried through the facet (rendered as the leading table by target-profile)
+        "question_table": [
+            {"id": "Q1", "question": "Expressed in cancers at all?", "primary": "median 11 log2TPM",
+             "support": "cell-line: lineage_restricted",
+             "signal": {"tier": "strong", "fill": 5, "polarity": "supports", "label": "strong"},
+             "confidence": {"tier": "moderate", "dots": 2, "label": "moderate"}},
+            {"id": "Q3", "question": "Elevated vs normals (adjacent + GTEx)?", "primary": "CPTAC up; RNA-DGE flat",
+             "support": "HPA broad_normal_expression · sc HIGH_LIABILITY",
+             "signal": {"tier": "moderate", "fill": 3, "polarity": "supports", "label": "moderate ⚠ window"},
+             "confidence": {"tier": "moderate", "dots": 2, "label": "moderate"}},
+        ],
     }
 
 
@@ -83,3 +94,18 @@ def test_html_inlines_presence_matrix_svg_when_facet_present():
 def test_html_omits_presence_matrix_without_facet():
     html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {})
     assert "s-presence-matrix" not in html
+
+
+def test_html_renders_question_table_from_facet():
+    """The composed dashboard inherits the 7-question leading table from the presence facet's
+    question_table rows, via the shared renderer (same table the standalone gallery shows)."""
+    html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {}, presence_facet=_facet())
+    assert "s-presence-table" in html and "Presence at a glance" in html
+    assert "Expressed in cancers at all?" in html          # a question row
+    assert "class=\"qtable\"" in html and "class=\"seg" in html  # table + signal meter markup
+    assert "⚠ window" in html                               # the Q3 window caveat carried through
+
+
+def test_html_omits_question_table_without_facet():
+    html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {})
+    assert "s-presence-table" not in html

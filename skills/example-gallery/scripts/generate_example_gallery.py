@@ -554,24 +554,8 @@ table{border-collapse:collapse;font-size:12px;margin:8px 0} th,td{border:1px sol
 .unavail{color:#8a5a2b;background:#fdf6ec;border-radius:6px;padding:7px 11px;font-size:13px;margin:10px 0}
 .idx td a{color:#2554c7;text-decoration:none} .idx td a:hover{text-decoration:underline}
 .plotly-fig{margin:12px 0}
-/* leading 7-question summary table: data · Signal meter (strength+polarity) · Confidence dots */
-.qtcap{margin:18px 0 6px;font-size:13px;color:#334;font-weight:600}
-.qtable{width:100%;border-collapse:collapse;font-size:13px;margin:2px 0 8px;background:#fff;
-  border:1px solid #e3e6ea;border-radius:8px;overflow:hidden}
-.qtable th{background:#f5f6f8;text-align:left;padding:7px 10px;border-bottom:2px solid #e3e6ea;
-  font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#556}
-.qtable td{padding:9px 10px;border-top:1px solid #eef0f3;vertical-align:top}
-.qtable .qid{font-weight:700;color:#1e3a8a;white-space:nowrap}
-.qtable .qq{font-weight:600;min-width:170px}
-.qtable .qd{color:#333;max-width:340px} .qtable .qsupport{color:#8a94a0;font-size:11.5px;margin-top:3px}
-.meter{display:inline-flex;gap:2px;vertical-align:middle;margin-right:8px}
-.meter .seg{width:13px;height:10px;border-radius:2px;background:#eceef1}
-.meter .seg.on.pos{background:#166534} .meter .seg.on.neg{background:#b45309}
-.meter .seg.on.neu{background:#6366f1} .meter .seg.on.none{background:#cbd0d6}
-.siglab{font-size:11.5px} .siglab.pos{color:#166534} .siglab.neg{color:#b45309}
-.siglab.neu{color:#3730a3} .siglab.none{color:#889}
-.dots{display:inline-flex;gap:3px} .dots .dot{width:8px;height:8px;border-radius:50%;background:#e3e6ea}
-.dots .dot.on{background:#475569}
+/* leading 7-question summary table CSS is shared (QUESTION_TABLE_CSS, emitted inline by
+   render_question_table_html) so the gallery + target-profile render identically. */
 /* the detailed scope layout, demoted to a drill-down */
 .drill{margin:10px 0;border:1px solid #e3e6ea;border-radius:8px;background:#fff;overflow:hidden}
 .drillhead{cursor:pointer;padding:11px 14px;font-weight:600;font-size:13px;list-style:none;user-select:none}
@@ -1227,45 +1211,21 @@ def _scope_breadcrumb_html(decision: dict, indication: str) -> str:
             f'<span class="hint">— the rung at this scope leads; broader = backing, narrower = drill-down</span></div>')
 
 
-_POL_CLASS = {"supports": "pos", "opposes": "neg", "neutral": "neu", "none": "none"}
-
-
 def _question_table_html(decision: dict, h: dict) -> str:
-    """The LEADING 7-question summary table: question · data read · Signal meter (strength+polarity) ·
-    Confidence dots — computed from the presence claim_vector + answer-key card fields. Verdict-inert;
-    best-effort (absent → nothing rendered)."""
+    """The LEADING 7-question summary table — computed live from the presence claim_vector +
+    answer-key card fields, then rendered by the SHARED renderer (`render_question_table_html`) so the
+    gallery and the composed target-profile dashboard produce the identical table. Verdict-inert;
+    best-effort (absent → nothing rendered). include_css=True ships the shared table CSS inline."""
     try:
         if str(SKILLS_DIR) not in sys.path:
             sys.path.insert(0, str(SKILLS_DIR))
-        from _skills_common.presence_question_table import presence_question_table
+        from _skills_common.presence_question_table import (presence_question_table,
+                                                            render_question_table_html)
         rows = presence_question_table(h, decision.get("cards", []))
+        return render_question_table_html(rows, verdict=h.get("presence_verdict"), include_css=True)
     except Exception as e:  # noqa: BLE001 — the table is additive; never break the page
         print(f"[gallery] question table unavailable ({type(e).__name__}: {e})", file=sys.stderr)
         return ""
-    if not rows:
-        return ""
-    trs = []
-    for r in rows:
-        s, cf = r["signal"], r["confidence"]
-        pol = _POL_CLASS.get(s["polarity"], "none")
-        meter = "".join(f'<span class="seg{(" on " + pol) if i < s["fill"] else ""}"></span>' for i in range(5))
-        dots = "".join(f'<span class="dot{" on" if i < cf["dots"] else ""}"></span>' for i in range(3))
-        trs.append(
-            f'<tr><td class="qid">{_esc(r["id"])}</td>'
-            f'<td class="qq">{_esc(r["question"])}</td>'
-            f'<td class="qd"><div>{_esc(r["primary"])}</div>'
-            f'<div class="qsupport">{_esc(r["support"])}</div></td>'
-            f'<td class="qsig"><span class="meter">{meter}</span>'
-            f'<span class="siglab {pol}">{_esc(s["label"])}</span></td>'
-            f'<td class="qconf"><span class="dots">{dots}</span></td></tr>')
-    verdict = h.get("presence_verdict")
-    cap = ('<div class="qtcap">Presence at a glance'
-           + (f' · verdict <span class="verdict">{_esc(verdict)}</span>' if verdict else "")
-           + ' <span class="hint">— Signal (strength · polarity toward presence) &amp; Confidence '
-             '(corroboration), computed from the claim-vector; verdict-inert.</span></div>')
-    head = ('<tr><th>Q</th><th>Question</th><th>Data / read</th>'
-            '<th>Signal — supports presence →</th><th>Conf</th></tr>')
-    return f'{cap}<table class="qtable"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table>'
 
 
 # ── functional-requirement (dependency) claim×scope layout ────────────────────────────────────────
