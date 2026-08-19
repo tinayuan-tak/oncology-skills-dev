@@ -17,6 +17,12 @@
 
 card_id: surface-colocalization-avidity
 version: 0.1.0
+# DEAD-CARD RESOLUTION 2026-08-19: RETIRE (superseded, NOT deleted — card_id is a data contract).
+# This card's same-cell avidity capability is already provided at the METHOD level inside the
+# bispecific-pair-scan skill (PR #246/#250): pair_selectivity_gate.samecell.confirm_pair_samecell
+# reads the SAME sc-samecell-coexpr-{indication}-v1 products and emits samecell_avidity_call on each
+# AND-gate pair. This card was unread by any skill (a duplicate of that wiring). Retired-as-duplicate.
+status: superseded
 question: "For {target.symbol} in {indication.label}, does any candidate partner antigen co-express on the SAME malignant cells (same-cell avidity for an AND-gate bispecific), or are the best partners mutually exclusive?"
 
 tier: indication   # the same-cell cube is per-indication (malignant compartment)

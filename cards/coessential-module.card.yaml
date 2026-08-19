@@ -22,6 +22,11 @@
 
 card_id: coessential-module
 version: 1.0.0
+# DEAD-CARD RESOLUTION 2026-08-19: REVIVE (dormant). Co-essentiality = a measured co-dependency →
+# the natural first measured member of the `combination_vulnerability` axis (the combination-and-
+# vulnerability relational tier). Held dormant because its method (coessential-module) + product
+# (depmap-coessentiality-26q1-v1) are NOT yet built; wire into combination-and-vulnerability once live.
+status: dormant_pending_data
 question: "Is {target.symbol}'s dependency embedded in a coherent co-essential module (complex/pathway partners), or an isolated hit?"
 
 tier: target

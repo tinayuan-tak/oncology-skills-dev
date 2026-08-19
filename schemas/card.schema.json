@@ -458,8 +458,8 @@
     },
     "status": {
       "type": "string",
-      "description": "Card build/wiring state (2026-08-12). `wired` (the default when OMITTED) = has a live method + dispatcher + landed product. `placeholder_not_wired` = declared in the contract but no method/product yet (compose-dashboard surfaces it in excluded_at_compose, exclusion_source=data_blocked_at_compose; SK#373). `dormant_pending_data` = a method exists but the card is gated off because its data source has not landed (applies_when-excluded at runtime). ENFORCEMENT (validate_cards.py): a card whose status is NOT `wired` MUST NOT appear in any dashboard_spec `required_cards` — it belongs in `placeholder_cards`. This keeps `required_cards` meaning 'must produce' rather than 'may be silently not_wired'.",
-      "enum": ["wired", "placeholder_not_wired", "dormant_pending_data"]
+      "description": "Card build/wiring state (2026-08-12). `wired` (the default when OMITTED) = has a live method + dispatcher + landed product. `placeholder_not_wired` = declared in the contract but no method/product yet (compose-dashboard surfaces it in excluded_at_compose, exclusion_source=data_blocked_at_compose; SK#373). `dormant_pending_data` = a method exists but the card is gated off because its data source has not landed (applies_when-excluded at runtime). `superseded` (added 2026-08-19) = the card's capability is provided elsewhere (e.g. wired at the method level in another skill), so the card is retired-as-duplicate but NOT hard-deleted (card_id is a data contract); it must be consumed by no skill/dashboard and carries a `superseded_by` note in caveats. ENFORCEMENT (validate_cards.py): a card whose status is NOT `wired` MUST NOT appear in any dashboard_spec `required_cards` — it belongs in `placeholder_cards`. This keeps `required_cards` meaning 'must produce' rather than 'may be silently not_wired'.",
+      "enum": ["wired", "placeholder_not_wired", "dormant_pending_data", "superseded"]
     },
     "subgroup_stratification": {
       "type": "object",
