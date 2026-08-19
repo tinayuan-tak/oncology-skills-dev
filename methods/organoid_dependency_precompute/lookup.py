@@ -22,9 +22,24 @@ import threading as _threading
 from functools import lru_cache
 from typing import Optional
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 MANIFEST_ID = "organoid-crispr-dependency-26q1-v1"
+MANIFEST_ID_BY_LINEAGE = "organoid-crispr-dependency-by-lineage-26q1-v1"
 DEFAULT_AWS_PROFILE = "cbg"  # the onc-compbio bucket denies the default role
+
+# Indication → the DepMap OncotreeLineage of the matching organoid cohort. Lets the card surface
+# the indication-conditioned organoid dependency (the per-lineage fraction for the queried
+# indication's lineage) rather than only the pan-organoid fraction. Only lineages emitted by
+# build_by_lineage (cohort n>=5: Bowel/Breast/Esophagus-Stomach/Pancreas/Prostate) resolve; any
+# other indication falls through to pan-organoid only.
+_INDICATION_TO_ORGANOID_LINEAGE = {
+    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "CRC": "Bowel",
+    "PAAD": "Pancreas", "PDAC": "Pancreas",
+    "STAD": "Esophagus/Stomach", "ESCA": "Esophagus/Stomach", "ESCC": "Esophagus/Stomach",
+    "EGC": "Esophagus/Stomach", "GEA": "Esophagus/Stomach",
+    "BRCA": "Breast",
+    "PRAD": "Prostate",
+}
 
 # Dependency-fraction bands → descriptive class. Keyed by the card's interpretation-rules.
 # pan_organoid_essential mirrors DepMap's common-essential idea (low target value: essential
@@ -80,14 +95,14 @@ def _s3fs():
     return _S3FS
 
 
-@lru_cache(maxsize=1)
-def _bucket_key() -> Optional[tuple]:
+@lru_cache(maxsize=4)
+def _bucket_key(manifest_id: str = MANIFEST_ID) -> Optional[tuple]:
     """Lazily resolve (bucket, key) from the data-catalog manifest (single source of truth).
     Returns None if the manifest is not present yet (pre-merge) — the read then reports
     data_unavailable rather than raising at import."""
     try:
         from methods.catalog_query.read import bucket_key_for
-        return bucket_key_for(MANIFEST_ID)
+        return bucket_key_for(manifest_id)
     except FileNotFoundError:
         # absence-discipline: exempt -- a FileNotFoundError from bucket_key_for is DEFINITIVE
         # manifest absence (the derived manifest is not merged yet, or not in this checkout) →
@@ -135,11 +150,51 @@ def _organoid_row(gene_symbol: str) -> Optional[tuple]:
         raise
 
 
+@lru_cache(maxsize=8192)
+def _lineage_rows(gene_symbol: str) -> tuple:
+    """Pushdown-read every (gene, lineage) row for gene_symbol from the by-lineage product.
+    Returns a tuple of dicts (one per admitted lineage) or () — absent / unmerged / read failure.
+    Cached per symbol; hashable return so it lives in the lru_cache."""
+    if not gene_symbol:
+        return ()
+    bk = _bucket_key(MANIFEST_ID_BY_LINEAGE)
+    if bk is None:
+        return ()
+    bucket, key = bk
+    try:
+        import pyarrow.parquet as pq
+        tbl = pq.read_table(
+            f"{bucket}/{key}", filesystem=_s3fs(),
+            filters=[("gene_symbol", "==", gene_symbol)],
+            columns=["lineage", "n_lineage_cohort", "n_models_screened", "n_dependent",
+                     "frac_dependent", "n_strongly_dependent", "median_gene_effect"])
+        df = tbl.to_pandas()
+        return tuple(
+            {"lineage": str(r.lineage), "n_lineage_cohort": int(r.n_lineage_cohort),
+             "n_models_screened": int(r.n_models_screened), "n_dependent": int(r.n_dependent),
+             "frac_dependent": round(float(r.frac_dependent), 4),
+             "n_strongly_dependent": int(r.n_strongly_dependent),
+             "median_gene_effect": round(float(r.median_gene_effect), 4)}
+            for r in df.itertuples(index=False))
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Genuine absence (missing object) → no per-lineage data (still return pan-organoid summary).
+        # Transient/creds/env failure → re-raise so it is not masked as "no lineage data".
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return ()
+        raise
+
+
 def build_summary(target: str, indication: str = None) -> dict:
     """organoid-crispr-dependency card entrypoint. Is {target} a dependency in the DepMap organoid
-    panel, and how broad? Target-grain: the organoid cohort (n≈114, GI-dominated) is small and not
-    reliably splittable per-indication, so `indication` is accepted for the dispatch contract but
-    NOT consumed (per-lineage organoid selectivity is a documented v2 follow-up).
+    panel, and — when `indication` maps to an admitted organoid lineage — in that lineage?
+
+    Pan-organoid fields (organoid_dependency_class, frac_dependent, …) come from the per-gene
+    summary product. When `indication` resolves to an organoid lineage with a cohort (Bowel,
+    Breast, Esophagus/Stomach, Pancreas, Prostate), the reader ALSO surfaces the indication-
+    conditioned per-lineage fields (organoid_lineage*, from the by-lineage product) plus the full
+    per_lineage_stats list. This is the v2 (0.2.0) enrichment; the pan-organoid class/verdict is
+    unchanged (the lineage fields are additive display context).
 
     data_unavailable-safe: absent gene / unmerged manifest / S3 failure → a None-valued dict."""
     sym = (target or "").strip()
@@ -154,6 +209,12 @@ def build_summary(target: str, indication: str = None) -> dict:
         "n_models_screened": None,
         "organoid_dependency_percentile": None,
         "organoid_dependency_context": None,
+        "per_lineage_stats": [],
+        "n_lineages_evaluated": 0,
+        "organoid_lineage": None,
+        "organoid_lineage_frac_dependent": None,
+        "organoid_lineage_class": None,
+        "organoid_lineage_n_screened": None,
     }
     row = _organoid_row(sym)
     if row is None:
@@ -180,4 +241,30 @@ def build_summary(target: str, indication: str = None) -> dict:
             f"DepMap 26Q1 organoid CRISPR panel ({MANIFEST_ID}; n={n_screened}/{n_total} organoid "
             f"models screened; GI-dominated cohort). Chronos gene-effect < -0.5 = dependent."),
     })
+
+    # --- v2 per-lineage enrichment (additive; pan-organoid class above is unchanged) ------------
+    lineages = _lineage_rows(sym)
+    out["per_lineage_stats"] = [
+        {k: r[k] for k in ("lineage", "n_models_screened", "frac_dependent",
+                           "n_strongly_dependent", "median_gene_effect")}
+        for r in sorted(lineages, key=lambda r: r["frac_dependent"], reverse=True)
+    ]
+    out["n_lineages_evaluated"] = len(lineages)
+    # Indication-conditioned lineage: map the queried indication → its organoid lineage, surface
+    # that lineage's dependency fraction + a per-lineage class. Only when the indication maps AND
+    # the lineage was emitted (cohort n>=5). Otherwise the lineage fields stay None (honest).
+    out["organoid_lineage"] = None
+    out["organoid_lineage_frac_dependent"] = None
+    out["organoid_lineage_class"] = None
+    out["organoid_lineage_n_screened"] = None
+    lin = _INDICATION_TO_ORGANOID_LINEAGE.get((indication or "").strip().upper())
+    if lin:
+        match = next((r for r in lineages if r["lineage"] == lin), None)
+        if match:
+            out.update({
+                "organoid_lineage": lin,
+                "organoid_lineage_frac_dependent": match["frac_dependent"],
+                "organoid_lineage_class": classify_dependency(match["frac_dependent"]),
+                "organoid_lineage_n_screened": match["n_models_screened"],
+            })
     return out
