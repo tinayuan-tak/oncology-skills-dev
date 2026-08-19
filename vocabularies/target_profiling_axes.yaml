@@ -450,7 +450,9 @@ skill_objectives:
     primary_axis: differentiation
     questions:
       - {q: "Co-mutation / mutual-exclusivity partners?", answered_by: [co-mutation-and-mutual-exclusivity]}
-      - {q: "Prognostic association (expression → survival)?", answered_by: [expression-clinical-association, precog-prognostic-association]}
+      # PROGNOSTIC ASSOCIATION — a THREE-ARM question (user 2026-08-19). Only the EXPRESSION arm is
+      # built; the alteration + subtype arms are named gaps (candidate_edges), not silently absent.
+      - {q: "Prognostic association — does the target's EXPRESSION stratify survival?", answered_by: [expression-clinical-association, precog-prognostic-association], arms: {expression: built, alteration_status: "gap → candidate_edge alteration-clinical-association", by_subtype: "gap → candidate_edge subtype-survival-association"}}
       - {q: "Stemness / aggressiveness context?", answered_by: [stemness-context]}
       - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage]}
   - skill: synthetic-lethal-partners
@@ -516,6 +518,13 @@ candidate_edges:
     question: "Does {target} mutation / CN / fusion STATUS stratify overall survival in {indication} (and by subtype)?"
     feasibility: "buildable from TCGA MC3 alteration status + TCGA clinical OS — same OS substrate expression-clinical-association already uses; by-subtype via subgroup strata. GENIE lacks broad OS (GENIE-BPC only)."
     gap_note: "the alteration analog of expression-clinical-association / precog-prognostic-association."
+  - proposed_card: subtype-survival-association
+    axis_edge: {anchor: clinical_outcome_os, partner: molecular_subtype, edge_kind: prognostic_association}
+    reports_into: [differentiation]        # the SUBTYPE arm of the prognostic question (Q2)
+    home_skill: differentiation-landscape
+    question: "Does overall survival differ across {indication}'s molecular subtypes (subtype × OS)?"
+    feasibility: "buildable from TCGA clinical OS + the subgroup-assignment shards (same substrate as the by-subtype cards); the subtype conditioner applied to the prognostic question."
+    gap_note: "the SUBTYPE arm of differentiation Q2 (expression arm built; alteration + subtype arms are gaps)."
 
 # ===========================================================================
 # SCIENTIFIC GAPS — the enumerated backlog (none existed before). Blind/partial/license_blocked
