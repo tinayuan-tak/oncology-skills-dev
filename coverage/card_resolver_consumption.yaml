@@ -23,6 +23,7 @@ resolver_consumed_cards:
 - measured-potency-tractability
 - mouse-ko-phenotype
 - mutation-drug-response
+- mutation-hotspot-frequency
 - mutation-stratified-dependency
 - mutation-type-counts
 - normal-tissue-liability
@@ -103,6 +104,7 @@ detail:
     resolvers:
     - genomic_alteration
     rules:
+    - cn-amplified-indication-scoped-context
     - cn-amplified-moderately-dependent-supportive
     - cn-amplified-strongly-dependent-supportive
   crispr-rnai-dependency-concordance:
@@ -128,6 +130,7 @@ detail:
     resolvers:
     - genomic_alteration
     rules:
+    - fusion-positive-indication-scoped-context
     - fusion-positive-moderately-dependent-supportive
     - fusion-positive-strongly-dependent-supportive
   gene-burden-safety:
@@ -165,10 +168,16 @@ detail:
     - genomic_alteration
     rules:
     - mutation-drug-response-strongly-sensitive-supportive
+  mutation-hotspot-frequency:
+    resolvers:
+    - genomic_alteration
+    rules:
+    - snv-recurrence-top-driver-supportive
   mutation-stratified-dependency:
     resolvers:
     - genomic_alteration
     rules:
+    - mutant-indication-scoped-context
     - mutant-moderately-dependent-supportive
     - mutant-strongly-dependent-supportive
   mutation-type-counts:
