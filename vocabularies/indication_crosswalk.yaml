@@ -43,6 +43,10 @@ indications:
     gdc_project_ids: [TCGA-LUAD, TCGA-LUSC]
     depmap_lineage: Lung
     depmap_oncotree_lineage: Non-Small_Cell_Lung_Cancer
+    # OncotreeCode SET for the sublineage-aware dependency reduction (per_oncotree_code_stats, AM #412):
+    # the coarse DepMap lineage "Lung" merges NSCLC + SCLC, so an indication read at coarse grain is
+    # confounded. NSCLC = all OncoTree codes with primary disease "Non-Small Cell Lung Cancer" (26Q1).
+    depmap_oncotree_codes: [LUAD, LUSC, NSCLC, LCLC, LUAS, LUMEC, GCLC, NUTCL, NSCLCPD]
     cptac_cohort: LUAD  # note: LUAD only; LUSC is LSCC (separate CPTAC cohort — see LUSC-side of crosswalk if needed)
     gtex_normal_tissue: Lung
     adj_normal_manifest: null  # not yet ingested; TCGA-LUAD paired-adjacent exists
@@ -56,6 +60,9 @@ indications:
     gdc_project_ids: []
     depmap_lineage: Lung  # DepMap groups all lung; filter by OncoTree SCLC subtype
     depmap_oncotree_lineage: Small_Cell_Lung_Cancer
+    # OncotreeCode SET (per_oncotree_code_stats reduction): SCLC only — small-cell. Excludes LUCA (lung
+    # carcinoid, also neuroendocrine but NOT small-cell) so the SCLC read is not diluted by carcinoids.
+    depmap_oncotree_codes: [SCLC]
     cptac_cohort: null  # No CPTAC SCLC cohort
     gtex_normal_tissue: Lung
     adj_normal_manifest: null
@@ -85,6 +92,10 @@ indications:
     gdc_project_ids: [TCGA-STAD]
     depmap_lineage: Esophagus/Stomach  # DepMap 26Q1 has NO "Stomach" lineage — gastric + esophageal are merged into "Esophagus/Stomach"; disambiguate STAD vs ESCA via depmap_oncotree_lineage below (mirrors ESCA)
     depmap_oncotree_lineage: Stomach_Adenocarcinoma
+    # OncotreeCode SET (per_oncotree_code_stats reduction): the stomach-adenocarcinoma family. Splits STAD
+    # from ESCA (both roll up to primary "Esophagogastric Adenocarcinoma", so PrimaryDisease can't split
+    # them — OncotreeCode can). Excludes ESCC (esophageal squamous — a distinct entity).
+    depmap_oncotree_codes: [STAD, TSTAD, DSTAD, SSRCC, MSTAD, STAS, STSC]
     cptac_cohort: null  # Verify PDC has a STAD cohort at Phase 2
     gtex_normal_tissue: Stomach
     adj_normal_manifest: null
@@ -98,6 +109,9 @@ indications:
     gdc_project_ids: [TCGA-ESCA]
     depmap_lineage: Esophagus/Stomach  # DepMap groups these; filter by OncoTree for ESCA
     depmap_oncotree_lineage: Esophageal_Adenocarcinoma  # for EAC; ESCC uses different code
+    # OncotreeCode SET (per_oncotree_code_stats reduction): esophageal adenocarcinoma. ESCC (esophageal
+    # SQUAMOUS, OncotreeCode ESCC) is a distinct entity — deliberately excluded from the ESCA (adeno) read.
+    depmap_oncotree_codes: [ESCA]
     cptac_cohort: null  # No CPTAC ESCA cohort
     gtex_normal_tissue: Esophagus
     adj_normal_manifest: null

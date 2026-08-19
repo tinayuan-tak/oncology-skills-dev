@@ -56,6 +56,13 @@ outputs:
     # === Per-lineage breakdown (target-only — full ranked table) ===
     - per_lineage_stats                         # list of {lineage, n, median_chronos, p25, p75, fraction_strongly_dependent}
     - n_lineages_evaluated                      # count of lineages with n >= min_cell_lines_in_lineage
+    # === Per-OncotreeCode SUBLINEAGE breakdown (AM #412) — ADDITIVE / verdict-inert. Disambiguates the
+    #     SHARED coarse lineages that merge >1 indication (Esophagus/Stomach → STAD/ESCA/ESCC; Lung →
+    #     LUAD/SCLC/…), so a consumer indication reduction can aggregate per_oncotree_code_stats over the
+    #     indication's depmap_oncotree_codes set (indication_crosswalk) instead of the confounded coarse
+    #     lineage. NO rule reads these — the enrichment_class/enriched_lineages verdict path is untouched.
+    - per_oncotree_code_stats                   # list of {oncotree_code, oncotree_lineage, n, median_chronos, p25, p75, fraction_strongly_dependent}
+    - n_oncotree_codes_evaluated                # count of OncotreeCodes with n >= min_cell_lines_in_lineage
     # === DepMap-style enrichment test ===
     - enriched_lineages                         # list of {lineage, n, median_chronos, delta_vs_rest, p_value, q_value, effect_size}
     - n_enriched_lineages                       # count where q_value < significance threshold
