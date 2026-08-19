@@ -195,6 +195,30 @@ questions:
     evidences: "patient-derived model coverage (HCMI) — one leg wired; PD/imaging/internal-model legs unbuilt."
     coverage_note: "blind by construction — translational-readiness is a descriptive partial skill; not in the nomination fan-out."
 
+  # RELATIONAL AXIS (Archetype B) — added v1.1.0. The one axis whose answer is a RANKED PARTNER LIST,
+  # not a single-target scalar. Today fragmented across 3 standalone skills + 2 edge cards; Debt #2
+  # consolidates them under a `combination-and-vulnerability` skill (see relational_consolidation).
+  - short: combination_vulnerability
+    question: "What does the target depend on / combine with RELATIONALLY — synthetic-lethal partners, measured dual-KO co-dependencies, combination co-targets under inhibition, and resistance mediators?"
+    band: sufficiency                  # combination / resistance STRATEGY (informs the drug program), not "is this real biology"
+    risk_category: biomarker           # patient-selection / combination-biomarker
+    home_skill: combination-and-vulnerability   # PLANNED consolidated relational skill (Debt #2); today split (see relational_consolidation)
+    foreign_consumers: []
+    framework_can_evidence: partial
+    status: planned_consolidation
+    unit_of_analysis: pair             # target × partner / co-target / mediator — NOT a single-target scalar
+    output_contract: ranked_partner_table
+    reports_into: [dependency]         # an experimental SL partner suppresses the pooled non-dependent veto (existing facet edge)
+    legacy_letters: {scaffold_8gate: "n/a (not in the 8-gate)", gate_coverage_v2: "synthetic_lethal_partners (facet, grain sub_skill)", skill_phase: "C-adjacent / I"}
+    evidences: "curated SL (SynLethDB v3) + measured dual-KO GI (DepMap ParalogV2 + published) + drug-anchored combination/resistance CRISPR screens (DepMap 26Q1)."
+    conditioned_by: [subtype]
+    coverage_note: |
+      RELATIONAL: the answer is a RANKED PARTNER LIST (partner × interaction-type × evidence ×
+      direction), not a scalar verdict — forcing it into a scalar gate is the Archetype-B trap.
+      Today fragmented across 3 standalone single/two-card skills + 2 edge cards homed in
+      functional-requirement (paralog-buffering, partner-conditional-dependency). Consolidation
+      target = the combination-and-vulnerability skill; see relational_consolidation.
+
 # ===========================================================================
 # CONDITIONER AXES — orthogonal refinements of the questions (NOT questions/gates themselves).
 # "8 questions × modality × subtype × molecular-form" (GATE_SCAFFOLD_MODALITY_CONDITIONAL.md).
@@ -422,14 +446,15 @@ skill_objectives:
       - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage]}
   - skill: synthetic-lethal-partners
     objective: "Does the target have a curated SL partner that contextualizes a pooled non-dependent read?"
-    primary_axis: dependency
-    role_note: "relational (target×partner); surfaces as the synthetic_lethal_partners facet of dependency."
+    primary_axis: combination_vulnerability
+    also_facets: dependency             # the SL annotation ALSO reports_into dependency (veto-suppressor)
+    role_note: "relational (target×partner); CONSOLIDATION CANDIDATE → combination-and-vulnerability (Debt #2)."
     questions:
       - {q: "Is there a curated SL partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
   - skill: combinatorial-dependency
     objective: "Is the target a combinatorial (dual-KO) dependency — constitutive or context-conditional?"
-    primary_axis: dependency
-    role_note: "relational (target×paralog); gateless additive."
+    primary_axis: combination_vulnerability
+    role_note: "relational (target×paralog); gateless additive; CONSOLIDATION CANDIDATE → combination-and-vulnerability (Debt #2)."
     questions:
       - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which partner is strongest?", answered_by: [combinatorial-dependency]}
   - skill: target-intrinsic
@@ -454,8 +479,8 @@ skill_objectives:
       - {q: "Is there a CD8 effector T-cell population (immune-hot vs cold) for a TCE to redirect?", answered_by: [immune-context]}
   - skill: combo-and-resistance
     objective: "Under inhibition, which co-targets become essential (combination) and which KOs rescue (resistance)?"
-    primary_axis: dependency
-    role_note: "relational (target×co-target); two verdicts; not in the nomination fan-out."
+    primary_axis: combination_vulnerability
+    role_note: "relational (target×co-target); two verdicts; not in the nomination fan-out; CONSOLIDATION CANDIDATE → combination-and-vulnerability (Debt #2)."
     questions:
       - {q: "Which co-targets become MORE essential under inhibition (combination)?", answered_by: [combo-crispr-screen]}
       - {q: "Which knockouts RESCUE the cell (candidate resistance mediators)?", answered_by: [resistance-emergence-signature]}
@@ -496,3 +521,46 @@ scientific_gaps:
   - axis: molecular_form
     standing: partial
     gap: "bulk-cohort splice misses low-frequency isoforms; exon-window blind to transcript identity."
+
+# ===========================================================================
+# OUTPUT CONTRACTS — the shape a skill's answer takes. Scalar axes emit a verdict + driving_rule_id;
+# the RELATIONAL axis emits a ranked partner list. Making this explicit is what lets the relational
+# skills stop faking a scalar verdict (Archetype-B fix, Debt #2).
+# ===========================================================================
+output_contracts:
+  scalar_verdict:
+    shape: "{verdict: enum, driving_rule_id: str}"
+    used_by_band: [necessity, sufficiency]
+    note: "the default Archetype-A contract; folds into the target-profile nomination gate."
+  ranked_partner_table:
+    shape: "[{partner, interaction_type, evidence_tier, direction, source}], + summary {n_partners, strongest}"
+    used_by_axis: [combination_vulnerability]
+    note: |
+      Archetype-B: the PAYLOAD is the ranked list, not a scalar. Folds into target-profile as a
+      'combination & vulnerability annex' (a named section), NOT as a verdict facet competing with
+      the necessity/sufficiency gates. An SL-partner annotation may ALSO emit a scalar facet that
+      reports_into dependency (veto-suppressor) — that facet is separate from this list payload.
+
+# ===========================================================================
+# RELATIONAL CONSOLIDATION (Debt #2 plan) — the design target for redefining the relational skills.
+# STATUS: axis + contract defined here (v1.1.0); the SKILL-dir merge is a separate, sign-off-gated
+# workstream (touches fan-out / resolvers / verdict spine — byte-stability-sensitive).
+# ===========================================================================
+relational_consolidation:
+  target_skill: combination-and-vulnerability
+  axis: combination_vulnerability
+  output_contract: ranked_partner_table
+  absorbs_skills:
+    - {skill: synthetic-lethal-partners, brings: [synthetic-lethal-partners], today: "gated veto-suppressor + dependency facet"}
+    - {skill: combinatorial-dependency,  brings: [combinatorial-dependency],  today: "gateless additive (dual-KO GI)"}
+    - {skill: combo-and-resistance,      brings: [combo-crispr-screen, resistance-emergence-signature], today: "NOT in the fan-out"}
+  surfaces_edge_cards:                   # keep HOMED in functional-requirement; surface UNDER the relational annex too
+    - paralog-buffering
+    - partner-conditional-dependency
+  preserves:
+    - "the synthetic_lethal_partners scalar FACET that reports_into dependency (veto-suppressor) — unchanged."
+    - "byte-stability of the nomination verdict spine — the annex is additive; SL's existing gate behavior must be reproduced or explicitly re-homed under golden-spine guard."
+  open_for_signoff:
+    - "final skill name (combination-and-vulnerability vs interaction-genomics vs co-dependency-and-combination)"
+    - "does the relational annex fold into the target-profile fan-out as a gateless peer, or stay standalone + linked?"
+    - "SL: keep the dependency veto-suppressor facet in functional-requirement while moving DISCOVERY output to the new skill (dual-role split)."

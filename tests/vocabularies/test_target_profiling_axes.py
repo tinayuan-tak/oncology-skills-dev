@@ -217,6 +217,37 @@ def test_every_skill_objective_has_at_least_an_objective():
         assert s.get("objective"), f"{s['skill']}: needs an objective"
 
 
+def test_relational_axis_is_first_class_and_pair_grained():
+    q = {x["short"]: x for x in AX["questions"]}
+    assert "combination_vulnerability" in q, "the relational axis must be a first-class question"
+    cv = q["combination_vulnerability"]
+    assert cv["unit_of_analysis"] == "pair", "relational axis is pair-grained, not single-target scalar"
+    assert cv["output_contract"] == "ranked_partner_table"
+    assert "dependency" in cv.get("reports_into", []), "SL context reports_into dependency (veto-suppressor)"
+
+
+def test_relational_skills_retagged_to_the_relational_axis():
+    """SL / combinatorial-dependency / combo-and-resistance no longer stopgap-tagged as `dependency`."""
+    by_skill = {s["skill"]: s for s in AX["skill_objectives"]}
+    for skill in ("synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"):
+        assert by_skill[skill]["primary_axis"] == "combination_vulnerability", \
+            f"{skill}: should map to the relational axis"
+
+
+def test_output_contracts_and_consolidation_wellformed():
+    oc = AX["output_contracts"]
+    assert "scalar_verdict" in oc and "ranked_partner_table" in oc
+    assert "combination_vulnerability" in oc["ranked_partner_table"]["used_by_axis"]
+    rc = AX["relational_consolidation"]
+    assert rc["axis"] == "combination_vulnerability"
+    absorbed = {e["skill"] for e in rc["absorbs_skills"]}
+    assert absorbed == {"synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"}
+    # every absorbed skill also actually carries the relational primary_axis
+    by_skill = {s["skill"]: s for s in AX["skill_objectives"]}
+    for sk in absorbed:
+        assert by_skill[sk]["primary_axis"] == "combination_vulnerability"
+
+
 def test_scientific_gaps_cover_every_hard_gap_axis():
     """The gaps backlog must name every question whose standing is a HARD gap
     (`blind` or `license_blocked`) — the axes the framework genuinely cannot evidence.
