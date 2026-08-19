@@ -42,7 +42,7 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 )
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.3.0"
+SKILL_VERSION = "2.4.0"
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
 # cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
@@ -166,6 +166,133 @@ def _genomic_alteration_by_class(cards: list[dict]) -> dict:
     return out
 
 
+# ── Scope decomposition (pan-cancer / indication / subtype) ──────────────────────────────────────
+# The genomic_alteration verdict is a SCOPE HYBRID: the ladder-LEADING KO-dependency, variant-class
+# shape, and drug-response signals are pan-cancer DepMap/PRISM cell-line calls (localised to the queried
+# lineage only when powered, via each stratified card's `evidence_scope`), while patient recurrence,
+# patient-focal CN, TCGA fusion recurrence, and the IntOGen driver role are indication-native. The
+# one-word verdict never says at what scope it was earned; `genomic_alteration_by_class` re-expands the
+# alteration CLASS but not the SCOPE. This reducer classifies the SCOPE of the DRIVING verdict and rolls
+# up which evidence exists at each scope — ADDITIVE / verdict-inert (mirrors _genomic_alteration_by_class;
+# the functional-requirement dependency_verdict_by_scope analog). It reads fields already emitted by the
+# cards and touches no resolver rung, so the verdict spine stays byte-stable.
+#   driving_rule prefix -> the stratified-dependency card whose `evidence_scope` localises that rung.
+_DEP_RULE_SCOPE_CARD: dict[str, str] = {
+    "mutant-":          "mutation-stratified-dependency",
+    "cn-amplified-":    "copy-number-stratified-dependency",
+    "fusion-positive-": "fusion-stratified-dependency",
+    "amp-expr-":        "amp-expr-stratified-dependency",
+}
+# `evidence_scope` values meaning the dependency was localised to the queried indication's lineage.
+_INDICATION_EVIDENCE_SCOPES = {"within_indication", "within_indication_mut_vs_pan_wt"}
+_PAN_EVIDENCE_SCOPES = {"pan_lineage_evidence_only", "pan_no_indication"}
+# driving_rule ids whose signal is inherently indication-native (patient tissue) ...
+_INDICATION_ANCHORED_RULES = {
+    "cn-patient-focal-amplified-supportive", "cn-patient-focal-deleted-supportive",
+    "fusion-landscape-recurrent-driver-supportive",
+    "snv-recurrence-top-driver-supportive",   # Phase 2 (pooled patient recurrence) — forward-compat
+}
+# ... vs pan-cancer cell-line landscape / variant-shape / pharmacology rungs.
+_PAN_CANCER_RULES = {
+    "cn-recurrently-amplified-supportive", "cn-recurrently-deleted-supportive",
+    "mutation-drug-response-strongly-sensitive-supportive",
+    "mut-lof-dominant-supportive", "mut-missense-dominant-supportive",
+}
+
+
+def _scope_of_driving_verdict(card_by_id: dict, driving_rule: str | None) -> str:
+    """Classify the SCOPE at which the deterministic verdict was earned, from `driving_rule_id` + the
+    driving card's own scope field. One of:
+      - `indication_anchored`      — driving signal is within the queried indication's lineage/tissue
+      - `pan_cancer_extrapolation` — driving signal is a pan-cancer/pan-lineage cell-line call
+      - `mixed`                    — pan-cancer driving signal WITH indication-native corroboration
+      - `not_applicable`           — no verdict fired
+      - `unclassified`             — driving rule not mapped (defensive)
+    A dependency rung reads its card's `evidence_scope`; landscape/shape/pharmacology rungs are statically
+    indication-native vs pan-cancer. Verdict-inert (never feeds a resolver rung)."""
+    if not driving_rule:
+        return "not_applicable"
+
+    def _f(card_id, field):
+        return (card_by_id.get(card_id, {}).get("summary") or {}).get(field)
+
+    def _indication_native_support() -> bool:
+        return (_f("alteration-role", "intogen_scope") == "indication"
+                or _f("mutation-hotspot-frequency", "driver_recurrence_class") in ("top_1pct", "top_decile")
+                or _f("copy-number-distribution", "patient_focal_cn_class")
+                in ("recurrent_focal_amplification", "recurrent_focal_deletion")
+                or _f("fusion-rearrangement-landscape", "fusion_class") == "recurrent_fusion_driver")
+
+    for prefix, card_id in _DEP_RULE_SCOPE_CARD.items():
+        if driving_rule.startswith(prefix):
+            scope = _f(card_id, "evidence_scope")
+            if scope in _INDICATION_EVIDENCE_SCOPES:
+                return "indication_anchored"
+            if scope in _PAN_EVIDENCE_SCOPES:
+                return "mixed" if _indication_native_support() else "pan_cancer_extrapolation"
+            return "unclassified"
+    if driving_rule in _INDICATION_ANCHORED_RULES:
+        return "indication_anchored"
+    if driving_rule in _PAN_CANCER_RULES:
+        return "mixed" if _indication_native_support() else "pan_cancer_extrapolation"
+    return "unclassified"
+
+
+def _genomic_alteration_by_scope(cards: list[dict], driving_rule: str | None) -> dict:
+    """Per-SCOPE breakdown: `{scope_of_driving_verdict, pan_cancer, indication, subtype}`.
+
+    `scope_of_driving_verdict` is the load-bearing scalar (see _scope_of_driving_verdict). Each scope
+    block lists the evidence that exists AT that scope plus an `evidence_present` flag, so a consumer can
+    see indication-native corroboration even when a pan-cancer signal drove the verdict. The `subtype`
+    block is a placeholder unless --subtypes was passed (main() patches it in); the whole-cohort spine is
+    never subtype-scoped, so leaving it empty keeps the verdict byte-stable. Additive / verdict-inert."""
+    card_by_id = {c.get("card_id"): c for c in (cards or [])}
+
+    def f(card_id, field):
+        return (card_by_id.get(card_id, {}).get("summary") or {}).get(field)
+
+    def _measured(v):
+        return v not in (None, "", "data_unavailable")
+
+    # PAN-CANCER (DepMap/PRISM cell-line) — the ladder-leading dependency + variant-shape + drug-response,
+    # each dependency carrying its own indication-localisation scope.
+    pan = {
+        "mutation_landscape_class":  f("mutation-type-counts", "mutation_landscape_class"),
+        "copy_number_class":         f("copy-number-distribution", "copy_number_class"),
+        "mutation_dependency_class": f("mutation-stratified-dependency", "mutation_stratification_class"),
+        "mutation_dependency_scope": f("mutation-stratified-dependency", "evidence_scope"),
+        "cn_dependency_class":       f("copy-number-stratified-dependency", "cn_stratification_class"),
+        "cn_dependency_scope":       f("copy-number-stratified-dependency", "evidence_scope"),
+        "fusion_dependency_class":   f("fusion-stratified-dependency", "fusion_stratification_class"),
+        "fusion_dependency_scope":   f("fusion-stratified-dependency", "evidence_scope"),
+        "amp_expr_dependency_class": f("amp-expr-stratified-dependency", "amp_expr_stratification_class"),
+        "amp_expr_dependency_scope": f("amp-expr-stratified-dependency", "evidence_scope"),
+        "drug_response_class":       f("mutation-drug-response", "drug_response_stratification_class"),
+    }
+    _pan_signal = ("mutation_landscape_class", "copy_number_class", "mutation_dependency_class",
+                   "cn_dependency_class", "fusion_dependency_class", "amp_expr_dependency_class",
+                   "drug_response_class")
+    # INDICATION (patient tissue) — recurrence, patient-focal CN, TCGA fusion, IntOGen role, clonality.
+    ind = {
+        "driver_recurrence_class":       f("mutation-hotspot-frequency", "driver_recurrence_class"),
+        "genie_driver_recurrence_class": f("mutation-hotspot-frequency", "genie_driver_recurrence_class"),
+        "patient_focal_cn_class":        f("copy-number-distribution", "patient_focal_cn_class"),
+        "fusion_class":                  f("fusion-rearrangement-landscape", "fusion_class"),
+        "alteration_role":               f("alteration-role", "alteration_role"),
+        "intogen_scope":                 f("alteration-role", "intogen_scope"),
+        "clonality_class":               f("target-clonality", "clonality_class"),
+    }
+    _ind_signal = ("driver_recurrence_class", "genie_driver_recurrence_class", "patient_focal_cn_class",
+                   "fusion_class", "alteration_role")
+    return {
+        "scope_of_driving_verdict": _scope_of_driving_verdict(card_by_id, driving_rule),
+        "pan_cancer":  {"evidence_present": any(_measured(pan[k]) for k in _pan_signal), **pan},
+        "indication":  {"evidence_present": any(_measured(ind[k]) for k in _ind_signal), **ind},
+        # subtype: patched by main() only when --subtypes is passed (byte-stable otherwise).
+        "subtype":     {"evidence_present": False, "note": "pass --subtypes to populate the subtype panorama"},
+    }
+
+
 # Headline field table: (headline_key, card_id, summary_field). Every entry is a plain lift of a
 # card summary field via _lift_field; keeping them declarative removes ~40 near-identical call
 # sites and makes the mutation / copy-number / fusion / role / cohort-context axes scannable at a
@@ -194,9 +321,17 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     # ── Copy-number axis (cell-line verdict-driving + patient-tumour cross-check) ──
     ("copy_number_class",                   "copy-number-distribution",       "copy_number_class"),
     ("patient_copy_number_class",           "copy-number-distribution",       "patient_copy_number_class"),
+    # Patient-tumour FOCAL CN (indication-native; the verdict-bearing +2/homdel gate, distinct from the
+    # display-only any-gain patient_copy_number_class) — surfaced for genomic_alteration_by_scope.indication.
+    ("patient_focal_cn_class",              "copy-number-distribution",       "patient_focal_cn_class"),
     ("cn_stratification_class",             "copy-number-stratified-dependency", "cn_stratification_class"),
+    # Indication-localisation scope of each stratified-dependency sibling (mutation's is surfaced above as
+    # stratified_evidence_scope) — the substrate for genomic_alteration_by_scope.scope_of_driving_verdict.
+    ("cn_stratified_evidence_scope",        "copy-number-stratified-dependency", "evidence_scope"),
     ("fusion_stratification_class",         "fusion-stratified-dependency",   "fusion_stratification_class"),
+    ("fusion_stratified_evidence_scope",    "fusion-stratified-dependency",   "evidence_scope"),
     ("amp_expr_stratification_class",       "amp-expr-stratified-dependency", "amp_expr_stratification_class"),
+    ("amp_expr_stratified_evidence_scope",  "amp-expr-stratified-dependency", "evidence_scope"),
 
     # ── Fusion / rearrangement axis (TCGA consensus verdict + GENIE-SV breadth facet) ──
     ("fusion_class",                        "fusion-rearrangement-landscape", "fusion_class"),
@@ -211,6 +346,9 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     # ── Typed driver role (OncoKB × IntOGen) ─────────────────────────────────
     ("alteration_role",                     "alteration-role",                "alteration_role"),
     ("functional_direction",                "alteration-role",                "functional_direction"),
+    # IntOGen driver-call scope: indication (per-cancer-type) vs pan_cancer fallback — the indication
+    # anchor for genomic_alteration_by_scope (a pan_cancer role is a weaker in-indication claim).
+    ("intogen_scope",                       "alteration-role",                "intogen_scope"),
 
     # ── Additive signal-only axes ────────────────────────────────────────────
     ("functional_state_class",              "functional-gene-state",          "functional_state_class"),
@@ -302,6 +440,10 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
         "driving_rule_id":             driving_rule,
         # Per-alteration-class breakdown of the collapsed multi_class verdict (which class drives).
         "genomic_alteration_by_class": _genomic_alteration_by_class(cards),
+        # Per-SCOPE breakdown + scope_of_driving_verdict: at what scope (pan-cancer / indication /
+        # subtype) the collapsed verdict was earned. ADDITIVE / verdict-inert (subtype sub-block is
+        # patched by main() only when --subtypes is passed).
+        "genomic_alteration_by_scope": _genomic_alteration_by_scope(cards, driving_rule),
         # When >=2 stratified-dependency classes fired, their p-values were BH-corrected jointly and
         # any class with family-wise q >= 0.05 was demoted so a multi-class call is not over-credited.
         "stratified_family_wise_fdr":  fdr_provenance,
@@ -352,6 +494,16 @@ def main() -> int:
     if subtype_result is not None:
         headline["subtype_scope"] = subtype_result["scope_subtypes"]
         headline["subtype_axis"] = subtype_result["subtype_panorama"]
+        # Reflect the subtype panorama in the by-scope breakdown (still verdict-inert: the panorama is
+        # DESCRIPTIVE and touches no rung; the whole-cohort verdict is byte-stable regardless).
+        _sa = subtype_result["subtype_panorama"]
+        headline["genomic_alteration_by_scope"]["subtype"] = {
+            "evidence_present": bool(not _sa.get("_missing") and (_sa.get("n_subgroups_with_data") or 0) >= 1),
+            "subtype_mutation_pattern":       _sa.get("subtype_mutation_pattern"),
+            "n_subgroups_with_data":          _sa.get("n_subgroups_with_data"),
+            "cross_subgroup_delta_frequency": _sa.get("cross_subgroup_delta_frequency"),
+            "scope_subtypes":                 subtype_result["scope_subtypes"],
+        }
 
     lenses = None
     invoked_lenses: dict = {}

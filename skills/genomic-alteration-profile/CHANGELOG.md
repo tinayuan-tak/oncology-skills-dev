@@ -4,6 +4,22 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-08-19 (v2.4.0)
+- Added `headline.genomic_alteration_by_scope` + top-level `scope_of_driving_verdict` — the per-SCOPE
+  decomposition (pan-cancer / indication / subtype) of the collapsed verdict, mirroring
+  `genomic_alteration_by_class` (which decomposes by CLASS). `scope_of_driving_verdict` ∈
+  `indication_anchored` / `pan_cancer_extrapolation` / `mixed` / `not_applicable` / `unclassified`,
+  derived deterministically from `driving_rule_id` + the driving card's own scope field
+  (dependency rungs read `evidence_scope`; landscape/shape/pharmacology rungs are statically
+  indication-native vs pan-cancer; a pan-cancer signal with indication-native corroboration reads
+  `mixed`). Makes the verdict's SCOPE HYBRID explicit: the ladder-leading KO-dependency / variant-shape /
+  drug-response are pan-cancer cell-line, while patient recurrence, patient-focal CN, TCGA fusion, and the
+  IntOGen role are indication-native. Also surfaced the cn/fusion/amp-expr `evidence_scope`,
+  `intogen_scope`, and `patient_focal_cn_class` at the headline top level. ADDITIVE / verdict-inert —
+  reuses fields already emitted; `genomic_alteration_profile` is byte-stable (KRAS/BRAF COADREAD replay
+  green). The functional-requirement `dependency_verdict_by_scope` analog; Phase 0 of the scope-coherence
+  plan and the instrument that de-risks the (verdict-affecting) dependency-rung scope-gate harmonization.
+
 ## 2026-08-18
 - Fixed a `depmap_common` lineage-ladder label bug (amp-expr strong→moderate downgrade
   never fired because the map keyed the abbreviated `amp_expr_*` class instead of the
