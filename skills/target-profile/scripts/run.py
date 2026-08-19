@@ -542,6 +542,7 @@ def main() -> int:
         deciding_axis=deciding_axis,
         ordinal_matrix=ordinal_matrix,
         presence_facet=presence_facet,
+        actionability_mode=actionability_mode,
     )
     (args.out / "target_profile.md").write_text(md)
 

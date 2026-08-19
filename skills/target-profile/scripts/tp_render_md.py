@@ -112,6 +112,40 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
     ]
 
 
+# Phase-3 EMPHASIS routing: per actionability_mode, which axes LEAD the verbose per-skill sections.
+# Reorder-only (nothing is hidden), so the _GATING_AXES (dependency/safety/subtype_fit) never-collapse
+# guarantee holds trivially. The mode banner + lead order are DETERMINISTIC (not LLM) and verdict-inert.
+_MODE_LEAD_AXES = {
+    "cis_feature": ["genomic_alteration", "dependency", "tractability_sm"],
+    "abundance": ["surface_modality", "expression", "selectivity", "safety"],
+    "mixed": ["genomic_alteration", "surface_modality", "dependency", "expression"],
+    "dependency_relational": ["dependency", "synthetic_lethal_partners", "combinatorial_dependency"],
+}
+_MODE_BANNER = {
+    "cis_feature": "selection basis = a molecular FEATURE (biomarker). Leads with genomic / dependency / "
+                   "tractability; a weak surface read is EXPECTED (a cis target need not be over-abundant).",
+    "abundance": "selection basis = selective OVER-ABUNDANCE (expression/density cutoff). Leads with "
+                 "surface / presence / selectivity / safety; a `non_dependent` read is EXPECTED.",
+    "mixed": "BOTH modes fire — the cis handle AND the abundance readout are mutually reinforcing; both "
+             "stories are led, neither is demoted.",
+    "dependency_relational": "no positive cis handle / not over-abundant — actioned via a PARTNER/CONTEXT; "
+                             "leads with dependency + SL / combinatorial (patient-selection = the partner biomarker).",
+}
+
+
+def _mode_ordered_shorts(shorts, actionability_mode: Optional[dict]):
+    """Reorder the sub-result shorts so the mode's LEAD axes come first (present ones only), the rest
+    follow in their original order. Pure reorder — nothing dropped/hidden (gating axes always render)."""
+    shorts = list(shorts)
+    if not actionability_mode:
+        return shorts
+    lead = _MODE_LEAD_AXES.get(actionability_mode.get("dominant"))
+    if not lead:
+        return shorts
+    head = [s for s in lead if s in shorts]
+    return head + [s for s in shorts if s not in head]
+
+
 def _render_target_profile_md(
     target: str,
     indication: str,
@@ -122,6 +156,7 @@ def _render_target_profile_md(
     deciding_axis: Optional[dict] = None,
     ordinal_matrix: Optional[dict] = None,
     presence_facet: Optional[dict] = None,
+    actionability_mode: Optional[dict] = None,
 ) -> str:
     """Render target_profile.md with clearly-tagged LLM sections + per-phase
     evidence tables + risk-by-category summary + deciding-axis routing + the
@@ -133,6 +168,17 @@ def _render_target_profile_md(
         "",
         f"Generated {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
     ]
+    # Phase-3 actionability-mode banner (deterministic, verdict-inert emphasis routing). Present only
+    # for a resolved mode; insufficient/absent → no banner (unchanged from pre-Phase-3).
+    if actionability_mode and actionability_mode.get("dominant") in _MODE_BANNER:
+        _m = actionability_mode
+        lines += [
+            "",
+            f"**Actionability mode: `{_m['dominant']}`** (confidence: {_m.get('confidence')}) — "
+            f"{_MODE_BANNER[_m['dominant']]}",
+            "_Emphasis only: the per-skill sections below lead with the mode-relevant axes. The verdict "
+            "spine and all gating axes (dependency / safety) are unchanged and shown in full._",
+        ]
     if invoked_lenses:
         lines.append(f"Invoked lenses: `{invoked_lenses}`")
     lines.append("")
@@ -284,7 +330,8 @@ def _render_target_profile_md(
                  "summaries. Use these to trace a verdict back to its "
                  "supporting data.")
     lines.append("")
-    for short, r in sub_results.items():
+    for short in _mode_ordered_shorts(sub_results.keys(), actionability_mode):
+        r = sub_results[short]
         fields = PHASE_METRIC_FIELDS.get(short, [])
         if not fields:
             continue
