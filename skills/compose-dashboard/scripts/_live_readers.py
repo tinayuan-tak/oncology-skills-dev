@@ -198,6 +198,7 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
       - msi_summary_for_indication()       — PATIENT MSI prevalence (marker-paper; CRC+STAD only)
       - model_msi_summary_for_indication() — MODEL (DepMap) MSI prevalence (all lineages; fills the gap)
       - model_signature_summary_for_indication() — MODEL SBS signatures (MMR cross-validates MSI; weak SBS3-HRD)
+      - hrd_score_for_indication()          — PATIENT HRD genomic-SCAR (ABSOLUTE segtabs; remapped to hrd_scar_*)
     Each degrades to data_unavailable independently. DISPLAY facet, verdict-inert."""
     mod = _import_method("tcga_aneuploidy_burden")
     out = dict(mod.aneuploidy_burden_for_indication(indication))
@@ -227,6 +228,24 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
                 ("model_mmr_signature_class", "model_mmr_signature_high_fraction",
                  "model_hrd_signature_present_fraction", "model_signature_context"),
                 "model_mmr_signature_class")
+    # PATIENT HRD genomic-SCAR arm (scope-coherence Phase 4): the ACTIONABLE segment-based HRD read
+    # (ABSOLUTE segtabs, Myriad myChoice >= 42), complementing the WEAK SBS3 model proxy above. The
+    # method emits hrd_class/hrd_high_fraction/... which we REMAP to hrd_scar_* so the field names stay
+    # distinct from the SBS3 `hrd` process semantics (a plain _merge_axis can't rename). Degrade-safe:
+    # a failure leaves the scar fields None / data_unavailable, never breaks the burden read.
+    try:
+        _hrd = mod.hrd_score_for_indication(indication)
+        out["hrd_scar_class"] = _hrd.get("hrd_class")
+        out["frac_hrd_scar_high"] = _hrd.get("hrd_high_fraction")
+        out["n_hrd_scar_high"] = _hrd.get("n_hrd_high")
+        out["median_hrd_scar_score"] = _hrd.get("median_hrd_score")
+        out["hrd_scar_context"] = _hrd.get("hrd_context")
+    except Exception:  # noqa: BLE001 — additive axis; a failure degrades, never breaks
+        out.setdefault("frac_hrd_scar_high", None)
+        out.setdefault("n_hrd_scar_high", None)
+        out.setdefault("median_hrd_scar_score", None)
+        out.setdefault("hrd_scar_context", None)
+        out["hrd_scar_class"] = "data_unavailable"
     return out
 
 
