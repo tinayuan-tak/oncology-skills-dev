@@ -14,6 +14,7 @@ W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
 
 from __future__ import annotations
 
+import functools
 import sys
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from _skills_common import get_card_field, resolve_cards, _summary_is_unavailabl
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_dependency import synthesize_dependency
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
+# Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
+from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
@@ -141,6 +144,50 @@ SUBTYPE_CARDS = [
 # Cross-stratum delta threshold mirroring the card's interpretation_hints
 # (meaningful_subgroup_delta). Display-only flavor label, NOT a verdict.
 _MEANINGFUL_SUBGROUP_DELTA = 0.10
+# Power floor mirroring the card + subgroup_common/panorama.py SUBGROUP_N_FLOOR: DepMap per-indication
+# molecular strata below this are UNDERPOWERED and must never be read as a subtype-specific call.
+_SUBGROUP_N_FLOOR = 30
+# subgroup-stratified-dependency per-stratum `class` → subtype-scope verdict term (Phase 4). A powered,
+# MEASURED stratum yields a real call; everything else is inadmissible (underpowered / insufficient).
+_SUBGROUP_CLASS_TO_VERDICT = {
+    "strong_dependency":   "dependent",
+    "moderate_dependency": "moderately_dependent",
+    "not_dependent":       "not_dependent",
+    "insufficient":        "insufficient",
+}
+
+
+def _subtype_scope_verdict(per_subgroup: list) -> dict:
+    """Phase 4: the SUBTYPE-scope verdict — the queried strata's per-stratum dependency call, POWER-GATED.
+    A stratum is admissible only when evidence_state=='measured' AND subgroup_n>=floor; otherwise it is
+    `underpowered` and never read as a subtype-specific difference (guards multiple-testing over the
+    ~14 DepMap strata). ADDITIVE + verdict-INERT: this rides in the --subtypes panorama block only and
+    never touches the pooled dependency_verdict. Returns {by_stratum, n_admissible, headline}."""
+    by_stratum: dict = {}
+    for r in per_subgroup or []:
+        stratum = r.get("stratum")
+        if not stratum:
+            continue
+        n = r.get("subgroup_n")
+        powered = (r.get("evidence_state") == "measured"
+                   and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR)
+        by_stratum[stratum] = (_SUBGROUP_CLASS_TO_VERDICT.get(r.get("class"), "insufficient")
+                               if powered else "underpowered")
+    # NB: set literals (not tuples) for these membership tests — a ("x","y") tuple would false-match the
+    # cross-skill rule-id drift guard's (rule_id, verdict) precedence-tuple regex (test_no_reference_drift).
+    admissible = {s: v for s, v in by_stratum.items() if v not in {"underpowered", "insufficient"}}
+    if not admissible:
+        headline = "no adequately-powered molecular subgroup in this indication (DepMap strata below floor)"
+    else:
+        deps = [s for s, v in admissible.items() if v in {"dependent", "moderately_dependent"}]
+        nondeps = [s for s, v in admissible.items() if v == "not_dependent"]
+        if deps and nondeps:
+            headline = f"subgroup-specific dependency — dependent in {', '.join(deps)}; not in {', '.join(nondeps)}"
+        elif deps:
+            headline = f"dependent across measured subgroups ({', '.join(deps)})"
+        else:
+            headline = f"not dependent across measured subgroups ({', '.join(nondeps)})"
+    return {"by_stratum": by_stratum, "n_admissible": len(admissible), "headline": headline}
 
 
 def _resolve_dependency_subtype_panorama(target: str, indication: str | None,
@@ -183,6 +230,11 @@ def _resolve_dependency_subtype_panorama(target: str, indication: str | None,
         "scope_subtypes": list(subtypes),
         "subtype_dependency_panorama": {
             "subtype_dependency_pattern":       pattern,   # display-only flavor, NOT a verdict
+            # Phase 4: the SUBTYPE-scope verdict (power-gated per-stratum dependency call). This is the
+            # authoritative `subtype` rung of dependency_verdict_by_scope — it lives HERE (not in
+            # _headline) because the dispatcher resolves the --subtypes panorama AFTER headline_fn and
+            # merges this block into the headline. Verdict-inert to the pooled spine.
+            "subtype_verdict":                  _subtype_scope_verdict(per_subgroup),
             "n_subgroups_with_data":            summary.get("n_subgroups_with_data"),
             "max_subgroup_dependency":          summary.get("max_subgroup_dependency"),
             "min_subgroup_dependency":          summary.get("min_subgroup_dependency"),
@@ -409,6 +461,127 @@ def _strength_certainty(cards, fired=None, verdict_pair=None):
     return _dependency_strength_certainty(cards, v, cross_consortium_class)
 
 
+# ── Phase 3 (2026-08-19): DETERMINISTIC indication-lineage reduction — the SEL-honesty fix. ──────────
+# The pooled dependency_verdict is TARGET-GRAIN / pan-cancer: lineage-selectivity fires `lineage_selective`
+# if ANY lineage is enriched (for KRAS/COADREAD the top lineage is Pancreas, not the queried Bowel), so a
+# user asking an INDICATION question gets a pan-cancer answer with the indication-match left to the LLM.
+# This reduces the ALREADY-EMITTED per_lineage_stats / enriched_lineages to the QUERIED indication's DepMap
+# lineage (crosswalk) and emits `dependency_verdict_by_scope` {pan_cancer, indication, subtype}. ADDITIVE +
+# verdict-INERT: the pooled dependency_verdict is byte-stable (frozen by the KRAS/COADREAD replay guard);
+# no resolver rung is touched. See plan valiant-soaring-zephyr Phase 3.
+_LINEAGE_DEPENDENCY_CUT = -0.5     # DepMap-standard Chronos threshold for "dependent" (median)
+_LINEAGE_UNDERPOWER_FLOOR = 5      # mirrors the card's min_cell_lines_in_lineage
+# DepMap coarse lineages SHARED by >1 iDAS indication → a coarse-lineage read confounds them; the true
+# split needs depmap_oncotree_lineage (per-oncotree-sublineage stats — analysis-methods follow-on). We
+# reduce at coarse lineage and TAG the caveat rather than pretend precision we don't have.
+_SHARED_DEPMAP_LINEAGES = {"Lung", "Esophagus/Stomach"}   # SCLC/NSCLC ; STAD/ESCA
+
+
+@functools.lru_cache(maxsize=1)
+def _indication_lineage_map() -> dict:
+    """canonical_code -> {depmap_lineage, depmap_oncotree_lineage} from target-contracts'
+    indication_crosswalk.yaml. Read-only; {} if unavailable (the by-scope layer then degrades to a
+    typed-empty indication rung — honest, never a crash)."""
+    try:
+        import yaml
+        path = DEFAULT_CONTRACTS_REPO / "vocabularies" / "indication_crosswalk.yaml"
+        data = yaml.safe_load(path.read_text()) or {}
+        return {e["canonical_code"]: {"depmap_lineage": e.get("depmap_lineage"),
+                                      "depmap_oncotree_lineage": e.get("depmap_oncotree_lineage")}
+                for e in data.get("indications", []) if e.get("canonical_code")}
+    except Exception:   # noqa: BLE001 — additive/verdict-inert; absence must not break the spine
+        return {}
+
+
+def _infer_indication(cards) -> str | None:
+    """The queried indication is not threaded into headline_fn (signature is (cards, fired, verdict_pair)),
+    but several indication-aware cards echo it (abundance-dependency, recommended-models). Take the first
+    non-null `indication` across card summaries; None → the indication rung is typed-empty."""
+    for c in cards or []:
+        if not isinstance(c, dict):
+            continue
+        ind = (c.get("summary") or {}).get("indication")
+        if isinstance(ind, str) and ind.strip():
+            return ind.strip().upper()
+    return None
+
+
+def _indication_lineage_read(cards, indication) -> dict:
+    """Reduce the pan-cancer lineage card to the QUERIED indication's DepMap lineage. Reads the
+    already-emitted per_lineage_stats + enriched_lineages (guarding the fixture's non-list placeholder)
+    + the crosswalk. Returns a typed read {scope:'indication', class, ...}; class ∈
+    {selective_in_indication, dependent_not_enriched, not_dependent_in_indication, underpowered,
+    not_in_panel, data_unavailable}. NEVER raises; NEVER touches dependency_verdict."""
+    read = {"scope": "indication", "indication": indication, "depmap_lineage": None,
+            "class": "data_unavailable", "is_enriched": False,
+            "median_chronos": None, "n": None, "q_value": None, "effect_size": None,
+            "shared_lineage_caveat": False, "_note": None}
+    if not indication:
+        read["_note"] = "no indication in query (target-grain run) — indication rung not computed"
+        return read
+    lineage = (_indication_lineage_map().get(indication) or {}).get("depmap_lineage")
+    read["depmap_lineage"] = lineage
+    if not lineage:
+        read["_note"] = f"no DepMap lineage crosswalk for indication {indication}"
+        return read
+    read["shared_lineage_caveat"] = lineage in _SHARED_DEPMAP_LINEAGES
+
+    def _row(rows, key):
+        if not isinstance(rows, list):
+            return None
+        return next((r for r in rows if isinstance(r, dict) and r.get(key) == lineage), None)
+
+    enriched = _row(get_card_field(cards, "dependency-lineage-selectivity", "enriched_lineages"), "lineage")
+    per_lineage = _row(get_card_field(cards, "dependency-lineage-selectivity", "per_lineage_stats"), "lineage")
+
+    # 1) queried lineage is a SIGNIFICANT enrichment hit → the dependency IS selective to this indication
+    if enriched is not None:
+        read.update(**{"class": "selective_in_indication", "is_enriched": True,
+                       "median_chronos": enriched.get("median_chronos"), "n": enriched.get("n"),
+                       "q_value": enriched.get("q_value"), "effect_size": enriched.get("effect_size")})
+        read["_note"] = f"{lineage} is a significant lineage-selective hit for this dependency"
+        return read
+    # 2) present in the full per-lineage table but not an enrichment hit → classify by median depth
+    if per_lineage is not None:
+        n, med = per_lineage.get("n"), per_lineage.get("median_chronos")
+        read.update(median_chronos=med, n=n)
+        if isinstance(n, (int, float)) and n < _LINEAGE_UNDERPOWER_FLOOR:
+            read.update(**{"class": "underpowered", "_note": f"{lineage} has n={n} (< floor)"})
+        elif isinstance(med, (int, float)) and med <= _LINEAGE_DEPENDENCY_CUT:
+            read.update(**{"class": "dependent_not_enriched",
+                           "_note": f"{lineage} is dependent (median {med:.2f}) but not lineage-selectively so"})
+        else:
+            read.update(**{"class": "not_dependent_in_indication",
+                           "_note": f"{lineage}: median Chronos {med} above the dependency cut"})
+        return read
+    # 3) enriched_lineages had no hit AND the full table is unavailable (fixture placeholder) or the
+    #    lineage is genuinely absent from the panel — distinguish only when the table is a real list.
+    pls = get_card_field(cards, "dependency-lineage-selectivity", "per_lineage_stats")
+    if isinstance(pls, list):
+        read.update(**{"class": "not_in_panel", "_note": f"{lineage} not among screened lineages"})
+    else:
+        read["_note"] = (f"{lineage} not an enrichment hit; full per-lineage table unavailable this run "
+                         "(cannot distinguish not-dependent from absent)")
+    return read
+
+
+def _dependency_verdict_by_scope(cards, verdict_pair) -> dict:
+    """The scope-parameterized read {pan_cancer, indication, subtype}. ADDITIVE sibling of the pooled
+    dependency_verdict (which stays the pan-cancer headline). subtype is a typed-empty placeholder here
+    (Phase 4 populates it from the --subtypes panorama, which is resolved on a separate dispatcher path)."""
+    v, drv = verdict_pair or ("insufficient", None)
+    return {
+        "pan_cancer": {"verdict": v, "driving_rule_id": drv,
+                       "_note": "pooled target-grain verdict (the byte-stable dependency_verdict)"},
+        "indication": _indication_lineage_read(cards, _infer_indication(cards)),
+        "subtype": {"scope": "subtype", "class": "not_scoped_this_run",
+                    "_note": "pass --subtypes to resolve the molecular-subgroup verdict; when passed, the "
+                             "authoritative power-gated subtype verdict is emitted at "
+                             "headline.subtype_dependency_panorama.subtype_verdict (resolved after this "
+                             "placeholder — see _subtype_scope_verdict)"},
+    }
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
@@ -472,6 +645,11 @@ def _headline(cards, fired, verdict_pair):
     # _skills_common/dependency_claims.py + claim_vector_core.py.
     hl["claim_vector"] = dependency_claim_vector(hl, cards)
     hl["key_signals"] = dependency_key_signals(hl, cards)
+    # Phase 3 (2026-08-19): scope-parameterized read {pan_cancer, indication, subtype}. ADDITIVE +
+    # verdict-INERT — the pooled dependency_verdict above is untouched (byte-stable, KRAS/COADREAD replay
+    # guard). Makes the SEL claim honest about the QUERIED indication's lineage (vs "selective to SOME
+    # lineage"); the pooled call remains the pan_cancer rung. See _dependency_verdict_by_scope.
+    hl["dependency_verdict_by_scope"] = _dependency_verdict_by_scope(cards, verdict_pair)
     return hl
 
 
@@ -500,6 +678,9 @@ _SYNTHESIS_FACET_KEYS = (
     # the modality-blind claim vector SIGNAL decomposition + brief cited read (this subskill's
     # within-lens integration; the cross-lens layer reads the per-claim SIGNALS, not a certainty)
     "claim_vector", "key_signals",
+    # scope-parameterized read (Phase 3) — pooled pan-cancer vs the QUERIED indication's lineage;
+    # lets the composed synthesis cite the indication answer instead of the pan-cancer one. Verdict-inert.
+    "dependency_verdict_by_scope",
 )
 
 

@@ -111,3 +111,18 @@ def test_replay_headline_resolves_broadly(kras_decision):
     assert len(non_null) >= 15, (
         f"only {len(non_null)}/{len(h)} headline fields resolved for the frozen KRAS replay — suspect a "
         f"reader field-name drift (get_card_field -> None). Non-null: {sorted(non_null)}")
+
+
+def test_replay_by_scope_indication_is_honest(kras_decision):
+    """Phase 3: dependency_verdict_by_scope reduces the pan-cancer lineage card to the QUERIED
+    indication's lineage. For KRAS/COADREAD, Bowel IS a frozen enrichment hit → the indication rung is
+    selective_in_indication, while the pan-cancer rung passes the pooled verdict through unchanged."""
+    h = kras_decision.get("headline") or {}
+    by = h.get("dependency_verdict_by_scope") or {}
+    assert set(by) >= {"pan_cancer", "indication", "subtype"}, "by-scope layer missing a rung"
+    # pan-cancer rung == the pooled verdict (verdict-inert: the reduction never moves the spine)
+    assert by["pan_cancer"]["verdict"] == h.get("dependency_verdict")
+    ind = by["indication"]
+    assert ind["depmap_lineage"] == "Bowel"                      # COADREAD → Bowel crosswalk
+    assert ind["class"] == "selective_in_indication", (
+        f"Bowel is a frozen enriched lineage for KRAS → expected selective_in_indication, got {ind['class']!r}")
