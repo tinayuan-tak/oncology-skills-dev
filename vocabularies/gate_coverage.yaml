@@ -253,11 +253,15 @@ modality_fit:
     gate_name: Surface-biologics fit
     modality_relevance: [adc, bite_tce, antibody]
     band: sufficiency
-    framework_can_evidence: blind
-    evidences: "surface density / internalization / topology for ADC/BiTE/antibody."
+    framework_can_evidence: partial
+    evidences: "topology + surfaceome-family + LIVE surface-abundance-density (calibrated copies/cell vs the TCE floor) + shed + therapeutic-window; ADC/TCE fit_class composed."
     coverage_note: |
-      blind on the DECIDING axis for most biologics: surface abundance/density MS + avidity/
-      co-expression are data-blocked (3/5 surface cards not on S3). Family/topology only.
+      partial (2026-08-19: CORRECTED from a stale `blind` — review H1). surface-abundance-density is
+      LIVE (derives estimated_copies_per_cell + a 5-level surface_density_class vs the ~1000/cell TCE
+      floor; the resolver carries measured below-floor downgrade rungs). REAL blind legs: the DERIVED
+      surface-density MS product (method built, product not materialized) + endocytosis/turnover for
+      ADC-vs-TCE discrimination + avidity/co-expression. Kept in sync with the canonical ontology
+      target_profiling_axes.yaml (surface_modality: partial).
 
   - short: safety
     risk_category: safety
