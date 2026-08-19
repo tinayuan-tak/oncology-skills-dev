@@ -22,6 +22,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_selectivity import synthesize_selectivity
 from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
+from _skills_common.selectivity_question_table import selectivity_question_table
 from _skills_common.selectivity_hero import emit_selectivity_hero
 # The normal-breadth VETO clamp is single-sourced in _skills_common.selectivity_veto so that BOTH
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
@@ -255,6 +256,11 @@ def _headline(cards, fired, verdict_pair):
     # replay guard). See _skills_common/selectivity_claims.py + claim_vector_core.py.
     hl["claim_vector"] = selectivity_claim_vector(hl, cards)
     hl["key_signals"] = selectivity_key_signals(hl, cards)
+    # The 8-question LEADING GRAPHIC (Q × primary-signal / supporting / confidence) — the selectivity
+    # analogue of presence's question_table, rendered by the SHARED render_question_table_html. A
+    # verdict-INERT projection over the headline + claim_vector (WIN/DIST/INT/SAFE); never touches the
+    # selectivity_class spine or the normal-breadth veto.
+    hl["question_table"] = selectivity_question_table(hl, cards)
     return hl
 
 

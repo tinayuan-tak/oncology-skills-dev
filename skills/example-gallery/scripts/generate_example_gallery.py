@@ -1212,17 +1212,23 @@ def _scope_breadcrumb_html(decision: dict, indication: str) -> str:
 
 
 def _question_table_html(decision: dict, h: dict) -> str:
-    """The LEADING 7-question summary table — computed live from the presence claim_vector +
-    answer-key card fields, then rendered by the SHARED renderer (`render_question_table_html`) so the
-    gallery and the composed target-profile dashboard produce the identical table. Verdict-inert;
+    """The LEADING question × (data · signal · confidence) summary table, rendered by the SHARED
+    renderer (`render_question_table_html`) so the gallery and the composed target-profile dashboard
+    produce the identical table. GENERIC: prefers the rows the skill already EMITTED on
+    `headline['question_table']` (tumor-presence's 7-question + tumor-selectivity's 8-question tables
+    both emit it); falls back to computing the presence table live for older packages. Verdict-inert;
     best-effort (absent → nothing rendered). include_css=True ships the shared table CSS inline."""
     try:
         if str(SKILLS_DIR) not in sys.path:
             sys.path.insert(0, str(SKILLS_DIR))
         from _skills_common.presence_question_table import (presence_question_table,
                                                             render_question_table_html)
-        rows = presence_question_table(h, decision.get("cards", []))
-        return render_question_table_html(rows, verdict=h.get("presence_verdict"), include_css=True)
+        # the skill's own verdict field for the caption (presence_verdict | selectivity_class)
+        verdict = h.get("presence_verdict") or h.get("selectivity_class")
+        rows = h.get("question_table")           # emitted by the skill (generic, preferred)
+        if not rows:                             # fallback: recompute the presence table live
+            rows = presence_question_table(h, decision.get("cards", []))
+        return render_question_table_html(rows, verdict=verdict, include_css=True)
     except Exception as e:  # noqa: BLE001 — the table is additive; never break the page
         print(f"[gallery] question table unavailable ({type(e).__name__}: {e})", file=sys.stderr)
         return ""
@@ -1451,6 +1457,19 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                      '<span class="hint">— grouped by DEP / SEL / COND / CHEM; click a row to expand</span></div>')
         parts.append(_render_dependency_layout(decision, run_dir, fig_map, fired_by_card,
                                                tables_dir, target, indication, interactive))
+    elif skill == "tumor-selectivity" and cards:
+        # LEADING view: the 8-question × (data · signal · confidence) selectivity table (WIN-drives /
+        # SAFE-gates), rendered from the emitted headline['question_table'] via the shared renderer.
+        parts.append(_question_table_html(decision, h))
+        # Detailed evidence, demoted to a drill-down: the flat per-card list (same _card_block_html).
+        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
+                     '<span class="hint">— per-card: axis-A + veto instruments + additive facets; '
+                     'click a row to expand. Display only.</span></summary><div class="drillbody">')
+        parts.append('<div class="cardlist">')
+        for idx, c in enumerate(cards):
+            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
+                                          target, indication, uid=f"{idx}"))
+        parts.append('</div></div></details>')
     else:
         # ONE unified "Evidence at a glance" section: the table of cards IS the collapsible list.
         # Each row = title + headline chip (collapsed); click to expand INLINE → key metrics + the

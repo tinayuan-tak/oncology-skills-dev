@@ -516,12 +516,29 @@ def test_dependency_claim_scope_layout(tmp_path):
 
 
 def test_dependency_layout_only_for_functional_requirement(tmp_path):
-    # a skill that is NEITHER functional-requirement NOR tumor-presence must get the FLAT cardlist
-    # (no claim layout, no presence scope layout) — the byte-stable path for every other skill.
-    d = _dependency_decision(); d["skill"] = "tumor-selectivity"
+    # a skill that is NEITHER functional-requirement, tumor-presence, NOR tumor-selectivity must get
+    # the FLAT cardlist (no claim layout, no scope/question-table layout) — the byte-stable path for
+    # every other skill.
+    d = _dependency_decision(); d["skill"] = "mechanism-and-pharmacology"
     page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
     assert "Dependency claims" not in page and "DEP · Genetic dependency" not in page
     assert "Evidence at a glance" in page   # the flat header
+
+
+def test_selectivity_layout_renders_question_table(tmp_path):
+    # tumor-selectivity gets the LEADING 8-question table (from headline['question_table']) + a
+    # "Detailed evidence" drill-down, NOT the flat "Evidence at a glance" header.
+    d = _dependency_decision(); d["skill"] = "tumor-selectivity"
+    d["headline"]["question_table"] = [
+        {"id": "Q1", "question": "Over-expressed vs tissue-of-origin?", "primary": "axis-A strong",
+         "support": "RNA→protein: rna_protein_concordant",
+         "signal": {"fill": 5, "polarity": "supports", "label": "strong"}, "confidence": {"dots": 3}},
+    ]
+    d["headline"]["selectivity_class"] = "field_effect_tumor_selective"
+    page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
+    assert "Dependency claims" not in page          # not the FR layout
+    assert "<table" in page and "Q1" in page         # the leading question table rendered
+    assert "Detailed evidence" in page               # per-card drill-down, not the flat header
 
 
 def test_dependency_catchall_no_card_dropped(tmp_path):
