@@ -672,9 +672,13 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
 
 
 def load_and_classify(target: str, matrix_path=None, sidecar_path=None,
-                      model_path=None) -> dict:
+                      model_path=None, plot_data_out=None) -> dict:
     """Full pipeline for one target: resolve accession → read column → classify.
-    Panel size (detection denominator) comes from the same matrix read."""
+    Panel size (detection denominator) comes from the same matrix read.
+
+    plot_data_out (figure Stage 1): OPT-IN dir. When set, persists the per-cell-line long frame
+    (plot_data_protein_abundance.parquet) here — where abundance_by_model + lineage are in memory —
+    so figures.render_from_plot_data draws with NO live read. Default None => byte-identical no-op."""
     acc = resolve_accession(target, sidecar_path=sidecar_path)
     if acc is None:
         return compute_summary(target, None, {}, n_panel=None)
@@ -685,8 +689,16 @@ def load_and_classify(target: str, matrix_path=None, sidecar_path=None,
     # Pass the PANEL-WIDE all-protein median null so broadly_high is decided panel-relative (H3 fix):
     # a protein is "broadly_high" when its median abundance is in the top (1-HIGH_ABUNDANCE_PERCENTILE)
     # of ALL proteins, not relative to its own spread. Same cached null as the display percentile.
-    return compute_summary(target, col, lineage, n_panel=panel_size,
-                           all_protein_medians=_all_protein_median_null(matrix_path))
+    summary = compute_summary(target, col, lineage, n_panel=panel_size,
+                              all_protein_medians=_all_protein_median_null(matrix_path))
+    if plot_data_out is not None:  # figure Stage 1: persist plot_data during resolution (best-effort)
+        try:
+            _pd = Path(plot_data_out)
+            _pd.mkdir(parents=True, exist_ok=True)
+            emit_plot_data_protein(col, lineage, _pd)
+        except Exception:  # noqa: BLE001 — plot_data persistence is additive; never break resolution
+            pass
+    return summary
 
 
 def _main(argv=None):

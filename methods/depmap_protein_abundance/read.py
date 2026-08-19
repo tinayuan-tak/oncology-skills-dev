@@ -16,18 +16,23 @@ degradation path holds, but the _live_read_error key disambiguates for provenanc
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from . import cli as _cli
 
 
-def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
+def read_target_summary(target: str, indication: Optional[str] = None,
+                        plot_data_out: Optional[Path] = None) -> dict:
     """Cell-line protein-abundance distribution for a target. Protein-intrinsic —
-    indication accepted for the CARD_DISPATCHERS contract but NOT consumed."""
+    indication accepted for the CARD_DISPATCHERS contract but NOT consumed.
+
+    plot_data_out (figure Stage 1): OPT-IN dir forwarded to load_and_classify so card resolution
+    persists plot_data_protein_abundance.parquet. Default None => byte-identical no-op."""
     try:
         # Panel size (detection denominator) comes from the same matrix read inside
         # load_and_classify — fraction_detected = detected / total-MS-lines.
-        summary = _cli.load_and_classify(target)
+        summary = _cli.load_and_classify(target, plot_data_out=plot_data_out)
         # All-gene percentile null: where this protein's median abundance ranks among
         # ALL proteins' medians in the DepMap MS panel (context = pan-panel, protein-
         # intrinsic; indication not consumed). Additive — display + companion categorical.
