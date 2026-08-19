@@ -342,6 +342,7 @@ def main() -> int:
             presence_facet=presence_facet,
             fragility=(None if args.ab_suppress_fragility_prompt else fragility),
             axis_info=axis_info,
+            actionability_mode=actionability_mode,
         )
         llm_output = synthesize_structured(
             system_prompt=_SYSTEM_PROMPT,

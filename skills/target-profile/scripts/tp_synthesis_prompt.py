@@ -336,6 +336,54 @@ def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
     return lines
 
 
+# Per-mode narration EMPHASIS steer (actionability_mode facet). EMPHASIS-ONLY: it reorders what the
+# narration LEADS with and frames off-mode negatives as expected — it NEVER changes the verdict,
+# recommendation, gate, or audited confidence tier (all clamped deterministically in run.main).
+_MODE_STEER = {
+    "cis_feature": ("Selection basis = a molecular FEATURE (a biomarker: mutation / fusion / amp+GoF / "
+                    "pocket / neo-epitope). LEAD the narrative with the genomic-alteration + dependency + "
+                    "tractability story. Treat a weak surface/abundance read as EXPECTED (a cis-feature "
+                    "target need not be over-abundant) — NOT a disqualifier."),
+    "abundance": ("Selection basis = selective OVER-ABUNDANCE (an expression/density cutoff). LEAD with "
+                  "presence + selectivity + surface-modality + normal-tissue safety. Treat a `non_dependent` "
+                  "read as EXPECTED (an ADC/TCE antigen need not be a genetic dependency); note that "
+                  "declaring the biologics `--modality` lets the modality-scoped veto-suppression apply."),
+    "mixed": ("BOTH modes fire — narrate the cis handle AND the abundance readout as MUTUALLY REINFORCING "
+              "(e.g. amplification is simultaneously the biomarker and the density driver; EGFR/MET serve "
+              "both SM and ADC). Do NOT bury either story."),
+    "dependency_relational": ("No positive cis handle and not over-abundant — actioned via a PARTNER/CONTEXT "
+                              "(LoF-driver → MDM2/synthetic-lethal; partner-conditional SL; lineage/paralog "
+                              "co-dependency). LEAD with dependency + SL/combinatorial; patient-selection = "
+                              "the partner/context biomarker, not the target's own lesion or abundance."),
+    # `insufficient` deliberately has NO steer → emits no block → the prompt is unchanged from pre-Phase-2
+    # (neutral == today). This is the common case for uncurated / signal-thin targets.
+}
+
+
+def format_mode_governance_block(mode_facet: Optional[dict]) -> str:
+    """Render the actionability_mode profile as an EMPHASIS-ONLY governance block for the synthesis
+    prompt (parallel to biology_axis's format_axis_governance_block). Reorders narrative emphasis;
+    never touches the verdict. Returns '' when the facet is absent/insufficient (neutral = today)."""
+    if not mode_facet:
+        return ""
+    dominant = mode_facet.get("dominant")
+    steer = _MODE_STEER.get(dominant)
+    if not steer:
+        return ""
+    arms = mode_facet.get("arms") or {}
+    secondary = mode_facet.get("secondary")
+    conf = mode_facet.get("confidence")
+    parts = [
+        "### Actionability mode (post-hoc, EMPHASIS ONLY — never changes the verdict)",
+        f"dominant={dominant}" + (f", secondary={secondary}" if secondary else "")
+        + f" (arm tiers: {arms}; confidence={conf}).",
+        steer,
+        "This is ORTHOGONAL to the biology_axis (where the drug acts) and never suppresses a fired "
+        "KILLER/veto or a gating-axis (dependency/safety) verdict.",
+    ]
+    return "\n".join(parts)
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -348,6 +396,7 @@ def _build_user_prompt(
     presence_facet: Optional[dict] = None,
     fragility: Optional[dict] = None,
     axis_info: Optional[dict] = None,
+    actionability_mode: Optional[dict] = None,
 ) -> str:
     """Compose the user-message text: biology-axis governance + sub-verdicts + per-axis
     how-solid (certainty) block + modality-scoped matrix slice + biomarker convergence facet +
@@ -371,6 +420,10 @@ def _build_user_prompt(
         from _skills_common.biology_axis import format_axis_governance_block
         lines.append("")
         lines.append(format_axis_governance_block(axis_info))
+    _mode_block = format_mode_governance_block(actionability_mode)
+    if _mode_block:
+        lines.append("")
+        lines.append(_mode_block)
     if modality:
         lines.append(f"Modality lens (post-hoc, reweight narrative): {modality}")
     if therapeutic_hypothesis:
