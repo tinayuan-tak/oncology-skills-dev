@@ -31,12 +31,23 @@ def _v(*rule_ids):
 # --- mutation axis: driver classes ----------------------------------------
 
 def test_biomarker_stratified_is_primary_driver():
-    assert _v("mutant-strongly-dependent-supportive") == (
+    # scope-coherence Phase 1: a biomarker verdict now requires the indication-scope gate co-fire
+    # (mutant-indication-scoped-context, fired when evidence_scope is within_indication) — a pan-lineage
+    # dependency alone no longer earns it. The gate does NOT change the driving_rule (kept explicit).
+    assert _v("mutant-strongly-dependent-supportive", "mutant-indication-scoped-context") == (
         "biomarker_stratified_dependency", "mutant-strongly-dependent-supportive")
 
 
 def test_moderate_biomarker():
-    assert _v("mutant-moderately-dependent-supportive")[0] == "moderate_biomarker_dependency"
+    assert _v("mutant-moderately-dependent-supportive", "mutant-indication-scoped-context")[0] == (
+        "moderate_biomarker_dependency")
+
+
+def test_biomarker_requires_indication_scope_gate():
+    # The Phase-1 flip: the SAME strong dependency WITHOUT the indication-scope gate (i.e. pan-lineage
+    # evidence only) no longer reads biomarker — it falls through (here, to insufficient with nothing
+    # else fired). The by_scope block surfaces the pan-cancer-extrapolation scope for such a call.
+    assert _v("mutant-strongly-dependent-supportive")[0] == "insufficient"
 
 
 def test_lof_and_missense_dominant_patterns():
@@ -75,7 +86,9 @@ def test_precedence_by_strength_strong_cn_over_moderate_mut():
     # Effect-strength precedence: for a dually-altered gene, a STRONG CN-dependency outranks a MODERATE
     # mutation-dependency — the larger effect is named the driver. Both map to the stratified
     # verdicts, but the driving_rule must be the strong CN rule, not the moderate mut rule.
-    v, drv = _v("mutant-moderately-dependent-supportive", "cn-amplified-strongly-dependent-supportive")
+    # Both dependency rungs carry their indication-scope gate (Phase 1); strong CN still wins precedence.
+    v, drv = _v("mutant-moderately-dependent-supportive", "mutant-indication-scoped-context",
+                "cn-amplified-strongly-dependent-supportive", "cn-amplified-indication-scoped-context")
     assert v == "biomarker_stratified_dependency"
     assert drv == "cn-amplified-strongly-dependent-supportive", (
         "strong CN dependency must win over moderate mutation dependency (precedence-by-strength)")
@@ -153,15 +166,16 @@ def test_subtype_pattern_subgroup_specific_when_delta_high(monkeypatch):
     rows = [{"stratum": "MSI_H", "evidence_state": "measured"},
             {"stratum": "MSS", "evidence_state": "measured"}]
     res = _panorama_with(monkeypatch, rows, delta=0.22, n_with_data=2)
-    assert res["subtype_panorama"]["subtype_mutation_pattern"] == "subgroup_specific_pattern"
-    assert res["subtype_panorama"]["measured_strata"] == ["MSI_H", "MSS"]
+    # Phase 3: the return is now per-axis (axes.subtype_axis is the SNV panorama, unchanged shape).
+    assert res["axes"]["subtype_axis"]["subtype_mutation_pattern"] == "subgroup_specific_pattern"
+    assert res["axes"]["subtype_axis"]["measured_strata"] == ["MSI_H", "MSS"]
 
 
 def test_subtype_pattern_uniform_when_delta_low(monkeypatch):
     rows = [{"stratum": "MSI_H", "evidence_state": "measured"},
             {"stratum": "MSS", "evidence_state": "measured"}]
     res = _panorama_with(monkeypatch, rows, delta=0.03, n_with_data=2)
-    assert res["subtype_panorama"]["subtype_mutation_pattern"] == "uniform_across_subgroups"
+    assert res["axes"]["subtype_axis"]["subtype_mutation_pattern"] == "uniform_across_subgroups"
 
 
 def test_subtype_pattern_not_informative_when_underpowered(monkeypatch):
@@ -169,7 +183,7 @@ def test_subtype_pattern_not_informative_when_underpowered(monkeypatch):
     rows = [{"stratum": "MSI_H", "evidence_state": "measured"},
             {"stratum": "MSS", "evidence_state": "absent"}]
     res = _panorama_with(monkeypatch, rows, delta=None, n_with_data=1)
-    assert res["subtype_panorama"]["subtype_mutation_pattern"] == "not_informative"
+    assert res["axes"]["subtype_axis"]["subtype_mutation_pattern"] == "not_informative"
 
 
 def test_subtype_axis_is_not_in_scalar_cards():

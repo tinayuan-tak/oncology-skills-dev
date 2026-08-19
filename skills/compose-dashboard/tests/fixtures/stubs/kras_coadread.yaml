@@ -747,6 +747,9 @@ mutation-stratified-dependency:
       p25_chronos: -1.58
       p75_chronos: -1.20
   mutation_stratification_class: mutant_strongly_dependent
+  evidence_scope: within_indication          # KRAS/COADREAD is a within-indication biomarker (matches the
+                                             # real fixture); required by the Phase-1 mutant-indication-
+                                             # scoped-context gate for the biomarker_stratified_dependency rung.
 
 # ---------------------------------------------------------------------------
 # STUB-COVERAGE COMPLETION (2026-08-11 code review). The intracellular-intrinsic-base

@@ -48,8 +48,12 @@ def test_genetic_dependency_wins_first_match_over_drug_response():
     """A gene both KO-dependent AND drug-sensitive in its mutant subset: the KO-proven genetic
     dependency is the more mechanism-anchored call and precedes the drug rung (first-match)."""
     _skip_if_rung_absent()
+    # scope-coherence Phase 1: the biomarker rung requires the indication-scope gate co-fire
+    # (mutant-indication-scoped-context). A within-indication KO-dependency still wins first-match
+    # over the drug-response rung; the gate does not change that precedence.
     verdict, driving = resolve_verdict_for_gate(
         _rules("mutant-strongly-dependent-supportive",
+               "mutant-indication-scoped-context",
                "mutation-drug-response-strongly-sensitive-supportive"), "genomic_alteration")
     assert verdict == "biomarker_stratified_dependency"
     assert driving == "mutant-strongly-dependent-supportive"

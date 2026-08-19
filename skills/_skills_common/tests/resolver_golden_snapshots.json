@@ -3498,56 +3498,56 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive": [
     "confirmed_driver",
@@ -3558,112 +3558,112 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
     "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive": [
     "confirmed_driver",
@@ -3678,56 +3678,56 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive": [
     "confirmed_driver",
@@ -3738,112 +3738,112 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
     "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive": [
     "confirmed_driver",
@@ -3854,56 +3854,56 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive": [
     "confirmed_driver",
@@ -3914,112 +3914,112 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive": [
     "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive": [
     "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-mixed-neutral": [
     "mixed_pattern",
     "mut-mixed-neutral"
    ],
    "alteration-role-gof-driver-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "mixed_pattern",
+    "mut-mixed-neutral"
    ],
    "alteration-role-gof-driver-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "mixed_pattern",
+    "mut-mixed-neutral"
    ],
    "alteration-role-gof-driver-supportive,mut-no-mutations-neutral": [
     "passenger_pattern",
     "mut-no-mutations-neutral"
    ],
    "alteration-role-gof-driver-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
    ],
    "alteration-role-gof-driver-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
    ],
    "alteration-role-gof-driver-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "insufficient",
+    null
    ],
    "alteration-role-gof-driver-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "insufficient",
+    null
    ],
    "alteration-role-lof-driver-neutral": [
     "insufficient",
@@ -4038,56 +4038,56 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive": [
     "confirmed_driver",
@@ -4098,112 +4098,112 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
     "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive": [
     "confirmed_driver",
@@ -4218,56 +4218,56 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive": [
     "confirmed_driver",
@@ -4278,112 +4278,112 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
     "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive": [
     "confirmed_driver",
@@ -4394,56 +4394,56 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive": [
     "confirmed_driver",
@@ -4454,112 +4454,112 @@
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "multi_class_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "confirmed_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive": [
     "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive": [
     "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,mut-mixed-neutral": [
     "mixed_pattern",
     "mut-mixed-neutral"
    ],
    "alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "mixed_pattern",
+    "mut-mixed-neutral"
    ],
    "alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "mixed_pattern",
+    "mut-mixed-neutral"
    ],
    "alteration-role-lof-driver-neutral,mut-no-mutations-neutral": [
     "passenger_pattern",
     "mut-no-mutations-neutral"
    ],
    "alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
    ],
    "alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
    ],
    "alteration-role-lof-driver-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "insufficient",
+    null
    ],
    "alteration-role-lof-driver-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "insufficient",
+    null
    ],
    "cn-patient-focal-amplified-supportive": [
     "recurrent_amplification_driver",
@@ -4574,56 +4574,56 @@
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "recurrent_amplification_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "recurrent_amplification_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive": [
     "recurrent_deletion_driver",
@@ -4634,112 +4634,112 @@
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "recurrent_deletion_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "recurrent_deletion_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
     "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-mixed-neutral": [
     "recurrent_amplification_driver",
     "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-no-mutations-neutral": [
     "recurrent_amplification_driver",
     "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-patient-focal-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive": [
     "recurrent_deletion_driver",
@@ -4754,56 +4754,56 @@
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "recurrent_amplification_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "recurrent_amplification_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive": [
     "recurrent_deletion_driver",
@@ -4814,112 +4814,112 @@
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "recurrent_deletion_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "recurrent_deletion_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
     "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-mixed-neutral": [
     "recurrent_deletion_driver",
     "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-no-mutations-neutral": [
     "recurrent_deletion_driver",
     "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-patient-focal-deleted-supportive"
    ],
    "cn-recurrently-amplified-supportive": [
     "recurrent_amplification_driver",
@@ -4930,56 +4930,56 @@
     "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-mixed-neutral": [
     "recurrent_amplification_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
     "recurrent_amplification_driver",
     "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_amplification_driver",
+    "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-deleted-supportive": [
     "recurrent_deletion_driver",
@@ -4990,112 +4990,112 @@
     "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-mixed-neutral": [
     "recurrent_deletion_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
     "recurrent_deletion_driver",
     "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "recurrent_deletion_driver",
+    "cn-recurrently-deleted-supportive"
    ],
    "mut-lof-dominant-supportive": [
     "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "lof_dominant_pattern",
+    "mut-lof-dominant-supportive"
    ],
    "mut-missense-dominant-supportive": [
     "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "missense_dominant_pattern",
+    "mut-missense-dominant-supportive"
    ],
    "mut-mixed-neutral": [
     "mixed_pattern",
     "mut-mixed-neutral"
    ],
    "mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "mixed_pattern",
+    "mut-mixed-neutral"
    ],
    "mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "mixed_pattern",
+    "mut-mixed-neutral"
    ],
    "mut-no-mutations-neutral": [
     "passenger_pattern",
     "mut-no-mutations-neutral"
    ],
    "mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
    ],
    "mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
    ],
    "mutant-moderately-dependent-supportive": [
-    "moderate_biomarker_dependency",
-    "mutant-moderately-dependent-supportive"
+    "insufficient",
+    null
    ],
    "mutant-strongly-dependent-supportive": [
-    "biomarker_stratified_dependency",
-    "mutant-strongly-dependent-supportive"
+    "insufficient",
+    null
    ]
   }
  },

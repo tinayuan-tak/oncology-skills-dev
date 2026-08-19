@@ -42,7 +42,7 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 )
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.4.0"
+SKILL_VERSION = "2.5.0"
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
 # cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
@@ -86,7 +86,18 @@ CARDS = [
 # touches no resolver rung, so the whole-cohort verdict is byte-stable whether or not a subtype
 # scope is passed.
 SUBTYPE_CARDS = [
-    "subgroup-stratified-mutation-frequency",
+    "subgroup-stratified-mutation-frequency",   # SNV frequency by molecular subgroup
+    "subgroup-stratified-copy-number",          # patient focal amp/del by subgroup (TCGA GISTIC per-sample)
+    "subgroup-stratified-fusion",               # fusion recurrence by subgroup (usually underpowered per stratum)
+]
+
+# Per-axis subtype-panorama config: (card_id, headline_axis_key, cross-stratum delta field, display
+# pattern key, delta threshold). The mutation axis keeps its original keys for backward-compatibility;
+# the CN + fusion axes are the scope-coherence Phase 3 broadening (descriptive, verdict-inert).
+_SUBTYPE_AXES = [
+    ("subgroup-stratified-mutation-frequency", "subtype_axis",        "cross_subgroup_delta_frequency",          "subtype_mutation_pattern", 0.10),
+    ("subgroup-stratified-copy-number",        "subtype_cn_axis",     "cross_subgroup_delta_high_amp_fraction",  "subtype_cn_pattern",       0.10),
+    ("subgroup-stratified-fusion",             "subtype_fusion_axis", "cross_subgroup_delta_fusion_frequency",   "subtype_fusion_pattern",   0.05),
 ]
 
 QUESTION = ("How is {target} genomically altered in {indication} — by SNV/indel "
@@ -375,49 +386,53 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
 ]
 
 
+def _panorama_axis(card: dict | None, delta_field: str, pattern_key: str, threshold: float) -> dict:
+    """Compact DISPLAY projection of one subtype-panorama card, mirroring the card's own thresholds
+    (delta >= threshold → subgroup-specific; below with >=2 measured strata → uniform; else
+    not-informative). Never a verdict; touches no resolver rung. `delta_field` is the card's own
+    cross-stratum reducer scalar (frequency / high_amp_fraction / fusion_frequency)."""
+    summary = (card or {}).get("summary") or {}
+    per_subgroup = summary.get("per_subgroup_metrics") or []
+    measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"]
+    delta = summary.get(delta_field)
+    if len(measured) < 2 or delta is None:
+        pattern = "not_informative"
+    elif delta >= threshold:
+        pattern = "subgroup_specific_pattern"
+    else:
+        pattern = "uniform_across_subgroups"
+    label = delta_field.replace("cross_subgroup_delta_", "")     # e.g. frequency / high_amp_fraction
+    return {
+        pattern_key:              pattern,          # display-only flavor, NOT a verdict
+        "n_subgroups_with_data":  summary.get("n_subgroups_with_data"),
+        f"max_subgroup_{label}":  summary.get(f"max_subgroup_{label}"),
+        f"min_subgroup_{label}":  summary.get(f"min_subgroup_{label}"),
+        delta_field:              delta,
+        "measured_strata":        [r.get("stratum") for r in measured],
+        "_missing":               bool(card is None or card.get("_missing")),
+        "_missing_reason":        (card or {}).get("_missing_reason"),
+    }
+
+
 def _resolve_subtype_panorama(target: str, indication: str,
                               subtypes: list[str]) -> dict:
-    """DESCRIPTIVE subtype panorama — resolve subgroup-stratified-mutation-frequency across the
-    requested strata. The card is a panorama dispatcher, so it needs
-    subgroup_context.resolved_strata_ids threaded or it returns only a data-note (which is why it
-    is off the whole-cohort CARDS list). Returns a compact projection for the headline's
-    `subtype_axis` block — never a verdict, and it touches no resolver rung, so the whole-cohort
-    verdict spine is byte-stable whether or not --subtypes is passed.
+    """DESCRIPTIVE subtype panoramas — resolve the three subgroup-stratified cards (SNV frequency,
+    copy-number, fusion) across the requested strata. Each card is a panorama dispatcher that needs
+    subgroup_context.resolved_strata_ids threaded (which is why they are off the whole-cohort CARDS
+    list). Returns one compact per-axis projection per card for the headline — never a verdict, and
+    none touches a resolver rung, so the whole-cohort verdict spine is byte-stable whether or not
+    --subtypes is passed. The SNV axis keeps its original `subtype_axis` keys (backward-compatible);
+    CN + fusion are the Phase 3 broadening.
     """
     subgroup_context = {"resolved_strata_ids": list(subtypes),
                         "catalog_status": "resolved_active"}
     sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication,
                               subgroup_context=subgroup_context)
-    freq = next((c for c in sub_cards
-                 if c["card_id"] == "subgroup-stratified-mutation-frequency"), None)
-    summary = (freq or {}).get("summary") or {}
-    per_subgroup = summary.get("per_subgroup_metrics") or []
-    measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"]
-    delta = summary.get("cross_subgroup_delta_frequency")
-
-    # Compact display flavor mirroring the card's own thresholds (delta >= threshold = subgroup-
-    # specific; below it with >=2 measured strata = uniform; else not-informative). Display-only.
-    if len(measured) < 2 or delta is None:
-        pattern = "not_informative"
-    elif delta >= _SUBTYPE_DELTA_THRESHOLD:
-        pattern = "subgroup_specific_pattern"
-    else:
-        pattern = "uniform_across_subgroups"
-
-    return {
-        "cards": sub_cards,
-        "scope_subtypes": list(subtypes),
-        "subtype_panorama": {
-            "subtype_mutation_pattern":       pattern,     # display-only flavor, NOT a verdict
-            "n_subgroups_with_data":          summary.get("n_subgroups_with_data"),
-            "max_subgroup_frequency":         summary.get("max_subgroup_frequency"),
-            "min_subgroup_frequency":         summary.get("min_subgroup_frequency"),
-            "cross_subgroup_delta_frequency": delta,
-            "measured_strata":                [r.get("stratum") for r in measured],
-            "_missing": bool(freq is None or freq.get("_missing")),
-            "_missing_reason": (freq or {}).get("_missing_reason"),
-        },
-    }
+    by_id = {c["card_id"]: c for c in sub_cards}
+    out: dict = {"cards": sub_cards, "scope_subtypes": list(subtypes), "axes": {}}
+    for card_id, axis_key, delta_field, pattern_key, threshold in _SUBTYPE_AXES:
+        out["axes"][axis_key] = _panorama_axis(by_id.get(card_id), delta_field, pattern_key, threshold)
+    return out
 
 
 def _lift_field(card_by_id: dict, card_id: str, field: str):
@@ -493,15 +508,22 @@ def main() -> int:
     # not a verdict input (spine byte-stable).
     if subtype_result is not None:
         headline["subtype_scope"] = subtype_result["scope_subtypes"]
-        headline["subtype_axis"] = subtype_result["subtype_panorama"]
-        # Reflect the subtype panorama in the by-scope breakdown (still verdict-inert: the panorama is
-        # DESCRIPTIVE and touches no rung; the whole-cohort verdict is byte-stable regardless).
-        _sa = subtype_result["subtype_panorama"]
+        # One headline block per subtype axis (SNV / CN / fusion) — display-only, verdict-inert.
+        axes = subtype_result["axes"]
+        for axis_key, projection in axes.items():
+            headline[axis_key] = projection
+        # Reflect the subtype panoramas in the by-scope breakdown (still verdict-inert: descriptive, no
+        # rung; the whole-cohort verdict is byte-stable regardless). evidence_present if ANY axis has data.
+        _snv = axes.get("subtype_axis") or {}
+        _any_data = any((ax.get("n_subgroups_with_data") or 0) >= 1 and not ax.get("_missing")
+                        for ax in axes.values())
         headline["genomic_alteration_by_scope"]["subtype"] = {
-            "evidence_present": bool(not _sa.get("_missing") and (_sa.get("n_subgroups_with_data") or 0) >= 1),
-            "subtype_mutation_pattern":       _sa.get("subtype_mutation_pattern"),
-            "n_subgroups_with_data":          _sa.get("n_subgroups_with_data"),
-            "cross_subgroup_delta_frequency": _sa.get("cross_subgroup_delta_frequency"),
+            "evidence_present":               bool(_any_data),
+            "subtype_mutation_pattern":       _snv.get("subtype_mutation_pattern"),
+            "subtype_cn_pattern":             (axes.get("subtype_cn_axis") or {}).get("subtype_cn_pattern"),
+            "subtype_fusion_pattern":         (axes.get("subtype_fusion_axis") or {}).get("subtype_fusion_pattern"),
+            "n_subgroups_with_data":          _snv.get("n_subgroups_with_data"),
+            "cross_subgroup_delta_frequency": _snv.get("cross_subgroup_delta_frequency"),
             "scope_subtypes":                 subtype_result["scope_subtypes"],
         }
 

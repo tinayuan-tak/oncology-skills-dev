@@ -4,6 +4,21 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-08-19 (v2.5.0)
+- Broadened the subtype scope beyond SNV frequency (scope-coherence Phase 3, gap c): wired the two new
+  DESCRIPTIVE panorama cards `subgroup-stratified-copy-number` + `subgroup-stratified-fusion` into
+  `SUBTYPE_CARDS`. Generalized `_resolve_subtype_panorama` to a per-axis reducer (`_panorama_axis`) that
+  emits `headline.subtype_axis` (SNV, unchanged keys — backward-compatible), `subtype_cn_axis`, and
+  `subtype_fusion_axis`; the `genomic_alteration_by_scope.subtype` block now aggregates presence across
+  all three axes. Registered `subgroup-stratified-{copy-number,fusion}` in compose-dashboard
+  `_live_readers.PANORAMA_DISPATCHERS` (both reuse the TCGA molecular assignments shard — no LOT/GENIE
+  split, unlike the mutation panorama) routing to `tcga_patient_cn.stratified.build_copy_number_panorama`
+  / `tcga_fusion_consensus.stratified.build_fusion_panorama` (analysis-methods #414). DESCRIPTIVE /
+  verdict-inert — `--subtypes`-gated, touches no resolver rung, whole-cohort verdict byte-stable.
+- Updated the synthetic verdict tests for the Phase-1 indication-scope gate: a biomarker verdict now
+  requires the `*-indication-scoped-context` co-fire (pan-lineage-only dependency falls through); added
+  `test_biomarker_requires_indication_scope_gate` pinning the flip.
+
 ## 2026-08-19 (v2.4.0)
 - Added `headline.genomic_alteration_by_scope` + top-level `scope_of_driving_verdict` — the per-SCOPE
   decomposition (pan-cancer / indication / subtype) of the collapsed verdict, mirroring

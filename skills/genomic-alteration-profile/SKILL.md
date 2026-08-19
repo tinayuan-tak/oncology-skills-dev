@@ -25,7 +25,7 @@ description: |
   --modality flag. See CHANGELOG.md for development history.
 
 metadata:
-  version: 2.4.0
+  version: 2.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -63,6 +63,10 @@ composition:
     - oncogenic-pathway-alteration           # indication-level oncogenic-pathway alteration freq (Sanchez-Vega 2018)
     - subgroup-stratified-mutation-frequency # DESCRIPTIVE per-stratum mutation-frequency panorama (emits no
                                              # verdict); applies only when a subgroup_spec is set
+    - subgroup-stratified-copy-number        # DESCRIPTIVE per-stratum patient focal amp/del panorama (TCGA GISTIC
+                                             # per-sample); the CN subtype axis — --subtypes-gated, verdict-inert
+    - subgroup-stratified-fusion             # DESCRIPTIVE per-stratum fusion-recurrence panorama (usually
+                                             # underpowered per stratum); the fusion subtype axis — --subtypes-gated
   # The DISTINCT measurement_type claims this skill pulls, one per distinct card measurement_type
   # (mutation-hotspot-frequency + subgroup-stratified-mutation-frequency share
   # mutation_hotspot_frequency → listed once). Every entry is registered in
@@ -72,7 +76,7 @@ composition:
     # verdict-driving axes
     - mutation_variant_class_spectrum        # mutation-type-counts
     - mutation_stratified_dependency         # mutation-stratified-dependency
-    - copy_number_alteration                 # copy-number-distribution
+    - copy_number_alteration                 # copy-number-distribution + subgroup-stratified-copy-number (subtype view)
     - cn_stratified_dependency               # copy-number-stratified-dependency (resolver §2b)
     - fusion_stratified_dependency           # fusion-stratified-dependency (resolver §2c)
     - amp_expr_stratified_dependency         # amp-expr-stratified-dependency (resolver §2d)
@@ -82,6 +86,7 @@ composition:
     - mutation_hotspot_frequency             # mutation-hotspot-frequency + subgroup-stratified-mutation-frequency (display-only)
     - mutation_drug_response                 # mutation-drug-response (VERDICT-DRIVING: strong class → drug_response_biomarker)
     - fusion_rearrangement                   # fusion-rearrangement-landscape (VERDICT-DRIVING: recurrent_fusion_driver rung)
+                                             # + subgroup-stratified-fusion (subtype view, display-only)
     - variant_level_interpretation           # variant-level-interpretation
     - mutation_clonality                     # target-clonality (#2: ccf-based truncality; verdict-inert)
     - functional_gene_state                  # functional-gene-state

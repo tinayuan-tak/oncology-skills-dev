@@ -404,6 +404,45 @@ def _dispatch_subgroup_stratified_dependency(
     )
 
 
+def _dispatch_subgroup_stratified_copy_number(
+    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+) -> Optional[dict]:
+    """Route subgroup-stratified-copy-number to the per-sample GISTIC panorama builder.
+
+    methods/tcga_patient_cn/stratified.py::build_copy_number_panorama fans
+    read_stratified_copy_number across `subgroups` and recomputes GISTIC amp/del fractions +
+    patient_focal_cn_class WITHIN each stratum's patient member-set (ids normalized to the 3-segment
+    PATIENT grain before the join). Descriptive — no signal. TCGA-patient (GISTIC) only, so it uses the
+    molecular TCGA assignments shard (no LOT/GENIE split, unlike the mutation-frequency panorama)."""
+    if subgroup_assignments_manifest is None:
+        return {"per_subgroup_metrics": [], "_data_note":
+                f"no molecular subgroup-assignments shard for indication={indication!r}"}
+    cn_module = _import_method("tcga_patient_cn.stratified")
+    return cn_module.build_copy_number_panorama(
+        target=target, indication=indication,
+        subgroups=subgroups, subgroup_assignments_manifest=subgroup_assignments_manifest,
+    )
+
+
+def _dispatch_subgroup_stratified_fusion(
+    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+) -> Optional[dict]:
+    """Route subgroup-stratified-fusion to the per-sample fusion-consensus panorama builder.
+
+    methods/tcga_fusion_consensus/stratified.py::build_fusion_panorama fans read_stratified_fusion
+    across `subgroups`: denominator = fusion-ASSAYED patients ∩ stratum, numerator = distinct fused
+    stratum patients (patient-grain join). Descriptive — no signal. TCGA-tissue only (molecular shard).
+    Usually underpowered per stratum (documented on the card); the reader names that gap honestly."""
+    if subgroup_assignments_manifest is None:
+        return {"per_subgroup_metrics": [], "_data_note":
+                f"no molecular subgroup-assignments shard for indication={indication!r}"}
+    fusion_module = _import_method("tcga_fusion_consensus.stratified")
+    return fusion_module.build_fusion_panorama(
+        target=target, indication=indication,
+        subgroups=subgroups, subgroup_assignments_manifest=subgroup_assignments_manifest,
+    )
+
+
 def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route target-identity-summary card to libs/target_id_resolver/.
 
@@ -1507,6 +1546,12 @@ PANORAMA_DISPATCHERS = {
         _dispatch_subgroup_stratified_mutation_frequency, _MUTATION_ASSIGNMENTS_MANIFEST),
     "subgroup-stratified-dependency": (
         _dispatch_subgroup_stratified_dependency, _DEPENDENCY_ASSIGNMENTS_MANIFEST),
+    # CN + fusion subtype panoramas (scope-coherence Phase 3): both are TCGA-patient-tissue, so they
+    # reuse the molecular TCGA assignments shard (no LOT/GENIE split — that split is mutation-only).
+    "subgroup-stratified-copy-number": (
+        _dispatch_subgroup_stratified_copy_number, _MUTATION_ASSIGNMENTS_MANIFEST),
+    "subgroup-stratified-fusion": (
+        _dispatch_subgroup_stratified_fusion, _MUTATION_ASSIGNMENTS_MANIFEST),
 }
 
 
