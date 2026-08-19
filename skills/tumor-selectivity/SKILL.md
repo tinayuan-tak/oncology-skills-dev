@@ -3,14 +3,15 @@ name: tumor-selectivity
 description: |
   Focused question skill: "How selectively is target X expressed in tumor
   vs normal for indication Y, and how robust is that call across
-  independent comparators — bulk, single-cell, and in-situ spatial?" Consumes TEN
+  independent comparators — bulk, single-cell, and in-situ spatial?" Consumes ELEVEN
   cards across three roles. VERDICT-DRIVING (4): tumor-vs-normal-selectivity (v3,
   four-cell sensitivity; the aggregate axis-A verdict) + the normal-breadth VETO
   instruments modality-therapeutic-window (2 arms) and sc-normal-celltype-expression
   (1 arm) that DOWNGRADE an axis-A-selective call to selective_but_broadly_normal when
   there is no therapeutic window vs the worst critical normal. CORROBORATION (1):
-  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (5):
-  expression-purity-confound, surface-abundance-density, and the tumor
+  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (6):
+  expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac
+  (RNA→protein tumor-vs-normal corroboration), and the tumor
   SIDE at single-cell + in-situ spatial resolution (tumor-scrna-celltype-expression:
   malignant-cell-intrinsic vs stroma/CAF; spatial-region-rna-expression + spatial-tumor-
   normal-colocalization + spatial-surface-protein-abundance: in-situ tumour enrichment +
@@ -28,7 +29,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.10.1
+  version: 1.11.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -50,6 +51,10 @@ composition:
     - sc-normal-celltype-expression          # NORMAL-BREADTH VETO instrument (sc-normal critical-organ liability).
     - expression-purity-confound             # additive purity-confound caveat (verdict-inert).
     - surface-abundance-density              # additive absolute surface density (verdict-inert).
+    - tumor-protein-abundance-cptac          # RNA→PROTEIN corroboration (verdict-inert): tumor-vs-normal
+                                             # protein_effect_size + protein_bh_q_value (CPTAC per-cohort
+                                             # TMT-MS). Derived rna_protein_tvn_concordance surfaces the
+                                             # RNA-up/protein-flat false-positive (closes caveat #5).
     - tumor-scrna-celltype-expression        # single-cell, tumor side (verdict-inert): malignant-cell-intrinsic
                                              # vs stroma/CAF — resolves the purity confound at single-cell
                                              # resolution, which expression-purity-confound only proxies via
@@ -70,6 +75,7 @@ composition:
     - sc_normal_celltype_expression          # sc-normal-celltype-expression (sc-normal veto arm)
     - expression_purity_confound             # expression-purity-confound (additive caveat)
     - surface_density                        # surface-abundance-density (additive)
+    - tumor_protein_abundance                # tumor-protein-abundance-cptac (RNA→protein corroboration, additive)
     - sc_tumor_celltype_expression           # tumor-scrna-celltype-expression (single-cell, additive)
     - spatial_region_rna                     # spatial-region-rna-expression (spatial RNA, additive)
     - spatial_colocalization                 # spatial-tumor-normal-colocalization (spatial, additive)
@@ -94,7 +100,7 @@ composition:
 
 ## What this skill does
 
-- Fetches TEN cards for a single (target, indication) via the compose-dashboard
+- Fetches ELEVEN cards for a single (target, indication) via the compose-dashboard
   live-reader dispatcher (reuses the exact same read path Macro uses — no drift):
   - `tumor-vs-normal-selectivity` (v3, four-cell sensitivity) — the aggregate axis-A verdict.
   - `tumor-vs-normal-percentile-crossing` — per-sample corroboration (fraction of
@@ -105,6 +111,9 @@ composition:
   - `sc-normal-celltype-expression` — the sc-normal critical-organ veto arm (single-cell,
     NORMAL/safety side).
   - `expression-purity-confound`, `surface-abundance-density` — verdict-inert additive facets.
+  - `tumor-protein-abundance-cptac` — RNA→PROTEIN corroboration (verdict-inert): does the
+    tumor-vs-normal signal hold at the protein layer (CPTAC per-cohort TMT-MS)? The derived
+    `rna_protein_tvn_concordance` surfaces the RNA-up/protein-flat false-positive (caveat #5).
   - `tumor-scrna-celltype-expression` (single-cell, TUMOR side), `spatial-region-rna-expression`,
     `spatial-tumor-normal-colocalization`, `spatial-surface-protein-abundance` — single-cell +
     in-situ spatial facets (verdict-inert; see the SINGLE-CELL + SPATIAL note below).
@@ -177,7 +186,7 @@ in the underlying summary).
 
 ## Performance (cold single runs)
 
-The ten card reads are independent and run concurrently (shared `_skills_common.resolve_cards`),
+The eleven card reads are independent and run concurrently (shared `_skills_common.resolve_cards`),
 so cold wall-clock is bounded by the slowest single read — the TCGA/GTEx aggregate
 `tumor-vs-normal-selectivity` reader — not the sum of all ten. A cold run is ~6s by default.
 

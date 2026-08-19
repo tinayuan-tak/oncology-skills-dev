@@ -35,7 +35,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.10.1"
+SKILL_VERSION = "1.11.0"
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -77,6 +77,15 @@ CARDS = [
                                              # MODALITY caveat, NOT a target killer (CD19 ~110/cell is a
                                              # validated CAR-T antigen). Un-anchored targets → unmeasured
                                              # (abstain; absence != low density).
+    "tumor-protein-abundance-cptac",         # RNA→PROTEIN CORROBORATION (verdict-inert): does the
+                                             # tumor-vs-normal signal hold at the PROTEIN layer? Emits
+                                             # protein_effect_size (median_log2_tumor - median_log2_normal)
+                                             # + protein_bh_q_value from CPTAC per-cohort TMT-MS
+                                             # (cptac-protein-tumor-vs-normal-per-cohort-v1). Closes the
+                                             # aggregate card's caveat #5 (RNA selectivity != protein
+                                             # selectivity — the RNA-up/protein-flat false-positive). Feeds
+                                             # no resolver rung / no clamp; data_unavailable off the ~10
+                                             # CPTAC cohorts (honest abstain).
     # ── SINGLE-CELL + IN-SITU SPATIAL (tumor side; verdict-inert) ──
     # The bulk four-cell DESeq2 axis-A signal cannot tell whether a "tumor_selective" call is
     # MALIGNANT-cell-intrinsic or driven by CAF/stromal/immune microenvironment content (the purity
@@ -127,6 +136,25 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return apply_normal_breadth_veto(verdict, driving, fired)
 
 
+def _rna_protein_tvn_concordance(rna_direction, protein_effect_size, protein_q):
+    """DERIVED, verdict-INERT: does the CPTAC tumor-vs-normal PROTEIN signal agree with the RNA call?
+
+    Surfaces the RNA-up / protein-flat false-positive the aggregate RNA card explicitly flags as its
+    own caveat (#5). Returns one of:
+      rna_protein_concordant     — protein significant (BH q<0.05) in the SAME direction as RNA
+      rna_protein_discordant     — protein significant but the OPPOSITE direction (RNA-up/protein-down)
+      protein_not_significant    — protein measured but BH q>=0.05 (no protein-layer confirmation)
+      protein_unmeasured         — no CPTAC tumor-vs-normal protein value for this cohort (abstain)
+    Never feeds a rule/clamp; a projection over the two card summaries the headline already carries."""
+    if protein_effect_size is None or protein_effect_size != protein_effect_size:   # None or NaN
+        return "protein_unmeasured"
+    if protein_q is None or protein_q != protein_q or protein_q >= 0.05:
+        return "protein_not_significant"
+    rna_up = rna_direction == "up"
+    protein_up = protein_effect_size > 0
+    return "rna_protein_concordant" if protein_up == rna_up else "rna_protein_discordant"
+
+
 def _headline(cards, fired, verdict_pair):
     # Fetch each card summary once (card_summary scans the card list, so look up by id, not position —
     # robust to card order — and reuse the result rather than re-scanning per field).
@@ -136,6 +164,7 @@ def _headline(cards, fired, verdict_pair):
     pcx = _summary("tumor-vs-normal-percentile-crossing")     # per-sample corroboration
     purity = _summary("expression-purity-confound")
     density = _summary("surface-abundance-density")
+    protein_tvn = _summary("tumor-protein-abundance-cptac")   # RNA→protein corroboration (verdict-inert)
     sc_normal = _summary("sc-normal-celltype-expression")     # veto instrument (normal side)
     sc_tumor = _summary("tumor-scrna-celltype-expression")    # tumor side, single-cell
     spatial_rna = _summary("spatial-region-rna-expression")
@@ -179,6 +208,17 @@ def _headline(cards, fired, verdict_pair):
         "density_floor_verdict":            density.get("density_floor_verdict"),
         "is_tce_viable":                    density.get("is_tce_viable"),
         "is_adc_high_payload_viable":       density.get("is_adc_high_payload_viable"),
+        # RNA→PROTEIN corroboration facet (verdict-inert): does the tumor-vs-normal signal hold at the
+        # protein layer? protein_effect_size = median_log2_tumor - median_log2_normal (CPTAC per-cohort
+        # TMT-MS). rna_protein_tvn_concordance is a DERIVED, spine-inert read (does the protein direction
+        # agree with the RNA dominant_direction at BH q<0.05?) — surfaces the RNA-up/protein-flat
+        # false-positive the aggregate RNA card cannot see (its own caveat #5).
+        "protein_tumor_vs_normal_effect_size": protein_tvn.get("protein_effect_size"),
+        "protein_tumor_vs_normal_q_value":     protein_tvn.get("protein_bh_q_value"),
+        "rna_protein_tvn_concordance":         _rna_protein_tvn_concordance(
+            tvn.get("dominant_direction"),
+            protein_tvn.get("protein_effect_size"),
+            protein_tvn.get("protein_bh_q_value")),
         # Single-cell (NORMAL side) facet — the sc-normal veto's own inputs, surfaced for transparency.
         # This card is verdict-DRIVING via the veto (sc_normal_safety_essential_class ==
         # critical_organ_liability), but a reader of decision['headline'] alone could not otherwise see

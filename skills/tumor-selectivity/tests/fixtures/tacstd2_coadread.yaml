@@ -37,7 +37,7 @@ sc-normal-celltype-expression:
   max_detection_fraction: 0.9661016949152542
   method_version: 0.1.0
   n_cell_types_above_20pct: 22
-  n_reliable_cell_types: 89
+  n_reliable_cell_types: 91
   origin_tissues:
   - colon
   safety_essential_flags:
@@ -60,6 +60,8 @@ sc-normal-celltype-expression:
   - liver
   - kidney
   - bone_marrow
+  - brain
+  - adrenal_gland
 spatial-region-rna-expression:
   _evidence_tier: spatial_rna_measured
   detected_tumour: true
@@ -146,6 +148,22 @@ surface-abundance-density:
   is_tce_viable: true
   method_version: 0.1.0
   surface_density_class: high
+tumor-protein-abundance-cptac:
+  _data_source: cptac-protein-tumor-vs-normal-per-cohort-v1
+  allgene_percentile: 98.84739822054462
+  allgene_percentile_class: top_decile
+  allgene_percentile_context: cptac-protein-tumor-vs-normal cohort=COAD metric=protein_effect_size
+  cohort: COAD
+  method_version: 1.0.0
+  n_normal_samples: 100
+  n_tumor_samples: 97
+  protein_bh_q_value: 6.6860028996197e-05
+  protein_effect_size: 0.831081889936636
+  protein_expression_class: modest_up
+  protein_median_log2_normal: -0.58651837103213
+  protein_median_log2_tumor: -0.326866779728215
+  protein_p_value: 3.83151770373192e-05
+  stat_test_used: msstatstmt_limma_ebayes_moderated
 tumor-scrna-celltype-expression:
   caf_abundance_log1p_cp10k: 0.038335
   caf_compartment_available: true

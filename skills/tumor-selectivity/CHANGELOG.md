@@ -4,6 +4,17 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.11.0
+- Added `tumor-protein-abundance-cptac` as an 11th card — an RNA→PROTEIN tumor-vs-normal
+  CORROBORATION arm (verdict-INERT). Projects `protein_tumor_vs_normal_effect_size` +
+  `protein_tumor_vs_normal_q_value` (CPTAC per-cohort TMT-MS,
+  `cptac-protein-tumor-vs-normal-per-cohort-v1`) plus a derived, spine-inert
+  `rna_protein_tvn_concordance` (does the protein direction agree with the RNA call at BH q<0.05?).
+  Closes the aggregate card's caveat #5 (RNA selectivity does not guarantee protein selectivity — the
+  RNA-up/protein-flat false-positive). Feeds no resolver rung / no clamp: the `selectivity_class`
+  verdict spine + normal-breadth veto are byte-identical (guarded by the CEACAM5/TACSTD2 replay).
+  `data_unavailable` off the ~10 CPTAC cohorts (honest abstain).
+
 ## 1.10.1
 - Productionization cleanup (behavior-preserving): consolidated the documentation and removed
   internal edit-tracking labels from all prior edits; moved the inline version history out of
