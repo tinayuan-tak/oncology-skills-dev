@@ -1240,11 +1240,17 @@ def _question_table_html(decision: dict, h: dict) -> str:
         elif skill == "tumor-selectivity":
             title, verdict = "Selectivity", h.get("selectivity_class")
             sig_hdr = "Signal — tumor-selective →"
+        elif skill == "genomic-alteration-profile":
+            title, verdict = "Genomic alteration", h.get("genomic_alteration_profile")
+            sig_hdr = "Signal — alteration-class evidence →"
         rows = h.get("question_table")           # emitted by the skill (generic, preferred)
         if not rows:                             # fallback: recompute the table live, per skill
             if skill == "functional-requirement":
                 from _skills_common.dependency_question_table import dependency_question_table
                 rows = dependency_question_table(h, decision.get("cards", []))
+            elif skill == "genomic-alteration-profile":
+                from _skills_common.genomic_question_table import genomic_question_table
+                rows = genomic_question_table(h, decision.get("cards", []))
             else:
                 rows = presence_question_table(h, decision.get("cards", []))
         return render_question_table_html(rows, verdict=verdict, include_css=True,
@@ -1557,8 +1563,11 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
                                                tables_dir, target, indication, interactive))
         parts.append('</div></details>')
     elif skill == "genomic-alteration-profile" and cards:
-        # LEADING view: the class badge (which of SNV/CN/fusion drove) + the scope lamp
-        # (indication-anchored vs pan-cancer extrapolation) — the two facets the one-word verdict hides.
+        # LEADING view: the per-alteration-class question × (signal · confidence) table — the
+        # presence-consistent hero (shared render_question_table_html), decomposing the canonical
+        # question ("which class drives?") into SNV / CN / fusion rows. The class badge + scope lamp
+        # follow as a complementary at-a-glance (which class drove + at what scope).
+        parts.append(_question_table_html(decision, h))
         parts.append(_genomic_hero_html(decision, h))
         # Detailed evidence, demoted to a drill-down: the flat per-card list (same _card_block_html).
         parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
