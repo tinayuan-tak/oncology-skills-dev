@@ -30,7 +30,10 @@ subgroup_stratification:
   rationale: "Percentile-crossing selectivity can vary by subtype (a target may separate from normal only in one subtype); the per-sample reader supports the fan-out, deferred to a fast-follow to ship the pooled grain first."
 
 applies_when:
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA']"
+  # Rare-cohort coverage added 2026-08-19 (A3): ACC/KICH/KIRP/PCPG/TGCT/THCA/UCS/UCEC — the recount3
+  # per-sample substrate + matched GTEx normal are verified present for all 8; kept in lockstep with
+  # INDICATION_TO_TCGA_STUDIES / INDICATION_TO_GTEX_TISSUE in the tcga_gtex_expression_distribution reader.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA', 'ACC', 'KICH', 'KIRP', 'PCPG', 'TGCT', 'THCA', 'UCS', 'UCEC']"
 
 required_inputs:
   - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM
