@@ -33,20 +33,45 @@ _FULL_NORMAL_VETO_RULE = "tvn-no-full-normal-window-veto"
 _SC_NORMAL_VETO_RULE = "tvn-sc-normal-critical-organ-veto"
 _NORMAL_BREADTH_VETO_RULES = (_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE)
 
-_VETO_VERDICT = "selective_but_broadly_normal"
+# The clamp produces two DISTINCT downgrade outcomes (the sc-normal-liability SPLIT, 2026-08-19):
+#   - the therapeutic-window arms (tumor BELOW the worst critical/full normal — housekeeping GAPDH,
+#     the TROP2 broadly-normal surface archetype) → the KILL: no real tumor-vs-normal window at all.
+#   - the sc-normal critical-organ arm → a SELECTIVITY-PRESERVING named-organ flag: the target IS
+#     tumor-selective (a real window vs origin) but is also expressed in an essential cell type of a
+#     NON-origin critical organ that bulk medians dilute. Approved antigens (DLL3 forebrain neuron,
+#     ERBB2 cardiomyocyte/nephron, FOLR1 renal) land here — their normal expression is REAL but they
+#     are drugs via modality/accessibility/clinical precedent, so this is a SAFETY/therapeutic-index
+#     concern (owned by on-target-safety-liability + modality-fit), NOT loss of selectivity. Measured
+#     on the #416 backtest panel: the old single-verdict clamp collapsed these into the housekeeping
+#     KILL — a false-negative for approved drugs (the CD19 "over-eager clamp kills good targets" lesson).
+_VETO_VERDICT = "selective_but_broadly_normal"          # housekeeping / no-window KILL
+_LIABILITY_VERDICT = "selective_with_normal_liability"  # sc-normal critical-organ: selectivity-preserving
+# rule_id → the verdict its firing produces. Precedence is the _NORMAL_BREADTH_VETO_RULES order below:
+# when BOTH a window veto AND the sc-normal arm fire (e.g. TACSTD2/TROP2), the window KILL wins — a gene
+# with no window at all is not rescued by also having a named-organ liability.
+_VETO_RULE_VERDICT = {
+    _WINDOW_VETO_RULE: _VETO_VERDICT,
+    _FULL_NORMAL_VETO_RULE: _VETO_VERDICT,
+    _SC_NORMAL_VETO_RULE: _LIABILITY_VERDICT,
+}
+# Both clamp outcomes are still "selective" in the sense that axis-A over-expression held; consumers
+# that ask "did the normal-breadth clamp fire?" should test membership in this set.
+_VETO_OUTCOMES = frozenset(_VETO_RULE_VERDICT.values())
 
 
 def apply_normal_breadth_veto(verdict, driving_rule_id, fired):
-    """Post-resolver clamp: downgrade a SELECTIVE axis-A ``(verdict, driving_rule_id)`` to
-    ``selective_but_broadly_normal`` when ANY normal-breadth veto rule is in ``fired``. Returns the
-    input pair unchanged when the verdict is not a selective axis-A class or no veto fired.
+    """Post-resolver clamp: downgrade a SELECTIVE axis-A ``(verdict, driving_rule_id)`` when ANY
+    normal-breadth veto rule is in ``fired``. The window arms → ``selective_but_broadly_normal`` (the
+    housekeeping/no-window KILL); the sc-normal critical-organ arm → ``selective_with_normal_liability``
+    (a selectivity-PRESERVING named-organ flag). Precedence: window > full-normal > sc-normal (a
+    no-window KILL outranks a named-organ liability when both fire). Returns the input pair unchanged
+    when the verdict is not a selective axis-A class or no veto fired. One-directional.
 
-    Byte-identical to the historical tumor-selectivity/run.py::_verdict clamp (precedence-ordered
-    driving-rule label). ``fired`` is the flat list of fired-rule dicts (each with ``rule_id``)."""
+    ``fired`` is the flat list of fired-rule dicts (each with ``rule_id``)."""
     if verdict not in _AXIS_A_SELECTIVE:
         return verdict, driving_rule_id
     fired_ids = {r.get("rule_id") for r in fired}
     for veto_rule in _NORMAL_BREADTH_VETO_RULES:
         if veto_rule in fired_ids:
-            return _VETO_VERDICT, veto_rule
+            return _VETO_RULE_VERDICT[veto_rule], veto_rule
     return verdict, driving_rule_id

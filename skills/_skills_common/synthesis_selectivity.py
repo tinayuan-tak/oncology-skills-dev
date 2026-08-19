@@ -169,7 +169,16 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
          f"no therapeutic window vs the worst critical normal (driving_rule: {h.get('driving_rule_id')}). "
          f"This is the load-bearing selectivity conclusion; over-expression alone is NOT a window."
          if h.get("selectivity_class") == "selective_but_broadly_normal"
-         else f"  axis_a_selectivity_class (raw tumor-vs-origin, pre-veto): {h.get('axis_a_selectivity_class')}"),
+         else (
+         f"  ⚠ NORMAL-TISSUE LIABILITY (selectivity PRESERVED): axis-A {h.get('axis_a_selectivity_class')} "
+         f"holds — {target} IS tumor-selective with a real tumor-vs-normal window — BUT it is also "
+         f"expressed in an essential cell type of a NON-origin critical organ "
+         f"({h.get('sc_normal_max_detection_cell_type')}); resolved {h.get('selectivity_class')} "
+         f"(driving_rule: {h.get('driving_rule_id')}). This is a SAFETY / therapeutic-index liability "
+         f"(owned by on-target-safety-liability + modality-fit), NOT loss of selectivity — narrate the "
+         f"named-organ liability; do NOT re-cast the selectivity call as a failure."
+         if h.get("selectivity_class") == "selective_with_normal_liability"
+         else f"  axis_a_selectivity_class (raw tumor-vs-origin, pre-veto): {h.get('axis_a_selectivity_class')}")),
         "",
         "COMPARATOR ROBUSTNESS (how many independent tumor-vs-normal cells supported the call):",
         f"  cells_supporting / cells_ran: {h.get('cells_supporting')} / {h.get('cells_ran')}",

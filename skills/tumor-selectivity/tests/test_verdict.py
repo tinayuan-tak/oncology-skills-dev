@@ -146,16 +146,19 @@ def test_clean_full_normal_target_retains_selective():
 _SC_VETO = "tvn-sc-normal-critical-organ-veto"
 
 
-def test_strong_selective_downgraded_by_sc_normal_veto():
-    """TNNT2/FOLR1 archetype: highly detected in an essential cell type of a NON-origin critical organ
-    (critical_organ_liability) → downgrade even when the bulk window vetoes did not fire."""
+def test_strong_selective_flagged_liability_by_sc_normal_veto():
+    """FOLR1/DLL3/ERBB2 archetype: highly detected in an essential cell type of a NON-origin critical
+    organ (critical_organ_liability) → the sc-normal arm produces the SELECTIVITY-PRESERVING
+    selective_with_normal_liability (a named-organ SAFETY flag), NOT the housekeeping
+    selective_but_broadly_normal KILL. The bulk window vetoes did not fire (a real window exists)."""
     assert ts._verdict(
         [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _SC_VETO}]) == (
-        "selective_but_broadly_normal", _SC_VETO)
+        "selective_with_normal_liability", _SC_VETO)
 
 
 def test_sc_normal_veto_alone_does_not_manufacture_selective():
-    assert ts._verdict([{"rule_id": _SC_VETO}])[0] != "selective_but_broadly_normal"
+    v = ts._verdict([{"rule_id": _SC_VETO}])[0]
+    assert v not in ("selective_but_broadly_normal", "selective_with_normal_liability")
 
 
 def test_veto_precedence_essential_over_full_over_sc(tmp_path=None):

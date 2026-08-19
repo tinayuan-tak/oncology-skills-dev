@@ -31,7 +31,7 @@ from typing import Optional
 
 # The axis-A "selective" set is single-sourced in selectivity_veto (the veto owns which verdicts are
 # downgradable); the hero reads it so the "window open" tile can never drift from the clamp's view.
-from _skills_common.selectivity_veto import _AXIS_A_SELECTIVE
+from _skills_common.selectivity_veto import _AXIS_A_SELECTIVE, _VETO_VERDICT, _LIABILITY_VERDICT
 
 # --- verdict → banner status (the resolved selectivity_class) --------------------------------------
 # Green tiers = a supported tumor-over-normal window; red = window CLOSED by the normal-breadth veto;
@@ -41,6 +41,7 @@ _VERDICT_STATUS = [
     ("modest_tumor_selective", ("good", "modest tumor-selective")),
     ("field_effect_tumor_selective", ("good", "field-effect tumor-selective")),
     ("selective_but_broadly_normal", ("bad", "selective BUT broadly normal — window closed")),
+    ("selective_with_normal_liability", ("warn", "selective — normal-tissue liability")),
     ("discordant_across_comparators", ("warn", "discordant across comparators")),
     ("not_selective", ("off", "not selective")),
     ("data_unavailable", ("na", "data unavailable")),
@@ -78,7 +79,8 @@ def build_selectivity_axes(headline: dict) -> dict:
     cls = h.get("selectivity_class")
     axis_a = h.get("axis_a_selectivity_class")
     driving = h.get("driving_rule_id")
-    vetoed = cls == "selective_but_broadly_normal"
+    vetoed = cls == _VETO_VERDICT               # window CLOSED (housekeeping / no-window KILL)
+    liability = cls == _LIABILITY_VERDICT       # window OPEN but a NON-origin critical-organ liability
     axes: list[dict] = []
 
     def add(key, label, status, value, note):
@@ -137,6 +139,12 @@ def build_selectivity_axes(headline: dict) -> dict:
     if vetoed:
         add("window", "Normal-tissue window", "bad", "CLOSED — no window",
             f"broadly expressed in normal tissue; veto: {driving or 'normal-breadth'}")
+    elif liability:
+        organ = h.get("sc_normal_max_detection_cell_type")
+        add("window", "Normal-tissue window", "warn", "open · critical-organ liability",
+            f"a real tumor-vs-normal window, but expressed in a non-origin critical organ"
+            + (f" ({organ})" if organ else "")
+            + " — a safety/therapeutic-index liability (owned by on-target-safety), not loss of selectivity")
     elif cls in _AXIS_A_SELECTIVE:
         add("window", "Normal-tissue window", "good", "open",
             "tumor elevated over the worst critical normal — a therapeutic window")
@@ -191,6 +199,7 @@ def build_selectivity_axes(headline: dict) -> dict:
         "verdict_label": v_label,
         "axis_a_selectivity_class": axis_a,
         "vetoed": vetoed,
+        "liability": liability,
         "driving_rule_id": driving,
         "axes": axes,
         "_disclaimer": (
@@ -247,6 +256,9 @@ def render_selectivity_hero_svg(headline: dict, target: str, indication: str) ->
     sub = f'resolved selectivity_class: {view["target_verdict"] or "insufficient"}'
     if view["vetoed"] and view["axis_a_selectivity_class"]:
         sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  VETOED (no therapeutic window)  ·  '
+               f'{view["driving_rule_id"] or ""}')
+    elif view.get("liability") and view["axis_a_selectivity_class"]:
+        sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  SELECTIVE, normal-tissue liability  ·  '
                f'{view["driving_rule_id"] or ""}')
     s.append(f'<text x="{_PAD+16}" y="{by+46}" font-size="10.5" fill="{bink}" opacity="0.92">'
              f'{_esc(sub)}</text>')

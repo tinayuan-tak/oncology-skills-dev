@@ -52,6 +52,33 @@ def _vetoed_headline():
     return h
 
 
+def _liability_headline():
+    """A FOLR1/DLL3/ERBB2-shaped headline: strong axis-A with a REAL window, but a NON-origin
+    critical-organ liability → the sc-normal SPLIT class selective_with_normal_liability."""
+    h = _clean_headline()
+    h.update({
+        "selectivity_class": "selective_with_normal_liability",
+        "axis_a_selectivity_class": "strong_tumor_selective",
+        "driving_rule_id": "tvn-sc-normal-critical-organ-veto",
+        "sc_normal_safety_essential_class": "critical_organ_liability",
+        "sc_normal_max_detection_cell_type": "kidney loop of Henle epithelial cell",
+        "cells_supporting": 1.0, "discordant": False, "max_abs_log2fc": 9.9,
+    })
+    return h
+
+
+def test_normal_liability_preserves_selectivity_window_open_amber():
+    """The split: a critical-organ liability is NOT the housekeeping window-closed KILL — the window
+    axis stays OPEN (amber, named organ), the banner reads amber, and vetoed is False."""
+    v = build_selectivity_axes(_liability_headline())
+    assert v["verdict_status"] == "warn"        # amber, not red
+    assert v["vetoed"] is False and v["liability"] is True
+    axes = {a["key"]: a for a in v["axes"]}
+    assert axes["window"]["status"] == "warn"
+    assert "liability" in axes["window"]["value"]
+    assert "loop of Henle" in axes["window"]["note"]
+
+
 def test_eight_axes_and_verdict_banner():
     v = build_selectivity_axes(_clean_headline())
     assert len(v["axes"]) == 8

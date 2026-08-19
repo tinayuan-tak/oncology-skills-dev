@@ -192,6 +192,14 @@ def test_apply_normal_breadth_veto_precedence_label_when_multiple_fire():
         == ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto")
 
 
+def test_apply_normal_breadth_veto_sc_normal_arm_yields_liability():
+    """The sc-normal SPLIT: the critical-organ arm ALONE (no window veto) produces the selectivity-
+    PRESERVING selective_with_normal_liability, not the housekeeping selective_but_broadly_normal KILL."""
+    fired = [{"rule_id": "tvn-sc-normal-critical-organ-veto", "card_id": "sc-normal-celltype-expression"}]
+    assert apply_normal_breadth_veto("strong_tumor_selective", "tvn-strong-selective-supportive", fired) \
+        == ("selective_with_normal_liability", "tvn-sc-normal-critical-organ-veto")
+
+
 def test_apply_normal_breadth_veto_noop_when_not_selective_or_no_veto():
     veto = [{"rule_id": "tvn-no-therapeutic-window-veto"}]
     # non-selective verdict is never downgraded

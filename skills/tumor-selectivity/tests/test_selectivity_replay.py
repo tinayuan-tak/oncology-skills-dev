@@ -69,7 +69,7 @@ _TS = _run_const()
 _AXIS_A_SELECTIVE = set(_TS._AXIS_A_SELECTIVE)
 _VETO_RULES = set(_TS._NORMAL_BREADTH_VETO_RULES)
 # Every selective outcome the headline may carry: the axis-A selective family + the veto downgrade.
-_SELECTIVE_OUTCOMES = _AXIS_A_SELECTIVE | {"selective_but_broadly_normal"}
+_SELECTIVE_OUTCOMES = _AXIS_A_SELECTIVE | {"selective_but_broadly_normal", "selective_with_normal_liability"}
 
 
 def _real_summary(s) -> bool:
