@@ -360,7 +360,11 @@ skill_objectives:
     primary_axis: expression
     decomposes_to: {template: _skills_common/presence_question_table.py, n_questions: 7}
     questions:
-      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance]}
+      # "Expressed in cancers at all?" — cancer MODELS (DepMap panel) AND PATIENT tumours. Cell-line
+      # data must NOT be the sole contributor: patient per-sample tumour RNA is the most direct evidence
+      # that the gene is expressed in actual cancer (2026-08-19 review). tumor-rna-distribution also
+      # answers Q2 (this-indication-vs-others) — a card may serve multiple questions.
+      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, tumor-rna-distribution, tumor-protein-abundance-cptac]}
       - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
       - {q: "Elevated vs normals (adjacent + GTEx)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability]}
       - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype]}
