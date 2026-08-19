@@ -290,9 +290,17 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "read strengthens the call but a negative one is NOT a trusted veto — do not over-read it):",
         f"  organoid_dependency_class: {organoid.get('organoid_dependency_class')}   "
         f"(organoid-crispr-dependency: {_card_state('organoid-crispr-dependency')})",
-        f"  frac_dependent: {_fmt(organoid.get('frac_dependent'))}  "
+        f"  frac_dependent (pan-organoid): {_fmt(organoid.get('frac_dependent'))}  "
         f"median organoid Chronos: {_fmt(organoid.get('median_gene_effect'))}  "
         f"n_models_screened: {organoid.get('n_models_screened')}",
+        # Indication-conditioned per-lineage read (v0.2.0): the pan-organoid fraction pools a
+        # GI-skewed cohort, so prefer the organoid lineage MATCHING this indication when present.
+        f"  organoid lineage for this indication: {organoid.get('organoid_lineage') or 'not mapped / no organoid cohort'}"
+        + (f"  →  frac_dependent {_fmt(organoid.get('organoid_lineage_frac_dependent'))} "
+           f"({organoid.get('organoid_lineage_class')}, n={organoid.get('organoid_lineage_n_screened')}) "
+           "— PREFER this lineage read over the pan-organoid fraction; a driver dependency concentrated in "
+           "the indication's lineage reads stronger here than in the pooled cohort"
+           if organoid.get('organoid_lineage') else ""),
         "",
         "TASK: using emit_dependency_synthesis, judge how much the DEPENDENCY lens informs whether "
         f"{target} is worth pursuing in {indication}. Reason ACROSS the evidence — do not just restate "

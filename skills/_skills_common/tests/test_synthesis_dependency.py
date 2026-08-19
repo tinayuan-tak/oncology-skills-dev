@@ -253,6 +253,32 @@ def test_prompt_renders_organoid_corroboration_present():
     assert "not a trusted veto" in prompt.lower()
 
 
+def test_prompt_renders_organoid_indication_lineage():
+    """When the organoid card carries an indication-matched lineage (v0.2.0), the prompt surfaces
+    that lineage's fraction and steers toward it over the pooled pan-organoid fraction."""
+    d = _decision()
+    d["cards"].append({"card_id": "organoid-crispr-dependency", "_missing": False, "summary": {
+        "organoid_dependency_class": "broad_organoid_dependency",
+        "frac_dependent": 0.746, "median_gene_effect": -0.87, "n_models_screened": 114,
+        "organoid_lineage": "Bowel", "organoid_lineage_frac_dependent": 0.955,
+        "organoid_lineage_class": "pan_organoid_essential", "organoid_lineage_n_screened": 22}})
+    prompt = SD.build_user_prompt(d)
+    assert "organoid lineage for this indication: Bowel" in prompt
+    assert "0.95" in prompt  # the lineage fraction, stronger than pooled 0.75
+    assert "PREFER this lineage read" in prompt
+
+
+def test_prompt_organoid_no_lineage_mapped():
+    """No indication→organoid-lineage mapping → the facet says so, no lineage steer."""
+    d = _decision()
+    d["cards"].append({"card_id": "organoid-crispr-dependency", "_missing": False, "summary": {
+        "organoid_dependency_class": "broad_organoid_dependency", "frac_dependent": 0.746,
+        "median_gene_effect": -0.87, "n_models_screened": 114, "organoid_lineage": None}})
+    prompt = SD.build_user_prompt(d)
+    assert "not mapped / no organoid cohort" in prompt
+    assert "PREFER this lineage read" not in prompt
+
+
 def test_prompt_renders_organoid_data_unavailable_not_dropped():
     """A measured-null organoid card is rendered DATA_UNAVAILABLE, never silently dropped (H1)."""
     d = _decision()
