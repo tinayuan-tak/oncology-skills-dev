@@ -1469,6 +1469,20 @@ measurement_types:
       - {kind: dataset, source: in4mer-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}   # CORROBORATION — in4mer 2024 Cas12a, 4 lines (K562/A549/A375/MELJUSO), CC BY 4.0. normZ GI. SUMMARY grain only (source pan-line aggregated — corroborates presence/strength, no per-lineage read). Validated on RAF1/ARAF+BRAF paralog SL.
       - {kind: dataset, source: horlbeck-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}          # EXTENSION — Horlbeck 2018 CRISPRi, K562+Jurkat, CC BY 4.0. UNIQUE role: NON-paralog arbitrary pairs (472-gene all-by-all) — reaches gene pairs the paralog providers (DepMap/Dede/in4mer) cannot. Coverage extension, not just corroboration.
 
+  coessential_module:
+    claim: "Is {target}'s CRISPR dependency embedded in a COHERENT co-essential module (complex/pathway partners co-essential across the same cell lines), or an ISOLATED hit? A module-anchored dependency is a more credible, mechanism-anchored call."
+    # CONFIDENCE facet (verdict-INERT), the sibling of cross_consortium_dependency + dependency_predictability:
+    # a dependency sitting in a coherent co-essential module is more credible than an isolated one. Genome-
+    # wide co-essentiality (Pearson r across DepMap Chronos profiles), gene-grain, pan-cancer. tier_dominant:
+    # the DepMap 26Q1 co-essentiality substrate is the single provider. Reads the pre-built top-100 |r|>=0.2
+    # gene-sorted parquet (no new ingestion).
+    entity_grains: [target]
+    cards: [coessential-module]
+    modality_relevance: [small_molecule, degrader]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: depmap-coessentiality-26q1-v1, method: depmap_coessentiality, evidence_tier: measured}   # DOMINANT — genome-wide co-essentiality (top-100 |r|>=0.2 per gene, 14,202 genes)
+
   sc_normal_celltype_expression:
     claim: "Single-cell RNA expression in normal tissue by cell type (pseudobulk, donor-replicate) — on-target-off-tumor safety substrate at cell-type resolution"
     entity_grains: [target]
