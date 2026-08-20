@@ -70,8 +70,27 @@ _FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
     ("safety", "human_genetics_safety_concern"): "hold",       # P5 human-genetics WT-loss concern
     ("subtype_fit", "subtype_specific_non_dependence"): "hold",  # queried subtype has no dependency
 }
-# Precedence when multiple gates fire: veto dominates hold.
-_GATE_ACTION_RANK = {"veto": 2, "hold": 1}
+# Precedence when multiple gates fire: veto dominates hold. R7 follow-on (2026-08-20): READ from the
+# owner-editable vocab (nomination_verdict_gate.action_precedence) so the vocab is authoritative, with
+# this hardcoded map as the conservative fallback-of-record — NEVER empty (a missing precedence must not
+# flatten veto vs hold into a permissive tie). The R6/R7 guard test asserts the loaded value matches vocab.
+_FALLBACK_GATE_ACTION_RANK = {"veto": 2, "hold": 1}
+
+
+def _load_action_precedence(contracts_repo: Path | None = None) -> dict:
+    """action_precedence (veto/hold ranks) from the nomination-gate vocab; _FALLBACK on any failure."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    try:
+        data = yaml.safe_load((repo / "vocabularies" / "nomination_verdict_gate.yaml").read_text())
+        prec = (data or {}).get("action_precedence")
+        if isinstance(prec, dict) and prec:
+            return {str(k): int(v) for k, v in prec.items()}
+    except Exception:  # noqa: BLE001 — any failure → conservative hardcoded fallback (never empty)
+        pass
+    return dict(_FALLBACK_GATE_ACTION_RANK)
+
+
+_GATE_ACTION_RANK = _load_action_precedence()
 
 # --- Fail-closed, gate-complete guard (roadmap §6.6, invariant 6) -----------
 #

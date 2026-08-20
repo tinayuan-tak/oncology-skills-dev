@@ -56,11 +56,17 @@ def test_every_vocab_veto_hold_gate_is_in_skills_gating_constants():
 
 
 def test_gate_action_rank_matches_vocab_action_precedence():
-    """R7: _GATE_ACTION_RANK must equal the vocab's owner-editable action_precedence (no silent drift)."""
-    vocab_prec = _vocab().get("action_precedence", {})
-    assert dict(tp_gates._GATE_ACTION_RANK) == dict(vocab_prec), (
-        f"tp_gates._GATE_ACTION_RANK {dict(tp_gates._GATE_ACTION_RANK)} != vocab action_precedence "
-        f"{dict(vocab_prec)} — the hardcoded copy drifted from the owner-editable vocab.")
+    """R7: _GATE_ACTION_RANK is now LOADED from the vocab's owner-editable action_precedence (R7 follow-on),
+    so the effective value must equal the vocab. AND the conservative _FALLBACK (used when the vocab is
+    unreadable) must itself match the vocab — else a real vocab edit would silently diverge from the
+    fallback-of-record that guards veto>hold when the file can't be read."""
+    vocab_prec = {str(k): int(v) for k, v in (_vocab().get("action_precedence", {}) or {}).items()}
+    assert dict(tp_gates._GATE_ACTION_RANK) == vocab_prec, (
+        f"tp_gates._GATE_ACTION_RANK {dict(tp_gates._GATE_ACTION_RANK)} != vocab {vocab_prec} — the loader "
+        f"did not pick up the vocab.")
+    assert dict(tp_gates._FALLBACK_GATE_ACTION_RANK) == vocab_prec, (
+        f"_FALLBACK_GATE_ACTION_RANK {dict(tp_gates._FALLBACK_GATE_ACTION_RANK)} drifted from vocab "
+        f"{vocab_prec} — update the fallback so an unreadable-vocab run still ranks veto>hold correctly.")
 
 
 def test_gating_constants_are_internally_complete():
