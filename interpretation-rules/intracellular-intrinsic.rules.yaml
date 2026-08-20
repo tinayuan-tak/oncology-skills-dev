@@ -3076,25 +3076,13 @@ rules:
       what is actually a measured negative) — the direction-semantics fix
       applied to the RNA card, now mirrored here.
 
-  - rule_id: protein-not-detected-degrader-killer
-    when:
-      card_id: tumor-protein-abundance-cptac
-      field: protein_expression_class
-      equals: not_detected
-    signals:
-      small_molecule: opposing
-      degrader: killer
-    killer_message: >
-      Protein was not detected in tumor OR matched normal by CPTAC mass-spec.
-      Degrader modalities require a protein substrate to engage — absence of
-      detectable protein is a hard killer for a degrader program.
-    rationale: |
-      Protein was not detected in either tumor OR matched normal by CPTAC
-      mass-spec. Degrader modalities require a protein substrate to degrade;
-      absence-of-protein is a hard killer for a degrader program.
-      Small-molecule inhibitor is not automatically ruled out (MS limits
-      of detection can miss low-abundance functional proteins), but the
-      lack of detected protein is opposing evidence for governance review.
+  # NOTE (2026-08-20, tumor-presence review G2a): the former `protein-not-detected-degrader-killer` rule
+  # was removed. It keyed on protein_expression_class == not_detected, but cptac_protein_deg.classify()
+  # NEVER emits not_detected — a protein missing from the CPTAC tumor+normal MS produces no row and
+  # resolves to data_unavailable (the honest MNAR coverage-gap default, handled by the rule below).
+  # Whole-proteome TMT cannot assert per-gene ABSENCE, so a "protein not detected" killer was a dead,
+  # misleading rung. The reachable protein-absence signal is the cell-line-MS broadly_low rung
+  # (protein-abundance-broadly-low-degrader-killer). The not_detected card vocab value was removed too.
 
   - rule_id: protein-data-unavailable-insufficient
     when:

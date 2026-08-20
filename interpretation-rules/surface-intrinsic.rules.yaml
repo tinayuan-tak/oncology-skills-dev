@@ -1059,22 +1059,14 @@ rules:
       supportive evidence the antigen is physically present on tumor cells to be bound. Important
       importance: protein presence is Critical for ADC/TCE and this is the measured-protein arm.
 
-  - rule_id: protein-absent-surface-killer
-    when:
-      card_id: tumor-protein-abundance-cptac
-      field: protein_expression_class
-      equals: not_detected
-    signals:
-      adc: killer
-      bite_tce: killer
-      antibody: killer
-    killer_message: |
-      Protein NOT DETECTED in tumor or normal by CPTAC mass-spec. A biologic has no antigen to bind —
-      an RNA-elevated call is not sufficient when the protein is absent at the MS level.
-    rationale: |
-      Antigen presence is the Critical prerequisite for antibody-based modalities; a measured protein
-      absence is a hard surface-modality killer (the ADC/TCE analogue of the intracellular
-      degrader-killer — a degrader also needs the protein present).
+  # NOTE (2026-08-20, tumor-presence review G2a): the former `protein-absent-surface-killer` rule was
+  # removed — the ADC/TCE/antibody analogue of the intracellular protein-not-detected killer. It keyed on
+  # tumor-protein-abundance-cptac.protein_expression_class == not_detected, but cptac_protein_deg never
+  # emits not_detected (a protein missing from the CPTAC MS resolves to data_unavailable — the honest MNAR
+  # coverage-gap default). Whole-proteome TMT cannot assert per-gene ABSENCE, so this was a dead rung; the
+  # not_detected card vocab value was removed with it. Surface-modality antigen-absence, when needed, must
+  # come from a surface-specific measurement (topology / surface-abundance-density), not this whole-cell
+  # tumor-vs-normal contrast card.
 
   # ============================================================================
   # I — RNA-protein-concordance-tumor card (P4 Tier-2, 2026-07-24)

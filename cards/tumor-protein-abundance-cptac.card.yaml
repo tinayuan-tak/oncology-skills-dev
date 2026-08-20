@@ -85,7 +85,10 @@ outputs:
       - ns                                         # q>=0.05
       - modest_down                                # q<0.05, -1.5<effect<=-0.5
       - strong_down                                # q<0.05, effect<=-1.5
-      - not_detected                               # missing from tumor + normal MS
+      # NOTE (2026-08-20, review G2a): `not_detected` removed — cptac_protein_deg.classify() never emits
+      # it (a protein absent from the CPTAC MS produces no row → data_unavailable). Whole-proteome TMT
+      # cannot assert per-gene absence; the reachable protein-absence signal is the cell-line-MS
+      # cellline-protein-abundance broadly_low class, not this tumor-vs-normal contrast card.
       - data_unavailable
     stat_test_used:
       # MSstatsTMT::groupComparisonTMT tumor-vs-normal — plex batch as a random effect +
