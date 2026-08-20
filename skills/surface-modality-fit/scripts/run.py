@@ -171,6 +171,13 @@ CARDS = [
                                          # [important] / cd-antigen-backbone-supportive [secondary]) fire on cd_antigen_
                                          # backbone_class. SUPPORTIVE-ONLY: not_cd_antigen fires nothing (not a negative —
                                          # solid-tumor ADC/TCE antigens aren't CD molecules). ADDITIVE (no rung) → byte-stable.
+    "surface-colocalization-avidity",    # wired 2026-08-20: same-cell avidity + tumor-vs-NORMAL selectivity WINDOW for
+                                         # AND-gate bispecifics (TCE/dual-ADC). Un-retired from a partially-true 2026-08-19
+                                         # supersession — bispecific-pair-scan covers tumor per-pair avidity ONLY; this card
+                                         # uniquely adds the normal selectivity window (sc-samecell-coexpr-normal-v1 via
+                                         # pair_selectivity_gate.window) + target-centric best-partner rollup. Its 5 rules
+                                         # (samecell-*/selectivity-window-*) are in NO resolver → ADDITIVE, verdict
+                                         # byte-stable. Indication-scoped (per-indication cube); data_unavailable elsewhere.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -303,6 +310,24 @@ def _headline(cards, fired, verdict_pair):
         "sc_normal_max_det_fraction":     get_card_field(cards, "sc-normal-celltype-expression", "max_detection_fraction"),
         "sc_normal_n_cell_types_above_20pct": get_card_field(cards, "sc-normal-celltype-expression", "n_cell_types_above_20pct"),
         "sc_normal_safety_essential_flags": get_card_field(cards, "sc-normal-celltype-expression", "safety_essential_flags"),
+        # Same-cell avidity + tumor-vs-NORMAL selectivity window (surface-colocalization-avidity, wired
+        # 2026-08-20). Bispecific AND-gate lens: does a candidate partner antigen co-express on the SAME
+        # malignant cells (tumor avidity), AND is that co-positivity ABSENT from normal tissue (the
+        # selectivity window / safety half)? samecell_avidity_class = tumor best-partner call;
+        # samecell_window_verdict combines tumor engagement + normal selectivity (window_open / no_window /
+        # selectivity_unproven / ...). Its 5 rules are in NO resolver → ADDITIVE, verdict byte-stable
+        # (fit_class resolves off adc-tce-modality-fit). Indication-scoped; data_unavailable elsewhere.
+        "samecell_avidity_class":         get_card_field(cards, "surface-colocalization-avidity", "samecell_avidity_class"),
+        "samecell_best_partner":          get_card_field(cards, "surface-colocalization-avidity", "best_partner"),
+        "samecell_best_enrichment_median": get_card_field(cards, "surface-colocalization-avidity", "best_enrichment_median"),
+        "samecell_best_both_fraction_median": get_card_field(cards, "surface-colocalization-avidity", "best_both_fraction_median"),
+        "samecell_n_partners_tested":     get_card_field(cards, "surface-colocalization-avidity", "n_partners_tested"),
+        "samecell_n_coordinated_partners": get_card_field(cards, "surface-colocalization-avidity", "n_coordinated_partners"),
+        "samecell_window_verdict":        get_card_field(cards, "surface-colocalization-avidity", "window_verdict"),
+        "samecell_window_best_partner":   get_card_field(cards, "surface-colocalization-avidity", "window_best_partner"),
+        "samecell_selectivity_margin":    get_card_field(cards, "surface-colocalization-avidity", "selectivity_margin"),
+        "samecell_n_window_open":         get_card_field(cards, "surface-colocalization-avidity", "n_window_open"),
+        "samecell_normal_liability_locus": get_card_field(cards, "surface-colocalization-avidity", "normal_liability_locus"),
     }
     # Orthogonality facet (E7, 2026-08-07) — VERDICT-INERT display meta-facet. Counts the
     # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence

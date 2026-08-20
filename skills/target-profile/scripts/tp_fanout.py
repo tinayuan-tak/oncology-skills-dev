@@ -535,6 +535,11 @@ SUB_SKILL_CARDS = {
                                              # tumor-presence" no longer suffices for the surface FACET (the
                                              # facet-parity guard pins this). Additive; composed surface
                                              # verdict byte-stable (fit_class resolves off adc-tce-modality-fit).
+        "surface-colocalization-avidity",    # wired 2026-08-20: same-cell avidity + tumor-vs-NORMAL selectivity
+                                             # window for AND-gate bispecifics. READ in _headline (samecell_* keys),
+                                             # so REQUIRED in THIS entry (facet-parity guard: the fan-out scopes each
+                                             # sub-skill to its own entry). Its rules are in no resolver → additive;
+                                             # composed surface verdict byte-stable.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",

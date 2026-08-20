@@ -120,6 +120,15 @@ composition:
                                        # Declared here 2026-08-11 (doc-drift fixed).
     - modality-exon-window             # (in run.py CARDS) isoform/exon-window surface-epitope facet; additive,
                                        # verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
+    - surface-colocalization-avidity   # (in run.py CARDS; wired 2026-08-20) same-cell avidity + tumor-vs-NORMAL
+                                       # selectivity WINDOW for AND-gate bispecifics (TCE/dual-ADC). Un-retired from a
+                                       # 2026-08-19 supersession that proved only partially true: bispecific-pair-scan
+                                       # covers tumor per-pair avidity ONLY; this card uniquely adds the normal
+                                       # selectivity window (sc-samecell-coexpr-normal-v1 via pair_selectivity_gate.window)
+                                       # + the target-centric best-partner rollup. Its 5 rules (surface-intrinsic.rules)
+                                       # are in NO resolver → ADDITIVE signal facet, verdict byte-stable (fit_class resolves
+                                       # off adc-tce-modality-fit). LIVE for the 11 indications with a landed same-cell cube;
+                                       # data_unavailable elsewhere (honest gap).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -167,6 +176,9 @@ composition:
     - sc_normal_celltype_expression    # (Phase 3.3, 2026-08-07, PR #267) sc-normal-celltype-expression — a VERDICT-MOVER: its
                                        # F5 rules feed the sc-normal-high-liability-bite-killer rung (bite/TCE foreclosure on
                                        # essential normal cell-type expression). Wired + read (run.py:282-284).
+    - antigen_pair_coexpression        # (2026-08-20) surface-colocalization-avidity — same-cell avidity + tumor-vs-normal
+                                       # selectivity window for AND-gate bispecifics; adc/bite_tce/antibody. ADDITIVE (its
+                                       # rules are in no resolver), verdict byte-stable.
   rules_scope:
     - all
   synthesis:
