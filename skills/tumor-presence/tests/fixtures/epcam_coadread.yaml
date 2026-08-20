@@ -470,6 +470,11 @@ tumor-protein-abundance-cptac:
   protein_median_log2_normal: -0.127199268351409
   protein_median_log2_tumor: -0.0352202843037901
   protein_p_value: 0.265245705336061
+  protein_effect_size_se: null
+  protein_effect_standardized_t: 1.1141
+  protein_effect_cohens_d: 0.1588
+  protein_effect_standardized_class: negligible
+  protein_effect_standardized_method: pvalue_zscore_approx
   stat_test_used: msstatstmt_limma_ebayes_moderated
 tumor-rna-distribution:
   allgene_percentile: 99.74150466918945

@@ -64,7 +64,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.11.0"
+SKILL_VERSION = "1.12.0"
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -554,6 +554,14 @@ def _headline(cards, fired, verdict_pair):
         # ── Bulk protein (whole-cell-lysate MS) ───────────────────────────────
         "protein_expression_class": get_card_field(cards, "tumor-protein-abundance-cptac", "protein_expression_class"),
         "protein_effect_size":      get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_size"),
+        # Variance-standardized companion to the RAW protein_effect_size (analysis-methods #432 / card
+        # #450). protein_expression_class thresholds on the raw log2 effect, blind to variance; the
+        # standardized class/d expose a `modest_up` that only cleared significance via cohort size.
+        # Verdict-inert context (does not touch the ladder).
+        "protein_effect_standardized_class":  get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_standardized_class"),
+        "protein_effect_cohens_d":            get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_cohens_d"),
+        "protein_effect_standardized_t":      get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_standardized_t"),
+        "protein_effect_standardized_method": get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_standardized_method"),
         # Pan-cancer tumor-elevation breadth (target-grain): protein layer feeds the ladder, RNA layer is
         # display-only. Surfaced side-by-side (never averaged) with breadth_layer_concordance.
         "tumor_elevation_breadth_class":      get_card_field(cards, "tumor-elevation-breadth", "tumor_elevation_breadth_class"),
@@ -660,6 +668,9 @@ _SYNTHESIS_FACET_KEYS = (
     # exactly the cross-modal tensions the composed reasoner must weigh.
     "presence_headline_conflict", "presence_headline_conflict_note", "presence_headline_conflict_modalities",
     "abundance_floor_flag", "abundance_floor_low_lenses", "presence_abundance_is_relative",
+    # Variance-standardized CPTAC effect — qualifies whether a `modest_up` is a real per-sample effect
+    # or a large-cohort significance artifact (the raw-log2 class can't tell).
+    "protein_effect_standardized_class", "protein_effect_cohens_d", "protein_effect_standardized_method",
     # RNA-as-protein-proxy quality (both arms) — qualifies an RNA-only presence claim
     "bulk_rna_proxy_quality", "bulk_rna_proxy_quality_source",
     "rna_as_biomarker", "rna_protein_r",

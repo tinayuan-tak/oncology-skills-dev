@@ -160,6 +160,18 @@ def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
                        "escape_risk_high", "coverage_high_donor_underpowered", "data_unavailable"}
 
 
+def test_replay_cptac_standardized_effect_wired(epcam_decision):
+    """The variance-standardized CPTAC effect (analysis-methods #432 / card #450) must reach the
+    headline. EPCAM/COADREAD CPTAC is `ns` with a tiny raw effect (0.065) — the standardized class is
+    `negligible` (Cohen's d ~0.16), recovered via the p-value approximation on the current product."""
+    h = epcam_decision.get("headline") or {}
+    for k in ("protein_effect_standardized_class", "protein_effect_cohens_d",
+              "protein_effect_standardized_t", "protein_effect_standardized_method"):
+        assert k in h, f"{k} not surfaced into the presence headline (cptac-standardized wiring drift)"
+    assert h.get("protein_effect_standardized_class") == "negligible"
+    assert h.get("protein_effect_standardized_method") == "pvalue_zscore_approx"
+
+
 def test_replay_robustness_guards_wired(epcam_decision):
     """End-to-end wiring of the verdict-inert robustness guards over the REAL EPCAM/COADREAD summaries
     (the helpers are unit-tested; this proves _headline emits them from a real run):
