@@ -432,6 +432,7 @@ skill_objectives:
     questions:
       - {q: "Is it a surface protein (topology / family)?", answered_by: [surface-topology-and-ptm, surfaceome-family-classification, protein-surface-evidence]}
       - {q: "Surface abundance / density sufficient for the modality?", answered_by: [surface-abundance-density]}
+      - {q: "Where does the antigen rank among all surface proteins in the indication (cohort percentile)?", answered_by: [surfaceome-cohort-ranking]}
       - {q: "ADC vs TCE vs antibody fit class?", answered_by: [adc-tce-modality-fit]}
       - {q: "Normal-tissue surface safety window (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability, modality-therapeutic-window, sc-surface-normal-safety]}
       - {q: "Is the antigen homogeneously expressed across malignant cells (TCE heterogeneity liability)?", answered_by: [tumor-scrna-celltype-expression]}
