@@ -53,12 +53,21 @@ outputs:
     - protein_expression_class                     # PRIMARY categorical
     - protein_median_log2_tumor                    # float
     - protein_median_log2_normal                   # float
-    - protein_effect_size                          # float — median_log2_t - median_log2_n
-    - protein_effect_size_pooled_sd                # float
+    - protein_effect_size                          # float — median_log2_t - median_log2_n (RAW log2; the class thresholds on this)
+    - protein_effect_size_pooled_sd                # float (declared legacy; NOT emitted by the reader — see protein_effect_size_se)
     - protein_p_value                              # float
     - protein_bh_q_value                           # float
     - n_tumor_samples
     - n_normal_samples
+    # Variance-standardized companion to the RAW protein_effect_size (2026-08-20). The class thresholds
+    # on the raw log2 effect, blind to variance; these expose when a `modest_up` rests on a small
+    # per-sample effect that only cleared significance via n. Exact (logFC/SE) once the product carries
+    # the MSstatsTMT SE; p-value z-score approximation on the current product. Display-only / verdict-inert.
+    - protein_effect_size_se                       # float — MSstatsTMT moderated standard error (None until product rebuild)
+    - protein_effect_standardized_t                # float — logFC/SE (exact) or sign(logFC)*z-from-p (approx)
+    - protein_effect_cohens_d                      # float — sample-size-independent effect size = t/sqrt(n_eff)
+    - protein_effect_standardized_class            # categorical — Cohen's-d band
+    - protein_effect_standardized_method           # how protein_effect_standardized_t was obtained
     - stat_test_used                               # 'msstatstmt_limma_ebayes_moderated' | 'skipped_low_n'
     - method_version
     # All-gene percentile null (additive, 2026-08-05): where protein_effect_size falls
@@ -89,6 +98,16 @@ outputs:
       - top_decile                                 # >= top_decile cutoff
       - mid
       - bottom_decile                              # <= bottom_decile cutoff
+      - data_unavailable
+    protein_effect_standardized_class:             # Cohen's-d band (variance-standardized effect SIZE)
+      - negligible                                 # |d| < 0.2
+      - small                                      # 0.2 <= |d| < 0.5
+      - medium                                     # 0.5 <= |d| < 0.8
+      - large                                      # |d| >= 0.8
+      - data_unavailable                           # effect/SE/p or n missing
+    protein_effect_standardized_method:
+      - moderated_se_exact                         # logFC / MSstatsTMT SE (product carries SE)
+      - pvalue_zscore_approx                       # sign(logFC)*Phi^-1(1-p/2) — pre-rebuild fallback
       - data_unavailable
 
   # Figure is a PER-COHORT tumor-vs-normal DISTRIBUTION BOXPLOT (upgraded 2026-07-22). Originally a
