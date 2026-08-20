@@ -362,6 +362,31 @@ def _emit_card4_expression_dependency_correlation(
     ]
 
 
+def _emit_cis_feature_expression_coherence(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """cn_expression_scatter for cis-feature-expression-coherence — the cis-dosage (CN → own-expression)
+    plot. Recomputes via depmap_cis_dosage.figures public helpers (mirrors _emit_card4)."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_cis_dosage import figures as F
+    from methods.depmap_cis_dosage.cli import compute_cis_dosage
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cn_by_model, tpm_by_model, model_metadata, load_errors = F.load_cn_tpm_model(target, release_pin="26q1")
+    if load_errors or not cn_by_model or not tpm_by_model:
+        return []
+    recomputed = compute_cis_dosage(cn_by_model, tpm_by_model)
+    merged = F.build_merged_data(cn_by_model, tpm_by_model, model_metadata)
+    F.emit_plot_data(merged, out_dir)
+    F.emit_cn_expression_scatter(merged, target, indication, recomputed, out_dir, TARGET_CONTRACTS)
+    return [
+        {"id": "cn_vs_expression_scatter", "path": "figure_cn_expression_scatter.svg",
+         "type": "cn_expression_scatter", "primary": True},
+    ]
+
+
 def _emit_card1b_pan_cancer_rnai_dependency_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -1284,6 +1309,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "mutation-type-counts": _emit_mutation_type_counts,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
+    "cis-feature-expression-coherence": _emit_cis_feature_expression_coherence,   # cis-dosage scatter (2026-08-20)
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
     "dependency-predictability": _emit_dependency_predictability,
     "prism-compound-activity": _emit_prism_compound_activity,
