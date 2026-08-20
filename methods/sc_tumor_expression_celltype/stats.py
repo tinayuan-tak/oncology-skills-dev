@@ -34,6 +34,18 @@ MICROENVIRONMENT_COMPARTMENTS = ("immune", "stromal", "endothelial")
 # false-confidence call. Mirrors the sibling sc_normal_expression reader's MIN_RELIABLE_DONORS=5 (L1).
 MIN_RELIABLE_DONORS = 5
 
+# ── TCE antigen-escape thresholds (two-axis heterogeneity, 2026-08-20) ────────────────────────────
+# The prior single-number tce_homogeneity_class re-binned malignant_detection_fraction alone, with a
+# LENIENT 0.5 "homogeneous" bar — 50% of malignant cells antigen-negative is a large escape reservoir.
+# A T-cell-engager needs BOTH: (a) most cells in a typical tumour express it (WITHIN-tumour coverage),
+# and (b) that holds ACROSS patients (INTER-tumour consistency). We separate the two axes.
+TCE_COVERAGE_HOMOGENEOUS_MIN = 0.75      # within-tumour: >=75% of malignant cells express (tightened)
+TCE_COVERAGE_HETEROGENEOUS_MAX = 0.5     # <50% expressing == an escape reservoir within the tumour
+DONOR_CONSISTENCY_IQR_MAX = 0.25         # inter-donor detection IQR below this == consistent across pts
+DONOR_BROAD_DETECTION_MIN = 0.5          # a donor "broadly detects" at >=50% malignant detection
+DONOR_CONSISTENCY_FRACTION_MIN = 0.5     # consistent if >=50% of donors broadly detect
+MIN_DONORS_FOR_DISPERSION = 3            # IQR on 1-2 donors is meaningless -> report None, flag it
+
 
 def compartment_summary(rows) -> dict:
     """Roll the per-(donor, compartment) pseudobulk rows up to ONE stat block per compartment,
@@ -54,12 +66,28 @@ def compartment_summary(rows) -> dict:
             detection_fraction=("detection_fraction", "mean"),
             abundance_log1p_cp10k=("abundance_log1p_cp10k", "mean"),
         )
+        n_donors = int(per_donor.shape[0])
+        det = per_donor["detection_fraction"]
+        # INTER-DONOR dispersion of detection fraction (was discarded when we medianed). The per-donor
+        # array is the substrate for the antigen-escape / patient-consistency axis. IQR on <3 donors is
+        # meaningless -> emit None (an honest gap the consumer can gate), never a fabricated 0.
+        if n_donors >= MIN_DONORS_FOR_DISPERSION:
+            p25, p75 = (float(x) for x in np.quantile(det, [0.25, 0.75]))
+            donor_iqr = round(p75 - p25, 6)
+            frac_broad = round(float((det >= DONOR_BROAD_DETECTION_MIN).mean()), 6)
+        else:
+            p25 = p75 = donor_iqr = frac_broad = None
         out[str(comp)] = {
-            "n_donors": int(per_donor.shape[0]),
+            "n_donors": n_donors,
             "n_datasets": int(g["dataset_id"].nunique()),
             "n_cells_total": int(g["n_cells"].sum()),
-            "median_detection_fraction": float(np.median(per_donor["detection_fraction"])),
+            "median_detection_fraction": float(np.median(det)),
             "median_abundance_log1p_cp10k": float(np.median(per_donor["abundance_log1p_cp10k"])),
+            # additive inter-donor dispersion (verdict-inert; None when under-powered)
+            "detection_fraction_donor_p25": p25,
+            "detection_fraction_donor_p75": p75,
+            "detection_fraction_donor_iqr": donor_iqr,
+            "fraction_donors_broadly_detecting": frac_broad,
         }
     return out
 
@@ -163,6 +191,84 @@ def classify_tce_homogeneity(malignant_detection_fraction, malignant_compartment
     if malignant_detection_fraction < TCE_HETEROGENEOUS_MAX:
         return "heterogeneous"
     return "moderately_homogeneous"
+
+
+def _within_tumor_coverage_class(mdet):
+    """WITHIN-tumour axis: what fraction of malignant cells (cross-donor median detection) express the
+    target. high >= 0.75 / partial 0.5-0.75 / low < 0.5 (escape reservoir within a tumour)."""
+    if mdet is None:
+        return "data_unavailable"
+    if mdet >= TCE_COVERAGE_HOMOGENEOUS_MIN:
+        return "high"
+    if mdet < TCE_COVERAGE_HETEROGENEOUS_MAX:
+        return "low"
+    return "partial"
+
+
+def _inter_donor_consistency_class(donor_iqr, frac_donors_broad, n_donors):
+    """INTER-tumour axis: does malignant detection hold ACROSS patients. consistent (tight IQR AND most
+    donors broadly detect) / variable / underpowered (< MIN_DONORS_FOR_DISPERSION donors — untestable)."""
+    if donor_iqr is None or (n_donors or 0) < MIN_DONORS_FOR_DISPERSION:
+        return "underpowered"
+    tight = donor_iqr <= DONOR_CONSISTENCY_IQR_MAX
+    broad = (frac_donors_broad is None) or (frac_donors_broad >= DONOR_CONSISTENCY_FRACTION_MIN)
+    return "consistent" if (tight and broad) else "variable"
+
+
+def malignant_heterogeneity_readout(comp_summary: dict) -> dict:
+    """TWO-AXIS TCE antigen-escape readout (2026-08-20) — supersedes the single-number
+    classify_tce_homogeneity, which re-binned malignant_detection_fraction alone with a lenient 0.5
+    "homogeneous" bar. A T-cell engager needs the antigen on MOST malignant cells (within-tumour
+    coverage) AND in MOST patients (inter-tumour consistency); an antigen-negative subpopulation escapes
+    redirected killing (no bystander payload, unlike an ADC). Reads the malignant compartment's
+    cross-donor median detection + the inter-donor dispersion now emitted by compartment_summary.
+
+    Returns (verdict-inert; the presence spine is untouched):
+      within_tumor_coverage_class     high / partial / low / data_unavailable
+      inter_donor_consistency_class    consistent / variable / underpowered / data_unavailable
+      tce_antigen_escape_class         the combined escape-risk call (see below)
+      malignant_detection_fraction, malignant_detection_donor_iqr, fraction_donors_broadly_detecting, n_donors
+
+    tce_antigen_escape_class:
+      escape_risk_high            within-tumour coverage LOW (<0.5) — an escape reservoir regardless of
+                                  patient consistency (the dominant, coverage-first call)
+      escape_risk_patient_variable coverage high/partial but detection is INCONSISTENT across donors
+                                  (works in some patients, not others — a selection problem)
+      escape_risk_low             high coverage AND consistent across donors — the TCE-favourable case
+      escape_risk_moderate        partial coverage, consistent (a real subset; dropout-aware caution)
+      coverage_high_donor_underpowered  high coverage but too few donors to test consistency (honest gap)
+      data_unavailable            no malignant compartment / detection
+    """
+    mal = comp_summary.get("malignant") if isinstance(comp_summary, dict) else None
+    if not mal or mal.get("median_detection_fraction") is None:
+        return {"within_tumor_coverage_class": "data_unavailable",
+                "inter_donor_consistency_class": "data_unavailable",
+                "tce_antigen_escape_class": "data_unavailable",
+                "malignant_detection_fraction": None, "malignant_detection_donor_iqr": None,
+                "fraction_donors_broadly_detecting": None, "n_donors": (mal or {}).get("n_donors")}
+    mdet = mal["median_detection_fraction"]
+    iqr = mal.get("detection_fraction_donor_iqr")
+    frac_broad = mal.get("fraction_donors_broadly_detecting")
+    n_donors = mal.get("n_donors")
+    coverage = _within_tumor_coverage_class(mdet)
+    consistency = _inter_donor_consistency_class(iqr, frac_broad, n_donors)
+    if coverage == "low":
+        escape = "escape_risk_high"
+    elif coverage == "high" and consistency == "consistent":
+        escape = "escape_risk_low"
+    elif coverage == "high" and consistency == "underpowered":
+        escape = "coverage_high_donor_underpowered"
+    elif consistency == "variable":
+        escape = "escape_risk_patient_variable"
+    else:  # partial coverage, consistent-or-underpowered
+        escape = "escape_risk_moderate"
+    return {"within_tumor_coverage_class": coverage,
+            "inter_donor_consistency_class": consistency,
+            "tce_antigen_escape_class": escape,
+            "malignant_detection_fraction": mdet,
+            "malignant_detection_donor_iqr": iqr,
+            "fraction_donors_broadly_detecting": frac_broad,
+            "n_donors": n_donors}
 
 
 def classify_sc_expression(comp_summary: dict,
