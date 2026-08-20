@@ -168,6 +168,12 @@ _UNDERPOWERED_NONDEP = {"stratum": "SUBTYPE_A", "class": "not_dependent",
 _MEASURED_STRONG = {"stratum": "SUBTYPE_B", "class": "strong_dependency",
                     "evidence_state": "measured", "subgroup_n": 60,
                     "subgroup_n_floor_met": True, "median_chronos": -1.3}
+# Part-8 Step-3 (POU2F3/SCLC-P): intrinsically-small (n<30, underpowered) but effect-admissible
+# (subgroup_effect_admissible: an effect-size gate, per depmap_chronos) → the SAME positive channel.
+_UNDERPOWERED_STRONG_ADMISSIBLE = {"stratum": "SCLC_P", "class": "strong_dependency",
+                    "evidence_state": "underpowered", "subgroup_n": 5,
+                    "subgroup_n_floor_met": False, "subgroup_effect_admissible": True,
+                    "median_chronos": -1.53}
 
 
 def _fire(rows):
@@ -192,10 +198,28 @@ def test_underpowered_subtype_row_is_inadmissible():
     assert tp._subtype_verdict(fired) is None
 
 
-def test_strong_dependency_subtype_does_not_fire():
-    """A positive subtype finding produces no verdict — gate is one-directional."""
+def test_strong_dependency_subtype_fires_supportive():
+    """A measured, floor-cleared STRONG subtype dependency fires the POSITIVE subtype
+    channel (subtype_restricted_dependency) — the gate is now bi-directional (#445 gate +
+    this PR's _subtype_verdict). Supersedes the old one-directional expectation: a strong
+    subtype dependency is a genuine (supportive) cross-target signal, not a no-op."""
     fired = _fire([_MEASURED_STRONG])
-    assert tp._subtype_verdict(fired) is None
+    assert tp._subtype_verdict(fired) == ("subtype_restricted_dependency",
+                                          "subtype-restricted-dependency-supportive")
+
+
+def test_underpowered_effect_admissible_strong_fires_supportive():
+    """Part-8 Step-3 (POU2F3/SCLC-P): a small-but-tight strong dependency — underpowered
+    (n<30) yet subgroup_effect_admissible — fires the SAME positive channel via the
+    effect-gated rule (disjoint from the floor-cleared `measured` rule). This is the case
+    a hard n>=30 floor would have silently discarded."""
+    fired = _fire([_UNDERPOWERED_STRONG_ADMISSIBLE])
+    subtype = [f for f in fired if f.get("tier") == "subtype"]
+    assert subtype, "effect-admissible underpowered strong stratum should fire the subtype rule"
+    assert subtype[0]["matched_stratum"] == "SCLC_P"
+    assert tp._subtype_verdict(fired) == (
+        "subtype_restricted_dependency",
+        "subtype-restricted-dependency-underpowered-supportive")
 
 
 def test_subtype_nondependence_forces_hold():

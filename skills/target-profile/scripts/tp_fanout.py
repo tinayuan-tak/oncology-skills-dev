@@ -544,26 +544,35 @@ SUBTYPE_CARDS = [
 
 
 def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
-    """Verdict producer for the subtype tier. NEGATIVE-SELECTION only.
+    """Verdict producer for the subtype tier. BI-DIRECTIONAL, negative-precedence (2026-08-19,
+    subtype-verdict-shifting review \u00a75).
 
-    Fires the verdict that the nomination gate maps to `hold` iff a subtype-tier
-    rule fired (the subtype-non-dependence-opposing rule, which only matches a
-    MEASURED, floor-cleared, not-dependent stratum — an underpowered row cannot
-    match, so admissibility is enforced upstream at rule-fire time). Returns None
-    when no subtype rule fired — a POSITIVE/absent subtype finding produces no
-    verdict, so it can never inflate a nomination (gate is one-directional).
+    NEGATIVE (unchanged, takes precedence): subtype-non-dependence-opposing matches a MEASURED,
+    floor-cleared, NOT-dependent stratum -> subtype_fit_genomic: opposing ->
+    `subtype_specific_non_dependence` (the nomination gate maps it to a HOLD).
+
+    POSITIVE (new): subtype-restricted-dependency-supportive matches a MEASURED, floor-cleared,
+    STRONG-dependent stratum -> subtype_fit_genomic: supportive -> `subtype_restricted_dependency`
+    (the gate treats it as a SUPPORTIVE positive + a non_dependent veto-suppressor — the
+    precision-oncology channel: POU2F3/SCLC-P, CMS4/CRC).
+
+    Precedence is CONSERVATIVE: if any opposing subtype fired, the HOLD wins. The positive fires
+    ONLY when a supportive subtype fired and NO opposing one did. Admissibility (n>=30 floor,
+    measured) is enforced upstream at rule-fire time. Byte-stable: no --subtypes -> no subtype rule
+    fires -> None; existing opposing-only runs unchanged; only supportive-without-opposing is new.
     """
-    subtype_hits = [f for f in fired
-                    if f.get("tier") == "subtype"
-                    # `or ''` guards a signals dict that carries subtype_fit_genomic: null
-                    # (present key, None value) — `.get(k, '')` returns None there, not '',
-                    # and `'opposing' in None` would raise TypeError.
-                    and "opposing" in ((f.get("signals") or {}).get("subtype_fit_genomic") or "")]
-    if not subtype_hits:
-        return None
-    # Name the driving rule + the matched stratum for provenance.
-    hit = subtype_hits[0]
-    return ("subtype_specific_non_dependence", hit.get("rule_id"))
+    def _sig(f: dict) -> str:
+        # `or ''` guards subtype_fit_genomic: null (present key, None value) -> else `'x' in None` raises.
+        return ((f.get("signals") or {}).get("subtype_fit_genomic") or "")
+
+    subtype = [f for f in fired if f.get("tier") == "subtype"]
+    opposing = [f for f in subtype if "opposing" in _sig(f)]
+    if opposing:
+        return ("subtype_specific_non_dependence", opposing[0].get("rule_id"))   # HOLD — precedence
+    supportive = [f for f in subtype if "supportive" in _sig(f)]
+    if supportive:
+        return ("subtype_restricted_dependency", supportive[0].get("rule_id"))   # SUPPORTIVE positive
+    return None
 
 
 def _skipped_synthesis_output() -> dict:
