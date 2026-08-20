@@ -64,7 +64,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.8.0"
+SKILL_VERSION = "1.9.0"
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -412,6 +412,62 @@ def _top_essential_cell_types(flags, n: int = 8) -> list[dict]:
     return [{"cell_type": ct, "detection_fraction": det} for ct, det in ranked[:n]]
 
 
+# ─── Robustness facets (VERDICT-INERT — additive keys only, spine byte-stable) ────────────
+# A presence-POSITIVE collapsed verdict is a measured verdict that is neither a measured-negative nor a
+# coverage gap nor the empty `insufficient`. Mirrors the positive tier of _partition_measured.
+def _is_presence_positive(verdict: str | None) -> bool:
+    return bool(verdict) and verdict not in _MEASURED_NEGATIVE_VERDICTS \
+        and verdict not in _COLLAPSE_GAP_VERDICTS and verdict != "insufficient"
+
+
+def _headline_conflict(collapsed_verdict, per_modality):
+    """VERDICT-INERT safety guard (Principle 1): the collapsed headline reads PRESENT (a measured
+    positive) while another modality carries a MEASURED presence-NEGATIVE (e.g. RNA broadly_high but
+    CPTAC protein `not_detected`). The collapse intentionally ranks measured positives over measured
+    negatives to protect antigens that de-differentiate in 2D culture; that same rule can bury a
+    measured protein-absence under an RNA positive in the one-word headline. This flag makes the buried
+    killer legible without moving the spine. Returns (conflict_bool, note_or_None, [bucket_keys])."""
+    if not _is_presence_positive(collapsed_verdict):
+        return False, None, []
+    killers = sorted(k for k, b in (per_modality or {}).items()
+                     if isinstance(b, dict) and b.get("evidence_state") == "measured"
+                     and b.get("verdict") in _MEASURED_NEGATIVE_VERDICTS)
+    if not killers:
+        return False, None, []
+    note = (f"presence_verdict reads present ({collapsed_verdict}) but a MEASURED presence-negative was "
+            f"recorded in: {', '.join(killers)}. The collapse ranks measured positives over measured "
+            f"negatives (protects de-differentiating antigens), so this killer is not in the one-word "
+            f"headline — confirm the target is present in the negative modality before any read that "
+            f"depends on it (e.g. a protein `not_detected` undercuts an ADC/degrader/TCE call).")
+    return True, note, killers
+
+
+# Abundance-LEVEL anchors: the allgene percentile of the target's expression/abundance LEVEL. The
+# CPTAC and RNA-vs-adjacent percentiles rank a tumor-vs-normal CONTRAST (effect size), NOT a level, so
+# they are deliberately excluded — a low contrast-rank is not low abundance.
+_LEVEL_ANCHOR_CARDS = (
+    ("tumor-rna-distribution",     "tumor RNA level"),
+    ("cellline-rna-distribution",  "cell-line RNA level"),
+    ("cellline-protein-abundance", "cell-line protein level"),
+)
+
+
+def _abundance_floor(cards, collapsed_verdict):
+    """VERDICT-INERT (Principle 2 — breadth != level): a presence-POSITIVE call whose absolute abundance
+    LEVEL reads bottom-decile (allgene percentile) in at least one lens. The presence classes are
+    breadth-of-detection dominant (e.g. a protein detected in 100% of cell lines but bottom-decile
+    abundance still classes `broadly_moderate`), so `broadly_moderate` must never be read as `abundant`
+    without checking the level anchor. Returns (flag_or_None, [low_lens_dicts])."""
+    if not _is_presence_positive(collapsed_verdict):
+        return None, []
+    low = []
+    for card_id, label in _LEVEL_ANCHOR_CARDS:
+        klass = get_card_field(cards, card_id, "allgene_percentile_class")
+        if klass == "bottom_decile":
+            low.append({"lens": label, "card_id": card_id, "allgene_percentile_class": klass})
+    return ("present_low_abundance" if low else "adequate_abundance"), low
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
@@ -425,6 +481,11 @@ def _headline(cards, fired, verdict_pair):
          "tumor-tissue presence for this target (typical of antigens that de-differentiate in "
          "2D culture).")
         if _cl_tumor_discordant else None)
+    # Robustness facets (verdict-inert): a measured presence-negative buried under the positive headline
+    # (Principle 1), and a presence-positive whose absolute abundance level reads bottom-decile
+    # (Principle 2). Both are additive legibility guards; neither touches v / drv / per_modality.
+    _hl_conflict, _hl_conflict_note, _hl_conflict_buckets = _headline_conflict(v, per_modality)
+    _abundance_floor_flag, _abundance_low_lenses = _abundance_floor(cards, v)
     # RNA→protein proxy quality: prefer the tumor arm (the disease-context proxy), fall back to cell-line.
     _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")
     _rna_biomarker_tumor = get_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
@@ -442,6 +503,18 @@ def _headline(cards, fired, verdict_pair):
         # guard: it should be False for every target (see CONTRACT.md § "Headline lens").
         "headline_lens":                 _headline_lens,
         "cell_line_vs_tumor_discordant": _cl_tumor_discordant,
+        # Robustness guards (verdict-inert). presence_headline_conflict surfaces a MEASURED
+        # presence-negative that the positive-over-negative collapse buried under the headline word.
+        "presence_headline_conflict":            _hl_conflict,
+        "presence_headline_conflict_note":       _hl_conflict_note,
+        "presence_headline_conflict_modalities": _hl_conflict_buckets,
+        # abundance_floor_flag: a presence-positive whose absolute LEVEL is bottom-decile in >=1 lens
+        # (breadth-of-detection classes hide low absolute abundance). presence_abundance_is_relative
+        # names the capability ceiling: every protein signal here is RELATIVE (TMT ratios / percentiles),
+        # never copies/cell — do NOT infer "enough antigen" for a modality decision from a presence call.
+        "abundance_floor_flag":          _abundance_floor_flag,
+        "abundance_floor_low_lenses":    _abundance_low_lenses,
+        "presence_abundance_is_relative": True,
         "presence_interpretation_note":  _presence_interpretation_note,
         # ── Bulk RNA ──────────────────────────────────────────────────────────
         "median_log2tpm_panel":     get_card_field(cards, "cellline-rna-distribution", "median_log2tpm_panel"),
@@ -547,6 +620,10 @@ _SYNTHESIS_FACET_KEYS = (
     "presence_verdict", "driving_rule_id",
     "presence_verdict_by_modality",       # the 7-bucket cross-modal matrix (the key object)
     "headline_lens", "cell_line_vs_tumor_discordant", "presence_interpretation_note",
+    # Robustness guards — a buried measured-negative and a bottom-decile-abundance present call are
+    # exactly the cross-modal tensions the composed reasoner must weigh.
+    "presence_headline_conflict", "presence_headline_conflict_note", "presence_headline_conflict_modalities",
+    "abundance_floor_flag", "abundance_floor_low_lenses", "presence_abundance_is_relative",
     # RNA-as-protein-proxy quality (both arms) — qualifies an RNA-only presence claim
     "bulk_rna_proxy_quality", "bulk_rna_proxy_quality_source",
     "rna_as_biomarker", "rna_protein_r",

@@ -144,6 +144,25 @@ def test_replay_per_modality_buckets_measured(epcam_decision):
         f"— a block of rules stopped firing over the real summaries.")
 
 
+def test_replay_robustness_guards_wired(epcam_decision):
+    """End-to-end wiring of the verdict-inert robustness guards over the REAL EPCAM/COADREAD summaries
+    (the helpers are unit-tested; this proves _headline emits them from a real run):
+      * abundance_floor_flag = present_low_abundance — EPCAM cell-line PROTEIN is bottom-decile
+        (allgene pct 8.6) while presence is positive: the breadth-vs-level guard must fire and name it.
+      * presence_headline_conflict = False — CPTAC is `ns` (present-not-elevated), a measured NEUTRAL,
+        not a killer, so the conflict flag must stay silent (no false alarm).
+      * presence_abundance_is_relative = True — the standing capability-ceiling flag."""
+    h = epcam_decision.get("headline") or {}
+    assert h.get("abundance_floor_flag") == "present_low_abundance", (
+        f"expected present_low_abundance (EPCAM cell-line protein is bottom-decile); "
+        f"got {h.get('abundance_floor_flag')!r}")
+    low = h.get("abundance_floor_low_lenses") or []
+    assert any(x.get("card_id") == "cellline-protein-abundance" for x in low)
+    assert h.get("presence_headline_conflict") is False
+    assert h.get("presence_headline_conflict_note") is None
+    assert h.get("presence_abundance_is_relative") is True
+
+
 def test_replay_headline_resolves_broadly(epcam_decision):
     """Headline drift floor: a reader field-name drift that silently nulled a block of `get_card_field`
     reads would collapse many headline values to None. EPCAM/COADREAD resolves ~42 non-null headline

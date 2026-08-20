@@ -183,10 +183,50 @@ is summarized in the headline as an organ-aware liability tier
 (`sc_normal_top_essential_cell_types`); the full per-cell-type dict is retained as
 `sc_normal_safety_essential_flags`.
 
+## Robustness guards (verdict-inert; added 1.9.0)
+
+Three additive legibility facets close known misread paths without moving the spine (all frozen by the
+golden-spine test + the guards' own unit tests):
+
+- **`presence_headline_conflict`** (Principle 1 — *the headline must not silently contradict its own
+  measured killer*). The collapse ranks measured positives over measured negatives (to protect antigens
+  that de-differentiate in 2D culture), so an RNA-high target whose CPTAC protein is a **measured**
+  `not_detected` still reads present in the one-word verdict. The flag fires when a presence-positive
+  headline co-exists with a measured presence-negative in another bucket, names the bucket(s), and emits
+  an interpretation note. It stays silent on a measured *neutral* (e.g. CPTAC `present_not_elevated`) and
+  on coverage gaps — those are not killers. Mirrors the `cell_line_vs_tumor_discordant` guard pattern.
+
+- **`abundance_floor_flag`** (Principle 2 — *breadth ≠ level*). The presence classes are
+  breadth-of-detection dominant: a protein detected in 100% of cell lines but sitting at the bottom decile
+  of all-protein abundance still classes `broadly_moderate`. The flag reads `present_low_abundance` when a
+  presence-positive call co-occurs with a bottom-decile abundance **level** anchor (tumor-RNA / cell-line
+  RNA / cell-line protein — the CPTAC and RNA-vs-adjacent percentiles rank a tumor-vs-normal *contrast*,
+  not a level, and are deliberately excluded), and names the low lens. It also caps the claim-vector's
+  Claim-A corroboration so a `broadly_moderate` presence is never read as `abundant` without checking the
+  level anchor. Canonical case: EPCAM/COADREAD — tumor RNA top-1% but cell-line protein bottom-decile.
+
+- **`presence_abundance_is_relative`** (Principle 6 — *name the ceiling*). A standing `True` provenance
+  flag: every protein signal here is RELATIVE (TMT log2-ratios, panel percentiles), never absolute
+  copies/cell. Surface topology and absolute antigen density are owned by `surface-modality-fit`; do not
+  infer "enough antigen" for a modality decision from a presence-positive.
+
+## Ladder governance (why an inline verdict is still guarded)
+
+Because the verdict is resolved inline (not via a `*.resolver.yaml`), the ladder ORDER — which encodes
+scientific-priority judgments — has no declarative-resolver governance. `tests/test_ladder_invariants.py`
+supplies it, asserting the ordering principles directly (positives > negatives > gaps; tumor tissue >
+cell-line proxy; RNA backbone > protein > single-cell; protein-absence is a negative) so a reorder that
+violates a principle fails and forces the rationale to be updated with it. The same file proves the
+**no-dangerous-flip** invariant *totally* (a presence-positive can never be conjured from a fired-set of
+only negatives/gaps) — a structural property over the whole ladder that supersedes the original,
+now-unreproducible ("run out-of-tree, ephemeral") 43-pair re-anchor backtest, whose per-pair data was
+never committed. The synthetic flip-class assertions in `test_reanchor_flip_matrix.py` are retained.
+
 ## Version history
 
 | version | date | change |
 |---|---|---|
+| 1.9.0 | 2026-08-20 | Verdict-inert robustness guards: `presence_headline_conflict` (buried measured-negative), `abundance_floor_flag` (breadth≠level, caps claim-A corroboration), `presence_abundance_is_relative` ceiling flag; claim-vector Claim-D corroboration now scales with cohorts-tested (was hardcoded `moderate`). Ladder-invariant + no-dangerous-flip governance test. Spine byte-stable. |
 | 1.8.0 | 2026-08-18 | Production cleanup: run.py slimmed (rationale moved here); single-cell detail (per-compartment / CAF / homogeneity / abundance / dataset counts) and normal-tissue liability tier + top-N surfaced into the headline and synthesis facet; STAD sc coverage documented. Additive — verdict spine byte-stable. |
 | 1.7.0 | 2026-08-14 | Tumor-tissue lens re-anchored above the pan-cancer cell-line proxy in `_EXPRESSION_RANK` (backtest-gated, verdict-moving). |
 | 1.6.0 | 2026-08-13 | Added `headline_lens` + `cell_line_vs_tumor_discordant` + interpretation note (additive). |

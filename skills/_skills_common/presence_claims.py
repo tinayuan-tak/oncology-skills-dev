@@ -71,7 +71,15 @@ def _claim_A(h, c):
         return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no abundance anchor", "conflict": None, "informs": CLAIM_INFORMS["A"]}
     proxy = h.get("bulk_rna_proxy_quality")
     rel = "high" if proxy == "rna_confirmed_by_protein" else "moderate" if proxy == "rna_positive_proxy_partial" else "low"
-    return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["A"],
+    conflict = None
+    # LEVEL != breadth (Principle 2): if a level anchor reads bottom-decile while the abundance claim is
+    # positive, cap corroboration and surface it — a `broadly_moderate` presence class can sit on a
+    # bottom-decile absolute abundance (e.g. a protein detected everywhere but low-abundance).
+    if h.get("abundance_floor_flag") == "present_low_abundance":
+        low = ", ".join(x.get("lens", "?") for x in (h.get("abundance_floor_low_lenses") or []))
+        conflict = f"abundance-level floor: bottom-decile in {low} (breadth-positive but low absolute level)"
+        rel = "low"
+    return {"signal": sig, "corroboration": rel, "conflict": conflict, "informs": CLAIM_INFORMS["A"],
             "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}"}
 
 
@@ -138,7 +146,16 @@ def _claim_D(h, c):
     dist = c.get("tumor-rna-distribution", {}).get("distribution_pattern")
     sig = {"broadly_tumor_elevated": "strong", "multi_tumor_elevated": "moderate",
            "single_tumor_elevated": "weak", "not_tumor_elevated": "absent"}.get(br, "unmeasured")
-    return {"signal": sig, "corroboration": "moderate", "evidence": f"breadth={br}; dist={dist}", "conflict": None, "informs": CLAIM_INFORMS["D"]}
+    # Corroboration scales with HOW MANY cohorts/indications the breadth was tested over (was hardcoded
+    # `moderate`, which over-stated a 2-cohort breadth). Uses the larger of the protein-cohort and
+    # RNA-indication test counts the breadth card reports.
+    n_tested = max(h.get("tumor_elevation_n_cohorts_tested") or 0,
+                   h.get("rna_tumor_elevation_n_indications_tested") or 0)
+    rel = ("high" if n_tested >= 10 else "moderate" if n_tested >= 5
+           else "low" if n_tested >= 1 else "unmeasured")
+    return {"signal": sig, "corroboration": rel,
+            "evidence": f"breadth={br}; dist={dist}; tested over {n_tested} cohorts/indications",
+            "conflict": None, "informs": CLAIM_INFORMS["D"]}
 
 
 def _homogeneity(h, c):
