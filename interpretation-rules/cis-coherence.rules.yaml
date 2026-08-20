@@ -1,0 +1,104 @@
+# Tier-2 signal-mapping rules for the CIS-COHERENCE axis.
+#
+# The cis-feature-coherence skill's dedicated, self-contained rule set (mirrors the
+# combination-opportunity / resistance-emergence pattern): its rules_id == axis == the skill's
+# requested axis name, and it is kept OUT of the shared nomination ladder. VERDICT-INERT at the
+# composed target-profile layer — cis_coherence is NOT a gating axis (see tp_gates._GATING_AXES);
+# it emits a descriptive coherence classification consumed as a confidence-annotation +
+# tension_analysis spine, never as a nomination gate. Graduation to a gate is a later, calibrated stage.
+#
+# These rules fire the leg tokens the cis_coherence.resolver.yaml ladders into cis_coherence_verdict.
+# The verdict is a deterministic 2x2 cross-tab of two coherence legs:
+#   leg-1  feature -> own-expression   (cis_dosage_class; the NEW card, the previously-missing leg)
+#   leg-2  expression/feature -> own-dependency  (correlation_class OR amp_expr_stratification_class)
+#
+# Reuse discipline: leg-2 reads the EXISTING expression-dependency-correlation +
+# amp-expr-stratified-dependency cards by field — no new dependency measurement, no new
+# *-stratified-dependency card (the family is complete). Only leg-1 (cis-dosage) is new biology.
+
+rules_id: cis-coherence
+version: 1.0.0
+axis: cis_coherence
+schema_version: 1
+
+rationale: |
+  Cis-coherence asks whether the target's own locus feature CAUSALLY EXPLAINS its own expression
+  AND its own dependency — the oncogene-addiction chain (amplification -> overexpression ->
+  dependency; ERBB2/MYC/KRAS-amp) — as opposed to three axes that merely co-occur. It integrates a
+  new feature->expression leg (cis-dosage coupling) with the existing expression->dependency
+  evidence. All signals are supportive/neutral only (no killer): coherence is a confidence + framing
+  signal, not a veto — an incoherent chain lowers confidence and reframes the tension_analysis, it
+  does not (at this verdict-inert stage) block a nomination.
+
+rules:
+  # ── leg-1: feature -> own-expression (cis-dosage coupling) — the NEW leg ──────────────────────────
+  - rule_id: cis-dosage-coupled-supportive
+    when:
+      card_id: cis-feature-expression-coherence
+      field: cis_dosage_class
+      in: [cn_dosage_coupled_strong, cn_dosage_coupled_moderate]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target's own relative copy-number predicts its own expression across the panel
+      (Spearman r >= 0.25, p <= 0.01) — expression is amplification-DRIVEN (cis-dosage coupled).
+      Leg-1 of the coherence chain is intact. Live expectation: ERBB2 / MYC (strong), KRAS-amp.
+
+  - rule_id: cis-dosage-uncoupled-neutral
+    when:
+      card_id: cis-feature-expression-coherence
+      field: cis_dosage_class
+      equals: cn_dosage_uncoupled
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Copy-number VARIES across the panel but does NOT predict expression — expression is
+      copy-number-INDEPENDENT (trans/lineage-regulated). Leg-1 of the cis chain is broken. This is
+      the informative negative: combined with a leg-2 dependency signal it routes the verdict to
+      dependency_without_cis_dosage (a trans-driven, not amplification-driven, dependency). NOT the
+      same as cn_invariant_panel (untestable), which fires no leg-1 token and abstains.
+
+  # ── leg-2: expression/feature -> own-dependency (REUSED cards; no new measurement) ───────────────
+  - rule_id: cis-expr-dependency-coupled-supportive
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      in: [strong_negative, moderate_negative]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Expression correlates with stronger dependency across cell lines (Pearson r <= -0.2, p <= 0.01)
+      — high-expressers are more dependent. Leg-2 of the coherence chain (expression -> dependency).
+      Reuses the existing expression-dependency-correlation card by field; no new dependency test.
+
+  - rule_id: cis-expr-dependency-absent-neutral
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      in: [weak_negative, no_correlation, positive_anomaly]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Expression does NOT track dependency (weak/absent/anomalous correlation). Leg-2 negative:
+      the target may be expressed (and even cis-dosage-driven) but is not more required where it is
+      more abundant. Combined with a coupled leg-1 this routes to expressed_cis_coupled_inert — the
+      abundance-laundering guard (present + cis-driven, but not a dependency).
+
+  - rule_id: cis-conjoint-dependent-supportive
+    when:
+      card_id: amp-expr-stratified-dependency
+      field: amp_expr_stratification_class
+      in: [amplified_overexpressed_strongly_dependent, amplified_overexpressed_moderately_dependent]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The amplified+overexpressed subset is significantly more dependent than the rest — a leg-2
+      dependency signal read through the conjoint amplification-addiction lens. Reuses the existing
+      amp-expr-stratified-dependency card. Redundant-but-corroborating with the correlation leg; the
+      resolver treats either as sufficient for leg-2-positive (OR), never double-counts (both fire the
+      same coherent_cis_driver verdict, first-match).

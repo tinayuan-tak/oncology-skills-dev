@@ -8,6 +8,7 @@ resolver_consumed_cards:
 - adc-tce-modality-fit
 - alteration-role
 - amp-expr-stratified-dependency
+- cis-feature-expression-coherence
 - clingen-dosage
 - clinvar-pathogenicity-safety
 - co-mutation-and-mutual-exclusivity
@@ -15,6 +16,7 @@ resolver_consumed_cards:
 - copy-number-stratified-dependency
 - crispr-rnai-dependency-concordance
 - dependency-lineage-selectivity
+- expression-dependency-correlation
 - fusion-rearrangement-landscape
 - fusion-stratified-dependency
 - gene-burden-safety
@@ -62,11 +64,19 @@ detail:
     - oncogene-role-safety-context
   amp-expr-stratified-dependency:
     resolvers:
+    - cis_coherence
     - genomic_alteration
     rules:
     - amp-expr-indication-scoped-context
     - amp-expr-moderately-dependent-supportive
     - amp-expr-strongly-dependent-supportive
+    - cis-conjoint-dependent-supportive
+  cis-feature-expression-coherence:
+    resolvers:
+    - cis_coherence
+    rules:
+    - cis-dosage-coupled-supportive
+    - cis-dosage-uncoupled-neutral
   clingen-dosage:
     resolvers:
     - safety
@@ -121,6 +131,12 @@ detail:
     rules:
     - lineage-selective-supportive
     - lineage-selectivity-data-unavailable-insufficient
+  expression-dependency-correlation:
+    resolvers:
+    - cis_coherence
+    rules:
+    - cis-expr-dependency-absent-neutral
+    - cis-expr-dependency-coupled-supportive
   fusion-rearrangement-landscape:
     resolvers:
     - genomic_alteration

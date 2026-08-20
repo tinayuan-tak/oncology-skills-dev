@@ -1,0 +1,124 @@
+# Card — CIS-FEATURE → OWN-EXPRESSION COHERENCE  (pure-data, target-only, v2)
+#
+# THE MISSING LEG. The framework measures three axes independently — is the target ALTERED
+# (genomic-alteration-profile), is it EXPRESSED (tumor-presence), is it REQUIRED
+# (functional-requirement) — but nothing tests whether the target's OWN cis genomic feature
+# CAUSALLY EXPLAINS its OWN expression. This card measures exactly that: does the target's own
+# relative copy-number predict its own mRNA level across the DepMap panel (cis-dosage coupling)?
+#
+# This is NOT amp-expr-stratified-dependency. That card conjoins amplified∩overexpressed and asks
+# "is the conjoint subset MORE DEPENDENT" — it presumes overexpression follows amplification and
+# never TESTS the CN→expression step. This card tests that step directly (the feature→expression
+# leg), so the cis-coherence resolver can distinguish amplification-DRIVEN overexpression (ERBB2/MYC:
+# CN and expression coupled) from CN-independent (trans-regulated) expression that happens to
+# co-occur with a passenger amplicon.
+#
+# DECOUPLED FROM INDICATION (mirrors the stratified-dependency siblings): evaluates the FULL DepMap
+# panel via the shared lineage ladder; per-indication cis-dosage is a downstream synthesis question.
+# Consumed by cis_coherence.resolver.yaml as the leg-1 signal; VERDICT-INERT at the composed layer.
+#
+# Expected demonstration cases (live-verify at calibration — Stage-0 gate, NOT yet run here):
+#   - ERBB2 / MYC : CN strongly predicts expression        → cn_dosage_coupled_strong  (cis-driven)
+#   - KRAS        : amplified subset over-expresses         → cn_dosage_coupled_*        (cis-driven)
+#   - a lineage-TF (trans-regulated) : expressed, CN-flat   → cn_dosage_uncoupled        (NOT cis)
+#   - near-diploid-panel target       : no CN variance      → cn_invariant_panel         (untestable)
+#
+# Inputs (DepMap 26Q1 — co-resident, ZERO new ingest):
+#   - OmicsCNGeneMC_WES.csv (relative CN, primary; WGS fallback) — the cis feature term
+#   - OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv (log2TPM) — the own-expression term
+#   - Model.csv — lineage metadata for the ladder
+
+card_id: cis-feature-expression-coherence
+version: 1.0.0
+question: "Across DepMap cell lines, does {target.symbol}'s own relative copy-number predict its own mRNA expression (cis-dosage coupling)? — i.e. is expression amplification-DRIVEN, or copy-number-independent?"
+
+applies_when:
+  - "target.depmap_screened == true"
+  - "target.depmap_expression_measured == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-cis-dosage
+    module: depmap_cis_dosage
+    entrypoint: read_cis_dosage
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel context (target-only) ===
+    - n_cell_lines_evaluated                     # cells with BOTH relative CN AND expression coverage
+    # === cis-dosage primary metrics (CN → own-expression) ===
+    - cn_expr_spearman_r                         # rank correlation CN vs log2TPM (primary; robust to outliers)
+    - cn_expr_spearman_p
+    - cn_expr_pearson_r
+    - cn_expr_pearson_p
+    - cn_expr_slope_log2tpm_per_cn               # OLS slope: log2TPM change per unit relative CN (provenance)
+    # === Variance context — cis-dosage is untestable without CN variance ===
+    - relative_cn_iqr                            # CN spread across panel; narrow = near-diploid = untestable
+    - log2tpm_iqr
+    - median_relative_cn
+    - median_log2tpm
+    # === Amplified-vs-neutral expression contrast (interpretability aid; not the class driver) ===
+    - n_amplified                                # relative CN > amplification_threshold
+    - mean_log2tpm_amplified
+    - mean_log2tpm_neutral
+    - delta_log2tpm_amplified_vs_neutral         # positive = amplified cells over-express (dosage effect)
+    - amplification_threshold_relative_cn        # FOCAL_AMP cutoff used (provenance)
+    # === Categorical (Tier-2 vocabulary; drives cis-coherence.rules.yaml) ===
+    - cis_dosage_class
+    # Indication-conditioning provenance (mirrors amp-expr-stratified-dependency):
+    - evidence_scope                             # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
+
+  summary_fields_vocabulary:
+    cis_dosage_class:
+      - cn_dosage_coupled_strong                 # spearman r >= 0.4 AND p <= 0.01 — amplification strongly drives expression
+      - cn_dosage_coupled_moderate               # spearman r >= 0.25 AND p <= 0.01 — moderate cis-dosage
+      - cn_dosage_uncoupled                      # CN varies across panel but does NOT predict expression (trans-regulated)
+      - cn_invariant_panel                       # relative_cn_iqr < min — no CN variance to test cis-dosage (untestable, honest)
+      - data_unavailable
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]
+
+  figures:
+    - id: cn_vs_expression_scatter
+      type: cn_expression_scatter
+      description: "Scatter of relative CN (x) vs log2TPM (y) across DepMap lines, lineage-colored, OLS fit with 95% CI. Vertical reference at the amplification threshold (relative CN 1.5); annotated with Spearman r/p + slope. The cis-dosage plot the framework was missing."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_cell_line_cn_tpm_with_lineage
+
+thresholds:
+  strong_dosage_spearman_r: 0.4                  # cn_dosage_coupled_strong
+  moderate_dosage_spearman_r: 0.25               # cn_dosage_coupled_moderate
+  significance_alpha: 0.01                       # Bonferroni-relaxed; pan-panel n>=50 reaches this
+  min_cell_lines_for_correlation: 50
+  min_relative_cn_iqr: 0.2                       # CN spread floor — below this the panel is near-diploid (untestable)
+  amplification_threshold: 1.5                   # FOCAL_AMP — reused from depmap_cn_distribution (relative CN; diploid ~ 1.0)
+
+warning_predicates:
+  - warning_id: low_n_cell_lines
+    if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"
+    message: "Fewer than 50 cell lines with both CN + expression data; cis-dosage correlation has a wide CI. Read alongside the scatter."
+  - warning_id: near_diploid_panel
+    if: "relative_cn_iqr < THRESHOLD.min_relative_cn_iqr"
+    message: "Relative-CN spread across the panel is narrow (IQR < 0.2); cis-dosage is untestable when CN does not vary. cis_dosage_class = cn_invariant_panel (honest untestable, NOT uncoupled)."
+
+caveats:
+  - "cis-dosage coupling is CORRELATIONAL, not a formal mediation test: a strong CN↔expression correlation is consistent with amplification driving expression, but a co-amplified neighbor or a shared trans-regulator can produce the same signal. It establishes the feature→expression LEG of the coherence chain, not sole causality."
+  - "cn_dosage_uncoupled (CN varies but does not predict expression) is the informative NEGATIVE: it says expression is copy-number-INDEPENDENT (trans/lineage-regulated). Combined with a dependency signal in the cis-coherence resolver, it routes to dependency_without_cis_dosage (a trans-driven, not amplification-driven, dependency)."
+  - "cn_invariant_panel is NOT cn_dosage_uncoupled: absence of CN variance means the cis-dosage question is untestable in this panel, not that the feature fails to drive expression. Kept a distinct honest bin so the resolver abstains rather than mis-classifying."
+  - "relative CN is focal-amp convention (diploid ~ 1.0, NOT log2), matching depmap_cn_distribution / amp-expr-stratified-dependency; log2TPM is log2(TPM+1) bulk mRNA (not protein)."
+  - "Cell-line cis-dosage is necessary but NOT sufficient for a patient cis-driver claim — needs orthogonal validation (patient CN+expression join; the deferred TCGA arm gated on tcga-sample-id-crosswalk-v1)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `cis_dosage_coupling` claim (does the target's
+# own copy-number predict its own expression?), derived_from [copy_number_alteration,
+# cell_line_rna_expression]. Comparison-is-the-claim → derived even though both terms are DepMap-co-
+# resident (mirrors expression-dependency-correlation's derived-from-single-source appendix case).
+measurement_type: cis_dosage_coupling
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
