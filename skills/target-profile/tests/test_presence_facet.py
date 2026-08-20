@@ -24,10 +24,12 @@ def test_facet_loader_is_opt_in():
     # phase 3-claim, functional-requirement (the dependency claim-vector SIGNAL decomposition).
     assert callable(_load_sub_skill_facet_fn("tumor-presence"))
     assert callable(_load_sub_skill_facet_fn("functional-requirement"))
-    # a sub-skill WITHOUT the hook returns None (loader never fabricates one). mechanism-and-pharmacology
-    # is the negative control — a composed sub-skill that exposes no _synthesis_facet.
-    _load_sub_skill_verdict_fn("mechanism-and-pharmacology")  # warm the module cache
-    assert _load_sub_skill_facet_fn("mechanism-and-pharmacology") is None
+    # a sub-skill WITHOUT the hook returns None (loader never fabricates one). synthetic-lethal-partners
+    # is the negative control — a composed sub-skill that exposes no _synthesis_facet (its relational
+    # signal is claim-decomposed under the consolidated combination-and-vulnerability skill, not here).
+    # (Was mechanism-and-pharmacology until it gained a _synthesis_facet in the claim-vector rollout.)
+    _load_sub_skill_verdict_fn("synthetic-lethal-partners")  # warm the module cache
+    assert _load_sub_skill_facet_fn("synthetic-lethal-partners") is None
 
 
 def test_presence_facet_reads_synthesis_facet_from_sub_results():

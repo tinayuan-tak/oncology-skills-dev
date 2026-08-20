@@ -91,7 +91,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "tumor-splice-dysregulation", "tumor-splice-expression"}),   # +R10 splice-form facets; mirrors SUB_SKILL_CARDS[genomic-alteration-profile]
     "mechanism": frozenset({
         "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
-        "tahoe-drug-perturbation"}),
+        "tahoe-drug-perturbation",
+        # dependency-predictability added to SUB_SKILL_CARDS[mechanism-and-pharmacology] (facet-parity,
+        # claim-vector rollout 2026-08-20), so this mirror must carry it (test_dimension_cards_matches_spine).
+        "dependency-predictability"}),
     "safety": frozenset({
         "alteration-role", "clingen-dosage", "clinvar-pathogenicity-safety", "copy-number-distribution",
         "gene-burden-safety", "gnomad-lof-constraint", "mouse-ko-phenotype",

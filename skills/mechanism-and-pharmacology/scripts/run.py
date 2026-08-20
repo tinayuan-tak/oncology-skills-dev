@@ -25,6 +25,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.mechanism_claims import mechanism_claim_vector, mechanism_key_signals
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
@@ -198,7 +199,35 @@ def _headline(cards, fired, verdict_pair):
     }
     # Predictability feature-attribution facet (verdict-inert; SIGNOR-cross-referenced).
     headline.update(_predictability_mechanism_facet(cards))
+    # verdict-INERT claim-vector projection (11th concrete) — NETWORK/PHOSPHO/PATHWAY/PERTURBATION/
+    # PREDICTABILITY decomposition + citable atoms. NETWORK is capped at moderate (annotation density,
+    # not biology); PHOSPHO is the one positive signal. The mechanism resolver keys only on
+    # signaling-network-mechanism, so this projection cannot move the verdict.
+    headline["claim_vector"] = mechanism_claim_vector(headline, cards)
+    headline["key_signals"] = mechanism_key_signals(headline, cards)
     return headline
+
+
+_SYNTHESIS_FACET_KEYS = (
+    "mechanism_verdict", "driving_rule_id", "network_class", "has_actionable_moa",
+    "phospho_activity_class", "pathway_activity_class", "tahoe_perturbation_class",
+    "pred_predictability_class", "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT mechanism facet for the composed target-profile synthesis. Reuses _headline
+    (single source) + returns the mechanism claim_vector (NETWORK/PHOSPHO/PATHWAY/PERTURBATION/
+    PREDICTABILITY) + its citable atoms. Never moves the verdict (owned by the mechanism resolver, which
+    keys only on signaling-network-mechanism); safe to omit."""
+    h = _headline(cards, fired, verdict_pair)
+    # pathway_activity_class is not lifted into _headline; surface it here from the card for the facet key
+    h.setdefault("pathway_activity_class", get_card_field(cards, "pathway-activity-context", "pathway_activity_class"))
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic mechanism-and-pharmacology facet; claim_vector is MOSTLY "
+                            "DESCRIPTIVE (NETWORK = annotation density, capped moderate; PHOSPHO the real "
+                            "signal; PERTURBATION = engagement not dependency). Verdict owned by the resolver.")
+    return facet
 
 
 if __name__ == "__main__":

@@ -384,6 +384,14 @@ SUB_SKILL_CARDS = {
         "tahoe-drug-perturbation",       # 2026-08-11 REVIEW FIX (facet-drop): Tahoe MoA/PD-marker
                                          # perturbation facet. In mechanism-and-pharmacology CARDS,
                                          # composed under no entry → dropped. VERDICT-INERT render facet.
+        "dependency-predictability",     # 2026-08-20 facet-parity: mechanism's _headline reads this via
+                                         # _predictability_mechanism_facet (SIGNOR cross-ref), but it was
+                                         # DROPPED from the composer entry → once mechanism exposes a
+                                         # _synthesis_facet (claim-vector rollout) the facet would raise →
+                                         # swallowed → mechanism claim_vector silently None in the COMPOSED
+                                         # profile. Feeds NO mechanism resolver rung (verdict byte-stable);
+                                         # composing it restores the PREDICTABILITY axis + the SIGNOR x-ref.
+                                         # (ALSO composed under genomic-alteration-profile — dual home.)
     ],
     "genomic-alteration-profile": [          # reframed from mutation-profile
         # 2026-08-20 facet-parity (generalized guard): genomic's _build_headline lifts these two
