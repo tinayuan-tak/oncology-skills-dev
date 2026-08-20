@@ -3,6 +3,7 @@ computes correlation + detection fractions + the rna_as_biomarker verdict. data_
 """
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
@@ -97,6 +98,7 @@ def read_rna_protein_concordance(target: str, release_pin: str = "26q1") -> dict
     _classify_r = spear if spear is not None else pear
     out["rna_as_biomarker"] = _classify_rna_biomarker(_classify_r, n)
     out["rna_proxy_classified_on"] = "spearman" if spear is not None else "pearson_fallback"
+    out.update(_proxy_boundary_ci(_classify_r, n))   # G10: Fisher-z CI + boundary-fragility flag
     return out
 
 
@@ -119,6 +121,26 @@ def _classify_rna_biomarker(r, n_paired) -> str:
     if r >= MODERATE_CONCORDANCE_R:
         return "partial_proxy"
     return "poor_proxy"
+
+
+def _proxy_boundary_ci(r, n_paired) -> dict:
+    """G10 refinement: the Fisher-z 95% CI of the classifying correlation + whether it STRADDLES an
+    rna_as_biomarker class boundary (0.4 / 0.7). At small n the r estimate is wide (at n=20 the 95% CI
+    half-width is ~±0.35), so the adequate/partial/poor qualifier can flip by sampling alone. This
+    surfaces that instability as a verdict-INERT flag — it never changes rna_as_biomarker (a consumer
+    can down-weight a boundary-fragile call). Returns rna_protein_r_ci95_low/high +
+    rna_proxy_class_boundary_fragile (None when the CI can't be formed: r None, or n<=3)."""
+    if r is None or n_paired is None or n_paired <= 3:
+        return {"rna_protein_r_ci95_low": None, "rna_protein_r_ci95_high": None,
+                "rna_proxy_class_boundary_fragile": None}
+    rc = max(min(float(r), 0.999999), -0.999999)   # atanh is undefined at |r|==1
+    z = math.atanh(rc)
+    se = 1.0 / math.sqrt(n_paired - 3)              # Fisher-z standard error
+    lo = math.tanh(z - 1.96 * se)
+    hi = math.tanh(z + 1.96 * se)
+    fragile = any(lo <= b <= hi for b in (MODERATE_CONCORDANCE_R, STRONG_CONCORDANCE_R))
+    return {"rna_protein_r_ci95_low": round(lo, 4), "rna_protein_r_ci95_high": round(hi, 4),
+            "rna_proxy_class_boundary_fragile": bool(fragile)}
 
 
 # ---- TUMOR arm (CPTAC matched RNA+protein, cptac-rna-protein-matched-per-sample-v1) ------------
@@ -203,6 +225,7 @@ def read_tumor_rna_protein_concordance(target: str, indication: str) -> dict:
         "n_paired_tumors": n,
         "rna_as_biomarker": _classify_rna_biomarker(_classify_r, n),
         "rna_proxy_classified_on": "spearman" if spear is not None else "pearson_fallback",
+        **_proxy_boundary_ci(_classify_r, n),   # G10: Fisher-z CI + boundary-fragility flag
     })
     return base
 

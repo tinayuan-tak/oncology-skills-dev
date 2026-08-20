@@ -67,6 +67,25 @@ def test_classifies_on_spearman_not_pearson_outlier_inflated(monkeypatch):
     assert out["rna_proxy_classified_on"] == "spearman"
 
 
+def test_boundary_ci_fragility_flag_G10():
+    """G10 refinement: the Fisher-z 95% CI of the classifying r + a verdict-inert boundary-fragility flag.
+    A near-boundary r at small n straddles a class boundary (fragile=True); a value far from any boundary
+    is not; a wider n narrows the CI. The flag never changes the class (rna_as_biomarker unaffected)."""
+    from methods.depmap_rna_protein_concordance import read as R
+    # r=0.45 at n=20: sits just above the 0.4 partial/poor boundary, wide CI → straddles 0.4 → fragile
+    near = R._proxy_boundary_ci(0.45, 20)
+    assert near["rna_protein_r_ci95_low"] < 0.4 < near["rna_protein_r_ci95_high"]
+    assert near["rna_proxy_class_boundary_fragile"] is True
+    # r=0.95 at n=60: far above 0.7, tight CI → no boundary in range → not fragile
+    strong = R._proxy_boundary_ci(0.95, 60)
+    assert strong["rna_proxy_class_boundary_fragile"] is False
+    # more samples narrow the CI (higher lower-bound) for the same r
+    assert R._proxy_boundary_ci(0.45, 200)["rna_protein_r_ci95_low"] > near["rna_protein_r_ci95_low"]
+    # under-powered / undefined inputs → None (never a fabricated CI)
+    assert R._proxy_boundary_ci(None, 40)["rna_proxy_class_boundary_fragile"] is None
+    assert R._proxy_boundary_ci(0.5, 3)["rna_protein_r_ci95_low"] is None
+
+
 def test_underpowered_paired_models(monkeypatch):
     # fewer than MIN_PAIRED_MODELS with BOTH → insufficient, not a fabricated r
     ids = [f"ACH-{i:04d}" for i in range(10)]
