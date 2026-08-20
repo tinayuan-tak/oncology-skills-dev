@@ -12,7 +12,7 @@
 STAMP ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AWS_PROFILE ?= cbg
 
-.PHONY: dashboard dashboard-dry promote-list
+.PHONY: dashboard dashboard-dry promote-list profile
 dashboard:
 	AWS_PROFILE=$(AWS_PROFILE) python3 -m validators.output_registry.publish_dashboard --generated-at $(STAMP)
 
@@ -24,3 +24,11 @@ dashboard-dry:
 #                `python3 -m validators.output_registry.promote --target T --indication I`.
 promote-list:
 	python3 -m validators.output_registry.promote --list
+
+# profile : run target-profile for one TARGET/INDICATION and publish its full-profile HTML
+#           dashboard (S3 presigned URL + dated gh release). Deterministic by default; add
+#           SYNTHESIZE=1 for the Tier-3 LLM narrative (needs BEDROCK_AWS_PROFILE).
+#   make profile TARGET=MET INDICATION=COADREAD
+profile:
+	AWS_PROFILE=$(AWS_PROFILE) python3 -m validators.output_registry.publish_profile \
+	  --target $(TARGET) --indication $(INDICATION) --generated-at $(STAMP) $(if $(SYNTHESIZE),--synthesize,)
