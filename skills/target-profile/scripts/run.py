@@ -300,8 +300,11 @@ def main() -> int:
     addressable_population = _addressable_population_facet(sub_results)
     # Actionability-mode facet (2026-08-19): VERDICT-INERT selection-basis profile — cis_feature vs
     # abundance vs dependency_relational (+ mixed / insufficient), the HANDLE by which the target is
-    # actioned, orthogonal to biology_axis. Post-hoc over sub_results; PHASE 0 = emitted into
-    # nomination.json only (no routing, no prompt change → verdict spine + prompt_hash byte-stable).
+    # actioned, orthogonal to biology_axis. Post-hoc over sub_results. Graduated past Phase 0: it now
+    # routes render emphasis (tp_render_md) AND injects a synthesis EMPHASIS governance block
+    # (tp_synthesis_prompt.format_mode_governance_block), so the prompt + prompt_hash DO change when a
+    # mode is present. The DETERMINISTIC verdict spine (recommendation/confidence/gate) stays
+    # byte-identical — emphasis-only, never a verdict; prompt_hash is NOT byte-stable (see design doc).
     actionability_mode = _actionability_mode_facet(sub_results, target=args.target)
 
     # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3): the verdict-DISJOINT reliability

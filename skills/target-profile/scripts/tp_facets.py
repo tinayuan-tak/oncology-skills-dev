@@ -1180,7 +1180,12 @@ def _addressable_population_facet(sub_results: dict) -> dict:
 # A PROFILE, never a partition: cis_feature / abundance / mixed / dependency_relational / insufficient,
 # with per-arm tiers (dominant|supporting|none|unknown) + a dominant call. Pure post-hoc function over
 # already-fired sub_results (like _biomarker_facet); absent from _SHORT_TO_GATE → structurally cannot
-# move the verdict spine. PHASE 0: emitted into nomination.json only — NO routing, NO prompt change.
+# move the verdict spine. Now GRADUATED past Phase 0: it emits a synthesis EMPHASIS governance block
+# (tp_synthesis_prompt.format_mode_governance_block) AND routes render emphasis (tp_render_md) — so the
+# LLM prompt (and thus prompt_hash) DO change when a mode is present. What stays byte-identical is the
+# DETERMINISTIC verdict spine (recommendation / confidence / gate), NOT the prompt: this facet reorders
+# narrative emphasis only, never a verdict. (Do not re-add a "no prompt change / prompt_hash byte-stable"
+# claim here — Phases 2-4 falsified it; see the actionability-mode design doc.)
 # `unknown` (read-failure/uncurated) is strictly distinct from `none` (measured-absent): a blind arm
 # lowers confidence and never cedes to another mode. Thresholds are Phase-1-calibratable; unrecognized
 # card values degrade to none/unknown (honest), never crash. See the actionability-mode design doc.
