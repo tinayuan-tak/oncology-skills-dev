@@ -16,6 +16,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
 from _skills_common.resolver import resolve_or_raise
 
 
@@ -127,7 +128,7 @@ def _headline(cards, fired, verdict_pair):
     # (the activating driver role) + the conditionality caveat so a consumer isn't left guessing.
     functional_direction = get_card_field(cards, "alteration-role", "functional_direction")
     is_mismatch = (v in _MECHANISM_MISMATCH_VERDICTS)
-    return {
+    hl = {
         "safety_verdict":   v,
         "driving_rule_id":  drv,
         "constraint_class": get_card_field(cards, "gnomad-lof-constraint", "constraint_class"),
@@ -170,6 +171,36 @@ def _headline(cards, fired, verdict_pair):
             "allele-selective modality — a pan-target degrader / WT-hitting inhibitor re-exposes it."
         ) if is_mismatch else None,
     }
+    # verdict-INERT claim-vector projection (5th concrete over claim_vector_core) — the SIGNAL
+    # decomposition + citable liability atoms the composed target-profile fan-out surfaces to the
+    # cross-evidence agent via _synthesis_facet. Never feeds the safety verdict.
+    hl["claim_vector"] = safety_claim_vector(hl, cards)
+    hl["key_signals"] = safety_key_signals(hl, cards)
+    return hl
+
+
+# ── OPTIONAL cross-modal synthesis facet (lifts the claim_vector to the composed target-profile) ────
+_SYNTHESIS_FACET_KEYS = (
+    "safety_verdict", "driving_rule_id",
+    "constraint_class", "burden_safety_class", "dosage_sensitivity_class",
+    "clinvar_pathogenic_class", "mouse_ko_phenotype_class",
+    "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT safety facet for the composed target-profile synthesis. Reuses _headline
+    (single source of truth) and returns the reconciliation-relevant subset, incl. the liability
+    claim_vector + its citable atoms. Never moves the verdict; safe to omit."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = (
+        "Deterministic on-target-safety facet. claim_vector is an INVERSE-valence LIABILITY decomposition "
+        "(CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO) — a strong signal is a safety CONCERN, not a "
+        "win; the safety VERDICT (incl. the mutant-selective-GoF WT-constraint downgrade) is owned by the "
+        "safety resolver, not this projection.")
+    return facet
 
 
 if __name__ == "__main__":
