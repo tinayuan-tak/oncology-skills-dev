@@ -237,29 +237,47 @@ def classify_protein_abundance(fraction_detected: float,
                                high_cutoff: Optional[float]) -> str:
     """Distribution vocab (mirrors cellline-rna-distribution's expression_class).
 
-    - broadly_low:        detected in < LOW_DETECTION_FRACTION of the panel (MS-absent)
+    - broadly_low:        detected in < LOW_DETECTION_FRACTION of the panel with no concentrated
+                          lineage signal (MS-absent), OR below LINEAGE_RESTRICTED_MIN (too sparse
+                          to call restriction) regardless of concentration
     - broadly_high:       detected in > BROADLY_DETECTED_FRACTION AND median >= panel high cutoff
     - broadly_moderate:   detected broadly (> BROADLY_DETECTED_FRACTION and not high), OR
                           detected in the middle band but spread across many lineages
-    - lineage_restricted: middle-band detection CONCENTRATED in a minority of lineages
-                          (consulting per_lineage — a moderate pan-lineage detection rate is
-                          broadly_moderate, NOT lineage_restricted)
+    - lineage_restricted: detection in [LINEAGE_RESTRICTED_MIN, LINEAGE_RESTRICTED_MAX] CONCENTRATED
+                          in a minority of lineages (consulting per_lineage) — INCLUDING the
+                          low-detection sub-band [MIN, LOW_DETECTION_FRACTION): a protein detected
+                          in a minority of the pan-cancer panel but clustered in a few lineages is
+                          lineage-restricted (a therapeutic-window antigen, e.g. CLDN18), NOT absent
     - data_unavailable:   handled upstream (protein absent from matrix)
     """
     f = fraction_detected
-    if f < LOW_DETECTION_FRACTION:
-        return "broadly_low"
     if f > BROADLY_DETECTED_FRACTION:
         if high_cutoff is not None and median_abundance is not None and median_abundance >= high_cutoff:
             return "broadly_high"
         return "broadly_moderate"
-    # middle band → lineage_restricted ONLY if the detected signal clusters in a few lineages;
-    # a moderate detection rate spread across many lineages is broadly_moderate, not restricted.
+    # Sub-broad band. `lineage_restricted` (concentrated in few lineages) is the correct call for a
+    # protein detected in a MINORITY of the pan-cancer panel when the detection clusters in a few
+    # lineages — whole-cell shotgun TMT under-samples membrane/low-copy antigens, so a low overall
+    # detection fraction is NOT evidence of absence for a genuinely lineage-restricted surface antigen
+    # (CLDN18-class). This lineage-concentration check must run BEFORE the low-detection floor, or the
+    # `f < LOW_DETECTION_FRACTION → broadly_low` short-circuit pre-empts the [MIN, LOW) band and fires a
+    # spurious degrader-killer on exactly those antigens. Below LINEAGE_RESTRICTED_MIN the panel is too
+    # sparse to assert restriction, so those fall through to broadly_low regardless of concentration.
     if LINEAGE_RESTRICTED_MIN <= f <= LINEAGE_RESTRICTED_MAX:
+        # In the LOW-detection sub-band [MIN, LOW_DETECTION_FRACTION) require REAL per-lineage evidence
+        # of concentration — we cannot assert restriction from a low fraction with no lineage breakdown
+        # (unit tests / no model table stay broadly_low, unchanged). In the MIDDLE band the historical
+        # empty-per_lineage → lineage_restricted fallback is preserved (broadly_moderate needs positive
+        # evidence of pan-lineage spread).
+        if f < LOW_DETECTION_FRACTION:
+            if per_lineage and _is_lineage_concentrated(per_lineage):
+                return "lineage_restricted"
+            return "broadly_low"
         if _is_lineage_concentrated(per_lineage):
             return "lineage_restricted"
         return "broadly_moderate"
-    return "broadly_moderate"
+    # f < LINEAGE_RESTRICTED_MIN → genuinely absent across the panel.
+    return "broadly_low"
 
 
 def _is_lineage_concentrated(per_lineage: list) -> bool:
