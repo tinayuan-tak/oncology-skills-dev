@@ -67,16 +67,20 @@ def _profile_summary(out_dir: Path) -> dict:
             "positive_tier": (d.get("nomination") or {}).get("positive_tier")}
 
 
-def publish_s3(files, bucket, prefix, cell, date, presign_days, html_name, dry) -> str | None:
+def publish_s3(out_dir: Path, bucket, prefix, cell, date, presign_days, html_name, dry) -> str | None:
+    """Persist the FULL emitted target-profile package (the whole --out tree: html + md +
+    nomination.json + provenance + figures/ [composite PNG + per-card SVG + .plotly.json]) to S3 —
+    both the live path and a dated history snapshot. `aws s3 sync` uploads the entire tree, so the
+    package is persisted, not just the rendered HTML."""
     live = f"s3://{bucket}/{prefix}/{cell}"
     hist = f"s3://{bucket}/{prefix}/{cell}/history/{date}"
-    for f in files:
-        for dest in (f"{live}/{f.name}", f"{hist}/{f.name}"):
-            print(f"  {'(dry) ' if dry else ''}→ {dest}")
-            if not dry:
-                r = _run(["aws", "s3", "cp", str(f), dest])
-                if r.returncode != 0:
-                    raise RuntimeError(f"s3 cp failed: {r.stderr[-300:]}")
+    for dest in (live, hist):
+        print(f"  {'(dry) ' if dry else ''}→ sync {out_dir} → {dest}/")
+        if not dry:
+            r = _run(["aws", "s3", "sync", str(out_dir), dest + "/",
+                      "--exclude", "*.pyc", "--exclude", "__pycache__/*"])
+            if r.returncode != 0:
+                raise RuntimeError(f"s3 sync failed: {r.stderr[-300:]}")
     if dry:
         return None
     r = _run(["aws", "s3", "presign", f"{live}/{html_name}", "--expires-in", str(presign_days * 86400)])
@@ -159,18 +163,20 @@ def main():
         html = run_target_profile(Path(a.skills), Path(a.contracts_root), a.target, a.indication,
                                   out_dir, a.synthesize)
         summ = _profile_summary(out_dir)
-        # viewable local copy
+        # viewable local copy — the FULL emitted package (html + md + nomination + provenance +
+        # figures/), not just the rendered HTML.
+        import shutil
         keep = HOME / "dev/framework-runs/framework-profiles" / cell
-        keep.mkdir(parents=True, exist_ok=True)
-        extras = [p for p in (out_dir / "nomination.json", out_dir / "target_profile.md") if p.exists()]
-        for f in (html, *extras):
-            (keep / f.name).write_bytes(f.read_bytes())
-        print(f"· local copy → {keep}")
+        if keep.exists():
+            shutil.rmtree(keep)
+        shutil.copytree(out_dir, keep, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        n_files = sum(1 for _ in keep.rglob("*") if _.is_file())
+        print(f"· local copy ({n_files} files, incl. figures/) → {keep}")
 
         presigned = release_url = None
         if not a.skip_s3:
-            print("· publishing to S3 …")
-            presigned = publish_s3([html, *extras], a.bucket, a.prefix, cell, date,
+            print("· publishing FULL package to S3 …")
+            presigned = publish_s3(out_dir, a.bucket, a.prefix, cell, date,
                                    a.presign_days, html.name, a.dry_run)
         if not a.skip_gh:
             print("· publishing GitHub release …")
