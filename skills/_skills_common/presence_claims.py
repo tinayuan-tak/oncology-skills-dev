@@ -43,6 +43,18 @@ def _f(v, nd=2):
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
 
 
+def _patom(card_id, summary, keys, entity, read):
+    """Citable evidence atom for a presence claim: bind the load-bearing card VALUES to {card_id,
+    fields} + entity keys. Presence builds its claims MANUALLY (not via ClaimSpec.atom_fn), so this is
+    called inline in each _claim_*. Returns None when the source card is absent → the claim stays
+    byte-stable (no evidence_atom key), matching the other axes' atom discipline."""
+    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
+    if not vals:
+        return None
+    return {"read": read, "values": vals,
+            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+
+
 # ── the four claims (each returns {signal, corroboration, evidence, conflict}) ───────────────────
 def _claim_A(h, c):
     trd = c.get("tumor-rna-distribution", {})
@@ -80,7 +92,12 @@ def _claim_A(h, c):
         conflict = f"abundance-level floor: bottom-decile in {low} (breadth-positive but low absolute level)"
         rel = "low"
     return {"signal": sig, "corroboration": rel, "conflict": conflict, "informs": CLAIM_INFORMS["A"],
-            "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}"}
+            "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}",
+            "evidence_atom": _patom("tumor-rna-distribution", trd,
+                                    ("tumor_expression_class", "control_position_class", "allgene_percentile",
+                                     "median_log2tpm", "p95_log2tpm", "distribution_pattern"),
+                                    {"measurement_type": "tumor_rna_expression", "sample_context": "tumor"},
+                                    trd.get("tumor_expression_class"))}
 
 
 def _dir(cls):
@@ -126,7 +143,13 @@ def _claim_B(h, c):
     else:
         sig, rel = "absent", "moderate"
     ev = "; ".join(f"{n}:{d[0]}(fc/eff={_f(fc)},q={q:.0e})" if isinstance(q, (int, float)) else f"{n}:{d[0]}" for n, d, fc, q in arms)
-    return {"signal": sig, "corroboration": rel, "evidence": ev, "conflict": conflict, "informs": CLAIM_INFORMS["B"]}
+    return {"signal": sig, "corroboration": rel, "evidence": ev, "conflict": conflict, "informs": CLAIM_INFORMS["B"],
+            # cite the DGE arm (tumor-rna-vs-adjacent) with its values; the CPTAC protein arm is
+            # corroboration (in the tier + evidence string), not double-cited under one card_id.
+            "evidence_atom": _patom("tumor-rna-vs-adjacent", tva,
+                                    ("expression_call_class", "log2_fc", "q_value", "n_tumor"),
+                                    {"measurement_type": "tumor_rna_dge_vs_adjacent", "sample_context": "tumor"},
+                                    tva.get("expression_call_class"))}
 
 
 def _claim_C(h, c):
@@ -138,7 +161,15 @@ def _claim_C(h, c):
            "microenvironment_dominant": "negative", "broadly_low": "absent"}.get(cls, "weak")
     rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 20 else "low"
     return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["C"],
-            "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)"}
+            "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)",
+            "evidence_atom": _patom("tumor-scrna-celltype-expression",
+                                    c.get("tumor-scrna-celltype-expression", {}),
+                                    ("sc_expression_class", "malignant_detection_fraction",
+                                     "malignant_n_donors", "caf_vs_malignant_class",
+                                     "top_microenvironment_compartment"),
+                                    {"measurement_type": "sc_tumor_celltype_expression",
+                                     "sample_context": "tumor", "grain": "single_cell"},
+                                    cls)}
 
 
 def _claim_D(h, c):
@@ -155,7 +186,13 @@ def _claim_D(h, c):
            else "low" if n_tested >= 1 else "unmeasured")
     return {"signal": sig, "corroboration": rel,
             "evidence": f"breadth={br}; dist={dist}; tested over {n_tested} cohorts/indications",
-            "conflict": None, "informs": CLAIM_INFORMS["D"]}
+            "conflict": None, "informs": CLAIM_INFORMS["D"],
+            "evidence_atom": _patom("tumor-elevation-breadth", c.get("tumor-elevation-breadth", {}),
+                                    ("tumor_elevation_breadth_class", "rna_tumor_elevation_breadth_class",
+                                     "n_cohorts_elevated", "n_cohorts_tested",
+                                     "rna_n_indications_elevated", "rna_n_indications_tested"),
+                                    {"measurement_type": "tumor_elevation_breadth", "grain": "target"},
+                                    br)}
 
 
 def _homogeneity(h, c):
@@ -167,12 +204,18 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector: {A,B,C,D: {signal, corroboration, evidence, informs}, homogeneity}.
     Verdict-inert projection over the computed headline + card summaries."""
     c = _by_id(cards)
-    return {"A": _claim_A(headline, c), "B": _claim_B(headline, c), "C": _claim_C(headline, c),
-            "D": _claim_D(headline, c), "homogeneity": _homogeneity(headline, c),
-            "_disclaimer": ("Modality-blind, verdict-INERT projection of the presence cards into orthogonal "
-                            "claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), "
-                            "each signal×corroboration. Claims are NOT additive; a weak C does not degrade a "
-                            "strong B. Never feeds the presence_verdict.")}
+    vec = {"A": _claim_A(headline, c), "B": _claim_B(headline, c), "C": _claim_C(headline, c),
+           "D": _claim_D(headline, c), "homogeneity": _homogeneity(headline, c),
+           "_disclaimer": ("Modality-blind, verdict-INERT projection of the presence cards into orthogonal "
+                           "claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), "
+                           "each signal×corroboration. Claims are NOT additive; a weak C does not degrade a "
+                           "strong B. Never feeds the presence_verdict.")}
+    # OMIT a None evidence_atom (source card absent) so an unmeasured claim stays byte-stable — matching
+    # the ClaimSpec axes, where build_claim_vector only attaches the key when the atom is non-None.
+    for k in ("A", "B", "C", "D"):
+        if isinstance(vec[k], dict) and vec[k].get("evidence_atom") is None:
+            vec[k].pop("evidence_atom", None)
+    return vec
 
 
 # ── key signals: a brief, direct, CITED read (deterministic; available without the LLM) ────────
