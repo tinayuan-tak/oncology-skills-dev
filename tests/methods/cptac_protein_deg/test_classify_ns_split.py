@@ -53,6 +53,28 @@ def test_up_down_bands_unchanged():
     assert _m.classify(-0.8, 1e-3) == "modest_down"
 
 
+def test_variance_aware_negligible_d_demotes_to_small_effect_G7():
+    """G7: a significant call with a large RAW logFC but NEGLIGIBLE standardized effect (Cohen's d < 0.2 —
+    cleared significance via cohort size) is small_effect, not strong_up/modest_up."""
+    # logFC 2.0, SE 0.5 → t=4.0; n_t=n_n=900 → n_eff=450 → d≈0.189 (negligible) → small_effect
+    assert _m.classify(2.0, 1e-4, se=0.5, n_tumor=900, n_normal=900) == "small_effect"
+    # a modest_up-magnitude call likewise demotes when d is negligible
+    assert _m.classify(0.8, 1e-3, se=0.2, n_tumor=900, n_normal=900) == "small_effect"
+
+
+def test_variance_aware_real_effect_keeps_up_class_G7():
+    """A significant call with a REAL standardized effect (small n → large Cohen's d) keeps its up class."""
+    # logFC 2.0, SE 0.5 → t=4.0; n_t=n_n=30 → n_eff=15 → d≈1.03 (large) → strong_up
+    assert _m.classify(2.0, 1e-4, se=0.5, n_tumor=30, n_normal=30) == "strong_up"
+
+
+def test_variance_aware_falls_back_to_raw_bands_when_se_missing_G7():
+    """SE / n unavailable (older upstream rows) → fall back to the raw-logFC bands (no downgrade)."""
+    assert _m.classify(2.0, 1e-4) == "strong_up"                       # no se/n
+    assert _m.classify(2.0, 1e-4, se=None, n_tumor=900, n_normal=900) == "strong_up"
+    assert _m.classify(2.0, 1e-4, se=float("nan"), n_tumor=9, n_normal=9) == "strong_up"
+
+
 def test_old_ns_union_preserved_and_not_elevated():
     """Everything that used to be `ns` is now not_significant OR small_effect, and NEITHER is an
     elevated class — the verdict-safety invariant for breadth/coverage rollups."""

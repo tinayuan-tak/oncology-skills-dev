@@ -28,25 +28,57 @@ import pyarrow.parquet as pq
 
 CPTAC_COHORTS = ["BRCA", "CCRCC", "COAD", "GBM", "HNSCC", "LSCC", "LUAD", "OV", "PDAC", "UCEC"]
 
-METHOD_VERSION = "1.1.0"   # 2026-08-14: protein_expression_class 'ns' split → not_significant + small_effect
+METHOD_VERSION = "1.2.0"   # 2026-08-20: variance-aware classify (G7) — negligible Cohen's d → small_effect
 STAT_TEST_USED = "msstatstmt_limma_ebayes_moderated"
 
+# Below this |Cohen's d| the standardized (sample-size-independent) effect is negligible — a call that
+# cleared significance via cohort size / low variance rather than a real per-sample tumor-vs-normal
+# difference. Conventional small-effect floor (Cohen 1988). Mirrors read.py _cohens_d_class.
+NEGLIGIBLE_COHENS_D = 0.2
 
-def classify(logfc: float, q: float) -> str:
+
+def _cohens_d(logfc, se, n_tumor, n_normal):
+    """Sample-size-INDEPENDENT standardized effect from the MSstatsTMT moderated logFC + SE:
+    t = logFC / SE, Cohen's d = t / sqrt(n_eff), n_eff = n_t*n_n/(n_t+n_n). Returns None when SE / n are
+    unavailable (older upstream rows) — the caller then falls back to the raw-logFC bands (pre-variance
+    behavior), so a missing SE never spuriously downgrades a call."""
+    try:
+        if se is None or pd.isna(se) or float(se) <= 0:
+            return None
+        if not (n_tumor and n_normal and float(n_tumor) > 0 and float(n_normal) > 0):
+            return None
+        t = float(logfc) / float(se)
+        n_eff = (float(n_tumor) * float(n_normal)) / (float(n_tumor) + float(n_normal))
+        return t / (n_eff ** 0.5)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def classify(logfc: float, q: float, se: float = None,
+             n_tumor: int = None, n_normal: int = None) -> str:
     # 2026-08-14 multi-pair review (finding #5): the former single `ns` bucket conflated TWO
     # distinct outcomes — "tested, not statistically significant" (q >= 0.05) and "significant but
     # effect too small to class up/down" (q < 0.05, |logfc| <= 0.5). That effect-size-vs-significance
     # ambiguity mislead readers (a `small_effect` percentile was misread as abundance). Split them:
     #   not_significant — q >= 0.05 (or stats unestimable), i.e. no significant tumor-vs-normal delta
     #   small_effect    — q < 0.05 but |logfc| <= 0.5, i.e. significant yet biologically small
-    # VERDICT-SAFE: their UNION is exactly the old `ns` set; neither is in _ELEVATED_CLASSES
-    # ({strong_up, modest_up}), so breadth/coverage rollups (which key on the elevated set /
-    # data_unavailable, never on the literal `ns`) are unchanged. The tumor-presence M2 rescue maps
-    # BOTH to protein_present_not_elevated (present-but-flat), preserving that behavior too.
+    #
+    # 2026-08-20 (G7, tumor-presence expert review): make the class VARIANCE-AWARE. The raw log2 bands
+    # (±0.5 / ±1.5) are blind to variance, so a large cohort could clear the bar at a tiny per-sample
+    # effect. A significant call whose standardized effect (Cohen's d = logFC/SE / sqrt(n_eff)) is
+    # NEGLIGIBLE is `small_effect` regardless of the raw log2 magnitude — it cleared significance via
+    # cohort size, not biology. Falls back to the raw-logFC bands when SE / n are unavailable (older
+    # upstream rows), so a missing SE never downgrades a call.
+    # VERDICT-SAFE: not_significant + small_effect are OUTSIDE _ELEVATED_CLASSES ({strong_up, modest_up}),
+    # so this can only MOVE a call OUT of the elevated set (never fabricate an up-call); breadth/coverage
+    # rollups and the tumor-presence M2 present-but-flat rescue are preserved.
     if pd.isna(logfc) or pd.isna(q):
         return "not_significant"
     if q >= 0.05:
         return "not_significant"
+    d = _cohens_d(logfc, se, n_tumor, n_normal)
+    if d is not None and abs(d) < NEGLIGIBLE_COHENS_D:
+        return "small_effect"
     if logfc > 1.5:
         return "strong_up"
     if logfc > 0.5:
@@ -117,8 +149,13 @@ def main() -> int:
             "n_tumor_samples": n_tumor,
             "n_normal_samples": n_normal,
             "n_proteins_tested_cohort": n_proteins_tested,
+            # variance-aware classify (G7): pass SE + per-cohort n so a negligible Cohen's d demotes a
+            # significant-by-n call to small_effect. SE column is NaN-filled when the upstream lacks it
+            # (→ classify falls back to the raw-logFC bands).
             "protein_expression_class": [
-                classify(f, q) for f, q in zip(df["logFC"], df["adj.pvalue"])
+                classify(f, q, se, n_tumor, n_normal)
+                for f, q, se in zip(df["logFC"], df["adj.pvalue"],
+                                    (df["SE"] if "SE" in df.columns else [None] * len(df)))
             ],
             "stat_test_used": STAT_TEST_USED,
             "method_version": METHOD_VERSION,
