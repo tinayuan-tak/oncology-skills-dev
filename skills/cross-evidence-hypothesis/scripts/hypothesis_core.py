@@ -126,7 +126,8 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "surface-colocalization-avidity",
         "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
         "surface-topology-and-ptm", "surfaceome-family-classification",
-        "surfaceome-cohort-ranking"}),   # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
+        "surfaceome-cohort-ranking",     # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
+        "surface-bulk-pair-selectivity"}), # bulk pair-selectivity facet (mirrors SUB_SKILL_CARDS)
     "immune_context": frozenset({"immune-context"}),   # mirrors SUB_SKILL_CARDS[immune-context]
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",

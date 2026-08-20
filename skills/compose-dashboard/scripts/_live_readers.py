@@ -836,6 +836,18 @@ def _dispatch_surface_colocalization_avidity(target: str, indication: str) -> Op
     return mod.build_summary(target, indication)
 
 
+def _dispatch_surface_bulk_pair_selectivity(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route surface-bulk-pair-selectivity card to
+    methods/pair_selectivity_gate/bulk_read.py::read_target_bulk_pair_selectivity.
+
+    Target-centric BULK tumor-vs-normal pair-selectivity: reads the materialized
+    bispecific-bulk-pair-selectivity-per-indication-v1 product and returns the best (most selective)
+    clinical-seed partner per gate (AND/OR/NOT). The NECESSITY companion to the same-cell AVIDITY card.
+    data_unavailable-safe (shaped empty, never raises)."""
+    mod = _import_method("pair_selectivity_gate.bulk_read")
+    return mod.read_target_bulk_pair_selectivity(target, indication)
+
+
 def _dispatch_spatial_tumor_normal_colocalization(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route spatial-tumor-normal-colocalization card to
     methods/spatial_colocalization/cli.py::build_summary.
@@ -1540,6 +1552,7 @@ CARD_DISPATCHERS = {
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
+    "surface-bulk-pair-selectivity": _dispatch_surface_bulk_pair_selectivity,
     "spatial-tumor-normal-colocalization": _dispatch_spatial_tumor_normal_colocalization,   # in-situ spatial neighbourhood (CosMx CRC; immune_excluded / normal_epithelium_adjacent)
     "spatial-surface-protein-abundance": _dispatch_spatial_surface_protein_abundance,       # in-situ region PROTEIN (GeoMx DSP; tumour_enriched / tme_enriched)
     "spatial-region-rna-expression": _dispatch_spatial_region_rna_expression,               # in-situ region RNA (GeoMx DSP WTA; tumour_enriched_rna / tme_enriched_rna; corroborating presence)

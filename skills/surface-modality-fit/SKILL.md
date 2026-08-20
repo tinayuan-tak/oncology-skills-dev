@@ -134,6 +134,10 @@ composition:
                                        # indication by tumor-vs-normal effect size. Product landed 2026-08-18.
                                        # ADDITIVE verdict-INERT facet (no resolver rung → fit_class byte-stable);
                                        # the only cross-target ranking context the per-target profile has.
+    - surface-bulk-pair-selectivity    # (in run.py CARDS; 2026-08-20) BULK tumor-vs-normal PAIR-selectivity
+                                       # (AND/OR/NOT best partner over 52 clinical-seed antigens). NECESSITY
+                                       # companion to surface-colocalization-avidity (same-cell avidity =
+                                       # sufficiency). ADDITIVE verdict-INERT bispecific facet (no resolver rung).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -182,6 +186,7 @@ composition:
                                        # F5 rules feed the sc-normal-high-liability-bite-killer rung (bite/TCE foreclosure on
                                        # essential normal cell-type expression). Wired + read (run.py:282-284).
     - antigen_pair_coexpression        # (2026-08-20) surface-colocalization-avidity — same-cell avidity + tumor-vs-normal
+    - antigen_pair_selectivity         # (2026-08-20) surface-bulk-pair-selectivity — BULK tumor-vs-normal AND/OR/NOT pair-selectivity (necessity companion to same-cell avidity)
                                        # selectivity window for AND-gate bispecifics; adc/bite_tce/antibody. ADDITIVE (its
                                        # rules are in no resolver), verdict byte-stable.
   rules_scope:

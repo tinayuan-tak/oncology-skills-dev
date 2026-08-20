@@ -183,6 +183,10 @@ CARDS = [
                                          # tumor-vs-normal effect size (cohort_rank_class top_1/5/25%)? The only cross-
                                          # target ranking context in the fan-out; product landed 2026-08-18. ADDITIVE
                                          # verdict-INERT facet (no resolver rung → fit_class byte-stable).
+    "surface-bulk-pair-selectivity",     # 2026-08-20: BULK tumor-vs-normal PAIR-selectivity (AND/OR/NOT logic gate)
+                                         # best-partner-per-gate over the 52 clinical-seed antigens. The NECESSITY
+                                         # companion to surface-colocalization-avidity's same-cell AVIDITY (sufficiency).
+                                         # ADDITIVE verdict-INERT bispecific facet (no resolver rung → byte-stable).
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -341,6 +345,13 @@ def _headline(cards, fired, verdict_pair):
         "surfaceome_tissue_rank":         get_card_field(cards, "surfaceome-cohort-ranking", "tissue_rank"),
         "surfaceome_tissue_percentile_rna": get_card_field(cards, "surfaceome-cohort-ranking", "tissue_percentile_rna"),
         "surfaceome_rna_protein_concordance": get_card_field(cards, "surfaceome-cohort-ranking", "rna_protein_concordance"),
+        # BULK tumor-vs-normal PAIR-selectivity best-partner (surface-bulk-pair-selectivity, 2026-08-20).
+        # Bispecific AND/OR/NOT logic-gate necessity screen; verdict-inert facet.
+        "bulk_pair_best_and_partner":     get_card_field(cards, "surface-bulk-pair-selectivity", "best_and_partner"),
+        "bulk_pair_best_and_selectivity": get_card_field(cards, "surface-bulk-pair-selectivity", "best_and_selectivity"),
+        "bulk_pair_best_and_call":        get_card_field(cards, "surface-bulk-pair-selectivity", "best_and_call"),
+        "bulk_pair_best_not_partner":     get_card_field(cards, "surface-bulk-pair-selectivity", "best_not_partner"),
+        "bulk_pair_n_partners_scanned":   get_card_field(cards, "surface-bulk-pair-selectivity", "n_partners_scanned"),
     }
     # Orthogonality facet (E7, 2026-08-07) — VERDICT-INERT display meta-facet. Counts the
     # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence
@@ -365,6 +376,7 @@ _SYNTHESIS_FACET_KEYS = (
     "surface_modality_verdict", "driving_rule_id", "fit_class", "topology_class",
     "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
     "surfaceome_cohort_rank_class",
+    "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",
 )
 
