@@ -20,6 +20,21 @@ SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SKILL_SCRIPTS))
 import orthogonality as orth  # noqa: E402
 
+import importlib.util  # noqa: E402
+
+
+def _load_run():
+    """Load THIS skill's run.py under a UNIQUE module name. A bare `import run` binds
+    sys.modules['run'] to whichever skill's run.py loaded FIRST in the process — so when
+    surface-modality-fit's tests share a pytest session with another skill's (the
+    `import run` collision documented in skills-validate.yml), `import run as smf` would
+    return the WRONG skill's module. spec_from_file_location sidesteps the shared name."""
+    run_path = SKILL_SCRIPTS / "run.py"
+    spec = importlib.util.spec_from_file_location("smf_run_orth", run_path)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
 
 def _card(cid, **summary):
     return {"card_id": cid, "summary": dict(summary)}
@@ -138,7 +153,7 @@ def test_headline_orthogonality_does_not_change_verdict():
     (resolver on fit_class). Adding the facet leaves the two spine keys untouched.
     _headline reads every card in smf.CARDS via get_card_field (which raises on an absent
     card_id), so the fixture stubs ALL of them — only three carry meaningful values."""
-    import run as smf
+    smf = _load_run()
     meaningful = {
         "adc-tce-modality-fit": {"fit_class": "ADC_preferred"},
         "protein-surface-evidence": {"surface_confirmation_class": "cell_surface_confirmed"},
