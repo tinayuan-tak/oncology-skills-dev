@@ -23,6 +23,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
 
 
 SKILL_NAME = "cis-feature-coherence"
@@ -83,7 +84,7 @@ def _headline(cards, fired, verdict_pair):
         else None)
 
     verdict, driving = verdict_pair
-    return {
+    hl = {
         "cis_coherence_verdict": verdict,
         "driving_rule_id": driving,
         # LoF leg-1: promoter methylation → own LOW expression (epigenetic silencing)
@@ -114,6 +115,34 @@ def _headline(cards, fired, verdict_pair):
         # coherence framing
         "n_cell_lines_evaluated": cis.get("n_cell_lines_evaluated"),
     }
+    # verdict-INERT LEG-decomposition claim-vector (12th concrete) — CIS_DOSAGE/SILENCING/EXPR_DEP/
+    # CONJOINT, each with citable atoms + cross-grain PATIENT-agreement corroboration. The cis_coherence
+    # VERDICT is an INTERACTION of these legs (owned by the resolver); this is the decomposition, NOT a
+    # verdict echo, so it stays verdict-inert (byte-stable).
+    hl["claim_vector"] = cis_coherence_claim_vector(hl, cards)
+    hl["key_signals"] = cis_coherence_key_signals(hl, cards)
+    return hl
+
+
+_SYNTHESIS_FACET_KEYS = (
+    "cis_coherence_verdict", "driving_rule_id", "cis_dosage_class", "methylation_silencing_class",
+    "expression_dependency_correlation_class", "amp_expr_stratification_class",
+    "patient_dosage_agrees_with_cellline", "patient_silencing_agrees_with_cellline",
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT cis-coherence facet for the composed synthesis. Reuses _headline (single
+    source) + returns the LEG-decomposition claim_vector (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT) with its
+    citable atoms + the cross-grain patient-agreement flags. The verdict is an INTERACTION owned by the
+    resolver — this never echoes or moves it."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic cis-feature-coherence facet; claim_vector is the LEG decomposition "
+                            "of the coherence cross-tab (the verdict is their INTERACTION, owned by the "
+                            "resolver). CIS_DOSAGE/SILENCING corroboration uses the TCGA patient-agreement arm.")
+    return facet
 
 
 if __name__ == "__main__":
