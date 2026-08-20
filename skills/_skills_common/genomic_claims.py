@@ -188,11 +188,65 @@ def _dep_corroboration(h, c):
 
 
 SNV, CN, FUS, DEP = "SNV", "CN", "FUS", "DEP"
+
+
+# ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────
+# Bind each genomic axis's load-bearing VALUES to its source {card_id, fields} + entity keys, so the
+# cross-evidence reasoner can cite the number (frequency, recurrence percentile, stratified effect
+# size + q) by a discrete token rather than the bare class label. Verdict-inert; returns None when the
+# source card is absent (axis stays byte-stable — no evidence_atom key).
+def _gatom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
+    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
+    if not vals:
+        return None
+    return {"read": read, "values": vals,
+            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+
+
+def _snv_atom(h, c):
+    cid = "mutation-hotspot-frequency"
+    return _gatom(cid, c.get(cid) or {},
+                  ("driver_recurrence_class", "pooled_mutation_frequency", "overall_mutation_frequency",
+                   "pooled_driver_recurrence_percentile", "driver_recurrence_percentile",
+                   "n_samples_in_indication", "n_samples_mutated"),
+                  {"measurement_type": "mutation_hotspot_recurrence", "grain": "target_indication"},
+                  (h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")))
+
+
+def _cn_atom(h, c):
+    cid = "copy-number-distribution"
+    return _gatom(cid, c.get(cid) or {},
+                  ("copy_number_class", "cn_distribution_shape", "cn_median_panel", "cn_p95_panel",
+                   "cn_fraction_deep_deletion", "patient_focal_cn_class"),
+                  {"measurement_type": "copy_number_alteration", "sample_context": "cell_line"},
+                  (c.get(cid) or {}).get("copy_number_class"))
+
+
+def _fus_atom(h, c):
+    cid = "fusion-rearrangement-landscape"
+    return _gatom(cid, c.get(cid) or {},
+                  ("fusion_class", "n_samples_with_fusion", "genie_sv_frequency",
+                   "genie_sv_recurrence_percentile"),
+                  {"measurement_type": "fusion_rearrangement", "grain": "target_indication"},
+                  (c.get(cid) or {}).get("fusion_class"))
+
+
+def _gdep_atom(h, c):
+    cid = "mutation-stratified-dependency"
+    return _gatom(cid, c.get(cid) or {},
+                  ("mutation_stratification_class", "delta_chronos_hotspot_mut_vs_wt",
+                   "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype",
+                   "hotspot_mannwhitney_q", "n_hotspot_mutant", "n_hotspot_wildtype", "evidence_scope"),
+                  {"measurement_type": "mutation_stratified_dependency", "sample_context": "cell_line",
+                   "stratum": "hotspot_mutant_vs_wt"},
+                  (c.get(cid) or {}).get("mutation_stratification_class"))
+
+
 GENOMIC_CLAIM_SPEC = [
-    ClaimSpec(SNV, "recurrent SNV/indel driver", _snv_signal, _snv_corroboration, _INFORMS["SNV"]),
-    ClaimSpec(CN, "copy-number driver", _cn_signal, _cn_corroboration, _INFORMS["CN"]),
-    ClaimSpec(FUS, "fusion driver", _fus_signal, _fus_corroboration, _INFORMS["FUS"]),
-    ClaimSpec(DEP, "alteration confers dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"]),
+    ClaimSpec(SNV, "recurrent SNV/indel driver", _snv_signal, _snv_corroboration, _INFORMS["SNV"], _snv_atom),
+    ClaimSpec(CN, "copy-number driver", _cn_signal, _cn_corroboration, _INFORMS["CN"], _cn_atom),
+    ClaimSpec(FUS, "fusion driver", _fus_signal, _fus_corroboration, _INFORMS["FUS"], _fus_atom),
+    ClaimSpec(DEP, "alteration confers dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"], _gdep_atom),
 ]
 
 _DISCLAIMER = (

@@ -16,6 +16,7 @@ This is Bedrock-free — it only parses the CARDS/SUB_SKILL_CARDS literals via a
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -33,13 +34,13 @@ WAIVED_COMPOSER_OMISSIONS: dict[tuple[str, str], str] = {
     # RESOLVED: normal-tissue-liability is now composed in SUB_SKILL_CARDS["surface-modality-fit"]
     # (alongside the P4 copy-number-distribution wiring), so it is no longer a real omission and the
     # waiver was removed (the stale-waiver guard would otherwise fail).
-    ("tumor-presence", "cellline-rna-distribution-by-subtype"):
-        # (2026-08-17, WS-C) DepMap driver-mutation subtype panorama of the cell-line RNA distribution.
-        # DISPLAY-ONLY / verdict-inert and COADREAD-only (pattern proof). Deliberately NOT composed into
-        # the target-profile fan-out yet: it is a tumor-presence render facet, not a nomination signal,
-        # and composing it would add a proof-stage card to every composed profile. Promote to
-        # SUB_SKILL_CARDS["tumor-presence"] when it graduates beyond the COADREAD proof.
-        "WS-C proof-stage display facet; tumor-presence-only until it graduates past COADREAD.",
+    # (2026-08-20, facet-parity) The ("tumor-presence", "cellline-rna-distribution-by-subtype") waiver
+    # was RESOLVED/REMOVED: tumor-presence's _headline STRICTLY reads this card via get_card_field
+    # (cellline_subtype_scope_available), so leaving it out of the composer entry made _synthesis_facet
+    # raise → swallowed → the presence claim_vector was silently None in the COMPOSED profile. The
+    # "proof-stage, don't compose" rationale is overridden by the strict read; it (and the 3 other
+    # strictly-read normal/proxy cards) are now composed. Presence is verdict-inert to the nomination
+    # spine, so this is byte-stable on the verdict.
 }
 
 # REVERSE-direction waiver (2026-08-13, compose-core convergence final stage): a card DELIBERATELY
@@ -331,3 +332,39 @@ def test_fr_composer_entry_covers_headline_card_reads():
         f"functional-requirement _headline reads cards NOT in its OWN composer entry: {sorted(missing)} "
         "— _synthesis_facet will KeyError → swallow → empty claim_vector/claim_vectors in the composed "
         "profile. Add each to SUB_SKILL_CARDS['functional-requirement'].")
+
+
+def _facet_headline_card_reads(src: str) -> set:
+    """Card_ids a sub-skill's _headline/_synthesis_facet reads via EITHER strict accessor:
+      • get_card_field(cards, "<card-id>", …)           — FR / tumor-presence (inline literals)
+      • declarative _HEADLINE_FIELDS 3-tuples ("<key>", "<card-id>", "<field>") lifted by _lift_field
+        — genomic-alteration-profile (data-driven; a regex on inline call-sites would MISS these).
+    Both accessors RAISE on a missing card, so both must be covered."""
+    reads = set(re.findall(r'get_card_field\(\s*cards\s*,\s*"([a-z0-9-]+)"', src))
+    reads |= set(re.findall(r'\(\s*"[a-z0-9_]+"\s*,\s*"([a-z0-9-]+)"\s*,\s*"[a-z0-9_]+"\s*\)', src))
+    return reads
+
+
+def test_facet_subskills_compose_all_headline_card_reads():
+    """GENERALIZED regression guard (supersedes the FR-only check above): EVERY sub-skill that exposes
+    `_synthesis_facet` must carry, under its OWN composer entry, every card its headline reads — else
+    the facet raises, the fan-out's bare `except` swallows it, and that sub-skill's claim_vector is
+    silently None in the COMPOSED profile (the whole atom substrate never reaches the cross-evidence
+    agent). This is the third instance of that bug (FR get_card_field #608; genomic _lift_field +
+    tumor-presence get_card_field, 2026-08-20). Covers both strict accessors."""
+    _sub_skills, ssc = _composer_maps()
+    violations = {}
+    for skill_dir in ssc:
+        run_py = SKILLS / skill_dir / "scripts" / "run.py"
+        if not run_py.exists():
+            continue
+        src = run_py.read_text()
+        if "def _synthesis_facet" not in src:          # only facet-exposing sub-skills flow a claim_vector
+            continue
+        missing = _facet_headline_card_reads(src) - set(ssc[skill_dir])
+        if missing:
+            violations[skill_dir] = sorted(missing)
+    assert not violations, (
+        "facet-exposing sub-skills read cards NOT in their OWN composer entry → _synthesis_facet "
+        f"KeyError → swallowed → claim_vector silently empty in the composed profile: {violations}. "
+        "Add each card to SUB_SKILL_CARDS[<sub-skill>] in tp_fanout.py.")

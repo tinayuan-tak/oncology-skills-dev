@@ -195,6 +195,15 @@ _SHORT_TO_GATE = {
 # RESTRUCTURED 2026-07-14 — keys track the SUB_SKILLS renames above.
 SUB_SKILL_CARDS = {
     "tumor-presence": [
+        # 2026-08-20 facet-parity (generalized guard): tumor-presence's _headline/_synthesis_facet reads
+        # these via get_card_field, but they were DROPPED from the composer entry → _headline raised →
+        # swallowed → the presence claim_vector facet was silently None in the COMPOSED profile.
+        # Presence is NOT in _SHORT_TO_GATE (verdict-inert to the nomination spine), so composing them is
+        # byte-stable on the verdict; it restores the presence claim_vector to the composed panel.
+        "cellline-rna-distribution-by-subtype",
+        "normal-tissue-liability",
+        "rna-protein-concordance-tumor",
+        "sc-normal-celltype-expression",
         "cellline-rna-distribution",
         "tumor-rna-vs-adjacent",
         "tumor-protein-abundance-cptac",
@@ -353,6 +362,13 @@ SUB_SKILL_CARDS = {
                                          # composed under no entry → dropped. VERDICT-INERT render facet.
     ],
     "genomic-alteration-profile": [          # reframed from mutation-profile
+        # 2026-08-20 facet-parity (generalized guard): genomic's _build_headline lifts these two
+        # (dependency CONFIDENCE cards) via _lift_field (declarative _HEADLINE_FIELDS), but they were
+        # DROPPED from the composer entry → _synthesis_facet raised KeyError → swallowed → the genomic
+        # claim_vector was silently None in the COMPOSED profile. Dependency-confidence cards feed NO
+        # genomic resolver rung → verdict byte-stable; composing them restores the genomic claim_vector.
+        "cross-consortium-dependency",
+        "dependency-predictability",
         "mutation-type-counts",
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",

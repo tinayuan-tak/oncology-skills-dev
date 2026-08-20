@@ -139,3 +139,42 @@ def test_dep_underpowered_is_gap_not_absent():
 def test_field_names_are_corroboration():
     vec = genomic_claim_vector(_kras_headline(), [])
     assert "corroboration" in vec["SNV"] and "reliability" not in vec["SNV"]
+
+
+# ── citable evidence atoms (values bound to {card_id, fields} + entity) ──────────────────────────────
+def _kras_genomic_cards():
+    """Minimal genomic source-card summaries mirroring the real KRAS/COADREAD package fields."""
+    return [
+        {"card_id": "mutation-hotspot-frequency", "summary": {
+            "driver_recurrence_class": "top_1pct", "pooled_mutation_frequency": 0.4346,
+            "pooled_driver_recurrence_percentile": 99.97, "n_samples_in_indication": 559,
+            "n_samples_mutated": 235}},
+        {"card_id": "copy-number-distribution", "summary": {
+            "copy_number_class": "broadly_neutral", "cn_distribution_shape": "bimodal_mixed",
+            "cn_median_panel": 1.056, "cn_p95_panel": 2.262, "patient_focal_cn_class": "focal_neutral"}},
+        {"card_id": "mutation-stratified-dependency", "summary": {
+            "mutation_stratification_class": "mutant_strongly_dependent",
+            "delta_chronos_hotspot_mut_vs_wt": -1.1423, "median_chronos_hotspot_mutant": -1.7287,
+            "median_chronos_hotspot_wildtype": -0.5864, "hotspot_mannwhitney_q": 1.25e-10,
+            "n_hotspot_mutant": 43, "n_hotspot_wildtype": 45, "evidence_scope": "within_indication"}},
+    ]
+
+
+def test_genomic_atoms_present_and_citable_with_cards():
+    vec = genomic_claim_vector(_kras_headline(), _kras_genomic_cards())
+    snv = vec["SNV"]["evidence_atom"]
+    assert snv["cite"]["card_id"] == "mutation-hotspot-frequency"
+    assert snv["values"]["pooled_mutation_frequency"] == 0.4346          # frequency, citable
+    # DEP atom carries the stratified EFFECT size + significance (the decision-relevant magnitude)
+    dep = vec["DEP"]["evidence_atom"]
+    assert dep["cite"]["card_id"] == "mutation-stratified-dependency"
+    assert dep["values"]["delta_chronos_hotspot_mut_vs_wt"] == -1.1423
+    assert dep["values"]["hotspot_mannwhitney_q"] == 1.25e-10
+    # CN atom carries a distribution_shape (bimodal_mixed) — a notable atom even under a neutral label
+    assert vec["CN"]["evidence_atom"]["values"]["cn_distribution_shape"] == "bimodal_mixed"
+
+
+def test_genomic_atoms_absent_without_cards():
+    vec = genomic_claim_vector(_kras_headline(), [])
+    for ax in ("SNV", "CN", "FUS", "DEP"):
+        assert "evidence_atom" not in vec[ax], f"{ax} gained an atom with no source card"

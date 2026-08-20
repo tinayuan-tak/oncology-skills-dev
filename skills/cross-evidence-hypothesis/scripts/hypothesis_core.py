@@ -68,14 +68,21 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "cellline-protein-abundance", "cellline-rna-distribution", "cellline-rna-protein-concordance",
         "expression-purity-confound", "tumor-elevation-breadth", "tumor-protein-abundance-cptac",
         "tumor-rna-distribution", "tumor-rna-distribution-by-subtype", "tumor-rna-vs-adjacent",
-        "tumor-scrna-celltype-expression"}),
+        "tumor-scrna-celltype-expression",
+        # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[tumor-presence] which regained these 4
+        # (strictly read by presence _headline; see the fan-out composer fix).
+        "cellline-rna-distribution-by-subtype", "normal-tissue-liability",
+        "rna-protein-concordance-tumor", "sc-normal-celltype-expression"}),
     "genomic_alteration": frozenset({
         "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
         "copy-number-stratified-dependency", "ddr-deficiency-context", "functional-gene-state",
         "fusion-rearrangement-landscape", "fusion-stratified-dependency", "genomic-event-model-match",
         "genomic-instability-state", "mutation-drug-response", "mutation-hotspot-frequency",
         "mutation-stratified-dependency", "mutation-type-counts", "mutational-signature-context",
-        "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation"}),
+        "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation",
+        # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[genomic-alteration-profile] which regained
+        # these two dependency-confidence cards (lifted by genomic _HEADLINE_FIELDS/_lift_field).
+        "cross-consortium-dependency", "dependency-predictability"}),
     "mechanism": frozenset({
         "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
         "tahoe-drug-perturbation"}),
