@@ -18,6 +18,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
 from _skills_common.resolver import resolve_or_raise
 
 
@@ -79,7 +80,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
-    return {
+    hl = {
         "differentiation_verdict":          v,
         "driving_rule_id":                  drv,
         "cooccurrence_class":               get_card_field(cards, "co-mutation-and-mutual-exclusivity",
@@ -122,6 +123,29 @@ def _headline(cards, fired, verdict_pair):
         "node_leverage_evidence_scope":     get_card_field(cards, "pathway-node-leverage",
                                                  "evidence_scope"),
     }
+    # verdict-INERT claim-vector projection (7th concrete) — COMUT/SURVIVAL/PROGNOSIS/NODE decomposition
+    # + citable atoms the composed fan-out lifts to the cross-evidence agent.
+    hl["claim_vector"] = differentiation_claim_vector(hl, cards)
+    hl["key_signals"] = differentiation_key_signals(hl, cards)
+    return hl
+
+
+_SYNTHESIS_FACET_KEYS = (
+    "differentiation_verdict", "driving_rule_id", "cooccurrence_class",
+    "survival_association_class", "precog_prognostic_class", "node_leverage_class",
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT differentiation facet for the composed target-profile synthesis. Reuses
+    _headline (single source) + returns the DESCRIPTIVE claim_vector (COMUT/SURVIVAL/PROGNOSIS/NODE) +
+    its citable atoms. Never moves the verdict; safe to omit."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic differentiation-landscape facet; claim_vector is a DESCRIPTIVE "
+                            "decomposition (direction in the atoms). Verdict owned by the resolver.")
+    return facet
 
 
 if __name__ == "__main__":
