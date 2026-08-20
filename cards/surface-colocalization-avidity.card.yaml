@@ -17,12 +17,17 @@
 
 card_id: surface-colocalization-avidity
 version: 0.1.0
-# DEAD-CARD RESOLUTION 2026-08-19: RETIRE (superseded, NOT deleted — card_id is a data contract).
-# This card's same-cell avidity capability is already provided at the METHOD level inside the
-# bispecific-pair-scan skill (PR #246/#250): pair_selectivity_gate.samecell.confirm_pair_samecell
-# reads the SAME sc-samecell-coexpr-{indication}-v1 products and emits samecell_avidity_call on each
-# AND-gate pair. This card was unread by any skill (a duplicate of that wiring). Retired-as-duplicate.
-status: superseded
+# WIRED 2026-08-20 (reverses the 2026-08-19 dead-card RETIRE). The prior retirement claimed this card
+# was superseded-as-duplicate by bispecific-pair-scan's method (pair_selectivity_gate.samecell.
+# confirm_pair_samecell). Verification showed that claim is only PARTIALLY true: bispecific-pair-scan
+# covers the tumor-side, per-PAIR avidity call ONLY. This card additionally provides (a) the tumor-vs-
+# NORMAL selectivity WINDOW (window_verdict/selectivity_margin/normal_liability_locus, reading
+# sc-samecell-coexpr-normal-v1 via pair_selectivity_gate.window — the SAFETY half the skill never
+# invokes) and (b) the TARGET-centric best-partner rollup (samecell_avidity_class headline,
+# n_coordinated_partners). Those are unique, built + tested capability, not a duplicate — so the card
+# is wired (its dispatcher → cli.build_summary is the only route that delivers the normal window into a
+# composed evidence package). See surface-intrinsic-base.dashboard_spec.yaml (optional_cards).
+status: wired
 question: "For {target.symbol} in {indication.label}, does any candidate partner antigen co-express on the SAME malignant cells (same-cell avidity for an AND-gate bispecific), or are the best partners mutually exclusive?"
 
 tier: indication   # the same-cell cube is per-indication (malignant compartment)

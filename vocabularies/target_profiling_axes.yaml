@@ -440,6 +440,7 @@ skill_objectives:
       - {q: "Antigen density from amplification + RNA↔protein proxy quality?", answered_by: [copy-number-distribution, rna-protein-concordance-tumor, sc-surface-rna-protein-concordance]}   # H3 fix + M6 sc twin
       - {q: "Small-molecule pocket cross-reference (DISPLAYED — drives the SM sibling, NOT the biologics fit_class)?", answered_by: [structure-features-static]}   # H3: structure is an SM card, not a surface-antigen answer
       - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, cd-antigen-backbone]}
+      - {q: "Same-cell avidity + tumor-vs-normal selectivity window for an AND-gate bispecific (TCE / dual-ADC)?", answered_by: [surface-colocalization-avidity]}
   - skill: on-target-safety-liability
     objective: "Is the target intolerant of LoF, and what does that imply for a full-KO modality?"
     primary_axis: safety
