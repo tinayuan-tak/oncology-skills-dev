@@ -105,6 +105,11 @@ def main() -> int:
             "gene_symbol": df["gene_symbol"].astype(str),
             "uniprot_ac": df["gene_symbol"].map(uniprot_map).astype("string"),
             "protein_effect_size": df["logFC"].astype(float),
+            # MSstatsTMT moderated-model standard error (02_msstats emits `SE`) — carried through so the
+            # read layer can report an EXACT variance-standardized effect (logFC/SE) instead of only the
+            # raw log2 difference the class thresholds on. NaN when the upstream row lacks it.
+            "protein_effect_size_se": (df["SE"].astype(float) if "SE" in df.columns
+                                       else pd.Series([float("nan")] * len(df))),
             "protein_p_value": df["pvalue"].astype(float),
             "protein_bh_q_value": df["adj.pvalue"].astype(float),
             "protein_median_log2_tumor": df["med_log2_tumor"].astype(float),

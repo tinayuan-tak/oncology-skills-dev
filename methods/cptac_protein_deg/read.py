@@ -19,10 +19,69 @@ Reads: derived parquet at
 Falls back to `data_unavailable` gracefully when derived product not on S3.
 """
 from __future__ import annotations
+import math
 import os
 
 from functools import lru_cache
 from pathlib import Path
+from statistics import NormalDist
+
+_STD_NORMAL = NormalDist()
+
+
+def _is_num(x) -> bool:
+    return isinstance(x, (int, float)) and not (isinstance(x, float) and math.isnan(x))
+
+
+def _cohens_d_class(d: float) -> str:
+    ad = abs(d)
+    if ad >= 0.8:
+        return "large"
+    if ad >= 0.5:
+        return "medium"
+    if ad >= 0.2:
+        return "small"
+    return "negligible"
+
+
+def _standardized_effect(effect_size, p_value, se, n_tumor, n_normal) -> dict:
+    """VARIANCE-STANDARDIZED companion to the raw log2 `protein_effect_size` (which the
+    protein_expression_class thresholds on at fixed +/-0.5 / +/-1.5 cutoffs, blind to variance).
+
+    Prefers the EXACT MSstatsTMT moderated standard error (`protein_effect_size_se`, carried by
+    03_pool once rebuilt): standardized t = logFC / SE. When SE is absent (the pre-rebuild product),
+    recovers an APPROXIMATE t from the two-sided p-value (z = sign(logFC) * Phi^-1(1 - p/2)) — exact
+    for the z-scale, large-df approximation for the moderated t. Cohen's d (a sample-size-INDEPENDENT
+    effect size) = t / sqrt(n_eff), n_eff = n_t*n_n/(n_t+n_n). The class bands are the conventional
+    negligible/small/medium/large. All fields are display-only / verdict-inert."""
+    out = {
+        "protein_effect_size_se": (float(se) if _is_num(se) else None),
+        "protein_effect_standardized_t": None,
+        "protein_effect_cohens_d": None,
+        "protein_effect_standardized_class": "data_unavailable",
+        "protein_effect_standardized_method": "data_unavailable",
+    }
+    if not _is_num(effect_size):
+        return out
+    t = method = None
+    if out["protein_effect_size_se"] is not None and out["protein_effect_size_se"] > 0:
+        t, method = effect_size / out["protein_effect_size_se"], "moderated_se_exact"
+    elif _is_num(p_value) and 0.0 <= p_value <= 1.0:
+        # clamp the inv_cdf ARGUMENT into the open (0,1) interval — a raw p of 0 floors 1-p/2 to exactly
+        # 1.0 in float, which NormalDist.inv_cdf rejects; this caps |z| at ~7.94 (display-grade).
+        arg = min(max(1.0 - p_value / 2.0, 1e-15), 1.0 - 1e-15)
+        z = _STD_NORMAL.inv_cdf(arg)                      # |z| for a two-sided p
+        t, method = math.copysign(z, effect_size), "pvalue_zscore_approx"
+    if t is None:
+        return out
+    out["protein_effect_standardized_t"] = round(t, 4)
+    out["protein_effect_standardized_method"] = method
+    if _is_num(n_tumor) and _is_num(n_normal) and n_tumor > 0 and n_normal > 0:
+        n_eff = (n_tumor * n_normal) / (n_tumor + n_normal)
+        d = t / math.sqrt(n_eff)
+        out["protein_effect_cohens_d"] = round(d, 4)
+        out["protein_effect_standardized_class"] = _cohens_d_class(d)
+    return out
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
@@ -161,6 +220,12 @@ def _row_to_summary(row: dict, matched_cohort: str,
         "protein_median_log2_normal": row.get("protein_median_log2_normal"),
         "n_tumor_samples": row.get("n_tumor_samples"),
         "n_normal_samples": row.get("n_normal_samples"),
+        # Variance-standardized companion to the raw log2 effect_size (the class thresholds on the raw
+        # log2, blind to variance). Exact (logFC/SE) once the product is rebuilt with SE; p-value
+        # approximation on the current product. Display-only / verdict-inert.
+        **_standardized_effect(row.get("protein_effect_size"), row.get("protein_p_value"),
+                               row.get("protein_effect_size_se"),
+                               row.get("n_tumor_samples"), row.get("n_normal_samples")),
         "stat_test_used": row.get("stat_test_used", "msstatstmt_limma_ebayes_moderated"),
         "method_version": row.get("method_version", "1.0.0"),
         "_data_source": DERIVED_MANIFEST_ID,
@@ -178,6 +243,11 @@ def _empty(note: str) -> dict:
         "protein_median_log2_normal": None,
         "n_tumor_samples": None,
         "n_normal_samples": None,
+        "protein_effect_size_se": None,
+        "protein_effect_standardized_t": None,
+        "protein_effect_cohens_d": None,
+        "protein_effect_standardized_class": "data_unavailable",
+        "protein_effect_standardized_method": "data_unavailable",
         "stat_test_used": "skipped_low_n",
         "method_version": "1.0.0",
         "_data_note": note,
