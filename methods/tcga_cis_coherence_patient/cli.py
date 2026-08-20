@@ -52,6 +52,37 @@ def _methylation_silencing(expr: dict[str, float], meth: dict[str, bool]) -> dic
     return out
 
 
+METHOD_VERSION = "0.1.0"
+
+
+def read_patient_cis_coherence(target: str, indication: str | None = None,
+                               release_pin: str = "pancanatlas-2018") -> dict:
+    """Card entrypoint (dispatcher convention: target, indication, release_pin).
+
+    The patient arm is INDICATION-SCOPED (unlike the pan-panel cell-line depmap_cis_dosage): patient
+    CN / expression / methylation are all filtered to the indication cohort. `release_pin` is accepted
+    for signature back-compat but not consumed (the TCGA products are snapshot-pinned in the catalog,
+    not release-parameterized here). With no indication, the patient cis question is undefined ->
+    honest data_unavailable (no pan-cancer patient CN↔expression pooling)."""
+    if not indication:
+        return {
+            "target": target, "indication": None, "evidence_scope": "patient_indication",
+            "patient_cis_dosage_class": "data_unavailable",
+            "patient_methylation_silencing_class": "insufficient_methylation_data",
+            "cn_expr_spearman_r": None, "cn_expr_spearman_p": None,
+            "delta_log2tpm_amplified_vs_neutral": None, "n_amplified": 0,
+            "n_patients_cn_expr": 0, "delta_log2tpm_methylated_vs_unmethylated": None,
+            "n_methylated": 0, "n_unmethylated": 0,
+            "mean_log2tpm_methylated": None, "mean_log2tpm_unmethylated": None,
+            "n_cases_expression": 0, "n_cases_copy_number": 0, "n_cases_methylation": 0,
+            "method_version": METHOD_VERSION,
+        }
+    out = compute_patient_cis_coherence(target, indication)
+    out["method_version"] = METHOD_VERSION
+    out.pop("_cis_dosage_full", None)   # internal provenance; not a card summary_field
+    return out
+
+
 def compute_patient_cis_coherence(target: str, indication: str) -> dict:
     """Patient CN->expression coupling + methylation->expression silencing for `target`/`indication`.
 

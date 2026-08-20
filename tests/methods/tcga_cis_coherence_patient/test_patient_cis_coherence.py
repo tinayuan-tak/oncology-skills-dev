@@ -70,6 +70,21 @@ def test_all_empty_propagates_honestly(monkeypatch):
     assert out["n_patients_cn_expr"] == 0
 
 
+def test_entrypoint_no_indication_is_data_unavailable():
+    out = cli.read_patient_cis_coherence("ERBB2", indication=None)
+    assert out["patient_cis_dosage_class"] == "data_unavailable"
+    assert out["patient_methylation_silencing_class"] == "insufficient_methylation_data"
+    assert out["method_version"] == cli.METHOD_VERSION
+
+
+def test_entrypoint_delegates_and_strips_internal(monkeypatch):
+    _stub(monkeypatch, {}, {}, {})
+    out = cli.read_patient_cis_coherence("ERBB2", "BRCA", release_pin="ignored")
+    assert "_cis_dosage_full" not in out          # internal provenance stripped for the card
+    assert out["method_version"] == cli.METHOD_VERSION
+    assert out["indication"] == "BRCA"
+
+
 def test_readers_are_thin_case_keyed_wrappers(monkeypatch):
     # read_patient_expression_by_case averages multi-aliquot cases to one value per case.
     import pandas as pd
