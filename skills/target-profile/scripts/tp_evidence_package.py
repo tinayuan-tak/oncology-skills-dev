@@ -43,6 +43,22 @@ def _catalogue_rows_from_sub_results(sub_results: dict) -> list[dict]:
     return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_source.items())]
 
 
+def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
+    """Per-short verdict-INERT claim_vector (+ key_signals) carried into the machine envelope so a
+    downstream reasoner (e.g. cross-evidence-hypothesis) consumes the SIGNAL decomposition + citable
+    evidence atoms, not just the verdict label. Sourced from each sub-skill's `_synthesis_facet` (the
+    fan-out stashes it at sub_results[short]['synthesis_facet']): dependency carries DEP/SEL/COND/CHEM
+    with citable atoms, presence carries its A/B/C/D. Empty when no sub-skill exposes one, so the
+    envelope stays byte-stable for un-migrated skills."""
+    out: dict = {}
+    for short, r in sub_results.items():
+        facet = r.get("synthesis_facet")
+        if isinstance(facet, dict) and isinstance(facet.get("claim_vector"), dict):
+            out[short] = {"claim_vector": facet["claim_vector"],
+                          "key_signals": facet.get("key_signals")}
+    return out
+
+
 def _load_figure_registry():
     """Import compose-dashboard's figure-emission registry (emit_figures_for_card).
 
@@ -360,6 +376,9 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         "additional_gate_verdicts": additional_blocks,
         # full per-sub-skill grouping
         "sub_verdicts": sub_verdicts,
+        # Stage 2a: verdict-INERT claim-vector signal facets — the SIGNAL decomposition + citable
+        # evidence atoms per sub-skill, for downstream cross-evidence reasoning (not just the label).
+        "claim_vectors": _claim_vectors_from_sub_results(sub_results),
     }
 
     # subgroup_spec: STOP hardcoding null (subtype-first-class-evidence, Option A). Record the

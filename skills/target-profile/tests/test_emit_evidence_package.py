@@ -55,12 +55,12 @@ _IDENTITY_CARD = {
 }
 
 
-def _sub(card_id, fired_id, gate, verdict_pair):
+def _sub(card_id, fired_id, gate, verdict_pair, synthesis_facet=None):
     cards = [{"card_id": card_id, "summary": {"x": 1},
               "interpretation_call": "informative",
               "provenance": {"method_calls": [], "input_manifest_ids": []}}]
     fired = [{"rule_id": fired_id}]
-    return {
+    out = {
         "skill_dir": f"dir-{gate or 'none'}",
         "cards": cards,
         "fired": fired,
@@ -68,6 +68,26 @@ def _sub(card_id, fired_id, gate, verdict_pair):
         "composition": subskill_composition(
             card_outputs=cards, fired=fired, gate=gate, verdict_pair=verdict_pair),
     }
+    if synthesis_facet is not None:
+        out["synthesis_facet"] = synthesis_facet   # the fan-out stashes the claim-vector facet here
+    return out
+
+
+# A dependency synthesis_facet carrying a claim_vector with a citable evidence atom (Stage 2a).
+_DEP_FACET = {
+    "claim_vector": {
+        "DEP": {"signal": "strong", "corroboration": "high", "evidence": "CRISPR strongly_selective",
+                "conflict": None, "informs": "dep",
+                "evidence_atom": {
+                    "read": "strongly_selective",
+                    "values": {"bimodality_coefficient": 0.70, "fraction_strongly_dependent": 0.176},
+                    "cite": {"card_id": "pan-cancer-crispr-dependency-distribution",
+                             "fields": ["bimodality_coefficient", "fraction_strongly_dependent"]},
+                    "entity": {"measurement_type": "crispr_lof_dependency",
+                               "sample_context": "cell_line", "stratum": "pan_cancer"}}},
+        "_disclaimer": "verdict-inert projection"},
+    "key_signals": {"headline": "Strong genetic dependency.", "supports": [], "caveat": None},
+}
 
 
 def _build_ep(tmp_path, monkeypatch):
@@ -78,7 +98,7 @@ def _build_ep(tmp_path, monkeypatch):
         "expression": _sub("tumor-rna-distribution", "expr-01", None,
                            ("tumor_broadly_expressed", "expr-01")),   # GATELESS
         "dependency": _sub("pan-cancer-crispr-dependency-distribution", "dep-01", "dependency",
-                           ("selective_dependency", "dep-01")),
+                           ("selective_dependency", "dep-01"), synthesis_facet=_DEP_FACET),
         "selectivity": _sub("tumor-vs-normal-selectivity", "sel-01", "selectivity",
                             ("tumor_selective", "sel-01")),
     }
@@ -137,6 +157,28 @@ def test_gateless_expression_kept_without_gate_block(tmp_path, monkeypatch):
     all_block_gates = ({syn["primary_gate_verdict"]["gate"]}
                        | {b["gate"] for b in syn["additional_gate_verdicts"]})
     assert "expression" not in all_block_gates
+
+
+def test_synthesis_carries_claim_vectors_with_citable_atoms(tmp_path, monkeypatch):
+    # Stage 2a: the machine envelope carries each sub-skill's claim_vector (+ key_signals) — the SIGNAL
+    # decomposition + citable evidence atoms — so a downstream reasoner sees more than the verdict label.
+    ep = _build_ep(tmp_path, monkeypatch)
+    cv = ep["synthesis"]["claim_vectors"]
+    # the dependency short exposed a synthesis_facet → carried, with the citable atom intact
+    assert "dependency" in cv
+    atom = cv["dependency"]["claim_vector"]["DEP"]["evidence_atom"]
+    assert atom["cite"]["card_id"] == "pan-cancer-crispr-dependency-distribution"
+    assert atom["values"]["bimodality_coefficient"] == 0.70          # the numeric value survives to the envelope
+    assert "bimodality_coefficient" in atom["cite"]["fields"]        # citable by discrete token
+    assert cv["dependency"]["key_signals"]["headline"] == "Strong genetic dependency."
+    # shorts with NO synthesis_facet contribute nothing (byte-stable for un-migrated skills)
+    assert "expression" not in cv and "selectivity" not in cv
+
+
+def test_claim_vectors_empty_when_no_facets(tmp_path, monkeypatch):
+    # helper is a pure projection: no synthesis_facet anywhere → empty dict, never a crash.
+    assert tp_evidence_package._claim_vectors_from_sub_results(
+        {"a": {"cards": [], "fired": []}, "b": {"synthesis_facet": {"key_signals": {}}}}) == {}
 
 
 def test_none_verdict_gateless_short_in_evidence_package(tmp_path, monkeypatch):
