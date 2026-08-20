@@ -99,6 +99,16 @@ def read_lineage_selectivity(
 
 # ---- Subgroup-stratified dependency panorama (descriptive) ----------------
 
+# Effect-based admissibility for the POSITIVE subtype-restricted-dependency rung (2026-08-19,
+# subtype-verdict-shifting review §5 + POU2F3/SCLC-P validation). A subtype stratum below the hard
+# n>=30 floor may still be admissible for a POSITIVE (supportive) nomination iff the dependency is
+# small-but-TIGHT: >= MIN_N_EFFECT lines AND >= STRONG_FRAC of them individually strongly dependent
+# (Chronos <= -1.0, i.e. counted in n_strong_dependent). This does NOT touch subgroup_n_floor_met (the
+# NEGATIVE hold keeps the conservative n>=30) — asymmetric by design. POU2F3/SCLC-P: n=5, 4/5 strong.
+MIN_N_EFFECT_ADMISSIBLE = 3
+EFFECT_STRONG_FRAC = 0.75
+
+
 def _dependency_class(median_chronos: float | None,
                       strong: float = -1.0, moderate: float = -0.5) -> str:
     """Coarse dependency class for a subgroup (descriptive, not a verdict)."""
@@ -145,7 +155,7 @@ def read_stratified_dependency(
         return {
             "target": target, "indication": indication,
             "subgroup_n": 0, "median_chronos": None, "n_strong_dependent": None,
-            "subgroup_n_floor_met": False, "evidence_state": "absent",
+            "subgroup_n_floor_met": False, "subgroup_effect_admissible": False, "evidence_state": "absent",
             "dependency_class": "insufficient", "source_cohort": "DepMap-26Q1",
             "_data_note": f"No Chronos parquet at {path}.",
         }
@@ -158,7 +168,7 @@ def read_stratified_dependency(
         return {
             "target": target, "indication": indication,
             "subgroup_n": 0, "median_chronos": None, "n_strong_dependent": None,
-            "subgroup_n_floor_met": False, "evidence_state": "absent",
+            "subgroup_n_floor_met": False, "subgroup_effect_admissible": False, "evidence_state": "absent",
             "dependency_class": "insufficient", "source_cohort": "DepMap-26Q1",
             "_data_note": f"{target!r} not a Chronos column.",
         }
@@ -171,6 +181,8 @@ def read_stratified_dependency(
     median = float(gene.median()) if n else None
     n_strong = int((gene <= -1.0).sum()) if n else None
     floor_met = n >= SUBGROUP_N_FLOOR
+    frac_strong = (n_strong / n) if (n and n_strong is not None) else 0.0
+    effect_admissible = (n >= MIN_N_EFFECT_ADMISSIBLE and frac_strong >= EFFECT_STRONG_FRAC)
     return {
         "target": target,
         "indication": indication,
@@ -178,6 +190,8 @@ def read_stratified_dependency(
         "median_chronos": (round(median, 4) if median is not None else None),
         "n_strong_dependent": n_strong,
         "subgroup_n_floor_met": floor_met,
+        # POSITIVE-only admissibility (small-but-tight strong dependency); NEGATIVE hold keeps floor_met.
+        "subgroup_effect_admissible": bool(effect_admissible),
         "evidence_state": evidence_state(n, floor_met),
         "dependency_class": _dependency_class(median),
         "source_cohort": "DepMap-26Q1",
@@ -194,6 +208,7 @@ def _dependency_projection(stratum_id: str, rec: dict) -> dict:
         "n_strong_dependent": rec["n_strong_dependent"],
         "subgroup_n": rec["subgroup_n"],
         "subgroup_n_floor_met": rec["subgroup_n_floor_met"],
+        "subgroup_effect_admissible": rec.get("subgroup_effect_admissible", False),
         "subtype_defining_data": "genomic",
         "source_cohort": rec["source_cohort"],
     }
