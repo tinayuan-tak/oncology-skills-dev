@@ -12,8 +12,6 @@ so the live-read seam surfaces an honest error instead of a silent empty join.
 """
 from __future__ import annotations
 
-import io
-import os
 from functools import lru_cache
 
 S3_BUCKET = "onc-compbio"
@@ -30,27 +28,37 @@ INDICATION_TO_TCGA = {
 }
 
 
-def _s3_read_bytes(key: str) -> bytes:
-    import boto3
-    from methods.target_id_sidecar import ensure_aws_profile
-    ensure_aws_profile()
-    s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
-    return s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
+_S3FS = None
+
+
+def _get_s3fs():
+    """pyarrow S3FileSystem for HTTP-range row-group pushdown — reads only the 1-2 gene-sorted
+    row groups matching the gene, NOT the full 1.5 GB object. Mirrors tcga_gtex_expression_distribution."""
+    global _S3FS
+    if _S3FS is None:
+        import pyarrow.fs as fs
+        from methods.target_id_sidecar import ensure_aws_profile
+        ensure_aws_profile()
+        _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
 @lru_cache(maxsize=256)
 def _read_gene(target: str):
-    """Per-gene slice of the product via parquet predicate pushdown. Returns a tuple of
-    (case_barcode, gistic_call, cancer_type). Empty tuple only on genuine absence."""
-    import pandas as pd
+    """Per-gene slice via parquet predicate pushdown over S3 range reads (gene-sorted product, so
+    pyarrow prunes to the matching row groups). Returns a tuple of (case_barcode, gistic_call,
+    cancer_type). Empty tuple only on genuine absence."""
+    import pyarrow.parquet as pq
     from methods.target_id_sidecar import is_definitively_absent
     try:
-        raw = _s3_read_bytes(PRODUCT_KEY)
-        df = pd.read_parquet(io.BytesIO(raw),
-                             columns=["gene_symbol", "case_barcode", "gistic_call", "cancer_type"],
-                             filters=[("gene_symbol", "==", target)])
+        tbl = pq.read_table(
+            f"{S3_BUCKET}/{PRODUCT_KEY}", filesystem=_get_s3fs(),
+            columns=["gene_symbol", "case_barcode", "gistic_call", "cancer_type"],
+            filters=[("gene_symbol", "==", target.upper().strip())])
+        df = tbl.to_pandas()
         if df.empty:
             return tuple()
+        import pandas as pd
         return tuple((str(r.case_barcode), int(r.gistic_call),
                       (str(r.cancer_type) if pd.notna(r.cancer_type) else None))
                      for r in df.itertuples(index=False))
