@@ -302,6 +302,18 @@ def _panel_block(panel: dict, objective: str) -> str:
             "never lower it). Cite the PMIDs listed. An axis with contradicts_deterministic=true "
             "DISAGREES with that axis's deterministic verdict — you MUST surface it as a tension:\n"
             f"{json.dumps(gs['per_axis'], indent=1, default=str)}\n\n")
+    # Stage 2a — claim-vector SIGNAL decomposition + CITABLE evidence atoms per sub-skill. Each axis
+    # carries a signal×corroboration tier PLUS an evidence_atom binding the load-bearing NUMERIC values
+    # (bimodality, responder fraction, control-position, …) to {card_id, fields} + entity keys. Reason
+    # over the atom VALUES, not just the verdict label; the atom's card_id is already a citable token.
+    cv_block = ""
+    cvs = panel.get("claim_vectors") or {}
+    if cvs:
+        cv_block = (
+            "PANEL — claim-vector signal decomposition (per sub-skill → axis → signal×corroboration + a "
+            "CITABLE evidence_atom binding the specific VALUES to {card_id, fields} + entity keys). Read "
+            "the atom values (not just the verdict label); cite the atom's card_id:\n"
+            f"{json.dumps(cvs, indent=1, default=str)}\n\n")
     return (
         f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
         f"TARGET: {tgt}\nINDICATION: {ind}\nSCOPED SUBTYPE: {scoped_subtype}\n\n"
@@ -310,6 +322,7 @@ def _panel_block(panel: dict, objective: str) -> str:
         f"{json.dumps(panel['conviction'], indent=1, default=str)}\n\n"
         f"PANEL — per-card interpretation (card_id -> call; cite these card_ids):\n"
         f"{json.dumps(panel['cards_brief'], indent=1, default=str)}\n\n"
+        f"{cv_block}"
         f"{grounded_block}"
         f"GROUNDED literature risk reads:\n{json.dumps(panel['risk'], indent=1, default=str)}\n\n"), \
         tgt, ind, scoped_subtype

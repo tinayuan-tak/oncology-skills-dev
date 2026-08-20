@@ -880,6 +880,11 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
         "grounded_substrate": grounded, "grounded_substrate_present": grounded["present"],
         "dossier_present": dossier_present, "risk_present": risk_present,
         "modality": modality,
+        # Stage 2a: per-short claim_vector (+ key_signals) with CITABLE evidence atoms, surfaced from
+        # synthesis.claim_vectors — the SIGNAL decomposition the panel reasons over (not just the
+        # verdict label). Each atom's cite.card_id is already in citation_surface.card_ids (the card is
+        # in the package), so a clause citing it stays TRACEABLE without widening the surface.
+        "claim_vectors": syn.get("claim_vectors") or {},
         "citation_surface": {
             "card_ids": {c for c in card_ids if c},
             "sub_verdicts": set(sv.keys()), "rule_ids": rule_ids,

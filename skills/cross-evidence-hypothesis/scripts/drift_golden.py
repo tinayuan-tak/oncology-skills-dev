@@ -35,6 +35,7 @@ def trim_evidence_package(pkg: dict) -> dict:
         "synthesis": {
             "sub_verdicts": syn.get("sub_verdicts", {}),           # full: verdict + fired_rule_ids
             "recommendation_gate": syn.get("recommendation_gate", {}),  # full: fired/hard_gates/...
+            "claim_vectors": syn.get("claim_vectors", {}),         # Stage 2a: signal facets + citable atoms
         },
         "cards": [{k: c.get(k) for k in _CARD_KEEP if k in c}
                   for c in pkg.get("cards", []) if isinstance(c, dict) and c.get("card_id")],
