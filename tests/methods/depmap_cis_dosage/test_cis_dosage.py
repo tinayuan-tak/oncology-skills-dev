@@ -71,19 +71,41 @@ def test_uncoupled_when_expression_flat_but_cn_varies():
 
 
 def test_cn_invariant_panel_is_not_uncoupled():
-    """Near-diploid panel (no CN variance) → cn_invariant_panel (untestable), NOT cn_dosage_uncoupled.
-    The honest-abstention bin: absence of CN variance means the cis-dosage question can't be asked."""
+    """Near-diploid panel (no CN variation) → cn_invariant_panel (untestable), NOT cn_dosage_uncoupled.
+    The honest-abstention bin: absence of CN variation means the cis-dosage question can't be asked."""
     import random
     rng = random.Random(5)
     cn, tpm = {}, {}
     for i in range(120):
         m = f"ACH-{i:05d}"
-        cn[m] = 1.0 + rng.uniform(-0.02, 0.02)     # essentially diploid everywhere (IQR << 0.2)
+        cn[m] = 1.0 + rng.uniform(-0.02, 0.02)     # essentially diploid everywhere (p90-p10 << 0.2)
         tpm[m] = 6.0 + rng.uniform(-1.0, 1.0)
     s = compute_cis_dosage(cn, tpm)
     assert s["cis_dosage_class"] == "cn_invariant_panel"
-    assert s["relative_cn_iqr"] < 0.2
+    assert s["relative_cn_p10_p90_spread"] < 0.2
     assert s["cn_expr_spearman_r"] is None         # correlation not computed on an untestable panel
+
+
+def test_focal_amplification_tail_is_testable_not_invariant():
+    """REGRESSION (ERBB2 calibration bug 2026-08-20): a focal-amp oncogene is bulk-diploid with an
+    amplified TAIL, so its IQR (middle 50%) is ~0 even though the tail carries real coupling signal.
+    The invariant gate keys on the p90-p10 spread (tail-sensitive), NOT the IQR, so such a panel is
+    correctly TESTABLE (coupled), not mislabeled cn_invariant_panel. Mirrors ERBB2 live: IQR 0.18 but
+    Spearman r=0.26 p=1e-15 over 71 amplified lines."""
+    import random
+    rng = random.Random(9)
+    cn, tpm = {}, {}
+    i = 0
+    for _ in range(100):                            # bulk diploid: tight body → small IQR
+        m = f"ACH-{i:05d}"; cn[m] = 1.0 + rng.uniform(-0.05, 0.05); tpm[m] = 6.0 + rng.uniform(-0.5, 0.5); i += 1
+    for _ in range(20):                             # amplified tail: high CN AND high expression
+        m = f"ACH-{i:05d}"; amp = rng.uniform(3.0, 12.0); cn[m] = amp; tpm[m] = 9.5 + rng.uniform(-0.5, 0.5); i += 1
+    s = compute_cis_dosage(cn, tpm)
+    assert s["cis_dosage_class"] in ("cn_dosage_coupled_strong", "cn_dosage_coupled_moderate"), (
+        f"focal-amp tail must be testable+coupled, got {s['cis_dosage_class']}")
+    assert s["relative_cn_iqr"] < 0.2               # the IQR IS tiny (the trap the old gate fell into)
+    assert s["relative_cn_p10_p90_spread"] >= 0.2   # but the tail-sensitive spread passes
+    assert s["cn_expr_spearman_r"] > 0.25
 
 
 def test_data_unavailable_when_too_few_lines():

@@ -18,7 +18,13 @@ STRONG_DOSAGE_SPEARMAN_R = 0.4        # cn_dosage_coupled_strong
 MODERATE_DOSAGE_SPEARMAN_R = 0.25     # cn_dosage_coupled_moderate
 SIGNIFICANCE_ALPHA = 0.01
 MIN_CELL_LINES_FOR_CORRELATION = 50
-MIN_RELATIVE_CN_IQR = 0.2             # CN-variance floor; below → cn_invariant_panel (untestable)
+# CN-variance floor → below this the panel is near-diploid = untestable (cn_invariant_panel).
+# Keyed on the p90-p10 spread, NOT the IQR: focal-amplification oncogenes (ERBB2/MYC) are bulk-diploid
+# with an amplified TAIL, so their IQR (middle 50%) is ~0 even though the tail carries real, significant
+# rank-correlation signal. The IQR gate mis-classified ERBB2 (IQR 0.18 but Spearman r=0.26, p=1e-15,
+# 71 amplified lines) as invariant. p90-p10 captures the tail (ERBB2 p90-p10 = 0.55) while staying
+# robust to a single extreme outlier. (calibration finding 2026-08-20.)
+MIN_RELATIVE_CN_P10_P90_SPREAD = 0.2
 # Focal-amplification convention (relative CN, diploid ~ 1.0; NOT log2). 1.5 = the distribution card's
 # focal-amp bin edge (depmap_cn_distribution.FOCAL_AMP), used ONLY for the descriptive amplified-vs-
 # neutral expression contrast — NOT the class driver (the class is driven by the correlation).
@@ -30,13 +36,15 @@ def compute_cis_dosage(cn_by_model: dict, tpm_by_model: dict,
                        moderate_r: float = MODERATE_DOSAGE_SPEARMAN_R,
                        significance_alpha: float = SIGNIFICANCE_ALPHA,
                        min_cell_lines: int = MIN_CELL_LINES_FOR_CORRELATION,
-                       min_cn_iqr: float = MIN_RELATIVE_CN_IQR,
+                       min_cn_spread: float = MIN_RELATIVE_CN_P10_P90_SPREAD,
                        amplification_threshold: float = AMPLIFICATION_THRESHOLD) -> dict:
     """Compute the cis-feature-expression-coherence summary_fields.
 
     Evaluated universe = lines with BOTH relative CN AND log2TPM present. cis_dosage_class is driven by
-    the CN↔expression Spearman correlation; a near-diploid panel (CN IQR < min) is cn_invariant_panel
-    (untestable), NOT cn_dosage_uncoupled. Higher CN → higher expression = POSITIVE r = coupled.
+    the CN↔expression Spearman correlation; a near-diploid panel (CN p90-p10 spread < min) is
+    cn_invariant_panel (untestable), NOT cn_dosage_uncoupled. Higher CN → higher expression = POSITIVE
+    r = coupled. The invariant gate keys on the p90-p10 spread (tail-sensitive), NOT the IQR, so
+    focal-amplification oncogenes (bulk-diploid + amplified tail; ERBB2/MYC) are correctly testable.
     """
     import numpy as np
     from scipy import stats
@@ -50,7 +58,7 @@ def compute_cis_dosage(cn_by_model: dict, tpm_by_model: dict,
             "cn_expr_spearman_r": None, "cn_expr_spearman_p": None,
             "cn_expr_pearson_r": None, "cn_expr_pearson_p": None,
             "cn_expr_slope_log2tpm_per_cn": None,
-            "relative_cn_iqr": None, "log2tpm_iqr": None,
+            "relative_cn_iqr": None, "relative_cn_p10_p90_spread": None, "log2tpm_iqr": None,
             "median_relative_cn": None, "median_log2tpm": None,
             "n_amplified": 0, "mean_log2tpm_amplified": None, "mean_log2tpm_neutral": None,
             "delta_log2tpm_amplified_vs_neutral": None,
@@ -68,8 +76,10 @@ def compute_cis_dosage(cn_by_model: dict, tpm_by_model: dict,
     tpm = np.array([tpm_by_model[m] for m in evaluated], dtype=float)
 
     cn_q25, cn_q75 = np.quantile(cn, [0.25, 0.75])
+    cn_p10, cn_p90 = np.quantile(cn, [0.10, 0.90])
     tpm_q25, tpm_q75 = np.quantile(tpm, [0.25, 0.75])
-    cn_iqr = float(cn_q75 - cn_q25)
+    cn_iqr = float(cn_q75 - cn_q25)               # provenance only (NOT the invariant gate)
+    cn_p10_p90 = float(cn_p90 - cn_p10)           # the tail-sensitive spread the invariant gate uses
     tpm_iqr = float(tpm_q75 - tpm_q25)
 
     # Amplified-vs-neutral expression contrast (interpretability aid; not the class driver).
@@ -81,15 +91,17 @@ def compute_cis_dosage(cn_by_model: dict, tpm_by_model: dict,
     delta_amp = (mean_amp - mean_neutral) if (mean_amp is not None and mean_neutral is not None) else None
 
     common = dict(
-        relative_cn_iqr=cn_iqr, log2tpm_iqr=tpm_iqr,
+        relative_cn_iqr=cn_iqr, relative_cn_p10_p90_spread=cn_p10_p90, log2tpm_iqr=tpm_iqr,
         median_relative_cn=float(np.median(cn)), median_log2tpm=float(np.median(tpm)),
         n_amplified=n_amp, mean_log2tpm_amplified=mean_amp, mean_log2tpm_neutral=mean_neutral,
         delta_log2tpm_amplified_vs_neutral=delta_amp,
     )
 
-    # Untestable: no CN variance → the cis-dosage question cannot be asked (near-diploid panel).
-    # Distinct from cn_dosage_uncoupled (measured CN variance, but no expression coupling).
-    if cn_iqr < min_cn_iqr or cn.std() < 1e-9 or tpm.std() < 1e-9:
+    # Untestable: no CN variation → the cis-dosage question cannot be asked (near-diploid panel).
+    # Gated on the p90-p10 spread (tail-sensitive), NOT the IQR — else focal-amp oncogenes with a
+    # bulk-diploid body + amplified tail (ERBB2/MYC) are wrongly called invariant. Distinct from
+    # cn_dosage_uncoupled (measured CN variation, but no expression coupling).
+    if cn_p10_p90 < min_cn_spread or cn.std() < 1e-9 or tpm.std() < 1e-9:
         return _base("cn_invariant_panel", **common)
 
     spearman_r, spearman_p = stats.spearmanr(cn, tpm)
