@@ -28,6 +28,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.target_intrinsic_claims import (
+    target_intrinsic_claim_vector, target_intrinsic_key_signals)
 
 
 SKILL_NAME = "target-intrinsic"
@@ -148,7 +150,30 @@ def _headline(cards, fired, verdict_pair):
     _HEADLINE_SPEC table. No verdict spine (verdict_fn=None): target-intrinsic evidence informs
     confidence/context, never a nomination (indication-conditioned). A composed consumer reads these
     as target-grain context."""
-    return {key: get_card_field(cards, cid, field) for key, cid, field in _HEADLINE_SPEC}
+    hl = {key: get_card_field(cards, cid, field) for key, cid, field in _HEADLINE_SPEC}
+    # verdict-INERT claim-vector projection (10th concrete) — the two target-intrinsic fields that carry
+    # a defensible signal (MODALITY_ROUTING / TRACTABILITY_PRECEDENT), the most relevant to hypothesis +
+    # modality fit. Both source cards are in the composer entry, so this populates in the COMPOSED profile.
+    hl["claim_vector"] = target_intrinsic_claim_vector(hl, cards)
+    hl["key_signals"] = target_intrinsic_key_signals(hl, cards)
+    return hl
+
+
+def _synthesis_facet(cards, fired, verdict_pair=None):
+    """Compact, VERDICT-INERT target-intrinsic facet for the composed synthesis. SELF-CONTAINED — reads
+    ONLY the two claim-axis cards (domain-modality-relevance, target-development-level), both in this
+    skill's composer entry, and does NOT call _headline (whose _HEADLINE_SPEC reads 12 cards HOME'd under
+    other subskills, absent from this entry by design). Carries the descriptive claim_vector + its citable
+    atoms + the two class fields. target-intrinsic is gateless (verdict_fn=None) — this never moves a verdict."""
+    cv = target_intrinsic_claim_vector({}, cards)
+    ks = target_intrinsic_key_signals({}, cards)
+    return {
+        "modality_implication_class": get_card_field(cards, "domain-modality-relevance", "modality_implication_class"),
+        "tdl_class": get_card_field(cards, "target-development-level", "tdl_class"),
+        "claim_vector": cv, "key_signals": ks,
+        "_facet_note": ("Deterministic target-intrinsic facet; claim_vector is a DESCRIPTIVE modality-routing "
+                        "+ tractability-precedent projection (direction/meaning in the atoms). Gateless — no verdict."),
+    }
 
 
 if __name__ == "__main__":

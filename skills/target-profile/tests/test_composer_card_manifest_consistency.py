@@ -345,6 +345,16 @@ def _facet_headline_card_reads(src: str) -> set:
     return reads
 
 
+def _synthesis_facet_body(src: str) -> str:
+    """The source of the `_synthesis_facet` function only (def → next top-level `def`/EOF). Used to
+    decide facet card-read REACHABILITY: a facet that reuses `_headline` transitively reads every
+    _headline card (scan the whole file); a SELF-CONTAINED facet that reads only its own cards (and
+    never calls `_headline`) is bounded by its own body — so a partial-in-composed descriptive dossier
+    (target-intrinsic: _HEADLINE_SPEC reads 12 cards HOME'd elsewhere) is not forced to over-compose."""
+    m = re.search(r'\ndef _synthesis_facet\b.*?(?=\ndef |\Z)', src, re.S)
+    return m.group(0) if m else ""
+
+
 def test_facet_subskills_compose_all_headline_card_reads():
     """GENERALIZED regression guard (supersedes the FR-only check above): EVERY sub-skill that exposes
     `_synthesis_facet` must carry, under its OWN composer entry, every card its headline reads — else
@@ -361,7 +371,14 @@ def test_facet_subskills_compose_all_headline_card_reads():
         src = run_py.read_text()
         if "def _synthesis_facet" not in src:          # only facet-exposing sub-skills flow a claim_vector
             continue
-        missing = _facet_headline_card_reads(src) - set(ssc[skill_dir])
+        # REACHABILITY: if the facet reuses _headline it transitively reads every _headline card (scan the
+        # whole file — the common case: safety/tractability/differentiation/surface/combination-vulnerability
+        # all do `h = _headline(...)`). A SELF-CONTAINED facet that never calls _headline is bounded by its
+        # OWN reads (target-intrinsic: a partial-in-composed descriptive dossier whose _HEADLINE_SPEC reads
+        # cards HOME'd under other subskills — the facet reads only its 2 composed claim-axis cards).
+        facet_src = _synthesis_facet_body(src)
+        scan_src = src if "_headline(" in facet_src else facet_src
+        missing = _facet_headline_card_reads(scan_src) - set(ssc[skill_dir])
         if missing:
             violations[skill_dir] = sorted(missing)
     assert not violations, (
