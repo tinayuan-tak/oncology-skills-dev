@@ -125,7 +125,10 @@ def test_dispatcher_method_imports_resolves_real_module(tmp_path):
 
 
 def test_probe_card_uses_dispatcher_not_stale_label(tmp_path):
-    """A stale methods.call label must NOT drive backing when a dispatcher exists."""
+    """Dispatcher import (not the methods.call label) drives backing. Staleness is
+    keyed off the EXPLICIT `module:` field: a card with only a cosmetic `call:` label
+    that differs from the dispatcher is NOT stale (label→module fix, 2026-08-18) —
+    the label is a human handle, not a package claim."""
     (tmp_path / "cards").mkdir()
     (tmp_path / "cards" / "c.card.yaml").write_text(textwrap.dedent('''
         card_id: c
@@ -142,8 +145,73 @@ def test_probe_card_uses_dispatcher_not_stale_label(tmp_path):
         dispatch_modules={"c": "real_module.read"},   # dispatcher routes to the REAL module
     )
     assert out["method_dir_exists"] is True          # resolved via dispatcher, suffix stripped
-    assert out["stale_method_label"] is True         # label != dispatcher module -> flagged
+    assert out["stale_method_label"] is False        # no module: field -> no package claim -> not stale
     assert out["method_call"] == "totally-stale-label"
+
+
+def test_probe_card_flags_stale_only_on_declared_module_mismatch(tmp_path):
+    """stale_method_label fires when the card's EXPLICIT `module:` disagrees with the
+    dispatcher's import, and NOT when only the friendly `call:` label differs. Regression
+    for the 14 label-only false positives (clingen-dosage, spatial-*, etc., 2026-08-18)."""
+    (tmp_path / "cards").mkdir()
+    methods = tmp_path / "methods"
+    (methods / "methods" / "real_module").mkdir(parents=True)
+    (methods / "methods" / "real_module" / "read.py").write_text("def read(): pass")
+
+    # (a) friendly label differs, module: AGREES with dispatcher -> NOT stale
+    (tmp_path / "cards" / "ok.card.yaml").write_text(textwrap.dedent('''
+        card_id: ok
+        methods:
+          - call: friendly-alias-lookup
+            module: real_module
+        measurement_type: mt
+    '''))
+    ok = probe.probe_card("ok", tmp_path, methods, live_ids={"ok"}, fired_ids=set(),
+                          dispatch_modules={"ok": "real_module.read"})
+    assert ok["stale_method_label"] is False
+
+    # (b) declared module: genuinely disagrees with the dispatcher -> STALE
+    (tmp_path / "cards" / "bad.card.yaml").write_text(textwrap.dedent('''
+        card_id: bad
+        methods:
+          - call: whatever
+            module: wrong_package
+        measurement_type: mt
+    '''))
+    bad = probe.probe_card("bad", tmp_path, methods, live_ids={"bad"}, fired_ids=set(),
+                           dispatch_modules={"bad": "real_module.read"})
+    assert bad["stale_method_label"] is True
+
+
+def test_probe_card_honors_declared_module_for_resolver_routed(tmp_path):
+    """Resolver-routed card (no dispatcher): backing must resolve from the explicit
+    `module:` field, NOT a de-kebab of the `call:` label. Regression for the
+    cn/amp/fusion/partner/gnomad `broken/card-no-path` false positive (2026-08-18):
+    the label abbreviates the module (depmap-cn-stratified vs depmap_cn_dependency),
+    so guessing from the label found no dir and mislabeled a working card broken."""
+    (tmp_path / "cards").mkdir()
+    (tmp_path / "cards" / "c.card.yaml").write_text(textwrap.dedent('''
+        card_id: c
+        methods:
+          - call: depmap-cn-stratified          # de-kebabs to depmap_cn_stratified (NO such dir)
+            module: depmap_cn_dependency         # the REAL backing package
+            entrypoint: read_cn_stratified_dependency
+        measurement_type: mt
+    '''))
+    methods = tmp_path / "methods"
+    (methods / "methods" / "depmap_cn_dependency").mkdir(parents=True)
+    (methods / "methods" / "depmap_cn_dependency" / "read.py").write_text("def read(): pass")
+    out = probe.probe_card(
+        "c", tmp_path, methods,
+        live_ids=set(), fired_ids=set(),         # no dispatcher, never fired -> resolver-routed
+        dispatch_modules={},
+    )
+    assert out["method_dir_exists"] is True       # resolved from module:, not the kebab label
+    assert out["method_has_read"] is True
+    # Post-fix verdict is the HONEST coverage gap, not the false 'broken/card-no-path'.
+    verdict, reason = rollup._resolve(rollup.load_rules()["card_health"], out)
+    assert verdict == "blocked"
+    assert reason == "card-no-reader-no-fire"
 
 
 def test_catalog_manifests_registers_product_id_alias(tmp_path):

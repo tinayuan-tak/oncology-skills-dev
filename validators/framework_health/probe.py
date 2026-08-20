@@ -603,18 +603,32 @@ def probe_card(
         out["is_placeholder"] = True
         out["placeholder_reason"] = "placeholder marker in card body"
 
-    # Card's declared label (recorded for drift, NOT used as the backing truth).
+    # Card's declared `call:` label (a human handle, recorded for drift) and its
+    # explicit `module:` field (which NAMES the backing method package). The label
+    # is NOT authoritative — de-kebabing it (call.replace("-","_")) only matches the
+    # module by coincidence; the `module:` field is the card's own declaration.
     methods = card.get("methods") or []
     label_module = None
+    declared_module = None
     if isinstance(methods, list) and methods and isinstance(methods[0], dict):
         call = methods[0].get("call")
         out["method_call"] = call
         if call:
             label_module = call.replace("-", "_")
+        declared_module = methods[0].get("module")
 
-    # AUTHORITATIVE backing = the module the dispatcher actually imports; fall back
-    # to the card's label only when the card has no live-reader dispatcher.
-    backing_module = out["dispatch_module"] or (label_module if not out["has_live_reader"] else None)
+    # AUTHORITATIVE backing, in precedence order, for cards with no live-reader
+    # dispatcher (resolver-routed cards fall here — they are pulled through the
+    # shared declarative resolver, so no per-card _import_method exists to scan):
+    #   1. dispatcher's actual import (live-reader path);
+    #   2. the card's EXPLICIT `module:` field — trust the declaration;
+    #   3. LAST RESORT: de-kebab the `call:` label (legacy cards with no module:).
+    # Skipping (2) mislabels a working, tested card `broken/card-no-path` whenever
+    # the label abbreviates the module (depmap-cn-stratified vs depmap_cn_dependency,
+    # gnomad-constraint-lookup vs gnomad_constraint) — the false positive this fixes.
+    backing_module = out["dispatch_module"] or (
+        (declared_module or label_module) if not out["has_live_reader"] else None
+    )
     if backing_module:
         # _import_method args may carry a submodule suffix (e.g. "opentargets_clingen.read",
         # "driver_role_overlay.cli") — the method DIR is the top-level package only.
@@ -622,15 +636,19 @@ def probe_card(
         mdir = methods_root / "methods" / top_pkg
         out["method_dir_exists"] = mdir.is_dir()
         out["method_has_read"] = (mdir / "read.py").exists() if mdir.is_dir() else False
-    # Stale-label hygiene flag: dispatcher routes to a different METHOD PACKAGE than the card claims.
+    # Stale-module hygiene flag: dispatcher routes to a different METHOD PACKAGE than the
+    # card's EXPLICIT `module:` field claims. Keyed off `module:`, NOT the `call:` label —
+    # the label is a cosmetic human handle (e.g. `opentargets-clingen-dosage`) that routinely
+    # differs from the real package (`opentargets_clingen`); comparing it manufactured drift
+    # out of naming aesthetics (14 false positives, 2026-08-18). A card with NO `module:` field
+    # makes no package claim and therefore cannot be stale — the dispatcher is authoritative.
     # Compare TOP-LEVEL packages — the dispatcher's _import_method arg routinely carries an
     # entry-point submodule suffix (e.g. "tcga_gtex_expression_distribution.cli",
-    # "expression_purity_confound.cli") that is NOT a stale label; only a different top-level package
-    # is a real drift (e.g. card says depmap-protein-abundance-distribution but dispatcher imports
-    # depmap_protein_abundance). Stripping the suffix removes the false-positive on the .cli/.read
-    # convention while still catching a genuine module mismatch. (Fixed 2026-08-04.)
-    if out["dispatch_module"] and label_module:
-        if out["dispatch_module"].split(".")[0] != label_module.split(".")[0]:
+    # "opentargets_clingen.read") that is NOT a mismatch; only a different top-level package
+    # is a real drift (card says module: depmap_protein_abundance_distribution but dispatcher
+    # imports depmap_protein_abundance). (Suffix-strip fixed 2026-08-04; label→module 2026-08-18.)
+    if out["dispatch_module"] and declared_module:
+        if out["dispatch_module"].split(".")[0] != declared_module.split(".")[0]:
             out["stale_method_label"] = True
 
     # ── P4 modality-vector lens ────────────────────────────────────────────
