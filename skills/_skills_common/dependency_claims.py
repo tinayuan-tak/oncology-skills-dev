@@ -179,11 +179,64 @@ def _chem_corroboration(h, c):
     return "high" if n >= 10 else "moderate" if n >= 3 else "low"
 
 
+# ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────
+# Each atom binds the axis's load-bearing NUMERIC values to their source {card_id, fields} + entity
+# keys, so a downstream reasoner (e.g. cross-evidence-hypothesis) can cite the value by a discrete
+# token — satisfying its traceability HARD RULE — and JOIN across axes on the entity. Verdict-inert
+# provenance: the ordinal signal/corroboration tiers are untouched (the atom is never averaged). These
+# read the raw card summaries from `c` (cards_by_id); returns None when the source card is absent, so
+# the axis stays byte-stable (no evidence_atom key).
+def _atom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
+    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
+    if not vals:
+        return None
+    return {"read": read, "values": vals,
+            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+
+
+def _dep_atom(h, c):
+    cid = "pan-cancer-crispr-dependency-distribution"
+    return _atom(cid, c.get(cid) or {},
+                 ("bimodality_coefficient", "distribution_shape", "fraction_strongly_dependent",
+                  "median_chronos_panel", "p5_chronos_panel", "n_cell_lines_evaluated",
+                  "selectivity_index", "dep_control_position_class"),
+                 {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line",
+                  "stratum": "pan_cancer"},
+                 h.get("crispr_call"))
+
+
+def _sel_atom(h, c):
+    cid = "dependency-lineage-selectivity"
+    return _atom(cid, c.get(cid) or {},
+                 ("enrichment_class", "lineage_variance_explained", "lineage_omnibus_kruskal_h",
+                  "lineage_omnibus_effect_size_class", "n_enriched_lineages", "n_lineages_evaluated"),
+                 {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line",
+                  "grain": "target_lineage"},
+                 h.get("lineage_selectivity"))
+
+
+def _cond_atom(h, c):
+    cid = "partner-conditional-dependency"
+    return _atom(cid, c.get(cid) or {},
+                 ("partner_stratification_class", "n_partner_deficient", "partner_stratification_q"),
+                 {"sample_context": "cell_line", "stratum": "partner_deficient"},
+                 h.get("partner_conditional_class"))
+
+
+def _chem_atom(h, c):
+    cid = "prism-crispr-concordance"
+    return _atom(cid, c.get(cid) or {},
+                 ("crispr_prism_concordance_class", "n_compounds_evaluated", "n_dual_responders",
+                  "best_spearman_r_crispr", "best_spearman_r_rnai"),
+                 {"sample_context": "cell_line", "stratum": "pan_cancer"},
+                 h.get("prism_concordance_class"))
+
+
 DEPENDENCY_CLAIM_SPEC = [
-    ClaimSpec("DEP", "genetic dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"]),
-    ClaimSpec("SEL", "context-selectivity", _sel_signal, _sel_corroboration, _INFORMS["SEL"]),
-    ClaimSpec("COND", "conditional / synthetic-lethal", _cond_signal, _cond_corroboration, _INFORMS["COND"]),
-    ClaimSpec("CHEM", "chemical-genetic confirmation", _chem_signal, _chem_corroboration, _INFORMS["CHEM"]),
+    ClaimSpec("DEP", "genetic dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"], _dep_atom),
+    ClaimSpec("SEL", "context-selectivity", _sel_signal, _sel_corroboration, _INFORMS["SEL"], _sel_atom),
+    ClaimSpec("COND", "conditional / synthetic-lethal", _cond_signal, _cond_corroboration, _INFORMS["COND"], _cond_atom),
+    ClaimSpec("CHEM", "chemical-genetic confirmation", _chem_signal, _chem_corroboration, _INFORMS["CHEM"], _chem_atom),
 ]
 
 _DISCLAIMER = (

@@ -87,12 +87,19 @@ class ClaimSpec:
     signal_fn(headline, cards_by_id)         -> (signal_tier, evidence_str, conflict_or_None)
     corroboration_fn(headline, cards_by_id)  -> corroboration_tier
     informs: light-touch downstream-lens routing tag (NOT a gate).
+    atom_fn(headline, cards_by_id) -> dict | None : OPTIONAL. When set, builds a CITABLE evidence
+        atom for the axis — the specific load-bearing data VALUES bound to their source
+        {card_id, fields} and entity keys — carried alongside the ordinal signal/corroboration tiers
+        (which stay UNCHANGED; the atom is provenance, never averaged). Returns None when the source
+        card is absent, so the axis stays byte-stable (no `evidence_atom` key). Skills opt in per axis;
+        an axis with no atom_fn keeps the legacy 5-key shape exactly.
     """
     axis_key: str
     label: str
     signal_fn: Callable
     corroboration_fn: Callable
     informs: str
+    atom_fn: Optional[Callable] = None
 
 
 def build_claim_vector(spec: Sequence[ClaimSpec], headline: dict, cards, disclaimer: str) -> dict:
@@ -117,6 +124,13 @@ def build_claim_vector(spec: Sequence[ClaimSpec], headline: dict, cards, disclai
             "conflict": conflict,
             "informs": cs.informs,
         }
+        # OPTIONAL citable atom — added ONLY when the spec declares an atom_fn AND it returns a
+        # value (source card present). An axis without an atom_fn, or whose card is absent, keeps the
+        # legacy 5-key shape byte-for-byte, so un-migrated skills are unaffected.
+        if cs.atom_fn is not None:
+            atom = cs.atom_fn(headline, c)
+            if atom is not None:
+                vec[cs.axis_key]["evidence_atom"] = atom
     vec["_disclaimer"] = disclaimer
     return vec
 

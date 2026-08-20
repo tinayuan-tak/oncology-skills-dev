@@ -121,3 +121,23 @@ def test_key_signals_fallback_caveat_when_no_measured_critical():
                             caveat_fns={}, headline_fn=lambda v, s: "h",
                             fallback_caveat_fn=lambda: "FALLBACK")
     assert out["caveat"] == "FALLBACK"
+
+
+# ── optional citable atom (atom_fn) — additive, backward-compatible ─────────────────────────────────
+def test_atom_fn_is_optional_and_additive():
+    spec = [
+        # no atom_fn → legacy 5-key shape, byte-for-byte
+        ClaimSpec("A", "a", lambda h, c: ("strong", "e", None), lambda h, c: "high", "i"),
+        # atom_fn returns a dict → exactly one extra key `evidence_atom`
+        ClaimSpec("B", "b", lambda h, c: ("moderate", "e", None), lambda h, c: "low", "i",
+                  lambda h, c: {"values": {"x": 1}, "cite": {"card_id": "card-b", "fields": ["x"]}}),
+        # atom_fn present but returns None (e.g. source card absent) → NO key added
+        ClaimSpec("C", "c", lambda h, c: ("weak", "e", None), lambda h, c: "low", "i",
+                  lambda h, c: None),
+    ]
+    vec = build_claim_vector(spec, {}, [], "D")
+    assert set(vec["A"]) == {"signal", "corroboration", "evidence", "conflict", "informs"}
+    assert "evidence_atom" not in vec["A"]
+    assert vec["B"]["evidence_atom"]["cite"]["card_id"] == "card-b"
+    assert set(vec["B"]) == {"signal", "corroboration", "evidence", "conflict", "informs", "evidence_atom"}
+    assert "evidence_atom" not in vec["C"]

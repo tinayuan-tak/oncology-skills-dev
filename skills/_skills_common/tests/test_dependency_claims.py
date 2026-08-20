@@ -136,3 +136,45 @@ def test_partner_conditional_strong_signal():
     vec = dependency_claim_vector(h, [])
     assert vec["COND"]["signal"] == "moderate"
     assert vec["COND"]["corroboration"] == "high"                 # q<0.1 AND n>=15
+
+
+# ── citable evidence atoms (values bound to {card_id, fields} + entity) ──────────────────────────────
+def _kras_cards():
+    """Minimal card summaries mirroring the KRAS/COADREAD fixture — the fields the atom_fns cite."""
+    return [
+        {"card_id": "pan-cancer-crispr-dependency-distribution", "summary": {
+            "bimodality_coefficient": 0.70, "distribution_shape": "bimodal_selective",
+            "fraction_strongly_dependent": 0.176, "median_chronos_panel": -0.457,
+            "p5_chronos_panel": -2.105, "n_cell_lines_evaluated": 1538,
+            "selectivity_index": 0.855, "dep_control_position_class": "between_controls"}},
+        {"card_id": "dependency-lineage-selectivity", "summary": {
+            "enrichment_class": "lineage_selective", "lineage_variance_explained": 0.186,
+            "lineage_omnibus_kruskal_h": 304.6, "lineage_omnibus_effect_size_class": "large",
+            "n_enriched_lineages": 3, "n_lineages_evaluated": 26}},
+        {"card_id": "prism-crispr-concordance", "summary": {
+            "crispr_prism_concordance_class": "triangulated_target_engaged",
+            "n_compounds_evaluated": 21, "n_dual_responders": 20,
+            "best_spearman_r_crispr": 0.37, "best_spearman_r_rnai": 0.44}},
+    ]
+
+
+def test_dependency_atoms_present_and_citable_with_cards():
+    vec = dependency_claim_vector(_kras_headline(), _kras_cards())
+    dep = vec["DEP"]["evidence_atom"]
+    assert dep["cite"]["card_id"] == "pan-cancer-crispr-dependency-distribution"
+    assert dep["values"]["bimodality_coefficient"] == 0.70          # the responder-shape signal, carried
+    assert dep["values"]["fraction_strongly_dependent"] == 0.176
+    assert "bimodality_coefficient" in dep["cite"]["fields"]         # citable by card_id.field
+    assert dep["entity"]["sample_context"] == "cell_line"
+    assert dep["entity"]["measurement_type"] == "crispr_lof_dependency"
+    assert vec["SEL"]["evidence_atom"]["cite"]["card_id"] == "dependency-lineage-selectivity"
+    assert vec["CHEM"]["evidence_atom"]["cite"]["card_id"] == "prism-crispr-concordance"
+    # COND: no partner card in the fixture (KRAS = no_partner_mapped) → no atom (honest gap, byte-stable)
+    assert "evidence_atom" not in vec["COND"]
+
+
+def test_dependency_atoms_absent_without_cards():
+    # cards=[] → atom_fns return None → every axis keeps the legacy 5-key shape (byte-stable)
+    vec = dependency_claim_vector(_kras_headline(), [])
+    for ax in ("DEP", "SEL", "COND", "CHEM"):
+        assert "evidence_atom" not in vec[ax], f"{ax} gained an atom with no source card"
