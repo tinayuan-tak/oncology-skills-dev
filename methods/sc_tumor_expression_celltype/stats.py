@@ -34,6 +34,21 @@ MICROENVIRONMENT_COMPARTMENTS = ("immune", "stromal", "endothelial")
 # false-confidence call. Mirrors the sibling sc_normal_expression reader's MIN_RELIABLE_DONORS=5 (L1).
 MIN_RELIABLE_DONORS = 5
 
+# Minimum CELLS in a (dataset, donor) compartment stratum before that donor is a trustworthy
+# replicate. A per-donor detection_fraction computed on a handful of cells is quantized and noisy
+# (a 2-cell donor can only report 0/2, 1/2, 2/2), so tiny strata are dropped BEFORE the cross-donor
+# median/IQR — otherwise a single-digit-cell donor swings the compartment call as much as a
+# thousand-cell one. OSCA / sc-best-practices place the per-sample-per-cell-type floor at ~10-50 cells;
+# 20 is a conservative choice that also leaves the existing >=100-cell synthetic fixtures intact.
+MIN_CELLS_PER_DONOR = 20
+
+# Minimum TOTAL malignant cells (summed over reliable donors) before a malignant-anchored presence
+# CLASS is emitted. The >=5-donor floor alone lets a pooled cube with single-digit cells per donor
+# pass (e.g. the pan-renal KIRC / pan-gynecologic OV 3CA cubes carry only ~74 / ~106 total malignant
+# cells) and emit a confident call indistinguishable from a half-million-cell COADREAD read. Below
+# this floor the malignant compartment is too thinly sampled to anchor a call → honest data_unavailable.
+MIN_MALIGNANT_CELLS_TOTAL = 100
+
 # ── TCE antigen-escape thresholds (two-axis heterogeneity, 2026-08-20) ────────────────────────────
 # The prior single-number tce_homogeneity_class re-binned malignant_detection_fraction alone, with a
 # LENIENT 0.5 "homogeneous" bar — 50% of malignant cells antigen-negative is a large escape reservoir.
@@ -62,12 +77,23 @@ def compartment_summary(rows) -> dict:
     out: dict = {}
     for comp, g in df.groupby("compartment"):
         # donor is the replicate: one value per (dataset_id, donor_id), then median ACROSS donors.
+        # n_cells is SUMMED per donor first so the cell-count floor is applied to the donor's total
+        # (a donor split across >1 input row is still one replicate).
         per_donor = g.groupby(["dataset_id", "donor_id"]).agg(
             detection_fraction=("detection_fraction", "mean"),
             abundance_log1p_cp10k=("abundance_log1p_cp10k", "mean"),
+            n_cells=("n_cells", "sum"),
         )
-        n_donors = int(per_donor.shape[0])
-        det = per_donor["detection_fraction"]
+        n_donors_raw = int(per_donor.shape[0])
+        # Drop under-powered donor strata (< MIN_CELLS_PER_DONOR cells) BEFORE the cross-donor median /
+        # IQR: a per-donor detection_fraction on a handful of cells is a quantized, unreliable replicate
+        # that must not swing the compartment call. If every donor is under the floor the compartment is
+        # omitted (honest gap — a malignant compartment omitted here → classify data_unavailable).
+        reliable = per_donor[per_donor["n_cells"] >= MIN_CELLS_PER_DONOR]
+        if reliable.empty:
+            continue
+        n_donors = int(reliable.shape[0])
+        det = reliable["detection_fraction"]
         # INTER-DONOR dispersion of detection fraction (was discarded when we medianed). The per-donor
         # array is the substrate for the antigen-escape / patient-consistency axis. IQR on <3 donors is
         # meaningless -> emit None (an honest gap the consumer can gate), never a fabricated 0.
@@ -78,11 +104,12 @@ def compartment_summary(rows) -> dict:
         else:
             p25 = p75 = donor_iqr = frac_broad = None
         out[str(comp)] = {
-            "n_donors": n_donors,
-            "n_datasets": int(g["dataset_id"].nunique()),
-            "n_cells_total": int(g["n_cells"].sum()),
+            "n_donors": n_donors,                                   # RELIABLE donors (>= MIN_CELLS_PER_DONOR)
+            "n_donors_dropped_low_cells": n_donors_raw - n_donors,  # transparency: strata below the floor
+            "n_datasets": int(reliable.index.get_level_values("dataset_id").nunique()),
+            "n_cells_total": int(reliable["n_cells"].sum()),        # cells in the RELIABLE donors only
             "median_detection_fraction": float(np.median(det)),
-            "median_abundance_log1p_cp10k": float(np.median(per_donor["abundance_log1p_cp10k"])),
+            "median_abundance_log1p_cp10k": float(np.median(reliable["abundance_log1p_cp10k"])),
             # additive inter-donor dispersion (verdict-inert; None when under-powered)
             "detection_fraction_donor_p25": p25,
             "detection_fraction_donor_p75": p75,
@@ -301,6 +328,7 @@ def classify_sc_expression(comp_summary: dict,
             "malignant_abundance_log1p_cp10k": None,
             "malignant_compartment_available": False,
             "malignant_n_donors": 0,
+            "malignant_n_cells": 0,
             "top_microenvironment_compartment": None,
             "top_microenvironment_detection_fraction": None,
             "n_compartments_measured": 0,
@@ -319,6 +347,7 @@ def classify_sc_expression(comp_summary: dict,
         "malignant_abundance_log1p_cp10k": (mal["median_abundance_log1p_cp10k"] if mal else None),
         "malignant_compartment_available": mal is not None,
         "malignant_n_donors": (int(mal["n_donors"]) if mal else 0),
+        "malignant_n_cells": (int(mal.get("n_cells_total", 0)) if mal else 0),
         "top_microenvironment_compartment": top_micro_comp,
         "top_microenvironment_detection_fraction": top_micro_det,
         "n_compartments_measured": len(comp_summary),
@@ -333,8 +362,13 @@ def classify_sc_expression(comp_summary: dict,
     # NSCLC) both carry it; this branch is the honest guard for any future indication that doesn't.
     # L1 fix: also abstain when the malignant compartment is measured in TOO FEW DONORS — a
     # cross-donor median over 1-2 donors is not a reliable presence call (the sibling sc_normal reader
-    # already enforces this floor). Both are honest data_unavailable, never a coerced negative.
-    if mal is None or int(mal.get("n_donors", 0)) < MIN_RELIABLE_DONORS:
+    # already enforces this floor). G3 fix: also abstain when TOO FEW malignant CELLS were sampled in
+    # total (< MIN_MALIGNANT_CELLS_TOTAL over reliable donors) — a pooled cube with single-digit cells
+    # per donor can clear the donor-count floor yet rest the call on a handful of cells (KIRC ~74 /
+    # OV ~106). All are honest data_unavailable, never a coerced negative.
+    if (mal is None
+            or int(mal.get("n_donors", 0)) < MIN_RELIABLE_DONORS
+            or int(mal.get("n_cells_total", 0)) < MIN_MALIGNANT_CELLS_TOTAL):
         base["sc_expression_class"] = "data_unavailable"
         return base
 
