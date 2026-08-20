@@ -1267,16 +1267,21 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
 
     # ---- DEPENDENCY_RELATIONAL arm: no positive cis handle / not over-abundant — actioned via a
     #      partner/context (LoF-driver → MDM2/SL; partner-conditional SL [WRN×MSI]; combinatorial) ----
-    dep_v, sl_v, combo_v = _v("dependency"), _v("synthetic_lethal_partners"), _v("combinatorial_dependency")
-    rel_dom = (role == "direct_driver_lof" or dep_v == "partner_conditional_dependent" or sl_v == "has_experimental_sl_partner")
-    rel_sup = (sl_v == "has_computational_sl_partner" or combo_v in ("constitutive_combinatorial_dependency", "context_combinatorial_dependency"))
-    rel_seen = any(x not in (None, "data_unavailable", "") for x in (role, dep_v, sl_v, combo_v))
+    # relational SL/combinatorial signal now flows through combination-and-vulnerability (trio consolidated
+    # 2026-08-20); read SOURCE cards directly via _cs (still composed under combination_vulnerability) so
+    # this arm is behavior-preserving without the retired shorts.
+    dep_v = _v("dependency")
+    sl_cls = _cs("synthetic-lethal-partners", "sl_partner_class")
+    combo_v = _cs("combinatorial-dependency", "combinatorial_dependency_verdict")
+    rel_dom = (role == "direct_driver_lof" or dep_v == "partner_conditional_dependent" or sl_cls == "has_experimental_sl_partner")
+    rel_sup = (sl_cls == "has_computational_sl_partner" or combo_v in ("constitutive_combinatorial_dependency", "context_combinatorial_dependency"))
+    rel_seen = any(x not in (None, "data_unavailable", "") for x in (role, dep_v, sl_cls, combo_v))
     rel_tier = "dominant" if rel_dom else "supporting" if rel_sup else "none" if rel_seen else "unknown"
     if rel_dom:
         deriv += [f"{k}={x} -> dependency_relational:dominant" for k, x in
                   (("role", role if role == "direct_driver_lof" else None),
                    ("dependency", dep_v if dep_v == "partner_conditional_dependent" else None),
-                   ("sl_partner", sl_v if sl_v == "has_experimental_sl_partner" else None)) if x]
+                   ("sl_partner", sl_cls if sl_cls == "has_experimental_sl_partner" else None)) if x]
 
     arms = {"cis_feature": cis_tier, "abundance": ab_tier, "dependency_relational": rel_tier}
     dom_arms = [a for a, t in arms.items() if t == "dominant"]

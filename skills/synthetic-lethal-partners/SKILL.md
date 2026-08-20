@@ -1,6 +1,7 @@
 ---
 name: synthetic-lethal-partners
 description: |
+  [RETIRED FROM THE target-profile FAN-OUT 2026-08-20] Consolidated into combination-and-vulnerability for composition (its cards compose there under the combination_vulnerability dimension + relational claim_vector). Still runnable standalone; do NOT re-add to SUB_SKILLS.
   Gate-C step 2 skill — curated synthetic-lethal partner annotation from the
   PUBLISHED SynLethDB v3 (CC-BY-4.0). Consumes the synthetic-lethal-partners card
   (derived synlethdb-sl-partners-per-gene-v1).

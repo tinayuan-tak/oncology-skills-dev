@@ -1,6 +1,7 @@
 ---
 name: combinatorial-dependency
 description: |
+  [RETIRED FROM THE target-profile FAN-OUT 2026-08-20] Consolidated into combination-and-vulnerability for composition (its cards compose there under the combination_vulnerability dimension + relational claim_vector). Still runnable standalone; do NOT re-add to SUB_SKILLS.
   Focused question skill: "Is target X a COMBINATORIAL (paralog dual-KO) dependency —
   when co-knocked-out with a paralog partner, is there a synthetic-lethal / buffering
   genetic interaction, and is it constitutive or context/genotype-conditional?"

@@ -45,8 +45,9 @@ SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 # (test_dimension_cards_matches_spine) fails if this drifts from SUB_SKILL_CARDS. A card may belong to
 # >1 dimension (multi-lens); that is fine — surfacing any member credits the dimension.
 DIMENSION_CARDS: dict[str, frozenset[str]] = {
-    "combinatorial_dependency": frozenset({"combinatorial-dependency"}),
-    "combination_opportunity": frozenset({"combo-crispr-screen", "resistance-emergence-signature"}),  # R9: mirrors SUB_SKILL_CARDS[combo-and-resistance]
+    # combinatorial_dependency / combination_opportunity / synthetic_lethal_partners RETIRED 2026-08-20:
+    # the standalone relational shorts were consolidated into combination_vulnerability (the four relational
+    # cards are all composed under combination-and-vulnerability now). Their cards live on under this one dim.
     "combination_vulnerability": frozenset({   # mirrors SUB_SKILL_CARDS[combination-and-vulnerability]
         "synthetic-lethal-partners", "combinatorial-dependency",
         "combo-crispr-screen", "resistance-emergence-signature"}),  # CONSOLIDATED relational annex (gateless)
@@ -125,7 +126,6 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "surface-colocalization-avidity",
         "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
         "surface-topology-and-ptm", "surfaceome-family-classification"}),
-    "synthetic_lethal_partners": frozenset({"synthetic-lethal-partners"}),
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
         "protein-domains-class", "reactome-pathway-membership", "target-development-level",
@@ -186,9 +186,9 @@ MODALITY_SCOPE: dict[str, set] = {
     # `dependency:non_dependent` (or SL/combinatorial) reading must NOT veto a surface target (e.g. an
     # approved ADC/TCE antigen like DLL3/NECTIN4 that is not itself a fitness dependency). tractability_sm
     # (small-molecule chemistry) is likewise out-of-scope. #2 (WS6-surfaced).
-    "adc":              {"tractability_sm", "dependency", "synthetic_lethal_partners", "combinatorial_dependency"},
-    "bite_tce":         {"tractability_sm", "dependency", "synthetic_lethal_partners", "combinatorial_dependency"},
-    "antibody":         {"tractability_sm", "dependency", "synthetic_lethal_partners", "combinatorial_dependency"},
+    "adc":              {"tractability_sm", "dependency", "combination_vulnerability"},
+    "bite_tce":         {"tractability_sm", "dependency", "combination_vulnerability"},
+    "antibody":         {"tractability_sm", "dependency", "combination_vulnerability"},
     "modality_agnostic": set(),
 }
 
@@ -613,7 +613,7 @@ INTRINSIC_CONTRADICTIONS = [
         "label": "combination_or_sl_strategy_without_mapped_partner",
         # a clause resting on these positive SL/combination lines as its actionable strategy ...
         "asserts": {"synthetic-lethal-partners", "combinatorial-dependency",
-                    "synthetic_lethal_partners", "combinatorial_dependency"},
+                    "synthetic_lethal_partners", "combinatorial_dependency", "combination_vulnerability"},
         # ... is contradicted when a partner-mapping line is present with a no-partner call.
         "contradicted_by": {
             "partner-conditional-dependency": {"no_partner_mapped", "no_sl_partner"},

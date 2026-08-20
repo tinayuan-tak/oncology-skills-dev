@@ -120,7 +120,7 @@ _MODE_LEAD_AXES = {
     "cis_feature": ["genomic_alteration", "dependency", "tractability_sm"],
     "abundance": ["surface_modality", "expression", "selectivity", "safety"],
     "mixed": ["genomic_alteration", "surface_modality", "dependency", "expression"],
-    "dependency_relational": ["dependency", "synthetic_lethal_partners", "combinatorial_dependency"],
+    "dependency_relational": ["dependency", "combination_vulnerability"],   # trio consolidated 2026-08-20
 }
 _MODE_BANNER = {
     "cis_feature": "selection basis = a molecular FEATURE (biomarker). Leads with genomic / dependency / "

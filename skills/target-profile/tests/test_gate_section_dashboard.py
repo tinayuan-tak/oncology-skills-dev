@@ -149,9 +149,10 @@ def _sr_required():
         "verdict": ("lineage_selective", "lineage-selective-supportive"),
         "fired": [_fired("concordant-dependent-supportive-dominant", "crispr-rnai-dependency-concordance",
                          {"small_molecule": "supportive"})]}
-    sr["synthetic_lethal_partners"] = {"skill_dir": "synthetic-lethal-partners", "cards": [
+    # relational trio consolidated into combination-and-vulnerability (gateless) 2026-08-20
+    sr["combination_vulnerability"] = {"skill_dir": "combination-and-vulnerability", "cards": [
         {"card_id": "synthetic-lethal-partners", "summary": {"sl_partner_class": "has_experimental_sl_partner"}}],
-        "verdict": ("has_experimental_sl_partner", "sl-partner-supportive"), "fired": []}
+        "verdict": None, "fired": []}
     sr["genomic_alteration"] = {"skill_dir": "genomic-alteration-profile", "cards": [
         {"card_id": "mutation-stratified-dependency", "summary": {"mutation_stratification_class": "mutant_strongly_dependent"}}],
         "verdict": ("biomarker_stratified_dependency", "mutant-strongly-dependent-supportive"), "fired": []}
@@ -163,19 +164,19 @@ def test_dependency_section_renders():
     assert "id=s-skill-dependency" in h and "Functional dependence" in h   # dependency subskill label
 
 
-def test_dependency_and_sl_render_as_separate_flat_sections():
-    """v-flat: NO gate-C unification. The dependency subskill + synthetic_lethal_partners each get
-    their OWN flat section; the dependency corroboration facet (CRISPR×RNAi) now renders UNDER
-    dependency (no longer routed out)."""
+def test_dependency_and_combination_vulnerability_render_as_separate_flat_sections():
+    """v-flat: NO gate-C unification. The dependency subskill + the consolidated combination_vulnerability
+    (relational: SL/dual-KO/combo/resistance) each get their OWN flat section; the dependency corroboration
+    facet (CRISPR×RNAi) renders UNDER dependency. (SL/combinatorial were consolidated into
+    combination-and-vulnerability 2026-08-20 — no longer separate sections.)"""
     h = _render(_sr_required())
     dep = re.search(r"<section id=s-skill-dependency\b.*?</section>", h, re.S).group(0)
     assert "CRISPR dependency" in dep        # primary dependency card
     assert "CRISPR×RNAi" in dep              # corroboration facet now stays under dependency
-    # SL partners is its OWN section, not unified under dependency
-    assert "id=s-skill-synthetic-lethal-partners" in h
-    sl = re.search(r"<section id=s-skill-synthetic-lethal-partners\b.*?</section>", h, re.S).group(0)
-    assert "SL partners" in sl
-    assert "SL partners" not in dep          # not merged into dependency
+    # the relational signal is its OWN combination_vulnerability section, not unified under dependency
+    assert "id=s-skill-combination-vulnerability" in h
+    cv = re.search(r"<section id=s-skill-combination-vulnerability\b.*?</section>", h, re.S).group(0)
+    assert "vulnerability (relational" in cv
     # mutation-stratified lives under genomic-alteration, not dependency
     assert "Mutation-stratified" not in dep
 
@@ -350,7 +351,7 @@ def test_scorecard_rows_link_to_gate_sections():
     links = set(re.findall(r"href='#(s-skill-[^']+)'", sc))
     # every rendered subskill section is reachable from the Evidence summary
     for anchor in ("s-skill-expression", "s-skill-selectivity", "s-skill-dependency",
-                   "s-skill-synthetic-lethal-partners", "s-skill-mechanism",
+                   "s-skill-combination-vulnerability", "s-skill-mechanism",
                    "s-skill-genomic-alteration", "s-skill-tractability-sm",
                    "s-skill-surface-modality", "s-skill-safety"):
         assert anchor in links, f"Evidence summary missing link to {anchor}"
@@ -505,14 +506,14 @@ def test_target_intrinsic_and_combinatorial_get_own_sections():
     """v-flat: the gateless subskills target_intrinsic + combinatorial_dependency (previously
     section-less under the gate-band layout) now each get their OWN flat s-skill-* section."""
     sr = _sr()
-    sr["combinatorial_dependency"] = {"skill_dir": "combinatorial-dependency",
-        "cards": [{"card_id": "combo-crispr-screen", "summary": {}}],
-        "verdict": ("has_combo_partner", "r"), "fired": []}
+    sr["combination_vulnerability"] = {"skill_dir": "combination-and-vulnerability",
+        "cards": [{"card_id": "combinatorial-dependency", "summary": {}}],
+        "verdict": None, "fired": []}
     sr["target_intrinsic"] = {"skill_dir": "target-intrinsic",
         "cards": [{"card_id": "target-intrinsic-dossier", "summary": {}}],
         "verdict": None, "fired": []}
     h = _render(sr)
-    assert "id=s-skill-combinatorial-dependency" in h
-    assert "Combinatorial dependency (dual-KO)" in h
+    assert "id=s-skill-combination-vulnerability" in h
+    assert "vulnerability (relational" in h
     assert "id=s-skill-target-intrinsic" in h
     assert "Target-intrinsic dossier" in h

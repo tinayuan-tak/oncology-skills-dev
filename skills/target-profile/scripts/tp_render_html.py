@@ -42,6 +42,7 @@ _GATE_SHORT_LABEL = {
     "genomic_alteration": "Genomic alteration",
     "differentiation": "Differentiation (co-mutation)",
     "combinatorial_dependency": "Combinatorial dependency (dual-KO)",
+    "combination_vulnerability": "Combination & vulnerability (relational: SL / dual-KO / combo / resistance)",
     "tractability_sm": "Small-molecule druggability",
     "surface_modality": "Surface / biologics fit",
     "safety": "On-target safety",
@@ -51,9 +52,9 @@ _GATE_SHORT_LABEL = {
 # Flat subskill roster (fan-out order) → one dashboard section each. Replaces the old gate-band
 # grouping: the body lists the SUBSKILLS, not A–E "gates". Kept in step with tp_fanout.SUB_SKILLS.
 _SUBSKILL_ORDER = [
-    "expression", "selectivity", "dependency", "synthetic_lethal_partners",
-    "combinatorial_dependency", "mechanism", "genomic_alteration", "differentiation",
-    "tractability_sm", "surface_modality", "safety", "target_intrinsic",
+    "expression", "selectivity", "dependency", "mechanism", "genomic_alteration",
+    "differentiation", "tractability_sm", "surface_modality", "safety", "target_intrinsic",
+    "combination_vulnerability",   # relational trio (SL/combinatorial/combo-resistance) consolidated here 2026-08-20
 ]
 # Subskill axes for which the grounded literature reader (literature-risk-assessment/ground_axis)
 # is configured — kept in step with ground_axis.AXIS_CONFIG's verdict_key-bearing (non-pseudo-card)

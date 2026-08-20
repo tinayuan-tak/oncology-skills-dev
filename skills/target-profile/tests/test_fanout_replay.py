@@ -121,7 +121,7 @@ def test_fanout_covers_all_sub_skills():
         f"fan-out produced {len(v)} sub-results, expected {len(_TP.SUB_SKILLS)}: {sorted(v)}")
     for short in ("expression", "selectivity", "dependency", "genomic_alteration", "safety",
                   "surface_modality", "tractability_sm", "mechanism", "differentiation",
-                  "synthetic_lethal_partners", "combinatorial_dependency"):
+                  "combination_vulnerability"):   # relational trio consolidated into combination_vulnerability (2026-08-20)
         assert short in v, f"sub-skill {short!r} missing from the fan-out results"
 
 
@@ -161,7 +161,7 @@ def test_unfrozen_sub_skills_degrade_to_insufficient():
     which would signal a card_id_filter scoping bug in the fan-out)."""
     v = _fan_out(*TACSTD2)
     for short in ("dependency", "genomic_alteration", "safety", "mechanism", "differentiation",
-                  "tractability_sm", "synthetic_lethal_partners"):
+                  "tractability_sm", "combination_vulnerability"):   # gateless → None when un-frozen
         assert v[short] in (None, "insufficient", "combination_insufficient"), (
             f"un-frozen sub-skill {short!r} resolved {v[short]!r} (not insufficient) for the "
             f"selectivity-scoped TACSTD2 fixture — suspect a card_id_filter scoping leak in the fan-out.")

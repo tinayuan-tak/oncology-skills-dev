@@ -1,6 +1,7 @@
 ---
 name: combo-and-resistance
 description: |
+  [RETIRED FROM THE target-profile FAN-OUT 2026-08-20] Consolidated into combination-and-vulnerability for composition (its cards compose there under the combination_vulnerability dimension + relational claim_vector). Still runnable standalone; do NOT re-add to SUB_SKILLS.
   Phase-I skill: "When target X is inhibited, what COMBINATION opportunities emerge —
   which co-targets become more essential under inhibition?" Consumes the combo-crispr-screen
   card (DepMap 26Q1 drug-anchor CRISPR screens) + the combination-opportunity rule subset.

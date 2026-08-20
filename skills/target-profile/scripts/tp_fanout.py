@@ -135,9 +135,6 @@ SUB_SKILLS = [
     ("tumor-presence",                 "expression"),
     ("tumor-selectivity",              "selectivity"),
     ("functional-requirement",         "dependency"),
-    ("synthetic-lethal-partners",      "synthetic_lethal_partners"),  # gate-C SL veto-suppressor input (curated SynLethDB)
-    ("combinatorial-dependency",       "combinatorial_dependency"),   # MEASURED dual-KO SL complement (DepMap ParalogV2 + published GI). ADDITIVE: self-contained inline verdict, NO resolver gate → absent from _SHORT_TO_GATE (like `expression`), so it is surfaced in sub_verdicts + the LLM synthesis but does NOT drive the nomination spine (recommendation byte-stable). Thickens the single-source SynLethDB SL axis (2026-08-14 consolidation-fidelity follow-up).
-    ("combo-and-resistance",           "combination_opportunity"),    # R9 (2026-08-20): DEPmap drug-anchor CRISPR — combination opportunities (co-targets more essential under inhibition) + resistance mediators (KOs that RESCUE; NF1/KEAP1/NF2 for KRAS). GATELESS/ADDITIVE like combinatorial-dependency: combination is the primary _verdict (short=combination_opportunity), resistance is DUAL — surfaced via combo-and-resistance's _synthesis_facet (both axes fired below). Absent from _SHORT_TO_GATE → verdict-inert to the nomination spine (recommendation byte-stable). Was LIVE but omitted from the fan-out.
     ("mechanism-and-pharmacology",     "mechanism"),
     ("genomic-alteration-profile",     "genomic_alteration"),  # reframed from mutation-profile
     ("differentiation-landscape",      "differentiation"),
@@ -194,7 +191,6 @@ SUB_SKILLS = [
 _SHORT_TO_GATE = {
     "selectivity": "selectivity",
     "dependency": "dependency",
-    "synthetic_lethal_partners": "synthetic_lethal_partners",
     "mechanism": "mechanism",
     "genomic_alteration": "genomic_alteration",
     "differentiation": "differentiation",
@@ -339,17 +335,6 @@ SUB_SKILL_CARDS = {
                                                  # _headline (event_correspondence_class biomarker render
                                                  # facet), in functional-requirement CARDS, dropped here.
                                                  # VERDICT-INERT (render facet; no resolver rung).
-    ],
-    "synthetic-lethal-partners": [
-        "synthetic-lethal-partners",
-    ],
-    "combinatorial-dependency": [
-        "combinatorial-dependency",      # DepMap ParalogV2 dual-KO GI + published corroboration
-                                         # (Dede/in4mer/Horlbeck). Matches the skill's SKILL.md cards_used.
-    ],
-    "combo-and-resistance": [
-        "combo-crispr-screen",           # DepMap drug-anchor CRISPR — combination opportunities
-        "resistance-emergence-signature",  # sign-mirror rescue arm — resistance mediators + Tahoe adaptation
     ],
     "combination-and-vulnerability": [   # CONSOLIDATED relational annex (#571 Stage-1, wired 2026-08-20).
         "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
