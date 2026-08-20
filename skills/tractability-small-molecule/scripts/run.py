@@ -37,6 +37,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.tractability_claims import small_molecule_claim_vector, small_molecule_key_signals
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 
@@ -180,7 +181,7 @@ def _degrader_snapshot(fired: list[dict]) -> tuple[str, str | None]:
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     degrader_class, degrader_drv = _degrader_snapshot(fired)
-    return {
+    hl = {
         "druggability_snapshot":     v,
         "driving_rule_id":           drv,
         # DEGRADER lens — additive to the SM verdict; degradation ≠ inhibition (KO-like complete
@@ -217,6 +218,30 @@ def _headline(cards, fired, verdict_pair):
         "has_approved_drug":         get_card_field(cards, "known-drug-tractability", "has_approved_drug"),
         "n_antineoplastic_interactions": get_card_field(cards, "known-drug-tractability", "n_antineoplastic_interactions"),
     }
+    # verdict-INERT claim-vector projection (6th concrete) — POTENCY/ACTIVITY/STRUCT/DRUG/DEGRADER
+    # signal decomposition + citable atoms the composed fan-out lifts to the cross-evidence agent.
+    hl["claim_vector"] = small_molecule_claim_vector(hl, cards)
+    hl["key_signals"] = small_molecule_key_signals(hl, cards)
+    return hl
+
+
+_SYNTHESIS_FACET_KEYS = (
+    "druggability_snapshot", "driving_rule_id", "degrader_snapshot",
+    "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
+    "degradability_machinery", "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT small-molecule-tractability facet for the composed target-profile
+    synthesis. Reuses _headline (single source) + returns the claim_vector (POTENCY/ACTIVITY/STRUCT/
+    DRUG/DEGRADER, POSITIVE valence) + its citable atoms. Never moves the verdict; safe to omit."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic small-molecule tractability facet; claim_vector is a "
+                            "POSITIVE-valence druggability decomposition. Verdict owned by the "
+                            "druggability resolver, not this projection.")
+    return facet
 
 
 if __name__ == "__main__":
