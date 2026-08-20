@@ -110,6 +110,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         # revived single-cell surface facets (dead-card resolution 2026-08-19) — added to
         # SUB_SKILL_CARDS[surface-modality-fit], so this mirror must carry them (test_dimension_cards_matches_spine).
         "sc-surface-normal-safety", "sc-surface-rna-protein-concordance",
+        # tumor-scrna-celltype-expression added to SUB_SKILL_CARDS[surface-modality-fit] (claim-vector
+        # rollout 2026-08-20 — facet-parity), so this mirror must carry it too (test_dimension_cards_matches_spine).
+        "tumor-scrna-celltype-expression",
         "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
         "surface-topology-and-ptm", "surfaceome-family-classification"}),
     "synthetic_lethal_partners": frozenset({"synthetic-lethal-partners"}),

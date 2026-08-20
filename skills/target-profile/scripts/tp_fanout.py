@@ -497,8 +497,14 @@ SUB_SKILL_CARDS = {
         "sc-normal-celltype-expression",     # single-cell normal-tissue safety comparator (F5).
         "sc-surface-normal-safety",          # REVIVE 2026-08-19: sc CITE-seq surface footprint on normal immune (additive; no resolver rung → composed verdict byte-stable).
         "sc-surface-rna-protein-concordance", # REVIVE 2026-08-19: sc RNA↔surface-protein proxy quality (additive; no resolver rung → byte-stable).
-        # tumor-scrna-celltype-expression is in this sub-skill's CARDS too but is composed under
-        # tumor-presence (its presence home) — "composed somewhere" satisfies the invariant.
+        "tumor-scrna-celltype-expression",   # within-tumor antigen HOMOGENEITY (tce_homogeneity_class —
+                                             # the ADC-vs-TCE discriminator). READ in _headline, so once
+                                             # surface-modality-fit exposes a _synthesis_facet (claim-vector
+                                             # rollout 2026-08-20) it is REQUIRED in THIS entry: the fan-out
+                                             # scopes each sub-skill to its OWN entry, so "composed under
+                                             # tumor-presence" no longer suffices for the surface FACET (the
+                                             # facet-parity guard pins this). Additive; composed surface
+                                             # verdict byte-stable (fit_class resolves off adc-tce-modality-fit).
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",

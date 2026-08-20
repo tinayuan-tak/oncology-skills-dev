@@ -28,6 +28,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.reachability import verdict_relevant_cards
+from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -312,7 +313,33 @@ def _headline(cards, fired, verdict_pair):
     # (pinned by test_orthogonality_is_verdict_inert). Coverage vs support kept separate:
     # an abstaining dimension (data_unavailable) is a coverage gap, never an opposing vote.
     hl["orthogonality"] = score_orthogonality(cards)
+    # verdict-INERT claim-vector projection (8th concrete) — FIT/TOPOLOGY/DENSITY/SAFETY/SHED
+    # decomposition + citable atoms the composed fan-out lifts to the cross-evidence agent. UNIFORM
+    # valence (strong = better surface substrate); SAFETY/SHED liabilities surface as `negative`. The
+    # surface_modality resolver keys only on fit_class + the safety/density/shed verdict-movers, so
+    # this projection cannot move the verdict (pinned by the replay/golden guards).
+    hl["claim_vector"] = surface_claim_vector(hl, cards)
+    hl["key_signals"] = surface_key_signals(hl, cards)
     return hl
+
+
+_SYNTHESIS_FACET_KEYS = (
+    "surface_modality_verdict", "driving_rule_id", "fit_class", "topology_class",
+    "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT surface facet for the composed target-profile synthesis. Reuses _headline
+    (single source) + returns the surface claim_vector (FIT/TOPOLOGY/DENSITY/SAFETY/SHED) + its citable
+    atoms. Never moves the verdict (owned by the surface_modality resolver); safe to omit."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic surface-modality-fit facet; claim_vector is UNIFORM-valence "
+                            "(strong = better surface substrate; SAFETY/SHED liabilities are `negative`). "
+                            "Verdict owned by the resolver.")
+    return facet
 
 
 if __name__ == "__main__":
