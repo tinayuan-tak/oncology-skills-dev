@@ -57,6 +57,10 @@ _ALWAYS_WIRED = [
     "target-intrinsic",                  # indication-INDEPENDENT dossier (SK#201); descriptive/verdict-free,
                                          # so it is in the SHAPE+status list but NOT _MUST_FIRE_ON_KRAS_COADREAD
                                          # (it mints no verdict by design). Added 2026-08-11 prod-readiness pass.
+    "cis-feature-coherence",             # cis-coherence Stage 1 (2026-08-20); dedicated self-contained axis,
+                                         # VERDICT-INERT at composition. Wired end-to-end (card→depmap_cis_dosage
+                                         # →cis_coherence resolver). Also in _MUST_FIRE (fires coherent_cis_driver
+                                         # on KRAS/COADREAD with the local DepMap cache).
     # patient-population-and-access DELETED 2026-07-14 (prevalence folded into
     # genomic-alteration-profile; was a thin re-projection of one shared card).
 ]
@@ -198,6 +202,8 @@ _MUST_FIRE_ON_KRAS_COADREAD = [
     "tractability-small-molecule",      # SM half of the tractability split
     "mechanism-and-pharmacology",
     "differentiation-landscape",
+    "cis-feature-coherence",            # fires coherent_cis_driver on KRAS/COADREAD (CN↔expr cis-dosage
+                                        # coupled r~0.44 + amp∩overexpr more dependent) — real DepMap signal.
 ]
 
 

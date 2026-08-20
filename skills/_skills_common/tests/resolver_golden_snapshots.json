@@ -1,4 +1,88 @@
 {
+ "cis_coherence": {
+  "enumeration": "coemission",
+  "rule_ids": [
+   "cis-dosage-coupled-supportive",
+   "cis-dosage-uncoupled-neutral",
+   "cis-expr-dependency-coupled-supportive",
+   "cis-expr-dependency-absent-neutral",
+   "cis-conjoint-dependent-supportive"
+  ],
+  "table": {
+   "": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-conjoint-dependent-supportive": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive,cis-expr-dependency-absent-neutral": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive,cis-expr-dependency-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral": [
+    "dependency_without_cis_dosage",
+    "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral,cis-expr-dependency-absent-neutral": [
+    "dependency_without_cis_dosage",
+    "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral,cis-expr-dependency-coupled-supportive": [
+    "dependency_without_cis_dosage",
+    "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-conjoint-dependent-supportive,cis-expr-dependency-absent-neutral": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-conjoint-dependent-supportive,cis-expr-dependency-coupled-supportive": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-dosage-coupled-supportive": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-dosage-coupled-supportive,cis-expr-dependency-absent-neutral": [
+    "expressed_cis_coupled_inert",
+    "cis-expr-dependency-absent-neutral"
+   ],
+   "cis-dosage-coupled-supportive,cis-expr-dependency-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-dosage-uncoupled-neutral": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-dosage-uncoupled-neutral,cis-expr-dependency-absent-neutral": [
+    "cis_uncoupled_no_dependency",
+    "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-dosage-uncoupled-neutral,cis-expr-dependency-coupled-supportive": [
+    "dependency_without_cis_dosage",
+    "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-expr-dependency-absent-neutral": [
+    "insufficient_cis_coherence",
+    null
+   ],
+   "cis-expr-dependency-coupled-supportive": [
+    "insufficient_cis_coherence",
+    null
+   ]
+  }
+ },
  "dependency": {
   "enumeration": "coemission",
   "rule_ids": [
