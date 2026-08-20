@@ -509,6 +509,32 @@ def per_cohort_distribution_stats(target: str) -> list[dict]:
 
 _ELEVATED_CLASSES = frozenset({"strong_up", "modest_up"})
 
+# Standardized-effect classes (Cohen's d bands from _standardized_effect) that count as a REAL effect for
+# the breadth roll-up. `negligible` is the power-artifact class (cleared significance via large n at a
+# tiny per-sample effect); `data_unavailable` means the effect could not be standardized (SE/p/n missing)
+# and must NOT be penalized — it falls back to the significance-gated call.
+_REAL_STANDARDIZED_EFFECTS = frozenset({"small", "medium", "large"})
+
+
+def _cohort_elevated(row: dict) -> bool:
+    """Is a per-cohort row 'elevated' for the pan-cancer breadth roll-up?
+
+    G6 (tumor-presence expert review): significance-gated-up (protein_expression_class in
+    _ELEVATED_CLASSES) is necessary but NOT sufficient — the raw K-of-N count otherwise conflates cohort
+    POWER / adjacent-normal availability with pan-cancer biology, letting a low-effect protein clear
+    q<0.05 in the best-powered cohorts on significance alone. A cohort is elevated only if it is ALSO not
+    AFFIRMATIVELY effect-negligible by the variance-standardized Cohen's d (the sample-size-independent
+    companion). A `data_unavailable` standardized class (SE/p/n missing — cannot standardize) falls back
+    to the significance-gated call, so a genuine up-cohort is never dropped for missing metadata.
+
+    This is the read-time realization of the review's "promote Cohen's d to the verdict path" (G6 + the
+    actionable slice of G7). Re-baking the per-cohort protein_expression_class itself on a variance-aware
+    classify() is a build-time change (steps/03_pool_and_write.py) requiring a product rebuild — tracked
+    separately; here the roll-up consumes the already-read-time-computed standardized class."""
+    if row.get("protein_expression_class") not in _ELEVATED_CLASSES:
+        return False
+    return row.get("protein_effect_standardized_class") != "negligible"
+
 
 def read_tumor_elevation_breadth(target: str) -> dict:
     """Pan-cancer tumor-elevation breadth for a target across all CPTAC cohorts.
@@ -518,7 +544,9 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         {
           tumor_elevation_breadth_class,   # categorical (drives rules)
           n_cohorts_tested,                # cohorts the target was quantified in
-          n_cohorts_elevated,              # of those, class in {strong_up, modest_up}
+          n_cohorts_elevated,              # of those, significance-gated-up (strong_up/modest_up) AND
+                                           # not effect-negligible by Cohen's d (see _cohort_elevated, G6)
+          n_cohorts_sig_up_effect_negligible,  # sig-up cohorts STRIPPED as power artifacts (Cohen's d negligible)
           fraction_elevated,               # n_elevated / n_tested (None if n_tested == 0)
           median_effect_across_elevated,   # median protein_effect_size over elevated cohorts
           most_elevated_cohorts,           # [{cohort, protein_expression_class, protein_effect_size,
@@ -546,10 +574,15 @@ def read_tumor_elevation_breadth(target: str) -> dict:
             "cohorts_tested": [],
         }
 
-    elevated = [row for row in rows
-                if row.get("protein_expression_class") in _ELEVATED_CLASSES]
+    elevated = [row for row in rows if _cohort_elevated(row)]
     n_elevated = len(elevated)
     fraction = n_elevated / n_tested
+    # Legibility (G6, no silent cap): cohorts that WERE significance-gated-up but were stripped from the
+    # elevated set because their standardized effect is negligible (a power artifact, not biology).
+    n_sig_up_effect_negligible = sum(
+        1 for row in rows
+        if row.get("protein_expression_class") in _ELEVATED_CLASSES
+        and row.get("protein_effect_standardized_class") == "negligible")
 
     # median effect over the ELEVATED cohorts only (None when none elevated)
     median_effect = None
@@ -573,7 +606,11 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         {"cohort": row.get("cohort"),
          "protein_expression_class": row.get("protein_expression_class"),
          "protein_effect_size": row.get("protein_effect_size"),
-         "protein_bh_q_value": row.get("protein_bh_q_value")}
+         "protein_bh_q_value": row.get("protein_bh_q_value"),
+         # standardized effect + adjacent-normal n carried per cohort (G6 transparency): a reader can see
+         # the sample-size-independent effect band and the paired-normal power behind each elevated call.
+         "protein_effect_standardized_class": row.get("protein_effect_standardized_class"),
+         "n_normal_samples": row.get("n_normal_samples")}
         for row in elevated
     ]
 
@@ -581,6 +618,7 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         "tumor_elevation_breadth_class": cls,
         "n_cohorts_tested": n_tested,
         "n_cohorts_elevated": n_elevated,
+        "n_cohorts_sig_up_effect_negligible": n_sig_up_effect_negligible,   # stripped power artifacts (G6)
         "fraction_elevated": fraction,
         "median_effect_across_elevated": median_effect,
         "most_elevated_cohorts": most_elevated,

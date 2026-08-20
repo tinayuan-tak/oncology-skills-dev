@@ -109,6 +109,43 @@ def test_absent_target_is_data_unavailable(monkeypatch):
     assert b["cohorts_tested"] == []
 
 
+def _prow(cohort, gene, cls, effect, p, n_tumor, n_normal):
+    """A per-cohort row with explicit p / n so the read-time Cohen's d (standardized effect) is
+    computed — used to exercise the G6 effect-weighting of the breadth roll-up."""
+    return {"cohort": cohort, "gene_symbol": gene, "protein_effect_size": effect,
+            "protein_bh_q_value": p, "protein_p_value": p, "protein_median_log2_tumor": 5.0,
+            "protein_median_log2_normal": 3.0, "n_tumor_samples": n_tumor, "n_normal_samples": n_normal,
+            "protein_expression_class": cls,
+            "stat_test_used": "msstatstmt_limma_ebayes_moderated", "method_version": "1.0.0"}
+
+
+def test_breadth_strips_significant_but_effect_negligible_cohort_G6(monkeypatch):
+    """G6: a cohort that cleared significance only via large n (Cohen's d negligible) must NOT count as
+    elevated — breadth reflects reproducible effect size, not cohort power. Two genuine strong_up cohorts
+    (tiny p, small n → large d) stay elevated; a modest_up power-artifact (marginal p, large n →
+    negligible d) is stripped and surfaced via n_cohorts_sig_up_effect_negligible."""
+    rows = [
+        _prow("BRCA", "W", "strong_up", 2.0, 1e-6, 100, 20),   # z~4.75, n_eff~16.7 → d~1.16 large
+        _prow("LUAD", "W", "strong_up", 1.6, 1e-6, 100, 20),   # large
+        _prow("COAD", "W", "modest_up", 0.6, 0.04, 250, 250),  # z~2.05, n_eff=125 → d~0.18 NEGLIGIBLE
+    ]
+    _patch(monkeypatch, rows)
+    b = r.read_tumor_elevation_breadth("W")
+    assert b["n_cohorts_tested"] == 3
+    assert b["n_cohorts_elevated"] == 2                       # the negligible-effect COAD is stripped
+    assert b["n_cohorts_sig_up_effect_negligible"] == 1
+    assert {c["cohort"] for c in b["most_elevated_cohorts"]} == {"BRCA", "LUAD"}
+    # was broadly (3/3) on significance alone; now multi (2 elevated, fraction 2/3<0.5 with n_elev 2)
+    assert b["tumor_elevation_breadth_class"] == "multi_tumor_elevated"
+    # data_unavailable standardized class (missing p AND se AND n) must NOT strip a real up-cohort
+    row_no_meta = {"cohort": "OV", "gene_symbol": "W", "protein_effect_size": 1.8,
+                   "protein_bh_q_value": None, "protein_p_value": None, "n_tumor_samples": None,
+                   "n_normal_samples": None, "protein_expression_class": "strong_up"}
+    _patch(monkeypatch, [row_no_meta])
+    b2 = r.read_tumor_elevation_breadth("W")
+    assert b2["n_cohorts_elevated"] == 1                      # fallback: significance-gated, not penalized
+
+
 def test_median_effect_even_count(monkeypatch):
     # 2 elevated → even count → average of the two effects
     rows = [_row("BRCA", "Z", "strong_up", 2.0), _row("LUAD", "Z", "modest_up", 1.0),
