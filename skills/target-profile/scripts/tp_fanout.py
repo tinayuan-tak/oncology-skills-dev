@@ -157,6 +157,17 @@ SUB_SKILLS = [
                                                                # are gateless but DO emit a verdict); the must-not-gate requirement
                                                                # is satisfied STRUCTURALLY (verdict=None + gate=None), so
                                                                # overall_recommendation + confidence stay byte-identical.
+    ("cis-feature-coherence",          "cis_coherence"),     # GATELESS coherence facet (Stage 2, 2026-08-20): the
+                                                               # locus->expression->dependency coherence owner. ADDITIVE like
+                                                               # combinatorial-dependency — DEDICATED axis cis_coherence, self-
+                                                               # contained resolver verdict, DELIBERATELY absent from _SHORT_TO_GATE
+                                                               # → surfaced in sub_verdicts + the LLM synthesis but NEVER drives the
+                                                               # nomination spine (recommendation byte-stable). It DISTINGUISHES an
+                                                               # amplification-driven cis-driver from a passenger / an expressed-but-
+                                                               # inert target / a trans-driven dependency — a cross-axis integrator
+                                                               # over its own new leg + reused expression-dependency + amp-expr cards.
+                                                               # Graduation to a positive_signal/positive_contradiction gate is a
+                                                               # later CALIBRATED stage (would then enter _SHORT_TO_GATE + full suite).
 ]
 
 # Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
@@ -301,6 +312,15 @@ SUB_SKILL_CARDS = {
     "combinatorial-dependency": [
         "combinatorial-dependency",      # DepMap ParalogV2 dual-KO GI + published corroboration
                                          # (Dede/in4mer/Horlbeck). Matches the skill's SKILL.md cards_used.
+    ],
+    "cis-feature-coherence": [
+        "cis-feature-expression-coherence",  # leg-1 (NEW): CN -> own-expression cis-dosage
+        "expression-dependency-correlation", # leg-2 (reused; also composed under functional-requirement)
+        "amp-expr-stratified-dependency",    # leg-2 (reused; also composed under genomic-alteration-profile)
+                                             # Matches cis-feature-coherence SKILL.md cards_used. The two leg-2
+                                             # cards are HOME cards of other sub-skills; composing them here too
+                                             # is byte-stable (same cards, different lens) — the cis_coherence
+                                             # axis rules fire on their fields via card_id_filter.
     ],
     "mechanism-and-pharmacology": [
         "signaling-network-mechanism",
@@ -583,7 +603,7 @@ def _run_sub_skills(target: str, indication: str,
     # here the fan-out fired NO combinatorial rules → the axis always resolved `insufficient` in the
     # composed profile (a hollow composition) while the standalone skill read constitutive/context. Other
     # sub-skills lack the combinatorial-dependency card, so this axis is a no-op for them (card_id_filter).
-    axes = ("intracellular_intrinsic", "surface_intrinsic", "combinatorial_dependency")
+    axes = ("intracellular_intrinsic", "surface_intrinsic", "combinatorial_dependency", "cis_coherence")
 
     def _one_sub_skill(skill_dir: str, short: str) -> tuple[str, dict]:
         """Compute one sub-skill's (cards, fired, verdict). Pure over (target, indication) +

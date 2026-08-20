@@ -213,6 +213,11 @@ _GATE_BY_SUBSKILL = {
     "surface-modality-fit": "surface_modality",
     "on-target-safety-liability": "safety",
     "synthetic-lethal-partners": "synthetic_lethal_partners",
+    "cis-feature-coherence": "cis_coherence",   # Stage 2 (2026-08-20): resolver-backed (resolve_or_raise),
+                                                # but VERDICT-INERT — cis_coherence ∉ _SHORT_TO_GATE, so it is
+                                                # a resolver call WITHOUT a nomination gate (surfaced only in
+                                                # sub_verdicts + synthesis). This map tracks resolver CALLS, not
+                                                # nomination gates, so it belongs here.
 }
 
 

@@ -3,7 +3,7 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out (in parallel, in-process) to the 12 wired
+  synthesis." Fans out (in parallel, in-process) to the 13 wired
   question-answering skills:
     - tumor-presence
     - tumor-selectivity
@@ -17,6 +17,7 @@ description: |
     - surface-modality-fit              (biologics ADC/TCE half)
     - on-target-safety-liability
     - target-intrinsic                  (indication-independent dossier; GATELESS, verdict=None)
+    - cis-feature-coherence             (locus→expression→dependency coherence; GATELESS, verdict-inert)
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +
@@ -85,6 +86,11 @@ composition:
     # (surfaceome-cohort-ranking DROPPED from fan-out 2026-07-14 — per-indication scan)
     # Phase G (safety)
     - gnomad-lof-constraint                    # Layer 6h addition (Phase G)
+    # cis-feature-coherence (Stage 2 2026-08-20: locus→expression→dependency coherence; GATELESS, verdict-inert)
+    - cis-feature-expression-coherence         # NEW leg-1: CN→own-expression cis-dosage. leg-2 cards
+                                               # (expression-dependency-correlation, amp-expr-stratified-dependency)
+                                               # are HOME cards of functional-requirement / genomic-alteration-profile,
+                                               # composed there; the cis_coherence axis rules fire on their fields.
     # target-intrinsic EXCLUSIVE cards (WS1 2026-08-17; GATELESS descriptive dossier —
     # its other 12 cards are HOME cards of other sub-skills' lenses, composed there, not re-listed)
     - target-identity-summary                  # canonical id / family / aliases
@@ -115,14 +121,17 @@ composition:
 
 ## What this skill does
 
-- Runs the 12 wired question-answering skills in parallel (all data-package
+- Runs the 13 wired question-answering skills in parallel (all data-package
   producers): tumor-presence, tumor-selectivity, functional-requirement,
   synthetic-lethal-partners, combinatorial-dependency, mechanism-and-pharmacology,
   genomic-alteration-profile, differentiation-landscape, tractability-small-molecule,
-  surface-modality-fit, on-target-safety-liability, target-intrinsic.
-  - `combinatorial-dependency` and `target-intrinsic` are **gateless** (absent from the
-    resolver-gate map): they surface in `sub_verdicts` + the LLM synthesis but do NOT
-    drive the recommendation spine, which stays byte-stable. `target-intrinsic` is
+  surface-modality-fit, on-target-safety-liability, target-intrinsic, cis-feature-coherence.
+  - `combinatorial-dependency`, `target-intrinsic`, and `cis-feature-coherence` are **gateless**
+    (absent from the resolver-gate map): they surface in `sub_verdicts` + the LLM synthesis but do
+    NOT drive the recommendation spine, which stays byte-stable. `cis-feature-coherence` emits a
+    resolver verdict (unlike `target-intrinsic`) but its `cis_coherence` axis is a dedicated
+    self-contained axis kept out of `_SHORT_TO_GATE` — graduation to a positive_signal/contradiction
+    gate is a later calibrated stage. `target-intrinsic` is
     additionally **descriptive** (`verdict=None`) — indication-independent target biology.
 - Collects each sub-verdict + fired rules + card summaries.
 - Invokes Bedrock (Opus by default via env `ANTHROPIC_MODEL`) with a
