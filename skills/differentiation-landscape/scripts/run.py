@@ -46,6 +46,15 @@ CARDS = [
                                          # VERDICT-INERT (its rules emit soft axis_fit signals + fired_rule_ids for
                                          # the cross-evidence hypothesis agent; feed NO resolver → differentiation
                                          # verdict byte-stable). reads node_leverage_class + evidence_scope.
+    "alteration-clinical-association",   # Q11-alteration (2026-08-20): does {target} MUTATION status
+                                         # stratify OS (prognostic context)? The alteration analog of
+                                         # expression-clinical-association. ADDITIVE, VERDICT-INERT (its
+                                         # alteration-* rules feed NO resolver; differentiation verdict
+                                         # byte-stable). reads alteration_survival_association_class.
+    "subtype-survival-association",      # Q2-subtype (2026-08-20): does OS differ ACROSS the indication's
+                                         # molecular subtypes? Target-independent patient-selection context.
+                                         # ADDITIVE, VERDICT-INERT (subtype-* rules feed NO resolver;
+                                         # differentiation verdict byte-stable). reads subtype_survival_association_class.
 ]
 
 QUESTION = ("What genes co-occur with or are mutually exclusive to "

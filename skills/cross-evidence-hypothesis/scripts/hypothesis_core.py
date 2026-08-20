@@ -63,7 +63,8 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "dependency-predictability", "genomic-event-model-match"}),
     "differentiation": frozenset({
         "co-mutation-and-mutual-exclusivity", "expression-clinical-association",
-        "pathway-node-leverage", "precog-prognostic-association", "stemness-context"}),
+        "pathway-node-leverage", "precog-prognostic-association", "stemness-context",
+        "alteration-clinical-association", "subtype-survival-association"}),
     "expression": frozenset({
         "cellline-protein-abundance", "cellline-rna-distribution", "cellline-rna-protein-concordance",
         "expression-purity-confound", "tumor-elevation-breadth", "tumor-protein-abundance-cptac",

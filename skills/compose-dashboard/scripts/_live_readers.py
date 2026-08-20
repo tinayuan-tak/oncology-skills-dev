@@ -544,6 +544,27 @@ def _dispatch_expression_clinical_association(target: str, indication: str) -> O
     return mod.build_summary(target, indication)
 
 
+def _dispatch_alteration_clinical_association(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route alteration-clinical-association card (Q11-alteration) to
+    methods/alteration_clinical_association/cli.py::build_summary.
+
+    Does {target} somatic-mutation status stratify overall survival in the indication (mutation-status
+    log-rank on TCGA-CDR OS)? A hypothesis-generating prognostic association. Indication-scoped."""
+    mod = _import_method("alteration_clinical_association.cli")
+    return mod.build_summary(target, indication)
+
+
+def _dispatch_subtype_survival_association(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route subtype-survival-association card (Q2-subtype) to
+    methods/subtype_survival_association/cli.py::build_summary.
+
+    Does overall survival differ across the indication's molecular subtypes (omnibus log-rank on
+    TCGA-CDR OS)? Target-INDEPENDENT patient-selection context, so `target` is ignored; the TCGA
+    subtype shard is resolved from the indication (manifest=None)."""
+    mod = _import_method("subtype_survival_association.cli")
+    return mod.build_summary(indication, None)
+
+
 def _dispatch_phospho_pathway_activity(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route phospho-pathway-activity card (Q8) to
     methods/phospho_pathway_activity/cli.py::build_summary.
@@ -1526,6 +1547,8 @@ CARD_DISPATCHERS = {
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
     "expression-clinical-association": _dispatch_expression_clinical_association,
+    "alteration-clinical-association": _dispatch_alteration_clinical_association,   # Q11-alteration (2026-08-20): OS by target mutation status
+    "subtype-survival-association": _dispatch_subtype_survival_association,         # Q2-subtype (2026-08-20): OS across molecular subtypes
     "phospho-pathway-activity": _dispatch_phospho_pathway_activity,
     "copy-number-distribution": _dispatch_cn_distribution,
     # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers

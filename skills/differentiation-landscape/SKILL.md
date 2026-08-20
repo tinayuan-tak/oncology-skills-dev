@@ -37,6 +37,8 @@ composition:
     - precog-prognostic-association         # PRECOG (2026-08-10): pan-cancer META-ANALYTIC expression→survival meta-Z (Gentles 2015 + 2026 NAR); the better-powered CORROBORATION of expression-clinical-association; verdict-inert render facet
     - stemness-context                    # Malta 2018 (2026-08-10): tumor-stemness (mRNAsi) cohort prior; verdict-inert prognostic/aggressiveness context
     - pathway-node-leverage               # WS3 (2026-08-17): COMPARATIVE node-leverage (is target the best NODE to hit, or dominated?); soft/verdict-inert differentiation context — its rules emit axis_fit signals + fired_rule_ids for the cross-evidence hypothesis agent; feeds NO resolver (verdict byte-stable)
+    - alteration-clinical-association       # Q11-alteration (2026-08-20): OS by target MUTATION status; verdict-inert prognostic render facet (alteration arm of the differentiation prognostic question)
+    - subtype-survival-association          # Q2-subtype (2026-08-20): OS ACROSS molecular subtypes (target-independent patient-selection context); verdict-inert
     # clinical-precedent + patent-landscape intentionally NOT listed — they are
     # excluded from the runtime card set (commercial-data licensing unresolved) and
     # never reach run.py CARDS; see NOTE below. (Trimmed 2026-08-05 to match run.py.)
@@ -54,6 +56,8 @@ composition:
     - precog_prognostic_association       # precog-prognostic-association (PRECOG pan-cancer meta-Z; verdict-inert)
     - clinical_precedent                  # data-blocked future-intent (clinical-precedent card licensing-blocked; NOT in cards_used)
     - pathway_node_leverage               # WS3 (2026-08-17): pathway-node-leverage card (comparative; verdict-inert soft differentiation context)
+    - alteration_clinical_association     # alteration-clinical-association (Q11-alteration; verdict-inert prognostic render facet)
+    - subtype_survival_association        # subtype-survival-association (Q2-subtype; verdict-inert)
   rules_scope:
     - co-mutation-and-mutual-exclusivity
     - pathway-node-leverage               # WS3: soft axis_fit signals, NOT wired to differentiation.resolver (additive; fired_rule_ids feed the hypothesis agent)

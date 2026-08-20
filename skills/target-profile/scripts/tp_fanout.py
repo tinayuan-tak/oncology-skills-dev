@@ -427,6 +427,11 @@ SUB_SKILL_CARDS = {
                                              # does not silently drop it. VERDICT-INERT (soft axis_fit signals
                                              # + fired_rule_ids for the hypothesis agent; feeds NO resolver →
                                              # nomination byte-stable, axis_fit is not gate-consumed).
+        "alteration-clinical-association",   # Q11-alteration (2026-08-20): OS by {target} mutation status.
+                                             # In differentiation-landscape CARDS; composed here so the fanout
+                                             # does not drop it. VERDICT-INERT (alteration-* rules feed NO resolver).
+        "subtype-survival-association",      # Q2-subtype (2026-08-20): OS across molecular subtypes (target-
+                                             # independent context). VERDICT-INERT (subtype-* rules feed NO resolver).
     ],
     "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",
