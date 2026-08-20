@@ -49,7 +49,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "cis_coherence": frozenset({
         "cis-feature-expression-coherence", "cellline-methylation-expression-coherence",
         "expression-dependency-correlation",
-        "amp-expr-stratified-dependency"}),   # Stage 2 (2026-08-20): mirrors SUB_SKILL_CARDS[cis-feature-coherence]
+        "amp-expr-stratified-dependency", "patient-cis-coherence"}),   # Stage 2 (2026-08-20): mirrors SUB_SKILL_CARDS[cis-feature-coherence]
     "dependency": frozenset({
         "abundance-dependency", "crispr-rnai-dependency-concordance", "cross-consortium-dependency",
         "dependency-lineage-selectivity", "expression-dependency-correlation",

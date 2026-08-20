@@ -318,6 +318,7 @@ SUB_SKILL_CARDS = {
         "cellline-methylation-expression-coherence",  # LoF leg-1: promoter methylation -> own LOW expression (silencing)
         "expression-dependency-correlation", # leg-2 (reused; also composed under functional-requirement)
         "amp-expr-stratified-dependency",    # leg-2 (reused; also composed under genomic-alteration-profile)
+        "patient-cis-coherence",             # VERDICT-INERT patient (TCGA) corroboration facet (fires no rule)
                                              # Matches cis-feature-coherence SKILL.md cards_used. The two leg-2
                                              # cards are HOME cards of other sub-skills; composing them here too
                                              # is byte-stable (same cards, different lens) — the cis_coherence

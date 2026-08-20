@@ -43,12 +43,14 @@ composition:
     - cellline-methylation-expression-coherence  # LoF leg-1: promoter methylation → own LOW expression (silencing)
     - expression-dependency-correlation     # leg-2 (reuse): expression → dependency
     - amp-expr-stratified-dependency         # leg-2 (reuse): conjoint amp∩overexpr dependency
+    - patient-cis-coherence                  # VERDICT-INERT patient (TCGA) corroboration facet (fires no rule)
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims this skill PULLs.
   measurement_types_pulled:
     - cis_dosage_coupling
     - methylation_silencing_coupling
     - expression_dependency_correlation
     - amp_expr_stratified_dependency
+    - patient_cis_coherence
   rules_scope:
     - cis-coherence
   # Verdict via the SHARED declarative resolver (resolvers/cis_coherence.resolver.yaml) on a

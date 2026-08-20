@@ -33,6 +33,9 @@ CARDS = [
     "cellline-methylation-expression-coherence",  # LoF leg-1: promoter methylation → own LOW expression (silencing)
     "expression-dependency-correlation",     # leg-2 (reuse): expression → dependency
     "amp-expr-stratified-dependency",         # leg-2 (reuse): conjoint amp∩overexpr dependency
+    "patient-cis-coherence",                  # VERDICT-INERT patient (TCGA) corroboration facet — fires NO
+                                              # cis_coherence rule (verdict byte-stable); surfaced in the headline
+                                              # as cross-grain agreement (does the cell-line call replicate in patients?)
 ]
 
 QUESTION = ("Does {target}'s own locus feature (copy-number) explain its own expression AND its own "
@@ -55,6 +58,22 @@ def _headline(cards, fired, verdict_pair):
     meth = _s("cellline-methylation-expression-coherence")  # LoF leg-1
     corr = _s("expression-dependency-correlation")  # leg-2 (correlation)
     ampx = _s("amp-expr-stratified-dependency")     # leg-2 (conjoint)
+    pat = _s("patient-cis-coherence")               # VERDICT-INERT patient (TCGA) corroboration
+
+    # Cross-grain agreement (verdict-inert confidence signal): does the patient tumour arm replicate the
+    # cell-line call? Directional only (thresholds differ across grains) — None when either grain is unmeasured.
+    _cl_coupled = (cis.get("cis_dosage_class") or "").startswith("cn_dosage_coupled")
+    _pt_coupled = (pat.get("patient_cis_dosage_class") or "").startswith("cn_dosage_coupled")
+    _cl_silenced = (meth.get("methylation_silencing_class") or "").startswith("silencing_coupled")
+    _pt_silenced = pat.get("patient_methylation_silencing_class") == "epigenetic_silencing"
+    _pt_measured = bool(pat.get("patient_cis_dosage_class")) and pat.get("patient_cis_dosage_class") != "data_unavailable"
+    dosage_agreement = (_cl_coupled == _pt_coupled) if (_pt_measured and cis.get("cis_dosage_class")) else None
+    silencing_agreement = (
+        (_cl_silenced == _pt_silenced)
+        if (pat.get("patient_methylation_silencing_class") not in (None, "insufficient_methylation_data")
+            and meth.get("methylation_silencing_class") not in (None, "data_unavailable"))
+        else None)
+
     verdict, driving = verdict_pair
     return {
         "cis_coherence_verdict": verdict,
@@ -78,6 +97,12 @@ def _headline(cards, fired, verdict_pair):
         "expression_dependency_pearson_r": corr.get("pearson_r"),
         "amp_expr_stratification_class": ampx.get("amp_expr_stratification_class"),
         "amp_expr_delta_chronos": ampx.get("delta_chronos_amp_expr_vs_rest"),
+        # PATIENT (TCGA) cross-grain corroboration — VERDICT-INERT confidence signal
+        "patient_cis_dosage_class": pat.get("patient_cis_dosage_class"),
+        "patient_methylation_silencing_class": pat.get("patient_methylation_silencing_class"),
+        "patient_n_cases_expression": pat.get("n_cases_expression"),
+        "patient_dosage_agrees_with_cellline": dosage_agreement,
+        "patient_silencing_agrees_with_cellline": silencing_agreement,
         # coherence framing
         "n_cell_lines_evaluated": cis.get("n_cell_lines_evaluated"),
     }
