@@ -111,9 +111,12 @@ sufficient for a patient cis-driver claim; the patient CN↔expression join and 
 epigenetic-silencing arm (promoter methylation → expression) are now LIVE via the
 `patient-cis-coherence` card, which joins patient CN + methylation to patient expression at the
 case barcode through `tcga-sample-id-crosswalk-v1` (R4). ERBB2/BRCA and CDKN2A/HNSC replicate the
-cell-line coupling in patient tumours. (Caveat on the patient methylation leg: the current
-promoter-methylation reader is pan-cohort, so that leg is bounded to the indication only via the
-expression intersection.) This skill is VERDICT-INERT — it never blocks a nomination.
+cell-line coupling in patient tumours. (The patient methylation leg is indication-scoped: the shared
+promoter-methylation reader spans all TCGA cohorts, and the patient engine restricts it to the
+indication's cohorts before contrasting — so a covered cohort like STAD/HNSC gives a clean
+hypermethylated-vs-rest silencing contrast, e.g. MLH1/STAD; an uncovered indication like COADREAD
+returns insufficient rather than borrowing other cohorts' methylation.) This skill is VERDICT-INERT —
+it never blocks a nomination.
 
 ## How Claude invokes this skill
 
