@@ -26,8 +26,18 @@ METHOD_VERSION = "0.1.0"
 # target side and partner side draw from this set for v1 → a bounded batch. Widening the target side to
 # the full surfaceome is a v2 option (the amortized read cost is unchanged — still one scan per source).
 CLINICAL_SEED_ANTIGENS = [
-    "EPCAM", "CEACAM5", "ERBB2", "MET", "MSLN", "FOLR1", "TACSTD2", "MUC1", "MUC16", "CD19",
-    "MS4A1", "CD22", "TNFRSF17", "GPRC5D", "DLL3", "CLDN18", "CLDN6", "NECTIN4", "PSMA", "FOLH1",
+    # 52 HGNC-canonical clinically-validated SURFACE antigens (approved or clinical-stage ADC / TCE-
+    # bispecific / CAR-T). Curated by a 3-lens multi-agent review (2026-08-20). PSMA dropped as a
+    # DUPLICATE of FOLH1 (and ambiguous vs proteasome PSMA1-8). Excludes non-surface targets: GD2
+    # (glycolipid, no gene), KLK2 (secreted), PMEL/gp100 (pMHC/ImmTAC), CD3 (effector), HLA (LOH NOT-gate).
+    # --- solid-tumor surface antigens ---
+    "EPCAM", "CEACAM5", "ERBB2", "ERBB3", "EGFR", "MET", "MSLN", "FOLR1", "FOLH1", "TACSTD2",
+    "MUC1", "MUC16", "NECTIN4", "DLL3", "CLDN18", "CLDN6", "STEAP1", "PSCA", "GUCY2C", "CDH17",
+    "CDH3", "CDH6", "SLC34A2", "SLC39A6", "F3", "ROR1", "ROR2", "FGFR2", "FGFR3", "LRRC15",
+    "GPC3", "IL13RA2", "CD276", "CD44",
+    # --- hematologic / myeloid / T-cell surface antigens ---
+    "CD19", "MS4A1", "CD22", "CD79B", "TNFRSF17", "GPRC5D", "FCRL5", "CD33", "IL3RA", "CLEC12A",
+    "FLT3", "LILRB4", "CD70", "CD38", "SLAMF7", "CD5", "CD7", "TNFRSF8",
 ]
 
 

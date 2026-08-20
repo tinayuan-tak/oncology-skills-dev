@@ -93,7 +93,7 @@ def test_cube_from_frame_assembly():
     assert cube["EPCAM"]["COAD"] == {"s1": 50.0, "s2": 40.0}
     assert cube["CEACAM5"]["COAD"]["s1"] == 30.0
     # the seed universe is the fixed clinical set (bounded batch)
-    assert "EPCAM" in CLINICAL_SEED_ANTIGENS and len(CLINICAL_SEED_ANTIGENS) == 20
+    assert "EPCAM" in CLINICAL_SEED_ANTIGENS and len(CLINICAL_SEED_ANTIGENS) == 52
 
 
 def test_reader_data_unavailable_is_shaped_not_raised():
