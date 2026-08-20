@@ -176,6 +176,43 @@ def test_no_registry_degrades_to_exact_match(tmp_path):
     )
     f = run._subtype_facet(sr, indication="COADREAD", contracts_repo=empty)
     assert f["associated_subtypes"] == []
+
+
+def _row_id(stratum_id, state="measured", **metric):
+    """A per_subgroup_metrics record keyed on `stratum_id` — the field the REAL
+    tumor-rna-distribution-by-subtype reader (tcga_gtex_expression_distribution) emits, unlike the
+    `stratum`-keyed panorama rows the other fixtures use."""
+    r = {"stratum_id": stratum_id, "evidence_state": state, "subgroup_n": 40, "source_cohort": "TCGA"}
+    r.update(metric)
+    return r
+
+
+def test_expression_axis_keyed_on_stratum_id_participates_in_convergence():
+    # REGRESSION (stratum_id join): the expression subtype reader emits `stratum_id`, not `stratum`.
+    # _subtype_stratum_key previously ignored stratum_id, so every expression row returned a None key
+    # and the expression axis silently dropped from the facet — convergence ran on dependency+mutation
+    # only. Here MSI_H is measured on expression (stratum_id) AND dependency (stratum): must converge.
+    sr = _sr(
+        expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [
+            _row_id("MSI_H", median_log2tpm=6.1)]}},
+        dependency={"subgroup-stratified-dependency": {"per_subgroup_metrics": [
+            _row("MSI_H", dependency_class="dependent")]}},
+    )
+    f = run._subtype_facet(sr)
+    assert f["verdict"] == "convergent_stratification"
+    assert f["convergent_subtypes"] == ["MSI_H"]
+    assert set(f["per_subtype"]["MSI_H"]["axes_measured"]) == {"expression", "dependency"}
+    # stratum_id is a bookkeeping key — it must NOT leak into the carried expression metric
+    assert "stratum_id" not in f["per_subtype"]["MSI_H"]["metrics"].get("expression", {})
+
+
+def test_expression_only_stratum_id_row_is_identified_single_axis():
+    # An expression-only stratum_id row is now IDENTIFIED (single_axis), not dropped to no_subtype_signal.
+    sr = _sr(expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [
+        _row_id("CMS1", median_log2tpm=6.1)]}})
+    f = run._subtype_facet(sr)
+    assert f["verdict"] == "single_axis_stratification"
+    assert "CMS1" in f["per_subtype"]
     assert f["verdict"] == "single_axis_stratification"      # two 1-axis strata, no bridge
 
 

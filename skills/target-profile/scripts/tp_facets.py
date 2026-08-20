@@ -584,9 +584,12 @@ def _first_card_per_subgroup(sub_result: dict, card_id: str) -> list:
 
 
 def _subtype_stratum_key(rec: dict) -> str | None:
-    """The molecular-subtype identity of a per_subgroup_metrics record. Panorama rows use `stratum`
-    (subgroup_common.build_panorama); tolerate a few historical aliases. None if unidentifiable."""
-    for k in ("stratum", "subgroup_id", "subgroup_label", "subgroup"):
+    """The molecular-subtype identity of a per_subgroup_metrics record. subgroup_common panorama rows
+    (dependency / mutation-frequency) use `stratum`; the tumor-rna-distribution-by-subtype reader
+    (tcga_gtex_expression_distribution) uses `stratum_id`. Both must be recognized or the expression
+    axis silently drops from the convergence facet. Tolerates a few further historical aliases. None if
+    unidentifiable."""
+    for k in ("stratum", "stratum_id", "subgroup_id", "subgroup_label", "subgroup"):
         v = rec.get(k)
         if v:
             return str(v)
@@ -674,9 +677,9 @@ def _subtype_facet(sub_results: dict, indication: str = None,
             block["axes_present"].append(axis)
             # carry the axis metric (whatever numeric/class the panorama row exposes beyond bookkeeping)
             metric = {k: v for k, v in rec.items()
-                      if k not in ("stratum", "subgroup_id", "subgroup_label", "subgroup",
-                                   "subgroup_n", "subgroup_n_floor_met", "evidence_state",
-                                   "source_cohort") and v is not None}
+                      if k not in ("stratum", "stratum_id", "subgroup_id", "subgroup_label",
+                                   "subgroup", "subgroup_n", "subgroup_n_floor_met",
+                                   "evidence_state", "source_cohort") and v is not None}
             if metric:
                 block["metrics"][axis] = metric
             if state == "measured":
