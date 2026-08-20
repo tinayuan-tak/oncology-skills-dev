@@ -406,6 +406,7 @@ skill_objectives:
       - {q: "Clonal / biallelic state of the alteration?", answered_by: [target-clonality, functional-gene-state]}
       - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration]}
       - {q: "Patient ↔ model genomic-event match?", answered_by: [genomic-event-model-match]}
+      - {q: "Splice-form dysregulation (aberrant splicing at the target)?", answered_by: [tumor-splice-dysregulation, tumor-splice-expression]}   # R10: transcript-form alteration, display-inert
   - skill: mechanism-and-pharmacology
     objective: "What is the target's network position / MoA hook / PD marker?"
     primary_axis: mechanism
