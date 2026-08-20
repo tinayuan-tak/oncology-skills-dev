@@ -55,7 +55,7 @@ METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
 SUPPORTED_DERIVATION_SOURCES = {"classifier_run"}
-SUPPORTED_CLASSIFIER_METHODS = {"single_gene_zscore_threshold", "napy_zscore_classifier"}
+SUPPORTED_CLASSIFIER_METHODS = {"single_gene_zscore_threshold", "napy_zscore_classifier", "cms_classifier"}
 
 
 # ---------- Classifier config ----------------------------------------------
@@ -291,6 +291,110 @@ def _run_single_gene_threshold(expression_df: pd.DataFrame, config: dict) -> pd.
     return pd.DataFrame(out_rows)
 
 
+# ---------- CMS (Consensus Molecular Subtypes) — NTP via CMScaller (Phase 2) ----------
+
+# CMS is filtered by OncotreeLINEAGE (Bowel), not OncotreeCode — a coarser grouping than the
+# marker-classifier cohorts above (CMS spans the whole colorectal lineage).
+_REFERENCE_COHORT_ONCOTREE_LINEAGE = {"depmap_bowel": "Bowel"}
+
+
+def _parse_entrez(gene_col: str):
+    """Extract the Entrez id from a DepMap 'SYMBOL (Entrez)' column name, or None."""
+    import re
+    m = re.search(r"\((\d+)\)\s*$", str(gene_col))
+    return m.group(1) if m else None
+
+
+def _load_depmap_expression_full(reference_cohort_lineage: str | None = None) -> pd.DataFrame:
+    """Full DepMap protein-coding TPM matrix for CMS NTP — ModelID index × 'SYMBOL (Entrez)' gene
+    columns (log2(TPM+1)), optionally restricted to an OncotreeLineage cohort (Bowel for CMS).
+
+    Unlike the marker loaders above, CMS needs the WHOLE transcriptome (NTP correlates each sample to
+    787-gene templates), so this reads all gene columns (heavier — one-time classifier run)."""
+    cache = cache_root() / "framework-depmap-26q1"
+    fallback = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
+    if not fallback.exists():
+        raise FileNotFoundError(
+            f"DepMap expression matrix not found at {fallback}. "
+            f"Pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/"
+            f"OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv into that path."
+        )
+    df = pd.read_csv(fallback)
+    if "IsDefaultEntryForModel" in df.columns:
+        df = df[df["IsDefaultEntryForModel"] == "Yes"]
+    df = df.set_index("ModelID")
+    # keep only the 'SYMBOL (Entrez)' gene columns (metadata columns carry no '(' Entrez suffix)
+    gene_cols = [c for c in df.columns if _parse_entrez(c) is not None]
+    df = df[gene_cols]
+
+    lineage = _REFERENCE_COHORT_ONCOTREE_LINEAGE.get(reference_cohort_lineage) if reference_cohort_lineage else None
+    if lineage:
+        model_path = cache / "Model.csv"
+        if model_path.exists():
+            model = pd.read_csv(model_path, usecols=["ModelID", "OncotreeLineage"])
+            cohort_ids = set(model[model["OncotreeLineage"] == lineage]["ModelID"])
+            df = df[df.index.isin(cohort_ids)]
+            if df.empty:
+                raise ValueError(
+                    f"No models for OncotreeLineage={lineage!r} after cohort filtering. Check Model.csv.")
+        else:
+            click.echo(f"  WARNING: Model.csv not found at {model_path}; lineage filter "
+                       f"({reference_cohort_lineage!r}) skipped", err=True)
+    return df
+
+
+def _run_cms_classifier(expression_df: pd.DataFrame, config: dict, run_dir: Path) -> pd.DataFrame:
+    """Assign each sample a CMS via CMScaller NTP (shelled to steps/run_cms.R), reshaped to the tall
+    (sample, stratum, is_member) form.
+
+    expression_df: ModelID index × 'SYMBOL (Entrez)' gene columns.
+    config: needs `cms_stratum_map` {CMS1: <catalog stratum id>, ...}; optional fdr_threshold (0.05),
+      rnaseq (True). One row per (sample × CMS stratum): the winning CMS gets is_member=True; a sample
+      below the FDR floor (NTP CMS NA) is UNCLASSIFIABLE → all is_member=False (visible, tagged)."""
+    import subprocess
+
+    stratum_map = config.get("cms_stratum_map") or {}
+    if not stratum_map:
+        raise ValueError("cms_classifier config must declare cms_stratum_map {CMS1: <stratum_id>, ...}")
+    fdr = float(config.get("fdr_threshold", 0.05))
+    rnaseq = bool(config.get("rnaseq", True))
+
+    # build the entrez-rownamed matrix (genes × samples) run_cms.R expects
+    emat = expression_df.T.copy()                       # genes (index='SYMBOL (Entrez)') × samples
+    emat.insert(0, "entrez_id", [_parse_entrez(g) for g in emat.index])
+    emat = emat.dropna(subset=["entrez_id"])
+    emat = emat[~emat["entrez_id"].duplicated(keep="first")]  # NTP wants unique gene rows
+    run_dir.mkdir(parents=True, exist_ok=True)
+    emat_path = run_dir / "cms_emat.parquet"
+    out_path = run_dir / "cms_ntp.parquet"
+    emat.reset_index(drop=True).to_parquet(emat_path, index=False)
+
+    r_script = Path(__file__).resolve().parent / "steps" / "run_cms.R"
+    subprocess.run(
+        ["Rscript", str(r_script), "--emat", str(emat_path), "--out", str(out_path),
+         "--fdr", str(fdr), "--rnaseq", "TRUE" if rnaseq else "FALSE"],
+        check=True,
+    )
+    ntp = pd.read_parquet(out_path)   # columns: sample_id, CMS (nullable), p_value, FDR
+
+    strata_ids = list(stratum_map.values())
+    rows = []
+    for _, r in ntp.iterrows():
+        winner_label = r["CMS"]                                  # e.g. 'CMS2' or NA (unclassifiable)
+        winner_sid = stratum_map.get(winner_label) if pd.notna(winner_label) else None
+        for sid in strata_ids:
+            is_member = (winner_sid is not None) and (sid == winner_sid)
+            if is_member:
+                dval = f"{winner_label}_FDR={float(r['FDR']):.3g}"
+            elif winner_sid is None and sid == strata_ids[0]:
+                dval = "unclassifiable:below_fdr_floor"          # tag once (on the first stratum row)
+            else:
+                dval = ""
+            rows.append({"sample_id": r["sample_id"], "stratum_id": sid,
+                         "is_member": bool(is_member), "derivation_value": dval})
+    return pd.DataFrame(rows)
+
+
 # ---------- Output emission ------------------------------------------------
 
 # The schema-valid subgroup_assignment_product manifest is emitted via the
@@ -369,20 +473,28 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
         return 0
 
     # ============ Load expression data ============
-    if config["classifier_method"] == "napy_zscore_classifier":
-        gene_symbols = list(config["marker_genes"].values())
+    if config["classifier_method"] == "cms_classifier":
+        # CMS needs the WHOLE transcriptome (NTP), DepMap-only in iter-1 (TCGA CMS is directly_tagged).
+        if data_source != "depmap":
+            click.echo("cms_classifier is DepMap-only in iter-1 (TCGA CMS ships via directly_tagged)", err=True)
+            return 0
+        expression = _load_depmap_expression_full(reference_cohort_lineage=config.get("reference_cohort"))
     else:
-        gene_symbols = [config["marker_gene"]]
-
-    if data_source == "depmap":
-        expression = _load_depmap_expression(gene_symbols, reference_cohort=config.get("reference_cohort"))
-    else:
-        expression = _load_tcga_expression(gene_symbols, indication)
+        if config["classifier_method"] == "napy_zscore_classifier":
+            gene_symbols = list(config["marker_genes"].values())
+        else:
+            gene_symbols = [config["marker_gene"]]
+        if data_source == "depmap":
+            expression = _load_depmap_expression(gene_symbols, reference_cohort=config.get("reference_cohort"))
+        else:
+            expression = _load_tcga_expression(gene_symbols, indication)
     click.echo(f"  loaded expression matrix: {expression.shape}")
 
     # ============ Run classifier ============
     if config["classifier_method"] == "napy_zscore_classifier":
         assignments = _run_napy_classifier(expression, config)
+    elif config["classifier_method"] == "cms_classifier":
+        assignments = _run_cms_classifier(expression, config, out / "_cms_work")
     else:
         assignments = _run_single_gene_threshold(expression, config)
 

@@ -1,0 +1,29 @@
+# Example classifier config — COADREAD Consensus Molecular Subtypes (CMS1-4), DepMap Bowel lineage.
+#
+# Companion to data-catalog/subgroup-catalogs/COADREAD/2026-Q2.yaml (the DepMap-scoped classifier_run
+# CMS strata — Phase 3). Consumed by methods/subgroup_assigner_classifier/cli.py.
+#
+# CMScaller NTP (Eide 2017) — the whole-transcriptome nearest-template classifier built to extend CMS
+# (Guinney 2015) beyond tumor tissue to cell lines. DepMap-ONLY: TCGA CMS already ships via
+# directly_tagged (guinney-2015-crc-cms-consortium). DepMap CMS is HYPOTHESIS-GENERATING — cell lines
+# lack the stromal/immune compartments defining CMS1/CMS4; expect unclassifiable (NA) Bowel lines.
+
+id: coadread-cms-classifier-2026-q2
+version: 1.0.0
+classifier_method: cms_classifier
+reference_cohort: depmap_bowel        # OncotreeLineage == "Bowel" (~146 DepMap lines)
+
+# NTP FDR floor: a sample above this is UNCLASSIFIABLE (NA CMS), not force-called.
+fdr_threshold: 0.05
+rnaseq: true                          # DepMap TPM is log2 RNA-seq
+
+# Map CMScaller NTP labels → the catalog's DepMap-scoped CMS stratum ids (Phase 3).
+cms_stratum_map:
+  CMS1: CMS1_depmap
+  CMS2: CMS2_depmap
+  CMS3: CMS3_depmap
+  CMS4: CMS4_depmap
+
+literature_anchor:
+  pmid: 26457759
+  note: "Guinney et al. 2015 — CMS consensus; classifier = CMScaller (Eide 2017, PMID 29176588)."

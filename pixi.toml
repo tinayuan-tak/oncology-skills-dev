@@ -39,7 +39,8 @@ bioconductor-deseq2 = "*"
 bioconductor-apeglm = "*"        # dge_deseq2: lfcShrink() adaptive-prior shrinkage (03_deseq2.R)
 bioconductor-sva = "*"           # combat-seq batch correction
 bioconductor-msstatstmt = "*"    # cptac_protein_deg: CPTAC TMT protein DEG with plex-batch mixed model
-bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood)
+bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood); ALSO CMScaller dep
+bioconductor-biobase = "*"       # subgroup_assigner_classifier (CMS): CMScaller dependency (ExpressionSet/NTP)
 scikit-learn = ">=1.9.0,<2"
 matplotlib-base = ">=3.11.1,<4"  # headless SVG figure rendering (emit_*_svg / plot_data); -base = no GUI backends
 
