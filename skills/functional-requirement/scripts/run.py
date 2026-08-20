@@ -456,6 +456,14 @@ def _unknown_mass(cards) -> float:
     return round(blind / n, 3)
 
 
+# The VERDICT-DISJOINT card(s) this axis reads for certainty `corroboration` (via
+# _corroboration_from_cross_consortium, which reads cross_consortium_class from cross-consortium-dependency).
+# DECLARED here so it can be cross-checked against target-contracts vocabularies/certainty_corroboration.yaml
+# (R3 follow-on — manifest authoritative): test_certainty_corroboration_matches_manifest asserts this set
+# equals corroboration_cards("dependency"), so the manifest and the Python source can never silently drift.
+_CERTAINTY_CORROBORATION_CARDS = frozenset({"cross-consortium-dependency"})
+
+
 def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> dict:
     """(strength, certainty{coverage, corroboration, weakest-link level, unknown_mass}) for the
     dependency axis (CERTAINTY_MODEL #dependency reference axis). coverage = n_cell_lines power;
