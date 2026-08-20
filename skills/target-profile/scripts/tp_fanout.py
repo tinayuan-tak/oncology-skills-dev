@@ -349,6 +349,8 @@ SUB_SKILL_CARDS = {
                                              # cards are HOME cards of other sub-skills; composing them here too
                                              # is byte-stable (same cards, different lens) — the cis_coherence
                                              # axis rules fire on their fields via card_id_filter.
+        "cellline-isoform-dominance",        # R10 molecular-form facet (verdict-inert display)
+        "cellline-isoform-expression",       # R10 molecular-form facet (verdict-inert display)
     ],
     "mechanism-and-pharmacology": [
         "signaling-network-mechanism",
@@ -369,6 +371,8 @@ SUB_SKILL_CARDS = {
         # genomic resolver rung → verdict byte-stable; composing them restores the genomic claim_vector.
         "cross-consortium-dependency",
         "dependency-predictability",
+        "tumor-splice-dysregulation",        # R10 splice-form facet (verdict-inert display)
+        "tumor-splice-expression",           # R10 splice-form facet (verdict-inert display)
         "mutation-type-counts",
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",

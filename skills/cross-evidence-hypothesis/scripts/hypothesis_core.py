@@ -50,7 +50,8 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "cis_coherence": frozenset({
         "cis-feature-expression-coherence", "cellline-methylation-expression-coherence",
         "expression-dependency-correlation",
-        "amp-expr-stratified-dependency", "patient-cis-coherence"}),   # Stage 2 (2026-08-20): mirrors SUB_SKILL_CARDS[cis-feature-coherence]
+        "amp-expr-stratified-dependency", "patient-cis-coherence",
+        "cellline-isoform-dominance", "cellline-isoform-expression"}),   # +R10 molecular-form facets; mirrors SUB_SKILL_CARDS[cis-feature-coherence]
     "dependency": frozenset({
         "abundance-dependency", "crispr-rnai-dependency-concordance", "cross-consortium-dependency",
         "dependency-lineage-selectivity", "expression-dependency-correlation",
@@ -83,7 +84,8 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation",
         # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[genomic-alteration-profile] which regained
         # these two dependency-confidence cards (lifted by genomic _HEADLINE_FIELDS/_lift_field).
-        "cross-consortium-dependency", "dependency-predictability"}),
+        "cross-consortium-dependency", "dependency-predictability",
+        "tumor-splice-dysregulation", "tumor-splice-expression"}),   # +R10 splice-form facets; mirrors SUB_SKILL_CARDS[genomic-alteration-profile]
     "mechanism": frozenset({
         "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
         "tahoe-drug-perturbation"}),
