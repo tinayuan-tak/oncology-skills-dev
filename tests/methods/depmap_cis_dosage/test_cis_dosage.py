@@ -123,3 +123,15 @@ def test_only_jointly_measured_lines_are_evaluated():
     tpm["ACH-99991"] = 8.0         # TPM-only, no CN
     s = compute_cis_dosage(cn, tpm)
     assert s["n_cell_lines_evaluated"] == 120      # the two singletons dropped
+
+
+def test_build_merged_data_intersects_and_attaches_lineage():
+    """figures.build_merged_data: evaluated = CN ∩ TPM; lineage from model_metadata, else 'unknown'."""
+    from methods.depmap_cis_dosage.figures import build_merged_data
+    cn = {"ACH-1": 2.0, "ACH-2": 1.0, "ACH-3": 3.0}   # ACH-3 has no TPM → dropped
+    tpm = {"ACH-1": 8.0, "ACH-2": 5.0, "ACH-9": 4.0}  # ACH-9 has no CN → dropped
+    mm = {"ACH-1": {"OncotreeLineage": "Bowel"}}      # ACH-2 missing → 'unknown'
+    merged = build_merged_data(cn, tpm, mm)
+    assert [m["cell_line_id"] for m in merged] == ["ACH-1", "ACH-2"]   # sorted intersection
+    assert merged[0]["lineage"] == "Bowel" and merged[1]["lineage"] == "unknown"
+    assert merged[0]["relative_cn"] == 2.0 and merged[0]["tpm_logp1"] == 8.0
