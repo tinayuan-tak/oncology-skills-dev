@@ -47,7 +47,8 @@ SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "combinatorial_dependency": frozenset({"combinatorial-dependency"}),
     "cis_coherence": frozenset({
-        "cis-feature-expression-coherence", "expression-dependency-correlation",
+        "cis-feature-expression-coherence", "cellline-methylation-expression-coherence",
+        "expression-dependency-correlation",
         "amp-expr-stratified-dependency"}),   # Stage 2 (2026-08-20): mirrors SUB_SKILL_CARDS[cis-feature-coherence]
     "dependency": frozenset({
         "abundance-dependency", "crispr-rnai-dependency-concordance", "cross-consortium-dependency",

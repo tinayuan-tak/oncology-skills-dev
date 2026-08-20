@@ -314,7 +314,8 @@ SUB_SKILL_CARDS = {
                                          # (Dede/in4mer/Horlbeck). Matches the skill's SKILL.md cards_used.
     ],
     "cis-feature-coherence": [
-        "cis-feature-expression-coherence",  # leg-1 (NEW): CN -> own-expression cis-dosage
+        "cis-feature-expression-coherence",  # GoF leg-1: CN -> own-expression cis-dosage (amplification)
+        "cellline-methylation-expression-coherence",  # LoF leg-1: promoter methylation -> own LOW expression (silencing)
         "expression-dependency-correlation", # leg-2 (reused; also composed under functional-requirement)
         "amp-expr-stratified-dependency",    # leg-2 (reused; also composed under genomic-alteration-profile)
                                              # Matches cis-feature-coherence SKILL.md cards_used. The two leg-2

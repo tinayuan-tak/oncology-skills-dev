@@ -6,7 +6,8 @@
    "cis-dosage-uncoupled-neutral",
    "cis-expr-dependency-coupled-supportive",
    "cis-expr-dependency-absent-neutral",
-   "cis-conjoint-dependent-supportive"
+   "cis-conjoint-dependent-supportive",
+   "cis-silencing-coupled-supportive"
   ],
   "table": {
    "": [
@@ -25,7 +26,19 @@
     "coherent_cis_driver",
     "cis-dosage-coupled-supportive"
    ],
+   "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive,cis-expr-dependency-absent-neutral,cis-silencing-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
    "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive,cis-expr-dependency-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive,cis-expr-dependency-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-coupled-supportive,cis-silencing-coupled-supportive": [
     "coherent_cis_driver",
     "cis-dosage-coupled-supportive"
    ],
@@ -37,17 +50,41 @@
     "dependency_without_cis_dosage",
     "cis-dosage-uncoupled-neutral"
    ],
+   "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral,cis-expr-dependency-absent-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
    "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral,cis-expr-dependency-coupled-supportive": [
     "dependency_without_cis_dosage",
     "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral,cis-expr-dependency-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-dosage-uncoupled-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
    ],
    "cis-conjoint-dependent-supportive,cis-expr-dependency-absent-neutral": [
     "insufficient_cis_coherence",
     null
    ],
+   "cis-conjoint-dependent-supportive,cis-expr-dependency-absent-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
    "cis-conjoint-dependent-supportive,cis-expr-dependency-coupled-supportive": [
     "insufficient_cis_coherence",
     null
+   ],
+   "cis-conjoint-dependent-supportive,cis-expr-dependency-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
+   "cis-conjoint-dependent-supportive,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
    ],
    "cis-dosage-coupled-supportive": [
     "insufficient_cis_coherence",
@@ -57,9 +94,21 @@
     "expressed_cis_coupled_inert",
     "cis-expr-dependency-absent-neutral"
    ],
+   "cis-dosage-coupled-supportive,cis-expr-dependency-absent-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
    "cis-dosage-coupled-supportive,cis-expr-dependency-coupled-supportive": [
     "coherent_cis_driver",
     "cis-dosage-coupled-supportive"
+   ],
+   "cis-dosage-coupled-supportive,cis-expr-dependency-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_cis_driver",
+    "cis-dosage-coupled-supportive"
+   ],
+   "cis-dosage-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
    ],
    "cis-dosage-uncoupled-neutral": [
     "insufficient_cis_coherence",
@@ -69,17 +118,41 @@
     "cis_uncoupled_no_dependency",
     "cis-dosage-uncoupled-neutral"
    ],
+   "cis-dosage-uncoupled-neutral,cis-expr-dependency-absent-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
    "cis-dosage-uncoupled-neutral,cis-expr-dependency-coupled-supportive": [
     "dependency_without_cis_dosage",
     "cis-dosage-uncoupled-neutral"
+   ],
+   "cis-dosage-uncoupled-neutral,cis-expr-dependency-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
+   "cis-dosage-uncoupled-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
    ],
    "cis-expr-dependency-absent-neutral": [
     "insufficient_cis_coherence",
     null
    ],
+   "cis-expr-dependency-absent-neutral,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
    "cis-expr-dependency-coupled-supportive": [
     "insufficient_cis_coherence",
     null
+   ],
+   "cis-expr-dependency-coupled-supportive,cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
+   ],
+   "cis-silencing-coupled-supportive": [
+    "coherent_epigenetic_silencing",
+    "cis-silencing-coupled-supportive"
    ]
   }
  },

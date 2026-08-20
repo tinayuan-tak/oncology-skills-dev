@@ -39,12 +39,14 @@ composition:
   data_mode: derived_read
   phase: [A, C]                        # cross-axis coherence: leg-1 = expression (A), leg-2 = dependency (C)
   cards_used:
-    - cis-feature-expression-coherence     # leg-1 (NEW): CN → own-expression cis-dosage
+    - cis-feature-expression-coherence     # GoF leg-1: CN → own-expression cis-dosage (amplification)
+    - cellline-methylation-expression-coherence  # LoF leg-1: promoter methylation → own LOW expression (silencing)
     - expression-dependency-correlation     # leg-2 (reuse): expression → dependency
     - amp-expr-stratified-dependency         # leg-2 (reuse): conjoint amp∩overexpr dependency
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims this skill PULLs.
   measurement_types_pulled:
     - cis_dosage_coupling
+    - methylation_silencing_coupling
     - expression_dependency_correlation
     - amp_expr_stratified_dependency
   rules_scope:

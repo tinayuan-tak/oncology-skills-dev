@@ -29,7 +29,8 @@ SKILL_NAME = "cis-feature-coherence"
 SKILL_VERSION = "1.0.0"
 
 CARDS = [
-    "cis-feature-expression-coherence",     # leg-1 (NEW): CN → own-expression cis-dosage
+    "cis-feature-expression-coherence",     # GoF leg-1: CN → own-expression cis-dosage (amplification)
+    "cellline-methylation-expression-coherence",  # LoF leg-1: promoter methylation → own LOW expression (silencing)
     "expression-dependency-correlation",     # leg-2 (reuse): expression → dependency
     "amp-expr-stratified-dependency",         # leg-2 (reuse): conjoint amp∩overexpr dependency
 ]
@@ -50,14 +51,20 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 def _headline(cards, fired, verdict_pair):
     def _s(cid):
         return card_summary(cards, cid)
-    cis = _s("cis-feature-expression-coherence")   # leg-1
+    cis = _s("cis-feature-expression-coherence")   # GoF leg-1
+    meth = _s("cellline-methylation-expression-coherence")  # LoF leg-1
     corr = _s("expression-dependency-correlation")  # leg-2 (correlation)
     ampx = _s("amp-expr-stratified-dependency")     # leg-2 (conjoint)
     verdict, driving = verdict_pair
     return {
         "cis_coherence_verdict": verdict,
         "driving_rule_id": driving,
-        # leg-1: feature → own-expression (the new measurement)
+        # LoF leg-1: promoter methylation → own LOW expression (epigenetic silencing)
+        "methylation_silencing_class": meth.get("methylation_silencing_class"),
+        "methylation_silencing_driver": meth.get("silencing_driver"),
+        "methylation_subset_median_delta_log2tpm": meth.get("subset_median_delta_log2tpm"),
+        "n_hypermethylated": meth.get("n_hypermethylated"),
+        # GoF leg-1: feature → own-expression (the new measurement)
         "cis_dosage_class": cis.get("cis_dosage_class"),
         "cn_expr_spearman_r": cis.get("cn_expr_spearman_r"),
         "cn_expr_spearman_p": cis.get("cn_expr_spearman_p"),
