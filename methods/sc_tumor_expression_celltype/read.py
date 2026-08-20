@@ -70,6 +70,44 @@ INDICATION_TO_PRODUCT = {
     "STAD": "sc-pseudobulk-tumor-stad-golim-v1",       # Go/Lim gastric atlas (2026, data-catalog #425/#433) — 95 donors / malignant in 88; malignant=Epithelial∩Phenotype==GC (adenocarcinoma proxy, no inferCNV). CLDN18/EPCAM/MUC1/TACSTD2 malignant-enriched (CLDN18 1.23 vs 0.06). Fills the previously-excluded gastric gap (Census 'unknown' tumor label + no 3CA bucket).
 }
 
+# Per-product malignant-annotation PROVENANCE (review G11): HOW the malignant compartment was called,
+# and whether it is specific to the QUERIED entity. Derived strictly from the atlas provenance documented
+# in INDICATION_TO_PRODUCT above — not guessed. Surfaced so downstream (claim-vector confidence) can read
+# a phenotype-proxy / multi-entity-pooled call DOWN relative to a curated / inferCNV / entity-specific one
+# (a malignant call on a phenotype heuristic or a pan-entity pool is weaker evidence than a CNA-validated,
+# disease-specific one). Verdict-inert.
+#   malignant_annotation_method ∈ {curated | infercnv | phenotype_proxy | unspecified}
+#     curated         — atlas ships an explicit malignant / 'Cancer cell' label (CRC core, LuCA NSCLC)
+#     infercnv        — malignant called by inferCNV / CNA validation (all 3CA products; see block note)
+#     phenotype_proxy — malignant = a phenotype heuristic with NO CNA validation (STAD: Epithelial∩GC)
+#     unspecified     — the product's method is not documented here (never asserted)
+_PRODUCT_ANNOTATION_METHOD = {
+    "sc-pseudobulk-tumor-crc-coadread-v1": "curated",
+    "sc-pseudobulk-tumor-luca-nsclc-v1":   "curated",
+    "sc-pseudobulk-tumor-3ca-pancreas-v1": "infercnv",
+    "sc-pseudobulk-tumor-3ca-hnsc-v1":     "infercnv",
+    "sc-pseudobulk-tumor-3ca-kidney-v1":   "infercnv",
+    "sc-pseudobulk-tumor-3ca-ovarian-v1":  "infercnv",
+    "sc-pseudobulk-tumor-stad-golim-v1":   "phenotype_proxy",
+    # sc-pseudobulk-donor-celltype-lusc-v1 (LUSC): malignant-call method not documented → unspecified.
+}
+# Indications whose malignant compartment is POOLED across a broader entity than the query (so the call
+# is NOT purified to the queried disease). Documented: 3CA kidney = pan-renal (KIRC), 3CA ovarian =
+# pan-gynecologic (OV); LUAD is served by the NSCLC-umbrella LuCA product (LUSC has its own dedicated cube).
+_MULTI_ENTITY_POOLED_INDICATIONS = frozenset({"KIRC", "OV", "LUAD"})
+
+
+def _malignant_annotation_provenance(indication: str) -> dict:
+    """Structured malignant-annotation provenance for an indication (review G11). Verdict-inert."""
+    ind = str(indication).upper().strip()
+    product = INDICATION_TO_PRODUCT.get(ind)
+    return {
+        "malignant_annotation_method": _PRODUCT_ANNOTATION_METHOD.get(product, "unspecified"),
+        "entity_purity": ("multi_entity_pooled" if ind in _MULTI_ENTITY_POOLED_INDICATIONS
+                          else ("entity_specific" if product else "unspecified")),
+    }
+
+
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",
                  "n_cells", "detection_fraction", "abundance_log1p_cp10k"]
 
@@ -143,6 +181,10 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
         "per_compartment": _stats.per_compartment_vector(comp_summary),
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
+        # G11: malignant-annotation provenance (how the malignant compartment was called + whether it is
+        # entity-specific). Verdict-inert; a confidence input for downstream (curated/inferCNV/
+        # entity-specific > phenotype_proxy / multi_entity_pooled).
+        **_malignant_annotation_provenance(indication),
     }
     out.update(_stats.caf_readout(comp_summary))
     # Two-axis TCE antigen-escape readout (2026-08-20): within-tumour coverage + INTER-donor consistency,
@@ -209,5 +251,6 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "fraction_donors_broadly_detecting": None,
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
+        **_malignant_annotation_provenance(indication),   # G11 (present even on the coverage-gap path)
         "_data_note": note,
     }
