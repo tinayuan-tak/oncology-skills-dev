@@ -52,6 +52,26 @@ def compute_or_load_health(tc: Path, out_dir: Path, prefer_compute: bool = True)
     return None
 
 
+def load_coverage(dp_root: Path) -> dict | None:
+    """The output registry's committed catalog.json at the data-products root — the OUTPUT
+    coverage layer (governed evidence packages ∪ exploratory skill-runs + the card-firing
+    index that framework_health's fires_in_any_run signal derives from). Returns None when
+    absent so the Coverage tab degrades to an honest 'no registry' message."""
+    cat_path = Path(dp_root) / "catalog.json"
+    if not cat_path.exists():
+        return None
+    try:
+        cat = json.loads(cat_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return {
+        "generated_at": cat.get("generated_at"),
+        "summary": cat.get("summary", {}),
+        "grid": cat.get("coverage", {}),          # {lanes, cells, grid}
+        "firings": cat.get("card_firings", {}),
+    }
+
+
 def merge(graph: dict, health: dict | None) -> dict:
     """Attach the full health slice the Overview + Health tabs need onto the arch graph."""
     if not health:
@@ -96,6 +116,9 @@ def main():
     ap.add_argument("--tc", default=str(A.DEFAULTS["tc"]))
     ap.add_argument("--sk", default=str(A.DEFAULTS["sk"]))
     ap.add_argument("--dc", default=str(A.DEFAULTS["dc"]))
+    ap.add_argument("--dp", default=str(A.DEFAULTS.get("dp") or
+                    (Path(A.DEFAULTS["tc"]).parent / "rnd-computational-biology-oncology-data-products")),
+                    help="data-products checkout (reads its root catalog.json for the Coverage tab)")
     ap.add_argument("--out", default=str(HOME / "dev/framework-runs/architecture-explorer/framework_dashboard.html"))
     ap.add_argument("--json", default=str(HOME / "dev/framework-runs/architecture-explorer/framework_dashboard.json"))
     ap.add_argument("--no-compute-health", action="store_true", help="load health JSON instead of recomputing")
@@ -111,12 +134,13 @@ def main():
     graph = A.build(Path(args.tc), Path(args.sk), Path(args.dc),
                     health_json_path=(hpath if hpath.exists() else None))
     graph = merge(graph, health)
+    graph["coverage"] = load_coverage(Path(args.dp))  # OUTPUT layer (registry catalog.json)
 
     def _stable(gr):
         # strip volatile fields so --check compares structure/wiring, not timestamps/shas/health-gen-time
         g2 = json.loads(json.dumps(gr, default=str))
-        for k in ("generated_at", "root_shas", "health_overlay_at", "health"):
-            g2.pop(k, None)  # health is time-varying + guarded by framework_health --check; this guards WIRING
+        for k in ("generated_at", "root_shas", "health_overlay_at", "health", "coverage"):
+            g2.pop(k, None)  # health + coverage are time-varying snapshots (own regen cadence); guard WIRING only
         return json.dumps(g2, sort_keys=True, separators=(",", ":"))
 
     if args.check:
@@ -147,6 +171,13 @@ def main():
           f"{s['n_datasets']} datasets · {s['n_resolvers']} resolvers")
     if hs:
         print(f"  health: {hs.get('verdict_tally')} · {hs.get('n_drift_flags')} drift ({hs.get('n_error_drift')} error)")
+    cv = graph.get("coverage")
+    if cv:
+        cs = cv["summary"]
+        print(f"  coverage: {cs.get('n_entries')} outputs · {cs.get('n_cells')} cells "
+              f"({cs.get('n_cells_governed')} gov / {cs.get('n_cells_exploratory_only')} exp-only) · "
+              f"cards fired governed {cs.get('n_cards_fired_governed')} "
+              f"(+{cs.get('n_cards_fired_exploratory_only')} exploratory-only)")
     print(f"  HTML → {args.out}  ({os.path.getsize(args.out)//1024} KB)")
 
 
