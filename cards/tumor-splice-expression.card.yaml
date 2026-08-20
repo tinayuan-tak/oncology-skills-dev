@@ -26,6 +26,8 @@ required_inputs:
   - product_id: tcga-spliceseq-psi-per-gene-v1
 methods:
   - call: tcga-spliceseq-psi
+    module: tcga_spliceseq_psi          # generic dispatcher (T11 routability)
+    entrypoint: spliceseq_summary_for_gene
     args:
       target: "{target.symbol}"
       indication: "{indication}"

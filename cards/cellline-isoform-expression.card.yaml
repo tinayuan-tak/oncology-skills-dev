@@ -25,6 +25,8 @@ required_inputs:
   - product_id: depmap-isoform-expression-per-gene-v1
 methods:
   - call: depmap-isoform-expression
+    module: depmap_isoform_expression          # generic dispatcher (T11 routability)
+    entrypoint: isoform_summary_for_gene
     args:
       target: "{target.symbol}"
 outputs:
@@ -33,7 +35,7 @@ outputs:
     - dominant_isoform_fraction                    # cohort-median top-isoform TPM / gene-total TPM
     - n_expressed_isoforms                         # cohort-median count of expressed isoforms per model
     - dominant_isoform                             # modal top-isoform ENST across the panel
-    - isoform_n_models                             # cell lines expressing the gene (facet denominator)
+    - n_models                             # cell lines expressing the gene (facet denominator)
   summary_fields_vocabulary:
     isoform_expression_class:
       - single_isoform_dominant                    # cohort-median dominant-isoform fraction >= 0.80

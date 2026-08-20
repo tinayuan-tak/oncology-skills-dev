@@ -24,6 +24,8 @@ required_inputs:
 
 methods:
   - call: depmap-isoform-expression
+    module: depmap_isoform_expression          # generic dispatcher (T11 routability)
+    entrypoint: isoform_summary_for_gene
     args:
       target: "{target.symbol}"
 
@@ -33,7 +35,7 @@ outputs:
     - dominant_isoform_fraction
     - n_expressed_isoforms
     - dominant_isoform
-    - isoform_n_models
+    - n_models
     - isoform_context
   summary_fields_vocabulary:
     isoform_expression_class:
