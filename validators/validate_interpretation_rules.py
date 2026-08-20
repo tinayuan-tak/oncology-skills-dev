@@ -225,8 +225,21 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
         # declare subgroup_metadata_declared (schema promises validator
         # enforcement; this is that enforcement). Its when: must use in_record —
         # a subtype rule matches per-subgroup records, not a scalar field — and
-        # that in_record MUST pin subgroup_n_floor_met: true so an underpowered
+        # that in_record MUST pin an ADMISSIBILITY PREDICATE so an underpowered
         # stratum is INADMISSIBLE by construction (the F4/admissibility guard).
+        #
+        # 2026-08-20 (Part-8 Step-3): the admissibility predicate is no longer the
+        # single n>=30 floor. A subtype rule may pin EITHER
+        #   - subgroup_n_floor_met: true         (n >= SUBGROUP_N_FLOOR, the classic floor), OR
+        #   - subgroup_effect_admissible: true    (small-but-tight: n >= MIN_N_EFFECT_ADMISSIBLE
+        #                                          AND >= EFFECT_STRONG_FRAC of lines strong —
+        #                                          an effect-gated admissibility, not "just lower N")
+        # but MUST pin AT LEAST ONE (as `true`). Neither pinned = an underpowered AND weak
+        # stratum could fire a verdict-affecting rule (the invariant this guard protects).
+        # Both are legitimate admissibility gates; effect_admissible exists so a strong,
+        # intrinsically-small transcriptional subtype (e.g. SCLC-P/POU2F3, ~5 DepMap lines)
+        # can carry a SUPPORTIVE (never dominant, never alone-sufficient) signal.
+        _ADMISSIBILITY_PREDICATES = ("subgroup_n_floor_met", "subgroup_effect_admissible")
         if tier == "subtype":
             if not rule.get("subgroup_metadata_declared"):
                 report.errors.append(
@@ -238,11 +251,12 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
                     f"[{rule_id}] tier: subtype must match per-subgroup records via "
                     f"when.in_record (got equals/in on a scalar field instead)."
                 )
-            elif in_record.get("subgroup_n_floor_met") is not True:
+            elif not any(in_record.get(p) is True for p in _ADMISSIBILITY_PREDICATES):
                 report.errors.append(
-                    f"[{rule_id}] tier: subtype in_record must pin "
-                    f"subgroup_n_floor_met: true — otherwise an underpowered stratum "
-                    f"could fire a verdict-affecting rule (admissibility violation)."
+                    f"[{rule_id}] tier: subtype in_record must pin an admissibility "
+                    f"predicate as true — one of {list(_ADMISSIBILITY_PREDICATES)} — otherwise "
+                    f"an underpowered stratum could fire a verdict-affecting rule "
+                    f"(admissibility violation)."
                 )
 
         # Check 2: card_id reachable?

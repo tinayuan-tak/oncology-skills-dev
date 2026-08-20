@@ -3292,6 +3292,43 @@ rules:
       mutation-defined stratum, so it rescues a diluted pooled negative / raises confidence but never
       mints a nominate alone. Subtype-scoped: nominates FOR this subtype, not pan-subtype.
 
+  # The EFFECT-ADMISSIBLE complement (2026-08-20, Part-8 Step-3): an intrinsically-small
+  # transcriptional subtype (e.g. SCLC-P/POU2F3, ~5 DepMap lines) can never clear the n>=30
+  # floor, so evidence_state is "underpowered" and the rule above (which requires "measured")
+  # will not match. This rule admits that stratum ONLY when the effect is tight enough to trust:
+  # subgroup_effect_admissible (n >= MIN_N_EFFECT_ADMISSIBLE AND >= EFFECT_STRONG_FRAC of lines
+  # in the strong band, per depmap_chronos) — an effect-size gate, NOT "just a lower N". It emits
+  # the SAME supportive signal → subtype_restricted_dependency. Keyed on evidence_state:
+  # underpowered, so it is DISJOINT from the floor-cleared rule (measured) — no double-fire.
+  # Still SUPPORTIVE only (capped in the gate: never dominant, never alone-sufficient to nominate),
+  # because a 5-line stratum is thinner than a mutation-defined one even when overwhelmingly strong.
+  - rule_id: subtype-restricted-dependency-underpowered-supportive
+    when:
+      card_id: subgroup-stratified-dependency
+      field: per_subgroup_metrics
+      in_record:
+        class: strong_dependency
+        evidence_state: underpowered
+        subgroup_effect_admissible: true
+    signals:
+      subtype_fit_genomic: supportive
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: genomic
+      subgroup_n_source: depmap-subgroup-assignments (Chronos per-ModelID cohort_size)
+      min_n_required: 3
+    rationale: |
+      The queried molecular subtype is intrinsically small (below the subgroup-n floor of 30, so the
+      pooled read tags it `underpowered`) BUT its measured CRISPR dependency is effect-admissible: the
+      stratum has at least the effect-admissibility minimum of cell lines and an overwhelming fraction
+      of them fall in the strong-dependency band (a tight, one-directional effect, not a noisy mean on
+      thin data). This is the SCLC-P/POU2F3 case — ~5 tuft-cell SCLC lines, nearly all strongly
+      dependent — where a hard n>=30 floor would silently discard a genuine, clean precision-oncology
+      signal. Admitted as SUPPORTIVE (never dominant, never alone-sufficient): the effect gate earns
+      the stratum a seat at the table, but a 5-line cohort must corroborate, not nominate on its own.
+      The subtype label (+ its classifier assay) is the patient-selection biomarker. Subtype-scoped:
+      nominates FOR this subtype, not pan-subtype.
+
   # ----------------------------------------------------------------------------
   # SUBTYPE TIER — EXPRESSION (presence) context, 2026-07-22
   # ----------------------------------------------------------------------------

@@ -5,8 +5,10 @@ matches per-subgroup records via `in_record`. These tests lock the guardrail:
 
   - a subtype-tier rule MUST declare subgroup_metadata_declared,
   - it MUST match records via when.in_record (not scalar equals/in),
-  - its in_record MUST pin subgroup_n_floor_met: true (the admissibility guard —
-    an underpowered stratum must not be able to fire a verdict-affecting rule),
+  - its in_record MUST pin an ADMISSIBILITY PREDICATE as true — one of
+    {subgroup_n_floor_met, subgroup_effect_admissible} (the admissibility guard —
+    an underpowered AND weak stratum must not be able to fire a verdict-affecting
+    rule; a small-but-effect-admissible stratum MAY, via subgroup_effect_admissible),
   - in_record keys are validated against the card's summary_fields_record_schemas.
 
 Also asserts the shipped subtype-non-dependence-opposing rule validates clean.
@@ -72,20 +74,34 @@ def test_valid_subtype_rule_passes(tmp_path):
     assert rep.ok, rep.errors
 
 
-def test_subtype_rule_missing_floor_pin_fails(tmp_path):
+def test_subtype_rule_missing_any_admissibility_pin_fails(tmp_path):
+    # No admissibility predicate at all → an underpowered stratum could fire. Reject.
     r = _base_subtype_rule()
     del r["when"]["in_record"]["subgroup_n_floor_met"]
     rep = V.validate_rules_file(_rules_file(tmp_path, r), CARDS)
     assert not rep.ok
-    assert any("subgroup_n_floor_met: true" in e for e in rep.errors)
+    assert any("admissibility predicate" in e for e in rep.errors)
 
 
-def test_subtype_rule_floor_pin_false_fails(tmp_path):
+def test_subtype_rule_floor_pin_false_and_no_effect_admissible_fails(tmp_path):
+    # floor explicitly false AND no effect-admissibility escape → still inadmissible.
     r = _base_subtype_rule()
     r["when"]["in_record"]["subgroup_n_floor_met"] = False
     rep = V.validate_rules_file(_rules_file(tmp_path, r), CARDS)
     assert not rep.ok
-    assert any("subgroup_n_floor_met: true" in e for e in rep.errors)
+    assert any("admissibility predicate" in e for e in rep.errors)
+
+
+def test_subtype_rule_effect_admissible_pin_passes(tmp_path):
+    # The Part-8 Step-3 escape: an underpowered (floor-false) stratum that is
+    # subgroup_effect_admissible: true is ADMISSIBLE — the effect-size gate substitutes
+    # for the n>=30 floor. This is the SCLC-P/POU2F3 path.
+    r = _base_subtype_rule()
+    r["when"]["in_record"]["subgroup_n_floor_met"] = False
+    r["when"]["in_record"]["evidence_state"] = "underpowered"
+    r["when"]["in_record"]["subgroup_effect_admissible"] = True
+    rep = V.validate_rules_file(_rules_file(tmp_path, r), CARDS)
+    assert rep.ok, rep.errors
 
 
 def test_subtype_rule_scalar_when_fails(tmp_path):
@@ -202,3 +218,23 @@ def test_shipped_subtype_rule_present():
     assert rule["when"]["in_record"]["subgroup_n_floor_met"] is True
     assert rule["signals"]["subtype_fit_genomic"] == "opposing"
     assert rule["subgroup_metadata_declared"]["subtype_defining_data"] == "genomic"
+
+
+def test_shipped_effect_admissible_rule_present_and_disjoint():
+    """The Part-8 Step-3 effect-admissible supportive rule ships, is keyed on the
+    UNDERPOWERED evidence_state + subgroup_effect_admissible: true (so it is disjoint
+    from the floor-cleared `measured` rule — no double-fire of the same signal), and
+    emits only the SUPPORTIVE signal (never an opposing/hold)."""
+    doc = yaml.safe_load((REPO / "interpretation-rules" / "intracellular-intrinsic.rules.yaml").read_text())
+    rule = next((r for r in doc["rules"]
+                 if r.get("rule_id") == "subtype-restricted-dependency-underpowered-supportive"), None)
+    assert rule is not None, "subtype-restricted-dependency-underpowered-supportive rule missing"
+    assert rule["tier"] == "subtype"
+    ir = rule["when"]["in_record"]
+    assert ir["subgroup_effect_admissible"] is True
+    assert ir["evidence_state"] == "underpowered"     # disjoint from the floor-cleared (measured) rule
+    assert ir["class"] == "strong_dependency"
+    assert rule["signals"]["subtype_fit_genomic"] == "supportive"
+    # the floor-cleared sibling stays keyed on measured — the two never match the same record.
+    floor = next(r for r in doc["rules"] if r.get("rule_id") == "subtype-restricted-dependency-supportive")
+    assert floor["when"]["in_record"]["evidence_state"] == "measured"
