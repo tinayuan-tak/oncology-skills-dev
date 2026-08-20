@@ -105,3 +105,23 @@ def test_end_to_end_underpowered_strata_dropped(monkeypatch):
     assert out["subtype_survival_association_class"] == "insufficient_survival_data"
     assert out["n_admissible_strata"] == 1
     assert any(d["stratum"] == "CMS3" for d in out.get("dropped_underpowered_strata", []))
+
+
+# ── indication → shard resolution (2026-08-20 follow-up: card passes only {indication}) ──
+def test_indication_resolves_shard_when_manifest_omitted(monkeypatch):
+    import pandas as pd
+    captured = {}
+
+    def fake_load(m, data_catalog_repo=None):
+        captured["m"] = m
+        return pd.DataFrame(columns=["sample_id", "patient_id", "source_native_id",
+                                     "stratum_id", "is_member"])
+    monkeypatch.setattr(_R, "load_assignments", fake_load)
+    _R.read_subtype_survival_association("COADREAD")           # no manifest passed
+    assert captured["m"] == "tcga-subgroup-assignments-coadread-v1"
+
+
+def test_unmapped_indication_is_data_unavailable():
+    out = _R.read_subtype_survival_association("GLIOMA")       # no registered TCGA subtype shard
+    assert out["subtype_survival_association_class"] == "data_unavailable"
+    assert "no TCGA subtype" in out["_data_note"]

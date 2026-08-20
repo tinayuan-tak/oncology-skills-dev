@@ -31,6 +31,21 @@ MIN_EVENTS = _eca.MIN_EVENTS          # minimum total deaths for a meaningful om
 MIN_PER_ARM = _eca.MIN_PER_ARM        # minimum patients per subtype arm to be admissible
 SIGNIFICANCE_ALPHA = _eca.SIGNIFICANCE_ALPHA
 
+# Indication → the TCGA-side SUBTYPE subgroup-assignment shard (patient-barcode-keyed) carrying the
+# molecular-subtype strata (CMS/MSI/sidedness/etc.). When the caller passes no explicit manifest,
+# resolve it here so a card can invoke this reader with just {indication} — mirroring the way the
+# other subtype cards resolve a shard from subgroup_spec rather than a literal manifest id.
+INDICATION_TO_TCGA_SUBTYPE_SHARD = {
+    "COADREAD": "tcga-subgroup-assignments-coadread-v1",
+    "COAD": "tcga-subgroup-assignments-coadread-v1",
+    "READ": "tcga-subgroup-assignments-coadread-v1",
+    "NSCLC": "tcga-subgroup-assignments-nsclc-v1",
+    "ESCA": "tcga-subgroup-assignments-esca-v1",
+    "HNSC": "tcga-subgroup-assignments-hnsc-v1",
+    "PAAD": "tcga-subgroup-assignments-paad-v1",
+    "PDAC": "tcga-subgroup-assignments-paad-v1",
+}
+
 
 def multivariate_logrank(arms: list[tuple]) -> tuple:
     """Omnibus (k-group) log-rank test from primitives — no lifelines.
@@ -94,13 +109,23 @@ def classify_subtype_survival_association(p, n_admissible_strata: int, n_events:
     return "no_subtype_survival_association"
 
 
-def read_subtype_survival_association(indication: str, subgroup_assignments_manifest: str,
+def read_subtype_survival_association(indication: str, subgroup_assignments_manifest: str | None = None,
                                       data_catalog_repo=None) -> dict:
     """Omnibus OS log-rank across {indication}'s molecular subtypes (from a TCGA-side assignment
-    shard). data_unavailable-safe. Univariate/unadjusted. target-independent (indication-level)."""
+    shard). data_unavailable-safe. Univariate/unadjusted. target-independent (indication-level).
+
+    subgroup_assignments_manifest: the TCGA-side subtype shard id. When None, resolved from
+    INDICATION_TO_TCGA_SUBTYPE_SHARD (so a card passes only {indication}); an indication with no
+    registered subtype shard returns data_unavailable rather than raising."""
     ensure_aws_profile()
+    if subgroup_assignments_manifest is None:
+        subgroup_assignments_manifest = INDICATION_TO_TCGA_SUBTYPE_SHARD.get(str(indication).upper())
     base = {"indication": indication, "endpoint": "OS", "survival_source": "pancanatlas_tcga_cdr",
             "subgroup_assignments_manifest": subgroup_assignments_manifest}
+    if not subgroup_assignments_manifest:
+        base.update({"subtype_survival_association_class": "data_unavailable",
+                     "_data_note": f"no TCGA subtype subgroup-assignment shard registered for {indication}"})
+        return base
 
     # 1) per-stratum member patients from the assignment shard
     try:
