@@ -58,8 +58,9 @@ outputs:
     - cn_expr_pearson_r
     - cn_expr_pearson_p
     - cn_expr_slope_log2tpm_per_cn               # OLS slope: log2TPM change per unit relative CN (provenance)
-    # === Variance context — cis-dosage is untestable without CN variance ===
-    - relative_cn_iqr                            # CN spread across panel; narrow = near-diploid = untestable
+    # === Variance context — cis-dosage is untestable without CN variation ===
+    - relative_cn_p10_p90_spread                 # p90-p10 CN spread; the invariant-panel GATE (tail-sensitive)
+    - relative_cn_iqr                            # middle-50% CN spread — provenance ONLY (NOT the gate; blind to the amplified tail)
     - log2tpm_iqr
     - median_relative_cn
     - median_log2tpm
@@ -79,7 +80,7 @@ outputs:
       - cn_dosage_coupled_strong                 # spearman r >= 0.4 AND p <= 0.01 — amplification strongly drives expression
       - cn_dosage_coupled_moderate               # spearman r >= 0.25 AND p <= 0.01 — moderate cis-dosage
       - cn_dosage_uncoupled                      # CN varies across panel but does NOT predict expression (trans-regulated)
-      - cn_invariant_panel                       # relative_cn_iqr < min — no CN variance to test cis-dosage (untestable, honest)
+      - cn_invariant_panel                       # relative_cn_p10_p90_spread < min — no CN variation to test cis-dosage (untestable, honest)
       - data_unavailable
     evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]
 
@@ -96,7 +97,11 @@ thresholds:
   moderate_dosage_spearman_r: 0.25               # cn_dosage_coupled_moderate
   significance_alpha: 0.01                       # Bonferroni-relaxed; pan-panel n>=50 reaches this
   min_cell_lines_for_correlation: 50
-  min_relative_cn_iqr: 0.2                       # CN spread floor — below this the panel is near-diploid (untestable)
+  min_relative_cn_p10_p90_spread: 0.2            # p90-p10 CN spread floor — below this the panel is near-diploid (untestable).
+                                                 # Tail-sensitive by design: focal-amp oncogenes (ERBB2/MYC) are bulk-diploid
+                                                 # with an amplified tail, so their IQR is ~0 but the tail carries real coupling
+                                                 # signal (ERBB2 live: IQR 0.18, p90-p10 0.55, Spearman r=0.26 p=1e-15). Gating on
+                                                 # IQR wrongly called ERBB2 invariant (calibration fix 2026-08-20).
   amplification_threshold: 1.5                   # FOCAL_AMP — reused from depmap_cn_distribution (relative CN; diploid ~ 1.0)
 
 warning_predicates:
@@ -104,13 +109,13 @@ warning_predicates:
     if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"
     message: "Fewer than 50 cell lines with both CN + expression data; cis-dosage correlation has a wide CI. Read alongside the scatter."
   - warning_id: near_diploid_panel
-    if: "relative_cn_iqr < THRESHOLD.min_relative_cn_iqr"
-    message: "Relative-CN spread across the panel is narrow (IQR < 0.2); cis-dosage is untestable when CN does not vary. cis_dosage_class = cn_invariant_panel (honest untestable, NOT uncoupled)."
+    if: "relative_cn_p10_p90_spread < THRESHOLD.min_relative_cn_p10_p90_spread"
+    message: "Relative-CN p90-p10 spread is narrow (< 0.2); cis-dosage is untestable when CN does not vary → cn_invariant_panel (honest untestable, NOT uncoupled). The gate uses p90-p10, not IQR, so amplified-tail oncogenes stay testable."
 
 caveats:
   - "cis-dosage coupling is CORRELATIONAL, not a formal mediation test: a strong CN↔expression correlation is consistent with amplification driving expression, but a co-amplified neighbor or a shared trans-regulator can produce the same signal. It establishes the feature→expression LEG of the coherence chain, not sole causality."
   - "cn_dosage_uncoupled (CN varies but does not predict expression) is the informative NEGATIVE: it says expression is copy-number-INDEPENDENT (trans/lineage-regulated). Combined with a dependency signal in the cis-coherence resolver, it routes to dependency_without_cis_dosage (a trans-driven, not amplification-driven, dependency)."
-  - "cn_invariant_panel is NOT cn_dosage_uncoupled: absence of CN variance means the cis-dosage question is untestable in this panel, not that the feature fails to drive expression. Kept a distinct honest bin so the resolver abstains rather than mis-classifying."
+  - "cn_invariant_panel is NOT cn_dosage_uncoupled: no CN variation means untestable, not that the feature fails to drive expression. A distinct honest bin so the resolver abstains. The untestable gate keys on the p90-p10 spread, NOT the IQR — focal-amp oncogenes (ERBB2/MYC) are bulk-diploid with an amplified tail (IQR ~0 but real tail signal); IQR-gating wrongly called them invariant (fix 2026-08-20)."
   - "relative CN is focal-amp convention (diploid ~ 1.0, NOT log2), matching depmap_cn_distribution / amp-expr-stratified-dependency; log2TPM is log2(TPM+1) bulk mRNA (not protein)."
   - "Cell-line cis-dosage is necessary but NOT sufficient for a patient cis-driver claim — needs orthogonal validation (patient CN+expression join; the deferred TCGA arm gated on tcga-sample-id-crosswalk-v1)."
 
