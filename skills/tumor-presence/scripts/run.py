@@ -667,6 +667,11 @@ def _headline(cards, fired, verdict_pair):
         "sc_malignant_detection_fraction":     get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_fraction"),
         "sc_malignant_abundance_log1p_cp10k":  get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_abundance_log1p_cp10k"),
         "sc_malignant_compartment_available":  get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_compartment_available"),
+        # Total malignant cells behind the sc call (analysis-methods G3 floor: MIN_MALIGNANT_CELLS_TOTAL).
+        # Surfaced so a reader can see whether a `sc_malignant_detected` rests on a ~509k-cell COADREAD
+        # cube or a thin pooled one — the power behind the detection fraction, not just the fraction.
+        "sc_malignant_n_cells":                get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_n_cells"),
+        "sc_malignant_n_donors":               get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_n_donors"),
         "sc_tce_homogeneity_class":            get_card_field(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class"),
         # Two-axis TCE antigen-escape readout (verdict-inert context; supersedes the lenient single-number
         # tce_homogeneity_class above). within-tumour coverage + INTER-donor consistency → escape class.
@@ -743,7 +748,8 @@ _SYNTHESIS_FACET_KEYS = (
     "rna_as_biomarker", "rna_protein_r",
     "rna_as_biomarker_tumor", "rna_protein_r_tumor",
     # Single-cell malignant-vs-microenvironment attribution + TCE-relevant homogeneity + CAF confounder
-    "sc_expression_class", "sc_malignant_detection_fraction", "sc_tce_homogeneity_class",
+    "sc_expression_class", "sc_malignant_detection_fraction", "sc_malignant_n_cells", "sc_malignant_n_donors",
+    "sc_tce_homogeneity_class",
     "sc_within_tumor_coverage_class", "sc_inter_donor_consistency_class", "sc_tce_antigen_escape_class",
     "sc_caf_vs_malignant_class", "sc_top_microenvironment_compartment", "sc_compartment_detection",
     # Normal-tissue comparators — framing for the therapeutic window (verdict owned by

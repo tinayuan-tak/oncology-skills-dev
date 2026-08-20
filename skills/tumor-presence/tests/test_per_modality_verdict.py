@@ -776,6 +776,20 @@ def test_headline_surfaces_single_cell_compartment_caf_and_homogeneity():
     assert facet["sc_caf_vs_malignant_class"] == "caf_low"
 
 
+def test_headline_surfaces_sc_malignant_cell_and_donor_counts():
+    """G3 follow-up: the total malignant CELLS (+ donors) behind the sc call are surfaced in the headline
+    and synthesis facet, so a reader can tell a ~509k-cell COADREAD call from a thin pooled cube (the
+    analysis-methods MIN_MALIGNANT_CELLS_TOTAL floor's companion legibility)."""
+    sc = {"sc_expression_class": "malignant_broadly_detected",
+          "malignant_detection_fraction": 0.72, "malignant_n_cells": 509919, "malignant_n_donors": 45}
+    fired = [_fr("sc-expression-malignant-broadly-detected-supportive", "tumor-scrna-celltype-expression")]
+    h = tp._headline(cards=_cards_with_sc(sc), fired=fired, verdict_pair=tp._verdict(fired))
+    assert h["sc_malignant_n_cells"] == 509919
+    assert h["sc_malignant_n_donors"] == 45
+    facet = tp._synthesis_facet(cards=_cards_with_sc(sc), fired=fired, verdict_pair=tp._verdict(fired))
+    assert facet["sc_malignant_n_cells"] == 509919
+
+
 def test_headline_summarizes_normal_essential_flags_to_top_n():
     """The bulky normal-tissue safety_essential_flags dict is summarized to a ranked top-N (readable)
     while the full dict is retained verbatim."""
