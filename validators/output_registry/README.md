@@ -46,3 +46,26 @@ a plain local file (never a network call — the probe stays deterministic and `
 and lights up a `fires_in_any_run` liveness signal alongside the unchanged, governed-only
 `fires_in_real_package`. Absent the catalog, the probe degrades gracefully to its historical glob —
 no behaviour change. See `framework_health.probe.registry_card_firings` / `fired_card_ids_any`.
+
+## Publishing — `publish_dashboard.py`
+
+On-demand publisher that regenerates the whole picture and puts it where collaborators can see it:
+
+```
+make dashboard              # from the repo root (needs AWS_PROFILE=cbg + gh auth)
+make dashboard-dry          # assemble + stamp only, no S3 / gh writes
+```
+
+It (1) regenerates `catalog.json` into the data-products root, (2) computes fresh `framework_health`,
+(3) builds the unified dashboard (`architecture_dashboard`), (4) stamps a small diffable
+`manifest.json` (root SHAs + health tallies + coverage/firing counts — the trend signal), then
+publishes to **both**:
+
+- **S3** — `s3://onc-compbio/framework-dashboard/` (live) + `history/<date>/` snapshots; prints a
+  time-boxed **presigned URL** to share.
+- **GitHub** — the rendered HTML as a dated **`gh release`** asset (`dashboard-<date>`), so the repo
+  keeps a versioned copy without committing a ~1.3 MB artifact into history.
+
+Root paths default to `framework_health.probe.default_roots()` (canonical sibling layout); override
+`--contracts/--skills/--methods/--products/--catalog` for a non-standard checkout. `--generated-at`
+is passed in (no wall-clock read) so the manifest is reproducible.
