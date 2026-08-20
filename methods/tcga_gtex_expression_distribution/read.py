@@ -523,7 +523,8 @@ def _distribution_summary(values: list) -> dict:
         **fracs,
     }
     out["tumor_expression_class"] = _classify_tumor_expression(
-        out["detectable_fraction"], out["high_fraction"], out["distribution_pattern"])
+        out["detectable_fraction"], out["high_fraction"], out["distribution_pattern"],
+        out.get("moderate_fraction"))
     return out
 
 
@@ -659,14 +660,33 @@ def read_tumor_expression_distribution(target: str, indication: str) -> dict:
             **_tumor_control_position(target, indication), "studies": studies}
 
 
-def _classify_tumor_expression(detectable_fraction, high_fraction, pattern) -> str:
+# "Detected broadly" (TPM>=1 in >=70% of tumors) is only a broadly-EXPRESSED (tier-3 presence-positive)
+# call if the target also reaches a MODERATE level (TPM≈10, MODERATE_LOG2TPM) in a real share of tumors.
+# A gene sitting at the TPM≈1 transcriptional-background floor in most tumors — detectable but rarely
+# moderate — is "present but low-level", not "broadly expressed": it must NOT inherit the tumor_broadly_
+# expressed word (which the skill's ladder re-anchors above the cell-line proxy and which drives the
+# surface/ADC/degrader reads this signal informs). Such a target drops to broadly_moderate (→ the
+# tier-2 NEUTRAL tumor_moderately_expressed rung). Threshold is a declared, calibratable knob (the card
+# thresholds block may override); it separates TPM≈1 background from TPM≈10 real expression.
+# (tumor-presence expert review, finding G4.)
+BROADLY_DETECTED_MODERATE_FRACTION_MIN = 0.5
+
+
+def _classify_tumor_expression(detectable_fraction, high_fraction, pattern,
+                               moderate_fraction=None) -> str:
     """Categorical for the card/rules (mirrors the DepMap distribution vocab, tumor-patient grain):
-      broadly_high      — most tumors highly express (high_fraction >= 0.5)
-      broadly_detected  — most tumors detectable but not high (detectable >= 0.7)
+      broadly_high      — most tumors highly express (high_fraction >= 0.5, TPM≈50)
+      broadly_detected  — most tumors detectable (TPM≥1 in >=0.7) AND moderately expressed
+                          (TPM≈10 in >= BROADLY_DETECTED_MODERATE_FRACTION_MIN); the "broadly EXPRESSED"
+                          tier-3 positive
       subset_high       — a target-high subset (bimodal/long_tail with a real high minority)
       broadly_low       — detectable in a minority (detectable < 0.3)
-      broadly_moderate  — otherwise (detectable in a middling fraction)
-      data_unavailable  — handled by the caller."""
+      broadly_moderate  — detectable in a middling fraction, OR detected-broadly-but-low-level (the
+                          detected≠expressed guard: TPM≈1 background in most tumors, rarely TPM≈10)
+      data_unavailable  — handled by the caller.
+
+    moderate_fraction is the fraction of tumors at >= MODERATE_LOG2TPM (TPM≈10); None (legacy caller)
+    preserves the historical detection-only broadly_detected label."""
     if detectable_fraction is None:
         return "data_unavailable"
     if high_fraction is not None and high_fraction >= 0.5:
@@ -674,7 +694,11 @@ def _classify_tumor_expression(detectable_fraction, high_fraction, pattern) -> s
     if pattern in ("bimodal", "long_tail") and (high_fraction or 0.0) >= 0.1:
         return "subset_high"
     if detectable_fraction >= 0.7:
-        return "broadly_detected"
+        # broadly DETECTED — but "broadly expressed" (tier-3) requires a real moderate-level share, or
+        # it is background-floor detection → broadly_moderate (tier-2 neutral). See the block comment.
+        if moderate_fraction is None or moderate_fraction >= BROADLY_DETECTED_MODERATE_FRACTION_MIN:
+            return "broadly_detected"
+        return "broadly_moderate"
     if detectable_fraction < 0.3:
         return "broadly_low"
     return "broadly_moderate"
