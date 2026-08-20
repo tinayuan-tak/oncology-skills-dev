@@ -1370,6 +1370,19 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [promoter_methylation, cell_line_rna_expression], method: correlation, evidence_tier: measured}
 
+  patient_cis_coherence:
+    # cis-coherence PATIENT arm (2026-08-20): the TCGA cross-grain corroboration of cis_dosage_coupling +
+    # methylation_silencing_coupling. Does the cell-line cis-coherence call replicate in patient tumours
+    # (CN->expression amplification + methylation->expression silencing), joined at the CASE barcode via
+    # tcga-sample-id-crosswalk-v1? VERDICT-INERT — corroborates, never drives (no resolver rung). Reuses
+    # compute_cis_dosage. No evidence_substrate (multi-input join, no single dominant substrate).
+    modality_relevance: [small_molecule, degrader]
+    claim: "In patient tumours, does the target's own CN/methylation explain its own expression (patient cis-coherence)?"
+    entity_grains: [target_indication]
+    cards: [patient-cis-coherence]
+    providers:
+      - {kind: derived_from, inputs: [copy_number_alteration, tumor_expression_distribution, promoter_methylation], method: correlation, evidence_tier: measured}
+
   chemical_genetic_concordance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
