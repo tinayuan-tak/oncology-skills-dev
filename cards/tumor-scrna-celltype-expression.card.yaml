@@ -65,6 +65,10 @@ outputs:
     - malignant_detection_fraction              # cross-donor median detection in the malignant compartment
     - malignant_abundance_log1p_cp10k           # cross-donor median abundance (malignant)
     - malignant_compartment_available           # false → indication's atlases lack a malignant label (honest gap)
+    - malignant_n_donors                         # reliable donors backing the malignant call (floor = MIN_RELIABLE_DONORS)
+    - malignant_n_cells                          # total malignant cells over reliable donors (floor = MIN_MALIGNANT_CELLS_TOTAL);
+                                                 # the power behind malignant_detection_fraction — a ~509k-cell COADREAD call
+                                                 # vs a thin pooled cube (analysis-methods G3 floor)
     - top_microenvironment_compartment          # immune | stromal | endothelial — the top-detecting microenv compartment
     - top_microenvironment_detection_fraction   # its cross-donor median detection
     - n_compartments_measured
