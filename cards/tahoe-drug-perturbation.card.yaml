@@ -29,7 +29,7 @@
 
 card_id: tahoe-drug-perturbation
 version: 1.0.0
-status: dormant_pending_data   # method + product exist but applies_when-gated off (tahoe_drug_perturbation_available); deferred wiring. NOT in required_cards; status added for consistency.
+status: wired   # method + dispatcher (_live_readers.py) + LANDED product (tahoe-drug-perturbation-per-gene-v1, materialized) — the schema definition of `wired`. Consumed live by mechanism-and-pharmacology (in me.CARDS, fields emitted; drift-guarded by test_tahoe_facet_emitted.py) as a VERDICT-INERT MoA facet. The applies_when data_sources gate below is the standard declarative idiom (identical to combo-crispr-screen / resistance-emergence-signature) — compose-dashboard does not yet enforce it (iter-1b), so it neither gates nor enables; not required_cards.
 question: "Which small molecules significantly move {target.symbol}'s expression (suppress or induce), and in how many cancer lines (single-cell drug-perturbation MoA)?"
 
 tier: target
