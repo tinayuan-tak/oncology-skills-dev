@@ -264,6 +264,39 @@ def _headline(cards, fired, verdict_pair):
     return hl
 
 
+# The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet")
+# (mirrors tumor-presence + functional-requirement). Lifts tumor-selectivity's claim_vector (the
+# WIN/DIST/INT/SAFE SIGNAL decomposition) + key_signals to the composed synthesis, closing arch-review
+# R8 (claim_vector was BUILT here but never surfaced to the cross-lens layer). VERDICT-INERT: reuses
+# _headline (single source of truth); the fan-out treats an absent/failed facet as no-facet, and nothing
+# here enters `fired` or the resolver. The per-axis certainty roll-up is the separate certainty_by_axis
+# sidecar, NOT this facet (CERTAINTY_MODEL §3 — this is the SIGNAL half).
+_SYNTHESIS_FACET_KEYS = (
+    "selectivity_class", "driving_rule_id", "axis_a_selectivity_class",
+    "dominant_direction", "discordant",
+    "selectivity_allgene_percentile_class", "purity_confound_class",
+    "rna_protein_tvn_concordance",
+    "sc_normal_safety_essential_class",              # the veto input (why a target down-graded)
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT selectivity facet for the composed target-profile synthesis prompt.
+    Reuses `_headline` (single source of truth) and returns the reconciliation-relevant subset — the
+    resolved selectivity verdict + the WIN/DIST/INT/SAFE claim_vector SIGNAL decomposition + a brief
+    cited key-signals read. Never moves the verdict; safe to omit (fan-out treats absence as no-facet)."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = (
+        "Deterministic selectivity facet from tumor-selectivity (a FACET, not a gate; the selectivity "
+        "verdict + normal-breadth veto are owned by the shared resolver and are verdict-inert to this "
+        "projection). claim_vector is the SIGNAL decomposition — WIN tumor-vs-normal window / DIST "
+        "distribution-crossing / INT tumor-cell-intrinsic (purity/single-cell) / SAFE normal-liability, "
+        "each a signal tier. The per-axis certainty roll-up is the separate certainty_by_axis sidecar.")
+    return facet
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,

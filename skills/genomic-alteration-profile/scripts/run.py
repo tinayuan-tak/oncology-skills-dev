@@ -496,6 +496,37 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
     return headline
 
 
+# The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet")
+# (mirrors tumor-presence + functional-requirement). Lifts genomic-alteration's claim_vector (the
+# SNV/CN/FUS driver + DEP alteration-confers-dependency SIGNAL decomposition) + key_signals to the
+# composed synthesis, closing arch-review R8 (claim_vector was BUILT here but never surfaced to the
+# cross-lens layer). This skill hand-rolls main() (no run_wired_skill), so the facet reconstructs the
+# headline from the fan-out-resolved verdict_pair via _build_headline. VERDICT-INERT: nothing here
+# enters `fired`/the resolver; the fan-out treats an absent/failed facet as no-facet.
+_SYNTHESIS_FACET_KEYS = (
+    "genomic_alteration_profile", "driving_rule_id",
+    "genomic_alteration_by_class", "genomic_alteration_by_scope",
+    "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT genomic-alteration facet for the composed synthesis prompt. Reconstructs
+    the headline from the fan-out-resolved (verdict, driving_rule) via _build_headline (fdr provenance
+    omitted — a within-run detail, not reconciliation-relevant) and returns claim_vector + key_signals +
+    the per-class/per-scope breakdown. Never moves the verdict; safe to omit."""
+    verdict, driving = verdict_pair if verdict_pair else (None, None)
+    h = _build_headline(cards, verdict, driving, {})
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = (
+        "Deterministic genomic-alteration facet (a FACET, not a gate; the multi-class genomic verdict is "
+        "owned by the shared resolver and is verdict-inert to this projection). claim_vector is the "
+        "SIGNAL decomposition — SNV / CN / FUS per-class driver + DEP alteration-confers-dependency, each "
+        "a signal×corroboration tier; genomic_alteration_by_class/_by_scope name which class + at what "
+        "scope the verdict was earned. The per-axis certainty roll-up is the separate certainty_by_axis sidecar.")
+    return facet
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
