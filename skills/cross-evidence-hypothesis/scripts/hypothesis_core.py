@@ -55,7 +55,11 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "dependency-lineage-selectivity", "expression-dependency-correlation",
         "pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
         "paralog-buffering", "partner-conditional-dependency", "prism-crispr-concordance",
-        "recommended-models", "organoid-crispr-dependency", "coessential-module"}),
+        "recommended-models", "organoid-crispr-dependency", "coessential-module",
+        # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[functional-requirement] which regained these
+        # two (_headline reads them; see the fan-out fix). genomic-event-model-match is ALSO a
+        # genomic_alteration card — a card may live in >1 dimension.
+        "dependency-predictability", "genomic-event-model-match"}),
     "differentiation": frozenset({
         "co-mutation-and-mutual-exclusivity", "expression-clinical-association",
         "pathway-node-leverage", "precog-prognostic-association", "stemness-context"}),

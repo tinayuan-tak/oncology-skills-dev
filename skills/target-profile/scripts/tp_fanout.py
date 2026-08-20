@@ -305,6 +305,18 @@ SUB_SKILL_CARDS = {
                                                  # it is not dropped from the profile. VERDICT-INERT (no
                                                  # resolver rung; folds into dependency_confidence_note) →
                                                  # byte-stable on the verdict spine.
+        "dependency-predictability",             # 2026-08-20 (facet-parity): in functional-requirement
+                                                 # CARDS + read by _headline (predictability_class →
+                                                 # DEP corroboration bump) but DROPPED here, so
+                                                 # _synthesis_facet's _headline raised KeyError →
+                                                 # swallowed → the dependency claim_vector facet (PR-C)
+                                                 # AND synthesis.claim_vectors were silently None in the
+                                                 # COMPOSED profile. VERDICT-INERT (CONFIDENCE annotation;
+                                                 # no resolver rung) → byte-stable on the verdict spine.
+        "genomic-event-model-match",             # 2026-08-20 (facet-parity): same class — read by
+                                                 # _headline (event_correspondence_class biomarker render
+                                                 # facet), in functional-requirement CARDS, dropped here.
+                                                 # VERDICT-INERT (render facet; no resolver rung).
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",

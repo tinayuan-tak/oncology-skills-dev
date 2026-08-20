@@ -310,3 +310,24 @@ def test_resolver_dependency_cards_are_in_the_composer_entry():
     assert not violations, (
         "resolver-referenced cards MISSING from the sub-skill's composer entry — the rung can never "
         f"fire in the composed profile: {violations}. Add each card to SUB_SKILL_CARDS[<sub-skill>].")
+
+
+def test_fr_composer_entry_covers_headline_card_reads():
+    """REGRESSION (2026-08-20 facet-parity bug): functional-requirement's `_synthesis_facet` reuses
+    `_headline`, which get_card_field-reads a set of cards. Those cards must be under FR's OWN composer
+    entry — NOT merely "composed somewhere" — because the fan-out fires + resolves FR with
+    card_id_filter=SUB_SKILL_CARDS["functional-requirement"]. If any is dropped, _headline raises
+    KeyError in the fan-out → the fan-out SWALLOWS it → the dependency claim_vector facet AND
+    synthesis.claim_vectors go silently EMPTY in the composed profile (undetectable by the
+    "composed somewhere" guard above). `dependency-predictability` + `genomic-event-model-match` were
+    exactly this."""
+    import re
+    _sub_skills, ssc = _composer_maps()
+    fr_run = (SKILLS / "functional-requirement" / "scripts" / "run.py").read_text()
+    headline_cards = set(re.findall(r'get_card_field\(cards,\s*"([a-z0-9-]+)"', fr_run))
+    composed = set(ssc.get("functional-requirement", []))
+    missing = headline_cards - composed
+    assert not missing, (
+        f"functional-requirement _headline reads cards NOT in its OWN composer entry: {sorted(missing)} "
+        "— _synthesis_facet will KeyError → swallow → empty claim_vector/claim_vectors in the composed "
+        "profile. Add each to SUB_SKILL_CARDS['functional-requirement'].")
