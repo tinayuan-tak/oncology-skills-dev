@@ -92,21 +92,31 @@ def read_rna_protein_concordance(target: str, release_pin: str = "26q1") -> dict
                                           if n_rna_expressed else None),
     }
     out.update(base)
-    out["rna_as_biomarker"] = _classify_rna_biomarker(pear, n)
+    # Classify on Spearman (G10) — the consensus rank metric for the nonlinear mRNA↔protein relationship;
+    # fall back to Pearson only when scipy is unavailable (spear is None). rna_protein_r stays Pearson.
+    _classify_r = spear if spear is not None else pear
+    out["rna_as_biomarker"] = _classify_rna_biomarker(_classify_r, n)
+    out["rna_proxy_classified_on"] = "spearman" if spear is not None else "pearson_fallback"
     return out
 
 
-def _classify_rna_biomarker(pearson_r, n_paired) -> str:
-    """Categorical for the card/rules:
+def _classify_rna_biomarker(r, n_paired) -> str:
+    """Categorical for the card/rules, classified on the SPEARMAN rank correlation (see caller):
       adequate_proxy  — RNA tracks protein tightly (r >= 0.7): RNA biomarker/inference trustworthy
       partial_proxy   — moderate (0.4 <= r < 0.7): RNA is a partial proxy, interpret with caution
       poor_proxy      — decoupled (r < 0.4): RNA misleads; protein must be measured directly
-      insufficient_paired_models / data_unavailable — handled by the caller."""
-    if pearson_r is None:
+      insufficient_paired_models / data_unavailable — handled by the caller.
+
+    G10 (tumor-presence expert review): classify on SPEARMAN, not Pearson. The mRNA↔protein relationship
+    across samples is monotonic-but-nonlinear and outlier-prone (post-transcriptional buffering,
+    saturation), so the rank correlation is the consensus proteogenomics metric (Zhang 2014, Mertins
+    2016) and is less flip-prone than Pearson at the same n. The caller passes Spearman (falling back to
+    Pearson only when scipy is unavailable)."""
+    if r is None:
         return "data_unavailable"
-    if pearson_r >= STRONG_CONCORDANCE_R:
+    if r >= STRONG_CONCORDANCE_R:
         return "adequate_proxy"
-    if pearson_r >= MODERATE_CONCORDANCE_R:
+    if r >= MODERATE_CONCORDANCE_R:
         return "partial_proxy"
     return "poor_proxy"
 
@@ -186,11 +196,13 @@ def read_tumor_rna_protein_concordance(target: str, indication: str) -> dict:
         pear = float(pearsonr(rna, prot)[0]); spear = float(spearmanr(rna, prot)[0])
     except Exception:  # noqa: BLE001
         pear = float(np.corrcoef(rna, prot)[0, 1]); spear = None
+    _classify_r = spear if spear is not None else pear   # G10: classify on Spearman (Pearson fallback)
     base.update({
         "rna_protein_r": round(pear, 4),
         "rna_protein_spearman": (round(spear, 4) if spear is not None else None),
         "n_paired_tumors": n,
-        "rna_as_biomarker": _classify_rna_biomarker(pear, n),
+        "rna_as_biomarker": _classify_rna_biomarker(_classify_r, n),
+        "rna_proxy_classified_on": "spearman" if spear is not None else "pearson_fallback",
     })
     return base
 

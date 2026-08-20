@@ -49,6 +49,24 @@ def test_poor_proxy_decoupled(monkeypatch):
     assert out["rna_protein_r"] < 0.7
 
 
+def test_classifies_on_spearman_not_pearson_outlier_inflated(monkeypatch):
+    """G10 regression: rna_as_biomarker classifies on SPEARMAN, not Pearson. A single extreme concordant
+    outlier over an otherwise-uncorrelated cluster inflates PEARSON above the adequate bar (0.7) while the
+    rank (Spearman) correlation is low — the classic Pearson-misleads case. The verdict must follow the
+    rank metric (NOT adequate), and rna_protein_r (Pearson, retained) must still read high, proving the
+    two metrics diverge and the class tracks Spearman."""
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    # 39-point cluster with uncorrelated small jitter + one far concordant outlier at (20, 20)
+    rna = {m: (2.0 + (i % 5) * 0.01 if i < 39 else 20.0) for i, m in enumerate(ids)}
+    prot = {m: (5.0 + (i % 3) * 0.017 if i < 39 else 20.0) for i, m in enumerate(ids)}
+    _wire(monkeypatch, rna, prot)
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_protein_r"] > 0.7                      # Pearson inflated by the outlier
+    assert out["rna_protein_spearman"] < 0.7               # rank correlation is not adequate
+    assert out["rna_as_biomarker"] != "adequate_proxy"     # class follows Spearman, not Pearson
+    assert out["rna_proxy_classified_on"] == "spearman"
+
+
 def test_underpowered_paired_models(monkeypatch):
     # fewer than MIN_PAIRED_MODELS with BOTH → insufficient, not a fabricated r
     ids = [f"ACH-{i:04d}" for i in range(10)]
