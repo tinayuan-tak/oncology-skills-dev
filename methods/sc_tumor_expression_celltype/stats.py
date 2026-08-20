@@ -49,6 +49,32 @@ MIN_CELLS_PER_DONOR = 20
 # this floor the malignant compartment is too thinly sampled to anchor a call → honest data_unavailable.
 MIN_MALIGNANT_CELLS_TOTAL = 100
 
+# Ambient-RNA (soup) plausibility fraction (review G8). Cell-free 'soup' mRNA is captured in EVERY
+# droplet, leaking a dominant compartment's signal into all others — SoupX (Young & Behjati 2020) reports
+# ~10% typical 10x contamination. A malignant detection fraction sitting within ~this fraction of a
+# MUCH-more-detected non-malignant compartment could be soup leakage rather than tumor-cell-intrinsic
+# expression. This is NOT decontamination (that is an upstream SoupX/DecontX/CellBender step in the
+# pseudobulk build); it is a read-time HEURISTIC flag so a consumer treats such an attribution with care.
+AMBIENT_SOUP_PLAUSIBLE_FRACTION = 0.15
+
+
+def _ambient_contamination_risk(cls, mdet, comp_summary) -> str:
+    """G8 read-time heuristic (verdict-INERT): could a malignant-SUBSET call be ambient-RNA (soup)
+    leakage from a much-more-detected non-malignant compartment rather than tumor-cell-intrinsic? Fires
+    `possible` when the class is malignant_subset_detected AND the malignant detection sits within
+    AMBIENT_SOUP_PLAUSIBLE_FRACTION of the top non-malignant compartment's detection (the soup range).
+    A broadly-detected malignant call (mdet high) is intrinsic → `low`. `data_unavailable` when there is
+    no malignant detection to assess. Never moves sc_expression_class."""
+    if mdet is None:
+        return "data_unavailable"
+    others = [comp_summary[c].get("median_detection_fraction") for c in comp_summary
+              if c != "malignant" and comp_summary[c].get("median_detection_fraction") is not None]
+    dominant_other = max(others) if others else None
+    if (cls == "malignant_subset_detected" and dominant_other is not None and dominant_other > 0
+            and mdet <= AMBIENT_SOUP_PLAUSIBLE_FRACTION * dominant_other):
+        return "possible"
+    return "low"
+
 # ── TCE antigen-escape thresholds (two-axis heterogeneity, 2026-08-20) ────────────────────────────
 # The prior single-number tce_homogeneity_class re-binned malignant_detection_fraction alone, with a
 # LENIENT 0.5 "homogeneous" bar — 50% of malignant cells antigen-negative is a large escape reservoir.
@@ -329,6 +355,7 @@ def classify_sc_expression(comp_summary: dict,
             "malignant_compartment_available": False,
             "malignant_n_donors": 0,
             "malignant_n_cells": 0,
+            "ambient_contamination_risk": "data_unavailable",
             "top_microenvironment_compartment": None,
             "top_microenvironment_detection_fraction": None,
             "n_compartments_measured": 0,
@@ -370,6 +397,7 @@ def classify_sc_expression(comp_summary: dict,
             or int(mal.get("n_donors", 0)) < MIN_RELIABLE_DONORS
             or int(mal.get("n_cells_total", 0)) < MIN_MALIGNANT_CELLS_TOTAL):
         base["sc_expression_class"] = "data_unavailable"
+        base["ambient_contamination_risk"] = "data_unavailable"
         return base
 
     mdet = mal["median_detection_fraction"]
@@ -386,4 +414,7 @@ def classify_sc_expression(comp_summary: dict,
         # low-but-nonzero malignant detection with no strong microenvironment signal
         cls = "broadly_low"
     base["sc_expression_class"] = cls
+    # G8: flag when a malignant-subset call could be ambient-RNA (soup) leakage from a dominant
+    # non-malignant compartment (verdict-inert; NOT decontamination — see _ambient_contamination_risk).
+    base["ambient_contamination_risk"] = _ambient_contamination_risk(cls, mdet, comp_summary)
     return base
