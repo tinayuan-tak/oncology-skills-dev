@@ -190,22 +190,35 @@ golden-spine test + the guards' own unit tests):
 
 - **`presence_headline_conflict`** (Principle 1 — *the headline must not silently contradict its own
   measured killer*). The collapse ranks measured positives over measured negatives (to protect antigens
-  that de-differentiate in 2D culture), so an RNA-high target whose CPTAC protein is a **measured**
-  `not_detected` still reads present in the one-word verdict. The flag fires when a presence-positive
-  headline co-exists with a measured presence-negative in another bucket, names the bucket(s), and emits
-  an interpretation note. It stays silent on a measured *neutral* (e.g. CPTAC `present_not_elevated`) and
-  on coverage gaps — those are not killers. Mirrors the `cell_line_vs_tumor_discordant` guard pattern.
+  that de-differentiate in 2D culture), so an RNA-high target whose protein is a **measured** absence
+  (cell-line `protein_broadly_low`) or down-contrast (CPTAC `protein_*_downregulated`) still reads
+  present in the one-word verdict. The flag fires when a presence-positive headline co-exists with a
+  measured presence-negative in another bucket, names the bucket(s), and emits an interpretation note. It
+  stays silent on a measured *neutral* (e.g. CPTAC `present_not_elevated`) and on coverage gaps — those
+  are not killers. Mirrors the `cell_line_vs_tumor_discordant` guard pattern.
 
   **Stage B (verdict-moving, 1.10.0)** — Stage A (above) makes the buried killer legible; Stage B also
-  changes the WORD. When the winning rung is an RNA(expression)-lens positive AND a MEASURED
-  protein-negative fired AND no protein-positive fired, `_verdict` demotes the collapsed
-  `presence_verdict` to **`present_rna_only_protein_absent`** (a distinct value minted post-collapse — a
-  conjunction the single-field ladder grammar cannot express as a rung). It is still a PRESENT call
-  (`_is_presence_positive` → True; the driving RNA rung is retained for traceability), so it is not a
-  false-negative — but a consumer reading only the one word (not `presence_verdict_by_modality`) is no
-  longer falsely reassured that protein was confirmed. Verdict-inert to the nomination spine
-  (presence ∉ target-profile `_SHORT_TO_GATE`; 720 consumer tests unchanged). Regression-covered by
-  `test_per_modality_verdict.py::{test_rna_high_protein_low_disagreement_demotes_collapsed_verdict,
+  changes the WORD. When the winning rung is an RNA(expression)-lens positive AND a genuine protein-
+  **ABSENCE** rule fired (`_PROTEIN_ABSENCE_RIDS`) AND no protein-positive fired, `_verdict` demotes the
+  collapsed `presence_verdict` to **`present_rna_only_protein_absent`** (a distinct value minted post-
+  collapse — a conjunction the single-field ladder grammar cannot express as a rung). It is still a
+  PRESENT call (`_is_presence_positive` → True; the driving RNA rung is retained for traceability), so it
+  is not a false-negative — but a consumer reading only the one word (not `presence_verdict_by_modality`)
+  is no longer falsely reassured that protein was confirmed. Verdict-inert to the nomination spine
+  (presence ∉ target-profile `_SHORT_TO_GATE`).
+
+  **Absence ≠ down-contrast (finding G2b, 2026-08-20).** The demotion trigger is genuine protein ABSENCE
+  ONLY — cell-line `protein_broadly_low` (the reachable signal: detected in <30% of the Gygi MS panel and
+  not a rescued lineage-restricted antigen) or a CPTAC per-cohort `not_detected`. It deliberately EXCLUDES
+  the tumor-vs-normal DOWN contrasts (`protein-{modestly,strongly}-down-opposing`): a protein measured
+  present-but-lower in tumor is a Phase-B *selectivity* signal, not Phase-A absence, so demoting a present
+  call to "protein_absent" off a down-contrast is a category error. Those down rungs remain in the
+  collapse's measured-negative tier (and in the `presence_headline_conflict` guard) — only the WORD-level
+  demotion is narrowed to `_PROTEIN_ABSENCE_RIDS`. (Note: CPTAC `not_detected` is currently un-emitted by
+  the `cptac_protein_deg` classifier — the reachable absence trigger is the cell-line `protein_broadly_low`
+  rung; the dead `not_detected` rule + card vocab value are slated for a coordinated target-contracts
+  cleanup.) Regression-covered by `test_per_modality_verdict.py::{test_genuine_protein_absence_demotes_
+  collapsed_verdict, test_protein_down_contrast_does_not_demote_G2b_regression,
   test_protein_absence_demotion_requires_all_three_conditions}`.
 
 - **`abundance_floor_flag`** (Principle 2 — *breadth ≠ level*). The presence classes are

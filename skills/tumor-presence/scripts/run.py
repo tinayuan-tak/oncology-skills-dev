@@ -184,7 +184,9 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
     ("tumor-breadth-not-elevated-neutral",              "not_tumor_elevated"),
     ("protein-modestly-down-opposing",                  "protein_modestly_downregulated"),
     ("protein-strongly-down-opposing",                  "protein_strongly_downregulated"),
-    ("protein-not-detected-degrader-killer",            "protein_not_detected"),
+    # (protein-not-detected-degrader-killer removed 2026-08-20, review G2a: the CPTAC classifier never
+    #  emits not_detected — whole-proteome TMT can't assert per-gene absence; target-contracts #467
+    #  retired the rule. The reachable protein-absence signal is the cell-line-MS broadly_low rung below.)
     ("protein-abundance-broadly-low-degrader-killer",   "protein_broadly_low"),
     ("protein-data-unavailable-insufficient",           "data_unavailable"),
     ("protein-abundance-data-unavailable-insufficient", "data_unavailable"),
@@ -257,10 +259,26 @@ def _rank_verdict(fired: list[dict], ladder: list[tuple[str, str]] | None = None
 
 
 # Rule-id sets by lens/polarity (from the partitions above) — used by the post-collapse protein-absence
-# demotion. Expression(RNA)-positive rungs, protein-positive rungs, protein-NEGATIVE rungs.
+# demotion. Expression(RNA)-positive rungs, protein-positive rungs.
 _EXPR_POS_RIDS = frozenset(rid for rid, _ in _EXPR_POS)
 _PROT_POS_RIDS = frozenset(rid for rid, _ in _PROT_POS)
-_PROT_NEG_RIDS = frozenset(rid for rid, _ in _PROT_NEG)
+
+# Genuine protein-ABSENCE rule-ids — the ONLY protein negatives that justify demoting a present RNA
+# call to `present_rna_only_protein_absent`. This is a STRICT SUBSET of the protein measured-negatives:
+# a tumor-vs-normal DOWN contrast (protein-{modestly,strongly}-down-opposing) means the protein was
+# MEASURED PRESENT but is lower in tumor than matched normal — a Phase-B SELECTIVITY signal, NOT absence
+# (Phase A). Demoting a present call to "protein_absent" off a down-contrast is a category error (the
+# tumor-presence expert-review finding G2b), so those rungs are deliberately EXCLUDED here. Absence =
+# cell-line whole-panel broadly_low (detected in <30% of the Gygi MS panel, AND — post the
+# depmap_protein_abundance lineage-restricted-floor fix — not a rescued lineage-restricted antigen). The
+# down-contrasts remain in _MEASURED_NEGATIVE_VERDICTS so the collapse ordering + the
+# `presence_headline_conflict` guard still surface them per-bucket — only the WORD-level demotion is
+# narrowed. (CPTAC not_detected is NOT here: whole-proteome TMT can't assert per-gene absence — a missing
+# protein resolves to data_unavailable, not a measured negative — so target-contracts #467 retired that
+# dead rule + card vocab; the cell-line broadly_low rung is the reachable protein-absence signal.)
+_PROTEIN_ABSENCE_RIDS = frozenset({
+    "protein-abundance-broadly-low-degrader-killer",   # cell-line: broadly-low MS detection (genuine absence)
+})
 
 # The demoted-positive verdict (Principle 1 Stage B). Minted post-collapse: it is a CONJUNCTION
 # (RNA-positive AND a MEASURED protein-negative AND no protein-positive), which the single-field ladder
@@ -279,15 +297,21 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
     Post-collapse PROTEIN-ABSENCE DEMOTION (Principle 1 Stage B): the positives-over-negatives collapse
     ranks an RNA positive above a MEASURED protein-negative, so an RNA-high target whose protein is
-    measured `not_detected`/`broadly_low` would otherwise read as an un-caveated present call in the one
-    word. When the winning rung is an RNA(expression)-lens positive AND a protein-negative rule fired AND
-    NO protein-positive fired, the verdict is demoted to `present_rna_only_protein_absent` (still a
-    present call — the driving RNA rung is retained for traceability — but the word now carries the
-    caveat that the shipped `presence_headline_conflict` flag also surfaces)."""
+    measured ABSENT (`broadly_low`/`not_detected`) would otherwise read as an un-caveated present call in
+    the one word. When the winning rung is an RNA(expression)-lens positive AND a genuine protein-ABSENCE
+    rule fired (see `_PROTEIN_ABSENCE_RIDS`) AND NO protein-positive fired, the verdict is demoted to
+    `present_rna_only_protein_absent` (still a present call — the driving RNA rung is retained for
+    traceability — but the word now carries the caveat that `presence_headline_conflict` also surfaces).
+
+    NOTE (finding G2b): the trigger is genuine ABSENCE only, NOT a tumor-vs-normal down-CONTRAST. A
+    protein measured present-but-lower in tumor (protein-{modestly,strongly}-down-opposing) is a
+    selectivity signal, not absence, and must not demote a present call to "protein_absent". Those rungs
+    stay in the collapse's measured-negative tier (and in the headline_conflict guard) but are excluded
+    from `_PROTEIN_ABSENCE_RIDS`."""
     v, drv = _rank_verdict(fired)
     fired_rids = {r["rule_id"] for r in fired}
     if (drv in _EXPR_POS_RIDS
-            and (fired_rids & _PROT_NEG_RIDS)
+            and (fired_rids & _PROTEIN_ABSENCE_RIDS)
             and not (fired_rids & _PROT_POS_RIDS)):
         return PRESENT_RNA_ONLY_PROTEIN_ABSENT, drv
     return v, drv

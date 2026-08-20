@@ -103,10 +103,10 @@ def test_protein_only_signal_not_swallowed_C1_regression():
                                         "cellline-protein-abundance")])
     assert pm["bulk_protein_ms/cell_line"]["verdict"] == "protein_broadly_high"
     assert pm["bulk_protein_ms/cell_line"]["verdict"] != "insufficient"
-    # protein-not-detected killer (tumor CPTAC) must surface, not vanish
-    pm2 = tp._per_modality_verdicts([_fr("protein-not-detected-degrader-killer",
-                                         "tumor-protein-abundance-cptac")])
-    assert pm2["bulk_protein_ms/tumor"]["verdict"] == "protein_not_detected"
+    # a measured protein-absence killer (cell-line broadly_low) must surface, not vanish
+    pm2 = tp._per_modality_verdicts([_fr("protein-abundance-broadly-low-degrader-killer",
+                                         "cellline-protein-abundance")])
+    assert pm2["bulk_protein_ms/cell_line"]["verdict"] == "protein_broadly_low"
     # collapsed verdict: a protein-only target resolves instead of collapsing
     v, drv = tp._verdict([_fr("protein-abundance-broadly-high-supportive",
                               "cellline-protein-abundance")])
@@ -127,11 +127,11 @@ def test_measured_protein_outranks_expression_data_unavailable_in_collapsed_spin
     assert v == "protein_strongly_upregulated"
     assert drv == "protein-strongly-up-supportive"
 
-    # a measured protein-not-detected KILLER must likewise survive an expression gap
+    # a measured protein-absence KILLER (cell-line broadly_low) must likewise survive an expression gap
     fired_killer = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
-                    _fr("protein-not-detected-degrader-killer", "tumor-protein-abundance-cptac")]
+                    _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance")]
     vk, _ = tp._verdict(fired_killer)
-    assert vk == "protein_not_detected"
+    assert vk == "protein_broadly_low"
 
     # only when BOTH layers are data_unavailable does the verdict stay data_unavailable
     both_gap = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
@@ -211,37 +211,60 @@ def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
     assert pm["bulk_rna/tumor"]["evidence_state"] == "data_unavailable"
 
 
-def test_rna_high_protein_low_disagreement_demotes_collapsed_verdict():
-    """RNA broadly_high + a MEASURED tumor-protein negative (protein_strongly_downregulated). Post the
-    protein-absence demotion (Principle 1 Stage B, 2026-08-20), the collapsed verdict is no longer the
-    un-caveated `broadly_high_expression` (which buried the protein contradiction under the one word) —
-    it demotes to `present_rna_only_protein_absent` (still a present call; the driving RNA rung is
-    retained). The per-bucket breakdown continues to expose the RNA/protein disagreement directly."""
+def test_genuine_protein_absence_demotes_collapsed_verdict():
+    """RNA broadly_high + a MEASURED genuine protein-ABSENCE (cell-line broadly_low, detected in <30% of
+    the Gygi MS panel). The protein-absence demotion (Principle 1 Stage B) fires: the collapsed verdict
+    is no longer the un-caveated `broadly_high_expression` (which buried the protein contradiction under
+    the one word) — it demotes to `present_rna_only_protein_absent` (still a present call; the driving
+    RNA rung is retained). The per-bucket breakdown continues to expose the disagreement directly."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("protein-strongly-down-opposing", "tumor-protein-abundance-cptac")]
+             _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance")]
     v, drv = tp._verdict(fired)
     assert v == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
     assert drv == "expression-broadly-high-supportive"          # traceable to the RNA presence rung
     assert tp._is_presence_positive(v)                          # still a present call, just caveated
     pm = tp._per_modality_verdicts(fired)
-    assert pm["bulk_rna/cell_line"]["verdict"] != pm["bulk_protein_ms/tumor"]["verdict"]
+    assert pm["bulk_rna/cell_line"]["verdict"] != pm["bulk_protein_ms/cell_line"]["verdict"]
+
+
+def test_protein_down_contrast_does_not_demote_G2b_regression():
+    """G2b (tumor-presence expert review): a tumor-vs-normal protein DOWN contrast
+    (protein-{strongly,modestly}-down-opposing) is a Phase-B SELECTIVITY signal — the protein was
+    MEASURED PRESENT but is lower in tumor than matched normal — NOT absence. It must NOT demote a
+    present RNA call to `present_rna_only_protein_absent` (a category error the old demotion committed by
+    keying on the whole protein measured-negative tier). The RNA present call stands; the down-contrast
+    stays legible per-bucket + via the headline_conflict guard."""
+    for down_rid in ("protein-strongly-down-opposing", "protein-modestly-down-opposing"):
+        fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+                 _fr(down_rid, "tumor-protein-abundance-cptac")]
+        v, drv = tp._verdict(fired)
+        assert v == "broadly_high_expression", (
+            f"a protein down-CONTRAST ({down_rid}) must not demote a present RNA call to "
+            f"protein_absent; got {v!r}")
+        assert drv == "expression-broadly-high-supportive"
+        # the down-contrast is still surfaced as a measured negative in its own bucket
+        pm = tp._per_modality_verdicts(fired)
+        assert pm["bulk_protein_ms/tumor"]["evidence_state"] == "measured"
+        assert pm["bulk_protein_ms/tumor"]["verdict"] in (
+            "protein_strongly_downregulated", "protein_modestly_downregulated")
 
 
 def test_protein_absence_demotion_requires_all_three_conditions():
-    """The demotion fires ONLY on (RNA-lens positive) AND (a measured protein-negative) AND (no protein-
-    positive). Each condition alone leaves the ordinary collapse untouched."""
+    """The demotion fires ONLY on (RNA-lens positive) AND (a genuine protein-ABSENCE rule) AND (no
+    protein-positive). Each condition alone leaves the ordinary collapse untouched. The protein-negative
+    must be an ABSENCE signal (broadly_low / not_detected), not a down-contrast (see the G2b test)."""
     rna = _fr("expression-broadly-high-supportive", "cellline-rna-distribution")
-    prot_neg = _fr("protein-not-detected-degrader-killer", "tumor-protein-abundance-cptac")
+    prot_absent = _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance")
     prot_pos = _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")
-    # RNA positive alone → ordinary RNA verdict (no protein negative)
+    # RNA positive alone → ordinary RNA verdict (no protein absence)
     assert tp._verdict([rna])[0] == "broadly_high_expression"
-    # RNA positive + protein NEGATIVE + no protein positive → demoted
-    assert tp._verdict([rna, prot_neg])[0] == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
-    # RNA positive + protein negative + protein POSITIVE → NOT demoted (protein corroborates presence)
-    assert tp._verdict([rna, prot_neg, prot_pos])[0] == "broadly_high_expression"
-    # protein negative WITHOUT an RNA-lens positive → ordinary negative, never demoted-positive
-    v, _ = tp._verdict([prot_neg])
-    assert v == "protein_not_detected" and not tp._is_presence_positive(v)
+    # RNA positive + protein ABSENCE + no protein positive → demoted
+    assert tp._verdict([rna, prot_absent])[0] == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
+    # RNA positive + protein absence + protein POSITIVE → NOT demoted (protein corroborates presence)
+    assert tp._verdict([rna, prot_absent, prot_pos])[0] == "broadly_high_expression"
+    # protein absence WITHOUT an RNA-lens positive → ordinary negative, never demoted-positive
+    v, _ = tp._verdict([prot_absent])
+    assert v == "protein_broadly_low" and not tp._is_presence_positive(v)
 
 
 # --- honest gaps: unbuilt substrates are data_unavailable, never negative ---
@@ -588,9 +611,9 @@ def test_h2_measured_protein_positive_outranks_rna_killer():
 
 
 def test_h2_measured_sc_positive_outranks_protein_killer():
-    """H2 (sc arm): a measured sc malignant-detected positive outranks a measured protein-not-detected
-    killer."""
-    fired = [_fr("protein-not-detected-degrader-killer", "tumor-protein-abundance-cptac"),
+    """H2 (sc arm): a measured sc malignant-detected positive outranks a measured protein-absence
+    killer (cell-line broadly_low)."""
+    fired = [_fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance"),
              _fr("sc-expression-malignant-broadly-detected-supportive",
                  "tumor-scrna-celltype-expression")]
     verdict, _ = tp._verdict(fired)
