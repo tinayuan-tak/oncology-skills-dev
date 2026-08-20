@@ -163,7 +163,7 @@
         ]
       },
       "minItems": 0,
-      "maxItems": 100
+      "maxItems": 300
     },
     "synthesis": {
       "type": "object",
