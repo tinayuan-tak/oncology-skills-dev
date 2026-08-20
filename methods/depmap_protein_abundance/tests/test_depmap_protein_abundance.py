@@ -133,6 +133,43 @@ def test_per_lineage_respects_min_size():
 
 # --- graceful degradation (dispatcher entry) ------------------------------
 
+def test_gygi_hit_tags_source_gygi_ms(tmp_path, monkeypatch):
+    """A normal Gygi-resolved call tags protein_abundance_source=gygi_ms (and never invokes Olink)."""
+    sc = _write_sidecar(tmp_path, [("P01116", "KRAS")])
+    m = _write_matrix(tmp_path, ["P01116"], [(f"ACH-{i}", 1.0 + (i % 3)) for i in range(30)])
+    monkeypatch.setattr(pc, "load_model_lineage", lambda model_path=None: {})   # no S3 for Model.csv
+    # Olink fallback must NOT be called on a Gygi hit — make it explode if it is.
+    monkeypatch.setattr(pc, "load_olink_abundance_column",
+                        lambda t: (_ for _ in ()).throw(AssertionError("Olink must not be called on a Gygi hit")))
+    s = pc.load_and_classify("KRAS", matrix_path=m, sidecar_path=sc, model_path=None)
+    assert s["protein_abundance_source"] == "gygi_ms"
+    assert s["protein_expression_class"] != "data_unavailable"
+
+
+def test_olink_fallback_rescues_gygi_absent_target(monkeypatch):
+    """G1 follow-up: a target ABSENT from the Gygi matrix (col is None) is rescued via the Olink NPX
+    fallback — classified against the Olink panel's own null, tagged protein_abundance_source=olink_npx,
+    instead of collapsing to data_unavailable. (MSLN/MUC16-class surface antigens the shotgun-MS misses.)"""
+    monkeypatch.setattr(pc, "resolve_accession", lambda t, sidecar_path=None: None)  # Gygi unresolved
+    olink_col = {f"ACH-{i}": (3.0 + (i % 4) * 0.5) for i in range(30)}                # detected broadly
+    monkeypatch.setattr(pc, "load_olink_abundance_column", lambda t: (olink_col, 30, "Q00000"))
+    monkeypatch.setattr(pc, "_all_protein_median_null_olink", lambda: tuple(float(i) for i in range(100)))
+    monkeypatch.setattr(pc, "load_model_lineage", lambda model_path=None: {})
+    s = pc.load_and_classify("MSLN")
+    assert s["protein_abundance_source"] == "olink_npx"
+    assert s["protein_expression_class"] != "data_unavailable"
+    assert s["fraction_detected"] == 1.0    # 30 detected / 30 panel
+
+
+def test_both_gygi_and_olink_miss_is_data_unavailable(monkeypatch):
+    """Gygi miss AND Olink miss → honest data_unavailable, tagged source=data_unavailable."""
+    monkeypatch.setattr(pc, "resolve_accession", lambda t, sidecar_path=None: None)
+    monkeypatch.setattr(pc, "load_olink_abundance_column", lambda t: (None, 0, None))
+    s = pc.load_and_classify("GHOST")
+    assert s["protein_expression_class"] == "data_unavailable"
+    assert s["protein_abundance_source"] == "data_unavailable"
+
+
 def test_read_target_summary_graceful_on_failure(monkeypatch):
     def _boom(*a, **k):
         raise RuntimeError("s3 down")

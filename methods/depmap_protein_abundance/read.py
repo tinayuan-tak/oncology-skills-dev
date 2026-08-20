@@ -36,10 +36,15 @@ def read_target_summary(target: str, indication: Optional[str] = None,
         # All-gene percentile null: where this protein's median abundance ranks among
         # ALL proteins' medians in the DepMap MS panel (context = pan-panel, protein-
         # intrinsic; indication not consumed). Additive — display + companion categorical.
-        pct, pct_class = _cli.target_allgene_percentile(summary.get("median_log2_abundance_panel"))
+        # Rank against the null of the assay that PRODUCED the call (Gygi TMT vs Olink NPX — different
+        # scales; the Olink fallback sets protein_abundance_source=olink_npx). Default gygi_ms.
+        _source = summary.get("protein_abundance_source", "gygi_ms")
+        pct, pct_class = _cli.target_allgene_percentile(
+            summary.get("median_log2_abundance_panel"), source=_source)
         summary["allgene_percentile"] = pct
         summary["allgene_percentile_class"] = pct_class
-        summary["allgene_percentile_context"] = "depmap-proteomics-26q1 panel-wide metric=median_log2_abundance"
+        summary["allgene_percentile_context"] = (
+            f"depmap-proteomics-26q1 panel-wide metric=median_log2_abundance source={_source}")
         return summary
     except Exception as e:  # noqa: BLE001 — any load failure → graceful data_unavailable
         return {
@@ -48,6 +53,7 @@ def read_target_summary(target: str, indication: Optional[str] = None,
                 f"Could not read DepMap proteomics Gygi TMT MS "
                 f"(s3://{_cli.S3_BUCKET}/{_cli.MATRIX_KEY}) for {target}: {e}"),
             "protein_expression_class": "data_unavailable",
+            "protein_abundance_source": "data_unavailable",
             "n_cell_lines_evaluated": 0,
             "fraction_detected": 0.0,
             "median_log2_abundance_panel": None,

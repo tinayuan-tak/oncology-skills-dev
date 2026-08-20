@@ -451,12 +451,33 @@ def _all_protein_median_null(matrix_path=None) -> tuple:
         return tuple()
 
 
-def target_allgene_percentile(median_abund, matrix_path=None):
-    """Percentile + class of this target's median abundance among ALL proteins' medians."""
+@lru_cache(maxsize=2)
+def _all_protein_median_null_olink() -> tuple:
+    """Per-protein median-NPX vector across ALL proteins in the OLINK matrix — the all-protein null for
+    the Olink-fallback path (review G1 follow-up). The Gygi null (_all_protein_median_null) is on the TMT
+    log2-ratio scale; Olink NPX is a different scale, so an Olink-sourced call MUST be percentiled /
+    high-cutoff-anchored against Olink's own panel, not Gygi's. One column-median pass over the Olink
+    matrix; lru_cached. Empty tuple on any read failure (then high_cutoff stays None → broadly_high
+    honestly cannot fire, same graceful degrade as the Gygi null)."""
+    try:
+        df = _read_csv(None, S3_BUCKET, OLINK_MATRIX_KEY)
+        id_col = df.columns[0]
+        med = df.drop(columns=[id_col]).median(axis=0, numeric_only=True)
+        return tuple(float(x) for x in med.tolist())
+    except Exception:  # noqa: BLE001
+        return tuple()
+
+
+def target_allgene_percentile(median_abund, matrix_path=None, source: str = "gygi_ms"):
+    """Percentile + class of this target's median abundance among ALL proteins' medians.
+
+    `source` selects the all-protein null: the Gygi TMT panel by default, or the Olink NPX panel when the
+    call came from the Olink fallback (review G1 follow-up) — the two are different scales, so an
+    Olink-sourced median must be ranked against Olink's own panel, not Gygi's."""
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
     from methods.percentile_null import percentile_rank, classify_percentile
-    null_vec = _all_protein_median_null(matrix_path)
+    null_vec = _all_protein_median_null_olink() if source == "olink_npx" else _all_protein_median_null(matrix_path)
     pct = percentile_rank(median_abund, null_vec)
     return pct, classify_percentile(pct)
 
@@ -698,17 +719,37 @@ def load_and_classify(target: str, matrix_path=None, sidecar_path=None,
     (plot_data_protein_abundance.parquet) here — where abundance_by_model + lineage are in memory —
     so figures.render_from_plot_data draws with NO live read. Default None => byte-identical no-op."""
     acc = resolve_accession(target, sidecar_path=sidecar_path)
-    if acc is None:
-        return compute_summary(target, None, {}, n_panel=None)
-    col, panel_size = load_abundance_column(acc, matrix_path=matrix_path)
+    col = None
+    panel_size = None
+    source = "gygi_ms"
+    all_protein_medians = None
+    if acc is not None:
+        col, panel_size = load_abundance_column(acc, matrix_path=matrix_path)
     if col is None:
-        return compute_summary(target, None, {}, n_panel=panel_size)
+        # Gygi whole-cell TMT MISS (target unresolved OR absent from the Gygi matrix). Try the Olink NPX
+        # fallback (review G1 follow-up): antibody-based proteomics that covers surface/secreted antigens
+        # the shotgun-MS panel systematically under-samples (MSLN/MUC16/CLDN18…). Only used when Gygi is
+        # empty, so it never overrides a real Gygi measurement. Classified against the OLINK panel's OWN
+        # all-protein null (below) — Olink NPX is a DIFFERENT scale from TMT log2-ratio, so mixing it with
+        # the Gygi null would be a cross-assay error. The `protein_abundance_source` field marks which
+        # assay produced the call so downstream consumers read it in the right frame.
+        ocol, opanel, _oacc = load_olink_abundance_column(target)
+        if ocol:
+            col, panel_size, source = ocol, opanel, "olink_npx"
+            all_protein_medians = _all_protein_median_null_olink()
+        else:
+            summ = compute_summary(target, None, {}, n_panel=panel_size)
+            summ["protein_abundance_source"] = "data_unavailable"
+            return summ
+    else:
+        # PANEL-WIDE Gygi all-protein median null so broadly_high is decided panel-relative (H3 fix):
+        # a protein is "broadly_high" when its median is in the top (1-HIGH_ABUNDANCE_PERCENTILE) of ALL
+        # proteins, not relative to its own spread. Same cached null as the display percentile.
+        all_protein_medians = _all_protein_median_null(matrix_path)
     lineage = load_model_lineage(model_path=model_path)
-    # Pass the PANEL-WIDE all-protein median null so broadly_high is decided panel-relative (H3 fix):
-    # a protein is "broadly_high" when its median abundance is in the top (1-HIGH_ABUNDANCE_PERCENTILE)
-    # of ALL proteins, not relative to its own spread. Same cached null as the display percentile.
     summary = compute_summary(target, col, lineage, n_panel=panel_size,
-                              all_protein_medians=_all_protein_median_null(matrix_path))
+                              all_protein_medians=all_protein_medians)
+    summary["protein_abundance_source"] = source
     if plot_data_out is not None:  # figure Stage 1: persist plot_data during resolution (best-effort)
         try:
             _pd = Path(plot_data_out)
