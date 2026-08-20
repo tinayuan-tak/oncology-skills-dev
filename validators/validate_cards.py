@@ -343,6 +343,8 @@ KNOWN_FIGURE_DEBT = {
     'copy-number-stratified-dependency',   # A1a (2026-08-06) — amp-vs-neutral strip emitter deferred (viz-debt queue)
     'fusion-stratified-dependency',   # A1-fusion (2026-08-06) — fusion-vs-negative strip emitter deferred (viz-debt queue)
     'amp-expr-stratified-dependency',   # A1 amp-expr (2026-08-06) — conjoint amp+overexpr strip emitter deferred (viz-debt queue)
+    'alteration-clinical-association',   # Q11-alteration (2026-08-20) — OS-by-mutation-status card; emit_svg in method cli, skills CARD_FIGURE_EMITTERS registration deferred (viz-debt queue)
+    'subtype-survival-association',   # Q2-subtype (2026-08-20) — OS-across-subtypes card; emit_svg in method cli, skills CARD_FIGURE_EMITTERS registration deferred (viz-debt queue)
     'oncogenic-pathway-alteration',   # Sanchez-Vega (2026-08-10) — pathway-alteration bar emitter deferred (viz-debt queue)
     'stemness-context',   # Malta 2018 (2026-08-10) — stemness distribution emitter deferred (viz-debt queue)
     'target-development-level',   # Pharos/IDG (2026-08-10) — TDL tier bar emitter deferred (viz-debt queue)

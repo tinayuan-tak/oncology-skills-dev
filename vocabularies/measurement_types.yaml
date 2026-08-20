@@ -1240,6 +1240,49 @@ measurement_types:
     providers:
       - {kind: dataset, source: precog-prognostic-meta-z-per-indication-v1, evidence_tier: measured}
 
+  patient_somatic_mutation_status:
+    claim: "Does a patient carry a somatic mutation in the target (per-patient mutant/WT from the TCGA MC3 MAF)?"
+    # INPUT-ONLY type (cards: []) — a per-patient TCGA somatic-mutation call, registered because it is a
+    # derived_from INPUT to alteration_clinical_association. The COHORT (WT denominator) is the set of
+    # MC3-profiled patients in the indication (the product's `indication` column). Surfaced through the
+    # card that associates it against survival, never standalone.
+    entity_grains: [target_indication]   # carried per (target, indication) query, though mutation is patient-level
+    cards: []
+    providers:
+      - {kind: dataset, source: tcga-mc3-per-sample-maf-v1, evidence_tier: measured}   # MC3 per-sample MAF
+
+  patient_molecular_subtype:
+    claim: "Which molecular subtype does a patient belong to (per-patient subtype label from a TCGA subgroup-assignment shard)?"
+    # INPUT-ONLY type (cards: []) — a per-patient TCGA molecular-subtype assignment, registered because it
+    # is a derived_from INPUT to subtype_survival_association. Resolved per indication (COADREAD→CMS/MSI/
+    # sidedness, etc.). Surfaced through the card that associates subtype against survival, never standalone.
+    entity_grains: [target_indication]   # carried per (target, indication) query, though subtype is patient-level
+    cards: []
+    providers:
+      - {kind: dataset, source: tcga-subgroup-assignments-coadread-v1, evidence_tier: measured}   # representative TCGA subtype shard
+
+  alteration_clinical_association:
+    claim: "Does target mutation status stratify patient survival in the indication (prognostic association)?"
+    # Q11-alteration — mutation-status OS log-rank. A derived comparison (mutation × survival). HYPOTHESIS-
+    # GENERATING (univariate/unadjusted), NOT a clinical claim. The alteration analog of Q11
+    # expression_clinical_association. Routes: Patient-population / clinical context + biomarker facet.
+    # Biology axis; no modality facet. Verdict-inert.
+    entity_grains: [target_indication]
+    cards: [alteration-clinical-association]
+    providers:
+      - {kind: derived_from, inputs: [patient_somatic_mutation_status, patient_survival_cdr], method: mutation_split_logrank, evidence_tier: measured}
+
+  subtype_survival_association:
+    claim: "Does overall survival differ across the indication's molecular subtypes (subtype × survival)?"
+    # Q2-subtype — omnibus (k-group) OS log-rank across molecular subtypes. INDICATION-level (target-
+    # independent). HYPOTHESIS-GENERATING (univariate/unadjusted), NOT a clinical claim. The subtype arm of
+    # the differentiation prognostic question. Routes: Patient-population / clinical context + biomarker
+    # facet (subtype prognostic stratification). Biology axis; no modality facet. Verdict-inert.
+    entity_grains: [target_indication]
+    cards: [subtype-survival-association]
+    providers:
+      - {kind: derived_from, inputs: [patient_molecular_subtype, patient_survival_cdr], method: omnibus_logrank, evidence_tier: measured}
+
   mutation_clonality:
     claim: "In-indication, is target's driver mutation CLONAL (truncal, durable) or SUBCLONAL (relapse-prone)?"
     # ccf (TCGA-MC3 VAF corrected for PanCanAtlas ABSOLUTE tumor purity) per (gene x indication);

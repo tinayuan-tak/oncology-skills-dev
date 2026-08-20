@@ -3876,6 +3876,135 @@ rules:
       gap; not used as opposing evidence.
 
   # ============================================================================
+  # ALTERATION CLINICAL ASSOCIATION (Q11-alteration — does MUTATION status stratify survival?) — 2026-08-20
+  # ============================================================================
+  # The alteration analog of the expression prognostic rules above (the genomic-feature-vs-survival gap).
+  # HYPOTHESIS-GENERATING (univariate/unadjusted), so signals are MODEST — a prognostic association is a
+  # confidence/context qualifier + biomarker-facet input, NEVER a primary driver and never a killer.
+  - rule_id: alteration-mutated-worse-survival-supportive
+    when:
+      card_id: alteration-clinical-association
+      field: alteration_survival_association_class
+      equals: alteration_mutated_worse_survival
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      A somatic {target} mutation associates with WORSE overall survival (significant mutation-status
+      log-rank). A candidate POOR-PROGNOSIS alteration — mildly SUPPORTIVE: it strengthens the
+      disease-relevance + patient-selection rationale (mutation-carrying patients have worse outcomes,
+      the population that most needs a therapy). Univariate/exploratory (see caveats), a confidence
+      qualifier + biomarker-facet input, not a primary driver.
+
+  - rule_id: alteration-mutated-better-survival-neutral
+    when:
+      card_id: alteration-clinical-association
+      field: alteration_survival_association_class
+      equals: alteration_mutated_better_survival
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      A somatic {target} mutation associates with BETTER overall survival (significant). A CAUTION for
+      the prognostic rationale — the alteration may mark INDOLENT disease. Neutral (NOT opposing —
+      mutation-survival direction does not determine druggability); a patient-selection context flag,
+      read alongside the dependency + genomic-driver evidence.
+
+  - rule_id: alteration-no-survival-association-neutral
+    when:
+      card_id: alteration-clinical-association
+      field: alteration_survival_association_class
+      equals: no_survival_association
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      {target} mutation status does not significantly stratify overall survival in this indication. No
+      prognostic signal from this axis — neutral (a target can be a valid dependency / driver without a
+      prognostic mutation-survival association; survival is stage-dominated).
+
+  - rule_id: alteration-insufficient-survival-data-insufficient
+    when:
+      card_id: alteration-clinical-association
+      field: alteration_survival_association_class
+      equals: insufficient_survival_data
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Too few mutated patients (a rare mutation) or too few deaths for a meaningful log-rank. Coverage /
+      power gap, not opposing evidence.
+
+  - rule_id: alteration-survival-data-unavailable-insufficient
+    when:
+      card_id: alteration-clinical-association
+      field: alteration_survival_association_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No per-sample MC3 MAF or no TCGA-CDR survival for this (target, indication). Coverage gap; not
+      used as opposing evidence.
+
+  # ============================================================================
+  # SUBTYPE SURVIVAL ASSOCIATION (Q2-subtype — does OS differ across molecular subtypes?) — 2026-08-20
+  # ============================================================================
+  # The SUBTYPE arm of the prognostic question. TARGET-INDEPENDENT (indication-level patient-selection
+  # context), so even a significant cross-subtype survival difference is NEUTRAL context, never a
+  # target-supportive driver — it localizes WHICH subtype carries the worse outcome, read alongside the
+  # by-subtype dependency / expression cards.
+  - rule_id: subtype-stratifies-survival-neutral
+    when:
+      card_id: subtype-survival-association
+      field: subtype_survival_association_class
+      equals: subtype_stratifies_survival
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Overall survival differs significantly across this indication's molecular subtypes (omnibus
+      log-rank). Prognostic CONTEXT for patient selection (which subtype has the worse outcome) —
+      NEUTRAL: it is target-INDEPENDENT and does not itself speak to {target}'s druggability. Pair with
+      the by-subtype dependency / expression cards to localize {target}'s subtype.
+
+  - rule_id: subtype-no-survival-association-neutral
+    when:
+      card_id: subtype-survival-association
+      field: subtype_survival_association_class
+      equals: no_subtype_survival_association
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Overall survival does not significantly differ across this indication's molecular subtypes. No
+      subtype prognostic signal — neutral context.
+
+  - rule_id: subtype-insufficient-survival-data-insufficient
+    when:
+      card_id: subtype-survival-association
+      field: subtype_survival_association_class
+      equals: insufficient_survival_data
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Fewer than two subtype strata clear the per-arm floor, or too few deaths, for a meaningful omnibus
+      log-rank. Coverage / power gap, not opposing evidence.
+
+  - rule_id: subtype-survival-data-unavailable-insufficient
+    when:
+      card_id: subtype-survival-association
+      field: subtype_survival_association_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No TCGA-side subtype subgroup-assignment shard for this indication, or no TCGA-CDR survival.
+      Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
   # PHOSPHO PATHWAY ACTIVITY (Q8 — target biology at the phospho level) — 2026-07-23
   # ============================================================================
   # From CPTAC phospho: is the target phosphorylated (pathway-activity proxy), beyond total abundance?
