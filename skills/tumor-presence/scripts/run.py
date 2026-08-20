@@ -64,7 +64,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.9.0"
+SKILL_VERSION = "1.10.0"
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -256,12 +256,41 @@ def _rank_verdict(fired: list[dict], ladder: list[tuple[str, str]] | None = None
     return "insufficient", None
 
 
+# Rule-id sets by lens/polarity (from the partitions above) — used by the post-collapse protein-absence
+# demotion. Expression(RNA)-positive rungs, protein-positive rungs, protein-NEGATIVE rungs.
+_EXPR_POS_RIDS = frozenset(rid for rid, _ in _EXPR_POS)
+_PROT_POS_RIDS = frozenset(rid for rid, _ in _PROT_POS)
+_PROT_NEG_RIDS = frozenset(rid for rid, _ in _PROT_NEG)
+
+# The demoted-positive verdict (Principle 1 Stage B). Minted post-collapse: it is a CONJUNCTION
+# (RNA-positive AND a MEASURED protein-negative AND no protein-positive), which the single-field ladder
+# grammar cannot express as a rung. It is still a PRESENT call (RNA established presence), so
+# _is_presence_positive treats it as positive — but the WORD now carries the protein-absence caveat, so
+# a consumer reading only the one-word verdict (not presence_verdict_by_modality) is not falsely
+# reassured. Verdict-inert to the nomination spine (presence ∉ target-profile _SHORT_TO_GATE).
+PRESENT_RNA_ONLY_PROTEIN_ABSENT = "present_rna_only_protein_absent"
+
+
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """COLLAPSED presence verdict across ALL modalities — the audit spine the target-profile consumer +
     risk table read as `verdict`. Resolved INLINE (not via a *.resolver.yaml) by design; see CONTRACT.md
-    § "Why the verdict is resolved inline". Frozen by test_full_per_modality_golden_spine + the
-    regression matrix."""
-    return _rank_verdict(fired)
+    § "Why the verdict is resolved inline". Frozen by test_per_modality_verdict.py + the ladder-invariant
+    + regression matrices.
+
+    Post-collapse PROTEIN-ABSENCE DEMOTION (Principle 1 Stage B): the positives-over-negatives collapse
+    ranks an RNA positive above a MEASURED protein-negative, so an RNA-high target whose protein is
+    measured `not_detected`/`broadly_low` would otherwise read as an un-caveated present call in the one
+    word. When the winning rung is an RNA(expression)-lens positive AND a protein-negative rule fired AND
+    NO protein-positive fired, the verdict is demoted to `present_rna_only_protein_absent` (still a
+    present call — the driving RNA rung is retained for traceability — but the word now carries the
+    caveat that the shipped `presence_headline_conflict` flag also surfaces)."""
+    v, drv = _rank_verdict(fired)
+    fired_rids = {r["rule_id"] for r in fired}
+    if (drv in _EXPR_POS_RIDS
+            and (fired_rids & _PROT_NEG_RIDS)
+            and not (fired_rids & _PROT_POS_RIDS)):
+        return PRESENT_RNA_ONLY_PROTEIN_ABSENT, drv
+    return v, drv
 
 
 # Safety-comparator buckets: the card's OWN rules are on the safety/selectivity axis, not presence, so

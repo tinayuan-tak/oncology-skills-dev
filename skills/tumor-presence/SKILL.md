@@ -44,7 +44,7 @@ description: |
   POST-HOC lens exposed via the optional --modality flag.
 
 metadata:
-  version: 1.9.0
+  version: 1.10.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

@@ -211,14 +211,37 @@ def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
     assert pm["bulk_rna/tumor"]["evidence_state"] == "data_unavailable"
 
 
-def test_rna_high_protein_low_disagreement_is_legible():
-    """The taxonomy's core payoff: collapsed verdict unchanged, but the per-bucket
-    breakdown EXPOSES that tumor protein contradicts cell-line RNA."""
+def test_rna_high_protein_low_disagreement_demotes_collapsed_verdict():
+    """RNA broadly_high + a MEASURED tumor-protein negative (protein_strongly_downregulated). Post the
+    protein-absence demotion (Principle 1 Stage B, 2026-08-20), the collapsed verdict is no longer the
+    un-caveated `broadly_high_expression` (which buried the protein contradiction under the one word) —
+    it demotes to `present_rna_only_protein_absent` (still a present call; the driving RNA rung is
+    retained). The per-bucket breakdown continues to expose the RNA/protein disagreement directly."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("protein-strongly-down-opposing", "tumor-protein-abundance-cptac")]
-    assert tp._verdict(fired)[0] == "broadly_high_expression"   # collapsed unchanged (RNA wins)
+    v, drv = tp._verdict(fired)
+    assert v == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
+    assert drv == "expression-broadly-high-supportive"          # traceable to the RNA presence rung
+    assert tp._is_presence_positive(v)                          # still a present call, just caveated
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna/cell_line"]["verdict"] != pm["bulk_protein_ms/tumor"]["verdict"]
+
+
+def test_protein_absence_demotion_requires_all_three_conditions():
+    """The demotion fires ONLY on (RNA-lens positive) AND (a measured protein-negative) AND (no protein-
+    positive). Each condition alone leaves the ordinary collapse untouched."""
+    rna = _fr("expression-broadly-high-supportive", "cellline-rna-distribution")
+    prot_neg = _fr("protein-not-detected-degrader-killer", "tumor-protein-abundance-cptac")
+    prot_pos = _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")
+    # RNA positive alone → ordinary RNA verdict (no protein negative)
+    assert tp._verdict([rna])[0] == "broadly_high_expression"
+    # RNA positive + protein NEGATIVE + no protein positive → demoted
+    assert tp._verdict([rna, prot_neg])[0] == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
+    # RNA positive + protein negative + protein POSITIVE → NOT demoted (protein corroborates presence)
+    assert tp._verdict([rna, prot_neg, prot_pos])[0] == "broadly_high_expression"
+    # protein negative WITHOUT an RNA-lens positive → ordinary negative, never demoted-positive
+    v, _ = tp._verdict([prot_neg])
+    assert v == "protein_not_detected" and not tp._is_presence_positive(v)
 
 
 # --- honest gaps: unbuilt substrates are data_unavailable, never negative ---

@@ -196,6 +196,18 @@ golden-spine test + the guards' own unit tests):
   an interpretation note. It stays silent on a measured *neutral* (e.g. CPTAC `present_not_elevated`) and
   on coverage gaps — those are not killers. Mirrors the `cell_line_vs_tumor_discordant` guard pattern.
 
+  **Stage B (verdict-moving, 1.10.0)** — Stage A (above) makes the buried killer legible; Stage B also
+  changes the WORD. When the winning rung is an RNA(expression)-lens positive AND a MEASURED
+  protein-negative fired AND no protein-positive fired, `_verdict` demotes the collapsed
+  `presence_verdict` to **`present_rna_only_protein_absent`** (a distinct value minted post-collapse — a
+  conjunction the single-field ladder grammar cannot express as a rung). It is still a PRESENT call
+  (`_is_presence_positive` → True; the driving RNA rung is retained for traceability), so it is not a
+  false-negative — but a consumer reading only the one word (not `presence_verdict_by_modality`) is no
+  longer falsely reassured that protein was confirmed. Verdict-inert to the nomination spine
+  (presence ∉ target-profile `_SHORT_TO_GATE`; 720 consumer tests unchanged). Regression-covered by
+  `test_per_modality_verdict.py::{test_rna_high_protein_low_disagreement_demotes_collapsed_verdict,
+  test_protein_absence_demotion_requires_all_three_conditions}`.
+
 - **`abundance_floor_flag`** (Principle 2 — *breadth ≠ level*). The presence classes are
   breadth-of-detection dominant: a protein detected in 100% of cell lines but sitting at the bottom decile
   of all-protein abundance still classes `broadly_moderate`. The flag reads `present_low_abundance` when a
@@ -226,6 +238,7 @@ never committed. The synthetic flip-class assertions in `test_reanchor_flip_matr
 
 | version | date | change |
 |---|---|---|
+| 1.10.0 | 2026-08-20 | **Verdict-moving**: protein-absence demotion (Principle 1 Stage B) — an RNA-lens positive with a MEASURED protein-negative and no protein-positive now collapses to the new value `present_rna_only_protein_absent` (still a present call; driving RNA rung retained) instead of an un-caveated RNA positive that buried the protein contradiction. Verdict-inert to the nomination spine. |
 | 1.9.0 | 2026-08-20 | Verdict-inert robustness guards: `presence_headline_conflict` (buried measured-negative), `abundance_floor_flag` (breadth≠level, caps claim-A corroboration), `presence_abundance_is_relative` ceiling flag; claim-vector Claim-D corroboration now scales with cohorts-tested (was hardcoded `moderate`). Ladder-invariant + no-dangerous-flip governance test. Spine byte-stable. |
 | 1.8.0 | 2026-08-18 | Production cleanup: run.py slimmed (rationale moved here); single-cell detail (per-compartment / CAF / homogeneity / abundance / dataset counts) and normal-tissue liability tier + top-N surfaced into the headline and synthesis facet; STAD sc coverage documented. Additive — verdict spine byte-stable. |
 | 1.7.0 | 2026-08-14 | Tumor-tissue lens re-anchored above the pan-cancer cell-line proxy in `_EXPRESSION_RANK` (backtest-gated, verdict-moving). |
