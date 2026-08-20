@@ -153,6 +153,40 @@ def _headline(cards, fired, verdict_pair):
     }
 
 
+# The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet").
+# combo-and-resistance is DUAL-verdict: the fan-out lifts the COMBINATION verdict via _verdict (its
+# primary, axis combination_opportunity), but the RESISTANCE verdict is computed in _headline (secondary,
+# axis resistance_emergence) and would otherwise be dropped from the composed profile. This facet reuses
+# _headline (single source of truth) and surfaces BOTH verdicts + their key signals, so the composed
+# synthesis sees the resistance mediators (NF1/KEAP1/NF2-style rescues) it was previously blind to.
+# VERDICT-INERT: both verdicts are gateless (absent from _SHORT_TO_GATE); nothing here enters the
+# nomination spine. Closes arch-review R9.
+_SYNTHESIS_FACET_KEYS = (
+    # combination half
+    "combination_verdict", "driving_rule_id", "combination_opportunity_class",
+    "anchor_drug", "anchor_mechanism", "strongest_co_target", "top_co_targets",
+    # resistance half (the previously-dropped verdict)
+    "resistance_verdict", "resistance_driving_rule_id", "resistance_emergence_class",
+    "n_resistance_mediators", "strongest_resistance_mediator", "top_resistance_mediators",
+    "tahoe_adaptation_class",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT combination+resistance facet for the composed target-profile synthesis.
+    Reuses `_headline` (single source of truth) so BOTH the combination verdict AND the resistance
+    verdict (+ mediators) reach the cross-lens layer. Never moves the verdict; safe to omit."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = (
+        "Deterministic combination + resistance facet from combo-and-resistance (DEPmap drug-anchor "
+        "CRISPR screens). combination_verdict = which co-targets become MORE essential under {target} "
+        "inhibition (co-targeting rationale); resistance_verdict = which knockouts RESCUE (candidate "
+        "resistance mediators). Both are gateless/verdict-inert to the nomination spine — combination "
+        "biology, not a monotherapy nomination signal.")
+    return facet
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,

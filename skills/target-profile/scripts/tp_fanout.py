@@ -137,6 +137,7 @@ SUB_SKILLS = [
     ("functional-requirement",         "dependency"),
     ("synthetic-lethal-partners",      "synthetic_lethal_partners"),  # gate-C SL veto-suppressor input (curated SynLethDB)
     ("combinatorial-dependency",       "combinatorial_dependency"),   # MEASURED dual-KO SL complement (DepMap ParalogV2 + published GI). ADDITIVE: self-contained inline verdict, NO resolver gate → absent from _SHORT_TO_GATE (like `expression`), so it is surfaced in sub_verdicts + the LLM synthesis but does NOT drive the nomination spine (recommendation byte-stable). Thickens the single-source SynLethDB SL axis (2026-08-14 consolidation-fidelity follow-up).
+    ("combo-and-resistance",           "combination_opportunity"),    # R9 (2026-08-20): DEPmap drug-anchor CRISPR — combination opportunities (co-targets more essential under inhibition) + resistance mediators (KOs that RESCUE; NF1/KEAP1/NF2 for KRAS). GATELESS/ADDITIVE like combinatorial-dependency: combination is the primary _verdict (short=combination_opportunity), resistance is DUAL — surfaced via combo-and-resistance's _synthesis_facet (both axes fired below). Absent from _SHORT_TO_GATE → verdict-inert to the nomination spine (recommendation byte-stable). Was LIVE but omitted from the fan-out.
     ("mechanism-and-pharmacology",     "mechanism"),
     ("genomic-alteration-profile",     "genomic_alteration"),  # reframed from mutation-profile
     ("differentiation-landscape",      "differentiation"),
@@ -324,6 +325,10 @@ SUB_SKILL_CARDS = {
     "combinatorial-dependency": [
         "combinatorial-dependency",      # DepMap ParalogV2 dual-KO GI + published corroboration
                                          # (Dede/in4mer/Horlbeck). Matches the skill's SKILL.md cards_used.
+    ],
+    "combo-and-resistance": [
+        "combo-crispr-screen",           # DepMap drug-anchor CRISPR — combination opportunities
+        "resistance-emergence-signature",  # sign-mirror rescue arm — resistance mediators + Tahoe adaptation
     ],
     "cis-feature-coherence": [
         "cis-feature-expression-coherence",  # GoF leg-1: CN -> own-expression cis-dosage (amplification)
@@ -626,7 +631,8 @@ def _run_sub_skills(target: str, indication: str,
     # here the fan-out fired NO combinatorial rules → the axis always resolved `insufficient` in the
     # composed profile (a hollow composition) while the standalone skill read constitutive/context. Other
     # sub-skills lack the combinatorial-dependency card, so this axis is a no-op for them (card_id_filter).
-    axes = ("intracellular_intrinsic", "surface_intrinsic", "combinatorial_dependency", "cis_coherence")
+    axes = ("intracellular_intrinsic", "surface_intrinsic", "combinatorial_dependency", "cis_coherence",
+            "combination_opportunity", "resistance_emergence")
 
     def _one_sub_skill(skill_dir: str, short: str) -> tuple[str, dict]:
         """Compute one sub-skill's (cards, fired, verdict). Pure over (target, indication) +

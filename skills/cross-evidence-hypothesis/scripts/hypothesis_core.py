@@ -46,6 +46,7 @@ SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 # >1 dimension (multi-lens); that is fine — surfacing any member credits the dimension.
 DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "combinatorial_dependency": frozenset({"combinatorial-dependency"}),
+    "combination_opportunity": frozenset({"combo-crispr-screen", "resistance-emergence-signature"}),  # R9: mirrors SUB_SKILL_CARDS[combo-and-resistance]
     "cis_coherence": frozenset({
         "cis-feature-expression-coherence", "cellline-methylation-expression-coherence",
         "expression-dependency-correlation",
