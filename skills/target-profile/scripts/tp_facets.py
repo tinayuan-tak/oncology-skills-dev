@@ -64,9 +64,17 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
     if positive_hits:
         shorts = sorted({h["short"] for h in positive_hits})
         rows = [_row(s) for s in shorts]
+        # R15: describe the routing from the actual BAND of the supporting axes, not a blanket "necessity
+        # biology" — some positive axes are sufficiency-band (tractability_sm, surface_modality), so
+        # labelling them "necessity" mis-states what was evidenced.
+        _nec = any(r.get("band") == "necessity" for r in rows)
+        _suf = any(r.get("band") and r.get("band") != "necessity" for r in rows)
+        _kind = ("necessity + sufficiency evidenced" if _nec and _suf
+                 else "necessity biology evidenced" if _nec
+                 else "sufficiency / supporting evidence")
         return {"basis": "positive_signal", "coverage_source": source,
                 "deciding_axes": rows,
-                "routing": f"supported by {', '.join(shorts)} (necessity biology evidenced)."}
+                "routing": f"supported by {', '.join(shorts)} ({_kind})."}
 
     # (3) Abstaining → report the NECESSITY gates we could NOT evidence this run + their standing.
     # This is the routing instruction: "the decision lives in a gate we're blind on."
@@ -1302,7 +1310,10 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
         source = "curated_override"
         if dominant == "mixed":
             secondary = None
-        confidence = "high"
+        # R11: a curated override pins the DOMINANT mode, but confidence must reflect THIS run's arms —
+        # else a thin/one-sided run (every arm unknown/none) falsely reads `high`. High only when at least
+        # one arm was actually measured this run; otherwise curation-anchored `moderate`.
+        confidence = "high" if any(t not in ("unknown", "none") for t in arms.values()) else "moderate"
         deriv.append(f"curated_override(target={target}) -> {dominant} [{(override.get('rationale') or '')[:80]}]")
 
     return {

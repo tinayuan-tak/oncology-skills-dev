@@ -134,17 +134,28 @@ _MODE_BANNER = {
 }
 
 
-def _mode_ordered_shorts(shorts, actionability_mode: Optional[dict]):
-    """Reorder the sub-result shorts so the mode's LEAD axes come first (present ones only), the rest
-    follow in their original order. Pure reorder — nothing dropped/hidden (gating axes always render)."""
+def _deciding_shorts(deciding_axis: Optional[dict]) -> list:
+    """The deciding-axis hinge short(s): the gate/positive axis that set the verdict. Handles both the
+    single 'deciding_axis' (gate_fired) and 'deciding_axes' (positive_signal) shapes; [] otherwise."""
+    if not deciding_axis:
+        return []
+    if deciding_axis.get("deciding_axis"):
+        s = deciding_axis["deciding_axis"].get("short")
+        return [s] if s else []
+    return [r.get("short") for r in deciding_axis.get("deciding_axes", []) if r.get("short")]
+
+
+def _mode_ordered_shorts(shorts, actionability_mode: Optional[dict], deciding_axis: Optional[dict] = None):
+    """Reorder the sub-result shorts so the DECIDING axis (the verdict hinge) leads, then the mode's LEAD
+    axes, then the rest in original order. Pure reorder — nothing dropped/hidden (gating axes always
+    render). R12: the deciding axis is prepended so actionability-mode emphasis can never bury the axis
+    that actually set the verdict (emphasis and hinge were previously unreconciled)."""
     shorts = list(shorts)
-    if not actionability_mode:
-        return shorts
-    lead = _MODE_LEAD_AXES.get(actionability_mode.get("dominant"))
-    if not lead:
-        return shorts
-    head = [s for s in lead if s in shorts]
-    return head + [s for s in shorts if s not in head]
+    order = [s for s in _deciding_shorts(deciding_axis) if s in shorts]
+    lead = _MODE_LEAD_AXES.get(actionability_mode.get("dominant")) if actionability_mode else None
+    if lead:
+        order += [s for s in lead if s in shorts and s not in order]
+    return order + [s for s in shorts if s not in order]
 
 
 def _render_target_profile_md(
@@ -173,9 +184,14 @@ def _render_target_profile_md(
     # for a resolved mode; insufficient/absent → no banner (unchanged from pre-Phase-3).
     if actionability_mode and actionability_mode.get("dominant") in _MODE_BANNER:
         _m = actionability_mode
+        # R13: surface override provenance (source + the run's derived call) so a reader can see when the
+        # dominant mode is CURATED vs derived from this run's evidence — "mixed [curated; derived = ...]".
+        _prov = ""
+        if _m.get("source") == "curated_override":
+            _prov = f"; source: curated, derived this run = `{_m.get('derived_dominant')}`"
         lines += [
             "",
-            f"**Actionability mode: `{_m['dominant']}`** (confidence: {_m.get('confidence')}) — "
+            f"**Actionability mode: `{_m['dominant']}`** (confidence: {_m.get('confidence')}{_prov}) — "
             f"{_MODE_BANNER[_m['dominant']]}",
             "_Emphasis only: the per-skill sections below lead with the mode-relevant axes. The verdict "
             "spine and all gating axes (dependency / safety) are unchanged and shown in full._",
@@ -331,7 +347,7 @@ def _render_target_profile_md(
                  "summaries. Use these to trace a verdict back to its "
                  "supporting data.")
     lines.append("")
-    for short in _mode_ordered_shorts(sub_results.keys(), actionability_mode):
+    for short in _mode_ordered_shorts(sub_results.keys(), actionability_mode, deciding_axis):
         r = sub_results[short]
         fields = PHASE_METRIC_FIELDS.get(short, [])
         if not fields:
