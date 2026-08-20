@@ -119,3 +119,37 @@ def test_field_names_are_corroboration_not_reliability():
     """Post reliability→corroboration rename (#545): the claim dicts carry `corroboration`."""
     vec = selectivity_claim_vector(_ceacam5_headline(), [])
     assert "corroboration" in vec["WIN"] and "reliability" not in vec["WIN"]
+
+
+# ── citable evidence atoms (values bound to {card_id, fields} + entity) ──────────────────────────────
+def _selectivity_cards():
+    """Minimal selectivity source-card summaries mirroring the real COADREAD package fields."""
+    return [
+        {"card_id": "tumor-vs-normal-selectivity", "summary": {
+            "selectivity_class": "discordant_across_comparators", "max_abs_log2fc": 0.6398,
+            "cells_supporting": 2, "cells_ran": 3, "comparator_concordance": "discordant"}},
+        {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {
+            "selectivity_class": "minimally_enriched", "fraction_tumor_above_normal_p95": 0.1928,
+            "distribution_overlap_tumor_normal": 0.6926, "n_tumor_samples": 669}},
+        {"card_id": "sc-normal-celltype-expression", "summary": {
+            "sc_normal_safety_essential_class": "critical_organ_liability",
+            "sc_normal_expression_class": "HIGH_LIABILITY", "n_cell_types_above_20pct": 499}},
+    ]
+
+
+def test_selectivity_atoms_present_and_citable_with_cards():
+    vec = selectivity_claim_vector(_ceacam5_headline(), _selectivity_cards())
+    win = vec["WIN"]["evidence_atom"]
+    assert win["cite"]["card_id"] == "tumor-vs-normal-selectivity"
+    assert win["values"]["max_abs_log2fc"] == 0.6398           # effect size, citable
+    assert vec["DIST"]["evidence_atom"]["values"]["distribution_overlap_tumor_normal"] == 0.6926
+    # SAFE atom carries the normal-tissue window liability (the veto instrument's quantitative basis)
+    safe = vec["SAFE"]["evidence_atom"]
+    assert safe["cite"]["card_id"] == "sc-normal-celltype-expression"
+    assert safe["values"]["n_cell_types_above_20pct"] == 499
+
+
+def test_selectivity_atoms_absent_without_cards():
+    vec = selectivity_claim_vector(_ceacam5_headline(), [])
+    for ax in ("WIN", "DIST", "INT", "SAFE"):
+        assert "evidence_atom" not in vec[ax], f"{ax} gained an atom with no source card"

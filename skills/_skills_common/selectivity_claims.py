@@ -165,11 +165,63 @@ def _safe_corroboration(h, c):
     return "high" if liab == expr_liab else "moderate"
 
 
+# ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────
+# Bind each selectivity axis's load-bearing VALUES to its source {card_id, fields} + entity, so the
+# cross-evidence reasoner can cite the number (effect size + comparator support, distributional
+# separation + overlap, malignant fraction, normal-tissue breadth) rather than the bare class label.
+# Read from the SOURCE card summaries (cards_by_id) for correct per-card citation; verdict-inert;
+# returns None when the source card is absent (axis stays byte-stable — no evidence_atom key).
+def _satom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
+    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
+    if not vals:
+        return None
+    return {"read": read, "values": vals,
+            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+
+
+def _win_atom(h, c):
+    cid = "tumor-vs-normal-selectivity"
+    return _satom(cid, c.get(cid) or {},
+                  ("selectivity_class", "max_abs_log2fc", "cells_supporting", "cells_ran",
+                   "comparator_concordance", "dominant_direction"),
+                  {"measurement_type": "tumor_vs_normal_selectivity", "sample_context": "tumor"},
+                  (c.get(cid) or {}).get("selectivity_class"))
+
+
+def _dist_atom(h, c):
+    cid = "tumor-vs-normal-percentile-crossing"
+    return _satom(cid, c.get(cid) or {},
+                  ("selectivity_class", "fraction_tumor_above_normal_p95",
+                   "distribution_overlap_tumor_normal", "n_tumor_samples", "n_normal_samples"),
+                  {"measurement_type": "tumor_vs_normal_percentile_crossing", "sample_context": "tumor"},
+                  (c.get(cid) or {}).get("selectivity_class"))
+
+
+def _int_atom(h, c):
+    cid = "tumor-scrna-celltype-expression"
+    return _satom(cid, c.get(cid) or {},
+                  ("sc_expression_class", "malignant_detection_fraction", "caf_vs_malignant_class",
+                   "top_microenvironment_compartment", "malignant_n_donors"),
+                  {"measurement_type": "sc_tumor_celltype_expression", "sample_context": "tumor",
+                   "grain": "single_cell"},
+                  (c.get(cid) or {}).get("sc_expression_class"))
+
+
+def _safe_atom(h, c):
+    cid = "sc-normal-celltype-expression"
+    return _satom(cid, c.get(cid) or {},
+                  ("sc_normal_safety_essential_class", "sc_normal_expression_class",
+                   "n_cell_types_above_20pct", "max_detection_fraction"),
+                  {"measurement_type": "sc_normal_celltype_expression", "sample_context": "normal",
+                   "grain": "single_cell"},
+                  (c.get(cid) or {}).get("sc_normal_safety_essential_class"))
+
+
 SELECTIVITY_CLAIM_SPEC = [
-    ClaimSpec("WIN", "tumor-vs-normal window", _win_signal, _win_corroboration, _INFORMS["WIN"]),
-    ClaimSpec("DIST", "distributional separation", _dist_signal, _dist_corroboration, _INFORMS["DIST"]),
-    ClaimSpec("INT", "tumor-cell-intrinsic", _int_signal, _int_corroboration, _INFORMS["INT"]),
-    ClaimSpec("SAFE", "normal-tissue window", _safe_signal, _safe_corroboration, _INFORMS["SAFE"]),
+    ClaimSpec("WIN", "tumor-vs-normal window", _win_signal, _win_corroboration, _INFORMS["WIN"], _win_atom),
+    ClaimSpec("DIST", "distributional separation", _dist_signal, _dist_corroboration, _INFORMS["DIST"], _dist_atom),
+    ClaimSpec("INT", "tumor-cell-intrinsic", _int_signal, _int_corroboration, _INFORMS["INT"], _int_atom),
+    ClaimSpec("SAFE", "normal-tissue window", _safe_signal, _safe_corroboration, _INFORMS["SAFE"], _safe_atom),
 ]
 
 _DISCLAIMER = (
