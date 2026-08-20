@@ -87,3 +87,19 @@ motivate it. Promoting a cell invokes `compose-dashboard` (`--runner`, default `
 run from the skills root); on success, open a **data-products PR** — that PR is the concurrence gate.
 The tool deliberately stops at generating the package: *which* cells become governed is a human
 review decision, not an automatic one.
+
+## Full target-profile publishing — `publish_profile.py` (`make profile`)
+
+`make profile TARGET=MET INDICATION=COADREAD` runs **target-profile** (the single composed
+generator) and publishes its full-profile `target_profile.html`:
+- **S3**: `s3://onc-compbio/framework-profiles/<T>-<I>/` (live) + `history/<date>/` + a presigned URL.
+- **GitHub**: the HTML as a dated `gh release` asset in **data-products** (`profile-<t>-<i>-<date>`) —
+  profiles are outputs, so their releases live with the outputs.
+- **Catalog (git-tracked)**: upserts `<data-products>/profiles.index.json` (+ `profiles.INDEX.md`) —
+  the durable, reviewable index of published profiles, storing STABLE pointers (release url + `s3://`
+  path, never the expiring presigned url). Commit + PR it to persist.
+
+The output registry (`build_output_registry.py`) reads `profiles.index.json` into `catalog.json`
+(`profiles` block), and the dashboard **Coverage tab links each cell to its published profile** — so
+the framework dashboard becomes a clickable index of the per-target deep-dives. Deterministic by
+default; `SYNTHESIZE=1` adds the Tier-3 LLM narrative (needs Bedrock).

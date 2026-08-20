@@ -408,6 +408,7 @@ def _coverage(g):
     s = C.get("summary", {})
     grid = C.get("grid", {})
     fr = C.get("firings", {})
+    profiles = C.get("profiles", {})   # cell -> {release_url, s3_prefix, ...}
     lanes = grid.get("lanes", [])
     cells = grid.get("cells", [])
     G = grid.get("grid", {})
@@ -458,7 +459,12 @@ def _coverage(g):
                 col = GREEN if c.get("tier") == "governed" else AMBER
                 v = str(c.get("verdict") or "✓")
                 tds += f'<td>{_chip(v[:48], col, v)}</td>'
-        rows += f'<tr><td class="nm">{_esc(cell)}</td>{tds}</tr>'
+        # link the cell to its published full target-profile when one exists (catalog keys T-I)
+        prof = profiles.get(cell.replace("/", "-"))
+        url = prof.get("release_url") if isinstance(prof, dict) else None
+        cell_cell = (f'<a href="{_esc(url)}" title="open full target profile">{_esc(cell)} ▸</a>'
+                     if url else _esc(cell))
+        rows += f'<tr><td class="nm">{cell_cell}</td>{tds}</tr>'
     table = (f'<table class="tbl matrix"><thead><tr><th>target / indication</th>{head}</tr></thead>'
              f'<tbody>{rows}</tbody></table>')
 

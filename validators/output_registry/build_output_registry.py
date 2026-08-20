@@ -352,17 +352,33 @@ def _render_html(entries: list[dict], cov: dict, stamp: str) -> str:
 
 
 # ----------------------------------------------------------------------------- main
+def _load_profiles(dp_root: str) -> dict:
+    """{cell -> profile entry} from the git-tracked <data-products>/profiles.index.json catalog
+    (maintained by publish_profile.py). Lets the coverage grid link each cell to its published
+    full target-profile dashboard. Empty when no catalog exists."""
+    p = Path(dp_root) / "profiles.index.json"
+    if not p.exists():
+        return {}
+    try:
+        return {e["cell"]: e for e in json.loads(p.read_text()).get("profiles", [])}
+    except (OSError, json.JSONDecodeError, KeyError):
+        return {}
+
+
 def build(dp_root: str, skill_runs_index: str, out: str, stamp: str) -> dict:
     runs = _load_skill_runs_index(skill_runs_index)
     entries = _governed_entries(dp_root) + _exploratory_entries(runs)
     cov = _coverage(entries)
     firings = _card_firings(dp_root, runs)
+    profiles = _load_profiles(dp_root)   # cell -> published-profile pointers (release_url, s3)
     cov["summary"]["n_cards_fired_governed"] = firings["n_governed"]
     cov["summary"]["n_cards_fired_exploratory_only"] = firings["n_exploratory_only"]
-    catalog = {"generated_at": stamp, "schema_version": 2,
+    cov["summary"]["n_published_profiles"] = len(profiles)
+    catalog = {"generated_at": stamp, "schema_version": 3,
                "sources": {"data_products": dp_root, "skill_runs_index": skill_runs_index},
                "summary": cov["summary"], "coverage": {k: cov[k] for k in ("lanes", "cells", "grid")},
                "card_firings": firings,
+               "profiles": profiles,
                "entries": entries}
     outp = Path(out)
     outp.mkdir(parents=True, exist_ok=True)

@@ -69,6 +69,7 @@ def load_coverage(dp_root: Path) -> dict | None:
         "summary": cat.get("summary", {}),
         "grid": cat.get("coverage", {}),          # {lanes, cells, grid}
         "firings": cat.get("card_firings", {}),
+        "profiles": cat.get("profiles", {}),      # cell -> published-profile pointers (link target)
     }
 
 
