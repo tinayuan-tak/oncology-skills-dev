@@ -222,6 +222,20 @@ golden-spine test + the guards' own unit tests):
   copies/cell. Surface topology and absolute antigen density are owned by `surface-modality-fit`; do not
   infer "enough antigen" for a modality decision from a presence-positive.
 
+- **`protein_confirmation_state`** (finding G5 — *name the untested case*). For a PRESENT collapsed
+  verdict, states whether protein was `confirmed` (measured present in the tumor-CPTAC or cell-line-MS
+  bucket), `measured_absent` (measured broadly_low / not_detected and nowhere confirmed present),
+  `untested` (no protein bucket is `measured` — RNA-only presence), or `not_applicable` (the collapsed
+  verdict is not a presence-positive). A protein PRESENT reading in ANY context wins (cell-line MS
+  under-samples surface antigens, so a tumor-present / cell-line-absent target is `confirmed`), mirroring
+  the positives-over-negatives collapse. **Design note:** the measured-ABSENT contradiction is a rare,
+  alarming state and is handled at the SPINE (`present_rna_only_protein_absent`); the UNTESTED case is
+  the MODAL case (most indications lack CPTAC / cell-line-MS) and is *lower confidence, not a different
+  presence state*, so it is surfaced HERE as a verdict-inert facet rather than minting a new default
+  spine word (which would rewrite the most common presence verdict and conflate confidence with
+  presence). The one word therefore stays byte-stable; read `protein_confirmation_state` (and the claim
+  vector) for the confidence behind it. Regression-covered by `tests/test_protein_confirmation_state.py`.
+
 ## Ladder governance (why an inline verdict is still guarded)
 
 Because the verdict is resolved inline (not via a `*.resolver.yaml`), the ladder ORDER — which encodes

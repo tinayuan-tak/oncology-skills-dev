@@ -497,6 +497,42 @@ def _abundance_floor(cards, collapsed_verdict):
     return ("present_low_abundance" if low else "adequate_abundance"), low
 
 
+# ─── Protein-confirmation state (VERDICT-INERT headline facet — finding G5) ───────────────
+# The collapsed one-word presence_verdict, for a positive-RNA target, can read `present` while protein
+# was never TESTED (most indications have no CPTAC / cell-line-MS coverage — the modal case). The
+# measured-ABSENT contradiction is handled at the spine (present_rna_only_protein_absent, a rare +
+# alarming state); the UNTESTED case is not a different presence STATE, it is lower CONFIDENCE, so it is
+# surfaced here as a legibility facet rather than minting a new default spine word (which would rewrite
+# the modal verdict and conflate confidence with presence-state). States:
+#   confirmed        — protein MEASURED PRESENT in >=1 protein bucket (tumor CPTAC or cell-line MS)
+#   measured_absent  — protein MEASURED ABSENT (broadly_low / not_detected) and nowhere confirmed present
+#   untested         — no protein bucket is `measured` (protein coverage gap) — RNA-only presence
+#   not_applicable   — the collapsed verdict is not a presence-positive
+# A protein PRESENT reading in ANY context wins (cell-line MS under-samples surface antigens, so a
+# tumor-CPTAC-present / cell-line-absent target is confirmed present) — mirrors the positives-over-
+# negatives collapse philosophy. Verdict-inert: never touches presence_verdict.
+_PROTEIN_PRESENT_VERDICTS = frozenset(v for _, v in _PROT_POS) | {
+    "protein_present_not_elevated",                                    # M2 rescue: quantified, flat
+    "protein_modestly_downregulated", "protein_strongly_downregulated",  # measured present-but-lower
+}
+_PROTEIN_ABSENT_VERDICTS = frozenset({"protein_broadly_low", "protein_not_detected"})
+
+
+def _protein_confirmation_state(per_modality: dict, collapsed_verdict: str | None) -> str:
+    """VERDICT-INERT confidence facet: was the (present) presence call CONFIRMED at the protein level,
+    contradicted by a measured protein absence, or is protein simply UNTESTED? See the block comment."""
+    if not _is_presence_positive(collapsed_verdict):
+        return "not_applicable"
+    measured = [b.get("verdict") for k in ("bulk_protein_ms/tumor", "bulk_protein_ms/cell_line")
+                for b in [(per_modality or {}).get(k) or {}]
+                if b.get("evidence_state") == "measured"]
+    if any(v in _PROTEIN_PRESENT_VERDICTS for v in measured):
+        return "confirmed"
+    if any(v in _PROTEIN_ABSENT_VERDICTS for v in measured):
+        return "measured_absent"
+    return "untested"
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
@@ -544,6 +580,11 @@ def _headline(cards, fired, verdict_pair):
         "abundance_floor_flag":          _abundance_floor_flag,
         "abundance_floor_low_lenses":    _abundance_low_lenses,
         "presence_abundance_is_relative": True,
+        # protein_confirmation_state (finding G5): is a PRESENT call protein-confirmed, protein-measured-
+        # absent, or protein-UNTESTED (RNA-only)? Verdict-inert legibility of the confidence behind the
+        # one-word headline — most indications lack CPTAC/cell-line-MS, so a positive-RNA target commonly
+        # reads present with protein untested; this names that state instead of silently over-reassuring.
+        "protein_confirmation_state":    _protein_confirmation_state(per_modality, v),
         "presence_interpretation_note":  _presence_interpretation_note,
         # ── Bulk RNA ──────────────────────────────────────────────────────────
         "median_log2tpm_panel":     get_card_field(cards, "cellline-rna-distribution", "median_log2tpm_panel"),
@@ -668,6 +709,8 @@ _SYNTHESIS_FACET_KEYS = (
     # exactly the cross-modal tensions the composed reasoner must weigh.
     "presence_headline_conflict", "presence_headline_conflict_note", "presence_headline_conflict_modalities",
     "abundance_floor_flag", "abundance_floor_low_lenses", "presence_abundance_is_relative",
+    "protein_confirmation_state",   # confirmed / measured_absent / untested (RNA-only) / not_applicable
+
     # Variance-standardized CPTAC effect — qualifies whether a `modest_up` is a real per-sample effect
     # or a large-cohort significance artifact (the raw-log2 class can't tell).
     "protein_effect_standardized_class", "protein_effect_cohens_d", "protein_effect_standardized_method",
