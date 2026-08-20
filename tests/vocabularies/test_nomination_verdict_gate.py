@@ -109,10 +109,19 @@ def test_positives_only_from_cross_target_axes():
     # floor-cleared STRONG subtype-restricted dependency is a genuine CROSS-TARGET requirement (a
     # stratified dependency signal), positive-eligible ONLY for subtype_restricted_dependency — the
     # negative subtype verdict (subtype_specific_non_dependence) stays a hold, never a positive.
+    # cis_coherence added v1.5.0 (2026-08-20, cis-feature-coherence graduation): a coherent
+    # cis-driver (the target's own CN dosage predicts its own expression AND it is dependency-
+    # coupled) is a genuine TARGET-INTRINSIC cross-target requirement, positive-eligible ONLY for
+    # coherent_cis_driver — the inert/uncoupled cis verdicts never nominate.
     allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration", "expression",
-               "subtype_fit"}
+               "subtype_fit", "cis_coherence"}
     used = {p["sub_skill"] for p in v["positive_signals"]}
     assert used <= allowed, f"positive from disallowed axis: {used - allowed}"
+    # cis_coherence is positive-eligible ONLY for the coherent-cis-driver verdict (same guard shape
+    # as expression/subtype_fit — the inert/uncoupled cis verdicts must never leak into positives).
+    cis_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "cis_coherence"}
+    assert cis_pos <= {"coherent_cis_driver"}, \
+        f"only coherent_cis_driver may be a cis_coherence positive; got {cis_pos}"
     # expression is positive-eligible ONLY for the target-intrinsic verdict, never the modality-scoped one.
     expr_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "expression"}
     assert expr_pos <= {"strongly_upregulated_in_tumor"}, \
@@ -274,7 +283,12 @@ def test_human_genetics_driving_rules_match_resolver_when_any():
     # cross-check against the resolver's when_any_fired for the same verdict
     resolver = yaml.safe_load((REPO / "resolvers" / "safety.resolver.yaml").read_text())
     rungs = resolver.get("resolve", [])
-    hg = next(r for r in rungs if r.get("verdict") == "human_genetics_safety_concern")
+    # v1.4.0 (2026-08-09) hoisted several when_all_fired mutant-selective CONTEXT rungs with the
+    # SAME verdict ABOVE the raw provenance rung, so a bare `verdict ==` next() now grabs a
+    # when_all_fired rung first. Select the rung that actually carries when_any_fired — that is
+    # the raw provenance rung whose fired-set this test cross-checks against the gate.
+    hg = next(r for r in rungs
+              if r.get("verdict") == "human_genetics_safety_concern" and "when_any_fired" in r)
     assert set(hg["when_any_fired"]) == gate_rules, (
         f"gate driving_rule_ids {sorted(gate_rules)} must equal the resolver's when_any_fired "
         f"{sorted(hg['when_any_fired'])} for full provenance")

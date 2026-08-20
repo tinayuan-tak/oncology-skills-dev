@@ -125,3 +125,11 @@ jobs:
       # expression-abundance card (a card owns ONE concept). Baselined debt burns down via Phase 3b.
       - name: Card concept-discipline ratchet
         run: python -m pytest tests/validators/test_card_concept_discipline.py -q
+
+      # 2026-08-20 (CI-gap closure): the nomination-gate CURATION invariants (veto set, positive-axis
+      # discipline, disjointness, provenance completeness) + the subtype-tier ADMISSIBILITY guard were
+      # fully tested but gated by NO workflow — so a positive_signal graduation (cis_coherence) drifted
+      # from the test allowlist unnoticed on trunk. Gate the two invariant files explicitly (curated,
+      # not the whole dir — the figure-emission tests are skills-dependent and self-skip here).
+      - name: Nomination-gate curation + subtype-tier admissibility invariants
+        run: python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
