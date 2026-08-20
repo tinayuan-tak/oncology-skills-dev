@@ -47,6 +47,9 @@ SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "combinatorial_dependency": frozenset({"combinatorial-dependency"}),
     "combination_opportunity": frozenset({"combo-crispr-screen", "resistance-emergence-signature"}),  # R9: mirrors SUB_SKILL_CARDS[combo-and-resistance]
+    "combination_vulnerability": frozenset({   # mirrors SUB_SKILL_CARDS[combination-and-vulnerability]
+        "synthetic-lethal-partners", "combinatorial-dependency",
+        "combo-crispr-screen", "resistance-emergence-signature"}),  # CONSOLIDATED relational annex (gateless)
     "cis_coherence": frozenset({
         "cis-feature-expression-coherence", "cellline-methylation-expression-coherence",
         "expression-dependency-correlation",

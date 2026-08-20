@@ -169,6 +169,18 @@ SUB_SKILLS = [
                                                                # over its own new leg + reused expression-dependency + amp-expr cards.
                                                                # Graduation to a positive_signal/positive_contradiction gate is a
                                                                # later CALIBRATED stage (would then enter _SHORT_TO_GATE + full suite).
+    ("combination-and-vulnerability",  "combination_vulnerability"),  # CONSOLIDATED relational (gene×gene) annex
+                                                               # (#571 Stage-1 skill wired 2026-08-20). Canonical axis
+                                                               # combination_vulnerability (target_profiling_axes.yaml). GATELESS
+                                                               # verdict=None like target-intrinsic — its payload is a RANKED
+                                                               # PARTNER TABLE + a relational claim_vector (SL/CODEP/COMBO/RESISTANCE
+                                                               # with target_pair partner atoms), NOT a scalar. DELIBERATELY absent
+                                                               # from _SHORT_TO_GATE → contributes ONLY to sub_verdicts + the LLM
+                                                               # synthesis, NEVER the nomination spine (recommendation byte-stable;
+                                                               # verdict=None + gate=None satisfies must-not-gate STRUCTURALLY). The
+                                                               # three standalone source skills stay wired in this stage (their cards
+                                                               # are composed under both entries — like copy-number-distribution);
+                                                               # retiring them is the spine-gated Stage-2/3 follow-on (plan Part 7).
 ]
 
 # Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
@@ -338,6 +350,16 @@ SUB_SKILL_CARDS = {
     "combo-and-resistance": [
         "combo-crispr-screen",           # DepMap drug-anchor CRISPR — combination opportunities
         "resistance-emergence-signature",  # sign-mirror rescue arm — resistance mediators + Tahoe adaptation
+    ],
+    "combination-and-vulnerability": [   # CONSOLIDATED relational annex (#571 Stage-1, wired 2026-08-20).
+        "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
+        "combinatorial-dependency",      # measured paralog dual-KO GI (CODEP axis; target_pair atoms)
+        "combo-crispr-screen",           # combination co-targets under inhibition (COMBO axis)
+        "resistance-emergence-signature",  # resistance mediators that rescue (RESISTANCE liability axis)
+                                         # All four are ALSO composed under their standalone entries above —
+                                         # same cards, relational lens (like copy-number-distribution's dual
+                                         # home). Matches the skill's SKILL.md cards_used. GATELESS → the four
+                                         # relational claim_vector axes read these; byte-stable on the spine.
     ],
     "cis-feature-coherence": [
         "cis-feature-expression-coherence",  # GoF leg-1: CN -> own-expression cis-dosage (amplification)
