@@ -26,7 +26,9 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.5.0   # 1.5.0 (2026-08-16): + kill_capable_verdicts registry (roadmap §6.6 fail-closed, gate-
+version: 1.6.0   # 1.6.0 (2026-08-20): cis-coherence GRADUATION — coherent_cis_driver positive_signal (supportive,
+                 #   grouped w/ genomic_alteration) + expressed_cis_coupled_inert positive_contradiction + kill_capable entry.
+                 # 1.5.0 (2026-08-16): + kill_capable_verdicts registry (roadmap §6.6 fail-closed, gate-
                  #   complete). Per-resolver enumeration of EVERY verdict with negative decision semantics,
                  #   each tagged disposition ∈ {gated, excluded_modality_scoped, contradiction}. Forces every
                  #   kill verdict to be EXPLICITLY classified (a completeness CI test fails if a kill verdict
@@ -201,6 +203,8 @@ kill_capable_verdicts:
     - {verdict: structurally_intractable,         disposition: excluded_modality_scoped}
     - {verdict: chemically_unhit,                 disposition: contradiction}
     - {verdict: discordant,                       disposition: contradiction}
+  cis_coherence:                                                                 # graduation 2026-08-20
+    - {verdict: expressed_cis_coupled_inert,      disposition: contradiction}    # present+cis-driven but NOT required
 
 # ============================================================================
 # VETO SUPPRESSION (2026-07-17, v1.2.0) — backtest-driven gate-C correction.
@@ -369,6 +373,14 @@ positive_signals:
   # outrank the KO-proven genetic dependency (biomarker_stratified_dependency stays the dominant call).
   # DISTINCT verdict from the CRISPR biomarker — the two are never conflated (drug-sensitivity != KO-dep).
   - {sub_skill: genomic_alteration, verdict: drug_response_biomarker,          weight: supportive}
+  # cis-coherence GRADUATION (2026-08-20): coherent_cis_driver = the target's own CN drives its own
+  # expression AND that tracks its own dependency (amplification-driven oncogene addiction; ERBB2/MYC/
+  # KRAS-amp). SUPPORTIVE, not dominant, and GROUPED with genomic_alteration below: coherent_cis_driver
+  # is largely a re-read of the SAME amplification the genomic_alteration amp-expr biomarker already
+  # counts, so it must corroborate (raise confidence) without minting a `strong` tier by being counted
+  # twice. coherent_epigenetic_silencing is deliberately NOT a positive (a silenced gene is turned OFF —
+  # an SL hypothesis, not a druggable-dependency nomination). See cis_coherence.resolver.yaml.
+  - {sub_skill: cis_coherence,   verdict: coherent_cis_driver,            weight: supportive}
 
 # Modality-scoped positives (2026-08-14): under an EXPLICIT biologics modality, a
 # favorable surface-modality verdict IS a target positive — symmetric to
@@ -394,6 +406,13 @@ positive_contradictions:
   - {sub_skill: dependency,      verdict: broadly_dependent}
   - {sub_skill: tractability_sm, verdict: discordant}
   - {sub_skill: tractability_sm, verdict: chemically_unhit}
+  # cis-coherence GRADUATION (2026-08-20): expressed_cis_coupled_inert = the target's own CN DRIVES its
+  # own expression (it IS cis-expressed) but that expression does NOT track a dependency — present + cis-
+  # driven yet NOT required. This is the abundance-laundering guard made a first-class contradiction: it
+  # opposes an oncogene-addiction nomination (the amplification is real but confers no dependency), so it
+  # blocks the `strong` tier. NOT a blanket veto (a target may still nominate on another axis). The only
+  # genuinely NEW nomination signal cis-coherence adds — no other axis flags expressed-but-inert.
+  - {sub_skill: cis_coherence,   verdict: expressed_cis_coupled_inert}
 
 positive_tier_config:
   min_dimensions_for_strong: 2    # analog of compose-dashboard MIN_IN_SCOPE_FOR_STRONG
@@ -415,6 +434,13 @@ positive_tier_config:
   # the selectivity resolver — that addresses the RNA-vs-protein contradiction directly.)
   correlated_dimension_groups:
     - [expression, selectivity]
+    # cis-coherence GRADUATION (2026-08-20): cis_coherence:coherent_cis_driver and genomic_alteration's
+    # amp-expr biomarker (biomarker_stratified_dependency / moderate_biomarker_dependency) are two reads
+    # of the SAME amplification→dependency signal. Grouping them collapses to ONE dimension for the
+    # min_dimensions_for_strong test, so a coherent cis-driver corroborates confidence but cannot be the
+    # 2nd independent line that manufactures `strong`. dependency stays independent (Chronos KO is a
+    # distinct measurement) — only the amplification re-read is grouped.
+    - [genomic_alteration, cis_coherence]
 
 # Documented exclusions from the positive set (symmetric to excluded_modality_scoped
 # for kills) — so a future edit doesn't "helpfully" add a modality-scoped positive.
