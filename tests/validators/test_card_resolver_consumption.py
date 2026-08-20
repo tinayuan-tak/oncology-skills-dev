@@ -38,9 +38,17 @@ def test_computed_consumption_pins_review_mislabels():
     assert "mutation-drug-response" in consumed, (
         "mutation-drug-response is resolver-consumed (genomic_alteration drug_response_biomarker rung) — "
         "its card prose claiming 'VERDICT-INERT / no resolver rung' is wrong and must not re-drift green.")
+    # mutation-hotspot-frequency BECAME resolver-consumed in the patient-recurrence Phase 2 work (#578):
+    # its pooled_driver_recurrence_class == top_1pct fires snv-recurrence-top-driver-supportive, a
+    # genomic_alteration rung (verdict recurrent_snv_driver). The card prose was updated to match
+    # (pooled_driver_recurrence_class marked VERDICT-DRIVING); this pin now guards the CONSUMED state so
+    # it can't silently drift back to "inert". (Was previously — incorrectly — pinned as inert here.)
+    assert "mutation-hotspot-frequency" in consumed, (
+        "mutation-hotspot-frequency is resolver-consumed since #578 (snv-recurrence-top-driver-supportive "
+        "→ recurrent_snv_driver rung); the stale inert pin failed on main.")
 
     # Cards whose PROSE claims/implies verdict-DRIVING but which are resolver-INERT:
-    for inert in ("genomic-event-model-match", "phospho-pathway-activity", "mutation-hotspot-frequency"):
+    for inert in ("genomic-event-model-match", "phospho-pathway-activity"):
         assert inert not in consumed, (
             f"{inert} is NOT consumed by any resolver rung — its card prose implying it 'drives rules' / "
             f"'routes into gates' is misleading; if a rung is later added, update the snapshot consciously.")
