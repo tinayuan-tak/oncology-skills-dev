@@ -144,6 +144,13 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
     }
     out.update(_stats.caf_readout(comp_summary))
+    # Two-axis TCE antigen-escape readout (2026-08-20): within-tumour coverage + INTER-donor consistency,
+    # the honest heterogeneity call that supersedes the single-number tce_homogeneity_class (kept above
+    # for back-compat). Merge only the NEW keys (malignant_detection_fraction / n_donors already present).
+    _het = _stats.malignant_heterogeneity_readout(comp_summary)
+    out.update({k: _het[k] for k in (
+        "within_tumor_coverage_class", "inter_donor_consistency_class", "tce_antigen_escape_class",
+        "malignant_detection_donor_iqr", "fraction_donors_broadly_detecting")})
     return out
 
 
@@ -193,6 +200,11 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "caf_abundance_log1p_cp10k": None,
         "caf_compartment_available": False,
         "caf_vs_malignant_class": "data_unavailable",
+        "within_tumor_coverage_class": "data_unavailable",
+        "inter_donor_consistency_class": "data_unavailable",
+        "tce_antigen_escape_class": "data_unavailable",
+        "malignant_detection_donor_iqr": None,
+        "fraction_donors_broadly_detecting": None,
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
         "_data_note": note,
