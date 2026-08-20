@@ -107,9 +107,13 @@ Given a target (+ optional indication):
 
 cis-dosage coupling is CORRELATIONAL, not a formal mediation test — a co-amplified neighbour or a
 shared trans-regulator can mimic it (leg-1 caveat). Cell-line coherence is necessary but not
-sufficient for a patient cis-driver claim; the patient epigenetic-silencing arm (promoter
-methylation → expression) and the patient CN↔expression join are deferred (they need the
-`tcga-sample-id-crosswalk-v1` substrate). This skill is VERDICT-INERT — it never blocks a nomination.
+sufficient for a patient cis-driver claim; the patient CN↔expression join and the patient
+epigenetic-silencing arm (promoter methylation → expression) are now LIVE via the
+`patient-cis-coherence` card, which joins patient CN + methylation to patient expression at the
+case barcode through `tcga-sample-id-crosswalk-v1` (R4). ERBB2/BRCA and CDKN2A/HNSC replicate the
+cell-line coupling in patient tumours. (Caveat on the patient methylation leg: the current
+promoter-methylation reader is pan-cohort, so that leg is bounded to the indication only via the
+expression intersection.) This skill is VERDICT-INERT — it never blocks a nomination.
 
 ## How Claude invokes this skill
 
