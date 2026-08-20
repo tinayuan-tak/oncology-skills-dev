@@ -19,10 +19,14 @@ Effect-size classification:
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
+from statistics import NormalDist
 
 import pandas as pd
+
+_STD_NORMAL = NormalDist()
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -37,17 +41,26 @@ STAT_TEST_USED = "msstatstmt_limma_ebayes_moderated"
 NEGLIGIBLE_COHENS_D = 0.2
 
 
-def _cohens_d(logfc, se, n_tumor, n_normal):
-    """Sample-size-INDEPENDENT standardized effect from the MSstatsTMT moderated logFC + SE:
-    t = logFC / SE, Cohen's d = t / sqrt(n_eff), n_eff = n_t*n_n/(n_t+n_n). Returns None when SE / n are
-    unavailable (older upstream rows) — the caller then falls back to the raw-logFC bands (pre-variance
-    behavior), so a missing SE never spuriously downgrades a call."""
+def _cohens_d(logfc, se, n_tumor, n_normal, p_value=None):
+    """Sample-size-INDEPENDENT standardized effect. Prefers the EXACT MSstatsTMT moderated SE
+    (t = logFC / SE); when SE is unavailable, recovers an APPROXIMATE t from the two-sided p-value
+    (z = sign(logFC)·Φ⁻¹(1 − p/2)) — the same fallback read.py._standardized_effect uses, so a product
+    that carries p-value + n (but not SE, like the currently-deployed one) is STILL variance-aware
+    without a MSstats re-run. Cohen's d = t / sqrt(n_eff), n_eff = n_t·n_n/(n_t+n_n). Returns None only
+    when neither SE nor p is usable, or n is missing → the caller then falls back to raw-logFC bands."""
     try:
-        if se is None or pd.isna(se) or float(se) <= 0:
-            return None
         if not (n_tumor and n_normal and float(n_tumor) > 0 and float(n_normal) > 0):
             return None
-        t = float(logfc) / float(se)
+        if pd.isna(logfc):
+            return None
+        t = None
+        if se is not None and not pd.isna(se) and float(se) > 0:
+            t = float(logfc) / float(se)                              # exact moderated-SE t
+        elif p_value is not None and not pd.isna(p_value) and 0.0 <= float(p_value) <= 1.0:
+            arg = min(max(1.0 - float(p_value) / 2.0, 1e-15), 1.0 - 1e-15)   # clamp for inv_cdf
+            t = math.copysign(_STD_NORMAL.inv_cdf(arg), float(logfc))  # p-value z-score approximation
+        if t is None:
+            return None
         n_eff = (float(n_tumor) * float(n_normal)) / (float(n_tumor) + float(n_normal))
         return t / (n_eff ** 0.5)
     except Exception:  # noqa: BLE001
@@ -55,7 +68,7 @@ def _cohens_d(logfc, se, n_tumor, n_normal):
 
 
 def classify(logfc: float, q: float, se: float = None,
-             n_tumor: int = None, n_normal: int = None) -> str:
+             n_tumor: int = None, n_normal: int = None, p_value: float = None) -> str:
     # 2026-08-14 multi-pair review (finding #5): the former single `ns` bucket conflated TWO
     # distinct outcomes — "tested, not statistically significant" (q >= 0.05) and "significant but
     # effect too small to class up/down" (q < 0.05, |logfc| <= 0.5). That effect-size-vs-significance
@@ -76,7 +89,10 @@ def classify(logfc: float, q: float, se: float = None,
         return "not_significant"
     if q >= 0.05:
         return "not_significant"
-    d = _cohens_d(logfc, se, n_tumor, n_normal)
+    # variance-aware gate: prefer exact SE; else the RAW p-value z-score approximation (NOT q — the
+    # BH-adjusted value would understate the effect). When neither SE nor raw p is available, _cohens_d
+    # returns None → raw-logFC bands (no downgrade).
+    d = _cohens_d(logfc, se, n_tumor, n_normal, p_value=p_value)
     if d is not None and abs(d) < NEGLIGIBLE_COHENS_D:
         return "small_effect"
     if logfc > 1.5:
@@ -153,9 +169,10 @@ def main() -> int:
             # significant-by-n call to small_effect. SE column is NaN-filled when the upstream lacks it
             # (→ classify falls back to the raw-logFC bands).
             "protein_expression_class": [
-                classify(f, q, se, n_tumor, n_normal)
-                for f, q, se in zip(df["logFC"], df["adj.pvalue"],
-                                    (df["SE"] if "SE" in df.columns else [None] * len(df)))
+                classify(f, q, se, n_tumor, n_normal, p_value=p)
+                for f, q, se, p in zip(df["logFC"], df["adj.pvalue"],
+                                       (df["SE"] if "SE" in df.columns else [None] * len(df)),
+                                       (df["pvalue"] if "pvalue" in df.columns else [None] * len(df)))
             ],
             "stat_test_used": STAT_TEST_USED,
             "method_version": METHOD_VERSION,
