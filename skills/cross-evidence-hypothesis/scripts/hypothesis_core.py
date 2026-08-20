@@ -126,6 +126,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "surface-colocalization-avidity",
         "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
         "surface-topology-and-ptm", "surfaceome-family-classification"}),
+    "immune_context": frozenset({"immune-context"}),   # mirrors SUB_SKILL_CARDS[immune-context]
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
         "protein-domains-class", "reactome-pathway-membership", "target-development-level",
@@ -177,18 +178,18 @@ RANK_CERTAINTY = {v: k for k, v in CERTAINTY_RANK.items()}
 # turn on small-molecule tractability). Out-of-scope dims are excluded from data-gaps + certainty +
 # the in-scope decision set, so an irrelevant axis never degrades a hypothesis for the wrong modality.
 MODALITY_SCOPE: dict[str, set] = {
-    "small_molecule":   {"surface_modality"},
-    "degrader":         {"surface_modality"},
-    "molecular_glue":   {"surface_modality"},
-    "rna_therapeutic":  {"surface_modality", "tractability_sm"},
+    "small_molecule":   {"surface_modality", "immune_context"},
+    "degrader":         {"surface_modality", "immune_context"},
+    "molecular_glue":   {"surface_modality", "immune_context"},
+    "rna_therapeutic":  {"surface_modality", "tractability_sm", "immune_context"},
     # SURFACE / LIGAND biologics: the therapeutic basis is surface presentation / ligand neutralization,
     # NOT a cell-intrinsic genetic dependency. So the dependency-FAMILY axes are out-of-scope — a
     # `dependency:non_dependent` (or SL/combinatorial) reading must NOT veto a surface target (e.g. an
     # approved ADC/TCE antigen like DLL3/NECTIN4 that is not itself a fitness dependency). tractability_sm
     # (small-molecule chemistry) is likewise out-of-scope. #2 (WS6-surfaced).
-    "adc":              {"tractability_sm", "dependency", "combination_vulnerability"},
+    "adc":              {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
     "bite_tce":         {"tractability_sm", "dependency", "combination_vulnerability"},
-    "antibody":         {"tractability_sm", "dependency", "combination_vulnerability"},
+    "antibody":         {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
     "modality_agnostic": set(),
 }
 

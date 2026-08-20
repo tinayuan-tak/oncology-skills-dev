@@ -45,6 +45,7 @@ _GATE_SHORT_LABEL = {
     "combination_vulnerability": "Combination & vulnerability (relational: SL / dual-KO / combo / resistance)",
     "tractability_sm": "Small-molecule druggability",
     "surface_modality": "Surface / biologics fit",
+    "immune_context": "Immune context (TCE effector — CD8 infiltration)",
     "safety": "On-target safety",
     "target_intrinsic": "Target-intrinsic dossier",
     "subtype_fit": "Subtype-specific fit",
@@ -53,7 +54,7 @@ _GATE_SHORT_LABEL = {
 # grouping: the body lists the SUBSKILLS, not A–E "gates". Kept in step with tp_fanout.SUB_SKILLS.
 _SUBSKILL_ORDER = [
     "expression", "selectivity", "dependency", "mechanism", "genomic_alteration",
-    "differentiation", "tractability_sm", "surface_modality", "safety", "target_intrinsic",
+    "differentiation", "tractability_sm", "surface_modality", "immune_context", "safety", "target_intrinsic",
     "combination_vulnerability",   # relational trio (SL/combinatorial/combo-resistance) consolidated here 2026-08-20
 ]
 # Subskill axes for which the grounded literature reader (literature-risk-assessment/ground_axis)

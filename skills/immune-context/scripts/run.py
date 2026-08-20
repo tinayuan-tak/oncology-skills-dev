@@ -25,6 +25,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.immune_context_claims import (
+    immune_context_claim_vector, immune_context_key_signals)
 
 SKILL_NAME = "immune-context"
 SKILL_VERSION = "1.0.0"
@@ -60,7 +62,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
-    return {
+    hl = {
         "immune_context_verdict":        v,
         "driving_rule_id":               drv,
         "immune_context_class":          get_card_field(cards, "immune-context", "immune_context_class"),
@@ -69,6 +71,28 @@ def _headline(cards, fired, verdict_pair):
         "n_samples":                     get_card_field(cards, "immune-context", "n_samples"),
         "tumor_studies":                 get_card_field(cards, "immune-context", "tumor_studies"),
     }
+    # verdict-INERT claim-vector projection (TCE effector axis) + citable CD8-fraction atom for the
+    # cross-evidence reasoner. immune-context is gateless (absent from _SHORT_TO_GATE); verdict-inert.
+    hl["claim_vector"] = immune_context_claim_vector(hl, cards)
+    hl["key_signals"] = immune_context_key_signals(hl, cards)
+    return hl
+
+
+_SYNTHESIS_FACET_KEYS = (
+    "immune_context_verdict", "driving_rule_id", "immune_context_class", "median_cd8_fraction",
+    "median_total_t_cell_fraction", "n_samples", "claim_vector", "key_signals",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair):
+    """Compact, VERDICT-INERT immune-context facet for the composed synthesis. Reuses _headline (single
+    source) + returns the IMMUNE claim_vector (TCE effector axis) with its citable CD8-fraction atom.
+    immune-context is gateless — this never moves the nomination spine."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic immune-context facet; claim_vector is the TCE EFFECTOR axis "
+                            "(indication-level, target-independent). Gateless — no verdict on the spine.")
+    return facet
 
 
 if __name__ == "__main__":

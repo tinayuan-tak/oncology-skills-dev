@@ -140,6 +140,15 @@ SUB_SKILLS = [
     ("differentiation-landscape",      "differentiation"),
     ("tractability-small-molecule",    "tractability_sm"),     # split (SM half)
     ("surface-modality-fit",           "surface_modality"),    # split (biologics half)
+    ("immune-context",                 "immune_context"),      # TCE EFFECTOR axis (new fan-out member 2026-08-20):
+                                                               # "is the indication immune-hot — CD8 effectors to redirect?",
+                                                               # the orthogonal companion to surface-modality-fit's antigen side.
+                                                               # Verdict-bearing but GATELESS/ADDITIVE like combinatorial-
+                                                               # dependency (inline _verdict, NO shared resolver → absent from
+                                                               # _SHORT_TO_GATE): contributes sub_verdict + claim_vector (CD8-
+                                                               # fraction atom) to the LLM synthesis, NEVER the nomination spine
+                                                               # (recommendation byte-stable). Indication-level / target-independent
+                                                               # v1 — kept off the gate pending calibration.
     ("on-target-safety-liability",     "safety"),
     ("target-intrinsic",               "target_intrinsic"),    # GATELESS descriptive PEER (WS1, 2026-08-17): the
                                                                # indication-INDEPENDENT target biology dossier composed as a
@@ -335,6 +344,9 @@ SUB_SKILL_CARDS = {
                                                  # _headline (event_correspondence_class biomarker render
                                                  # facet), in functional-requirement CARDS, dropped here.
                                                  # VERDICT-INERT (render facet; no resolver rung).
+    ],
+    "immune-context": [
+        "immune-context",                # CIBERSORT LM22 CD8 effector context (gdc-pancanatlas-immune-2018)
     ],
     "combination-and-vulnerability": [   # CONSOLIDATED relational annex (#571 Stage-1, wired 2026-08-20).
         "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
