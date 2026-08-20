@@ -85,6 +85,33 @@ def test_entrypoint_delegates_and_strips_internal(monkeypatch):
     assert out["indication"] == "BRCA"
 
 
+def test_methylation_reader_scopes_to_indication(monkeypatch):
+    # pan-cohort methylation dict spanning STAD + HNSC + ESCA cases; GC -> only STAD kept.
+    pan = {"TCGA-ST-001": True, "TCGA-ST-002": False, "TCGA-HN-001": True, "TCGA-ES-001": True}
+    ct = {"TCGA-ST-001": "STAD", "TCGA-ST-002": "STAD", "TCGA-HN-001": "HNSC", "TCGA-ES-001": "ESCA"}
+    monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
+    monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types", lambda: ct)
+    out = read.read_patient_methylation_by_case("CDKN2A", "GC")   # GC -> ("STAD",)
+    assert out == {"TCGA-ST-001": True, "TCGA-ST-002": False}     # HNSC/ESCA dropped
+
+
+def test_methylation_reader_unknown_indication_returns_pan(monkeypatch):
+    pan = {"TCGA-ST-001": True}
+    monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
+    monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types",
+                        lambda: (_ for _ in ()).throw(AssertionError("must not load ct for unknown ind")))
+    out = read.read_patient_methylation_by_case("GENE", "NOT_A_REAL_INDICATION")
+    assert out == pan   # cannot scope -> unfiltered (expr intersection bounds it downstream)
+
+
+def test_methylation_reader_absent_annotation_falls_back_to_pan(monkeypatch):
+    pan = {"TCGA-ST-001": True}
+    monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
+    monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types", lambda: {})
+    out = read.read_patient_methylation_by_case("GENE", "GC")
+    assert out == pan   # annotation genuinely absent -> don't zero out the leg
+
+
 def test_readers_are_thin_case_keyed_wrappers(monkeypatch):
     # read_patient_expression_by_case averages multi-aliquot cases to one value per case.
     import pandas as pd

@@ -31,6 +31,29 @@ def read_patient_cn_by_case(target: str, indication: str) -> dict[str, int]:
 
 
 def read_patient_methylation_by_case(target: str, indication: str) -> dict[str, bool]:
-    """{case_barcode: is_promoter_methylated (bool)} for `target` in `indication`."""
-    from methods.functional_gene_state.read import _read_patient_methylation
-    return _read_patient_methylation(target, indication)
+    """{case_barcode: is_promoter_methylated (bool)} for `target`, SCOPED to `indication`.
+
+    functional_gene_state._read_patient_methylation returns the PAN-COHORT dict by design (it filters
+    downstream in _read_patient_arm via ind_patients). This wrapper is a DIRECT consumer with no such
+    downstream filter, so it scopes here: map each methylated case -> TCGA cancer-type
+    (_load_sample_cancer_types) and keep only the indication's cohorts (INDICATION_TO_TCGA). Without
+    this, the caller's coverage provenance (n_cases_methylation) would report the pan-cohort count
+    (~2422) while only the indication subset actually feeds the silencing contrast. The silencing
+    contrast counts themselves are unchanged (they were already bounded by the expression
+    intersection) — this makes the reported coverage honest.
+
+    Degrades safely: unknown indication or a genuinely-absent annotation table -> unfiltered pan dict
+    (the caller's expression intersection still bounds it). Transient/creds errors propagate (via
+    _load_sample_cancer_types' own discipline) rather than silently zeroing the methylation leg."""
+    from methods.functional_gene_state.read import _read_patient_methylation, _load_sample_cancer_types
+    from methods.tcga_patient_cn_per_sample.read import INDICATION_TO_TCGA
+    meth = _read_patient_methylation(target, indication)
+    if not meth:
+        return {}
+    codes = INDICATION_TO_TCGA.get(indication)
+    if not codes:
+        return meth   # unknown indication: cannot scope (mirrors tcga_patient_cn_per_sample convention)
+    cancer_types = _load_sample_cancer_types()   # {patient_barcode: TCGA cancer type}; {} only on genuine absence
+    if not cancer_types:
+        return meth   # annotation genuinely absent -> can't scope; leave pan (expr intersection bounds it)
+    return {case: is_meth for case, is_meth in meth.items() if cancer_types.get(case) in codes}
