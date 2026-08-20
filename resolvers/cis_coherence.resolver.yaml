@@ -43,6 +43,14 @@ resolve:
   - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-coupled-supportive}
   - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-coupled-supportive}
 
+  # ── coherent_epigenetic_silencing — LoF arm: methylation coherently explains LOW expression ─────
+  #    STANDALONE (no dependency leg): a silenced gene is turned OFF, not a self-dependency. A synthetic-
+  #    lethal / silenced-target hypothesis flag (MLH1/MGMT/CDKN2A). Placed AFTER the coherent_cis_driver
+  #    rungs so a genuine amplification-addiction (with a dependency leg) still names coherent_cis_driver
+  #    first; a gene silenced but not amplification-driven lands here. Cell-line arm (CCLE RRBS); the
+  #    patient promoter-methylation arm is a separate later leg.
+  - {verdict: coherent_epigenetic_silencing, when_fired: cis-silencing-coupled-supportive, driving_rule: cis-silencing-coupled-supportive}
+
   # ── expressed_cis_coupled_inert — leg-1 coupled AND leg-2 absent (abundance-laundering guard) ────
   #    CN drives expression, but expression does NOT track dependency: the target is present and even
   #    cis-driven, yet more abundance does not mean more required. This is the case a bare abundance

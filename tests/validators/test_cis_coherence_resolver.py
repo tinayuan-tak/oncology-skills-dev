@@ -26,6 +26,7 @@ DOSAGE_UNCOUPLED = "cis-dosage-uncoupled-neutral"         # leg-1 - (measured, C
 DEP_CORR = "cis-expr-dependency-coupled-supportive"       # leg-2 + (correlation leg)
 DEP_ABSENT = "cis-expr-dependency-absent-neutral"         # leg-2 - (no expr->dep)
 DEP_CONJOINT = "cis-conjoint-dependent-supportive"        # leg-2 + (amp-expr conjoint leg)
+SILENCING = "cis-silencing-coupled-supportive"            # LoF arm: methylation → low expression
 
 
 def resolve(*fired_ids: str) -> tuple[str, str | None]:
@@ -89,6 +90,18 @@ def test_coherent_wins_over_inert_when_dep_present_and_absent_both_fire():
 
 
 # --- honest abstention: any leg untestable/unmeasured -> default --------------
+
+def test_epigenetic_silencing_is_standalone_lof_arm():
+    """The silencing leg fires coherent_epigenetic_silencing on its own (no dependency leg): a silenced
+    gene is turned off, not a self-dependency. MLH1/MGMT/CDKN2A archetype."""
+    assert resolve(SILENCING) == ("coherent_epigenetic_silencing", SILENCING)
+
+
+def test_genuine_amplification_addiction_wins_over_silencing():
+    """A gene that is BOTH cis-dosage-coupled+dependent AND (oddly) silencing-coupled names the GoF
+    amplification-addiction first (coherent_cis_driver precedes the silencing rung)."""
+    assert resolve(DOSAGE_COUPLED, DEP_CONJOINT, SILENCING)[0] == "coherent_cis_driver"
+
 
 def test_nothing_fired_is_default_insufficient():
     assert resolve() == ("insufficient_cis_coherence", None)

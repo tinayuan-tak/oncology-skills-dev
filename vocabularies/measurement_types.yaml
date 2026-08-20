@@ -1348,6 +1348,28 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [copy_number_alteration, cell_line_rna_expression], method: correlation, evidence_tier: measured}
 
+  promoter_methylation:
+    # cis-coherence silencing arm (2026-08-20): the raw per-(cell-line, TSS-1kb) fractional promoter
+    # methylation substrate (CCLE RRBS TSS-1kb). Dataset-kind — asserts its own raw substrate; consumed
+    # by methylation_silencing_coupling. No card of its own (it is an input substrate, not a claim card).
+    claim: "What is the target's promoter methylation across DepMap cell lines (CCLE RRBS TSS-1kb)?"
+    entity_grains: [target]
+    cards: []
+    providers:
+      - {kind: dataset, source: depmap-consortium-ccle-2019, evidence_tier: measured}
+
+  methylation_silencing_coupling:
+    # cis-coherence silencing arm (2026-08-20): the LoF sibling of cis_dosage_coupling. Does the target's
+    # own promoter methylation predict its own LOW expression (epigenetic silencing)? Subset-contrast
+    # PRIMARY (hypermethylated-vs-rest MW, since silencing is a subtype phenomenon), pan-panel negative
+    # correlation SECONDARY. Feeds coherent_epigenetic_silencing (a LoF/SL flag, NOT a dependency).
+    modality_relevance: [small_molecule, degrader]
+    claim: "Does the target's own promoter methylation predict its own low expression (epigenetic silencing)?"
+    entity_grains: [target]
+    cards: [cellline-methylation-expression-coherence]
+    providers:
+      - {kind: derived_from, inputs: [promoter_methylation, cell_line_rna_expression], method: correlation, evidence_tier: measured}
+
   chemical_genetic_concordance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.

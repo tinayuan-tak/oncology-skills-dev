@@ -8,6 +8,7 @@ resolver_consumed_cards:
 - adc-tce-modality-fit
 - alteration-role
 - amp-expr-stratified-dependency
+- cellline-methylation-expression-coherence
 - cis-feature-expression-coherence
 - clingen-dosage
 - clinvar-pathogenicity-safety
@@ -71,6 +72,11 @@ detail:
     - amp-expr-moderately-dependent-supportive
     - amp-expr-strongly-dependent-supportive
     - cis-conjoint-dependent-supportive
+  cellline-methylation-expression-coherence:
+    resolvers:
+    - cis_coherence
+    rules:
+    - cis-silencing-coupled-supportive
   cis-feature-expression-coherence:
     resolvers:
     - cis_coherence

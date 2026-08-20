@@ -102,3 +102,22 @@ rules:
       amp-expr-stratified-dependency card. Redundant-but-corroborating with the correlation leg; the
       resolver treats either as sufficient for leg-2-positive (OR), never double-counts (both fire the
       same coherent_cis_driver verdict, first-match).
+
+  # ── LoF / epigenetic-silencing leg (the DOWNWARD feature→expression direction) ────────────────────
+  # The GoF amplification arm above is a cross-tab with dependency; silencing is DIFFERENT — a silenced
+  # gene is turned OFF (not a self-dependency), so this leg fires a STANDALONE coherence statement
+  # (methylation coherently explains the target's low expression = epigenetic LoF), which the resolver
+  # routes to coherent_epigenetic_silencing (a synthetic-lethal / silenced-target hypothesis flag).
+  - rule_id: cis-silencing-coupled-supportive
+    when:
+      card_id: cellline-methylation-expression-coherence
+      field: methylation_silencing_class
+      in: [silencing_coupled_strong, silencing_coupled_moderate]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Promoter methylation coherently explains the target's LOW expression across the panel (subset
+      hypermethylation-vs-rest contrast, or a broad negative correlation) — the target is epigenetically
+      SILENCED. Live: MLH1 (subset Δ -4.62), MGMT, CDKN2A. A LoF/SL-hypothesis signal, NOT a dependency:
+      the resolver routes it to coherent_epigenetic_silencing standalone (no dependency leg required).

@@ -1,0 +1,122 @@
+# Card — CELL-LINE PROMOTER-METHYLATION → OWN-EXPRESSION SILENCING  (pure-data, target-only, v2)
+#
+# The LoF/epigenetic-silencing sibling of cis-feature-expression-coherence (which measures the GoF
+# amplification arm, CN→over-expression). Does the target's OWN promoter methylation predict its OWN
+# LOW expression across the DepMap panel — i.e. is the target epigenetically SILENCED? A strong NEGATIVE
+# methylation↔expression relationship is the silencing signature (MLH1/MGMT/CDKN2A archetype).
+#
+# Silencing is intrinsically a SUBSET phenomenon (most tumor-suppressors are silenced only in a subtype
+# — MLH1 in MSI/CIMP lines), so the PRIMARY test is a hypermethylated-subset-vs-rest expression contrast
+# (Mann-Whitney), like amp-expr-stratified-dependency's conjoint contrast — NOT a pan-panel correlation,
+# which the minority methylated tail dilutes (live: MLH1 pan-panel r=-0.02 but subset Δ=-4.62, p=1.5e-15).
+# The pan-panel Spearman is the SECONDARY path, for broadly-methylated genes.
+#
+# Feeds the cis_coherence resolver's coherent_epigenetic_silencing rung (a LoF / synthetic-lethal-
+# hypothesis flag — a silenced gene is NOT a self-dependency, so this is a standalone feature→low-
+# expression coherence statement, distinct from the amplification cross-tab).
+#
+# DECOUPLED FROM INDICATION; VERDICT-INERT at the composed layer. This is the CELL-LINE arm (CCLE RRBS,
+# ModelID-joinable, NO crosswalk); the patient promoter-methylation arm (tcga-sesame-promoter-methylation-v1
+# joined via the sample-id crosswalk) is a separate, later leg.
+#
+# Inputs (co-resident, cell-line-joinable):
+#   - CCLE_RRBS_TSS1kb_20181022.txt.gz (depmap-consortium-ccle-2019) — per-(cell-line, TSS-1kb) methylation
+#   - OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv (DepMap) — log2TPM (the own-expression term)
+#   - Model.csv — CCLE NAME_TISSUE → StrippedCellLineName → ModelID bridge
+
+card_id: cellline-methylation-expression-coherence
+version: 1.0.0
+question: "Across DepMap cell lines, does {target.symbol}'s own promoter methylation predict its own LOW expression (epigenetic silencing) — driven by a hypermethylated subset, or broadly?"
+
+applies_when:
+  - "target.depmap_screened == true"
+  - "target.depmap_expression_measured == true"
+
+required_inputs:
+  - product_id: depmap-consortium-ccle-2019
+    release_pin: "{release_pin}"
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-methylation-silencing
+    module: depmap_methylation_silencing
+    entrypoint: read_methylation_silencing
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - n_cell_lines_evaluated                     # cells with BOTH promoter methylation AND expression
+    # === Subset contrast (PRIMARY — hypermethylated subset vs rest) ===
+    - n_hypermethylated                          # cells with methylation fraction > hypermethylation_threshold
+    - n_unmethylated
+    - subset_median_delta_log2tpm                # median(hyper) - median(rest); the subset class driver (<= 0 = silencing)
+    - subset_mannwhitney_p                        # one-sided MW: hyper express LESS than rest
+    - mean_log2tpm_hypermethylated
+    - mean_log2tpm_unmethylated
+    - delta_log2tpm_hyper_vs_unmethylated        # mean-based contrast (interpretability)
+    # === Pan-panel correlation (SECONDARY — broadly-methylated genes) ===
+    - methyl_expr_spearman_r                      # NEGATIVE = methylation predicts LOW expression
+    - methyl_expr_spearman_p
+    - methyl_expr_pearson_r
+    - methyl_expr_pearson_p
+    - methyl_expr_slope_log2tpm_per_methyl        # provenance (may be null if the OLS SVD did not converge)
+    # === Variation context ===
+    - methylation_p10_p90_spread                  # p90-p10 methylation spread (broad-testability gate)
+    - log2tpm_iqr
+    - median_methylation
+    - median_log2tpm
+    - hypermethylation_threshold                  # fractional-methylation cut used (provenance)
+    # === Categorical (Tier-2 vocabulary; drives cis-coherence.rules.yaml) ===
+    - methylation_silencing_class
+    - silencing_driver                            # which path drove the call (provenance)
+    - evidence_scope
+
+  summary_fields_vocabulary:
+    methylation_silencing_class:
+      - silencing_coupled_strong                 # subset Δ <= -1.0 (q<=α) OR pan-panel spearman r <= -0.4 (p<=α)
+      - silencing_coupled_moderate               # subset Δ <= -0.5 (q<=α) OR spearman r <= -0.25 (p<=α)
+      - methylation_uncoupled                    # methylation varies / a hypermethylated subset exists, but no silencing coupling
+      - methylation_invariant_panel              # no hypermethylated subset AND no broad methylation variation (untestable, honest)
+      - data_unavailable
+    silencing_driver:
+      - subset_hypermethylation                  # the hypermethylated-subset-vs-rest contrast drove the call
+      - pan_panel_correlation                    # the broad pan-panel negative correlation drove the call
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]
+
+thresholds:
+  strong_silencing_spearman_r: -0.4
+  moderate_silencing_spearman_r: -0.25
+  strong_silencing_subset_delta: -1.0            # median log2TPM (hyper - rest)
+  moderate_silencing_subset_delta: -0.5
+  significance_alpha: 0.01
+  min_cell_lines_for_correlation: 50
+  min_hypermethylated: 10                        # min hypermethylated lines to run the subset contrast
+  min_unmethylated_comparator: 30
+  min_methylation_p10_p90_spread: 0.1            # broad-testability floor (methylation fraction 0..1)
+  hypermethylation_threshold: 0.5
+
+warning_predicates:
+  - warning_id: low_n_cell_lines
+    if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"
+    message: "Fewer than 50 cell lines with both methylation + expression; the silencing estimate has a wide CI."
+  - warning_id: no_testable_methylation
+    if: "n_hypermethylated < THRESHOLD.min_hypermethylated && methylation_p10_p90_spread < THRESHOLD.min_methylation_p10_p90_spread"
+    message: "No hypermethylated subset AND no broad methylation variation; silencing is untestable in this panel → methylation_invariant_panel (honest untestable, NOT uncoupled)."
+
+caveats:
+  - "Silencing is a SUBSET phenomenon: the PRIMARY test is a hypermethylated-subset-vs-rest Mann-Whitney (min_hypermethylated lines), because a minority methylated tail dilutes the pan-panel correlation. Live: MLH1 pan-panel spearman r=-0.02 (null) but subset Δ=-4.62 (p=1.5e-15) — the subset path is what makes subtype-silenced tumor-suppressors detectable. silencing_driver records which path fired."
+  - "methylation_invariant_panel (no hypermethylated subset AND no broad variation) is NOT methylation_uncoupled: the silencing question is untestable in this panel (the gene is uniformly (un)methylated), not that methylation fails to silence it. GAPDH/KRAS live here (never hypermethylated)."
+  - "This establishes the feature→LOW-expression (epigenetic-LoF) leg. A silenced gene is NOT a self-dependency — the cis_coherence resolver routes this to coherent_epigenetic_silencing (a synthetic-lethal / silenced-target hypothesis flag), NOT the amplification-addiction dependency cross-tab."
+  - "Cell-line RRBS methylation ≈ patient methylation but differs (culture, purity). The patient promoter-methylation arm (tcga-sesame-promoter-methylation-v1 joined via the sample-id crosswalk) is the orthogonal validation leg."
+  - "CCLE→DepMap join is via StrippedCellLineName (CCLE NAME_TISSUE → NAME); a small number of lines may not map and are dropped (reported via n_cell_lines_evaluated)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `methylation_silencing_coupling` claim (does the
+# target's own promoter methylation predict its own low expression?), derived_from
+# [promoter_methylation, cell_line_rna_expression]. The LoF sibling of cis_dosage_coupling.
+measurement_type: methylation_silencing_coupling
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
