@@ -269,6 +269,62 @@ def replay_synthesize(replay: dict):
     return _synth
 
 
+# ── claim-vector SALIENCE GATE (scale-safe atom rendering) ──────────────────────────────────────────
+# As more sub-skills emit atoms (fan-in → up to 13 axes), dumping every full atom drowns the
+# decision-relevant one (salience dilution). The gate partitions claims into PRIMARY (render full
+# citable values) vs SECONDARY (one-line tier only), so the panel stays legible as it scales.
+_CV_INFORMATIVE = {"strong", "moderate", "weak", "negative"}   # measured + directional tiers
+# Atom value-key fragments that signal decision-relevant distribution STRUCTURE even when the tier is
+# flat — the BRAF/SKCM case: tier `unmeasured` (non_dependent_underpowered) but bimodality + a nonzero
+# responder fraction reveal a hidden subpopulation. Salience must NOT gate on the tier alone.
+_CV_NOTABLE_KEYS = ("fraction", "bimodal", "variance", "effect", "selectivity", "kruskal", "responder")
+
+
+def _atom_is_notable(atom: dict) -> bool:
+    for k, v in ((atom or {}).get("values") or {}).items():
+        if (any(p in k.lower() for p in _CV_NOTABLE_KEYS)
+                and isinstance(v, (int, float)) and not isinstance(v, bool) and v):
+            return True
+    return False
+
+
+def _render_claim_vectors(cvs: dict) -> str:
+    """Salience-gated rendering: PRIMARY claims (informative tier OR a conflict OR a notable atom)
+    carry their full citable VALUES; SECONDARY claims collapse to a one-line tier (present, not
+    competing for attention). The atom's card_id stays citable either way. Compact by design (drops the
+    repeated _disclaimer / informs / entity / verbose cite.fields) so 13-axis fan-in stays legible."""
+    if not cvs:
+        return ""
+    prim, sec = [], []
+    for short, facet in cvs.items():
+        if not isinstance(facet, dict):
+            continue
+        for ax, claim in (facet.get("claim_vector") or {}).items():
+            if ax == "_disclaimer" or not isinstance(claim, dict):
+                continue
+            atom = claim.get("evidence_atom") or {}
+            sig, corr, conflict = claim.get("signal"), claim.get("corroboration"), claim.get("conflict")
+            cite = (atom.get("cite") or {}).get("card_id")
+            if sig in _CV_INFORMATIVE or bool(conflict) or _atom_is_notable(atom):
+                entry = {"signal": sig, "corroboration": corr, "read": atom.get("read"),
+                         "values": atom.get("values"), "cite_card_id": cite}
+                if conflict:
+                    entry["conflict"] = conflict
+                prim.append(f"  [{short}.{ax}] {json.dumps(entry, default=str)}")
+            else:
+                sec.append(f"  [{short}.{ax}] {sig}/{corr}" + (f" [{cite}]" if cite else ""))
+        ks = (facet.get("key_signals") or {}).get("headline")
+        if ks:
+            prim.append(f"  [{short}] deterministic read: {ks}")
+    out = ("PANEL — claim-vector signal decomposition (SALIENCE-GATED for scale). PRIMARY claims carry "
+           "their full citable atom VALUES — reason over them and cite the cite_card_id. SECONDARY "
+           "claims are one-line tiers (uninformative/unremarkable for this target):\n")
+    out += "PRIMARY:\n" + ("\n".join(prim) if prim else "  (none)") + "\n"
+    if sec:
+        out += "SECONDARY (tier-only):\n" + "\n".join(sec) + "\n"
+    return out + "\n"
+
+
 def _panel_block(panel: dict, objective: str) -> str:
     ctx = panel["context"]
     tgt = (ctx.get("target") or {}).get("symbol") if isinstance(ctx.get("target"), dict) \
@@ -306,14 +362,7 @@ def _panel_block(panel: dict, objective: str) -> str:
     # carries a signal×corroboration tier PLUS an evidence_atom binding the load-bearing NUMERIC values
     # (bimodality, responder fraction, control-position, …) to {card_id, fields} + entity keys. Reason
     # over the atom VALUES, not just the verdict label; the atom's card_id is already a citable token.
-    cv_block = ""
-    cvs = panel.get("claim_vectors") or {}
-    if cvs:
-        cv_block = (
-            "PANEL — claim-vector signal decomposition (per sub-skill → axis → signal×corroboration + a "
-            "CITABLE evidence_atom binding the specific VALUES to {card_id, fields} + entity keys). Read "
-            "the atom values (not just the verdict label); cite the atom's card_id:\n"
-            f"{json.dumps(cvs, indent=1, default=str)}\n\n")
+    cv_block = _render_claim_vectors(panel.get("claim_vectors") or {})
     return (
         f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
         f"TARGET: {tgt}\nINDICATION: {ind}\nSCOPED SUBTYPE: {scoped_subtype}\n\n"
