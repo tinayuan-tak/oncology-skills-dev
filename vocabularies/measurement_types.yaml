@@ -874,6 +874,19 @@ measurement_types:
       - {kind: dataset, source: sc-samecell-coexpr-3ca-ovarian-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-stad-golim-v1, method: sc_samecell_coexpr, evidence_tier: measured}   # STAD — Go/Lim gastric atlas (data-catalog #434); 16 CLDN18.2-anchored pairs / 88 malignant donors
 
+  antigen_pair_selectivity:
+    claim: "For a target antigen, which partner antigen makes the most tumor-vs-NORMAL selective logic-gated (AND/OR/NOT) bispecific pair (bulk per-sample RNA)?"
+    # BULK tumor-vs-normal pair-selectivity from per-sample TCGA-tumor vs GTEx-normal TPM (AND/OR/NOT
+    # logic gates over the 52 clinical-seed surface antigens). DISTINCT from antigen_pair_coexpression
+    # (single-cell same-cell avidity): this is the tissue-level NECESSITY screen (is the gated pair
+    # tumor-selective vs the full normal panel), that is the SUFFICIENCY confirmation (same-cell avidity).
+    # target_pair grain, read-side keyed on target (best-partner-per-gate rollup). Routes: bispecific lens.
+    modality_relevance: [adc, bite_tce, antibody]
+    entity_grains: [target_indication, target_pair]
+    cards: [surface-bulk-pair-selectivity]
+    providers:
+      - {kind: derived, source: bispecific-bulk-pair-selectivity-per-indication-v1, method: pair_selectivity_gate, evidence_tier: computed}
+
   spatial_colocalization:
     claim: "For a target on malignant cells, which neighbour compartments (immune / stromal / endothelial / normal epithelium) are spatially CO-LOCALIZED with the target-positive malignant cells in situ — and is the target-high tumour immune-excluded or adjacent to normal epithelium?"
     # in-situ SPATIAL neighbourhood — the tissue-architecture axis dissociated sc_tumor_celltype_expression

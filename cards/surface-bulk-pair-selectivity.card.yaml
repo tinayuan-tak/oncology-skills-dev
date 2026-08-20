@@ -1,0 +1,69 @@
+# Card — SURFACE BULK PAIR-SELECTIVITY (bispecific AND/OR/NOT logic gate)
+#
+# For {target} in {indication}, which clinical-seed partner antigen gives the most tumor-vs-NORMAL
+# selective logic-gated bispecific pair? Reads the materialized bispecific-bulk-pair-selectivity-per-
+# indication-v1 product (52 clinical-seed antigens × AND/OR/NOT over per-sample TCGA-tumor vs GTEx-
+# normal TPM) via the target-centric reader (pair_selectivity_gate.bulk_read), returning the best
+# (most selective) partner per gate.
+#
+# COMPLEMENT, NOT DUPLICATE, of surface-colocalization-avidity: this is the BULK tumor-vs-normal
+# SELECTIVITY (NECESSITY screen, full GTEx panel, ~21 solid indications); the avidity card is the
+# same-cell colocalization (SUFFICIENCY confirmation, sc cubes, ~11 indications). A bispecific needs
+# BOTH — a bulk-selective pair whose antigens sit on different cells fails avidity, and a same-cell-
+# coordinated pair that fires broadly in normal tissue fails selectivity.
+#
+# HONEST LIMITATION (the AND-gate caveat): bulk co-expression in a SAMPLE is necessary but NOT
+# sufficient for same-CELL co-expression (avidity). This card is candidate GENERATION; same-cell
+# confirmation is surface-colocalization-avidity.
+
+card_id: surface-bulk-pair-selectivity
+version: 0.1.0
+status: wired
+question: "For {target.symbol} in {indication.label}, which clinical-seed partner antigen makes the most tumor-vs-normal SELECTIVE logic-gated (AND/OR/NOT) bispecific pair?"
+
+tier: indication   # the scan is per-indication (per-sample tumor-vs-normal fractions across TCGA studies)
+
+applies_when:
+  # indications in INDICATION_TO_TCGA_STUDIES that materialized in the product (21 solid-ish cohorts).
+  - "context.indication in ['BLCA','BRCA','CESC','COAD','COADREAD','ESCA','GBM','HNSC','KIRC','LGG','LIHC','LUAD','LUSC','NSCLC','OV','PAAD','PDAC','PRAD','READ','SKCM','STAD']"
+
+required_inputs:
+  - product_id: bispecific-bulk-pair-selectivity-per-indication-v1
+    indication: "{indication}"
+
+methods:
+  - call: surface-bulk-pair-selectivity
+    module: pair_selectivity_gate
+    entrypoint: read_target_bulk_pair_selectivity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - best_and_partner                     # most tumor-selective AND-gate partner
+    - best_and_selectivity                 # tumor_fraction / max-essential-normal-fraction for that pair
+    - best_and_call                        # human-readable AND-gate call (incl. broad-tissue-liability flag)
+    - best_and_max_essential_normal_tissue # the essential normal tissue that most limits the AND pair
+    - best_not_partner                     # best NOT-gate veto partner (target present, veto absent)
+    - best_not_selectivity
+    - best_or_partner                      # best OR-gate (heterogeneity backstop) partner
+    - best_or_selectivity
+    - n_partners_scanned                   # clinical-seed partners scored for this target×indication
+
+
+caveats:
+  - "BULK tumor-vs-normal pair-selectivity from per-sample RNA. NECESSITY screen only — bulk co-expression in a SAMPLE is necessary but NOT sufficient for same-CELL co-expression (avidity), which an AND-gate bispecific requires. Same-cell confirmation is surface-colocalization-avidity. Reported as a bispecific/dual-targeting lens, not a monospecific-target signal."
+  - "selectivity = tumor_fraction / max(max_essential_normal_fraction, 0.01 floor); capped ~100x by the resolution floor. THEME-1: a pair clean on ESSENTIAL normal can still fire broadly in NON-essential normal — best_and_call flags that as a broad-tissue liability (see max_any_normal in the product)."
+  - "Partner universe = the fixed 52 clinical-seed surface antigens (multi-agent-reviewed). A target with no scored pair in this indication returns data_unavailable (not scanned), never a fabricated negative."
+  - "Coverage: 21 solid-ish TCGA cohorts. Heme antigens are in the universe but heme indications (LAML/DLBC) are not in the cohort map, so heme AND-gate pairs (CD19×CD22) do not appear here."
+
+measurement: bulk_rna
+sample_context: tumor
+
+# DATA_TO_SKILL_CONTRACT — antigen_pair_selectivity at the bulk tumor-vs-normal (necessity) grain.
+measurement_type: antigen_pair_selectivity
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication, target_pair]
+
+schema_version: 1
