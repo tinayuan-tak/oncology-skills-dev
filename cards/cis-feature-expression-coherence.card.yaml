@@ -117,7 +117,7 @@ caveats:
   - "cn_dosage_uncoupled (CN varies but does not predict expression) is the informative NEGATIVE: it says expression is copy-number-INDEPENDENT (trans/lineage-regulated). Combined with a dependency signal in the cis-coherence resolver, it routes to dependency_without_cis_dosage (a trans-driven, not amplification-driven, dependency)."
   - "cn_invariant_panel is NOT cn_dosage_uncoupled: no CN variation means untestable, not that the feature fails to drive expression. A distinct honest bin so the resolver abstains. The untestable gate keys on the p90-p10 spread, NOT the IQR — focal-amp oncogenes (ERBB2/MYC) are bulk-diploid with an amplified tail (IQR ~0 but real tail signal); IQR-gating wrongly called them invariant (fix 2026-08-20)."
   - "relative CN is focal-amp convention (diploid ~ 1.0, NOT log2), matching depmap_cn_distribution / amp-expr-stratified-dependency; log2TPM is log2(TPM+1) bulk mRNA (not protein)."
-  - "Cell-line cis-dosage is necessary but NOT sufficient for a patient cis-driver claim — needs orthogonal validation (patient CN+expression join; the deferred TCGA arm gated on tcga-sample-id-crosswalk-v1)."
+  - "Cell-line cis-dosage is necessary but NOT sufficient for a patient cis-driver claim — it needs orthogonal patient validation, now provided by the sibling patient-cis-coherence card (patient CN↔expression join at the case barcode via tcga-sample-id-crosswalk-v1, R4). ERBB2/BRCA and CDKN2A/HNSC replicate the cell-line coupling in patient tumours (live)."
 
 # DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `cis_dosage_coupling` claim (does the target's
 # own copy-number predict its own expression?), derived_from [copy_number_alteration,
