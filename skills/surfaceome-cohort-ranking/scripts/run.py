@@ -45,7 +45,7 @@ def _load_ranking(indication: str, target: str | None) -> dict:
 
     empty_cols = [
         "indication", "gene_symbol", "uniprot_ac",
-        "surface_protein_family", "cells_supporting",
+        "surface_protein_family", "cells_ran", "cells_supporting",
         "max_abs_log2fc", "ranking_score",
         "tissue_rank", "tissue_percentile_rna",
         "tissue_percentile_protein", "rna_protein_concordance",
@@ -77,14 +77,16 @@ def _load_ranking(indication: str, target: str | None) -> dict:
     if ranking_path is not None and Path(ranking_path).exists():
         df = pd.read_parquet(ranking_path)
         df = df[df["indication"] == indication]
-        df = df[df["cells_supporting"] >= 3]
+        # NO skill-side re-filter: the product already applies the RELATIVE robustness filter at build
+        # (cells_supporting >= min(2, cells_ran), dominant_direction==up). The old fixed `>= 3` re-filter
+        # zeroed out low-comparator indications (OV cells_ran=1, 2-cell products) — see the manifest note.
     else:
         df = pd.DataFrame(columns=empty_cols)
 
     result = {
         "indication": indication,
-        "n_ranked_after_filter": len(df),
-        "cells_supporting_threshold": 3,
+        "n_ranked": len(df),                       # full indication ranking (product is pre-filtered)
+        "robustness_filter": "product-level: cells_supporting >= min(2, cells_ran), dominant_direction==up",
     }
 
     if target and len(df) > 0:
@@ -116,6 +118,8 @@ def _load_ranking(indication: str, target: str | None) -> dict:
             result["target_context"] = {
                 "gene_symbol": target,
                 "tissue_rank": _safe_int(row.get("tissue_rank")),
+                "cells_ran": _safe_int(row.get("cells_ran")),
+                "cells_supporting": _safe_int(row.get("cells_supporting")),
                 "tissue_percentile_rna": _safe_float(row.get("tissue_percentile_rna")),
                 "tissue_percentile_protein": _safe_float(row.get("tissue_percentile_protein")),
                 "rna_protein_concordance": row.get("rna_protein_concordance"),
@@ -124,8 +128,8 @@ def _load_ranking(indication: str, target: str | None) -> dict:
         else:
             result["target_context"] = {
                 "gene_symbol": target,
-                "note": "target not in cells_supporting>=3 ranking; "
-                        "may be excluded by filter OR absent from surfaceome.",
+                "note": "target not in the ranking — not tumor-up-significant "
+                        "in this indication, OR absent from the surfaceome.",
             }
     elif target:
         result["target_context"] = {
@@ -159,13 +163,13 @@ def main() -> int:
     headline = {
         "indication":                    args.indication,
         "target":                        args.target,
-        "n_ranked_after_filter":         ranking["n_ranked_after_filter"],
-        "cells_supporting_threshold":    ranking["cells_supporting_threshold"],
+        "n_ranked":                      ranking["n_ranked"],
+        "robustness_filter":             ranking["robustness_filter"],
         "target_context":                ranking.get("target_context"),
         "cohort_rank_class":             (ranking.get("target_context") or {}).get(
                                              "cohort_rank_class"),
-        "cards_available":               1 if ranking["n_ranked_after_filter"] > 0 else 0,
-        "cards_missing":                 [] if ranking["n_ranked_after_filter"] > 0
+        "cards_available":               1 if ranking["n_ranked"] > 0 else 0,
+        "cards_missing":                 [] if ranking["n_ranked"] > 0
                                           else ["surfaceome-cohort-ranking"],
     }
 
@@ -173,7 +177,7 @@ def main() -> int:
     # Use `_missing` (underscore) so resolve_cards/write_package + the RC1
     # coverage-honesty logic recognize an unavailable ranking; stamp
     # `_data_source` so it flows into provenance.yaml's data_provenance block.
-    _unavailable = ranking["n_ranked_after_filter"] == 0
+    _unavailable = ranking["n_ranked"] == 0
     ranking["_data_source"] = "surfaceome-cohort-ranking-per-indication-v1"
     card_outputs = [{
         "card_id": "surfaceome-cohort-ranking",
@@ -205,7 +209,7 @@ def main() -> int:
     )
     print(f"wrote data-package to {args.out}")
     print(f"  indication={args.indication}, "
-          f"n_ranked={ranking['n_ranked_after_filter']}, "
+          f"n_ranked={ranking['n_ranked']}, "
           f"target={args.target or '<none>'}")
     print()
     print(json.dumps(headline, indent=2, default=str))

@@ -129,6 +129,11 @@ composition:
                                        # are in NO resolver → ADDITIVE signal facet, verdict byte-stable (fit_class resolves
                                        # off adc-tce-modality-fit). LIVE for the 11 indications with a landed same-cell cube;
                                        # data_unavailable elsewhere (honest gap).
+    - surfaceome-cohort-ranking        # (in run.py CARDS; REVIVE role-2 2026-08-20) per-target COHORT-PERCENTILE
+                                       # context — where the antigen ranks among ALL surface proteins in the
+                                       # indication by tumor-vs-normal effect size. Product landed 2026-08-18.
+                                       # ADDITIVE verdict-INERT facet (no resolver rung → fit_class byte-stable);
+                                       # the only cross-target ranking context the per-target profile has.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/

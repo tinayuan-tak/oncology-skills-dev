@@ -125,7 +125,8 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         # carry it too (test_dimension_cards_matches_spine).
         "surface-colocalization-avidity",
         "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
-        "surface-topology-and-ptm", "surfaceome-family-classification"}),
+        "surface-topology-and-ptm", "surfaceome-family-classification",
+        "surfaceome-cohort-ranking"}),   # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
     "immune_context": frozenset({"immune-context"}),   # mirrors SUB_SKILL_CARDS[immune-context]
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",

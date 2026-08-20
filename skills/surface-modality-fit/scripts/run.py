@@ -178,6 +178,11 @@ CARDS = [
                                          # pair_selectivity_gate.window) + target-centric best-partner rollup. Its 5 rules
                                          # (samecell-*/selectivity-window-*) are in NO resolver → ADDITIVE, verdict
                                          # byte-stable. Indication-scoped (per-indication cube); data_unavailable elsewhere.
+    "surfaceome-cohort-ranking",         # REVIVE role-2 (2026-08-20): per-target COHORT-PERCENTILE context — where
+                                         # does this antigen rank among ALL surface proteins in the indication by
+                                         # tumor-vs-normal effect size (cohort_rank_class top_1/5/25%)? The only cross-
+                                         # target ranking context in the fan-out; product landed 2026-08-18. ADDITIVE
+                                         # verdict-INERT facet (no resolver rung → fit_class byte-stable).
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -328,6 +333,14 @@ def _headline(cards, fired, verdict_pair):
         "samecell_selectivity_margin":    get_card_field(cards, "surface-colocalization-avidity", "selectivity_margin"),
         "samecell_n_window_open":         get_card_field(cards, "surface-colocalization-avidity", "n_window_open"),
         "samecell_normal_liability_locus": get_card_field(cards, "surface-colocalization-avidity", "normal_liability_locus"),
+        # Per-target surfaceome COHORT-PERCENTILE context (surfaceome-cohort-ranking, revived 2026-08-20).
+        # Where the antigen ranks among ALL surface proteins in the indication by tumor-vs-normal effect
+        # size. VERDICT-INERT display facet (no resolver rung — fit_class byte-stable); the only cross-target
+        # ranking context the per-target profile has.
+        "surfaceome_cohort_rank_class":   get_card_field(cards, "surfaceome-cohort-ranking", "cohort_rank_class"),
+        "surfaceome_tissue_rank":         get_card_field(cards, "surfaceome-cohort-ranking", "tissue_rank"),
+        "surfaceome_tissue_percentile_rna": get_card_field(cards, "surfaceome-cohort-ranking", "tissue_percentile_rna"),
+        "surfaceome_rna_protein_concordance": get_card_field(cards, "surfaceome-cohort-ranking", "rna_protein_concordance"),
     }
     # Orthogonality facet (E7, 2026-08-07) — VERDICT-INERT display meta-facet. Counts the
     # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence
@@ -351,6 +364,7 @@ def _headline(cards, fired, verdict_pair):
 _SYNTHESIS_FACET_KEYS = (
     "surface_modality_verdict", "driving_rule_id", "fit_class", "topology_class",
     "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
+    "surfaceome_cohort_rank_class",
     "claim_vector", "key_signals",
 )
 

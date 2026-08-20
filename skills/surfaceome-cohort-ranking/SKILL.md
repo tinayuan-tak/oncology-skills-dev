@@ -93,12 +93,12 @@ does MSLN rank against all surface proteins in this tissue?"
 └── provenance.yaml                        # data_provenance (manifest IDs)
 ```
 
-NOTE: this skill is `status: partial` — the surfaceome-cohort-ranking
-derived product is NOT yet on S3, so the ranking returns `data_unavailable`
-and NO ranking tables or waterfall figure are produced. The
-`surfaceome_ranking_full.csv` / `_top100.csv` tables + `cohort_ranking_
-waterfall.png` figure land once the derived product is published and the
-method reader returns rows.
+NOTE (revived 2026-08-20): the `surfaceome-cohort-ranking-per-indication-v1`
+derived product LANDED 2026-08-18 (36,150 rows / 29 indications, live md5-pinned
+S3). The reader now returns REAL ranking rows, so the ranking tables +
+waterfall figure are produced for covered indications. The product is
+pre-filtered at build (relative robustness `cells_supporting >= min(2, cells_ran)`,
+dominant_direction==up) — the skill does NO additional cells_supporting re-filter.
 
 ## What this skill does NOT do
 
@@ -121,8 +121,8 @@ method reader returns rows.
   uniprot-v1 md5
 - `cptac_manifest_id`: cptac-protein-tumor-vs-normal-per-cohort-v1 md5
   (if applicable to the indication)
-- `cells_supporting_threshold`: 3 (default; overrideable)
-- `n_ranked_after_filter`: count of surface proteins in the emitted ranking
+- `robustness_filter`: product-level `cells_supporting >= min(2, cells_ran)` (no skill-side re-filter)
+- `n_ranked`: count of surface proteins in the emitted (pre-filtered) ranking
 
 ## Iter-2 roadmap
 

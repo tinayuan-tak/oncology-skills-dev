@@ -524,6 +524,7 @@ SUB_SKILL_CARDS = {
         "sc-normal-celltype-expression",     # single-cell normal-tissue safety comparator (F5).
         "sc-surface-normal-safety",          # REVIVE 2026-08-19: sc CITE-seq surface footprint on normal immune (additive; no resolver rung → composed verdict byte-stable).
         "sc-surface-rna-protein-concordance", # REVIVE 2026-08-19: sc RNA↔surface-protein proxy quality (additive; no resolver rung → byte-stable).
+        "surfaceome-cohort-ranking",     # REVIVE role-2 2026-08-20: per-target cohort-percentile context (product landed 2026-08-18; additive verdict-inert facet).
         "tumor-scrna-celltype-expression",   # within-tumor antigen HOMOGENEITY (tce_homogeneity_class —
                                              # the ADC-vs-TCE discriminator). READ in _headline, so once
                                              # surface-modality-fit exposes a _synthesis_facet (claim-vector
