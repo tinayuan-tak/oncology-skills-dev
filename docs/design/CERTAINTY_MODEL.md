@@ -121,7 +121,12 @@ so it stays in Python. The grounded context/risk agent *anchors to* the verdict 
 it does not compute it.
 
 **Required validators (machine-checkable, per gate):**
-1. `corroboration-rule-set ∩ verdict-precedence-rule-ids = ∅` (the §2 disjointness rule).
+1. `corroboration-rule-set ∩ verdict-precedence-rule-ids = ∅` (the §2 disjointness rule). **IMPLEMENTED
+   (2026-08-20, R3):** `validators/validate_certainty_disjointness.py`, wired in `contracts-validate` CI.
+   Corroboration sources are declared per gate in `vocabularies/certainty_corroboration.yaml`; the
+   validator maps each gate's resolver rungs → rule_ids → `when.card_id` to get the verdict-precedence
+   card-set and asserts the intersection is empty. (Follow-on: have the Python certainty extractors
+   CONSUME that manifest so it is authoritative rather than parallel.)
 2. Each verdict-bearing skill ships a `verdict → strength` map total over its full verdict enum.
 3. `CERTAINTY_MODEL.md` exists at the path the code's `_model_ref` names (currently
    `CERTAINTY_MODEL.md#dependency`) — a dangling pointer must fail CI.

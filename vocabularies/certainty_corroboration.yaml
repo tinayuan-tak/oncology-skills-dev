@@ -1,0 +1,31 @@
+# certainty_corroboration.yaml
+# Per-gate declaration of the VERDICT-DISJOINT corroboration source cards that feed the
+# certainty_by_axis `corroboration` signal (docs/design/CERTAINTY_MODEL.md §2).
+#
+# THE DISJOINTNESS RULE (load-bearing, §2): a corroboration card MUST fire NO verdict-driving rung for
+# that gate — otherwise certainty double-counts the verdict (one signal counted as both `strength` and
+# `certainty`). validators/validate_certainty_disjointness.py asserts, per gate,
+#   corroboration_cards ∩ verdict_precedence_cards = ∅
+# where verdict_precedence_cards = the card_ids behind every rule_id the gate's resolver ladders over.
+# This is CERTAINTY_MODEL §3 "required validator #1", which was documented but never implemented (R3).
+#
+# Every axis that emits a certainty_by_axis `corroboration` (not merely coverage + unknown_mass) MUST
+# register its verdict-disjoint source card(s) here. An axis with no verdict-disjoint corroboration
+# registers nothing (it emits coverage + unknown_mass only; corroboration reads `unmeasured` — never a
+# fabricated tier). Keys are the target-profile SUB-SKILL shorts == resolver `gate:` names.
+#
+# NOTE (follow-on): the Python certainty extractors (e.g. functional-requirement's _dependency_confidence)
+# should CONSUME this manifest so it is authoritative rather than parallel. Until then this is the declared
+# contract the validator enforces; a corroboration card added in Python WITHOUT registering here escapes
+# the check, so reviewers must keep the two in sync. Today only `dependency` opts into certainty
+# corroboration (CERTAINTY_MODEL: certainty_by_axis wired to the reference axis first).
+
+enum_id: certainty_corroboration
+version: 1.0.0
+
+corroboration_by_gate:
+  dependency:
+    - cross-consortium-dependency   # Broad Achilles <-> Sanger Project Score independent replication.
+                                    # Verdict-INERT (fires no dependency.resolver rung). CRISPR<->RNAi
+                                    # concordance — which RESOLVES the dependency verdict — is deliberately
+                                    # NOT a certainty corroboration source here (CERTAINTY_MODEL §2).
