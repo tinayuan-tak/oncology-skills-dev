@@ -66,7 +66,8 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
         if any(s in ("not_selective", "non_dependent",
                       "broadly_low_expression") for s in signals):
             return "HIGH", "negative signal in A/B/C sub-verdicts"
-        if any(s == "discordant_across_comparators" for s in signals):
+        if any(s in ("discordant_across_comparators", "present_rna_only_protein_absent")
+               for s in signals):
             return "MEDIUM", "comparator-dependent expression/selectivity signal"
         if all(s in (None, "insufficient", "not_informative") for s in signals):
             return "insufficient_evidence", "no rule-fired verdicts across A/B/C"

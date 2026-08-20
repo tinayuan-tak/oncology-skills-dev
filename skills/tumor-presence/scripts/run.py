@@ -64,7 +64,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.10.0"
+SKILL_VERSION = "1.11.0"
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -595,6 +595,13 @@ def _headline(cards, fired, verdict_pair):
         "sc_malignant_abundance_log1p_cp10k":  get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_abundance_log1p_cp10k"),
         "sc_malignant_compartment_available":  get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_compartment_available"),
         "sc_tce_homogeneity_class":            get_card_field(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class"),
+        # Two-axis TCE antigen-escape readout (verdict-inert context; supersedes the lenient single-number
+        # tce_homogeneity_class above). within-tumour coverage + INTER-donor consistency → escape class.
+        "sc_within_tumor_coverage_class":      get_card_field(cards, "tumor-scrna-celltype-expression", "within_tumor_coverage_class"),
+        "sc_inter_donor_consistency_class":    get_card_field(cards, "tumor-scrna-celltype-expression", "inter_donor_consistency_class"),
+        "sc_tce_antigen_escape_class":         get_card_field(cards, "tumor-scrna-celltype-expression", "tce_antigen_escape_class"),
+        "sc_malignant_detection_donor_iqr":    get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_donor_iqr"),
+        "sc_fraction_donors_broadly_detecting": get_card_field(cards, "tumor-scrna-celltype-expression", "fraction_donors_broadly_detecting"),
         "sc_top_microenvironment_compartment":         get_card_field(cards, "tumor-scrna-celltype-expression", "top_microenvironment_compartment"),
         "sc_top_microenvironment_detection_fraction":  get_card_field(cards, "tumor-scrna-celltype-expression", "top_microenvironment_detection_fraction"),
         "sc_compartment_detection":            get_card_field(cards, "tumor-scrna-celltype-expression", "compartment_detection"),
@@ -659,6 +666,7 @@ _SYNTHESIS_FACET_KEYS = (
     "rna_as_biomarker_tumor", "rna_protein_r_tumor",
     # Single-cell malignant-vs-microenvironment attribution + TCE-relevant homogeneity + CAF confounder
     "sc_expression_class", "sc_malignant_detection_fraction", "sc_tce_homogeneity_class",
+    "sc_within_tumor_coverage_class", "sc_inter_donor_consistency_class", "sc_tce_antigen_escape_class",
     "sc_caf_vs_malignant_class", "sc_top_microenvironment_compartment", "sc_compartment_detection",
     # Normal-tissue comparators — framing for the therapeutic window (verdict owned by
     # on-target-safety-liability; surfaced here so the reasoner weighs presence AGAINST the window).

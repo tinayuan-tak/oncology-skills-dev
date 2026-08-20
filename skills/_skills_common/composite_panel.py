@@ -53,6 +53,7 @@ VERDICT_COLORS = {
     "weakly_active":                  "#c07a20",
     "discordant_across_comparators":  "#c07a20",
     "discordant":                     "#c07a20",
+    "present_rna_only_protein_absent": "#c07a20",  # RNA-present but MEASURED protein-absent (caveated present)
     "broadly_moderate_expression":    "#c07a20",
     "mixed_pattern":                  "#c07a20",
     # surface-modality safety/density/shed refinements (2026-08-09 modality-fit review).

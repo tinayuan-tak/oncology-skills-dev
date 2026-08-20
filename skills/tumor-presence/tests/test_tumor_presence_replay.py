@@ -144,6 +144,22 @@ def test_replay_per_modality_buckets_measured(epcam_decision):
         f"— a block of rules stopped firing over the real summaries.")
 
 
+def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
+    """The two-axis TCE antigen-escape readout (analysis-methods #429 / card #449) must be surfaced into
+    the presence headline. Wiring guard: the keys must exist (value may be None on a fixture frozen
+    before the fields existed — the nightly live re-freeze populates real values). When the fixture DOES
+    carry a value, the escape class must be a member of the declared vocabulary."""
+    h = epcam_decision.get("headline") or {}
+    for k in ("sc_within_tumor_coverage_class", "sc_inter_donor_consistency_class",
+              "sc_tce_antigen_escape_class", "sc_malignant_detection_donor_iqr",
+              "sc_fraction_donors_broadly_detecting"):
+        assert k in h, f"{k} not surfaced into the presence headline (sc-heterogeneity wiring drift)"
+    esc = h.get("sc_tce_antigen_escape_class")
+    if esc is not None:
+        assert esc in {"escape_risk_low", "escape_risk_moderate", "escape_risk_patient_variable",
+                       "escape_risk_high", "coverage_high_donor_underpowered", "data_unavailable"}
+
+
 def test_replay_robustness_guards_wired(epcam_decision):
     """End-to-end wiring of the verdict-inert robustness guards over the REAL EPCAM/COADREAD summaries
     (the helpers are unit-tested; this proves _headline emits them from a real run):
