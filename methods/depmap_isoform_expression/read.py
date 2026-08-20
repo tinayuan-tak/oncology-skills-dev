@@ -103,10 +103,15 @@ def _read_from_product(target: str) -> Optional[dict]:
     return tbl.to_pylist()[0]
 
 
-def isoform_summary_for_gene(target: str) -> dict:
+def isoform_summary_for_gene(target: str, indication: str | None = None) -> dict:
     """Per-gene MODEL-side isoform-expression summary. Product-first (gene-sorted pushdown); returns
     data_unavailable when the gene isn't in the product (no product live-fallback — the 4.3 GB source
     is build-only). DISPLAY facet, verdict-inert.
+
+    `indication` is accepted for the generic compose-dashboard dispatcher contract (it always calls
+    fn(target=, indication=)) but is NOT consumed — isoform expression is a pan-cancer cell-line
+    (target-only) property. Without this param the generic dispatch raised TypeError → the card read
+    _missing (the routability gap this fix closes).
 
     Returns isoform_expression_class {single_isoform_dominant / isoform_diverse / balanced /
     data_unavailable}, dominant_isoform_fraction (cohort median), n_expressed_isoforms (median),
