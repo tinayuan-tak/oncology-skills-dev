@@ -521,6 +521,7 @@ def probe_card(
     dispatch_modules: dict[str, str] | None = None,
     catalog_ids: set[str] | None = None,
     modality_types: dict[str, list[str]] | None = None,
+    fired_any_ids: set[str] | None = None,
 ) -> dict:
     """Ground-truth signals for one card that a skill consumes.
 
@@ -555,6 +556,12 @@ def probe_card(
         "method_has_read": None,
         "stale_method_label": False,
         "fires_in_real_package": card_id in fired_ids,
+        # Merged liveness (output-registry signal merge): fired in ANY real run —
+        # governed evidence packages UNION exploratory skill-runs. Additive to
+        # fires_in_real_package (which stays governed-only + byte-stable); when no
+        # registry is wired, fired_any_ids is None and this equals fires_in_real_package.
+        "fires_in_any_run": card_id in (fired_any_ids
+                                        if fired_any_ids is not None else fired_ids),
         "datasets": [],                # required_inputs product_ids + catalog status
         # P4 modality-vector lens (routing metadata, parallel to card_health):
         "modality_relevance": None,    # the card's declared routing set (or None if absent)
@@ -709,6 +716,47 @@ def fired_card_ids(products_root: Path) -> set[str]:
                 if cid:
                     fired.add(cid)
     return fired
+
+
+# ---------------------------------------------------------------------------
+# Output-registry signal merge (verified byte-stable on the governed subset).
+#
+# The output registry (validators/output_registry/build_output_registry.py) derives one
+# card-level firing index across BOTH tiers — governed evidence packages AND exploratory
+# skill-runs — and commits it to the data-products ROOT as `catalog.json`. Its
+# `fired_card_ids_governed` is a byte-stable mirror of fired_card_ids() above; its
+# `fired_card_ids_any` is the SUPERSET that also credits cards proven live in exploratory
+# runs (which never entered a governed package).
+#
+# Read as a LOCAL FILE only — never a network call — so the probe stays deterministic and
+# --self-check-safe. Absent registry => graceful degrade to the governed glob (no regression).
+# ---------------------------------------------------------------------------
+def registry_card_firings(products_root: Path) -> dict | None:
+    """The committed output-registry card-firing index at <products_root>/catalog.json.
+
+    Returns the `card_firings` block, or None when no registry is committed (callers then
+    fall back to the governed-only glob). Local file only — keeps the probe network-free.
+    """
+    cat = Path(products_root) / "catalog.json"
+    if not cat.exists():
+        return None
+    try:
+        return (json.loads(cat.read_text()).get("card_firings")) or None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def fired_card_ids_any(products_root: Path) -> set[str]:
+    """card_ids proven live in ANY real run (governed UNION exploratory).
+
+    Authoritative source is the committed output registry; degrades to fired_card_ids()
+    (governed-only) when no registry is present, so behaviour is unchanged until a registry
+    catalog is wired in.
+    """
+    cf = registry_card_firings(products_root)
+    if cf and cf.get("fired_card_ids_any") is not None:
+        return set(cf["fired_card_ids_any"])
+    return fired_card_ids(products_root)
 
 
 # ===========================================================================

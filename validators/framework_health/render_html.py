@@ -203,7 +203,8 @@ def _skill_detail(n: dict) -> str:
             f'<tr><td>{_esc(c["card_id"])}</td>'
             f'<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>'
             f'<td>{"✓" if c["has_live_reader"] else "—"}</td>'
-            f'<td>{"✓" if c["fires_in_real_package"] else "—"}</td>'
+            f'<td title="✓ fired in a governed package · ◐ fired in exploratory runs only">'
+            f'{"✓" if c["fires_in_real_package"] else ("◐" if c.get("fires_in_any_run") else "—")}</td>'
             f'<td>{_esc(c.get("measurement_type") or "—")}</td>'
             f'<td>{_esc((c.get("dispatch_module") or c.get("method_call") or "—").split(".")[0])}</td>'
             f'<td class="dscell">{_datasets_cell(c)}</td></tr>'
@@ -598,7 +599,8 @@ def _cards_table(report: dict) -> str:
             f"<tr{cls}><td class='nm'>{_esc(c['card_id'])}</td>"
             f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>"
             f"<td>{'✓' if c.get('has_live_reader') else '—'}</td>"
-            f"<td>{'✓' if c.get('fires_in_real_package') else '—'}</td>"
+            f"<td title='✓ fired in a governed package · ◐ fired in exploratory runs only'>"
+            f"{'✓' if c.get('fires_in_real_package') else ('◐' if c.get('fires_in_any_run') else '—')}</td>"
             f"<td>{spec_cell}</td>"
             f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
             f"<td>{p4_cell}</td>"

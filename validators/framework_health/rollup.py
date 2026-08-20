@@ -329,6 +329,9 @@ def build_health(roots: dict[str, Path]) -> dict:
     live_ids = set(probe.live_reader_card_ids(roots["skills"]))
     dispatch_modules = probe.dispatcher_method_imports(roots["skills"])
     fired_ids = probe.fired_card_ids(roots["products"])
+    # Merged liveness: cards fired in ANY real run (governed ∪ exploratory) from the committed
+    # output registry; == fired_ids when no registry catalog is present (graceful degrade).
+    fired_any_ids = probe.fired_card_ids_any(roots["products"])
     ss_map = probe.sub_skill_map(roots["skills"])           # skill_dir -> short
     gcov = probe.gate_coverage_by_short(roots["contracts"])  # short -> coverage entry
     catalog = probe.catalog_manifests(roots["catalog"])      # product_id -> manifest meta
@@ -348,6 +351,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             _card_cache[cid] = probe.probe_card(
                 cid, roots["contracts"], roots["methods"],
                 live_ids, fired_ids, dispatch_modules, catalog_ids, modality_types,
+                fired_any_ids=fired_any_ids,
             )
         # Return a shallow copy: callers augment the dict (consumers, is_orphan, …)
         # and mutating the cached original would leak fields across the two loops.
@@ -509,6 +513,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_unregistered_skills": len(reg["unregistered"]),
             "n_live_reader_cards": len(live_ids),
             "n_cards_firing_in_real_packages": len(fired_ids),
+            "n_cards_firing_in_any_run": len(fired_any_ids),  # governed ∪ exploratory (registry)
             "n_cards": len(card_nodes),
             "card_health_tally": card_tally,
             # P4 modality-vector lens (routing metadata, parallel to card_health):
