@@ -69,3 +69,21 @@ publishes to **both**:
 Root paths default to `framework_health.probe.default_roots()` (canonical sibling layout); override
 `--contracts/--skills/--methods/--products/--catalog` for a non-standard checkout. `--generated-at`
 is passed in (no wall-clock read) so the manifest is reproducible.
+
+## Promotion — `promote.py` (exploratory → governed)
+
+The coverage grid identifies **exploratory-only cells** (target×indication produced only as dev
+skill-runs, with no governed evidence package). Promotion = running `compose-dashboard` for such a
+cell, which emits a governed package into data-products, ready for concurrence review.
+
+```
+make promote-list                    # the promotion backlog, from the registry catalog
+python3 -m validators.output_registry.promote --target MET --indication COADREAD --dry-run
+AWS_PROFILE=cbg python3 -m validators.output_registry.promote --target MET --indication COADREAD
+```
+
+`promote.py --list` reads the catalog and prints each candidate with the exploratory verdicts that
+motivate it. Promoting a cell invokes `compose-dashboard` (`--runner`, default `pixi run python`,
+run from the skills root); on success, open a **data-products PR** — that PR is the concurrence gate.
+The tool deliberately stops at generating the package: *which* cells become governed is a human
+review decision, not an automatic one.

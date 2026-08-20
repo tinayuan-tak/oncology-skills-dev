@@ -12,9 +12,15 @@
 STAMP ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AWS_PROFILE ?= cbg
 
-.PHONY: dashboard dashboard-dry
+.PHONY: dashboard dashboard-dry promote-list
 dashboard:
 	AWS_PROFILE=$(AWS_PROFILE) python3 -m validators.output_registry.publish_dashboard --generated-at $(STAMP)
 
 dashboard-dry:
 	python3 -m validators.output_registry.publish_dashboard --generated-at $(STAMP) --dry-run
+
+# promote-list : show the promotion backlog — target×indication cells that exist only as
+#                exploratory runs (no governed evidence package yet). Promote one with
+#                `python3 -m validators.output_registry.promote --target T --indication I`.
+promote-list:
+	python3 -m validators.output_registry.promote --list
