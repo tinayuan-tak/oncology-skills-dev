@@ -4,6 +4,23 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.12.0
+- Added the canonical HEADLINE layer (verdict + confidence + top-tension), mirroring the merged
+  tumor-presence / functional-requirement exemplars (docs/HEADLINE_CONTRACT.md). `_headline` now emits
+  `headline_block` — a verdict-INERT projection over the resolved `selectivity_class` + the
+  WIN/DIST/INT/SAFE `claim_vector` / `key_signals` (best-effort; a build fault degrades to
+  `_enrichment_errors["headline_block"]` and never discards the spine). The `HeadlineSpec` declares the
+  four selectivity axes (critical axis = WIN, the tumor-vs-normal window), a curated verdict→phrase map,
+  a polarity read (positive = a tumor-selective call, negative = not-selective / broadly-normal KILL
+  veto, neutral = gaps + the selectivity-preserving `selective_with_normal_liability` flag, mirroring
+  functional-requirement's `pan_essential_killer` treatment), and a `tension_extra` surfacing the
+  normal-breadth VETO downgrade as the sharpest cross-cutting caveat.
+- `--figures` now also emits the shared `figure_headline_hero.{svg,png,json}` ALONGSIDE the existing
+  selectivity evidence-strip hero (`emit_selectivity_hero` unchanged; the two are complementary).
+- `headline_block` added to `_SYNTHESIS_FACET_KEYS` so the target-profile fan-out carries the canonical
+  headline. Verdict-INERT throughout: `selectivity_class` + the normal-breadth veto spine are
+  byte-stable (CEACAM5/TACSTD2 replay guard).
+
 ## 1.11.1
 - Doc hygiene: documented the Phase S normal-breadth veto SPLIT in SKILL.md — the sc-normal
   critical-organ arm now downgrades to `selective_with_normal_liability` (selectivity-preserving

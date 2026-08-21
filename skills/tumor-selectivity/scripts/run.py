@@ -24,6 +24,12 @@ from _skills_common.synthesis_selectivity import synthesize_selectivity
 from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
 from _skills_common.selectivity_question_table import selectivity_question_table
 from _skills_common.selectivity_hero import emit_selectivity_hero
+# The SHARED canonical HEADLINE layer (verdict + confidence + top-tension), mirroring the merged
+# tumor-presence / functional-requirement exemplars. build_headline is a verdict-INERT projection over
+# the already-computed selectivity_class + claim_vector / key_signals; emit_headline_hero renders the
+# offline figure_headline_hero.* twin (COMPLEMENTS emit_selectivity_hero — both fire under --figures).
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 # The normal-breadth VETO clamp is single-sourced in _skills_common.selectivity_veto so that BOTH
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
 # identical clamp. The names are re-exported here for this skill's own tests + local readability.
@@ -36,7 +42,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.11.1"
+SKILL_VERSION = "1.12.0"
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -156,6 +162,92 @@ def _rna_protein_tvn_concordance(rna_direction, protein_effect_size, protein_q):
     return "rna_protein_concordant" if protein_up == rna_up else "rna_protein_discordant"
 
 
+# ── The canonical HEADLINE layer (verdict + confidence + top-tension) ─────────────────────────────
+# The shared headline_core declaration for tumor-selectivity: the WIN/DIST/INT/SAFE claim axes (the
+# decision-critical axis = WIN, the tumor-vs-normal window), the selectivity resolver vocabulary → human
+# phrase, and a skill-specific tension surfacing the normal-breadth VETO downgrade. Verdict-INERT — a
+# one-way projection over the already-computed _headline (selectivity_class + the veto spine stay
+# byte-stable, frozen by the CEACAM5/TACSTD2 replay guard). No CERTAINTY_MODEL sidecar exists for this
+# skill, so confidence is the derived weakest-link over the claim vector (headline_core.derive_confidence).
+
+# The selectivity verdict vocabulary → human phrase. Covers the axis-A over-expression classes, the two
+# normal-breadth veto DOWNGRADE outcomes (the KILL vs the selectivity-preserving named-organ flag), and
+# the measured-negative / coverage-gap tokens; prettify fallback for any future addition.
+_SELECTIVITY_VERDICT_PHRASE = {
+    # positive axis-A tumor-selective calls
+    "strong_tumor_selective":          "Strongly tumor-selective",
+    "modest_tumor_selective":          "Modestly tumor-selective",
+    "field_effect_tumor_selective":    "Field-effect tumor-selective (vs distant normal)",
+    # normal-breadth veto outcomes
+    "selective_but_broadly_normal":    "Not selective — broadly normal (no therapeutic window)",  # the KILL
+    "selective_with_normal_liability": "Tumor-selective, with a critical-organ normal liability",  # preserving
+    # measured negatives / conflict
+    "not_selective":                   "Not tumor-selective",
+    "discordant_across_comparators":   "Discordant across normal comparators",
+    # coverage gaps
+    "not_informative":                 "Not informative",
+    "insufficient":                    "Insufficient evidence",
+    "data_unavailable":                "Data unavailable",
+}
+
+
+def _selectivity_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the resolved selectivity verdict (colours the hero badge; never a gate).
+    A clean axis-A tumor-selective call = positive; the broadly-normal KILL veto + a measured
+    not_selective = negative; everything else (gaps, discordant, and the selectivity-PRESERVING
+    `selective_with_normal_liability` — a real window but a named-organ liability, so neither a clean
+    actionable positive nor a measured negative) = neutral, mirroring functional-requirement's treatment
+    of `pan_essential_killer` (a real dependency carrying a liability)."""
+    if v in _AXIS_A_SELECTIVE:                       # strong / modest / field_effect_tumor_selective
+        return "positive"
+    if v in ("selective_but_broadly_normal", "not_selective"):
+        return "negative"
+    return "neutral"
+
+
+def _selectivity_tension_extra(headline: dict):
+    """The sharpest cross-cutting selectivity caveat the per-axis claim conflicts don't already carry:
+    the normal-breadth VETO downgrade. The resolved selectivity_class (post-veto) differs from the raw
+    axis-A class ONLY when a veto fired — the per-axis WIN conflict keys on the RAW axis-A class (still
+    'strong_tumor_selective' for a TROP2-style gene), so the downgrade itself would otherwise be
+    invisible to rank_tension. Severity 4 (> the max signal tier 3) makes the KILL veto win the single
+    tension slot; the selectivity-preserving named-organ flag rides at severity 3."""
+    resolved = headline.get("selectivity_class")
+    if resolved == "selective_but_broadly_normal":
+        return {"text": ("selective vs tissue-of-origin but no therapeutic window vs the worst critical "
+                         "normal — broadly-normal liability (normal-breadth veto)"),
+                "source": "normal_breadth_veto", "severity": 4}
+    if resolved == "selective_with_normal_liability":
+        return {"text": ("tumor-selective but with a critical-organ normal-tissue liability — named-organ "
+                         "safety flag (severity owned by on-target-safety-liability + modality-fit)"),
+                "source": "normal_liability_flag", "severity": 3}
+    return None
+
+
+_SELECTIVITY_HEADLINE_SPEC = HeadlineSpec(
+    gate="selectivity",
+    axis_labels={"WIN": "tumor-vs-normal window", "DIST": "distributional separation",
+                 "INT": "tumor-cell-intrinsic", "SAFE": "normal-tissue window"},
+    axis_keys=("WIN", "DIST", "INT", "SAFE"),
+    critical_axes=("WIN",),   # WIN (the tumor-vs-normal window) is THE decision-critical selectivity axis
+    verdict_label=lambda v: _SELECTIVITY_VERDICT_PHRASE.get(
+        v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_selectivity_tension_extra,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed selectivity headline. Reads the
+    RESOLVED selectivity_class (post-veto — the audit spine) + the verdict-inert claim_vector /
+    key_signals. No CERTAINTY_MODEL sidecar exists, so confidence is derived weakest-link. Never moves
+    the spine."""
+    v = headline.get("selectivity_class")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_SELECTIVITY_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_selectivity_verdict_polarity(v))
+
+
 def _headline(cards, fired, verdict_pair):
     # Fetch each card summary once (card_summary scans the card list, so look up by id, not position —
     # robust to card order — and reuse the result rather than re-scanning per field).
@@ -261,6 +353,16 @@ def _headline(cards, fired, verdict_pair):
     # verdict-INERT projection over the headline + claim_vector (WIN/DIST/INT/SAFE); never touches the
     # selectivity_class spine or the normal-breadth veto.
     hl["question_table"] = selectivity_question_table(hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
+    # message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
+    # resolved selectivity_class + the claim_vector / key_signals just built; best-effort (a formatting/read
+    # fault must NEVER discard the selectivity spine already fully built in `hl`, matching tumor-presence /
+    # functional-requirement's degrade-on-exception discipline).
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -287,6 +389,8 @@ _SYNTHESIS_FACET_KEYS = (
     "percentile_crossing_class", "fraction_tumor_above_normal_p95", "distribution_overlap_tumor_normal",
     "selectivity_allgene_percentile",
     "sc_tumor_expression_class", "sc_malignant_detection_fraction", "sc_caf_vs_malignant_class",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -382,6 +486,16 @@ def _resolve_selectivity_subtype_panorama(target: str, indication: str | None, s
     }
 
 
+def _emit_skill_figures(decision, figures_root):
+    """Skill-level graphics (opt-in --figures): the EXISTING selectivity evidence-strip hero (verdict
+    banner + independent comparator axes incl. the normal-tissue WINDOW veto) PLUS the shared canonical
+    headline hero (verdict · confidence · top tension). Complementary, not a replacement — the evidence
+    strip stays. Both are additive / display-only and offline (read only decision['headline']); the
+    decision.json spine is byte-identical whether or not they run."""
+    return list(emit_selectivity_hero(decision, figures_root)) + \
+        list(emit_headline_hero(decision, figures_root))
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,
@@ -394,10 +508,11 @@ if __name__ == "__main__":
         # Opt-in --synthesize narrates through the SELECTIVITY lens (its own tool schema + prompt).
         # Two-slot / verdict-inert.
         synthesize_fn=synthesize_selectivity,
-        # Opt-in --figures skill-level HERO: the selectivity evidence-strip (verdict banner + the
-        # independent comparator axes incl. the normal-tissue WINDOW veto) over decision['headline'].
-        # Additive / display-only; reads no S3; decision.json byte-identical whether or not it runs.
-        skill_figures_fn=emit_selectivity_hero,
+        # Opt-in --figures skill-level HEROES: the selectivity evidence-strip (verdict banner + the
+        # independent comparator axes incl. the normal-tissue WINDOW veto) AND the shared canonical
+        # headline hero (verdict · confidence · top tension). Complementary; both over decision['headline'].
+        # Additive / display-only; reads no S3; decision.json byte-identical whether or not they run.
+        skill_figures_fn=_emit_skill_figures,
         # Opt-in --subtypes: a DESCRIPTIVE per-subtype percentile-crossing panorama (Phase B). Its
         # cards/panorama are appended; NEVER enter `fired` → selectivity_class spine byte-identical.
         subtype_panorama_fn=_resolve_selectivity_subtype_panorama,

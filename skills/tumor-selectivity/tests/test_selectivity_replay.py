@@ -204,6 +204,46 @@ def test_broadly_normal_target_is_downgraded_by_veto():
 
 @pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
                          ids=["ceacam5", "tacstd2"])
+def test_headline_block_present_and_wellformed(pair_id, target, indication):
+    """The canonical HEADLINE block (verdict + confidence + top tension) is emitted, non-degraded, and
+    carries the RESOLVED selectivity_class + a confidence level + the four WIN/DIST/INT/SAFE claim axes
+    in the hero. Verdict-INERT: verdict.call must equal the skill's resolved selectivity_class (the block
+    never moves the veto spine)."""
+    d = _decision(pair_id, target, indication)
+    h = d.get("headline") or {}
+    block = h.get("headline_block")
+    assert isinstance(block, dict) and block, f"headline_block missing/empty on the {pair_id} replay"
+    # non-degraded: the best-effort enrich must not have caught an exception building the block
+    assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
+        f"headline_block degraded: {(h.get('_enrichment_errors') or {}).get('headline_block')!r}")
+    # verdict-inert: the block's canonical verdict == the skill's own resolved selectivity_class
+    assert block["verdict"]["call"] == h.get("selectivity_class")
+    assert block["verdict"]["gate"] == "selectivity"
+    assert block["verdict"]["phrase"]                      # a curated human phrase, never empty
+    assert block["verdict"]["polarity"] in {"positive", "negative", "neutral"}
+    # confidence in the canonical vocabulary
+    assert block["confidence"]["level"] in {"strong", "moderate", "weak", "insufficient"}
+    # the hero surfaces the four selectivity claim axes in order
+    assert [a["key"] for a in block["hero"]["axes"]] == ["WIN", "DIST", "INT", "SAFE"]
+    # deterministic one-sentence headline text is always available (not the LLM narration)
+    assert isinstance(block["headline_text"], str) and block["headline_text"].endswith(".")
+
+
+def test_headline_block_veto_surfaces_normal_breadth_tension():
+    """TACSTD2/TROP2 is downgraded by the normal-breadth veto (selective_but_broadly_normal) — the
+    headline block must colour the verdict NEGATIVE and surface the normal-breadth veto as the top
+    tension (the skill-specific tension_extra the per-axis claim conflicts don't carry)."""
+    d = _decision(*TACSTD2)
+    block = ((d.get("headline") or {}).get("headline_block")) or {}
+    assert block.get("verdict", {}).get("call") == "selective_but_broadly_normal"
+    assert block["verdict"]["polarity"] == "negative"
+    tension = block.get("top_tension") or {}
+    assert tension.get("source") == "normal_breadth_veto", (
+        f"expected the normal-breadth veto to win the tension slot for TROP2, got {tension!r}")
+
+
+@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
+                         ids=["ceacam5", "tacstd2"])
 def test_headline_resolves_broadly(pair_id, target, indication):
     """Headline drift floor: a reader field-name drift that silently nulled a block of `_headline`
     reads would collapse many values to None. Both pairs resolve ~40/41 headline fields; a
