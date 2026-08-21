@@ -41,6 +41,8 @@ from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr, _bh_qvalues,
 )
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
 SKILL_VERSION = "2.7.0"
@@ -471,6 +473,95 @@ def _lift_field(card_by_id: dict, card_id: str, field: str):
     return (card_by_id[card_id].get("summary") or {}).get(field)
 
 
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# The genomic declaration for the shared headline_core builder: the SNV/CN/FUS/DEP claim axes (the
+# fourth concrete claim_vector_core instance — see _skills_common/genomic_claims.py), the multi-class
+# genomic_alteration verdict vocabulary → human phrase, and the scope-leak (`pan_cancer_extrapolation`)
+# as the skill-specific cross-class tension source. Verdict-INERT — a one-way projection over the
+# already-computed headline (the genomic_alteration_profile spine stays byte-stable).
+# The genomic_alteration verdict vocabulary (resolvers/genomic_alteration.resolver.yaml, target-contracts)
+# → human phrase. Positives = the driver / dependency / recurrent-landscape rungs; negatives =
+# passenger_pattern; the rest (mixed_pattern, insufficient) are neutral (gap / inconclusive).
+_GENOMIC_VERDICT_PHRASE = {
+    # biomarker-stratified dependency (the actionability "so what")
+    "biomarker_stratified_dependency": "Biomarker-stratified genetic dependency",
+    "moderate_biomarker_dependency":   "Moderate biomarker-stratified dependency",
+    # driver calls
+    "multi_class_driver":              "Multi-class alteration driver",
+    "confirmed_driver":                "Confirmed driver",
+    "drug_response_biomarker":         "Drug-response biomarker",
+    # recurrent landscape drivers
+    "recurrent_amplification_driver":  "Recurrent amplification driver",
+    "recurrent_deletion_driver":       "Recurrent deletion driver",
+    "recurrent_fusion_driver":         "Recurrent fusion driver",
+    "recurrent_snv_driver":            "Recurrent SNV/indel driver",
+    # variant-class spectrum shape
+    "lof_dominant_pattern":            "LoF-dominant mutation pattern",
+    "missense_dominant_pattern":       "Missense-dominant mutation pattern",
+    # measured negative
+    "passenger_pattern":               "Passenger (not a recurrent driver)",
+    # gaps / inconclusive
+    "mixed_pattern":                   "Mixed alteration pattern",
+    "insufficient":                    "Insufficient evidence",
+}
+
+# The verdict tokens that are a POSITIVE alteration call (a driver / dependency / recurrent-landscape
+# rung). passenger_pattern is the measured NEGATIVE; mixed_pattern + insufficient (+ anything unknown)
+# are NEUTRAL. Sourced from the genomic_alteration resolver vocabulary so the polarity can't drift.
+_GENOMIC_POSITIVE_VERDICTS = frozenset({
+    "biomarker_stratified_dependency", "moderate_biomarker_dependency", "multi_class_driver",
+    "confirmed_driver", "drug_response_biomarker", "recurrent_amplification_driver",
+    "recurrent_deletion_driver", "recurrent_fusion_driver", "recurrent_snv_driver",
+    "lof_dominant_pattern", "missense_dominant_pattern",
+})
+_GENOMIC_NEGATIVE_VERDICTS = frozenset({"passenger_pattern"})
+
+
+def _genomic_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the collapsed multi-class verdict (colours the hero badge; never a
+    gate). Genomic reports an alteration MIX — this is the polarity of the DOMINANT call. Reuses the
+    resolver vocabulary so the polarity can't drift from the spine."""
+    if v in _GENOMIC_POSITIVE_VERDICTS:
+        return "positive"
+    if v in _GENOMIC_NEGATIVE_VERDICTS:
+        return "negative"
+    return "neutral"
+
+
+def _genomic_tension_extra(headline: dict):
+    """The sharpest cross-class caveat: the verdict rests on a PAN-CANCER extrapolation (a pan-lineage
+    cell-line dependency / spectrum call), not an in-indication signal — the scope leak the one-word
+    verdict otherwise hides, surfaced by the existing genomic_alteration_by_scope decomposition."""
+    scope = (headline.get("genomic_alteration_by_scope") or {}).get("scope_of_driving_verdict")
+    if scope == "pan_cancer_extrapolation":
+        return {"text": "verdict rests on a pan-cancer extrapolation, not an in-indication signal",
+                "source": "genomic_alteration_by_scope.scope_of_driving_verdict", "severity": 3}
+    return None
+
+
+_GENOMIC_HEADLINE_SPEC = HeadlineSpec(
+    gate="genomic_alteration",
+    axis_labels={"SNV": "recurrent SNV/indel driver", "CN": "copy-number driver",
+                 "FUS": "fusion driver", "DEP": "alteration confers dependency"},
+    axis_keys=("SNV", "CN", "FUS", "DEP"),
+    critical_axes=("SNV", "CN", "FUS", "DEP"),
+    verdict_label=lambda v: _GENOMIC_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_genomic_tension_extra,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed genomic headline. Reads the
+    collapsed multi-class verdict + the verdict-inert claim_vector / key_signals; never moves the spine.
+    No certainty sidecar is emitted by this skill, so confidence derives from the claim_vector's
+    corroboration (weakest-link, capped by conflict + coverage)."""
+    v = headline.get("genomic_alteration_profile")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_GENOMIC_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_genomic_verdict_polarity(v))
+
+
 def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
                     fdr_provenance: dict) -> dict:
     """Assemble the deterministic headline: the computed verdict keys, every declarative field
@@ -501,6 +592,17 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
     # genomic_alteration_profile spine (byte-stable). See _skills_common/genomic_claims.py.
     headline["claim_vector"] = genomic_claim_vector(headline, cards)
     headline["key_signals"] = genomic_key_signals(headline, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
+    # headline message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
+    # projection over the claim_vector / key_signals just built; best-effort so a formatting/read fault
+    # in this display layer can NEVER discard the genomic spine already fully built in `headline` (same
+    # degrade discipline tumor-presence applies). On the happy path this adds one key and no
+    # _enrichment_errors, so the replay + golden-spine fixtures stay stable.
+    try:
+        headline["headline_block"] = _build_headline_block(headline)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        headline["headline_block"] = None
     return headline
 
 
@@ -515,6 +617,8 @@ _SYNTHESIS_FACET_KEYS = (
     "genomic_alteration_profile", "driving_rule_id",
     "genomic_alteration_by_class", "genomic_alteration_by_scope",
     "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -626,6 +730,16 @@ def main() -> int:
                 "_synthesis_error": f"{type(e).__name__}: {e}",
                 "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
             }
+
+    # Canonical HEADLINE hero figure (figure_headline_hero.{svg,png,json}) — the one hero every skill
+    # emits, rendered offline from decision['headline']['headline_block']. This skill hand-rolls main()
+    # (no run_wired_skill / --figures gate); write_package COLLECTS whatever already exists under
+    # figures/, so emit into args.out/figures BEFORE write_package. Best-effort: a render fault must
+    # never break the run (the verdict spine + decision.json are already composed above).
+    try:
+        emit_headline_hero(decision, Path(args.out) / "figures")
+    except Exception as e:  # noqa: BLE001 — display-only figure; never break the spine
+        print(f"  (headline hero figure skipped: {type(e).__name__}: {e})")
 
     written = write_package(
         out_dir=args.out,

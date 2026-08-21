@@ -169,3 +169,40 @@ def test_headline_resolves_broadly(pair_id, target, indication):
     assert len(non_null) >= 15, (
         f"only {len(non_null)}/{len(h)} headline fields resolved for {target}/{indication} — suspect a "
         f"reader field-name drift (headline get -> None). Non-null keys: {sorted(non_null)}")
+
+
+# ── canonical HEADLINE block (verdict + confidence + top tension) ─────────────────────────────────
+_VALID_CONFIDENCE = {"strong", "moderate", "weak", "insufficient"}
+_GENOMIC_AXES = ("SNV", "CN", "FUS", "DEP")
+
+
+@pytest.mark.parametrize("pair_id,target,indication", [KRAS, BRAF], ids=["kras", "braf"])
+def test_headline_block_present_and_non_degraded(pair_id, target, indication):
+    """The canonical headline_block is present, non-degraded (no _enrichment_errors), and internally
+    consistent with the spine: verdict.call is the skill's resolved genomic_alteration_profile, the
+    confidence.level is a valid tier, and the hero lists this skill's SNV/CN/FUS/DEP axes. Verdict-inert:
+    verifies the block PROJECTS the spine, never that it changed it."""
+    d = _decision(pair_id, target, indication)
+    h = d.get("headline") or {}
+    # the projection must not have degraded to an enrichment error
+    assert (h.get("_enrichment_errors") or {}).get("headline_block") is None, (
+        f"headline_block degraded for {target}/{indication}: {h.get('_enrichment_errors')}")
+    block = h.get("headline_block")
+    assert isinstance(block, dict), f"no headline_block dict for {target}/{indication}"
+
+    # verdict.call mirrors the resolved spine (verdict-inert projection, never a re-derivation)
+    verdict = block.get("verdict") or {}
+    assert verdict.get("call") == h.get("genomic_alteration_profile")
+    assert verdict.get("gate") == "genomic_alteration"
+    assert verdict.get("phrase")            # a human phrase was assigned
+    assert verdict.get("polarity") in {"positive", "negative", "neutral"}
+
+    # confidence.level is a valid tier
+    assert (block.get("confidence") or {}).get("level") in _VALID_CONFIDENCE
+
+    # the hero lists this skill's alteration axes, in order
+    hero = block.get("hero") or {}
+    assert [ax.get("key") for ax in (hero.get("axes") or [])] == list(_GENOMIC_AXES)
+
+    # a deterministic headline sentence is always available (no live read / LLM)
+    assert isinstance(block.get("headline_text"), str) and block["headline_text"].strip()
