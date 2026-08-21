@@ -790,6 +790,7 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     data_unavailable-safe: no shard → subtype_axis_available False + empty landscape.
     """
     from methods.subgroup_common.panorama import (evidence_state as _evstate,
+                                                   axis_quality as _axis_quality,
                                                    SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
     from methods.subgroup_common.scoping import compute_join_coverage
     from statistics import median as _median
@@ -815,13 +816,15 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     except Exception as e:  # noqa: BLE001 — base shard itself unfetchable
         assignments, manifest = None, INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
         if manifest is not None:
-            base.update({"subtype_axis_available": False, "subtype_landscape": [],
+            base.update({"subtype_axis_available": False, "subtype_axis_quality": "unavailable",
+                         "subtype_landscape": [],
                          "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
                          "subtype_stratification_class": "subtype_axis_unavailable",
                          "_subtype_note": f"assignment shard unavailable: {type(e).__name__}"})
             return base
     if manifest is None or pooled.get("tumor_expression_class") == "data_unavailable":
-        base.update({"subtype_axis_available": False, "subtype_landscape": [],
+        base.update({"subtype_axis_available": False, "subtype_axis_quality": "unavailable",
+                     "subtype_landscape": [],
                      "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
                      "subtype_stratification_class": "subtype_axis_unavailable",
                      "_subtype_note": ("no landed tumor assignment shard for this indication"
@@ -990,7 +993,9 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                               "delta": round(max(_measured_purities) - min(_measured_purities), 4)}
                              if len(_measured_purities) >= 2 else None)
 
-    base.update({"subtype_axis_available": True, "subtype_landscape": landscape,
+    base.update({"subtype_axis_available": True,
+                 "subtype_axis_quality": _axis_quality(landscape),
+                 "subtype_landscape": landscape,
                  "purity_source": ("pancanatlas_absolute" if _purity_by_case else "unavailable"),
                  "subtype_purity_spread": subtype_purity_spread,
                  "assignment_manifest": manifest, "matched_normal_tissue": normal_tissue,

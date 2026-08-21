@@ -14,7 +14,7 @@ from . import cli as _cli
 # exactly as depmap_chronos.build_dependency_panorama does for dependency. DESCRIPTIVE / verdict-inert.
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
-    build_panorama, delta_reducer, evidence_state, SUBGROUP_N_FLOOR,
+    build_panorama, delta_reducer, evidence_state, axis_quality, SUBGROUP_N_FLOOR,
 )
 from methods.subgroup_common.scoping import resolve_subgroup_cohort
 
@@ -219,6 +219,7 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
         spotlight = max(enriched, key=lambda r: r["median_log2tpm"])["stratum"]
     return {
         "subtype_axis_available": bool(records),
+        "subtype_axis_quality": axis_quality(records),
         "n_subtypes_measured": len(measured),
         "n_subtypes_enriched": n_enriched,
         "n_subtypes_depleted": n_depleted,

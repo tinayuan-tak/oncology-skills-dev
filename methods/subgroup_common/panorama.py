@@ -50,6 +50,38 @@ def evidence_state(subgroup_n: int, floor_met: bool) -> str:
     return "measured" if floor_met else "underpowered"
 
 
+def axis_quality(records: list[dict], *, min_powered_strata: int = 2) -> str:
+    """Roll the per-stratum `evidence_state` trichotomy up to ONE axis-quality grade.
+
+    `subtype_axis_available: True` alone is misleading — an axis can be defined for an
+    indication yet be hollow (every stratum empty, e.g. DepMap STAD/PAAD) or too thin to
+    contrast (only ONE stratum clears the n-floor, e.g. NSCLC where only KRAS_G12C is
+    powered). This grade lets a downstream card/skill/agent distinguish an ACTIONABLE
+    subtype axis from a present-but-unusable one, WITHOUT changing any verdict.
+
+    Grades (most→least usable):
+      "powered"      — >= `min_powered_strata` strata clear the n-floor
+                       (evidence_state == "measured"); comparative subtype claims
+                       ("enriched in A vs B") are supportable.
+      "underpowered" — the axis has samples but < `min_powered_strata` measured strata;
+                       per-stratum reads are context only, not a selection axis.
+      "empty"        — the axis is defined but every stratum is `absent`
+                       (0 members ∩ the method cohort).
+      "unavailable"  — no records at all (no assignment shard / no subtype axis).
+
+    Substrate-agnostic: reads only `evidence_state`, which every panorama record carries,
+    so it works identically for the tumor (case-grain) and cell-line (ModelID-grain)
+    expression readers. Purely descriptive — emits no signal, moves no verdict.
+    """
+    if not records:
+        return "unavailable"
+    states = [r.get("evidence_state") for r in records]
+    if all(s == "absent" for s in states):
+        return "empty"
+    n_measured = sum(1 for s in states if s == "measured")
+    return "powered" if n_measured >= min_powered_strata else "underpowered"
+
+
 # ---- Named cross-stratum reducers -----------------------------------------
 # A card picks one. Each takes the list of projected records + the metric key
 # and returns a dict of summary scalars merged into the panorama envelope.

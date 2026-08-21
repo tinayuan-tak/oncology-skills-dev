@@ -12,6 +12,7 @@ from functools import partial
 
 from methods.subgroup_common.panorama import (
     SUBGROUP_N_FLOOR,
+    axis_quality,
     build_panorama,
     delta_reducer,
     evidence_state,
@@ -24,6 +25,24 @@ def test_evidence_state_trichotomy():
     assert evidence_state(50, True) == "measured"
     # floor constant is the shared single source of truth
     assert SUBGROUP_N_FLOOR == 30
+
+
+def test_axis_quality_grades():
+    m = {"evidence_state": "measured"}
+    u = {"evidence_state": "underpowered"}
+    a = {"evidence_state": "absent"}
+    # >=2 measured strata → an actionable, contrastable axis
+    assert axis_quality([m, m, u]) == "powered"
+    assert axis_quality([m, m]) == "powered"
+    # only ONE measured stratum can't support a cross-subtype contrast (NSCLC KRAS_G12C case)
+    assert axis_quality([m, u, a]) == "underpowered"
+    assert axis_quality([u, u]) == "underpowered"
+    # axis defined but every stratum empty (DepMap STAD/PAAD case)
+    assert axis_quality([a, a, a]) == "empty"
+    # no records at all → no axis
+    assert axis_quality([]) == "unavailable"
+    # threshold is tunable
+    assert axis_quality([m], min_powered_strata=1) == "powered"
 
 
 def test_delta_reducer_ignores_absent_and_null():
