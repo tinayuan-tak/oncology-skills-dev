@@ -43,7 +43,10 @@ _FIX_INDICATION = "COADREAD"
 
 # Non-run.py / non-wired skill dirs to skip (orchestration/retrieval/workflow + infra).
 _SKIP_DIRS = {"_skills_common", "tests", "compose-dashboard", "render-evidence-package",
-              "query-target-evidence"}
+              "query-target-evidence",
+              # DEPRECATED 2026-08-20 (retired from the fan-out → consolidated into
+              # combination-and-vulnerability). Runnable standalone but not active wired subskills.
+              "synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"}
 
 
 def _wired_subskills() -> list[str]:

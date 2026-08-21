@@ -31,7 +31,10 @@ STEPS = {1, 2, 3, 4, 5, 6}
 
 OPTIONAL_LENSES = {"modality", "therapeutic_hypothesis", "subgroup"}
 
-STATUSES = {"wired", "not_wired", "partial"}
+# deprecated = retired from the target-profile fan-out (still runnable standalone). Added 2026-08-20 for
+# the relational trio (synthetic-lethal-partners/combinatorial-dependency/combo-and-resistance)
+# consolidated into combination-and-vulnerability.
+STATUSES = {"wired", "not_wired", "partial", "deprecated"}
 
 # Behavior a composed skill takes when a dependency card is `status: partial`
 # (i.e., graduated from placeholder but not yet fully wired). Reviewer-driven

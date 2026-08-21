@@ -52,7 +52,7 @@ composition:
   steps_covered: [1, 2, 3, 4, 6]
   optional_lenses:
     - modality
-  status: wired
+  status: deprecated               # RETIRED FROM THE FAN-OUT 2026-08-20 — consolidated into combination-and-vulnerability. Runnable standalone; NOT composed. (see description note)
 ---
 
 # combinatorial-dependency — Paralog Dual-KO Genetic Interaction

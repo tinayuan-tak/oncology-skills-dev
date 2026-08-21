@@ -29,7 +29,7 @@ description: |
 composition:
   data_mode: derived_read
   phase: [C]                        # Gate-C (dependency) — SL-partner annotation is a Gate-C veto-suppressor
-  status: wired                     # card-consuming verdict skill; resolves synthetic_lethal_partners gate (veto-suppressor)
+  status: deprecated               # RETIRED FROM THE FAN-OUT 2026-08-20 — consolidated into combination-and-vulnerability. Runnable standalone; NOT composed. (see description note)
   cards_used:
     - synthetic-lethal-partners
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled (annotation type; suppresses a
