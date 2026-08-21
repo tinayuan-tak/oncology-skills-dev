@@ -97,15 +97,13 @@ CACHE_PARQUET = CACHE_DIR / "cptac_protein_deg.parquet"
 
 # Per-SAMPLE product (cptac-protein-tumor-vs-normal-per-sample-v1): the per-aliquot
 # log-ratios the per-cohort summary threw away. Backs the true tumor-vs-normal
-# distribution boxplot + honest per-cohort statistics (Welch + Mann-Whitney). 129 MB,
-# sorted by (gene_symbol, cohort) so a per-gene predicate-pushdown read prunes to a few
-# row-groups. See data-catalog manifest cptac-protein-tumor-vs-normal-per-sample-v1.
+# distribution boxplot + honest per-cohort statistics (Welch + Mann-Whitney). 127 MB,
+# sorted by (gene_symbol, cohort) so a per-gene predicate-pushdown read (read_per_sample) STREAMS a
+# few row-groups off S3 instead of downloading the whole product. See data-catalog manifest
+# cptac-protein-tumor-vs-normal-per-sample-v1.
 PER_SAMPLE_MANIFEST_ID = "cptac-protein-tumor-vs-normal-per-sample-v1"
-_, PER_SAMPLE_S3_KEY = bucket_key_for(PER_SAMPLE_MANIFEST_ID)
-CACHE_PER_SAMPLE = CACHE_DIR / "cptac_protein_per_sample.parquet"
 
 _DERIVED_STATUS: Optional[bool] = None
-_PER_SAMPLE_STATUS: Optional[bool] = None
 
 # Indication → CPTAC cohort code mapping (some indications share codes)
 INDICATION_TO_CPTAC = {
@@ -118,6 +116,30 @@ INDICATION_TO_CPTAC = {
 
 
 from methods.target_id_sidecar import s3_client as _boto3_client
+
+
+import threading
+
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
+
+
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (region us-east-1 — the onc-compbio bucket).
+
+    Constructing one costs ~0.4s (client init + region probe) and the per-sample distribution path
+    fires several times per card render (the three figure emitters + per_cohort_distribution_stats),
+    so we build it ONCE instead of per read. pyarrow's S3FileSystem is safe to share across threads
+    for reads (the parallel card-read path); double-checked locking so concurrent first-callers build
+    a single instance. Region is pinned to skip the region-probe round-trip. Mirrors the sibling
+    methods/dge_deseq2/read.py::_get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
 def _ensure_derived_cached() -> Optional[Path]:
@@ -355,62 +377,36 @@ def read_all_cohorts(target: str) -> list[dict]:
 # themselves (Welch's t on the log-ratios + a nonparametric Mann-Whitney U), rather than trusting a
 # median dumbbell.
 
-def _ensure_per_sample_cached() -> Optional[Path]:
-    """Download + cache the per-sample product. Same definitive-vs-transient latch as the
-    per-cohort loader: only latch False on a real 404/403 so a transient blip retries."""
-    global _PER_SAMPLE_STATUS
-    if _PER_SAMPLE_STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PER_SAMPLE.exists() and CACHE_PER_SAMPLE.stat().st_size > 0:
-        _PER_SAMPLE_STATUS = True
-        return CACHE_PER_SAMPLE
-    if _PER_SAMPLE_STATUS is None:
-        try:
-            s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, PER_SAMPLE_S3_KEY, str(CACHE_PER_SAMPLE))
-            _PER_SAMPLE_STATUS = True
-            return CACHE_PER_SAMPLE
-        except Exception as e:
-            # 403/AccessDenied is TRANSIENT (expired STS creds / IAM propagation), not a missing
-            # object — only 404/NoSuchKey latches definitive-absent. See _ensure_derived_cached.
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _PER_SAMPLE_STATUS = False
-            return None
-    return None
+_PER_SAMPLE_COLS = ["gene_symbol", "cohort", "aliquot_submitter_id",
+                    "sample_type", "condition", "log2_ratio"]
 
 
 def read_per_sample(target: str):
     """Per-aliquot CPTAC protein log-ratios for one target, all cohorts.
 
-    Predicate-pushdown read (filter gene_symbol == target) on the (gene_symbol, cohort)-sorted
-    per-sample parquet — prunes to a few row-groups instead of scanning 15M rows. Returns a
-    DataFrame with columns (gene_symbol, cohort, aliquot_submitter_id, sample_type, condition,
-    log2_ratio); empty DataFrame when the target is absent / product unavailable."""
-    path = _ensure_per_sample_cached()
-    if path is None:
-        import pandas as pd
-        return pd.DataFrame(columns=["gene_symbol", "cohort", "aliquot_submitter_id",
-                                     "sample_type", "condition", "log2_ratio"])
+    STREAMED predicate-pushdown read over the (gene_symbol, cohort)-sorted per-sample parquet on S3
+    (pyarrow S3FileSystem, filters=[("gene_symbol","=",target)]) — pyarrow prunes to the target's few
+    row-groups (row_group_size 16384) and transfers only those column chunks, WITHOUT downloading the
+    127 MB / ~15M-row product. Bucket/key resolved from the derived manifest (single source of truth).
+    Returns a DataFrame with columns (gene_symbol, cohort, aliquot_submitter_id, sample_type,
+    condition, log2_ratio); empty DataFrame when the target is absent / product unavailable."""
+    sym = target.upper().strip()
     try:
         import pyarrow.parquet as pq
-        sym = target.upper().strip()
-        tbl = pq.read_table(str(path), filters=[("gene_symbol", "==", sym)])
+        bucket, key = bucket_key_for(PER_SAMPLE_MANIFEST_ID)
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
+                            filters=[("gene_symbol", "=", sym)])
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
-        # Local cached-parquet read (S3 already latched definitive-vs-transient in
-        # _ensure_per_sample_cached). A corrupt cached file / broken env (missing pyarrow) must NOT
-        # be masked as "target absent" — re-raise so the live-read seam surfaces _live_read_error.
+        # Absence discipline: swallow ONLY a genuine no-object (S3 NoSuchKey/404 or pyarrow
+        # FileNotFoundError) as an honest data_unavailable (empty frame); RE-RAISE transient / creds
+        # (AccessDenied) / broken-env (missing pyarrow) so the live-read seam surfaces a real
+        # _live_read_error instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         import pandas as pd
-        return pd.DataFrame(columns=["gene_symbol", "cohort", "aliquot_submitter_id",
-                                     "sample_type", "condition", "log2_ratio"])
+        return pd.DataFrame(columns=_PER_SAMPLE_COLS)
 
 
 @lru_cache(maxsize=64)

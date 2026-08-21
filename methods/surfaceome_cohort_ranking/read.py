@@ -4,127 +4,118 @@ Consumer: surfaceome-cohort-ranking evidence card + skill (Phase F target-
 scan hook). Emits per-target percentile-context lookup within the ranked
 surfaceome for a given indication.
 
-Iter-1 wiring approach:
-  - Reads derived parquet at
-    s3://onc-compbio/data-catalog/derived/surfaceome-cohort-ranking-per-indication-v1/
-  - Falls back to `data_unavailable` gracefully when derived product not on S3.
-  - The upstream compute composes over all 18 wired tumor-vs-normal
-    sensitivity products, filters cells_supporting >= 3, ranks per
-    indication — this method is a per-target lookup into the result.
+Wiring approach:
+  - STREAMS the derived parquet (surfaceome-cohort-ranking-per-indication-v1)
+    directly from S3 via a pyarrow S3FileSystem, pushing down the gene_symbol
+    filter (the manifest's query_optimization.primary_filter_column) so only
+    the requested target's rows are fetched — no whole-file download, no
+    full-frame index build. Bucket/key resolve through the catalog
+    (bucket_key_for), never a hardcoded path.
+  - The upstream compute composes over all wired tumor-vs-normal sensitivity
+    products, filters cells_supporting >= min(2, cells_ran), ranks per
+    indication — this method is a per-target lookup into that result.
+  - Absence discipline: a GENUINE product-object absence (NoSuchKey/404) ->
+    data_unavailable; a transient / creds / broken-env failure propagates (it
+    is never swallowed as a silent dead axis).
 
-Runtime discipline: @lru_cache + module-level negative cache.
+Runtime discipline: per-target row cache; definitive-absence latch.
 """
 from __future__ import annotations
 
-import os
-from functools import lru_cache
-from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "surfaceome-cohort-ranking-per-indication-v1"
-DERIVED_S3_KEY = (
-    "data-catalog/derived/surfaceome-cohort-ranking-per-indication-v1/"
-    "surfaceome_cohort_ranking.parquet"
-)
 
-CACHE_DIR = Path.home() / ".cache" / "framework-surfaceome-ranking"
-CACHE_PARQUET = CACHE_DIR / "surfaceome_cohort_ranking.parquet"
+# Columns consumed downstream (_row_to_summary + the by-indication / best-percentile lookup).
+# Projecting them keeps the streamed read to just what the summary needs.
+_COLUMNS = [
+    "indication", "gene_symbol", "cohort_rank_class", "tissue_rank",
+    "tissue_percentile_rna", "tissue_percentile_protein", "rna_protein_concordance",
+    "ranking_score", "cells_supporting", "max_abs_log2fc", "surface_protein_family",
+]
 
-_DERIVED_STATUS: Optional[bool] = None
-
-
-from methods.target_id_sidecar import s3_client as _boto3_client
-
-
-def _ensure_derived_cached() -> Optional[Path]:
-    global _DERIVED_STATUS
-    if _DERIVED_STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
-        _DERIVED_STATUS = True
-        return CACHE_PARQUET
-    if _DERIVED_STATUS is None:
-        try:
-            s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
-            _DERIVED_STATUS = True
-            return CACHE_PARQUET
-        except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 /
-            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
-            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
-            # False on the definitive case — that safely short-circuits every
-            # later call in the process. For a transient error, LEAVE
-            # _DERIVED_STATUS = None so a subsequent call retries instead of
-            # poisoning the whole process with a false data_unavailable.
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _DERIVED_STATUS = False
-            return None
-    return None
+# Per-target row cache (keyed by UPPER(gene_symbol)); caches ONLY successful reads. A transient
+# read RAISES and is NOT cached, so a later call retries rather than latching the target to
+# data_unavailable for the process lifetime.
+_ROWS_CACHE: dict = {}
+# Latched True ONLY on a definitive product-object absence (NoSuchKey/404), short-circuiting every
+# later per-gene read in the process (mirrors the former whole-product negative cache).
+_PRODUCT_ABSENT: bool = False
 
 
-@lru_cache(maxsize=1)
-def _load_indexed() -> dict:
-    """Index by (indication, gene_symbol) → ranking row.
-    Also builds a gene-only fallback index for cross-indication lookups.
+def _read_gene_rows(target: str) -> Optional[list]:
+    """Streamed pushdown read of the ranking rows for ONE gene_symbol across indications.
+
+    Returns a list of row dicts (possibly empty) on success, None on a GENUINE no-object
+    (NoSuchKey/404), and RAISES on a transient/creds/broken-env failure (neither cached, so a
+    later call retries). Mirrors methods/combo_drug_anchor.read._read_rows.
     """
-    path = _ensure_derived_cached()
-    if path is None:
-        return {"by_ind_gene": {}, "by_gene": {}}
+    global _PRODUCT_ABSENT
+    sym = (target or "").strip().upper()
+    if _PRODUCT_ABSENT:
+        return None
+    if sym in _ROWS_CACHE:
+        return _ROWS_CACHE[sym]
     try:
-        import pandas as pd
-        df = pd.read_parquet(path)
-    except Exception:
-        return {"by_ind_gene": {}, "by_gene": {}}
-    if df.empty:
-        return {"by_ind_gene": {}, "by_gene": {}}
-    by_ind_gene: dict[tuple, dict] = {}
-    by_gene: dict[str, list[dict]] = {}
-    for _, row in df.iterrows():
-        rec = row.to_dict()
-        ind = str(rec.get("indication", "")).strip().upper()
-        sym = str(rec.get("gene_symbol", "")).strip().upper()
-        if ind and sym:
-            by_ind_gene[(ind, sym)] = rec
-            by_gene.setdefault(sym, []).append(rec)
-    return {"by_ind_gene": by_ind_gene, "by_gene": by_gene}
+        from methods.catalog_query.read import bucket_key_for
+        import pyarrow.parquet as pq
+        import pyarrow.fs as fs
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(region="us-east-1"),
+            filters=[("gene_symbol", "=", sym)],
+            columns=_COLUMNS,
+        )
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # GENUINE absence (NoSuchKey/404 or a pyarrow FileNotFoundError) -> latch + None (honest
+        # data_unavailable). A transient / creds / broken-env failure is NOT absence -> re-raise so
+        # the caller's boundary records the real cause; not cached, so a later call still retries.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _PRODUCT_ABSENT = True
+            return None
+        raise
+    rows = tbl.to_pylist()
+    _ROWS_CACHE[sym] = rows
+    return rows
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
+    sym = target.upper().strip()
     try:
-        idx = _load_indexed()
-    except Exception as e:
+        rows = _read_gene_rows(sym)
+    except Exception as e:  # noqa: BLE001
+        # Graceful PUBLIC boundary: _read_gene_rows already discriminates definitive-absence (-> None)
+        # from a transient/creds/broken-env failure (-> raise, uncached) per the repo's absence
+        # discipline; here we degrade that surfaced failure to a cause-named breadcrumb rather than
+        # crash the whole card run on a read blip. (Returns a populated dict, not an empty result.)
         return _empty(f"cohort_ranking_load_failed: {type(e).__name__}: {e}")
-    if not idx.get("by_ind_gene"):
+    if rows is None:
         return _empty("cohort_ranking_data_unavailable")
 
-    sym = target.upper().strip()
+    # rows are pre-filtered to this gene_symbol; index by indication for the exact-match lookup.
+    gene_rows = [r for r in rows if str(r.get("indication", "")).strip().upper()]
+    by_ind: dict[str, dict] = {}
+    for r in gene_rows:
+        by_ind[str(r.get("indication", "")).strip().upper()] = r
 
     # Indication-specific lookup
     if indication:
         ind = indication.upper().strip()
-        row = idx["by_ind_gene"].get((ind, sym))
+        row = by_ind.get(ind)
         if row is None:
-            # Try gene-only fallback (any indication)
-            rows = idx["by_gene"].get(sym, [])
-            if not rows:
+            # Gene-only fallback (any indication)
+            if not gene_rows:
                 return _empty("target_not_in_ranking_any_indication")
             return _empty(f"target_not_in_ranking_for_{ind}")
         return _row_to_summary(row)
 
-    # No indication → return best-percentile row across all indications
-    rows = idx["by_gene"].get(sym, [])
-    if not rows:
+    # No indication -> return best-percentile row across all indications
+    if not gene_rows:
         return _empty("target_not_in_any_ranking")
-    best = max(rows, key=lambda r: float(r.get("tissue_percentile_rna", 0) or 0))
+    best = max(gene_rows, key=lambda r: float(r.get("tissue_percentile_rna", 0) or 0))
     return _row_to_summary(best)
 
 

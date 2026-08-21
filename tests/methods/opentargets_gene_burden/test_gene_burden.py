@@ -78,7 +78,7 @@ def test_unresolvable_symbol_is_insufficient(monkeypatch):
 def test_resolved_but_no_rows_is_no_burden_signal(monkeypatch):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: "ENSG_ORPHAN")
     monkeypatch.setattr(r, "read_entity",
-                        lambda entity, columns=None: pd.DataFrame(columns=r._FIELDS))
+                        lambda entity, columns=None, **_kw: pd.DataFrame(columns=r._FIELDS))
     # entity present but empty -> insufficient (entity unavailable path)
     out = r.read_gene_burden("ORPHAN")
     assert out["burden_safety_class"] in ("insufficient", "no_burden_signal")
@@ -88,7 +88,7 @@ def test_end_to_end_risk_via_monkeypatch(monkeypatch):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: "ENSG_TP53")
     df = pd.DataFrame([_row("risk", 1e-25, "Leukemia"), _row("risk", 1e-19)])
     df["targetId"] = "ENSG_TP53"
-    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None: df)
+    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None, **_kw: df)
     out = r.read_gene_burden("TP53")
     assert out["burden_safety_class"] == "lof_risk_phenotype"
     assert out["ensembl_gene_id"] == "ENSG_TP53"

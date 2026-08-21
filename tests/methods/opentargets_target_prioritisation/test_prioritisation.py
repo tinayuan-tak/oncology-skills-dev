@@ -22,7 +22,7 @@ r = importlib.import_module("methods.opentargets_target_prioritisation.read")
 
 def _patch(monkeypatch, *, ensg, df):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: ensg)
-    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None: df)
+    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None, **_kw: df)
 
 
 def _row(ensg, **scores):

@@ -154,7 +154,7 @@ def read_clingen_dosage(target: str, indication: Optional[str] = None) -> dict:
                 "germline_inheritance_mode": "insufficient",
                 "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
 
-    df = read_entity("evidence_clingen", columns=_FIELDS)
+    df = read_entity("evidence_clingen", columns=_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
         return {**base, "dosage_sensitivity_class": "insufficient",
                 "germline_inheritance_mode": "insufficient",

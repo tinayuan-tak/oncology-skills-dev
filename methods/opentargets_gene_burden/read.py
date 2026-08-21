@@ -113,7 +113,7 @@ def read_gene_burden(target: str, indication: Optional[str] = None) -> dict:
         return {**base, "burden_safety_class": "insufficient",
                 "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
 
-    df = read_entity("evidence_gene_burden", columns=_FIELDS)
+    df = read_entity("evidence_gene_burden", columns=_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
         return {**base, "burden_safety_class": "insufficient",
                 "_note": "evidence_gene_burden entity not available"}

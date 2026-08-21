@@ -23,7 +23,7 @@ Graceful degradation: derived product unreachable → data_unavailable + _live_r
 
 from __future__ import annotations
 
-from pathlib import Path
+import threading
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
@@ -34,25 +34,46 @@ DERIVED_MANIFEST_ID = "synlethdb-sl-partners-per-gene-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth);
 # was a hand-typed literal with no manifest_id constant to tie it back.
 S3_BUCKET, DERIVED_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
-DEFAULT_AWS_PROFILE = "cbg"
-CACHE_DIR = Path.home() / ".cache" / "synlethdb-sl-partners"
-CACHE_PARQUET = CACHE_DIR / "synlethdb_sl_partners_per_gene.parquet"
+# Pushdown key: the derived manifest's query_optimization.primary_filter_column
+# (gene_symbol); the product is gene_symbol-SORTED so a predicate-pushed streaming
+# read prunes to the target's row-group instead of downloading the whole object.
+PUSHDOWN_KEY = "gene_symbol"
+
+# Process-wide S3FileSystem singleton (double-checked lock), mirroring the
+# streamed-read exemplars (dge_deseq2._get_s3fs, depmap_common.parquet._get_s3fs).
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-from methods.target_id_sidecar import ensure_aws_profile
+def _get_s3fs():
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
-def _ensure_cached(parquet_path=None) -> Optional[Path]:
-    """Return a local parquet path (test override, warm cache, or S3 download)."""
+def _read_gene_rows(target: str, parquet_path=None):
+    """STREAMED pushdown read of the target's per-gene row(s) as a pandas DataFrame.
+
+    Reads the derived product over a pyarrow S3FileSystem (no whole-file download) with
+    a predicate pushed on the manifest's primary_filter_column (gene_symbol). The match
+    is case-insensitive (utf8_upper on both sides) to preserve the reader's historical
+    behaviour — SynLethDB stores native-case HGNC symbols (e.g. `C4orf54`), so an exact
+    uppercase equality would silently drop the ~60 orf-genes. `parquet_path` (offline test
+    seam) streams a local file instead of S3. Errors propagate to the caller's boundary."""
+    import pyarrow.dataset as ds
+    import pyarrow.compute as pc
+    want = target.strip().upper()
+    expr = pc.equal(pc.utf8_upper(pc.field(PUSHDOWN_KEY)), want)
     if parquet_path is not None:
-        return Path(parquet_path)
-    if CACHE_PARQUET.exists():
-        return CACHE_PARQUET
-    ensure_aws_profile()
-    import boto3
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    boto3.client("s3").download_file(S3_BUCKET, DERIVED_KEY, str(CACHE_PARQUET))
-    return CACHE_PARQUET
+        dset = ds.dataset(str(parquet_path), format="parquet")
+    else:
+        dset = ds.dataset(f"{S3_BUCKET}/{DERIVED_KEY}", filesystem=_get_s3fs(),
+                          format="parquet")
+    return dset.to_table(filter=expr).to_pandas()
 
 
 def _summary(row) -> dict:
@@ -87,8 +108,14 @@ def read_target_summary(target: str, indication: Optional[str] = None,
     """SL-partner annotation for a target. Gene-level (SL pairs are gene-gene) —
     `indication` accepted for the dispatcher contract but NOT consumed."""
     try:
-        path = _ensure_cached(parquet_path)
+        hit = _read_gene_rows(target, parquet_path)
     except Exception as e:  # noqa: BLE001
+        # absence-discipline: exempt -- documented graceful contract (module docstring):
+        # ANY read failure (transient/creds/broken-env OR a genuinely-missing product
+        # object) degrades to a NON-empty `data_unavailable` dict + `_live_read_error`
+        # breadcrumb (never the RD empty-return bug class), and the reader never raises
+        # past this boundary. A gene genuinely absent from the (successfully-read) table
+        # is the distinct `no_curated_sl_partner` path below, not this handler.
         return {
             "_live_read_error": "synlethdb_partners_read_failed",
             "_remediation": (f"Could not read SL-partners derived product "
@@ -97,9 +124,6 @@ def read_target_summary(target: str, indication: Optional[str] = None,
             "sl_partner_count": 0, "has_experimental_partner": False,
             "method_version": METHOD_VERSION,
         }
-    import pandas as pd
-    df = pd.read_parquet(path)
-    hit = df[df["gene_symbol"].astype(str).str.upper() == target.strip().upper()]
     if not len(hit):
         # a real read: this gene has no curated SL partner (NOT data_unavailable)
         return {

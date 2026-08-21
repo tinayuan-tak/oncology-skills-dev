@@ -120,7 +120,7 @@ def test_reader_case_insensitive(tmp_path):
 def test_reader_graceful_on_read_failure(monkeypatch):
     def _boom(*a, **k):
         raise RuntimeError("s3 down")
-    monkeypatch.setattr(r, "_ensure_cached", _boom)
+    monkeypatch.setattr(r, "_read_gene_rows", _boom)
     s = r.read_target_summary("SMARCA2")
     assert s["sl_partner_class"] == "data_unavailable"
     assert s["_live_read_error"] == "synlethdb_partners_read_failed"

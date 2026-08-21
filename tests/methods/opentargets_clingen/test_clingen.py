@@ -72,7 +72,7 @@ def test_end_to_end_via_monkeypatch(monkeypatch):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: "ENSG_TP53")
     df = pd.DataFrame([_row("Definitive", ["AD"], "Li-Fraumeni")])
     df["targetId"] = "ENSG_TP53"
-    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None: df)
+    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None, **_kw: df)
     out = r.read_clingen_dosage("TP53")
     assert out["dosage_sensitivity_class"] == "autosomal_dominant_loss"
     assert out["ensembl_gene_id"] == "ENSG_TP53"

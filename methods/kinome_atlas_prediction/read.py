@@ -33,9 +33,8 @@ of the PWM log-odds score.
 from __future__ import annotations
 
 import os
+import threading
 from functools import lru_cache
-from pathlib import Path
-from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
@@ -44,9 +43,6 @@ DEFAULT_AWS_PROFILE = "cbg"
 DERIVED_MANIFEST_ID = "kinome-atlas-long-edges-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
 S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
-
-CACHE_DIR = Path.home() / ".cache" / "framework-kinome-atlas"
-CACHE_PARQUET = CACHE_DIR / "kinome_atlas_long_edges.parquet"
 
 # Runtime read-time percentile threshold. Parquet on S3 has percentile>=90
 # edges (~2.9M rows); this constant further filters at read time. 95 =
@@ -58,86 +54,76 @@ RUNTIME_PERCENTILE_THRESHOLD = float(
 )
 
 
-_DERIVED_STATUS: Optional[bool] = None
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton. Region is pinned to us-east-1 (the
+    onc-compbio bucket) so construction skips the region-probe round-trip. pyarrow's
+    S3FileSystem is safe to share across threads; build it ONCE. Mirrors dge_deseq2._get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
-def _ensure_derived_cached() -> Optional[Path]:
-    global _DERIVED_STATUS
-    if _DERIVED_STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
-        _DERIVED_STATUS = True
-        return CACHE_PARQUET
-    if _DERIVED_STATUS is None:
-        try:
-            s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
-            _DERIVED_STATUS = True
-            return CACHE_PARQUET
-        except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 /
-            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
-            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
-            # False on the definitive case — that safely short-circuits every
-            # later call in the process. For a transient error, LEAVE
-            # _DERIVED_STATUS = None so a subsequent call retries instead of
-            # poisoning the whole process with a false data_unavailable.
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            # Latch process-wide ONLY on a genuine object-absence (404 / NoSuchKey). 403 /
-            # AccessDenied is NOT definitive: it is almost always a TRANSIENT creds blip (expired
-            # token, un-refreshed role) — latching it would poison the whole batch with a false
-            # data_unavailable. Mirrors surface_antigen_density_ladder (latches on 404/NoSuchKey only).
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _DERIVED_STATUS = False
-            return None
-    return None
+def _read_atlas_df():
+    """Stream the derived atlas parquet directly from S3 with a percentile predicate pushdown.
+
+    Replaces the former "download the whole 57 MB file to ~/.cache then read it" path with a
+    pyarrow S3FileSystem STREAMED read (no local download): the derived product is written
+    percentile-DESC (see derive.py), so the percentile>=RUNTIME_PERCENTILE_THRESHOLD predicate
+    prunes the trailing row-groups instead of transferring the full atlas. Returns a
+    pandas.DataFrame of the surviving rows (all schema columns, dtypes as written).
+
+    Absence discipline: swallow ONLY a definitive object-absence (NoSuchKey / 404, or a pyarrow
+    FileNotFoundError) as an honest empty frame; RE-RAISE transient / creds / broken-env failures
+    so the live-read seam surfaces a real error instead of a silent data_unavailable.
+    """
+    import pandas as pd
+    try:
+        df = pd.read_parquet(
+            f"{S3_BUCKET}/{DERIVED_S3_KEY}",
+            filesystem=_get_s3fs(),
+            # Read-time predicate pushdown: only pull rows above threshold.
+            # Parquet on S3 has percentile>=90 edges (~2.9M); this drops to
+            # ~1.4M at threshold=95, ~300K at threshold=99.
+            filters=[('percentile', '>=', RUNTIME_PERCENTILE_THRESHOLD)],
+        )
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # A GENUINELY absent product object (NoSuchKey/404 or a pyarrow FileNotFoundError) is honest
+        # absence -> empty frame (the caller's lru_cache never latches it as a poisoned negative).
+        # A CORRUPT parquet / broken-env / creds / transient failure is NOT absence -> re-raise so
+        # the live-read seam records the REAL cause instead of a silent empty index.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return pd.DataFrame()
+        raise
+    return df
 
 
 @lru_cache(maxsize=1)
 def _load_atlas_indexed():
-    """Load derived parquet + build kinase and substrate indices.
+    """Load derived parquet (streamed from S3) + build kinase and substrate indices.
 
     Returns (df, kinase_index, substrate_index):
         - df: pandas.DataFrame with percentile>=RUNTIME_PERCENTILE_THRESHOLD
           rows. Rows are the source-of-truth; per-target dict materialization
           happens lazily at read_target_summary time via df.iloc[indices].
-          Empty DataFrame if load failed.
+          Empty DataFrame if the product is genuinely absent.
         - kinase_index: dict[kinase_symbol -> list[row_index_in_df]]
         - substrate_index: dict[substrate_gene -> list[row_index_in_df]]
-    """
-    path = _ensure_derived_cached()
-    if path is None:
-        import pandas as pd
-        return pd.DataFrame(), {}, {}
 
-    try:
-        import pandas as pd
-        # Read-time predicate pushdown: only pull rows above threshold.
-        # Parquet on S3 has percentile>=90 edges (~2.9M); this drops to
-        # ~1.4M at threshold=95, ~300K at threshold=99.
-        df = pd.read_parquet(
-            path,
-            filters=[('percentile', '>=', RUNTIME_PERCENTILE_THRESHOLD)],
-        )
-    except Exception as e:
-        import pandas as pd
-        from methods.target_id_sidecar import is_definitively_absent
-        # The atlas S3 fetch is already discriminated upstream in _ensure_derived_cached (latches
-        # data_unavailable only on a definitive 404/NoSuchKey). Here `path` is a LOCAL cached parquet:
-        # a genuinely-missing file (FileNotFoundError) is honest absence -> empty. A CORRUPT parquet or
-        # a broken-env failure (pyarrow/pandas parse/import error) is NOT absence -> re-raise so the
-        # live-read seam surfaces a _live_read_error instead of a silent empty index (and lru_cache
-        # never latches the empty).
-        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return pd.DataFrame(), {}, {}
-        raise
+    The parquet is read via a streamed pyarrow S3FileSystem pushdown (see _read_atlas_df) —
+    no whole-file download. Absence discipline lives in _read_atlas_df (definitive absence ->
+    empty; transient/creds/broken-env -> raise), so a transient blip never latches an empty
+    index into this @lru_cache.
+    """
+    df = _read_atlas_df()
 
     if df.empty:
         return df, {}, {}

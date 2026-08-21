@@ -127,7 +127,7 @@ def read_clinvar_pathogenic(target: str, indication: Optional[str] = None) -> di
         return {**base, "clinvar_pathogenic_class": "insufficient",
                 "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
 
-    df = read_entity("evidence_eva", columns=_FIELDS)
+    df = read_entity("evidence_eva", columns=_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
         return {**base, "clinvar_pathogenic_class": "insufficient",
                 "_note": "evidence_eva entity not available"}

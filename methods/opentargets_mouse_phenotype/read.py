@@ -135,7 +135,7 @@ def read_mouse_ko_phenotype(target: str, indication: Optional[str] = None) -> di
         return {**base, "ko_phenotype_class": "insufficient",
                 "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
 
-    df = read_entity("mouse_phenotype", columns=_FIELDS)
+    df = read_entity("mouse_phenotype", columns=_FIELDS, filter_col="targetFromSourceId", filter_val=ensg)
     if df.empty:
         return {**base, "ko_phenotype_class": "insufficient",
                 "_note": "mouse_phenotype entity not available"}

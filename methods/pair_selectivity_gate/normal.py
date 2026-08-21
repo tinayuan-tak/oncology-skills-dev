@@ -33,14 +33,30 @@ NORMAL_SAMECELL_MANIFEST = "sc-samecell-coexpr-normal-v1"
 MIN_DONORS_NORMAL = 3
 MIN_CELLS_NORMAL = 10
 
+# Columns the reader actually consumes (projection pushdown) — drops fraction_a / fraction_b /
+# either_fraction, which no downstream computation touches. Keep in step with parquet_schema.
+_USED_COLUMNS = [
+    "gene_a", "gene_b", "tissue", "cell_type", "dataset_id", "donor_id",
+    "n_cells", "both_fraction", "enrichment_vs_independence",
+]
+
 # normal_max_both bands for the selectivity call (RNA co-positivity, a lower bound under dropout).
 _LIABILITY_MIN = 0.10   # >= → a real normal cell type co-expresses both (selectivity liability)
 _CLEAR_MAX = 0.02       # <= → no normal co-positivity in any well-powered cell type (selectivity-clean)
 
 
-@lru_cache(maxsize=8)
-def _read_normal_cube(manifest_id: str = NORMAL_SAMECELL_MANIFEST):
-    """The pan-tissue normal same-cell cube. None if unreadable (cube not landed / no creds)."""
+@lru_cache(maxsize=64)
+def _read_normal_cube(genes: tuple = None, manifest_id: str = NORMAL_SAMECELL_MANIFEST):
+    """The pan-tissue normal same-cell cube, STREAMED with pushdown. None if unreadable (cube not
+    landed / no creds).
+
+    `genes` is the set of HGNC symbols the caller cares about (e.g. one target). The cube is sorted
+    by (gene_a, gene_b) with primary_filter_column=gene_a (see the derived manifest's
+    query_optimization); because a pair is matched order-insensitively we push a DNF filter
+    gene_a ∈ genes OR gene_b ∈ genes so we stream only the row-groups involving those genes, then let
+    the caller narrow the exact pair in pandas (behaviour identical to a whole-cube read). `genes=None`
+    streams the whole cube (still no download_file). Only the columns the reader consumes are projected.
+    """
     try:
         uri = s3_uri_for(manifest_id)
     except Exception as e:  # noqa: BLE001
@@ -54,7 +70,15 @@ def _read_normal_cube(manifest_id: str = NORMAL_SAMECELL_MANIFEST):
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
         s3fs = fs.S3FileSystem(region="us-east-1")
-        return pq.read_table(uri.replace("s3://", ""), filesystem=s3fs).to_pandas()
+        # order-insensitive pushdown: rows where either pair-member position is in `genes`.
+        filters = None
+        if genes:
+            gene_list = list(genes)
+            filters = [[("gene_a", "in", gene_list)], [("gene_b", "in", gene_list)]]
+        return pq.read_table(
+            uri.replace("s3://", ""), filesystem=s3fs,
+            columns=_USED_COLUMNS, filters=filters,
+        ).to_pandas()
     except Exception as e:  # noqa: BLE001
         # absence discipline: genuine absence (cube not landed) → None (data_unavailable);
         # broken-env / transient / creds → re-raise (honest live-read error, not a silent
@@ -103,10 +127,13 @@ def normal_max_both(target: str, partner: str) -> dict:
 
     Returns the liability locus (the driving tissue/cell_type) + selectivity class, or a
     data_unavailable / under_powered payload — never a fabricated 'clean'."""
-    df = _read_normal_cube()
+    a, b = target.upper().strip(), partner.upper().strip()
+    # Pushdown on the target member only: the matched pair always contains `a`, so streaming every
+    # row involving `a` is a superset of the pair rows (narrowed below). Keying the read on `a` alone
+    # lets a fixed-target partner sweep (window.py) reuse one cached read.
+    df = _read_normal_cube((a,))
     if df is None:
         return _unavailable("normal same-cell cube not landed / unreadable")
-    a, b = target.upper().strip(), partner.upper().strip()
     m = df[((df["gene_a"] == a) & (df["gene_b"] == b)) | ((df["gene_a"] == b) & (df["gene_b"] == a))]
     if m.empty:
         return _unavailable(f"pair {a}:{b} not scanned in the normal cube")
@@ -157,13 +184,13 @@ def read_target_normal_selectivity(target: str) -> dict:
     the counterpart to samecell.read_target_samecell_avidity. For each partner, normal_max_both +
     its liability locus. Headline = the WORST partner (highest normal_max_both = biggest safety
     liability), so a caller sees the least-selective partner up front."""
-    df = _read_normal_cube()
+    a = target.upper().strip()
+    df = _read_normal_cube((a,))
     if df is None:
         return {"target": target, "normal_selectivity_class": "data_unavailable",
                 "n_partners_tested": 0, "worst_partner": None, "worst_normal_max_both": None,
                 "partners": [], "_data_note": "normal same-cell cube not landed / unreadable"}
     import numpy as np
-    a = target.upper().strip()
     m = df[(df["gene_a"] == a) | (df["gene_b"] == a)]
     if m.empty:
         return {"target": target, "normal_selectivity_class": "data_unavailable",

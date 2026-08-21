@@ -86,7 +86,7 @@ def test_end_to_end(monkeypatch):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: "ENSG_TP53")
     df = pd.DataFrame([_row(["pathogenic"], ["germline"], disease="Li-Fraumeni")])
     df["targetId"] = "ENSG_TP53"
-    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None: df)
+    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None, **_kw: df)
     out = r.read_clinvar_pathogenic("TP53")
     assert out["clinvar_pathogenic_class"] == "germline_pathogenic"
     assert out["ensembl_gene_id"] == "ENSG_TP53"

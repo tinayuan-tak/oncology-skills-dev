@@ -72,7 +72,7 @@ def test_unstaged_lethal_is_developmental_only_not_adult():
 def test_inferred_evidence_tier_surfaced(monkeypatch):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: "ENSG_X")
     df = pd.DataFrame([_row("postnatal lethality")]); df["targetFromSourceId"] = "ENSG_X"
-    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None: df)
+    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None, **_kw: df)
     out = r.read_mouse_ko_phenotype("X")
     assert out["evidence_tier"] == "inferred"       # mouse is a MODEL, never a measured killer
     assert out["ko_phenotype_class"] == "lethal_ko"

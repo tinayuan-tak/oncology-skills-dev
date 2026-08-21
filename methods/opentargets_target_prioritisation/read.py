@@ -71,7 +71,7 @@ def read_target_prioritisation(target: str, indication: Optional[str] = None) ->
         return {**base, "prioritisation_status": "data_unavailable",
                 "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
 
-    df = read_entity("target_prioritisation", columns=_ALL_FIELDS)
+    df = read_entity("target_prioritisation", columns=_ALL_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
         return {**base, "prioritisation_status": "data_unavailable",
                 "_note": "target_prioritisation entity not available"}

@@ -5,20 +5,24 @@ target_prioritisation) import from here so the S3 cache-latch discipline, the
 ENSG<->symbol resolver-sidecar join, and the CLI entrypoint live in exactly ONE place.
 
 Capabilities:
-  - `ensure_entity_cached(entity)` — disk-latch an OT entity's parquet directory to
-    ~/.cache/framework-opentargets-26-06/ ONCE per machine. Definitive-vs-transient
-    latch (mirrors cptac_protein_deg/read.py): only a true 404/NoSuchKey latches
-    "absent"; 403/AccessDenied (expired STS creds) stays retryable so re-auth recovers.
+  - `read_entity(entity, columns, filter_col, filter_val)` — STREAM an OT entity's parquet
+    part-files directly from S3 via a process-wide pyarrow S3FileSystem, column-projected and
+    (when a target key is supplied) row-pushed-down to that one target. NO whole-directory
+    download: a per-target read pulls only that target's row-groups over the wire. Definitive-vs-
+    transient discipline (methods.target_id_sidecar.is_definitively_absent): only a true
+    404/NoSuchKey/absent-object latches "absent" (-> empty); 403/AccessDenied (expired STS creds),
+    throttling, and broken-env ImportError propagate so a live target never reports a false gap.
   - `symbol_to_ensembl()` — the OT `target.target_resolution.parquet` sidecar as an
     UPPER(hgnc symbol) -> ensembl_gene_id map (42,165 symbols). OT safety entities are
     ENSG-keyed (targetId); cards query by symbol, so every lookup joins through this.
 
-data_unavailable-safe: any read that cannot resolve returns empty structures, never raises.
+Absence-safe (NOT failure-safe): a genuinely-absent entity/target reads as empty; a transient/
+creds/broken-env failure PROPAGATES (surfaces as an honest _live_read_error, never a silent gap).
 """
 from __future__ import annotations
 
+import threading
 from functools import lru_cache
-from pathlib import Path
 from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for
@@ -30,92 +34,72 @@ S3_BUCKET, OT_PREFIX = bucket_prefix_for(OT_SOURCE_MANIFEST_ID)
 OT_PREFIX = OT_PREFIX.rstrip("/")   # keep the existing f"{OT_PREFIX}/..." idiom byte-identical
 DEFAULT_AWS_PROFILE = "cbg"
 
-CACHE_DIR = Path.home() / ".cache" / "framework-opentargets-26-06"
-
 # The target-entity resolver sidecar: native_row_key (ENSG) + hgnc_primary_symbol_at_resolution.
 SIDECAR_KEY = f"{OT_PREFIX}/target/target.target_resolution.parquet"
 
-# Per-entity definitive-absent latch (module-global; None=untried, True=cached, False=404).
+# Per-entity definitive-absent latch (module-global; None=untried, True=present, False=404).
 _ENTITY_STATUS: dict[str, Optional[bool]] = {}
 
+# Process-wide pyarrow S3FileSystem singleton (double-checked lock; region pinned to us-east-1 to
+# skip the region-probe round-trip). Building one costs ~0.4s; the five OT safety cards each fire a
+# read per dossier run, so we build it ONCE. Mirrors dge_deseq2._get_s3fs / depmap_common.parquet.
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
-def _boto3_client():
-    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling that
-    # would otherwise silently degrade all five OT safety-genetics cards on a batch dossier run)
-    from methods.target_id_sidecar import s3_client
-    return s3_client()
+
+def _get_s3fs():
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
 def _entity_prefix(entity: str) -> str:
-    """S3 key prefix for an OT entity directory (parquet part-files live under it)."""
+    """S3 key prefix (bucket-relative) for an OT entity directory (parquet part-files live under it)."""
     return f"{OT_PREFIX}/{entity}"
 
 
-def ensure_entity_cached(entity: str) -> Optional[Path]:
-    """Disk-latch an OT entity's parquet part-files to the local cache; return the local dir.
-
-    Downloads ALL part-*.parquet under the entity prefix ONCE per machine. Returns None when
-    the entity is genuinely absent (definitive 404) OR on a transient failure (leaves the
-    status untried so a later call retries). Mirrors the definitive-vs-transient discipline in
-    cptac_protein_deg/read.py — 403/AccessDenied (expired creds) must NOT poison the process.
-    """
-    status = _ENTITY_STATUS.get(entity)
-    if status is False:
-        return None
-    local_dir = CACHE_DIR / entity
-    if local_dir.exists() and any(local_dir.glob("*.parquet")):
-        _ENTITY_STATUS[entity] = True
-        return local_dir
-
-    prefix = _entity_prefix(entity)
-    try:
-        s3 = _boto3_client()
-        keys = []
-        paginator = s3.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=prefix + "/"):
-            for obj in page.get("Contents", []):
-                if obj["Key"].endswith(".parquet"):
-                    keys.append(obj["Key"])
-        if not keys:
-            # No parquet under the prefix — a definitive absence (entity not published).
-            _ENTITY_STATUS[entity] = False
-            return None
-        local_dir.mkdir(parents=True, exist_ok=True)
-        for key in keys:
-            dest = local_dir / key.rsplit("/", 1)[-1]
-            if not (dest.exists() and dest.stat().st_size > 0):
-                tmp = dest.with_suffix(dest.suffix + ".tmp")
-                s3.download_file(S3_BUCKET, key, str(tmp))
-                tmp.rename(dest)
-        _ENTITY_STATUS[entity] = True
-        return local_dir
-    except Exception as e:  # noqa: BLE001
-        # Only a definitive missing-object latches False; transient (403/creds/network) stays None.
-        resp = getattr(e, "response", None)
-        code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-        if code in ("404", "NoSuchKey") or e.__class__.__name__ in ("NoSuchKey", "404"):
-            _ENTITY_STATUS[entity] = False
-        return None
-
-
-def read_entity(entity: str, columns: Optional[list] = None):
-    """Read an OT entity's cached parquet part-files as one DataFrame (empty on unavailable).
+def read_entity(entity: str, columns: Optional[list] = None,
+                filter_col: Optional[str] = None, filter_val=None):
+    """STREAM an OT entity's parquet part-files from S3 as one DataFrame (empty on genuine absence).
 
     Column-projected when `columns` is given (the parts are wide — project to what the card needs).
+    When `filter_col`/`filter_val` are given, the read is ROW-pushed-down to that one key
+    (e.g. targetId == ENSG...), so a per-target card pulls only that target's row-groups over the
+    wire instead of the whole entity directory. No whole-file download — reads directly over the
+    process-wide pyarrow S3FileSystem.
+
+    Absence discipline (methods.target_id_sidecar.is_definitively_absent): a genuinely-absent
+    entity object (NoSuchKey/404 or a pyarrow FileNotFoundError for a missing prefix) latches the
+    entity absent and returns an empty frame; a transient / creds / broken-env failure PROPAGATES
+    (an honest _live_read_error at the card's live-read seam, never a silent data_unavailable).
     """
     import pandas as pd
-    local_dir = ensure_entity_cached(entity)
-    if local_dir is None:
-        return pd.DataFrame(columns=columns or [])
+    empty = pd.DataFrame(columns=columns or [])
+    if _ENTITY_STATUS.get(entity) is False:
+        return empty
     try:
         import pyarrow.dataset as ds
-        dataset = ds.dataset(str(local_dir), format="parquet")
-        table = dataset.to_table(columns=columns) if columns else dataset.to_table()
+        dataset = ds.dataset(f"{S3_BUCKET}/{_entity_prefix(entity)}",
+                             filesystem=_get_s3fs(), format="parquet")
+        filt = (ds.field(filter_col) == filter_val
+                if (filter_col and filter_val is not None) else None)
+        table = dataset.to_table(columns=columns, filter=filt)
+        _ENTITY_STATUS[entity] = True
         return table.to_pandas()
     except ImportError:
         raise  # broken env (pyarrow missing) — never mask as an empty read (silent data_unavailable)
-    except Exception:  # noqa: BLE001 — a corrupt/partial cached parquet degrades to empty (honest gap)
-        return pd.DataFrame(columns=columns or [])
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # ONLY a genuinely-absent entity (404/NoSuchKey, or pyarrow's FileNotFoundError for a
+        # missing prefix) latches absent -> empty; transient/creds/env re-raise (honest gap, not silent).
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _ENTITY_STATUS[entity] = False
+            return empty
+        raise
 
 
 @lru_cache(maxsize=1)
@@ -131,14 +115,12 @@ def _sidecar_maps():
     The retry-backed client absorbs transient throttling first; a genuine failure surfaces as an honest
     per-card _live_read_error via the live-read seam (never a fake honest-negative).
     """
-    import pandas as pd  # ImportError == broken env -> propagates
-    from methods.target_id_sidecar import s3_client
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    local = CACHE_DIR / "target.target_resolution.parquet"
-    if not (local.exists() and local.stat().st_size > 0):
-        s3_client().download_file(S3_BUCKET, SIDECAR_KEY, str(local))   # no silent except (see docstring)
-    sc = pd.read_parquet(local, columns=["native_row_key",
-                                         "hgnc_primary_symbol_at_resolution"])
+    import pyarrow.parquet as pq  # ImportError == broken env -> propagates
+    # STREAM the two resolver columns straight from S3 (column pushdown) — no whole-file download.
+    # No broad except: any read failure PROPAGATES (see docstring — an empty crosswalk = dead axis).
+    sc = pq.read_table(f"{S3_BUCKET}/{SIDECAR_KEY}", filesystem=_get_s3fs(),
+                       columns=["native_row_key",
+                                "hgnc_primary_symbol_at_resolution"]).to_pandas()
     s2e, e2s = {}, {}
     for ensg, sym in zip(sc["native_row_key"].values,
                          sc["hgnc_primary_symbol_at_resolution"].values):
