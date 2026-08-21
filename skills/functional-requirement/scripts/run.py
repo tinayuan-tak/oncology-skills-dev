@@ -26,6 +26,8 @@ from _skills_common import get_card_field, resolve_cards, _summary_is_unavailabl
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_dependency import synthesize_dependency
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 # Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
 from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
@@ -687,6 +689,91 @@ def _dependency_verdict_by_scope(cards, verdict_pair) -> dict:
     }
 
 
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# functional-requirement's declaration for the shared headline_core builder: the DEP/SEL/COND/CHEM claim
+# axes (decision-critical axis = DEP, the genetic-dependency call), the dependency verdict vocabulary →
+# human phrase, and the authoritative CERTAINTY_MODEL sidecar (strength_certainty) as the confidence
+# source. Verdict-INERT — a one-way projection over the already-computed headline (dependency_verdict
+# stays byte-stable, frozen by the KRAS/COADREAD replay guard).
+
+# The dependency.resolver verdict vocabulary → human phrase. These verdicts EXHAUSTIVELY partition into
+# _DEPENDENCY_CALL_VERDICTS (a real call) + _NON_CALL_VERDICTS (see the Guard-A note above); a curated
+# phrase for each, with a prettify fallback for any future addition.
+_DEPENDENCY_VERDICT_PHRASE = {
+    # positive dependency calls
+    "concordant_dependent":                    "Genetic dependency (CRISPR + RNAi concordant)",
+    "broadly_dependent":                       "Broadly dependent",
+    "lineage_selective":                       "Lineage-selective dependency",
+    "selective_dependent":                     "Selective genetic dependency",
+    "partner_conditional_dependent":           "Partner-conditional (synthetic-lethal) dependency",
+    "chemical_genetic_confirmed_dependent":    "Dependency, chemically confirmed",
+    # pan-essential — a real dependency, but a broad-toxicity liability (low selective window)
+    "pan_essential_killer":                    "Pan-essential (broad-toxicity liability)",
+    # measured negatives
+    "non_dependent":                           "Not a genetic dependency",
+    "non_dependent_paralog_buffered":          "Not dependent (paralog-buffered)",
+    "discordant":                              "Discordant dependency evidence",
+    # coverage gaps
+    "insufficient":                            "Insufficient evidence",
+    "insufficient_underpowered":               "Insufficient evidence (underpowered)",
+    "insufficient_underpowered_pan_essential": "Insufficient / underpowered (pan-essential)",
+}
+
+
+def _dependency_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the dependency verdict (colours the hero badge; never a gate). Reuses
+    the existing _DEP_*_POS / _DEP_NEG token sets so the polarity can't drift from the strength helper: a
+    positive/selective dependency call = positive; a measured-negative (non_dependent / paralog-buffered /
+    discordant) = negative; else neutral (insufficient*, and pan_essential_killer — a dependency but
+    broad-nonselective, so neither a clean actionable positive nor a measured negative)."""
+    if v in _DEP_STRONG_POS or v in _DEP_MOD_POS:
+        return "positive"
+    if v in _DEP_NEG:
+        return "negative"
+    return "neutral"
+
+
+_DEPENDENCY_HEADLINE_SPEC = HeadlineSpec(
+    gate="dependency",
+    axis_labels={"DEP": "genetic dependency", "SEL": "context-selectivity",
+                 "COND": "conditional / synthetic-lethal", "CHEM": "chemical-genetic confirmation"},
+    axis_keys=("DEP", "SEL", "COND", "CHEM"),
+    critical_axes=("DEP",),   # DEP (is loss of the target lethal?) is THE decision-critical axis
+    verdict_label=lambda v: _DEPENDENCY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    # No cross-cutting flag beyond the claim_vector conflicts + key_signals caveat: the sharpest FR
+    # tensions (pan-essential broad-tox, RNAi non-corroboration of CRISPR, PRISM off-target) are already
+    # per-axis `conflict`s on the claim_vector, which headline_core.rank_tension ranks. So tension_extra=None.
+    tension_extra=None,
+)
+
+# The strength_certainty (CERTAINTY_MODEL) sidecar grades certainty.level low/medium/high; the headline
+# confidence vocabulary is weak/moderate/strong/insufficient. Map so the AUTHORITATIVE sidecar wins in
+# build_headline (derive_confidence only honours a level already in the CONFIDENCE_ORD vocab).
+_CERTAINTY_LEVEL_TO_CONFIDENCE = {"high": "strong", "medium": "moderate", "low": "weak"}
+
+
+def _headline_certainty(headline: dict):
+    """Adapt FR's strength_certainty sidecar into the headline confidence vocabulary so it is the
+    authoritative confidence (per docs/HEADLINE_CONTRACT.md: a CERTAINTY_MODEL sidecar WINS over the
+    derived weakest-link). Returns {level} in the CONFIDENCE_ORD vocab, or None (→ build_headline derives)."""
+    sc = headline.get("strength_certainty")
+    lvl = ((sc or {}).get("certainty") or {}).get("level") if isinstance(sc, dict) else None
+    mapped = _CERTAINTY_LEVEL_TO_CONFIDENCE.get(lvl)
+    return {"level": mapped} if mapped else None
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed dependency headline. Reads the
+    dependency_verdict + the verdict-inert claim_vector / key_signals; FR's strength_certainty sidecar is
+    the authoritative confidence. Never moves the spine."""
+    v = headline.get("dependency_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_DEPENDENCY_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_dependency_verdict_polarity(v),
+                          certainty=_headline_certainty(headline))
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
@@ -767,6 +854,15 @@ def _headline(cards, fired, verdict_pair):
     # guard). Makes the SEL claim honest about the QUERIED indication's lineage (vs "selective to SOME
     # lineage"); the pooled call remains the pan_cancer rung. See _dependency_verdict_by_scope.
     hl["dependency_verdict_by_scope"] = _dependency_verdict_by_scope(cards, verdict_pair)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
+    # message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
+    # claim_vector / key_signals just built; best-effort (a formatting/read fault must NEVER discard the
+    # dependency spine already fully built in `hl`, matching tumor-presence's degrade-on-exception discipline).
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -798,7 +894,15 @@ _SYNTHESIS_FACET_KEYS = (
     # scope-parameterized read (Phase 3) — pooled pan-cancer vs the QUERIED indication's lineage;
     # lets the composed synthesis cite the indication answer instead of the pan-cancer one. Verdict-inert.
     "dependency_verdict_by_scope",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
+
+
+def _emit_skill_figures(decision, figures_root):
+    """Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence · top
+    tension). Additive / display-only; offline (reads only decision['headline']['headline_block'])."""
+    return emit_headline_hero(decision, figures_root)
 
 
 def _synthesis_facet(cards, fired, verdict_pair):
@@ -835,4 +939,6 @@ if __name__ == "__main__":
         # (subgroup-stratified-dependency; e.g. MSI_H vs MSS). Verdict-inert: its cards touch no
         # resolver rung, so the dependency verdict is byte-identical without --subtypes.
         subtype_panorama_fn=_resolve_dependency_subtype_panorama,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
     ))

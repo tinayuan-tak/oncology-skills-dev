@@ -126,3 +126,25 @@ def test_replay_by_scope_indication_is_honest(kras_decision):
     assert ind["depmap_lineage"] == "Bowel"                      # COADREAD → Bowel crosswalk
     assert ind["class"] == "selective_in_indication", (
         f"Bowel is a frozen enriched lineage for KRAS → expected selective_in_indication, got {ind['class']!r}")
+
+
+def test_replay_headline_block_present_and_wellformed(kras_decision):
+    """The canonical HEADLINE block (verdict + confidence + top tension) is emitted, non-degraded, and
+    carries the dependency verdict + a confidence level + the four claim axes in the hero. Verdict-INERT:
+    verdict.call must equal the skill's dependency_verdict (the block never moves the spine)."""
+    h = kras_decision.get("headline") or {}
+    block = h.get("headline_block")
+    assert isinstance(block, dict) and block, "headline_block missing/empty on the frozen KRAS replay"
+    # non-degraded: the best-effort enrich must not have caught an exception building the block
+    assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
+        f"headline_block degraded: {(h.get('_enrichment_errors') or {}).get('headline_block')!r}")
+    # verdict-inert: the block's canonical verdict == the skill's own dependency_verdict
+    assert block["verdict"]["call"] == h.get("dependency_verdict")
+    assert block["verdict"]["gate"] == "dependency"
+    assert block["verdict"]["phrase"]                      # a curated human phrase, never empty
+    # confidence in the canonical vocabulary
+    assert block["confidence"]["level"] in {"strong", "moderate", "weak", "insufficient"}
+    # the hero surfaces the four dependency claim axes in order
+    assert [a["key"] for a in block["hero"]["axes"]] == ["DEP", "SEL", "COND", "CHEM"]
+    # deterministic one-sentence headline text is always available (not the LLM narration)
+    assert isinstance(block["headline_text"], str) and block["headline_text"].endswith(".")
