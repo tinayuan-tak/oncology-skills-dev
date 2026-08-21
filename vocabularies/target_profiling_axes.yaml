@@ -381,7 +381,7 @@ skill_objectives:
       - {q: "Malignant-cell vs stroma (purity confound)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
       - {q: "In-situ spatial tumour-vs-TME enrichment?", answered_by: [spatial-region-rna-expression, spatial-tumor-normal-colocalization, spatial-surface-protein-abundance]}
       - {q: "Absolute surface-density floor for the modality?", answered_by: [surface-abundance-density]}
-      - {q: "Percentile-crossing robustness of the window?", answered_by: [tumor-vs-normal-percentile-crossing]}
+      - {q: "Percentile-crossing robustness of the window?", answered_by: [tumor-vs-normal-percentile-crossing, tumor-vs-normal-percentile-crossing-by-subtype]}
   - skill: functional-requirement
     objective: "Is the target a genetic dependency, and how does the call hold across CRISPR + RNAi + lineage?"
     primary_axis: dependency
