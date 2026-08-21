@@ -80,11 +80,20 @@ outputs:
 
   summary_fields_vocabulary:
     protein_expression_class:
-      - strong_up                                  # q<0.05, effect>=1.5
-      - modest_up                                  # q<0.05, 0.5<=effect<1.5
-      - ns                                         # q>=0.05
-      - modest_down                                # q<0.05, -1.5<effect<=-0.5
-      - strong_down                                # q<0.05, effect<=-1.5
+      - strong_up                                  # q<0.05, logFC>1.5
+      - modest_up                                  # q<0.05, 0.5<logFC<=1.5
+      - small_effect                               # q<0.05 but variance-aware Cohen's d negligible, OR |logFC|<=0.5
+      - not_significant                            # q>=0.05 (or missing logFC/q)
+      - modest_down                                # q<0.05, -1.5<=logFC<-0.5
+      - strong_down                                # q<0.05, logFC<-1.5
+      # NOTE (2026-08-21, review M3): the former single `ns` class was split by cptac_protein_deg
+      # METHOD_VERSION 1.2.0 (2026-08-14) into `not_significant` (q>=0.05) + `small_effect` (q<0.05 but a
+      # negligible variance-standardized effect, or |logFC|<=0.5 — cleared significance via cohort size,
+      # not biology; see steps/03_pool_and_write.py::_classify). The card vocab lagged the method and still
+      # declared `ns` (orphan) while omitting both real values. Both are "present but not tumor-elevated"
+      # flat classes: the skill's _MEASURED_UNRULED_PRESENT rescue maps ns/not_significant/small_effect ->
+      # protein_present_not_elevated, so the bulk_protein_ms/tumor bucket stays `measured`. No rule keys on
+      # these flat classes (deliberately un-ruled), so this is a behavior-neutral contract-truth fix.
       # NOTE (2026-08-20, review G2a): `not_detected` removed — cptac_protein_deg.classify() never emits
       # it (a protein absent from the CPTAC MS produces no row → data_unavailable). Whole-proteome TMT
       # cannot assert per-gene absence; the reachable protein-absence signal is the cell-line-MS
