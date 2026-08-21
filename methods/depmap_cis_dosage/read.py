@@ -26,7 +26,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_cis_dosage(target: str, indication: Optional[str] = None,
-                    release_pin: str = "26q1") -> dict:
+                    release_pin: str = "26q1", plot_data_out: Optional[Path] = None) -> dict:
     """Compute cis-dosage (own-CN → own-expression) coupling for target across the DepMap panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only,
@@ -54,7 +54,7 @@ def read_cis_dosage(target: str, indication: Optional[str] = None,
         return out
 
     # 1. Relative CN (bridged ModelConditionID -> ModelID by load_cn_files)
-    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(
+    cn_by_model, cn_meta, assay_used, cn_errs = cncli.load_cn_files(
         release_pin=release_pin, target_symbol=target
     )
     if cn_errs or not cn_by_model:
@@ -80,4 +80,14 @@ def read_cis_dosage(target: str, indication: Optional[str] = None,
     # later refinement; the cis_coherence resolver does not gate on evidence_scope at Stage 0).
     summary["evidence_scope"] = "pan_no_indication"
     summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
+
+    # Figure Stage 6: persist the merged CN×TPM frame during resolution so the figure renders offline
+    # from it (no second CN+expression load at figure time). Best-effort, verdict-inert.
+    if plot_data_out is not None:
+        try:
+            from . import figures as _figs
+            merged = _figs.build_merged_data(cn_by_model, tpm_by_model, cn_meta)
+            _figs.emit_plot_data(merged, plot_data_out)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
     return summary

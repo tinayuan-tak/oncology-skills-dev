@@ -125,3 +125,33 @@ def emit_cn_expression_scatter(merged: list, target: str, indication: str, summa
     ax.grid(axis="both", alpha=0.3)
     fig.savefig(out_dir / "figure_cn_expression_scatter.svg", bbox_inches="tight")
     plt.close(fig)
+
+
+# ---- Offline render seam (figure-consolidation Stage 6) --------------------------------------------
+_REQUIRED_COLUMNS = ("relative_cn", "tpm_logp1")
+
+
+def render_from_plot_data(plot_data, summary: dict, out_dir, target: str,
+                          indication: "Optional[str]" = None, *, target_contracts_dir=None) -> list:
+    """Render the cis-feature-expression-coherence scatter OFFLINE from persisted plot_data
+    (read_cis_dosage(plot_data_out=...)) — replays the merged CN×TPM frame into emit_cn_expression_scatter
+    with NO second CN+expression load. Reference stats come from the passed `summary`."""
+    import pandas as pd
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if target_contracts_dir is None:
+        from methods.depmap_expression_dependency.cli import DEFAULT_TARGET_CONTRACTS
+        target_contracts_dir = DEFAULT_TARGET_CONTRACTS
+
+    df = plot_data if hasattr(plot_data, "columns") else pd.read_parquet(Path(plot_data))
+    missing = [c for c in _REQUIRED_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"plot_data missing required columns {missing}; got {list(df.columns)}")
+    merged = df.to_dict("records")
+
+    emit_cn_expression_scatter(merged, target, indication, summary, out_dir, Path(target_contracts_dir))
+    return [
+        {"id": "cn_vs_expression_scatter", "path": "figure_cn_expression_scatter.svg",
+         "type": "cn_expression_scatter", "primary": True},
+    ]
