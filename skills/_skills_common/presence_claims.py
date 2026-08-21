@@ -235,9 +235,18 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
         if k == "B":
             bits = []
             if isinstance(tva.get("log2_fc"), (int, float)) and tva["log2_fc"] > 0.4:
-                bits.append(f"{2**tva['log2_fc']:.1f}x vs adjacent (log2FC {_f(tva['log2_fc'],1)}, q={tva.get('q_value',0):.0e})")
-            if isinstance(cp.get("protein_effect_size"), (int, float)) and (cp.get("protein_bh_q_value") or 1) < 0.05 and cp["protein_effect_size"] > 0.3:
-                bits.append(f"protein-confirmed (CPTAC effect {_f(cp['protein_effect_size'])}, q={cp['protein_bh_q_value']:.0e})")
+                # A present-but-None q_value (DESeq2 emits null padj on independent-filtered / Cook's-cutoff
+                # rows, alongside a finite log2FoldChange) must NOT reach `:.0e` — that raises TypeError and,
+                # unwrapped, aborts the whole run. Guard the q clause exactly like the sibling at line ~145.
+                _q = tva.get("q_value")
+                _qs = f", q={_q:.0e}" if isinstance(_q, (int, float)) else ""
+                bits.append(f"{2**tva['log2_fc']:.1f}x vs adjacent (log2FC {_f(tva['log2_fc'],1)}{_qs})")
+            # `or 1` fold a genuine 0.0 q-value to 1.0 and DROPPED the protein-confirmed bit for the STRONGEST
+            # signals; test membership explicitly so a maximally-significant 0.0 is kept.
+            _pq = cp.get("protein_bh_q_value")
+            if (isinstance(cp.get("protein_effect_size"), (int, float)) and isinstance(_pq, (int, float))
+                    and _pq < 0.05 and cp["protein_effect_size"] > 0.3):
+                bits.append(f"protein-confirmed (CPTAC effect {_f(cp['protein_effect_size'])}, q={_pq:.0e})")
             return ("Tumor-elevated vs normal — " + "; ".join(bits) + " [DGE + CPTAC]") if bits else None
         if k == "C":
             return f"Expressed in cancer cells — {_f((headline.get('sc_malignant_detection_fraction') or 0)*100,0)}% of malignant cells (n={headline.get('sc_n_donor_groups')} donors) [single-cell]"

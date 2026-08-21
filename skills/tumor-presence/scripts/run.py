@@ -709,17 +709,29 @@ def _headline(cards, fired, verdict_pair):
     # touch the presence_verdict spine (byte-stable, frozen by the golden-spine test). The claim vector
     # is the WITHIN-lens evidence integration this subskill owns; it rides the _synthesis_facet package
     # into the composed target-profile. See _skills_common/presence_claims.py.
-    hl["claim_vector"] = presence_claim_vector(hl, cards)
-    hl["key_signals"] = presence_key_signals(hl, cards)
+    # These projections are verdict-INERT display layers. Run them best-effort: a formatting/read fault
+    # in any one of them must NEVER discard the presence spine (verdict + per-modality matrix) that is
+    # already fully built in `hl` above — same degrade-on-exception discipline the dispatcher applies to
+    # synthesis / figures / envelope. On the happy path this is byte-identical (no _enrichment_errors key
+    # is added, key order is unchanged), so the golden-spine + replay fixtures are unaffected.
+    def _enrich(label, fn, *fn_args):
+        try:
+            return fn(*fn_args)
+        except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+            hl.setdefault("_enrichment_errors", {})[label] = f"{type(exc).__name__}: {exc}"
+            return None
+
+    hl["claim_vector"] = _enrich("claim_vector", presence_claim_vector, hl, cards)
+    hl["key_signals"] = _enrich("key_signals", presence_key_signals, hl, cards)
     # SUBTYPE-scoped claim vector (per stratum) — when a (target, indication, subtype) is the question,
     # the pooled vector flattens the per-stratum signal (cf. CD274 broadly-low pooled but MSI-H-strong).
     # Projects A + distributional-B per stratum from the already-resolved per_subgroup_metrics; None when
     # the indication has no subtype axis. Verdict-inert, like the pooled vector.
-    hl["claim_vector_by_subtype"] = presence_claim_vector_by_subtype(cards)
+    hl["claim_vector_by_subtype"] = _enrich("claim_vector_by_subtype", presence_claim_vector_by_subtype, cards)
     # The 7-question (data · signal · confidence) summary rows — a projection over the just-built
     # headline + card fields (Signal from the claim_vector, Confidence from corroboration). Verdict-inert;
     # carried through _synthesis_facet so the composed target-profile dashboard renders the same table.
-    hl["question_table"] = presence_question_table(hl, cards)
+    hl["question_table"] = _enrich("question_table", presence_question_table, hl, cards)
     return hl
 
 
