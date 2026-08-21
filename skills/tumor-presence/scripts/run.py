@@ -132,6 +132,13 @@ ALL_CONTEXTS = (
     ("protein_ihc", "normal"),    # safety comparator (normal-tissue-liability HPA IHC)
 )
 
+# Canonical bucket keys — the verdict-inert headline helpers look these up in presence_verdict_by_modality.
+# Named here (not scattered string literals) so a typo becomes a NameError, not a silent None lookup.
+_BULK_RNA_CELL_LINE = _ctx_key("bulk_rna", "cell_line")
+_BULK_RNA_TUMOR = _ctx_key("bulk_rna", "tumor")
+_BULK_PROTEIN_MS_CELL_LINE = _ctx_key("bulk_protein_ms", "cell_line")
+_BULK_PROTEIN_MS_TUMOR = _ctx_key("bulk_protein_ms", "tumor")
+
 QUESTION = ("Is {target} expressed in {indication} tumor tissue, and how "
             "does its expression distribute across cancer cell lines vs. "
             "paired tumor/adjacent samples?")
@@ -351,6 +358,14 @@ _MEASURED_UNRULED_PRESENT = {
 }
 
 
+def _safe_card_field(cards: list[dict] | None, card_id: str, field: str):
+    """`get_card_field` that is None-safe on an ABSENT card_id. `get_card_field` deliberately RAISES on a
+    missing card_id (a typo guard), so the optional reads below — comparator buckets and the unruled-present
+    rescue, where the card may legitimately not have resolved — must check membership first. Returns None
+    when `card_id` is not in `cards`."""
+    return get_card_field(cards, card_id, field) if card_id in {c["card_id"] for c in (cards or [])} else None
+
+
 def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -> dict[str, dict]:
     """One sub-verdict PER (measurement, sample_context) bucket. Groups fired rules by the card's bucket
     (via CARD_CONTEXT), then ranks WITHIN each group using the ladder for that group's measurement.
@@ -374,9 +389,7 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
             # sc-normal-celltype-expression) does not collapse the bucket to `insufficient` and erase the
             # comparator readout for exactly the critical-organ targets where it matters most.
             card_id, field = _COMPARATOR_BUCKETS[(measurement, sample_context)]
-            # get_card_field RAISES on an absent card_id, so only call it when the card actually resolved.
-            _present = {c["card_id"] for c in (cards or [])}
-            val = get_card_field(cards, card_id, field) if card_id in _present else None
+            val = _safe_card_field(cards, card_id, field)
             if val not in (None, "data_unavailable"):
                 out[key] = {"measurement": measurement, "sample_context": sample_context,
                             "verdict": val, "driving_rule_id": None, "evidence_state": "comparator"}
@@ -397,8 +410,7 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
         # `measured`, WITHOUT authoring a gate rule. Distinguishes "measured, flat" from "not measured".
         if out[key]["verdict"] == "data_unavailable" and (measurement, sample_context) in _MEASURED_UNRULED_PRESENT:
             card_id, field, class_map = _MEASURED_UNRULED_PRESENT[(measurement, sample_context)]
-            _present = {c["card_id"] for c in (cards or [])}
-            raw = get_card_field(cards, card_id, field) if card_id in _present else None
+            raw = _safe_card_field(cards, card_id, field)
             if raw in class_map:
                 out[key] = {"measurement": measurement, "sample_context": sample_context,
                             "verdict": class_map[raw], "driving_rule_id": None, "evidence_state": "measured"}
@@ -423,9 +435,9 @@ def _bulk_rna_proxy_quality(per_modality: dict, rna_as_biomarker) -> str:
         b = (per_modality or {}).get(key)
         return b.get("verdict") if isinstance(b, dict) else b
     # Prefer the tumor arm when it is itself a measured-positive RNA call; else fall back to cell-line.
-    tumor_verdict = _bucket_verdict("bulk_rna/tumor")
+    tumor_verdict = _bucket_verdict(_BULK_RNA_TUMOR)
     rna_verdict = (tumor_verdict if tumor_verdict in _RNA_PRESENCE_POSITIVE
-                   else _bucket_verdict("bulk_rna/cell_line"))
+                   else _bucket_verdict(_BULK_RNA_CELL_LINE))
     if rna_verdict not in _RNA_PRESENCE_POSITIVE:
         return "not_applicable"
     if rna_as_biomarker == "adequate_proxy":
@@ -457,9 +469,9 @@ def _headline_lens_discordance(driving_rule_id: str | None, per_modality: dict):
                 lens = key
                 break
     discordant = False
-    if lens == "bulk_rna/cell_line":
-        cl = (per_modality or {}).get("bulk_rna/cell_line") or {}
-        tv = (per_modality or {}).get("bulk_rna/tumor") or {}
+    if lens == _BULK_RNA_CELL_LINE:
+        cl = (per_modality or {}).get(_BULK_RNA_CELL_LINE) or {}
+        tv = (per_modality or {}).get(_BULK_RNA_TUMOR) or {}
         if tv.get("evidence_state") == "measured":
             cl_tier = _PRESENCE_TIER.get(cl.get("verdict"))
             tumor_tier = _PRESENCE_TIER.get(tv.get("verdict"))
@@ -576,7 +588,7 @@ def _protein_confirmation_state(per_modality: dict, collapsed_verdict: str | Non
     contradicted by a measured protein absence, or is protein simply UNTESTED? See the block comment."""
     if not _is_presence_positive(collapsed_verdict):
         return "not_applicable"
-    measured = [b.get("verdict") for k in ("bulk_protein_ms/tumor", "bulk_protein_ms/cell_line")
+    measured = [b.get("verdict") for k in (_BULK_PROTEIN_MS_TUMOR, _BULK_PROTEIN_MS_CELL_LINE)
                 for b in [(per_modality or {}).get(k) or {}]
                 if b.get("evidence_state") == "measured"]
     if any(v in _PROTEIN_PRESENT_VERDICTS for v in measured):
@@ -591,7 +603,7 @@ def _headline(cards, fired, verdict_pair):
     per_modality = _per_modality_verdicts(fired, cards)
     # Legibility flag for a cell-line-anchored headline that understates the tumor-tissue lens.
     _headline_lens, _cl_tumor_discordant = _headline_lens_discordance(drv, per_modality)
-    _tumor_bucket = (per_modality or {}).get("bulk_rna/tumor") or {}
+    _tumor_bucket = (per_modality or {}).get(_BULK_RNA_TUMOR) or {}
     _presence_interpretation_note = (
         ("presence_verdict inherits the pan-cancer cell-line RNA lens; the tumor-tissue lens "
          f"reads a higher presence tier ({_tumor_bucket.get('verdict')}). Read "
