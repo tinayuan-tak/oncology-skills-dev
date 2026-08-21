@@ -27,9 +27,13 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.immune_context_claims import (
     immune_context_claim_vector, immune_context_key_signals)
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.1.0"   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+                          # headline hero — a verdict-INERT projection over the effector-context
+                          # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
 CARDS = [
     "immune-context",
@@ -60,6 +64,78 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return ("insufficient", None)
 
 
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# immune-context's declaration for the shared headline_core builder: the SINGLE TCE effector axis
+# (IMMUNE), the effector-context vocabulary → human phrase, and the immune-cold effector-absence
+# efficacy risk as the skill-specific tension source. Verdict-INERT — a one-way projection over the
+# already-computed headline (this skill is GATELESS; the verdict spine stays byte-stable).
+#
+# POLARITY (colours the hero badge). This is a TCE-EFFICACY axis: a strong signal = immune-hot = there is
+# a CD8 effector population for a T-cell engager to redirect. The badge polarity encodes the read FOR A
+# TCE PROGRAM:
+#   * immune_hot   → CD8 effector context present → TCE-favourable → "positive" (blue);
+#   * immune_cold  → MEASURED effector absence → a TCE-efficacy RISK (NOT a target veto; CIBERSORT is a
+#                    relative, non-spatial screen) → "negative" (red);
+#   * immune_intermediate + coverage gaps (insufficient / no cohort) → "neutral" (grey).
+_IMMUNE_VERDICT_PHRASE = {
+    "immune_hot":          "Immune-hot — CD8 effector context present (TCE-favourable)",
+    "immune_intermediate": "Immune-intermediate — partial effector context",
+    "immune_cold":         "Immune-cold — effector absence (TCE-efficacy risk)",
+    "insufficient":        "Insufficient — no CIBERSORT cohort for this indication",
+}
+
+
+def _immune_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the effector-context call (colours the hero badge; never a gate — this
+    skill is gateless). immune-hot is TCE-favourable (positive); immune-cold is a MEASURED effector
+    absence and thus a TCE-efficacy risk (negative, NOT a target veto); the intermediate mid-band and
+    coverage gaps stay neutral."""
+    if v == "immune_hot":
+        return "positive"
+    if v == "immune_cold":
+        return "negative"
+    return "neutral"
+
+
+def _immune_tension_extra(headline: dict):
+    """The sharpest immune-context caveat: an immune-COLD indication is a MEASURED CD8 effector-absence — a
+    TCE-EFFICACY risk (no effector population to redirect), NOT a target-level veto (CIBERSORT is a
+    RELATIVE, non-spatial bulk-deconvolution screen). Surfaced only when the call is immune_cold."""
+    if headline.get("immune_context_verdict") == "immune_cold":
+        return {"text": ("immune-cold: a MEASURED CD8 effector-absence is a TCE-EFFICACY risk (no effector "
+                         "population to redirect) — NOT a target veto; CIBERSORT is relative + non-spatial"),
+                "source": "immune_context_class", "severity": 3}
+    return None
+
+
+_IMMUNE_HEADLINE_SPEC = HeadlineSpec(
+    gate="immune_context",
+    axis_labels={"IMMUNE": "TCE effector context"},
+    axis_keys=("IMMUNE",),
+    critical_axes=("IMMUNE",),
+    verdict_label=lambda v: _IMMUNE_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_immune_tension_extra,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed immune-context headline. Reads the
+    effector-context verdict + the verdict-inert claim_vector / key_signals; never moves the spine (this
+    skill is gateless). No CERTAINTY_MODEL sidecar is emitted, so confidence is derived from the claim
+    vector's corroboration."""
+    v = headline.get("immune_context_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_IMMUNE_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_immune_verdict_polarity(v))
+
+
+def _emit_skill_figures(decision, figures_root):
+    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
+    display-only, offline, best-effort (missing block → [], spine unaffected)."""
+    return emit_headline_hero(decision, figures_root)
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
@@ -75,12 +151,24 @@ def _headline(cards, fired, verdict_pair):
     # cross-evidence reasoner. immune-context is gateless (absent from _SHORT_TO_GATE); verdict-inert.
     hl["claim_vector"] = immune_context_claim_vector(hl, cards)
     hl["key_signals"] = immune_context_key_signals(hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
+    # headline message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
+    # projection over the claim_vector / key_signals just built. Best-effort: a formatting/read fault must
+    # NEVER discard the effector-context spine already built in `hl` (same degrade discipline the
+    # dispatcher applies to synthesis / figures). On the happy path this adds no _enrichment_errors key.
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
 _SYNTHESIS_FACET_KEYS = (
     "immune_context_verdict", "driving_rule_id", "immune_context_class", "median_cd8_fraction",
     "median_total_t_cell_fraction", "n_samples", "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -104,4 +192,6 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
     ))
