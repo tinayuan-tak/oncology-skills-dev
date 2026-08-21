@@ -110,7 +110,9 @@ _SKILLS_REPO = Path(os.environ.get(
 # window (and never false-fails an isolated CI where the sibling repo is absent).
 _SKILLS_SCRIPTS = _SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
 _FIGURE_EMITTERS_CANDIDATES = (
-    _SKILLS_SCRIPTS / "_figure_emitters" / "_registry.py",   # package form (Stage-4+)
+    # Rehomed to _skills_common (2026-08-21) off the retiring compose-dashboard skill.
+    _SKILLS_REPO / "skills" / "_skills_common" / "_figure_emitters" / "_registry.py",
+    _SKILLS_SCRIPTS / "_figure_emitters" / "_registry.py",   # pre-rehome package under compose-dashboard
     _SKILLS_SCRIPTS / "_figure_emitters.py",                 # legacy monolith
 )
 
