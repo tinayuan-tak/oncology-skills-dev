@@ -5,8 +5,10 @@ description: |
   constraint + a 5-leg human-genetics axis (Open Targets 26.06: gene-burden,
   ClinGen dosage, mouse-KO phenotype, ClinVar pathogenicity, target-priority)
   + GTEx normal-tissue breadth, mechanism-conditioned by alteration-role
-  (mutant-selective GoF downgrade). 8 cards; verdict via the shared declarative
-  resolver (safety.resolver.yaml).
+  (mutant-selective GoF downgrade). Plus (data-utilization expansion 2026-08-21)
+  DepMap pan-essentiality (broad-tox HOLD), HPA-IHC essential-tissue protein
+  (HOLD), and ClinGen recessive-only carrier-health reassurance. 10 cards;
+  verdict via the shared declarative resolver (safety.resolver.yaml).
 
   Question this skill answers:
   Is {target} intolerant of loss-of-function in humans (gnomAD constraint,
@@ -22,7 +24,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.9.0
+  version: 1.10.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -45,6 +47,15 @@ composition:
                                        # downgrade — patient_focal_cn_class (GISTIC) fires
                                        # copy-number-amplified-oncogene-safety-context; the resolver's
                                        # GROUP-0 guard keeps the HOLD for amp-driven oncogenes (ERBB2/MDM2).
+    - pan-cancer-crispr-dependency-distribution  # data-util expansion 2026-08-21 — DepMap pan-essentiality
+                                       # BROAD-TOX leg: dependency_class==common_essential fires
+                                       # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_
+                                       # concern HOLD. Same card the dependency skill vetoes; SAFETY reading.
+    - normal-tissue-liability          # data-util expansion 2026-08-21 — HPA-IHC essential-tissue PROTEIN
+                                       # leg (the protein sibling of normal-tissue-liability-gtex, no longer
+                                       # only on the surface axis): essential_tissue_flag==present fires
+                                       # normal-tissue-protein-liability-safety-warning → normal_tissue_
+                                       # protein_safety_concern HOLD.
     # NOTE: protein-surface-evidence was DROPPED from this skill — re-homed to
     # surface-modality-fit (LIVE there as surface_confirmation via the CSPA reader).
   # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, ONE per
@@ -65,6 +76,8 @@ composition:
     - dosage_sensitivity_safety                # clingen-dosage
     - human_genetic_safety                     # gene-burden-safety
     - copy_number_alteration                   # copy-number-distribution — amplification guard (S1-1)
+    - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
+    - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
   # rules_scope = the CARDS whose rules enter the safety resolver (convention: card-ids, matching
   # the sibling skills). 2026-08-14 review (S3): completed from 2 entries — it listed the
   # gnomad-lof-constraint card + the activating-driver-role-safety-context RULE-id (inconsistent),
@@ -80,6 +93,10 @@ composition:
     - clinvar-pathogenicity-safety     # clinvar-germline-pathogenic-safety-warning
     - alteration-role                  # activating-driver-role-safety-context → mutant-selective downgrade (2026-07-23)
     - copy-number-distribution         # copy-number-amplified-oncogene-safety-context → GROUP-0 amplification guard (S1-1, 2026-08-17)
+    - pan-cancer-crispr-dependency-distribution  # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_concern (data-util expansion 2026-08-21)
+    - normal-tissue-liability          # normal-tissue-protein-liability-safety-warning → normal_tissue_protein_safety_concern (data-util expansion 2026-08-21)
+    # NOTE: clingen-dosage (above) ALSO fires clingen-recessive-only-safety-favorable →
+    # tolerant_reduced_safety_risk reassurance (data-util expansion 2026-08-21) — no separate list entry.
   synthesis:
     - rule_engine
   output_shape:

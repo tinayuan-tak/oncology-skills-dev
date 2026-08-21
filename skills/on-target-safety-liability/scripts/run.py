@@ -24,8 +24,12 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.9.0"   # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.10.0"  # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                           # (guarded by skills/tests/test_version_parity.py).
+                          # 1.10.0 (2026-08-21): data-utilization expansion — compose pan-cancer-crispr-
+                          # dependency-distribution (pan-essential broad-tox HOLD) + normal-tissue-liability
+                          # (HPA-IHC essential-tissue protein HOLD); + recessive-only reassurance leg (via
+                          # safety.resolver 1.5.0). +2 headline/claim axes (PAN_ESSENTIAL, NORMAL_TISSUE).
                           # 1.8.0: compose copy-number-distribution to activate the
                           # amplification guard. run.py constant was left at 1.7.0 while SKILL.md
                           # advanced to 1.8.0 (2026-08-17 version-parity reconciliation).
@@ -83,6 +87,21 @@ CARDS = [
                                       # guard KEEPS the on-target-safety HOLD
                                       # for an amplification-driven oncogene (ERBB2/MDM2) — the drug
                                       # hits WT protein, so the mutant-selective-sparing logic fails.
+    "pan-cancer-crispr-dependency-distribution",  # (data-util expansion 2026-08-21) — DepMap pan-
+                                      # essentiality as a BROAD-TOX safety signal. dependency_class==
+                                      # common_essential fires pan-essential-broad-tox-safety-warning
+                                      # (safety.resolver 1.5.0) → pan_essential_broad_tox_concern HOLD:
+                                      # a full-KO modality abrogates an essential function in NORMAL
+                                      # tissue too. Same card the dependency skill vetoes as
+                                      # pan_essential_killer (no window); here it is the SAFETY reading.
+                                      # Mechanism-conditioned (GROUP-1 downgrade) + amp-guarded (GROUP-0).
+    "normal-tissue-liability",        # (data-util expansion 2026-08-21) — HPA-IHC protein normal-tissue
+                                      # liability. essential_tissue_flag==present fires normal-tissue-
+                                      # protein-liability-safety-warning → normal_tissue_protein_safety_
+                                      # concern HOLD: the intracellular (SM/degrader) reading of the same
+                                      # card surface-modality-fit uses for its BiTE/TCE killer. This is
+                                      # PROTEIN-level critical-organ liability; the GTEx card above is
+                                      # RNA-breadth. No mutant-selective downgrade (full-KO hits WT).
 ]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
@@ -98,10 +117,14 @@ PARTIAL_STATUS_NOTE = (
     "pathogenicity-safety) — each mechanism-conditioned by the mutant-selective downgrade "
     "(wt_constraint_mechanism_mismatch / wt_human_genetics_mechanism_mismatch) when an activating "
     "driver is present (requires alteration-role in-scope; wired 2026-07-24). target-safety-"
-    "prioritisation is verdict-inert OT context. REMAINING GAPS: the biologics on-target-off-tumor "
-    "signal (normal-tissue-liability HPA-IHC) is consumed by the surface-modality-fit skill on the "
-    "surface_intrinsic axis, not here; protein-surface-evidence remains unwired; P5 drug_warning + "
-    "colocalisation legs deferred (asset-level / study-locus-keyed)."
+    "prioritisation is verdict-inert OT context. DATA-UTILIZATION EXPANSION (2026-08-21, safety.resolver "
+    "1.5.0): three further already-ingested legs now move the verdict — DepMap pan-essentiality "
+    "(pan_essential_broad_tox_concern HOLD, broad normal-tissue tox), HPA-IHC essential-tissue protein "
+    "(normal_tissue_protein_safety_concern HOLD — the intracellular reading of the normal-tissue-liability "
+    "card, no longer only on the surface axis), and ClinGen recessive-only carrier-health REASSURANCE "
+    "(tolerant_reduced_safety_risk, above the data-unavailable rung only). REMAINING GAPS keeping this "
+    "`partial`: the readers must still fire in an emitted package / dashboard_spec; and the P5 "
+    "drug_warning + colocalisation OT legs are deferred (asset-level / study-locus-keyed)."
 )
 
 
@@ -145,6 +168,8 @@ _SAFETY_VERDICT_PHRASE = {
     # safety CONCERNS (nomination HOLDs) — undesirable for a full-KO modality
     "highly_constrained_safety_concern":     "Highly LoF-constrained — safety concern",
     "human_genetics_safety_concern":         "Human-genetics safety concern",
+    "pan_essential_broad_tox_concern":       "Pan-essential — broad-tox safety concern",
+    "normal_tissue_protein_safety_concern":  "Essential-tissue protein — safety concern",
     # mutant-selective DOWNGRADES — the WT-loss concern is nullified for an allele-selective agent
     "wt_constraint_mechanism_mismatch":      "WT-constraint concern downgraded (mutant-selective)",
     "wt_human_genetics_mechanism_mismatch":  "Human-genetics concern downgraded (mutant-selective)",
@@ -160,6 +185,7 @@ _SAFETY_VERDICT_PHRASE = {
 # never a gate.
 _SAFETY_CONCERN_VERDICTS = frozenset({
     "highly_constrained_safety_concern", "human_genetics_safety_concern",
+    "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",
 })
 _SAFETY_REASSURING_VERDICTS = frozenset({
     "tolerant_reduced_safety_risk",
@@ -194,8 +220,9 @@ _SAFETY_HEADLINE_SPEC = HeadlineSpec(
     gate="safety",
     axis_labels={"CONSTRAINT": "gnomAD LoF constraint", "BURDEN": "population gene-burden",
                  "DOSAGE": "ClinGen dosage", "CLINVAR": "germline pathogenicity",
-                 "MOUSE_KO": "mouse-KO phenotype"},
-    axis_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO"),
+                 "MOUSE_KO": "mouse-KO phenotype", "PAN_ESSENTIAL": "DepMap pan-essentiality",
+                 "NORMAL_TISSUE": "normal-tissue protein (HPA-IHC)"},
+    axis_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE"),
     critical_axes=("CONSTRAINT",),
     verdict_label=lambda v: _SAFETY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
     tension_extra=_safety_tension_extra,
@@ -259,6 +286,16 @@ def _headline(cards, fired, verdict_pair):
         # ClinVar germline-pathogenicity
         "clinvar_pathogenic_class": get_card_field(cards, "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
         "clinvar_top_disease":      get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),
+        # DepMap pan-essentiality — BROAD-TOX safety leg (verdict-moving via pan-essential-broad-tox-
+        # safety-warning). common_essential = required across the whole panel → normal-tissue tox for
+        # a full-KO modality (the SAFETY reading of the same signal the dependency skill vetoes).
+        "dependency_class":   get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "dependency_class"),
+        "pan_essential_score": get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "pan_essential_score"),
+        # HPA-IHC protein normal-tissue liability — verdict-moving via normal-tissue-protein-liability-
+        # safety-warning (essential_tissue_flag==present → essential-tissue on-target-off-tumor tox).
+        "essential_tissue_flag":              get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
+        "essential_tissues_flagged":          get_card_field(cards, "normal-tissue-liability", "essential_tissues_flagged"),
+        "normal_tissue_breadth_class":        get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (
@@ -300,6 +337,7 @@ _SYNTHESIS_FACET_KEYS = (
     "safety_verdict", "driving_rule_id",
     "constraint_class", "burden_safety_class", "dosage_sensitivity_class",
     "clinvar_pathogenic_class", "mouse_ko_phenotype_class",
+    "dependency_class", "pan_essential_score", "essential_tissue_flag", "normal_tissue_breadth_class",
     "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
     "claim_vector", "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too

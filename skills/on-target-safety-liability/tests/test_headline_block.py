@@ -29,7 +29,7 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 _VALID_CONFIDENCE = {"strong", "moderate", "weak", "insufficient"}
-_AXIS_KEYS = ["CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO"]
+_AXIS_KEYS = ["CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE"]
 
 
 def _real_summary(s) -> bool:

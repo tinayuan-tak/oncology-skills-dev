@@ -567,6 +567,15 @@ SUB_SKILL_CARDS = {
                                           # guard could never fire in the composed profile and an amplification-
                                           # driven oncogene (ERBB2/MDM2) would still be wrongly DOWNGRADED off its
                                           # on-target-safety HOLD. (Also in on-target-safety-liability/run.py CARDS.)
+        "pan-cancer-crispr-dependency-distribution",  # (data-util expansion 2026-08-21) — REQUIRED for the
+                                          # pan-essential broad-tox HOLD (pan-essential-broad-tox-safety-warning →
+                                          # pan_essential_broad_tox_concern) to fire IN COMPOSITION. Also composed
+                                          # under functional-requirement (dependency lens); a card may be read by
+                                          # multiple lenses. (Also in on-target-safety-liability/run.py CARDS.)
+        "normal-tissue-liability",        # (data-util expansion 2026-08-21) — REQUIRED for the HPA-IHC essential-
+                                          # tissue protein HOLD (normal-tissue-protein-liability-safety-warning →
+                                          # normal_tissue_protein_safety_concern) to fire IN COMPOSITION. Also
+                                          # composed under surface-modality-fit (surface lens). (Also in run.py CARDS.)
     ],
     "target-intrinsic": [                 # GATELESS descriptive dossier (2026-08-17). Compose ONLY the
                                           # target-intrinsic-EXCLUSIVE cards — the ones NOT already composed under

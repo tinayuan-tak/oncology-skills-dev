@@ -68,6 +68,8 @@ _FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
     # HOLD too (a missing policy silently dropping the human-genetics or subtype hold would be a
     # fail-open). These two were previously vocab-only.
     ("safety", "human_genetics_safety_concern"): "hold",       # P5 human-genetics WT-loss concern
+    ("safety", "pan_essential_broad_tox_concern"): "hold",     # data-util expansion 2026-08-21 — broad tox
+    ("safety", "normal_tissue_protein_safety_concern"): "hold",  # data-util expansion 2026-08-21 — HPA-IHC
     ("subtype_fit", "subtype_specific_non_dependence"): "hold",  # queried subtype has no dependency
 }
 # Precedence when multiple gates fire: veto dominates hold. (2026-08-20): READ from the
@@ -131,7 +133,8 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
         "insufficient_underpowered_pan_essential",                    # admissibility guards
     }),
     "safety": frozenset({
-        "highly_constrained_safety_concern", "human_genetics_safety_concern",  # the two holds
+        "highly_constrained_safety_concern", "human_genetics_safety_concern",  # the (now four) holds
+        "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",  # data-util expansion 2026-08-21
         "wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch",
         "tolerant_reduced_safety_risk", "moderately_constrained_safety",
         "data_unavailable", "insufficient",
@@ -161,6 +164,8 @@ _FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
     ("dependency", "broadly_dependent"): "contradiction",
     ("safety", "highly_constrained_safety_concern"): "gated",
     ("safety", "human_genetics_safety_concern"): "gated",
+    ("safety", "pan_essential_broad_tox_concern"): "gated",          # data-util expansion 2026-08-21
+    ("safety", "normal_tissue_protein_safety_concern"): "gated",     # data-util expansion 2026-08-21
     ("subtype_fit", "subtype_specific_non_dependence"): "gated",
     ("selectivity", "not_selective"): "contradiction",
     ("selectivity", "discordant_across_comparators"): "contradiction",

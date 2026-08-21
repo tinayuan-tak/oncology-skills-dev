@@ -2,13 +2,16 @@
 of the human-genetics safety cards into (signal × corroboration) per orthogonal claim.
 
 The FIFTH concrete instance of the shared claim_vector_core contract (dependency / genomic / selectivity
-/ presence are the first four). Declares five safety axes as a ClaimSpec list:
+/ presence are the first four). Declares SEVEN safety axes as a ClaimSpec list (five human-genetics + two
+added in the 2026-08-21 data-utilization expansion):
 
-  CONSTRAINT gnomAD LoF constraint    — pLI / LOEUF / obs-vs-exp LoF; the core LoF-intolerance signal.
-  BURDEN     population gene-burden   — Open Targets LoF-risk-phenotype vs protective.
-  DOSAGE     ClinGen dosage           — haploinsufficiency (autosomal-dominant loss).
-  CLINVAR    germline pathogenicity   — germline-pathogenic variant burden.
-  MOUSE_KO   mouse-KO phenotype       — lethality / severe-organ phenotype on knockout.
+  CONSTRAINT    gnomAD LoF constraint  — pLI / LOEUF / obs-vs-exp LoF; the core LoF-intolerance signal.
+  BURDEN        population gene-burden — Open Targets LoF-risk-phenotype vs protective.
+  DOSAGE        ClinGen dosage         — haploinsufficiency (autosomal-dominant loss).
+  CLINVAR       germline pathogenicity — germline-pathogenic variant burden.
+  MOUSE_KO      mouse-KO phenotype     — lethality / severe-organ phenotype on knockout.
+  PAN_ESSENTIAL DepMap pan-essentiality — common_essential across the panel → broad normal-tissue tox.
+  NORMAL_TISSUE HPA-IHC essential-tissue protein — on-target-off-tumor liability for a full-KO agent.
 
 LIABILITY SEMANTICS (inverse-valence, like selectivity's SAFE axis): a STRONG signal here is a strong
 safety CONCERN (LoF-intolerant / risk phenotype / haploinsufficient / pathogenic / KO-lethal), NOT a
@@ -53,6 +56,24 @@ _MOUSEKO_SIGNAL = {
     "developmental_only": "moderate",        # developmental lethality — less relevant to adult dosing
     "mild_phenotype": "weak", "no_phenotype": "absent", "insufficient": "unmeasured",
 }
+# DepMap pan-essentiality as a BROAD-TOX liability (data-util expansion 2026-08-21): common_essential =
+# required across the whole panel → a full-KO agent kills normal cells too. A SELECTIVE dependency
+# (strongly_selective / non_dependent) is `absent` here — that is a therapeutic WINDOW, not a safety
+# concern. Underpowered rungs are a coverage gap.
+_PANESS_SIGNAL = {
+    "common_essential": "strong",
+    "broadly_dependent": "moderate",          # dependent in many (not pan) lineages — partial breadth
+    "common_essential_underpowered": "weak",
+    "strongly_selective": "absent",           # MEASURED: selective → a window exists (not a broad-tox liability)
+    "non_dependent": "absent", "non_dependent_underpowered": "unmeasured",
+    "data_unavailable": "unmeasured",
+}
+# HPA-IHC essential-tissue protein liability (data-util expansion 2026-08-21): protein detected in a
+# curated essential normal tissue → on-target-off-tumor tox for a full-KO SM/degrader. Scalar flag.
+_NORMALTISSUE_SIGNAL = {
+    "present": "strong",                      # essential-tissue protein expression
+    "absent": "absent",                       # MEASURED: no essential-tissue expression
+}
 
 _INFORMS = {
     "CONSTRAINT": "LoF constraint — the core on-target LoF-tolerance signal (degrader / full-KO risk)",
@@ -60,6 +81,8 @@ _INFORMS = {
     "DOSAGE": "dosage sensitivity — haploinsufficiency (partial-inhibition risk)",
     "CLINVAR": "germline pathogenicity — clinical LoF-variant evidence",
     "MOUSE_KO": "mouse-KO phenotype — organismal essentiality of loss",
+    "PAN_ESSENTIAL": "DepMap pan-essentiality — broad normal-tissue tox of full loss (no therapeutic window)",
+    "NORMAL_TISSUE": "HPA-IHC essential-tissue protein — on-target-off-tumor liability for a full-KO agent",
 }
 # EVERY claim is a LIABILITY: a strong signal is a RISK the safety VERDICT owns, not a nomination win.
 _LIABILITY_NOTE = " (LIABILITY — a strong signal is a safety CONCERN; verdict owned by the safety resolver)"
@@ -134,6 +157,34 @@ def _mouseko_corr(h, c):
     return "moderate" if _MOUSEKO_SIGNAL.get(h.get("mouse_ko_phenotype_class"), "unmeasured") != "unmeasured" else "unmeasured"
 
 
+def _paness_signal(h, c):
+    cls = h.get("dependency_class")
+    sig = _PANESS_SIGNAL.get(cls, "unmeasured")
+    conflict = None
+    # mechanism conditioning (mirrors CONSTRAINT): a mutant-selective GoF spares the WT essential
+    # protein normal cells depend on — the verdict downgrades this; surfaced here as a tension.
+    if sig_ge(sig, "moderate") and h.get("alteration_functional_direction") == "activating":
+        conflict = ("broad-tox pan-essential concern is DOWNGRADED for a mutant-selective / activating-GoF "
+                    "mechanism — a mutant-selective agent spares WT in normal tissue (see safety verdict)")
+    ev = f"DepMap: {cls or 'data_unavailable'}, pan_essential_score={_f(h.get('pan_essential_score'))}"
+    return sig, ev, conflict
+
+
+def _paness_corr(h, c):
+    return "high" if _PANESS_SIGNAL.get(h.get("dependency_class"), "unmeasured") not in ("unmeasured",) else "unmeasured"
+
+
+def _normaltissue_signal(h, c):
+    flag = h.get("essential_tissue_flag")
+    ev = (f"HPA-IHC: essential_tissue_flag={flag or 'data_unavailable'}, "
+          f"tissues={h.get('essential_tissues_flagged')}, breadth={h.get('normal_tissue_breadth_class')}")
+    return _NORMALTISSUE_SIGNAL.get(flag, "unmeasured"), ev, None
+
+
+def _normaltissue_corr(h, c):
+    return "moderate" if _NORMALTISSUE_SIGNAL.get(h.get("essential_tissue_flag"), "unmeasured") != "unmeasured" else "unmeasured"
+
+
 # ── citable evidence atoms (read from the source card summaries; cite each card) ────────────────────
 def _atom(card_id, summary, keys, entity, read):
     vals = {k: summary[k] for k in keys if summary.get(k) is not None}
@@ -179,25 +230,43 @@ def _mouseko_atom(h, c):
                  (c.get(cid) or {}).get("ko_phenotype_class"))
 
 
+def _paness_atom(h, c):
+    cid = "pan-cancer-crispr-dependency-distribution"
+    return _atom(cid, c.get(cid) or {}, ("dependency_class", "pan_essential_score", "distribution_shape"),
+                 {"measurement_type": "crispr_lof_dependency", "grain": "target", "valence": "liability"},
+                 (c.get(cid) or {}).get("dependency_class"))
+
+
+def _normaltissue_atom(h, c):
+    cid = "normal-tissue-liability"
+    return _atom(cid, c.get(cid) or {}, ("essential_tissue_flag", "essential_tissues_flagged", "normal_tissue_breadth_class"),
+                 {"measurement_type": "normal_tissue_protein_breadth", "grain": "target", "valence": "liability"},
+                 (c.get(cid) or {}).get("essential_tissue_flag"))
+
+
 SAFETY_CLAIM_SPEC = [
     ClaimSpec("CONSTRAINT", "gnomAD LoF constraint", _constraint_signal, _constraint_corr, _INFORMS["CONSTRAINT"] + _LIABILITY_NOTE, _constraint_atom),
     ClaimSpec("BURDEN", "population gene-burden", _burden_signal, _burden_corr, _INFORMS["BURDEN"] + _LIABILITY_NOTE, _burden_atom),
     ClaimSpec("DOSAGE", "ClinGen dosage sensitivity", _dosage_signal, _dosage_corr, _INFORMS["DOSAGE"] + _LIABILITY_NOTE, _dosage_atom),
     ClaimSpec("CLINVAR", "germline pathogenicity", _clinvar_signal, _clinvar_corr, _INFORMS["CLINVAR"] + _LIABILITY_NOTE, _clinvar_atom),
     ClaimSpec("MOUSE_KO", "mouse-KO phenotype", _mouseko_signal, _mouseko_corr, _INFORMS["MOUSE_KO"] + _LIABILITY_NOTE, _mouseko_atom),
+    ClaimSpec("PAN_ESSENTIAL", "DepMap pan-essentiality", _paness_signal, _paness_corr, _INFORMS["PAN_ESSENTIAL"] + _LIABILITY_NOTE, _paness_atom),
+    ClaimSpec("NORMAL_TISSUE", "HPA-IHC essential-tissue protein", _normaltissue_signal, _normaltissue_corr, _INFORMS["NORMAL_TISSUE"] + _LIABILITY_NOTE, _normaltissue_atom),
 ]
 
 _DISCLAIMER = (
     "Modality-blind, verdict-INERT projection of the on-target-safety cards into orthogonal LIABILITY "
-    "claims (CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO), each signal×corroboration. INVERSE "
+    "claims (CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO / PAN_ESSENTIAL / NORMAL_TISSUE), each "
+    "signal×corroboration. INVERSE "
     "valence: a strong signal is a safety CONCERN, not a win; a measured tolerant read is `absent`; a "
     "protective burden is `negative`. Claims are NOT averaged. Never feeds the safety verdict (owned by "
     "the shared safety resolver, which also applies the mutant-selective-GoF WT-constraint downgrade).")
 
 
 def safety_claim_vector(headline: dict, cards: list) -> dict:
-    """The verdict-INERT safety liability claim vector {CONSTRAINT,BURDEN,DOSAGE,CLINVAR,MOUSE_KO:
-    {signal, corroboration, evidence, conflict, informs, evidence_atom?}, _disclaimer}."""
+    """The verdict-INERT safety liability claim vector {CONSTRAINT,BURDEN,DOSAGE,CLINVAR,MOUSE_KO,
+    PAN_ESSENTIAL,NORMAL_TISSUE: {signal, corroboration, evidence, conflict, informs, evidence_atom?},
+    _disclaimer}."""
     return build_claim_vector(SAFETY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
@@ -211,13 +280,16 @@ def safety_key_signals(headline: dict, cards: list) -> dict:
                "BURDEN": f"Population LoF-risk phenotype ({h.get('burden_top_disease')}) [gene-burden-safety]",
                "DOSAGE": f"Haploinsufficient / dosage-sensitive ({h.get('germline_inheritance_mode')}) [clingen-dosage]",
                "CLINVAR": f"Germline-pathogenic variants ({h.get('clinvar_top_disease')}) [clinvar-pathogenicity-safety]",
-               "MOUSE_KO": f"KO phenotype: {h.get('mouse_ko_phenotype_class')} ({h.get('mouse_ko_top_lethal')}) [mouse-ko-phenotype]"}
+               "MOUSE_KO": f"KO phenotype: {h.get('mouse_ko_phenotype_class')} ({h.get('mouse_ko_top_lethal')}) [mouse-ko-phenotype]",
+               "PAN_ESSENTIAL": f"Pan-essential: {h.get('dependency_class')} (broad normal-tissue tox) [pan-cancer-crispr-dependency-distribution]",
+               "NORMAL_TISSUE": f"Essential-tissue protein ({h.get('essential_tissues_flagged')}) [normal-tissue-liability]"}
         return lambda claim: lbl.get(k)
 
+    _KEYS = ("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE")
     return build_key_signals(
-        vec, rank_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO"),
-        support_fns={k: sup(k) for k in ("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO")},
-        critical_keys=("CONSTRAINT", "BURDEN", "DOSAGE"),
+        vec, rank_keys=_KEYS,
+        support_fns={k: sup(k) for k in _KEYS},
+        critical_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "PAN_ESSENTIAL"),
         caveat_fns={}, headline_fn=lambda v, s: (
             "Human-genetics safety LIABILITY present." if s else
             "No strong safety liability signal (or largely unmeasured)."),

@@ -41,12 +41,18 @@ def _pulled() -> list:
 def test_gate_declares_measurement_types_pulled():
     pulled = _pulled()
     assert pulled, "on-target-safety-liability must declare composition.measurement_types_pulled (Rule 3)"
-    # the human-genetics safety spine + the mechanism-conditioning input
-    for required in ("gnomad_lof_constraint", "human_genetic_safety", "alteration_role"):
+    # the human-genetics safety spine + the mechanism-conditioning input + the two data-utilization
+    # expansion legs (2026-08-21): DepMap pan-essentiality (crispr_lof_dependency) and the HPA-IHC
+    # essential-tissue PROTEIN card (normal_tissue_protein_breadth — now legitimately composed here).
+    for required in ("gnomad_lof_constraint", "human_genetic_safety", "alteration_role",
+                     "crispr_lof_dependency", "normal_tissue_protein_breadth"):
         assert required in pulled, f"{required!r} missing from measurement_types_pulled"
-    # regression: the two drifted entries must NOT reappear (wrong / spurious for this skill)
-    assert "normal_tissue_protein_breadth" not in pulled, (
-        "normal_tissue_protein_breadth is wrong here — the GTEx card is normal_tissue_rna_breadth")
+    # normal_tissue_protein_breadth is NOW legitimate — the normal-tissue-liability (HPA-IHC protein)
+    # card joined the roster in the data-utilization expansion. Its RNA sibling
+    # (normal-tissue-liability-gtex) remains a SEPARATE normal_tissue_rna_breadth entry; both are pulled.
+    assert "normal_tissue_rna_breadth" in pulled, (
+        "normal_tissue_rna_breadth missing — the GTEx card (normal-tissue-liability-gtex) is RNA-breadth")
+    # regression: this spurious entry must NOT reappear (belonged to protein-surface-evidence, re-homed)
     assert "surface_confirmation" not in pulled, (
         "surface_confirmation is spurious — protein-surface-evidence was re-homed to surface-modality-fit")
 
