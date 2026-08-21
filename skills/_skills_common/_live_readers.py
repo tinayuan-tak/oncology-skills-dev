@@ -1491,9 +1491,27 @@ def _dispatch_clinvar_pathogenicity(target: str, indication: str) -> Optional[di
 def _dispatch_mouse_ko_phenotype(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: mouse-ko-phenotype card -> methods/opentargets_mouse_phenotype/read.py
     ::read_mouse_ko_phenotype. Mouse-KO normal-physiology safety (developmental-guardrailed): adult
-    lethality = adult-essential signal; embryonic/preweaning = caveat. INFERRED (model). Per-target."""
+    lethality = adult-essential signal; embryonic/preweaning = caveat. INFERRED (model). Per-target.
+
+    IMPC-DIRECT corroboration (card v1.1.0): merge methods/impc_mouse_ko_phenotype under impc_* keys —
+    a systematic preweaning-viability + organ-system read (developmental-lethality strength; partial
+    coverage). VERDICT-INERT (no rule keys on impc_*), and BEST-EFFORT: an IMPC read fault must never
+    abort the OT-MGI primary that drives the verdict, so it degrades to null impc_* fields."""
     mod = _import_method("opentargets_mouse_phenotype.read")
-    return mod.read_mouse_ko_phenotype(target, indication)
+    summary = mod.read_mouse_ko_phenotype(target, indication)
+    if not isinstance(summary, dict):
+        return summary
+    try:
+        impc = _import_method("impc_mouse_ko_phenotype.read").read_impc_mouse_ko_phenotype(target, indication)
+        summary.update({
+            "impc_ko_phenotype_class": impc.get("ko_phenotype_class"),
+            "impc_viability_class": impc.get("impc_viability_class"),
+            "impc_top_level_systems": impc.get("top_level_systems"),
+            "impc_orthology_confidence": impc.get("orthology_confidence"),
+        })
+    except Exception as exc:  # noqa: BLE001 — verdict-inert corroboration; never abort the OT-MGI spine
+        summary.setdefault("_corroboration_errors", {})["impc"] = f"{type(exc).__name__}: {exc}"
+    return summary
 
 
 def _dispatch_clingen_dosage(target: str, indication: str) -> Optional[dict]:
