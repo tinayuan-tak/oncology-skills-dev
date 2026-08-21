@@ -103,8 +103,16 @@ PANORAMA_RECORD_FIELDS = {'per_subgroup_metrics', 'per_stratum_metrics'}
 _SKILLS_REPO = Path(os.environ.get(
     "CLAUDE_ONCOLOGY_SKILLS_ROOT",
     "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"))
-_FIGURE_EMITTERS_PATH = (_SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
-                         / "_figure_emitters.py")
+# The CARD_FIGURE_EMITTERS registry literal. As of the figure-consolidation Stage-4 split the
+# monolith `_figure_emitters.py` became a package: the registry now lives in
+# `_figure_emitters/_registry.py`. We try the package form first, then fall back to the legacy
+# single-module file so this check works against either skills-repo checkout during the lockstep
+# window (and never false-fails an isolated CI where the sibling repo is absent).
+_SKILLS_SCRIPTS = _SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
+_FIGURE_EMITTERS_CANDIDATES = (
+    _SKILLS_SCRIPTS / "_figure_emitters" / "_registry.py",   # package form (Stage-4+)
+    _SKILLS_SCRIPTS / "_figure_emitters.py",                 # legacy monolith
+)
 
 # Measurement-type check (DATA_TO_SKILL_CONTRACT.md, 2026-07-21). A card's identity is
 # (measurement_type × entity_grain) — Rule 1. During migration the field is OPTIONAL (existing
@@ -285,10 +293,16 @@ def _measurement_type_entity_grains() -> Optional[dict[str, set[str]]]:
 def _registered_figure_emitters() -> Optional[set[str]]:
     """Parse the card_id keys registered in CARD_FIGURE_EMITTERS. Returns None if the
     skills repo / registry file is unreachable (→ the check graceful-skips, never a
-    false failure in an isolated checkout)."""
-    try:
-        txt = _FIGURE_EMITTERS_PATH.read_text()
-    except OSError:
+    false failure in an isolated checkout). Reads the first existing candidate — the
+    Stage-4 package `_figure_emitters/_registry.py`, else the legacy monolith file."""
+    txt = None
+    for cand in _FIGURE_EMITTERS_CANDIDATES:
+        try:
+            txt = cand.read_text()
+            break
+        except OSError:
+            continue
+    if txt is None:
         return None
     # registry entries are  "card-id": _emit_fn,
     return set(re.findall(r'"([a-z0-9-]+)"\s*:\s*_emit', txt))
