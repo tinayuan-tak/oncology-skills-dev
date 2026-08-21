@@ -63,21 +63,19 @@ def _emit_expression_distribution(
 def _emit_mutation_type_counts(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs E4 mutation-type-counts method to emit class bar (primary) + lineage bar."""
+    """Emit E4 mutation-type-counts figures. SUMMARY-DRIVEN (Stage 6): the class + lineage bars are
+    pure functions of the card summary (compute_summary_stats output the resolver already produced),
+    so they draw straight from `summary` — NO live re-read of the DepMap MAF at figure time."""
     if _has_live_read_error(summary):
         return []
+    if not summary or summary.get("mutation_landscape_class") == "data_unavailable":
+        return []                                   # honest gap — nothing to plot
     _ensure_methods_path()
     from methods.depmap_mutation_type_counts import cli as e4cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    target_rows, model_meta, n_total, load_errors = e4cli.load_mutation_data("26q1", target)
-    if load_errors:
-        return []
-    recomputed = e4cli.compute_summary_stats(target_rows, model_meta, n_total)
-    e4cli.emit_mutation_class_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
-    e4cli.emit_lineage_class_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
-    e4cli.emit_plot_data(target_rows, model_meta, out_dir)
-    e4cli.emit_manifest(target, "26q1", recomputed, out_dir, [])
+    e4cli.emit_mutation_class_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    e4cli.emit_lineage_class_bar(summary, target, out_dir, TARGET_CONTRACTS)
     return [
         {"id": "mutation_class_bar", "path": "figure_mutation_class_bar.svg",
          "type": "stacked_bar_mutation_class", "primary": True},

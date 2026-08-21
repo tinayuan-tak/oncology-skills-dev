@@ -39,6 +39,8 @@ from methods.depmap_crispr_rnai_concordance import cli as c1c_cli  # noqa: E402 
 from methods.depmap_crispr_rnai_concordance import figures as c1c_fig  # noqa: E402
 from methods.depmap_mutation_dependency import cli as c3_cli  # noqa: E402  (card3)
 from methods.depmap_mutation_dependency import figures as c3_fig  # noqa: E402
+from methods.depmap_cis_dosage import cli as cis_cli  # noqa: E402  (cis-feature-expression-coherence)
+from methods.depmap_cis_dosage import figures as cis_fig  # noqa: E402
 
 
 def _panel():
@@ -213,6 +215,22 @@ def test_card3_mutation_stratified_gallery_convergence(tmp_path, monkeypatch):
         "mutation-stratified-dependency", c3_cli, c3_fig.render_from_plot_data,
         "load_mutation_data", "plot_data.parquet",
         lambda d: c3_cli.emit_plot_data(chronos, hot, dam, meta, d), {}, tmp_path, monkeypatch)
+
+
+def test_cis_dosage_gallery_convergence(tmp_path, monkeypatch):
+    cn, tpm, meta = {}, {}, {}
+    i = 1
+    for lin, rows in {"Bowel": [(2.8, 5.6), (3.2, 6.0), (1.0, 3.1), (0.5, 2.0), (1.5, 4.2)],
+                      "Lung": [(1.0, 3.0), (1.1, 3.2), (0.9, 2.8), (2.0, 4.8), (1.2, 3.4)]}.items():
+        for cv, tv in rows:
+            mid = f"ACH-{i:06d}"; cn[mid] = cv; tpm[mid] = tv
+            meta[mid] = {"OncotreeLineage": lin, "CellLineName": f"CL{i}"}; i += 1
+    summary = cis_cli.compute_cis_dosage(cn, tpm)
+    _assert_convergence(
+        "cis-feature-expression-coherence", cis_fig, cis_fig.render_from_plot_data,
+        "load_cn_tpm_model", "plot_data.parquet",
+        lambda d: cis_fig.emit_plot_data(cis_fig.build_merged_data(cn, tpm, meta), d),
+        summary, tmp_path, monkeypatch)
 
 
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):

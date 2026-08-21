@@ -185,15 +185,23 @@ def _emit_card4_expression_dependency_correlation(
 def _emit_cis_feature_expression_coherence(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """cn_expression_scatter for cis-feature-expression-coherence — the cis-dosage (CN → own-expression)
-    plot. Recomputes via depmap_cis_dosage.figures public helpers (mirrors _emit_card4)."""
+    """Emit the cis-feature-expression-coherence cn_expression_scatter. Prefer the OFFLINE render seam
+    (persisted plot_data → figures.render_from_plot_data, no live re-read); fall back to legacy live
+    re-execution when no persisted plot_data is present (migration-safe)."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data.parquet"
+    if pd_path.exists():
+        from methods.depmap_cis_dosage.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_cis_dosage import figures as F
     from methods.depmap_cis_dosage.cli import compute_cis_dosage
-
-    out_dir.mkdir(parents=True, exist_ok=True)
     cn_by_model, tpm_by_model, model_metadata, load_errors = F.load_cn_tpm_model(target, release_pin="26q1")
     if load_errors or not cn_by_model or not tpm_by_model:
         return []
