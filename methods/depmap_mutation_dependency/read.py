@@ -26,6 +26,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 def read_mutation_stratified_dependency(
     target: str,
     indication: Optional[str] = None,
+    plot_data_out: Optional[Path] = None,
 ) -> dict:
     """Compute mutation-stratified dependency for target across the DepMap panel.
 
@@ -73,6 +74,17 @@ def read_mutation_stratified_dependency(
             "errors": mut_errs,
             "mutation_stratification_class": "data_unavailable",
         }
+
+    # Figure Stage 6: persist the per-cell-line chronos + mutation-membership frame during resolution
+    # so the figure renders offline from it (no second DepMap Chronos+mutation load at figure time).
+    # Best-effort, verdict-inert. The figure re-derives its stratification from this frame.
+    if plot_data_out is not None:
+        try:
+            plot_data_out.mkdir(parents=True, exist_ok=True)
+            _cli.emit_plot_data(chronos_by_model, hotspot_by_model, damaging_by_model,
+                                model_metadata, plot_data_out)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
 
     # INDICATION-CONDITIONED ladder: compute within-lineage when powered, else pan-DepMap
     # (strong→moderate downgraded). The compute kernel is unchanged (pure, byte-stable); the ladder

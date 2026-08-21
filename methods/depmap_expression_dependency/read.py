@@ -13,6 +13,7 @@ cli's emit_*_plot helpers separately.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from . import cli as _cli
@@ -23,7 +24,8 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_expression_dependency(target: str, indication: Optional[str] = None) -> dict:
+def read_expression_dependency(target: str, indication: Optional[str] = None,
+                                plot_data_out: Optional[Path] = None) -> dict:
     """Compute expression-vs-Chronos correlation for target gene in indication.
 
     Args:
@@ -60,6 +62,17 @@ def read_expression_dependency(target: str, indication: Optional[str] = None) ->
             "_remediation": f"target {target!r} not in either CRISPRGeneEffect or TPM matrix; confirm HGNC symbol.",
             "correlation_class": "data_unavailable",
         }
+
+    # Figure Stage 6: persist the per-cell-line merged frame during resolution so the figure renders
+    # offline from it (no second DepMap load at figure time). Best-effort, verdict-inert.
+    if plot_data_out is not None:
+        try:
+            plot_data_out.mkdir(parents=True, exist_ok=True)
+            target_lineage = _cli.INDICATION_LINEAGE.get(indication, "")
+            merged = _cli.build_merged_data(chronos_by_model, tpm_by_model, model_metadata, target_lineage)
+            _cli.emit_plot_data(merged, plot_data_out)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
 
     return _cli.compute_correlation_summary(
         chronos_by_model, tpm_by_model, model_metadata, indication=indication,
