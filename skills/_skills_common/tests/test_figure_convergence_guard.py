@@ -265,6 +265,22 @@ def test_percentile_crossing_gallery_convergence(tmp_path, monkeypatch):
         _write_tcga_per_sample, dict(_TCGA_SUMMARY), tmp_path, monkeypatch)
 
 
+def _write_tcga_atlas(d):
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    atlas = {"Liver": [5.5, 6.0, 5.8], "Brain": [0.5, 0.7], "Colon": [3.0, 3.2], "Lung": [1.2, 1.5]}
+    rows = [{"tissue": t, "log2_tpm": float(v)} for t, vals in atlas.items() for v in vals]
+    pd.DataFrame(rows, columns=["tissue", "log2_tpm"]).to_parquet(
+        d / "plot_data_normal_tissue_atlas.parquet", index=False)
+
+
+def test_normal_tissue_liability_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "normal-tissue-liability-gtex", tcga_read, tcga_fig.render_liability_from_plot_data,
+        "read_all_normal_tissues", "plot_data_normal_tissue_atlas.parquet",
+        _write_tcga_atlas, {"liability_class": "critical_organ_liability"}, tmp_path, monkeypatch)
+
+
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):
     ab, lin = {}, {}
     for i, (lg, v) in enumerate([("Lung", 4.0), ("Lung", 4.3), ("Lung", 3.8), ("Lung", 4.1), ("Lung", 3.9),

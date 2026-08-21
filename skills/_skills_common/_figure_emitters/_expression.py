@@ -287,8 +287,16 @@ def _emit_normal_tissue_liability_gtex(
     if not summary or summary.get("liability_class") == "data_unavailable":
         return []
     _ensure_methods_path()
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted atlas when present.
+    pd_path = out_dir / "plot_data_normal_tissue_atlas.parquet"
+    if pd_path.exists():
+        from methods.tcga_gtex_expression_distribution.figures import render_liability_from_plot_data
+        return render_liability_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
     svg = exprdist.emit_liability_svg(target, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
