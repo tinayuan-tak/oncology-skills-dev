@@ -41,6 +41,24 @@ from methods.depmap_mutation_dependency import cli as c3_cli  # noqa: E402  (car
 from methods.depmap_mutation_dependency import figures as c3_fig  # noqa: E402
 from methods.depmap_cis_dosage import cli as cis_cli  # noqa: E402  (cis-feature-expression-coherence)
 from methods.depmap_cis_dosage import figures as cis_fig  # noqa: E402
+from methods.tcga_gtex_expression_distribution import figures as tcga_fig  # noqa: E402
+from methods.tcga_gtex_expression_distribution import read as tcga_read  # noqa: E402
+
+
+def _write_tcga_per_sample(d):
+    """Persist the tcga per-sample plot_data (group/source/log2_tpm) the offline render replays."""
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    rows = ([{"group": "tumor", "source": "TCGA", "log2_tpm": v}
+             for v in (6.0, 6.3, 5.8, 6.5, 5.6, 6.1)]
+            + [{"group": "normal", "source": "GTEx:Colon", "log2_tpm": v}
+               for v in (1.2, 1.5, 0.9, 1.1, 1.3)])
+    pd.DataFrame(rows, columns=["group", "source", "log2_tpm"]).to_parquet(
+        d / "plot_data_expression_distribution.parquet", index=False)
+
+_TCGA_SUMMARY = {"tumor_expression_class": "broadly_high", "selectivity_class": "strongly_tumor_enriched",
+                 "normal_p95_log2tpm": 1.5, "fraction_tumor_above_normal_p95": 0.9,
+                 "distribution_pattern": "unimodal_high"}
 
 
 def _panel():
@@ -231,6 +249,20 @@ def test_cis_dosage_gallery_convergence(tmp_path, monkeypatch):
         "load_cn_tpm_model", "plot_data.parquet",
         lambda d: cis_fig.emit_plot_data(cis_fig.build_merged_data(cn, tpm, meta), d),
         summary, tmp_path, monkeypatch)
+
+
+def test_tumor_rna_distribution_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "tumor-rna-distribution", tcga_read, tcga_fig.render_from_plot_data,
+        "read_tumor_samples", "plot_data_expression_distribution.parquet",
+        _write_tcga_per_sample, dict(_TCGA_SUMMARY), tmp_path, monkeypatch)
+
+
+def test_percentile_crossing_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "tumor-vs-normal-percentile-crossing", tcga_read, tcga_fig.render_from_plot_data,
+        "read_tumor_samples", "plot_data_expression_distribution.parquet",
+        _write_tcga_per_sample, dict(_TCGA_SUMMARY), tmp_path, monkeypatch)
 
 
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):

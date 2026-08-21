@@ -167,11 +167,19 @@ def _emit_tumor_expression_distribution(
     Indication-scoped. On _live_read_error or no tumor samples → []."""
     if _has_live_read_error(summary):
         return []
-    _ensure_methods_path()
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
-    out_dir.mkdir(parents=True, exist_ok=True)
     if not summary or summary.get("tumor_expression_class") == "data_unavailable":
         return []                                   # target absent from TCGA long product here
+    _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted per-sample plot_data when present.
+    pd_path = out_dir / "plot_data_expression_distribution.parquet"
+    if pd_path.exists():
+        from methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
     exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     exprdist.emit_plot_data(target, indication, out_dir)
     figures = [
@@ -245,8 +253,17 @@ def _emit_tumor_vs_normal_percentile_crossing(
     if not summary or summary.get("selectivity_class") == "data_unavailable":
         return []
     _ensure_methods_path()
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted per-sample plot_data when present (same per-sample
+    # figure as Q1 — reuses tcga_gtex_expression_distribution.figures.render_from_plot_data).
+    pd_path = out_dir / "plot_data_expression_distribution.parquet"
+    if pd_path.exists():
+        from methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
     # emit_svg reads its own tumor/normal vectors; pass the summary through for the p95 annotation.
     exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     figures = [
