@@ -54,12 +54,12 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_histogram_kde_plot(demeter_by_model, target, summary, out_dir, tcd)
 
     # Descriptor shape mirrors the current registry emitter (_emit_card1b_pan_cancer_rnai_dependency_
-    # distribution). Type canonicalization to the FIGURE_CATALOG closed enum is a Stage-5 concern.
+    # distribution) with types canonicalized to the FIGURE_CATALOG closed enum (Stage 5).
     static = [
         {"id": "waterfall_rnai", "path": "figure_waterfall_rnai.svg",
-         "type": "ranked_waterfall_rnai", "primary": True},
+         "type": "ranked_waterfall", "primary": True},
         {"id": "histogram_kde_rnai", "path": "figure_histogram_kde_rnai.svg",
-         "type": "density_histogram_with_kde_rnai", "primary": False},
+         "type": "density_histogram_with_kde", "primary": False},
     ]
     # Interactive plotly twins from the SAME reconstructed frame — RETURNED (dynamic: True) so this is
     # an EXACT drop-in for the Stage-3 registry repoint (mirrors the skills _plotly_from wrapping).

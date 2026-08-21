@@ -54,15 +54,15 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_waterfall_plot(cn_by_model, model_metadata, target, summary, out_dir, tcd)
     _cli.emit_lineage_strip(cn_by_model, model_metadata, target, summary, out_dir, tcd)
 
-    # Descriptor shape mirrors the current registry emitter (_emit_cn_distribution). Type
-    # canonicalization to the FIGURE_CATALOG closed enum is a Stage-5 concern.
+    # Descriptor shape mirrors the current registry emitter (_emit_cn_distribution) with types
+    # canonicalized to the FIGURE_CATALOG closed enum (Stage 5).
     static = [
         {"id": "density_cn", "path": "figure_density_cn.svg",
-         "type": "density_histogram_with_kde_cn", "primary": True},
+         "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.svg",
-         "type": "per_lineage_strip_cn", "primary": False},
+         "type": "per_lineage_strip_plot", "primary": False},
         {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg",
-         "type": "ranked_waterfall_cn", "primary": False},
+         "type": "ranked_waterfall", "primary": False},
     ]
     # Interactive plotly twins from the SAME reconstructed frame — RETURNED (dynamic: True) so this is
     # an EXACT drop-in for the Stage-3 registry repoint (mirrors the skills _plotly_from wrapping).

@@ -69,11 +69,11 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
 
     static = [
         {"id": "density_expression", "path": "figure_density_expression.svg",
-         "type": "density_histogram_with_kde_expression", "primary": True},
+         "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
-         "type": "per_lineage_strip_expression", "primary": False},
+         "type": "per_lineage_strip_plot", "primary": False},
         {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
-         "type": "ranked_waterfall_expression", "primary": False},
+         "type": "ranked_waterfall", "primary": False},
     ]
     # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
     # We RETURN their descriptors (dynamic: True) too — mirroring the skills _plotly_from wrapping — so
@@ -88,6 +88,6 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
         pass
 
-    # (Type canonicalization to the FIGURE_CATALOG closed enum — density_histogram / ranked_waterfall
-    # / group_strip — is a Stage-5 concern.)
+    # Descriptor types are canonicalized to the FIGURE_CATALOG closed enum — density_histogram_with_kde
+    # / ranked_waterfall / per_lineage_strip_plot — matching the card contract (Stage 5).
     return static + dynamic

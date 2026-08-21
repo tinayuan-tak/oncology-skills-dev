@@ -56,10 +56,10 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_histogram_kde_plot(chronos_by_model, target, summary, out_dir, tcd)
 
     # Descriptor shape mirrors the current registry emitter (_emit_card1_pan_cancer_dependency_
-    # distribution). Type canonicalization to the FIGURE_CATALOG closed enum is a Stage-5 concern.
+    # distribution) with types canonicalized to the FIGURE_CATALOG closed enum (Stage 5).
     static = [
-        {"id": "waterfall", "path": "figure_waterfall.svg", "type": "waterfall_plot", "primary": True},
-        {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "histogram_kde",
+        {"id": "waterfall", "path": "figure_waterfall.svg", "type": "ranked_waterfall", "primary": True},
+        {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "density_histogram_with_kde",
          "primary": False},
     ]
     # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
