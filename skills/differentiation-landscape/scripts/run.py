@@ -19,11 +19,17 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.3.0"
+SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-21): + canonical HEADLINE block (verdict + confidence + top
+                          #        tension) + shared headline hero (figure_headline_hero.{svg,png,json}).
+                          #        A verdict-INERT projection over the DESCRIPTIVE claim_vector /
+                          #        key_signals — differentiation_verdict spine byte-stable (frozen by
+                          #        the KRAS/FBXW7 COADREAD replay guard).
 
 CARDS = [
     "co-mutation-and-mutual-exclusivity",
@@ -78,6 +84,73 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "differentiation")
 
+
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# differentiation-landscape's declaration for the shared headline_core builder: the four DESCRIPTIVE
+# claim axes (COMUT / SURVIVAL / PROGNOSIS / NODE), the differentiation-verdict vocabulary → human
+# phrase. Verdict-INERT — a one-way projection over the already-computed headline (differentiation_verdict
+# stays byte-stable, frozen by test_differentiation_replay.py + the golden-oracle resolver test).
+#
+# POLARITY (colours the hero badge). This skill is DESCRIPTIVE: the signal is the STRENGTH of a
+# differentiation / patient-selection pattern, and the DIRECTION (co-occurring vs mutually-exclusive;
+# worse vs better survival) lives in the atom, NOT the verdict tier. So no differentiation_verdict is a
+# clean favourable/unfavourable call for a drug program — every verdict colours the badge `neutral`
+# (grey). (Contrast the safety skill, whose inverse-valence liability verdicts DO carry program-polarity.)
+
+# The differentiation.resolver verdict vocabulary → human phrase, with a prettify fallback for any
+# future addition. All are DESCRIPTIVE pattern reads (direction lives in the claim atoms).
+_DIFFERENTIATION_VERDICT_PHRASE = {
+    "both_patterns_present":     "Co-occurring + mutually-exclusive partners",
+    "strong_cooccurring":        "Strong co-mutation landscape",
+    "strong_mutually_exclusive": "Strong mutual-exclusivity landscape",
+    "has_cooccurring_driver":    "Co-occurring driver present",
+    "modest_cooccurring":        "Modest co-mutation signal",
+    "modest_mutually_exclusive": "Modest mutual-exclusivity signal",
+    "ns":                        "No significant co-mutation pattern",
+    "data_unavailable":          "Data unavailable",
+    "insufficient":              "Insufficient evidence",
+}
+
+
+def _differentiation_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the differentiation verdict for the hero badge (never a gate).
+    differentiation-landscape is DESCRIPTIVE — the verdict tier encodes the STRENGTH of a co-mutation /
+    survival pattern, while the favourable/unfavourable DIRECTION lives in the claim atom. No verdict is
+    a clean program-desirability call, so polarity is always `neutral` (grey badge)."""
+    return "neutral"
+
+
+_DIFFERENTIATION_HEADLINE_SPEC = HeadlineSpec(
+    gate="differentiation",
+    axis_labels={"COMUT": "co-mutation landscape", "SURVIVAL": "expression↔survival",
+                 "PROGNOSIS": "PRECOG prognostic", "NODE": "pathway-node leverage"},
+    axis_keys=("COMUT", "SURVIVAL", "PROGNOSIS", "NODE"),
+    critical_axes=("COMUT", "SURVIVAL"),
+    verdict_label=lambda v: _DIFFERENTIATION_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    # No cross-cutting flag beyond the claim_vector conflicts + key_signals caveat: differentiation_key_signals
+    # emits no caveat and the skill has no single skill-specific tension flag (the panel-intersect pooling
+    # discipline is carried per-claim in the atoms). So tension_extra=None.
+    tension_extra=None,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed differentiation headline. Reads the
+    resolved verdict + the verdict-inert claim_vector / key_signals; never moves the spine. This skill
+    emits no CERTAINTY_MODEL sidecar, so confidence is derived from the claim vector's corroboration."""
+    v = headline.get("differentiation_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_DIFFERENTIATION_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_differentiation_verdict_polarity(v))
+
+
+def _emit_skill_figures(decision, figures_root):
+    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
+    display-only, offline, best-effort (missing block → [], spine unaffected)."""
+    return emit_headline_hero(decision, figures_root)
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
@@ -127,6 +200,17 @@ def _headline(cards, fired, verdict_pair):
     # + citable atoms the composed fan-out lifts to the cross-evidence agent.
     hl["claim_vector"] = differentiation_claim_vector(hl, cards)
     hl["key_signals"] = differentiation_key_signals(hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
+    # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
+    # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
+    # differentiation spine already fully built in `hl` (mirrors the tumor-presence degrade-on-exception
+    # discipline). On the happy path this is byte-identical (no _enrichment_errors key added), so the
+    # golden-oracle + replay fixtures are unaffected.
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -134,6 +218,8 @@ _SYNTHESIS_FACET_KEYS = (
     "differentiation_verdict", "driving_rule_id", "cooccurrence_class",
     "survival_association_class", "precog_prognostic_class", "node_leverage_class",
     "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -157,5 +243,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
         partial_status_note=PARTIAL_STATUS_NOTE,
     ))
