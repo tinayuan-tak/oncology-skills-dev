@@ -38,7 +38,7 @@ STATUSES = {"wired", "not_wired", "partial", "deprecated"}
 
 # Behavior a composed skill takes when a dependency card is `status: partial`
 # (i.e., graduated from placeholder but not yet fully wired). Reviewer-driven
-# arch upgrade A4 (2026-07-08) — makes the placeholder → partial → wired
+# (2026-07-08) — makes the placeholder → partial → wired
 # migration path safe for composed skills like target-profile that fan out
 # across many cards. Values:
 #   skip_section      — omit the section that consumes this dep; log a note
@@ -172,7 +172,7 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
     _one_of(status, STATUSES, "status")
 
     # on_dependency_status (optional; composed skills only)
-    # W3b fix (2026-07-09): `raw.get(key, {})` returns None when the key
+    # (2026-07-09): `raw.get(key, {})` returns None when the key
     # exists with a YAML-null value (`on_dependency_status: null` or a bare
     # `on_dependency_status:` line). Coerce None → {} explicitly.
     on_dependency_status = raw.get("on_dependency_status") or {}

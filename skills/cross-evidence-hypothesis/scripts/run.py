@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""cross-evidence-hypothesis — the framework's decision-facing cross-evidence INTEGRATOR (WS4).
+"""cross-evidence-hypothesis — the framework's decision-facing cross-evidence INTEGRATOR.
 
 A composed skill sitting ABOVE target-profile. It consumes ORTHOGONAL grounded evidence —
 target-profile's `evidence_package` (indication-conditioned sub-verdicts + cards), the
@@ -8,7 +8,7 @@ literature-RISK read — and reasons ACROSS them into a DEFENSIBLE, CITED, gate-
 hypothesis (causal_rationale, therapeutic_hypothesis, population, therapeutic_window, evidence_grade,
 go_forth) plus typed cross-line EDGES and EVIDENCE PATHS.
 
-The load-bearing invariant (roadmap §1): the integrator ENRICHES; it never OVERRIDES. The model
+The load-bearing invariant: the integrator ENRICHES; it never OVERRIDES. The model
 PROPOSES a verdict but a DETERMINISTIC, FAIL-CLOSED, GATE-COMPLETE ceiling (hypothesis_core.gate_ceiling,
 consuming synthesis.recommendation_gate.hard_gates) CLAMPS it — where the proposed verdict exceeds the
 spine's hard-gate ceiling, the ceiling wins and the tension is SURFACED. Defensibility is an ENFORCED
@@ -30,7 +30,7 @@ Run:  BEDROCK_AWS_PROFILE=cmp-dev python3 run.py \
 
 Grounded literature enters the hypothesis NATIVELY via `--substrate` (per-subskill ground_axis blocks),
 NOT via the risk projection — the two projections (6-dim risk + this hypothesis) are SIBLINGS off the
-one shared substrate (grounded-substrate two-projection design §13). The substrate is escalate-only: it
+one shared substrate (grounded-substrate two-projection design). The substrate is escalate-only: it
 enriches the panel + adds citable PMIDs + surfaces engine↔literature discordance as tensions, but never
 lowers the deterministic gate ceiling.
 """
@@ -50,10 +50,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hypothesis_core as hc  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.2.0"   # 0.1.0→0.2.0: WS4 DRIFT-GUARD (§9 — pinned prompt_template_hash + model_id
+SKILL_VERSION = "0.2.0"   # 0.1.0→0.2.0: DRIFT-GUARD (pinned prompt_template_hash + model_id
                           # + offline golden-set drift-CI) and the intra-package COHERENCE step
-                          # (WS5 adversarial-survival root-cause fix). Deferred: content-addressed
-                          # provenance manifest; curated truth-set eval (WS6).
+                          # (adversarial-survival root-cause fix). Deferred: content-addressed
+                          # provenance manifest; curated truth-set eval.
 
 
 # --- LLM prompts (ported + extended for subtype-resolved reasoning) ---------------------------------
@@ -229,12 +229,12 @@ def _default_synthesize():
     return synthesize_structured
 
 
-# --- WS4 drift-guard provenance (roadmap §9): pin prompt_template_hash + model_id ------------------
+# --- drift-guard provenance: pin prompt_template_hash + model_id ------------------
 def prompt_template_hash() -> str:
     """A stable sha256 over the DETERMINISTIC prompt SURFACE (both system prompts + both tool
     schemas) — INDEPENDENT of any single target's user prompt. A change to a prompt or a schema flips
     this hash, so the golden-set drift-CI (test_drift_guard) fails and forces a review + golden
-    regeneration on any prompt/model change (roadmap invariant 7)."""
+    regeneration on any prompt/model change."""
     h = hashlib.sha256()
     for part in (EDGE_SYSTEM, HYP_SYSTEM,
                  json.dumps(EDGE_SCHEMA, sort_keys=True),
@@ -346,7 +346,7 @@ def _panel_block(panel: dict, objective: str) -> str:
             "SUBTYPE-RESOLVED per-stratum records (cite the stratum name; a stratum axis with "
             "n_floor_met_by_axis=false is UNDERPOWERED — do not credit it):\n"
             f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}\n\n")
-    # per-subskill GROUNDED SUBSTRATE — the design-correct literature path (§13): escalate-only
+    # per-subskill GROUNDED SUBSTRATE — the design-correct literature path: escalate-only
     # per-axis literature findings, each ANCHORED to the axis it augments. The engine may MISS these;
     # they RAISE a concern, never lower one. Their PMIDs are in the citation surface (cite them).
     grounded_block = ""
@@ -385,10 +385,10 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     `llm_mode` labels provenance: 'bedrock' (default live), 'offline_replay', or 'injected' (a test
     stub); it never changes the deterministic spine, only what model_id is pinned.
     `substrate` is the per-subskill GROUNDED SUBSTRATE (dict axis→ground_axis block): the design-correct
-    literature path (§13) — its findings enrich the panel + its PMIDs become citable, and any axis that
+    literature path — its findings enrich the panel + its PMIDs become citable, and any axis that
     contradicts its deterministic verdict is surfaced as a tension. Escalate-only: it never lowers the
     deterministic ceiling.
-    `adversarial` (opt-in, WS5): after assembly, run the SKEPTIC refutation post-check and populate
+    `adversarial` (opt-in): after assembly, run the SKEPTIC refutation post-check and populate
     quality.adversarial_survival + quality.adversarial_gate. Off by default — it costs N_SKEPTICS extra
     Bedrock calls and is INTRINSIC-quality only (never changes the deterministic spine/ceiling; not in
     the drift-golden subset). Reuses this run's injected synth, so it stays offline-testable."""
@@ -430,7 +430,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
                         f"'{gate['ceiling']}' ({gate['reason']}). The evidence read is not permitted "
                         f"to override the gate — surfaced, not resolved in the hypothesis's favour.")
 
-    # --- clause traceability WITH TEETH (§6.3–6.5) ---
+    # --- clause traceability WITH TEETH ---
     surface = panel["citation_surface"]
     clause_cites = _all_clause_citations(out)
     untraceable = {k: bad for k, bad in
@@ -466,7 +466,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         if cited_gaps:
             absence_violations[key] = cited_gaps
 
-    # --- INTRA-PACKAGE COHERENCE WITH TEETH (§6.5 / WS5): a positive-thesis clause may not assert on
+    # --- INTRA-PACKAGE COHERENCE WITH TEETH: a positive-thesis clause may not assert on
     # a signal another present line contradicts (measured-negative cited as support, or one end of the
     # agent's OWN contradicts/tensions_with edge) unless it surfaces the tension. ---
     coherence_clauses = {}
@@ -484,14 +484,14 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     coherence_v = hc.coherence_violations(coherence_clauses, conviction, edges, tensions,
                                           present_norm, out_of_scope=oos, card_calls=card_calls)
     # SURFACE each detected tension into the structured `tensions` slot (fold-into-tensions), so the
-    # contradiction is carried explicitly, never buried — without mutating any LLM clause prose
-    # (invariant 9). coherence_v (as DETECTED) still blocks promotion below (the teeth).
+    # contradiction is carried explicitly, never buried — without mutating any LLM clause prose.
+    # coherence_v (as DETECTED) still blocks promotion below (the teeth).
     coherence_surfaced_tensions = hc.surface_coherence_tensions(coherence_v)
     if coherence_surfaced_tensions:
         tensions = tensions + coherence_surfaced_tensions
         out["tensions"] = tensions
 
-    # --- GROUNDED-SUBSTRATE discordance surfacing (§13, escalate-only): for each axis whose grounded
+    # --- GROUNDED-SUBSTRATE discordance surfacing (escalate-only): for each axis whose grounded
     # literature CONTRADICTS its deterministic verdict, surface a DETERMINISTIC tension (tagged
     # grounded_substrate_discordance) citing the axis + its grounded PMIDs — so the engine↔literature
     # disagreement is carried explicitly for a reviewer/skeptic. This RAISES a concern; it never lowers
@@ -511,7 +511,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         tensions = tensions + grounded_discordance_tensions
         out["tensions"] = tensions
 
-    # --- minimum-inputs gate (§12): enough non-gap in-scope decision lines to reason over? ---
+    # --- minimum-inputs gate: enough non-gap in-scope decision lines to reason over? ---
     n_supporting = sum(1 for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
     minimum_inputs_met = n_supporting >= 2
 
@@ -590,7 +590,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "degraded_inputs": degraded_inputs, "minimum_inputs_met": minimum_inputs_met,
             "n_supporting_in_scope_lines": n_supporting,
         },
-        # --- GROUNDED SUBSTRATE (§13): the per-axis literature findings the hypothesis reasoned over,
+        # --- GROUNDED SUBSTRATE: the per-axis literature findings the hypothesis reasoned over,
         # the count of grounded PMIDs folded into the citation surface, and the engine↔literature
         # discordant axes surfaced as tensions above. Informational (escalate-only; never caps the
         # verdict) — but it is the auditable record that literature reached the hypothesis NATIVELY
@@ -603,11 +603,11 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "n_discordance_tensions_surfaced": len(grounded_discordance_tensions),
             "per_axis": grounded.get("per_axis", []),
         },
-        # --- optional intrinsic-quality slot (WS5). adversarial_survival is null until the optional
+        # --- optional intrinsic-quality slot. adversarial_survival is null until the optional
         # post-check (scripts/adversarial_survival.py, needs Bedrock) is run; the deterministic
         # coherence guard above is the always-on, offline sibling of that skeptic pass. ---
         "quality": {"adversarial_survival": None},
-        # --- WS4 drift-guard provenance (roadmap §9): the two PINS the golden-set drift-CI freezes ---
+        # --- drift-guard provenance: the two PINS the golden-set drift-CI freezes ---
         "provenance": {
             "skill": SKILL_NAME, "skill_version": SKILL_VERSION,
             "prompt_template_hash": prompt_template_hash(),
@@ -617,7 +617,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         "panel_conviction": conviction,
     }
 
-    # --- WS5 intrinsic-quality post-check (opt-in): the SKEPTIC refutation pass. Populates the quality
+    # --- intrinsic-quality post-check (opt-in): the SKEPTIC refutation pass. Populates the quality
     # slot that is otherwise null. Never touches the spine/ceiling (INTRINSIC-quality) — a low survival
     # score is a defensibility SIGNAL for the human, not a gate. ---
     if adversarial:

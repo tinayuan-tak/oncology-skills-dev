@@ -59,7 +59,7 @@ _SUBSKILL_ORDER = [
 ]
 # Subskill axes for which the grounded literature reader (literature-risk-assessment/ground_axis)
 # is configured — kept in step with ground_axis.AXIS_CONFIG's verdict_key-bearing (non-pseudo-card)
-# axes. As of #500 the reader was rolled out to ALL indication-conditioned subskills, so this is
+# axes. The reader was rolled out to ALL indication-conditioned subskills, so this is
 # every subskill EXCEPT the indication-independent target_intrinsic (which is not in AXIS_CONFIG).
 # A subskill NOT in this set renders an honest "not yet grounded" note; one IN it but without a
 # record this run renders nothing. Parity with AXIS_CONFIG is drift-guarded by
@@ -591,7 +591,7 @@ _SHORT_TO_GATE_ANCHOR = {
 _CARD_KEYFACTS = {
     "cellline-rna-distribution": [("Call", "expression_call_class"), ("Median log2TPM", "median_log2tpm_panel"),
                                 ("Cell lines", "n_cell_lines"),
-                                # additive isoform-EXPRESSION facet (roadmap #2 model arm): WHICH transcript
+                                # additive isoform-EXPRESSION facet: WHICH transcript
                                 # carries the expression — a single-isoform target is a cleaner modality/
                                 # epitope target; isoform_diverse flags that the druggable isoform must be
                                 # specified (complements the mechanism isoform_selective_warning note).
@@ -655,7 +655,7 @@ _CARD_KEYFACTS = {
 # is available in the package but not surfaced here (redundant with the density for this section).
 _CARD_FIGURE_ORDER = {
     "cellline-rna-distribution": ["density_expression", "lineage_expression"],
-    # cell-line protein (item #2): density (bucket-shaded) + per-lineage box, mirroring RNA;
+    # cell-line protein: density (bucket-shaded) + per-lineage box, mirroring RNA;
     # the ranked waterfall is emitted but not surfaced in the subtab (matches the RNA card).
     "cellline-protein-abundance": ["density_protein_abundance", "lineage_protein_abundance"],
 }
@@ -722,7 +722,7 @@ _INDICATION_LINEAGE = {
 
 
 def _expression_indication_focus(card: dict, indication: str) -> Optional[dict]:
-    """Item 4: for the cell-line RNA card, pull the INDICATION's lineage row from per_lineage_stats
+    """For the cell-line RNA card, pull the INDICATION's lineage row from per_lineage_stats
     (COADREAD→Bowel) and build human-readable interpretation. Returns None if not applicable / no
     lineage data. Output: {lineage, median_log2tpm, fraction_expressed, n, rank, n_lineages, interp}."""
     summ = card.get("summary") or {}
@@ -884,7 +884,7 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
                        f"(<code>{_esc(cid)}</code>). Coverage gap, not a negative.</p></div>")
             panels.append("".join(pan)); continue
 
-        # 2-column body (item 3): plots (left) + summary rail (right).
+        # 2-column body: plots (left) + summary rail (right).
         pan.append("<div class=card-body>")
 
         # -- LEFT: the interactive plot(s) --
@@ -898,7 +898,7 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
                        "are at right; a static/summary run embeds no plot for this card.</p>")
         pan.append("</div>")   # .card-plots
 
-        # -- RIGHT: summary rail — key facts, indication focus (item 4), rule/verdict fired --
+        # -- RIGHT: summary rail — key facts, indication focus, rule/verdict fired --
         pan.append("<div class=card-rail>")
         facts = _card_key_facts(c)
         if facts:
@@ -1056,7 +1056,7 @@ def _render_risk_rollup_html(rollup: Optional[dict]) -> list[str]:
 def _render_literature_risk_html(ra: Optional[dict]) -> list[str]:
     """The target×indication-level 6-dimension literature RISK panel (from literature-risk-assessment's
     risk_assessment.json). CONTEXT-TIER — rendered as a visually-separate, explicitly-labeled
-    'non-reproducible, as-of-DATE' block per RISK_ASSESSMENT_INTEGRATION.md §4; NEVER fused into the
+    'non-reproducible, as-of-DATE' block per RISK_ASSESSMENT_INTEGRATION.md; NEVER fused into the
     deterministic grid and NEVER a verdict input. Each dimension: risk grade + the literature's STATE
     read + what-could-kill-it, with cited (retrieved, confab-guarded) PMIDs."""
     if not ra or not isinstance(ra.get("dimensions"), dict):
@@ -1144,7 +1144,7 @@ def _grounded_block_html(short: str, grounded_record: Optional[dict]) -> list[st
     corr = g.get("corroborations") or []
     if corr:
         # Neutral label: when the block is flagged contradicts_deterministic, these notes may in fact
-        # DIVERGE from the verdict — do not assert they "corroborate" it (see review G4).
+        # DIVERGE from the verdict — do not assert they "corroborate" it.
         _corr_label = ("Literature notes vs. the computed verdict"
                        if g.get("contradicts_deterministic") else "Corroborations of the computed verdict")
         out.append(f"<p class=sub><b>{_corr_label}:</b> "
@@ -1159,7 +1159,7 @@ def _subskill_summary_svg_html(short: str, sub_results: dict, presence_facet: Op
       1. the CLAIM-VECTOR lane chart — the four claims at a glance (signal bar × reliability dots),
       2. the CARD BOARD as a collapsible drill-down — every card as ● signal / ○ no-signal /
          ▨ not-measured (no-signal ≠ not-measured), reliability channel, role-aware polarity.
-    Phase-2 rollout: PRESENCE (expression) first (it ships the card→claim/role map); other subskills
+    PRESENCE (expression) first (it ships the card→claim/role map); other subskills
     slot in as their maps are authored. Returns [] (renders nothing) for a subskill without one yet."""
     if short != "expression":
         return []
@@ -1332,7 +1332,7 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
 def _safe_panel(fn, *args, _what: str = "panel") -> list[str]:
     """Fail-open wrapper for the optional context panels (literature / grounded / hypothesis). A
     partial-but-parseable input must degrade THAT panel to 'not shown', never raise out of
-    _render_target_profile_html and lose the WHOLE governance artifact (review S1). Mirrors the
+    _render_target_profile_html and lose the WHOLE governance artifact. Mirrors the
     presence-hero fail-open discipline."""
     try:
         return fn(*args) or []
@@ -1343,7 +1343,7 @@ def _safe_panel(fn, *args, _what: str = "panel") -> list[str]:
 
 
 def _render_addressable_population_html(ap: Optional[dict]) -> list[str]:
-    """DETERMINISTIC addressable-population sizing (review G2). Surfaces the reproducible
+    """DETERMINISTIC addressable-population sizing. Surfaces the reproducible
     biomarker_prevalence the facet already computes (GENIE/MC3) — previously stored in nomination.json
     but never rendered, so the page showed only non-reproducible AI prose. Reconciles the alteration-
     CLASS prevalence against the currently-druggable-allele subset."""
@@ -1407,7 +1407,7 @@ def _render_target_profile_html(
     deciding-axis, ordinal matrix) are DETERMINISTIC sections, visually distinct from the
     AI-generated ones.
 
-    DYNAMIC vs STATIC (Phase B): when a run produced per-card interactive figures (`card_figures` +
+    DYNAMIC vs STATIC: when a run produced per-card interactive figures (`card_figures` +
     `figures_dir`), their Plotly specs are EMBEDDED inline (plotly.js inlined once, a small vanilla-JS
     bootstrap draws them) — the dashboard reads like the GI team's interactive charts while staying a
     single archivable file with zero external deps. When no figure was produced (the default / a
@@ -1574,7 +1574,7 @@ def _render_target_profile_html(
     nav.append("</nav><div class=content>")
     p.append("".join(nav))
 
-    # --- "About this analysis" band + data-loaded status banner — DEFERRED to the BOTTOM (#4).
+    # --- "About this analysis" band + data-loaded status banner — DEFERRED to the BOTTOM.
     # Descriptive framing + provenance is reference material, not a lead; _about_html() is defined
     # here (so it captures the run's counts) and APPENDED at the end of the body. Skipped in
     # presence_only.
@@ -1632,7 +1632,7 @@ def _render_target_profile_html(
     # --- Literature risk assessment (6 dimensions; CONTEXT-TIER lens) -------
     # The target×indication-level literature read from literature-risk-assessment (risk_assessment.json).
     # Rendered as a visually-separate, explicitly-labeled non-reproducible context block — NOT the
-    # deterministic verdict grid (RISK_ASSESSMENT_INTEGRATION.md §4). Suppressed in presence_only.
+    # deterministic verdict grid (RISK_ASSESSMENT_INTEGRATION.md). Suppressed in presence_only.
     if risk_assessment and not presence_only:
         p.extend(_safe_panel(_render_literature_risk_html, risk_assessment, _what="literature-risk"))
 
@@ -1666,7 +1666,7 @@ def _render_target_profile_html(
     if presence_only:
         p.extend(bands_html)
 
-    # FOCUSED VIEW (item 5): presence-only — close out after the Presence section, skipping the
+    # FOCUSED VIEW: presence-only — close out after the Presence section, skipping the
     # scorecard/risk/tension/evidence/matrix. Everything below is the full-report body.
     if presence_only:
         n_plotly = n_gate_plotly
@@ -1761,7 +1761,7 @@ def _render_target_profile_html(
 
     n_plotly = n_gate_plotly
 
-    # --- Ordinal matrix heatmap (deterministic VIEW) — closure; the modality-fit summary (#7 → top).
+    # --- Ordinal matrix heatmap (deterministic VIEW) — closure; the modality-fit summary (near the top).
     def _matrix_html() -> list[str]:
         out: list[str] = []
         if ordinal_matrix:
@@ -1871,7 +1871,7 @@ def _render_target_profile_html(
              "reproducible from the same inputs. No content is recomputed at render time.</footer>")
     p.append("</div>")   # close .wrap
 
-    # --- Interactive layer (Phase B): inline plotly.js + a small vanilla-JS bootstrap that draws
+    # --- Interactive layer: inline plotly.js + a small vanilla-JS bootstrap that draws
     # every embedded spec. Emitted ONLY when ≥1 figure was produced — the no-figure report stays
     # pure static HTML (no JS). plotly.js loads from the CDN (a few hundred KB of HTML) rather than
     # inlining ~4.6 MB, which the VS Code Simple Browser silently refuses (inline-<script> cap ~4.5MB).

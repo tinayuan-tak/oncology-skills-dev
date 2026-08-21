@@ -1,4 +1,4 @@
-"""Per-axis (strength, certainty) SIDECAR plumbing in the composed target-profile (CERTAINTY_MODEL §3):
+"""Per-axis (strength, certainty) SIDECAR plumbing in the composed target-profile (CERTAINTY_MODEL):
   1. _load_sub_skill_certainty_fn returns functional-requirement's `_strength_certainty` hook, and
      None for a sub-skill that does not expose it (generic + opt-in, like the facet loader);
   2. _certainty_by_axis assembles only the present sidecars, keyed by sub-skill short, and is
@@ -56,7 +56,7 @@ def test_certainty_by_axis_is_empty_and_none_safe_until_opt_in():
 
 
 def test_sidecar_is_disjoint_from_sub_verdicts():
-    """The sidecar must be its OWN block — never merged into `sub_verdicts` (CERTAINTY_MODEL §3:
+    """The sidecar must be its OWN block — never merged into `sub_verdicts` (CERTAINTY_MODEL:
     NOT in nomination sub_verdicts / GateVerdict / a shared carrier)."""
     sub_results = {"dependency": {"verdict": ("lineage_selective", "r"), "strength_certainty": _cert()}}
     out = _certainty_by_axis(sub_results)

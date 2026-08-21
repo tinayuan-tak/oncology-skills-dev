@@ -1,4 +1,4 @@
-"""Slice 4 link 3: comparator_concordance is surfaced to the human render + the LLM prompt.
+"""comparator_concordance is surfaced to the human render + the LLM prompt.
 
 The reader (analysis-methods) computes it and the card (target-contracts) declares it; this pins that
 target-profile actually SURFACES it — it's in the selectivity curated PHASE_METRIC_FIELDS (which feeds

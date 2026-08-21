@@ -84,11 +84,11 @@ CARDS = [
                                        # (predictability_lineage_collapsed directly flags the pan-cancer-vs-
                                        # indication scope-leak the biomarker rungs are gated against)
 
-    # ── SPLICE-form facets (2) — VERDICT-INERT display (R10 homing 2026-08-20) ────────────────────
+    # ── SPLICE-form facets (2) — VERDICT-INERT display (2026-08-20) ────────────────────
     # Aberrant splicing as a transcript-form alteration signal, homed alongside the SNV/CN/fusion
     # classes as DISPLAY facets (fire NO rule → the multi-class genomic verdict spine is byte-stable;
     # graduating splice to a verdict-driving class is a later rules+resolver stage). Previously
-    # orphaned (created by #424, consumed by no skill). TCGA SpliceSeq PSI (indication-gated).
+    # orphaned (consumed by no skill). TCGA SpliceSeq PSI (indication-gated).
     "tumor-splice-dysregulation",      # splice-dysregulation event(s) at the target (PSI shift vs normal)
     "tumor-splice-expression",         # per-splice-form expression (patient-tumor arm)
 ]
@@ -507,7 +507,7 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
 # The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet")
 # (mirrors tumor-presence + functional-requirement). Lifts genomic-alteration's claim_vector (the
 # SNV/CN/FUS driver + DEP alteration-confers-dependency SIGNAL decomposition) + key_signals to the
-# composed synthesis, closing arch-review R8 (claim_vector was BUILT here but never surfaced to the
+# composed synthesis, closing an arch-review gap (claim_vector was BUILT here but never surfaced to the
 # cross-lens layer). This skill hand-rolls main() (no run_wired_skill), so the facet reconstructs the
 # headline from the fan-out-resolved verdict_pair via _build_headline. VERDICT-INERT: nothing here
 # enters `fired`/the resolver; the fan-out treats an absent/failed facet as no-facet.

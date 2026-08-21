@@ -1,9 +1,8 @@
-"""CERTAINTY_MODEL §3 validators for the dependency reference axis + the fan-out SIDECAR hook.
+"""CERTAINTY_MODEL validators for the dependency reference axis + the fan-out SIDECAR hook.
 
   1. verdict → strength is TOTAL over the dependency resolver's verdict enum, and no real (positive
-     or negative) call silently reads strength `none` — only the insufficient/underpowered family does
-     (§3 validator 2).
-  2. `_model_ref` names a doc that actually exists (§3 validator 3 — a dangling pointer fails CI).
+     or negative) call silently reads strength `none` — only the insufficient/underpowered family does.
+  2. `_model_ref` names a doc that actually exists (a dangling pointer fails CI).
   3. `_strength_certainty` (the fan-out sidecar hook) reuses `_dependency_strength_certainty` (single
      source) — the hook and the direct computation cannot diverge.
 
@@ -43,7 +42,7 @@ def _dependency_resolver_verdicts():
 
 
 def test_verdict_to_strength_is_total_over_resolver_enum():
-    """§3 validator 2: every dependency verdict maps to a strength; a real call is never silently
+    """Every dependency verdict maps to a strength; a real call is never silently
     `none` (which would under-report the axis). Only the insufficient/underpowered family is `none`."""
     verdicts = _dependency_resolver_verdicts()
     if verdicts is None:
@@ -61,7 +60,7 @@ def test_verdict_to_strength_is_total_over_resolver_enum():
 
 
 def test_model_ref_points_at_an_existing_doc():
-    """§3 validator 3: the `_model_ref` a certainty object carries must resolve to a real file."""
+    """The `_model_ref` a certainty object carries must resolve to a real file."""
     cards = [{"card_id": "pan-cancer-crispr-dependency-distribution", "summary": {}}]
     ref = rc._dependency_strength_certainty(cards, "lineage_selective", "concordant_dependent")["_model_ref"]
     fname = ref.split("#", 1)[0]

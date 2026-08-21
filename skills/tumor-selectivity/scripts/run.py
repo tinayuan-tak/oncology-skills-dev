@@ -266,11 +266,11 @@ def _headline(cards, fired, verdict_pair):
 
 # The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet")
 # (mirrors tumor-presence + functional-requirement). Lifts tumor-selectivity's claim_vector (the
-# WIN/DIST/INT/SAFE SIGNAL decomposition) + key_signals to the composed synthesis, closing arch-review
-# R8 (claim_vector was BUILT here but never surfaced to the cross-lens layer). VERDICT-INERT: reuses
+# WIN/DIST/INT/SAFE SIGNAL decomposition) + key_signals to the composed synthesis, closing a gap where
+# claim_vector was BUILT here but never surfaced to the cross-lens layer. VERDICT-INERT: reuses
 # _headline (single source of truth); the fan-out treats an absent/failed facet as no-facet, and nothing
 # here enters `fired` or the resolver. The per-axis certainty roll-up is the separate certainty_by_axis
-# sidecar, NOT this facet (CERTAINTY_MODEL §3 — this is the SIGNAL half).
+# sidecar, NOT this facet (CERTAINTY_MODEL — this is the SIGNAL half).
 _SYNTHESIS_FACET_KEYS = (
     "selectivity_class", "driving_rule_id", "axis_a_selectivity_class",
     "dominant_direction", "discordant",
@@ -278,7 +278,7 @@ _SYNTHESIS_FACET_KEYS = (
     "rna_protein_tvn_concordance",
     "sc_normal_safety_essential_class",              # the veto input (why a target down-graded)
     "claim_vector", "key_signals",
-    # Phase R (#563): carry the 8-question leading table + the tumor-vs-normal WINDOW gate fields so the
+    # carry the 8-question leading table + the tumor-vs-normal WINDOW gate fields so the
     # composed target-profile dashboard can render the "Selectivity at a glance" leading table. All are
     # produced by _headline (single source of truth); absent ones project to None (verdict-inert).
     "question_table",
@@ -304,7 +304,7 @@ def _synthesis_facet(cards, fired, verdict_pair):
         "distribution-crossing / INT tumor-cell-intrinsic (purity/single-cell) / SAFE normal-liability, "
         "each a signal tier. The per-axis certainty roll-up is the separate certainty_by_axis sidecar.")
     return facet
-# ── SUBTYPE PANORAMA (Phase B; --subtypes; DESCRIPTIVE / verdict-INERT) ────────────────────────────
+# ── SUBTYPE PANORAMA (--subtypes; DESCRIPTIVE / verdict-INERT) ────────────────────────────
 # The target_subtype-grain crossing card. Resolved ONLY when the run receives --subtypes AND this fn
 # is passed to run_wired_skill; its cards are appended to the package + the panorama merged into the
 # headline, but NEVER enter `fired` — the selectivity_class spine + normal-breadth veto are

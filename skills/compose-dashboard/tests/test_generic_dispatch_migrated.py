@@ -8,7 +8,7 @@ AND has no bespoke CARD_DISPATCHERS entry), the (module, entrypoint) must resolv
 Of the 41 pure-passthrough candidates, 3 are deliberately KEPT bespoke (see
 test_intentionally_kept_dispatchers): they are called INTERNALLY by composed dispatchers.
 (mutation-drug-response was the 4th until its method package re-exported its entrypoint in
-analysis-methods #309, which unblocked its collapse here.)
+analysis-methods, which unblocked its collapse here.)
 
 Byte-equivalence rationale: `_generic_dispatch` calls `fn(target=target, indication=indication)` — the
 IDENTICAL call the deleted bespoke passthrough made (`mod = _import_method(M); return
@@ -76,7 +76,7 @@ def test_intentionally_kept_dispatchers():
     signaling-network-mechanism, surfaceome-family-classification, structure-features-static are
     called INTERNALLY by composed dispatchers (e.g. _dispatch_adc_tce_modality_fit), so deleting them
     would NameError at runtime — the generic path only routes top-level card reads.
-    (mutation-drug-response was kept until analysis-methods #309 re-exported its entrypoint; it is now
+    (mutation-drug-response was kept until analysis-methods re-exported its entrypoint; it is now
     collapsed — see test_mutation_drug_response_now_collapsed.)"""
     for cid in ("signaling-network-mechanism", "surfaceome-family-classification",
                 "structure-features-static"):
@@ -85,7 +85,7 @@ def test_intentionally_kept_dispatchers():
 
 def test_mutation_drug_response_now_collapsed():
     """mutation-drug-response is now generic-routed (bespoke dispatcher removed) — its method package
-    re-exports the entrypoint (analysis-methods #309), so _generic_dispatch resolves it to a callable."""
+    re-exports the entrypoint, so _generic_dispatch resolves it to a callable."""
     assert "mutation-drug-response" not in lr.CARD_DISPATCHERS
     mod = lr._import_method("depmap_mutation_drug_response")
     assert callable(getattr(mod, "read_mutation_drug_response", None))

@@ -82,7 +82,7 @@ VERDICT_COLORS = {
 
 # Phase → display metadata
 # sub_key MUST match a short name emitted by target-profile's SUB_SKILLS (run.py). 2026-08-10
-# REVIEW FIX (M5 + sibling): "tractability" and "population" were STALE — the composer emits
+# "tractability" and "population" were STALE — the composer emits
 # "tractability_sm" (the 2026-07-14 SM/biologics split renamed it) and there is no "population"
 # short name (patient-population-and-access was DELETED 2026-07-14 and folded into
 # genomic_alteration). Both badges silently rendered "no rule verdict" on every target. The new

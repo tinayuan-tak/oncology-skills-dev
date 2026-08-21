@@ -213,7 +213,7 @@ def test_tumor_vs_adjacent_coadread_uses_legacy_manifest():
     assert r.get("log2_fc") is not None
 
 
-# === N2 regression (2026-08-11 code review): expression_call_class emit-parity off-COADREAD ===
+# === expression_call_class emit-parity off-COADREAD (2026-08-11) ===
 #
 # Prior bug: the non-COADREAD branch returned only log2_fc/q_value, NOT expression_call_class —
 # the field ALL 6 tumor-rna-vs-adjacent interpretation rules key on. So those rules could never
@@ -250,7 +250,7 @@ def test_non_coadread_emits_expression_call_class(log2fc, q, expected):
 
 
 def test_non_coadread_flags_descriptive_stats_unavailable():
-    """finding #3-adjacent (2026-08-13): the sensitivity product carries no tumor/adjacent means + n,
+    """(2026-08-13): the sensitivity product carries no tumor/adjacent means + n,
     so the sensitivity path must flag descriptive_stats_unavailable=True (means/n stay None). This
     makes the descriptive-stats gap explicit rather than silently reading None as zero/missing."""
     fake_dge = _mock.MagicMock()
@@ -284,7 +284,7 @@ def test_non_coadread_absent_product_has_no_descriptive_stats_flag():
 
 # === Drift guard: every card a shipped skill lists in its CARDS roster must have a dispatcher ===
 #
-# The bug this catches (2026-08-07, PR #267): sc-normal-celltype-expression was added to the
+# The bug this catches (2026-08-07): sc-normal-celltype-expression was added to the
 # CARDS list of BOTH tumor-presence and surface-modality-fit, and its method module + card spec
 # existed — but no CARD_DISPATCHERS entry was ever added here. read_live_summary therefore hit its
 # `dispatcher is None: return None` branch, resolve_cards tagged the card _missing, and run_health
@@ -354,7 +354,7 @@ def test_every_skill_card_has_a_dispatcher(skill, card_id):
     """Every card_id in any shipped skill's CARDS roster must be routable — via a bespoke
     CARD_DISPATCHERS/PANORAMA_DISPATCHERS entry, OR (T11) via the generic dispatcher when the
     card_spec declares module+entrypoint. A card with none of these resolves to None → _missing →
-    run_health degraded (the #267 bug)."""
+    run_health degraded (the bug this catches)."""
     routable = (
         card_id in CARD_DISPATCHERS
         or card_id in PANORAMA_DISPATCHERS

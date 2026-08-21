@@ -43,7 +43,7 @@ from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.4.0"     # 3.1.0 +E8; +known-drug (#272); +degradation (#266); +T1.1/T1.2/T3.1
+SKILL_VERSION = "3.4.0"     # 3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
                             # 3.0.0: split from tractability-and-modality 2.1.0.
 
@@ -198,7 +198,7 @@ def _headline(cards, fired, verdict_pair):
         "degradability_machinery":   get_card_field(cards, "degradation-feasibility", "degradability_feasibility_class"),
         "degradability_e3_evidence": get_card_field(cards, "degradation-feasibility", "e3_substrate_evidence"),
         "degrader_precedent":        get_card_field(cards, "degradation-feasibility", "degrader_precedent"),
-        # 2026-08-09 bugfix (T5.1): these read the WRONG field names — the methods emit
+        # 2026-08-09 bugfix: these read the WRONG field names — the methods emit
         # `prism_activity_class` / `crispr_prism_concordance_class`, not `activity_class` /
         # `concordance_class`. get_card_field returns None on a missing key (no raise), so both
         # headline fields were ALWAYS None → decision.json blank + the LLM synthesis prompt

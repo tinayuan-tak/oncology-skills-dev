@@ -1,8 +1,8 @@
-"""P2 phase 3-claim: the dependency claim-vector facet plumbing in the composed target-profile.
+"""The dependency claim-vector facet plumbing in the composed target-profile.
   1. _dependency_facet reads sub_results['dependency']['synthesis_facet'] (and is None-safe);
   2. functional-requirement's `_synthesis_facet` carries the SIGNAL decomposition (claim_vector +
      key_signals) but NOT the per-axis certainty roll-up — that is the separate certainty_by_axis
-     sidecar (reconciliation D1: signal half vs certainty half live in distinct blocks).
+     sidecar (signal half vs certainty half live in distinct blocks).
 """
 from __future__ import annotations
 

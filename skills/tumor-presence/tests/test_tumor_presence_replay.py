@@ -145,7 +145,7 @@ def test_replay_per_modality_buckets_measured(epcam_decision):
 
 
 def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
-    """The two-axis TCE antigen-escape readout (analysis-methods #429 / card #449) must be surfaced into
+    """The two-axis TCE antigen-escape readout must be surfaced into
     the presence headline. Wiring guard: the keys must exist (value may be None on a fixture frozen
     before the fields existed — the nightly live re-freeze populates real values). When the fixture DOES
     carry a value, the escape class must be a member of the declared vocabulary."""
@@ -161,7 +161,7 @@ def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
 
 
 def test_replay_cptac_standardized_effect_wired(epcam_decision):
-    """The variance-standardized CPTAC effect (analysis-methods #432 / card #450) must reach the
+    """The variance-standardized CPTAC effect must reach the
     headline. EPCAM/COADREAD CPTAC is `ns` with a tiny raw effect (0.065) — the standardized class is
     `negligible` (Cohen's d ~0.16), recovered via the p-value approximation on the current product."""
     h = epcam_decision.get("headline") or {}

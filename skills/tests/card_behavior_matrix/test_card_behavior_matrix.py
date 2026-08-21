@@ -36,7 +36,7 @@ def _observed(summary, field):
 
     Returns ("data_unavailable"|"not_in_scope", None) for the null flavors, or ("value", <class>)
     for a real answer. Reading an explicit `field` (not a heuristic over *_class fields) avoids the
-    multi-class primary-identification ambiguity that the #359 bug was about — e.g. the dependency
+    multi-class primary-identification ambiguity that the bug was about — e.g. the dependency
     card carries both dependency_class (primary) and dep_control_position_class (a facet).
     """
     if not isinstance(summary, dict):

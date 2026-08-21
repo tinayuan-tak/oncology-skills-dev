@@ -28,7 +28,7 @@ from tp_common import SKILLS_DIR
 
 
 
-# PERF Stage 2: fan-out thread-pool worker cap. min(#sub-skills, cores-2) — headroom-aware; env
+# PERF: fan-out thread-pool worker cap. min(#sub-skills, cores-2) — headroom-aware; env
 # override for tuning/CI. Threads (not processes) so the process-global method caches are shared.
 _FANOUT_MAX_WORKERS = int(os.environ.get("TARGET_PROFILE_FANOUT_WORKERS",
                                           max(2, (os.cpu_count() or 4) - 2)))
@@ -49,7 +49,7 @@ def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
     convention of exposing one such function; we grab it via importlib
     so target-profile doesn't hard-code each sub-skill's Python path.
 
-    MEMOIZED (perf Stage 2): each sub-skill module is exec'd ONCE. This both avoids
+    MEMOIZED (perf): each sub-skill module is exec'd ONCE. This both avoids
     re-executing modules per call AND makes the concurrent fan-out safe — the pool
     workers hit the cache (populated by _prewarm_sub_skill_imports before the pool),
     so no two threads run importlib.exec_module / sys.path.insert concurrently.
@@ -89,7 +89,7 @@ def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
     """Return a sub-skill's OPTIONAL `_strength_certainty(cards, fired, verdict_pair) -> dict`, or None.
 
     The uniform opt-in a sub-skill uses to hand the composed layer its per-axis (strength, certainty)
-    SIDECAR (CERTAINTY_MODEL §3) — a verdict-inert reliability object keyed by sub-skill short. Mirrors
+    SIDECAR (CERTAINTY_MODEL) — a verdict-inert reliability object keyed by sub-skill short. Mirrors
     `_load_sub_skill_facet_fn`: reads the prewarmed module cache, so a sub-skill without the hook pays
     no cost. Only functional-requirement (the reference axis) supplies it today. VERDICT-INERT: the
     certainty object never enters `fired`, the resolver, or the nomination sub_verdicts."""
@@ -101,7 +101,7 @@ def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
 
 
 def _prewarm_sub_skill_imports() -> None:
-    """Perf Stage 2 byte-stability guard: single-threaded, BEFORE the thread pool, trigger every
+    """Perf byte-stability guard: single-threaded, BEFORE the thread pool, trigger every
     import the concurrent workers would otherwise race on — the compose-dashboard dispatcher (via
     resolve_cards' _import_dispatcher) and each sub-skill's verdict module (which does sys.path.insert
     + importlib.exec_module). After this, the workers hit warm module caches; no concurrent
@@ -150,7 +150,7 @@ SUB_SKILLS = [
                                                                # (recommendation byte-stable). Indication-level / target-independent
                                                                # v1 — kept off the gate pending calibration.
     ("on-target-safety-liability",     "safety"),
-    ("target-intrinsic",               "target_intrinsic"),    # GATELESS descriptive PEER (WS1, 2026-08-17): the
+    ("target-intrinsic",               "target_intrinsic"),    # GATELESS descriptive PEER (2026-08-17): the
                                                                # indication-INDEPENDENT target biology dossier composed as a
                                                                # first-class fan-out input (not a side-channel), so the
                                                                # cross-evidence integrator (LLM synthesis) + sub_verdicts render
@@ -164,7 +164,7 @@ SUB_SKILLS = [
                                                                # are gateless but DO emit a verdict); the must-not-gate requirement
                                                                # is satisfied STRUCTURALLY (verdict=None + gate=None), so
                                                                # overall_recommendation + confidence stay byte-identical.
-    ("cis-feature-coherence",          "cis_coherence"),     # GATELESS coherence facet (Stage 2, 2026-08-20): the
+    ("cis-feature-coherence",          "cis_coherence"),     # GATELESS coherence facet (2026-08-20): the
                                                                # locus->expression->dependency coherence owner. ADDITIVE like
                                                                # combinatorial-dependency — DEDICATED axis cis_coherence, self-
                                                                # contained resolver verdict, DELIBERATELY absent from _SHORT_TO_GATE
@@ -176,7 +176,7 @@ SUB_SKILLS = [
                                                                # Graduation to a positive_signal/positive_contradiction gate is a
                                                                # later CALIBRATED stage (would then enter _SHORT_TO_GATE + full suite).
     ("combination-and-vulnerability",  "combination_vulnerability"),  # CONSOLIDATED relational (gene×gene) annex
-                                                               # (#571 Stage-1 skill wired 2026-08-20). Canonical axis
+                                                               # (skill wired 2026-08-20). Canonical axis
                                                                # combination_vulnerability (target_profiling_axes.yaml). GATELESS
                                                                # verdict=None like target-intrinsic — its payload is a RANKED
                                                                # PARTNER TABLE + a relational claim_vector (SL/CODEP/COMBO/RESISTANCE
@@ -186,7 +186,7 @@ SUB_SKILLS = [
                                                                # verdict=None + gate=None satisfies must-not-gate STRUCTURALLY). The
                                                                # three standalone source skills stay wired in this stage (their cards
                                                                # are composed under both entries — like copy-number-distribution);
-                                                               # retiring them is the spine-gated Stage-2/3 follow-on (plan Part 7).
+                                                               # retiring them is the spine-gated follow-on.
 ]
 
 # Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
@@ -225,10 +225,10 @@ SUB_SKILL_CARDS = {
         "tumor-rna-vs-adjacent",
         "tumor-protein-abundance-cptac",
         "cellline-protein-abundance",     # Gygi cell-line MS — cell_line_protein_abundance axis.
-                                         # Added to tumor-presence/run.py CARDS in PR #80 but never
+                                         # Added to tumor-presence/run.py CARDS in an earlier PR but never
                                          # to this composer map → dropped from the composed profile.
                                          # Restored so the dual RNA+protein presence reaches the LLM.
-        "tumor-elevation-breadth",       # pan-cancer K-of-N breadth (Slice B3) — same drift class:
+        "tumor-elevation-breadth",       # pan-cancer K-of-N breadth — same drift class:
                                          # added to tumor-presence CARDS but not this map, so it was
                                          # silently dropped from the composed profile. Restored.
         "tumor-rna-distribution", # Q1 (expression-extraction plan) — per-sample tumor RNA
@@ -242,7 +242,7 @@ SUB_SKILL_CARDS = {
         # (activity/signaling-state, not presence). Kept in lockstep with its sub-skill CARDS.
         "cellline-rna-protein-concordance",       # Q5 (2026-07-23) — rna_as_biomarker; biomarker preferred_assay input.
         "tumor-scrna-celltype-expression",        # composer-registry sweep (2026-08-07): single-cell
-                                         # per-compartment tumor presence (P6/sc_rna). In tumor-presence
+                                         # per-compartment tumor presence. In tumor-presence
                                          # CARDS (and surface-modality-fit CARDS) but composed under NO
                                          # entry → silently dropped. Composed here under its presence home
                                          # (also satisfies the surface-modality-fit CARDS listing).
@@ -250,7 +250,7 @@ SUB_SKILL_CARDS = {
     "tumor-selectivity": [
         "tumor-vs-normal-selectivity",
         "tumor-vs-normal-percentile-crossing",   # Q2 — paired with tumor-selectivity CARDS (composer-consistency)
-        "modality-therapeutic-window",           # DEFERRED-1 FIX (2026-08-08): the normal-breadth veto rule
+        "modality-therapeutic-window",           # (2026-08-08): the normal-breadth veto rule
                                                  # (tvn-no-therapeutic-window-veto) keys on THIS card. It was
                                                  # composed only under the surface-modality-fit lens, so in the
                                                  # composed target-profile the veto NEVER fired in the selectivity
@@ -259,13 +259,13 @@ SUB_SKILL_CARDS = {
                                                  # (the FP the redesign exists to kill, resurrected in Go/No-Go).
                                                  # Adding it here makes the veto fire identically standalone vs
                                                  # composed. (A card may be composed under >1 lens.)
-        "sc-normal-celltype-expression",         # INC-3 — composer-consistency: the sc-normal critical-organ
+        "sc-normal-celltype-expression",         # composer-consistency: the sc-normal critical-organ
                                                  # veto (tvn-sc-normal-critical-organ-veto) must fire in the
                                                  # COMPOSED selectivity lens too, else the axis-D downgrade is
-                                                 # lost in Go/No-Go (same class as the DEFERRED-1 gap).
-        "expression-purity-confound",            # DEFERRED-3 — composer-consistency with the standalone CARDS
+                                                 # lost in Go/No-Go (same class as the earlier deferred gap).
+        "expression-purity-confound",            # composer-consistency with the standalone CARDS
                                                  # (verdict-inert facet; feeds no selectivity resolver rung).
-        "surface-abundance-density",             # INC-4 — composer-consistency: the absolute-density facet
+        "surface-abundance-density",             # composer-consistency: the absolute-density facet
                                                  # (verdict-inert; feeds no resolver rung). Surfaces Tier-1
                                                  # copies/cell + modality-floor standing in the composed profile.
         # v1.9.0 (2026-08-17) SINGLE-CELL + SPATIAL — composer-consistency with the standalone CARDS.
@@ -311,7 +311,7 @@ SUB_SKILL_CARDS = {
                                                  # neutral rules feed NO resolver ladder).
         "abundance-dependency",                  # Q7 (2026-07-23) — protein abundance→dependency (protein
                                                  # arm of expression-as-biomarker-of-dependency); render facet.
-        "partner-conditional-dependency",        # 2026-08-10 REVIEW FIX (H1): Track PC verdict-bearing card.
+        "partner-conditional-dependency",        # 2026-08-10: verdict-bearing card.
                                                  # In functional-requirement/run.py CARDS but DROPPED here, so
                                                  # the dependency resolver's partner_conditional_dependent rung
                                                  # (partner-conditional-{strongly,moderately}-dependent-supportive)
@@ -319,14 +319,14 @@ SUB_SKILL_CARDS = {
                                                  # target (WRN×MSI) was force-vetoed non_dependent. The composer
                                                  # guard (test_resolver_dependency_cards_are_in_the_composer_entry)
                                                  # was sitting RED on exactly this. Restored.
-        "cross-consortium-dependency",           # 2026-08-11 REVIEW FIX (facet-drop): Project Score
+        "cross-consortium-dependency",           # 2026-08-11 Project Score
                                                  # cross-consortium dependency corroboration. In
                                                  # functional-requirement CARDS but composed under no
                                                  # entry → dropped from the composed profile. VERDICT-INERT
                                                  # (no interpretation rules → feeds no resolver rung), so
                                                  # composing it is byte-stable on the verdict spine; it only
                                                  # restores the render facet to the composed target-profile.
-        "coessential-module",                    # 2026-08-19 (enrichment review #1): co-essential-module
+        "coessential-module",                    # 2026-08-19 (enrichment review): co-essential-module
                                                  # CONFIDENCE facet (is the dependency embedded in a coherent
                                                  # module?). In functional-requirement CARDS; composed here so
                                                  # it is not dropped from the profile. VERDICT-INERT (no
@@ -336,7 +336,7 @@ SUB_SKILL_CARDS = {
                                                  # CARDS + read by _headline (predictability_class →
                                                  # DEP corroboration bump) but DROPPED here, so
                                                  # _synthesis_facet's _headline raised KeyError →
-                                                 # swallowed → the dependency claim_vector facet (PR-C)
+                                                 # swallowed → the dependency claim_vector facet
                                                  # AND synthesis.claim_vectors were silently None in the
                                                  # COMPOSED profile. VERDICT-INERT (CONFIDENCE annotation;
                                                  # no resolver rung) → byte-stable on the verdict spine.
@@ -348,7 +348,7 @@ SUB_SKILL_CARDS = {
     "immune-context": [
         "immune-context",                # CIBERSORT LM22 CD8 effector context (gdc-pancanatlas-immune-2018)
     ],
-    "combination-and-vulnerability": [   # CONSOLIDATED relational annex (#571 Stage-1, wired 2026-08-20).
+    "combination-and-vulnerability": [   # CONSOLIDATED relational annex (wired 2026-08-20).
         "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
         "combinatorial-dependency",      # measured paralog dual-KO GI (CODEP axis; target_pair atoms)
         "combo-crispr-screen",           # combination co-targets under inhibition (COMBO axis)
@@ -368,17 +368,17 @@ SUB_SKILL_CARDS = {
                                              # cards are HOME cards of other sub-skills; composing them here too
                                              # is byte-stable (same cards, different lens) — the cis_coherence
                                              # axis rules fire on their fields via card_id_filter.
-        "cellline-isoform-dominance",        # R10 molecular-form facet (verdict-inert display)
-        "cellline-isoform-expression",       # R10 molecular-form facet (verdict-inert display)
+        "cellline-isoform-dominance",        # molecular-form facet (verdict-inert display)
+        "cellline-isoform-expression",       # molecular-form facet (verdict-inert display)
     ],
     "mechanism-and-pharmacology": [
         "signaling-network-mechanism",
         "phospho-pathway-activity",      # RE-HOMED 2026-08-05 from tumor-presence — phospho ACTIVITY /
                                          # signaling-state facet (CPTAC phosphoproteomics). Render facet.
-        "pathway-activity-context",      # 2026-08-11 REVIEW FIX (facet-drop): PROGENy pathway-activity
+        "pathway-activity-context",      # 2026-08-11 PROGENy pathway-activity
                                          # context. In mechanism-and-pharmacology CARDS, composed under no
                                          # entry → dropped. VERDICT-INERT render facet (no rules).
-        "tahoe-drug-perturbation",       # 2026-08-11 REVIEW FIX (facet-drop): Tahoe MoA/PD-marker
+        "tahoe-drug-perturbation",       # 2026-08-11 Tahoe MoA/PD-marker
                                          # perturbation facet. In mechanism-and-pharmacology CARDS,
                                          # composed under no entry → dropped. VERDICT-INERT render facet.
         "dependency-predictability",     # 2026-08-20 facet-parity: mechanism's _headline reads this via
@@ -398,21 +398,21 @@ SUB_SKILL_CARDS = {
         # genomic resolver rung → verdict byte-stable; composing them restores the genomic claim_vector.
         "cross-consortium-dependency",
         "dependency-predictability",
-        "tumor-splice-dysregulation",        # R10 splice-form facet (verdict-inert display)
-        "tumor-splice-expression",           # R10 splice-form facet (verdict-inert display)
+        "tumor-splice-dysregulation",        # splice-form facet (verdict-inert display)
+        "tumor-splice-expression",           # splice-form facet (verdict-inert display)
         "mutation-type-counts",
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",
         "copy-number-distribution",          # CN axis wired 2026-07-14
-        "copy-number-stratified-dependency", # A1a (2026-08-06): amp×dependency rescue (fires
+        "copy-number-stratified-dependency", # (2026-08-06): amp×dependency rescue (fires
                                              # biomarker_stratified_dependency); composer-consistency
-        "fusion-stratified-dependency",      # A1-fusion (2026-08-06): fusion×dependency rescue (fires
+        "fusion-stratified-dependency",      # (2026-08-06): fusion×dependency rescue (fires
                                              # biomarker_stratified_dependency; EWSR1-FLI1/BCR-ABL1);
                                              # composer-consistency with genomic-alteration-profile CARDS
-        "amp-expr-stratified-dependency",    # A1 amp-expr (2026-08-06): conjoint amp+overexpr×dependency
+        "amp-expr-stratified-dependency",    # amp-expr (2026-08-06): conjoint amp+overexpr×dependency
                                              # rescue (fires biomarker_stratified_dependency; ERBB2/MYC/
                                              # KRAS-amp); composer-consistency with genomic CARDS
-        "mutation-drug-response",            # Thread-4 deferred-c (2026-08-09): genotype×PRISM drug-response;
+        "mutation-drug-response",            # (2026-08-09): genotype×PRISM drug-response;
                                              # its mutation-drug-response-strongly-sensitive-supportive rung
                                              # fires the DISTINCT drug_response_biomarker verdict. Composed
                                              # here so that rung can fire in the target-profile (else the
@@ -420,9 +420,9 @@ SUB_SKILL_CARDS = {
         "fusion-rearrangement-landscape",    # LIVE (tcga-fusion-consensus-v1); additive signal-only
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)
-        "functional-gene-state",             # M6 allele-count / biallelic two-hit state (2026-07-22) —
+        "functional-gene-state",             # allele-count / biallelic two-hit state (2026-07-22) —
                                              # composer-consistency with genomic-alteration-profile CARDS.
-        "genomic-event-model-match",         # M11 canonical P3 patient↔model genomic-event join
+        "genomic-event-model-match",         # canonical patient↔model genomic-event join
                                              # (2026-07-22) — composer-consistency.
         "genomic-instability-state",         # composer-registry sweep (2026-08-07): aneuploidy/WGD/MSI/
                                              # signature genome-state axis. In genomic-alteration-profile
@@ -430,16 +430,16 @@ SUB_SKILL_CARDS = {
         "variant-level-interpretation",      # composer-registry sweep (2026-08-07): per-variant
                                              # oncogenicity (CIViC + hotspot). Same drift — in CARDS,
                                              # not composed → dropped. Restored.
-        "ddr-deficiency-context",            # 2026-08-11 REVIEW FIX (facet-drop): DDR/HRD inert context
+        "ddr-deficiency-context",            # 2026-08-11 DDR/HRD inert context
                                              # facet. In genomic-alteration-profile CARDS, composed under
                                              # no entry → dropped. VERDICT-INERT render facet (no rules).
         "mutational-signature-context",      # 2026-08-12: per-indication mutagenic-process cohort facet
                                              # (TCGA MC3 SBS). In genomic-alteration-profile CARDS →
                                              # composer-consistency requires it here. VERDICT-INERT (no rules).
-        "oncogenic-pathway-alteration",      # 2026-08-11 REVIEW FIX (facet-drop): oncogenic-pathway
+        "oncogenic-pathway-alteration",      # 2026-08-11 oncogenic-pathway
                                              # alteration context. In genomic-alteration-profile CARDS,
                                              # composed under no entry → dropped. VERDICT-INERT render facet.
-        "target-clonality",                  # scientific-gap #2 (2026-08-14): mutation clonality/truncality
+        "target-clonality",                  # scientific-gap (2026-08-14): mutation clonality/truncality
                                              # (ccf). In genomic-alteration-profile CARDS →
                                              # composer-consistency requires it here. VERDICT-INERT (no rules).
     ],
@@ -447,13 +447,13 @@ SUB_SKILL_CARDS = {
         "co-mutation-and-mutual-exclusivity",
         "expression-clinical-association",   # Q11 (2026-07-23) — expression→survival prognostic context;
                                              # render facet, paired with differentiation-landscape CARDS.
-        "stemness-context",                  # 2026-08-11 REVIEW FIX (facet-drop): Malta 2018 mRNAsi
+        "stemness-context",                  # 2026-08-11 Malta 2018 mRNAsi
                                              # stemness context. In differentiation-landscape CARDS,
                                              # composed under no entry → dropped. VERDICT-INERT render facet.
-        "precog-prognostic-association",     # 2026-08-11 REVIEW FIX (facet-drop): PRECOG prognostic
+        "precog-prognostic-association",     # 2026-08-11 PRECOG prognostic
                                              # meta-Z corroboration. In differentiation-landscape CARDS,
                                              # composed under no entry → dropped. VERDICT-INERT render facet.
-        "pathway-node-leverage",             # WS3 (2026-08-17): COMPARATIVE node-leverage. In
+        "pathway-node-leverage",             # (2026-08-17): COMPARATIVE node-leverage. In
                                              # differentiation-landscape CARDS; composed here so the fanout
                                              # does not silently drop it. VERDICT-INERT (soft axis_fit signals
                                              # + fired_rule_ids for the hypothesis agent; feeds NO resolver →
@@ -467,7 +467,7 @@ SUB_SKILL_CARDS = {
     "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",
         "prism-crispr-concordance",
-        "measured-potency-tractability",         # 2026-08-10 REVIEW FIX (M1): T3.1 measured-potency card.
+        "measured-potency-tractability",         # 2026-08-10: measured-potency card.
                                                  # In tractability-small-molecule/run.py CARDS but DROPPED here,
                                                  # so the tractability_small_molecule resolver's measured_potent_ligand
                                                  # AND structurally_ligandable rungs (measured-potent-ligand-sm-supportive
@@ -475,7 +475,7 @@ SUB_SKILL_CARDS = {
                                                  # composed profile. Was invisible to the composer guard until the
                                                  # 2026-08-10 _GATE_BY_SUBSKILL fix added this gate. Restored.
         "dependency-predictability",
-        "structure-features-static",         # 2026-07-24 — E8 forward-ligandability (pocket/druggability).
+        "structure-features-static",         # 2026-07-24 — forward-ligandability (pocket/druggability).
                                              # In tractability-small-molecule/run.py CARDS but was dropped
                                              # from this composer entry (composed only under surface-
                                              # modality-fit, a DIFFERENT sub-skill), so the SM ligandability
@@ -487,8 +487,8 @@ SUB_SKILL_CARDS = {
                                              # but composed under no entry → dropped. Restored so the
                                              # degradability signal reaches the composed profile.
         "known-drug-tractability",           # composer-registry sweep (2026-08-08): DGIdb pharmacology leg
-                                             # (E-known-drug) wired into tractability-small-molecule CARDS by
-                                             # #272 but composed under no entry → dropped. The card already
+                                             # (E-known-drug) wired into tractability-small-molecule CARDS
+                                             # but composed under no entry → dropped. The card already
                                              # feeds the skill's own verdict (run.py:198); this restores it to
                                              # the composed target-profile so the known-drug signal reaches it.
     ],
@@ -500,9 +500,9 @@ SUB_SKILL_CARDS = {
         "adc-tce-modality-fit",
         "normal-tissue-liability",           # HPA IHC off-tumor safety — in surface-modality-fit CARDS
                                              # (composer-consistency; was run.py-present but here-absent)
-        "copy-number-distribution",          # P4 (2026-07-23): genomic amplification → surface antigen-
+        "copy-number-distribution",          # (2026-07-23): genomic amplification → surface antigen-
                                              # density (adc/bite_tce/antibody). Cross-cutting — ALSO in
-                                             # genomic-alteration-profile (SM/degrader). Example B: one
+                                             # genomic-alteration-profile (SM/degrader): one
                                              # card, two modality gates, divergent modality reads.
         "rna-protein-concordance-tumor",     # orphan-fix (2026-08-05): tier:indication RNA↔protein
                                              # concordance; its important-weighted ADC/TCE surface rules
@@ -514,17 +514,17 @@ SUB_SKILL_CARDS = {
         "modality-therapeutic-window",       # composed therapeutic-window dispatcher call.
         "pmhc-presentation",                 # peptide-centric pMHC presentation (TCE/TCR-mimetic reach).
         # composer-registry sweep (2026-08-08): five more surface/biologics cards added to
-        # surface-modality-fit CARDS by #275/#276/#277/#280/#281 but composed under no entry →
+        # surface-modality-fit CARDS but composed under no entry →
         # silently dropped from the composed profile. Restored (all fire additive supportive-only
         # rules; the composed surface_modality verdict stays byte-stable — narrative completeness only).
-        "cd-antigen-backbone",               # CD/IO-antigen backbone clinical-precedent (E6-CD).
-        "modality-exon-window",              # per-exon tumor-vs-normal ADC/TCE window (E5).
-        "mutation-stratified-surface",       # mutant-up surface-antigen signal (E4-A2).
-        "pathway-stratified-surface",        # pathway-stratified surface signal (E4-A3).
-        "sc-normal-celltype-expression",     # single-cell normal-tissue safety comparator (F5).
+        "cd-antigen-backbone",               # CD/IO-antigen backbone clinical-precedent.
+        "modality-exon-window",              # per-exon tumor-vs-normal ADC/TCE window.
+        "mutation-stratified-surface",       # mutant-up surface-antigen signal.
+        "pathway-stratified-surface",        # pathway-stratified surface signal.
+        "sc-normal-celltype-expression",     # single-cell normal-tissue safety comparator.
         "sc-surface-normal-safety",          # REVIVE 2026-08-19: sc CITE-seq surface footprint on normal immune (additive; no resolver rung → composed verdict byte-stable).
         "sc-surface-rna-protein-concordance", # REVIVE 2026-08-19: sc RNA↔surface-protein proxy quality (additive; no resolver rung → byte-stable).
-        "surfaceome-cohort-ranking",     # REVIVE role-2 2026-08-20: per-target cohort-percentile context (product landed 2026-08-18; additive verdict-inert facet).
+        "surfaceome-cohort-ranking",     # REVIVE 2026-08-20: per-target cohort-percentile context (product landed 2026-08-18; additive verdict-inert facet).
         "surface-bulk-pair-selectivity", # 2026-08-20: bulk AND/OR/NOT pair-selectivity best-partner facet (bispecific; additive verdict-inert; companion to same-cell avidity).
         "tumor-scrna-celltype-expression",   # within-tumor antigen HOMOGENEITY (tce_homogeneity_class —
                                              # the ADC-vs-TCE discriminator). READ in _headline, so once
@@ -555,12 +555,12 @@ SUB_SKILL_CARDS = {
                                           # profile — a KRAS/COADREAD run wrongly HELD on WT-constraint.
                                           # (Also in on-target-safety-liability/run.py CARDS.)
         "normal-tissue-liability-gtex",   # Q3 — paired with on-target-safety-liability CARDS (composer-consistency)
-        "target-safety-prioritisation",   # P5 Slice 1 — OT engineered-score safety CONTEXT (verdict-inert)
-        "gene-burden-safety",             # P5 Slice 2 — OT rare-variant burden LoF-tolerance (verdict-moving; safety.resolver 1.3.0)
-        "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving; safety.resolver 1.3.0)
-        "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving; safety.resolver 1.3.0)
-        "clinvar-pathogenicity-safety",   # P5 follow-on — ClinVar germline-pathogenic (4th corroborating leg; verdict-moving)
-        "copy-number-distribution",       # S1-1 (2026-08-17) — REQUIRED for the amplification GUARD to fire IN
+        "target-safety-prioritisation",   # OT engineered-score safety CONTEXT (verdict-inert)
+        "gene-burden-safety",             # OT rare-variant burden LoF-tolerance (verdict-moving; safety.resolver 1.3.0)
+        "clingen-dosage",                 # ClinGen haploinsufficiency dosage-sensitivity (verdict-moving; safety.resolver 1.3.0)
+        "mouse-ko-phenotype",             # mouse-KO normal-physiology (developmental-guardrailed; verdict-moving; safety.resolver 1.3.0)
+        "clinvar-pathogenicity-safety",   # ClinVar germline-pathogenic (4th corroborating leg; verdict-moving)
+        "copy-number-distribution",       # (2026-08-17) — REQUIRED for the amplification GUARD to fire IN
                                           # COMPOSITION (same pattern as alteration-role above). safety.resolver
                                           # GROUP-0's copy-number-amplified-oncogene-safety-context rung keys on
                                           # copy-number-distribution.patient_focal_cn_class; without this line the
@@ -568,7 +568,7 @@ SUB_SKILL_CARDS = {
                                           # driven oncogene (ERBB2/MDM2) would still be wrongly DOWNGRADED off its
                                           # on-target-safety HOLD. (Also in on-target-safety-liability/run.py CARDS.)
     ],
-    "target-intrinsic": [                 # GATELESS descriptive dossier (WS1, 2026-08-17). Compose ONLY the
+    "target-intrinsic": [                 # GATELESS descriptive dossier (2026-08-17). Compose ONLY the
                                           # target-intrinsic-EXCLUSIVE cards — the ones NOT already composed under
                                           # another sub-skill's lens. target-intrinsic's OTHER 12 cards
                                           # (gnomad-lof-constraint + the P5 safety legs → on-target-safety-liability;
@@ -604,7 +604,7 @@ SUBTYPE_CARDS = [
                                               # opposing rule is what _subtype_verdict reads → one-directional
                                               # negative HOLD (subtype_specific_non_dependence).
     "subgroup-stratified-mutation-frequency", # DISPLAY-ONLY within this tier (subtype-verdict-shifting review
-                                              # M6): NO interpretation rule keys on it, so _subtype_verdict
+                                              # ): NO interpretation rule keys on it, so _subtype_verdict
                                               # (which only inspects subtype_fit_genomic from the dependency
                                               # card) can never see it — it is resolved+fired every --subtypes
                                               # run but emits no subtype-tier signal. Its subtype mutation
@@ -615,7 +615,7 @@ SUBTYPE_CARDS = [
 
 def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     """Verdict producer for the subtype tier. BI-DIRECTIONAL, negative-precedence (2026-08-19,
-    subtype-verdict-shifting review \u00a75).
+    subtype-verdict-shifting review).
 
     NEGATIVE (unchanged, takes precedence): subtype-non-dependence-opposing matches a MEASURED,
     floor-cleared, NOT-dependent stratum -> subtype_fit_genomic: opposing ->
@@ -708,7 +708,7 @@ def _run_sub_skills(target: str, indication: str,
         if profile_timers:
             print(f"[perf] read  {short:26s} {time.perf_counter() - _t0:6.1f}s "
                   f"({len(SUB_SKILL_CARDS[skill_dir])} cards)", file=sys.stderr)
-        # G1 (2026-08-13): apply the sub-skill gate's registered CARD PREPROCESSOR (e.g. the
+        # (2026-08-13): apply the sub-skill gate's registered CARD PREPROCESSOR (e.g. the
         # genomic-alteration family-wise FDR) BEFORE firing, so the composed fan-out corrects the card
         # summaries identically to the standalone skill's main(). Previously the FDR was standalone-only
         # → this fan-out fired on un-corrected p-values and over-credited biomarker_stratified_dependency
@@ -731,7 +731,7 @@ def _run_sub_skills(target: str, indication: str,
                 synthesis_facet = _facet_fn(cards, fired, verdict_pair)
             except Exception:  # noqa: BLE001 — a facet must never break the fan-out
                 synthesis_facet = None
-        # OPTIONAL per-axis (strength, certainty) SIDECAR (CERTAINTY_MODEL §3). Best-effort +
+        # OPTIONAL per-axis (strength, certainty) SIDECAR (CERTAINTY_MODEL). Best-effort +
         # VERDICT-INERT, same discipline as synthesis_facet: a sub-skill that exposes _strength_certainty
         # hands the composed layer its reliability object; absence / failure → None. Only
         # functional-requirement supplies it today.
@@ -753,7 +753,7 @@ def _run_sub_skills(target: str, indication: str,
             # Per-axis (strength, certainty) sidecar (None except functional-requirement). ADDITIVE /
             # verdict-inert — see _load_sub_skill_certainty_fn. Assembled by tp_facets._certainty_by_axis.
             "strength_certainty": strength_certainty,
-            # Stage 1b: the SAME sub-verdict, carried in the shared CompositionResult type (the
+            # the SAME sub-verdict, carried in the shared CompositionResult type (the
             # foundation the later --emit evidence-package stage consumes). ADDITIVE — wraps the
             # already-decided verdict_pair (post-resolver logic preserved); verdict/fired/cards and
             # the nomination emission are untouched, so output stays byte-identical. Gateless shorts
@@ -764,7 +764,7 @@ def _run_sub_skills(target: str, indication: str,
             ),
         }
 
-    # PERF Stage 2 (2026-07-23): the sub-skills are GENUINELY INDEPENDENT (collect-then-synthesize;
+    # PERF (2026-07-23): the sub-skills are GENUINELY INDEPENDENT (collect-then-synthesize;
     # no sub-skill reads another's result), so fan them out CONCURRENTLY. THREADS not processes: the
     # method-layer caches (depmap_common.parquet lru + disk cache; framework-tpm-long/hpa disk latches)
     # are process-global, so threads SHARE a target's reads across sub-skills (processes would
@@ -806,7 +806,7 @@ def _run_sub_skills(target: str, indication: str,
             "fired": sub_fired,
             "verdict": subtype_verdict_pair,
             "scope_subtypes": list(subtypes),
-            # Stage 1b: typed sub-verdict carrier (see _one_sub_skill). ADDITIVE.
+            # typed sub-verdict carrier (see _one_sub_skill). ADDITIVE.
             "composition": subskill_composition(
                 card_outputs=sub_cards, fired=sub_fired,
                 gate=_SHORT_TO_GATE.get(SUBTYPE_SHORT), verdict_pair=subtype_verdict_pair,

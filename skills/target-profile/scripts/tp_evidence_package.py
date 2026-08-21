@@ -62,7 +62,7 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
 def _load_figure_registry():
     """Import compose-dashboard's figure-emission registry (emit_figures_for_card).
 
-    Both engines share ONE figure registry (the gap-#5 one-source-many-consumers lesson): the same
+    Both engines share ONE figure registry (the one-source-many-consumers lesson): the same
     per-card emitters that draw compose-dashboard's SVGs + Plotly specs draw them for target-profile.
     Graceful None on import failure — a run without per-card figures still emits every other artifact.
     """
@@ -118,7 +118,7 @@ def _emit_card_figures(sub_results: dict, figures_dir: Path,
 
 # --- Evidence-package emitter (--emit evidence-package) --------------------------------------
 # The MACHINE-facing sibling of nomination.json: a deterministic, LLM-free evidence_package.json
-# envelope (the same shape compose-dashboard emits), assembled from the Stage-1b per-sub-skill
+# envelope (the same shape compose-dashboard emits), assembled from the per-sub-skill
 # CompositionResult carriers via the SHARED writer. Purely additive — selected by --emit; the
 # nomination path is untouched.
 
@@ -173,7 +173,7 @@ def _validate_evidence_package(ep: dict, contracts_root: Path) -> list[str]:
 def _validation_summary_from_sub_results(sub_results: dict) -> dict:
     """The 5-field validation_summary, computed over the card union DEDUPED by card_id.
 
-    O2 (2026-08-15): a card can compose under >1 sub-skill lens (~5 multi-homed cards), so the raw
+    (2026-08-15): a card can compose under >1 sub-skill lens (~5 multi-homed cards), so the raw
     cross-sub-skill card union double-counts them (~85 vs ~77 distinct) — inflating
     n_cards_attempted/passed/failed relative to the emitted evidence-package payload. That payload's
     `cards` array is deduped first-occurrence-per-card_id (skipping card_id-less entries) by
@@ -201,10 +201,10 @@ def _validation_summary_from_sub_results(sub_results: dict) -> dict:
     return validation_summary
 
 
-# --- Subtype-resolved evidence block (subtype-first-class-evidence spec, Option A, WS1) ------------
+# --- Subtype-resolved evidence block (subtype-first-class-evidence spec, Option A) ------------
 # Makes the per-stratum subtype SIGNALS machine-readable in the evidence package so the cross-evidence
 # integrator can later reason at subtype resolution — WITHOUT changing the spine's deliberate
-# "subtype = context, not a gate" treatment (the block is verdict-inert; agent consumption is WS4).
+# "subtype = context, not a gate" treatment (the block is verdict-inert; agent consumption is a later stage).
 # Two subtype-grain cards carry per_subgroup_metrics in target-profile's fan-out; the cross-axis
 # convergence blob (_subtype_facet) — previously computed but DROPPED from the package (it rode only
 # to nomination.json) — is embedded here too. The block is emitted ONLY under --subtypes; a default
@@ -289,7 +289,7 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     The synthesis block is the SUPERSET shape (per product decision): target-profile's nomination
     fields (recommendation_gate / confidence_tier / deciding_axis) AND a compose-dashboard-style
     primary/additional split AND the full per-sub-skill sub_verdicts — all sourced from the
-    Stage-1b CompositionResult on each sub-skill (r["composition"]); NO re-resolution.
+    CompositionResult on each sub-skill (r["composition"]); NO re-resolution.
     """
     from _skills_common.envelope import assemble_evidence_package
     from _skills_common.dispatcher import _envelope_card_present, _availability_state_for
@@ -329,7 +329,7 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
               file=sys.stderr)
 
     # 3. Synthesis block — SUPERSET. Per-short verdicts mirror nomination.json (verdict present even
-    #    for gateless shorts); the primary/additional split reads the gate blocks the Stage-1b
+    #    for gateless shorts); the primary/additional split reads the gate blocks the
     #    CompositionResult carries (gateless shorts contribute no block).
     sub_verdicts: dict = {}
     gate_blocks: dict = {}  # short -> primary_dict() (only shorts with a resolver gate)
@@ -376,7 +376,7 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         "additional_gate_verdicts": additional_blocks,
         # full per-sub-skill grouping
         "sub_verdicts": sub_verdicts,
-        # Stage 2a: verdict-INERT claim-vector signal facets — the SIGNAL decomposition + citable
+        # verdict-INERT claim-vector signal facets — the SIGNAL decomposition + citable
         # evidence atoms per sub-skill, for downstream cross-evidence reasoning (not just the label).
         "claim_vectors": _claim_vectors_from_sub_results(sub_results),
     }
@@ -407,7 +407,7 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         deterministic_timestamps=False,
         framework_version=_framework_version(),
         generated_by=f"skills/{SKILL_NAME}@{skills_repo_sha()}",
-        # O4 (2026-08-15): target-profile cards declare their inputs as products.yaml product_ids
+        # (2026-08-15): target-profile cards declare their inputs as products.yaml product_ids
         # (resolve_cards stamps card_input_manifest_ids), so a product-id family's is_stale was
         # trivially True (head — a concrete manifest id — is never == a product_id). Opt into the
         # honest-staleness refinement so those families report indeterminate, not false-stale. Kept
@@ -417,7 +417,7 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     # First-class subtype_resolved block (subtype-first-class-evidence, Option A). Attached ONLY under
     # --subtypes; a default run adds no key, so the envelope is byte-identical. Added AFTER assembly
     # (not via the shared writer) to keep this change entirely within skills/target-profile/ — the
-    # shared envelope.py is owned by a sibling PR (#463). Verdict-inert; the spine is untouched.
+    # shared envelope.py is owned by a sibling PR. Verdict-inert; the spine is untouched.
     if subtypes:
         ep["subtype_resolved"] = _subtype_resolved_block(sub_results, subtypes, subtype_facet)
     # target-profile reads live + has no target-level applies_when gating; keep its governance

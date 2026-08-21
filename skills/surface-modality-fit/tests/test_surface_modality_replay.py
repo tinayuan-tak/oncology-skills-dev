@@ -26,7 +26,7 @@ Three curated fixtures pin the base ladder AND both bite_tce KILLER rungs (via t
     base ladder AND that the bite killers do NOT over-fire on a target without the normal-tissue liability.
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 

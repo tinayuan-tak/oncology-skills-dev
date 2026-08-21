@@ -79,6 +79,16 @@ def weakest(tiers, ord_map) -> Optional[str]:
     return min(measured, key=lambda t: ord_map[t])
 
 
+def corr(card, field, smap):
+    """Single-source corroboration factory: returns a corroboration_fn(headline, cards_by_id) that
+    reads `field` off `card`'s summary, maps it through `smap`, and yields `moderate` when that maps
+    to a MEASURED tier (anything other than `unmeasured`), else `unmeasured`. For axes with a single
+    relational/evidence source, intra-source presence is the corroboration signal (never a second arm)."""
+    def fn(h, c):
+        return "moderate" if smap.get((c.get(card) or {}).get(field), "unmeasured") != "unmeasured" else "unmeasured"
+    return fn
+
+
 # ── the spec + builders ──────────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class ClaimSpec:
@@ -107,7 +117,7 @@ def build_claim_vector(spec: Sequence[ClaimSpec], headline: dict, cards, disclai
     skill's ClaimSpec list. Pure projection — reads the already-computed headline + card summaries and
     writes nothing back to either.
 
-    NOTE on `corroboration` (renamed from `reliability`, reconciliation D2): this is a WITHIN-CLAIM
+    NOTE on `corroboration` (renamed from `reliability`): this is a WITHIN-CLAIM
     support-quality tier — how well the claim's OWN signal is corroborated across its arms (it MAY
     include verdict-driving arms, e.g. dependency DEP's CRISPR↔RNAi concordance). It is deliberately
     NOT the axis certainty: the authoritative, VERDICT-DISJOINT certainty is the separate per-axis
@@ -173,4 +183,4 @@ def build_key_signals(claim_vector: dict, *, rank_keys: Sequence[str], support_f
 
 
 __all__ = ["SIGNAL_ORD", "CORROBORATION_ORD", "ClaimSpec", "build_claim_vector", "build_key_signals",
-           "cards_by_id", "fmt", "sig_ge", "bump_corroboration", "cap_corroboration", "weakest"]
+           "cards_by_id", "fmt", "sig_ge", "bump_corroboration", "cap_corroboration", "weakest", "corr"]

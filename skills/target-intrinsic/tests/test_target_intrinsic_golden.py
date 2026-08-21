@@ -9,8 +9,8 @@ This test runs the skill end-to-end on EGFR (a maximally-characterized reference
 few STABLE, high-value expectations. It SKIPS gracefully when live reads are unavailable (CI without
 S3 creds), so it fails on drift/logic bugs but not on data availability.
 
-Self-contained: does not depend on the compose-dashboard skip_if_no_data conftest helper (SK#337,
-still in review). When #337 lands, this can be refactored to reuse it.
+Self-contained: does not depend on the compose-dashboard skip_if_no_data conftest helper (still in review).
+When it lands, this can be refactored to reuse it.
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def test_egfr_identity_and_shape(egfr_decision):
 
 
 def test_egfr_domain_modality_not_mislabelled(egfr_decision):
-    """P2.1 regression (end-to-end): EGFR is a multi-domain RTK and a canonical INHIBITOR target;
+    """Regression (end-to-end): EGFR is a multi-domain RTK and a canonical INHIBITOR target;
     the class-driven heuristic must NOT call it removal_favored (it now returns indeterminate)."""
     cards = egfr_decision.get("cards") or []
     if not _card_available(cards, "domain-modality-relevance"):

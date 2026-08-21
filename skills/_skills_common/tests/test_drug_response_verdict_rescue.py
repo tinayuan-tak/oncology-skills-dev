@@ -1,4 +1,4 @@
-"""Deferred-(c) focused behavioral test: the genotype×drug-response biomarker fires its OWN verdict
+"""Focused behavioral test: the genotype×drug-response biomarker fires its OWN verdict
 (drug_response_biomarker) — the NEW verdict-moving behavior the byte-identical golden snapshot
 deliberately cannot show.
 
@@ -10,7 +10,7 @@ test proves the new rung actually DOES what it's for:
   - the KO-proven genetic dependency WINS first-match when both fire (it precedes the drug rung),
   - the drug rung precedes the bare variant-class-pattern rungs (a pharmacological biomarker outranks
     a mutation-spectrum composition with no functional test).
-Requires the deferred-c resolver rung (skip gracefully if the contracts half hasn't landed here yet).
+Requires the new resolver rung (skip gracefully if the contracts half hasn't landed here yet).
 """
 from __future__ import annotations
 

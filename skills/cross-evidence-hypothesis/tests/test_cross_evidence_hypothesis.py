@@ -1,4 +1,4 @@
-"""cross-evidence-hypothesis (WS4) — offline guards for the deterministic spine + the two-call
+"""cross-evidence-hypothesis — offline guards for the deterministic spine + the two-call
 pipeline (LLM injected). No Bedrock, no S3: the LLM is a stub `synthesize_fn`, the panel is a
 synthesized fixture carrying the three landed blocks (hard_gates + subtype_resolved +
 evidence_substrate). Verifies: fail-closed gate-complete clamp respects hard_gates; correlated cards
@@ -29,7 +29,7 @@ def _pkg():
     return json.loads(PKG.read_text())
 
 
-# =============================== deterministic gate ceiling (§6.6) ===============================
+# =============================== deterministic gate ceiling ===============================
 def test_ceiling_clean_hard_gates_is_advanceable():
     g = hc.gate_ceiling(_pkg())
     assert g["ceiling"] == "advanceable"
@@ -51,7 +51,7 @@ def test_ceiling_fired_hard_gate_declines():
 
 def test_ceiling_blind_gated_VETO_axis_fails_closed_to_declined():
     """A VETO-capable axis (dependency) with no verdict this run (status=blind, disposition=gated) →
-    the veto cannot be ruled out → fail-closed to declined (roadmap §6.6)."""
+    the veto cannot be ruled out → fail-closed to declined."""
     pkg = _pkg()
     hit = False
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
@@ -65,7 +65,7 @@ def test_ceiling_blind_gated_VETO_axis_fails_closed_to_declined():
 
 
 def test_ceiling_blind_gated_HOLD_axis_fails_closed_to_hold_not_declined():
-    """#1: a HOLD-grade axis (safety) blind → fail-closed to a HOLD (advanceable_flagged), NEVER a
+    """a HOLD-grade axis (safety) blind → fail-closed to a HOLD (advanceable_flagged), NEVER a
     decline — safety mirrors the spine's safety→hold policy (mechanism-conditionable window)."""
     pkg = _pkg()
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
@@ -80,7 +80,7 @@ def test_ceiling_blind_gated_HOLD_axis_fails_closed_to_hold_not_declined():
 
 
 def test_ceiling_fired_safety_gate_is_hold_not_decline():
-    """#1: a FIRED safety hard-gate caps at advanceable_flagged (hold), NEVER declined — even a
+    """a FIRED safety hard-gate caps at advanceable_flagged (hold), NEVER declined — even a
     hold-grade verdict formerly in SAFETY_KILL (highly_constrained_safety_concern). Approved ADCs /
     recover targets were being wrongly killed on hold-grade safety."""
     pkg = _pkg()
@@ -98,7 +98,7 @@ def test_ceiling_fired_safety_gate_is_hold_not_decline():
 
 
 def test_ceiling_dependency_veto_excluded_for_surface_biologic():
-    """#2: dependency is out-of-scope for a surface/ligand biologic (adc/bite_tce/antibody), so a
+    """dependency is out-of-scope for a surface/ligand biologic (adc/bite_tce/antibody), so a
     fired dependency:non_dependent must NOT veto — a surface antigen need not be a genetic dependency
     (e.g. DLL3/tarlatamab). The SAME package DOES decline under a small-molecule modality."""
     pkg = _pkg()
@@ -114,10 +114,10 @@ def test_ceiling_dependency_veto_excluded_for_surface_biologic():
 
 
 def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
-    """#3: a fired dependency:non_dependent must NOT veto a MUTANT-SELECTIVE / GoF driver (signalled by
+    """a fired dependency:non_dependent must NOT veto a MUTANT-SELECTIVE / GoF driver (signalled by
     safety=wt_*_mechanism_mismatch — the WT-LoF constraint does not align with the oncogenic mechanism,
     so an allele-selective agent need not make the WT gene a fitness dependency; e.g. IDH1/ivosidenib).
-    Orthogonal to #2 (modality) — this holds at ANY modality, including small_molecule."""
+    Orthogonal to the modality exclusion — this holds at ANY modality, including small_molecule."""
     pkg = _pkg()
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
         if row["short"] == "dependency":
@@ -137,7 +137,7 @@ def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
 
 
 def test_coherence_non_dependent_benign_for_mutant_selective():
-    """#3 (coherence half): a positive-thesis clause may rest on a target whose dependency reads
+    """(coherence half): a positive-thesis clause may rest on a target whose dependency reads
     non_dependent WITHOUT it counting as an unsurfaced negative — when the target is mutant-selective
     (safety=wt_*_mechanism_mismatch). Same signal/discriminator as the gate. At BOTH grains (dimension
     + dependency-family card)."""
@@ -214,7 +214,7 @@ def test_modality_scope_excludes_surface_for_small_molecule():
     assert hc.out_of_scope_dims("modality_agnostic") == set()
 
 
-# =============================== subtype-resolved consumption (#464) ===============================
+# =============================== subtype-resolved consumption ===============================
 def test_subtype_parse_tokens_and_floor():
     s = hc.parse_subtype_resolved(_pkg())
     assert s["present"] is True
@@ -231,7 +231,7 @@ def test_subtype_absent_tolerated():
     assert s["present"] is False and s["stratum_tokens"] == set()
 
 
-# =============================== evidence-substrate discount (#463 / WS7) ===============================
+# =============================== evidence-substrate discount ===============================
 def test_correlated_cards_share_substrate_and_count_once():
     ind = hc.substrate_independence(_pkg())
     assert ind["correlated_evidence_discounted"] is True
@@ -242,7 +242,7 @@ def test_correlated_cards_share_substrate_and_count_once():
 
 def test_substrate_discount_lowers_certainty_when_single_substrate():
     """If ALL evidence collapses to one substrate (n_independent < 2), certainty is capped low —
-    the correlated pair no longer inflates certainty (roadmap invariant 8)."""
+    the correlated pair no longer inflates certainty."""
     pkg = _pkg()
     # keep ONLY the two cards that share recount3 → one independent substrate, zero untagged
     pkg["cards"] = [c for c in pkg["cards"]
@@ -253,7 +253,7 @@ def test_substrate_discount_lowers_certainty_when_single_substrate():
     assert cert["final"] == "low" and cert["capped"] is True
 
 
-# =============================== traceability WITH TEETH (§6.3–6.5) ===============================
+# =============================== traceability WITH TEETH ===============================
 def _surface():
     panel = hc.assemble(str(PKG), str(RISK), str(DOSSIER), "small_molecule")
     return panel["citation_surface"]
@@ -362,14 +362,14 @@ def test_end_to_end_degraded_mode_when_inputs_missing():
     dm = r["degraded_mode"]
     assert dm["dossier_present"] is False and dm["risk_present"] is False
     assert set(dm["degraded_inputs"]) == {"dossier", "risk"}
-    # a missing input must never inflate certainty (§12); the degradation cap is recorded
+    # a missing input must never inflate certainty; the degradation cap is recorded
     assert r["uncertainty"]["overall_certainty"] == "low"
     assert any("degraded inputs" in reason for reason in r["uncertainty"]["cap_reasons"])
     # with risk missing there are no allowed PMIDs → the clean stub's real PMID is now untraceable
     assert r["defensibility"]["promotable"] is False
 
 
-# ======================= [3B] NATIVE GROUNDED-SUBSTRATE WIRING (design §13) =======================
+# ======================= NATIVE GROUNDED-SUBSTRATE WIRING =======================
 def _substrate_discordant():
     """A per-subskill grounded substrate (ground_axis output): safety axis whose literature
     CONTRADICTS the deterministic verdict, plus a concordant selectivity axis in the BARE-block shape."""
@@ -458,7 +458,7 @@ def _stub_clean_with_skeptic(system, user, name, schema, **kw):
 def test_adversarial_off_by_default_leaves_quality_slot_null():
     r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
               str(DOSSIER), synthesize_fn=_stub_clean)
-    # default: the WS5 slot is present but null (no skeptic pass, byte-stable to the pre-flag output)
+    # default: the slot is present but null (no skeptic pass, byte-stable to the pre-flag output)
     assert r["quality"]["adversarial_survival"] is None
     assert "adversarial_gate" not in r["quality"]
 

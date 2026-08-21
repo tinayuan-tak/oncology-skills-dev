@@ -6,7 +6,7 @@ Consumes the signaling-network-mechanism card (a directed network composed
 from SIGNOR + CollecTRI + Reactome, classified into a 21-class MoA ontology).
 Emits a data-package output tree with rule-derived per-modality signals.
 
-W4c refactor (2026-07-09): now uses the shared
+Refactor (2026-07-09): now uses the shared
 _skills_common.dispatcher.run_wired_skill(...) entry point. Skill-
 specific logic (CARDS list + verdict + headline) shrinks to a few
 callbacks; boilerplate (arg parsing, resolve_cards, fired_rules,
@@ -68,7 +68,7 @@ QUESTION = ("For {target} in {indication}, what upstream regulators + "
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    """Verdict — DELEGATES to the shared declarative resolver (2026-07-20).
     The former if-chain now lives in resolvers/mechanism.resolver.yaml (target-contracts),
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
@@ -239,5 +239,5 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
-        isoform_check_target=True,          # arch A3: warn on p95HER2 / AR-V7 / etc.
+        isoform_check_target=True,          # warn on p95HER2 / AR-V7 / etc.
     ))

@@ -7,9 +7,9 @@ dependency-predictability) + the dependency-* rule subset.
 
 The verdict is resolved from the first 6 cards via the shared dependency resolver;
 dependency-predictability is META-evidence that drives a CONFIDENCE ANNOTATION only
-(dependency_confidence_note), never the verdict (Gate-C gap 1, Option A, 2026-07-21).
+(dependency_confidence_note), never the verdict (Gate-C, 2026-07-21).
 
-W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
+Calls the shared run_wired_skill dispatcher (2026-07-09).
 """
 
 from __future__ import annotations
@@ -50,17 +50,17 @@ CARDS = [
     "pan-cancer-crispr-dependency-distribution",
     "pan-cancer-rnai-dependency-distribution",
     "crispr-rnai-dependency-concordance",
-    "dependency-lineage-selectivity",           # TARGET-GRAIN by design (Decision 2A): enrichment_class
+    "dependency-lineage-selectivity",           # TARGET-GRAIN by design: enrichment_class
                                                 # =lineage_selective fires if ANY lineage is enriched, NOT
                                                 # necessarily the queried indication's lineage. So the
                                                 # lineage_selective VERDICT means "selective to some
                                                 # lineage", and the indication-MATCH is done in the LLM
                                                 # synthesis layer (per-indication lookup over
-                                                # per_lineage_stats), NOT the machine verdict (FR review #4,
+                                                # per_lineage_stats), NOT the machine verdict (FR review,
                                                 # 2026-08-13). A future indication-conditioned verdict would
                                                 # be a grain change (needs a nomination-side decision).
-    "paralog-buffering",                        # Layer 6d addition
-    "partner-conditional-dependency",           # Track PC (2026-08-09) — VERDICT-BEARING synthetic-
+    "paralog-buffering",
+    "partner-conditional-dependency",           # (2026-08-09) — VERDICT-BEARING synthetic-
                                                 # lethality rescue. Does dependency stratify by a
                                                 # PARTNER gene's deficiency (WRN×MSI, PARP1×HRD)? Its
                                                 # partner-conditional-{strongly,moderately}-dependent
@@ -71,13 +71,13 @@ CARDS = [
                                                 # (target-only); the MODERATE tier IS rescue-firing for
                                                 # this family (WRN×MSI = -0.41). Also in target-profile
                                                 # SUB_SKILL_CARDS[functional-requirement].
-    "prism-crispr-concordance",                 # E-PRISM re-home 2026-07-20 — chemical-genetic
-                                                # CONFIRMATION arm (gate C). Its triangulated_target_engaged
+    "prism-crispr-concordance",                 # chemical-genetic CONFIRMATION arm (gate C,
+                                                # 2026-07-20). Its triangulated_target_engaged
                                                 # class fires e7-triangulated-target-engaged-supportive, which
                                                 # the dependency resolver now reads as
                                                 # chemical_genetic_confirmed_dependent (a positive-only,
                                                 # veto-safe confirmation). The card is ALSO in tractability-
-                                                # small-molecule's CARDS (E1: "a compound was found") — one
+                                                # small-molecule's CARDS ("a compound was found") — one
                                                 # measurement routes many-to-many to gates; each gate's
                                                 # resolver/snapshot reads only its own rule_ids.
     "cross-consortium-dependency",              # Project Score (2026-08-10) — gate-C CORROBORATION: does
@@ -85,7 +85,7 @@ CARDS = [
                                                 # dependency? Two independent consortia agreeing > CRISPR×RNAi
                                                 # (both Broad). ADDITIVE, verdict-inert (raises confidence;
                                                 # feeds NO resolver rung).
-    "dependency-predictability",                # Gate-C gap 1 (Option A, 2026-07-21) — META-evidence
+    "dependency-predictability",                # Gate-C (2026-07-21) — META-evidence
                                                 # ("how omics-predictable is this dependency, and by what?").
                                                 # Composed so it RUNS; it feeds a CONFIDENCE ANNOTATION only
                                                 # (dependency_confidence_note), NEVER the verdict/resolver.
@@ -108,12 +108,12 @@ CARDS = [
                                                 # verdict byte-stable). Biology axis; no modality facet.
     "recommended-models",                       # Q4 patient↔model correspondence (2026-07-22). Routes to
                                                 # Gate C as MODEL-BACKED-DEPENDENCY corroboration (its
-                                                # master-plan Patient-pop/Q10 home was deleted in #62). Its
+                                                # master-plan Patient-pop/Q10 home was deleted). Its
                                                 # recommended-models-* rules emit SM/degrader supportive on
                                                 # well_modeled (a screenable, model-backed dependency basis);
                                                 # ADDITIVE — feed NO resolver ladder → dependency verdict
                                                 # byte-stable. Also in target-profile SUB_SKILL_CARDS.
-    "genomic-event-model-match",                # GENOTYPE-matched patient↔model facet (Track C cross-wire,
+    "genomic-event-model-match",                # GENOTYPE-matched patient↔model facet (cross-wire,
                                                 # 2026-08-19). Complements recommended-models (expression-
                                                 # similarity) with genotype IDENTITY: which DepMap models
                                                 # carry the SAME functional event in the target as the
@@ -133,7 +133,7 @@ CARDS = [
                                                 # NEVER a trusted independent veto; the pan-cancer card owns
                                                 # the killer). Target-grain; indication accepted-not-consumed.
     "coessential-module",                       # Co-essential-module CONFIDENCE facet (2026-08-19) — the
-                                                # enrichment-review #1 item (depmap-coessentiality-26q1-v1 was
+                                                # enrichment-review item (depmap-coessentiality-26q1-v1 was
                                                 # orphaned). Is the dependency embedded in a COHERENT co-essential
                                                 # module (complex/pathway partners) or ISOLATED? A module-anchored
                                                 # call is more mechanism-credible. VERDICT-INERT — feeds NO resolver
@@ -276,7 +276,7 @@ _DEPENDENCY_CALL_VERDICTS = frozenset({
     "concordant_dependent", "lineage_selective", "selective_dependent",
     "chemical_genetic_confirmed_dependent", "broadly_dependent",
     "non_dependent", "non_dependent_paralog_buffered", "pan_essential_killer",
-    # partner_conditional_dependent IS a real dependency call (Track PC — a partner-conditional
+    # partner_conditional_dependent IS a real dependency call (a partner-conditional
     # dependency that escapes a pooled non_dependent veto). It was added to dependency.resolver.yaml
     # but never here, so its predictability-confidence annotation was wrongly suppressed.
     "partner_conditional_dependent",
@@ -302,7 +302,7 @@ _CONFIDENCE_LADDER = ("unknown", "standard", "moderate", "high")
 def _dependency_confidence_note(verdict: str, predictability_class: str | None,
                                 cross_consortium_class: str | None = None,
                                 coessential_module_class: str | None = None) -> dict:
-    """Gate-C gap 1 (Option A): a CONFIDENCE ANNOTATION over the dependency verdict. NEVER changes
+    """Gate-C: a CONFIDENCE ANNOTATION over the dependency verdict. NEVER changes
     the verdict or the resolver. Composed from THREE independent meta-signals:
 
       1. dependency-predictability — "how omics-learnable is this dependency, and by what feature?"
@@ -369,14 +369,14 @@ QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
-    The former if-chain now lives in resolvers/dependency.resolver.yaml (target-contracts),
+    """Verdict — DELEGATES to the shared declarative resolver.
+    The former if-chain now lives in resolvers/dependency.resolver.yaml (target-contracts, 2026-07-20),
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "dependency")
 
-# ── (strength, certainty) emission — Step 3 reference axis (CERTAINTY_MODEL.md dependency worked
+# ── (strength, certainty) emission — reference axis (CERTAINTY_MODEL.md dependency worked
 #    example). ADDITIVE + verdict-inert: computed from the crispr card's numeric provenance the
 #    verdict already consumed; never alters dependency_verdict. certainty needs NO outcome labels.
 _DEP_STRONG_POS = {"strongly_dependent", "broadly_dependent", "concordant_dependent",
@@ -387,7 +387,7 @@ _DEP_INSUFF = {"insufficient", "insufficient_underpowered", "insufficient_underp
 _ORD = {"low": 0, "medium": 1, "high": 2}
 
 # The DECISION-RELEVANT dependency cards — the verdict-bearing set that bears on the dependency CALL.
-# unknown_mass is the fraction of THESE that came back blind this run (CERTAINTY_MODEL §1.1).
+# unknown_mass is the fraction of THESE that came back blind this run (CERTAINTY_MODEL).
 # cross-consortium + predictability are CONFIDENCE annotations (not call-bearing) and are intentionally
 # excluded — they inform certainty's other components, not the coverage-gap of the call itself.
 _DECISION_RELEVANT_CARDS = (
@@ -421,7 +421,7 @@ def _coverage_from_n(n) -> str:
 
 
 def _corroboration_from_cross_consortium(cross_consortium_class) -> str:
-    """CERTAINTY_MODEL §2 + worked example: dependency corroboration is Broad↔Sanger cross-consortium
+    """CERTAINTY_MODEL + worked example: dependency corroboration is Broad↔Sanger cross-consortium
     replication — VERDICT-DISJOINT (the cross-consortium-dependency card fires NO resolver rung). The
     CRISPR↔RNAi concordance is deliberately NOT used here: it RESOLVES the verdict
     (concordant_dependent / discordant), so reusing it as corroboration would count one signal as both
@@ -439,7 +439,7 @@ def _corroboration_from_cross_consortium(cross_consortium_class) -> str:
 
 
 def _unknown_mass(cards) -> float:
-    """CERTAINTY_MODEL §1.1: the fraction of the axis's DECISION-RELEVANT cards that came back
+    """CERTAINTY_MODEL: the fraction of the axis's DECISION-RELEVANT cards that came back
     data_unavailable / blind THIS run — a MEASURED coverage-gap (ignorance) term. This replaces the
     prior fixed level-lookup, which conflated measured-null with never-measured (a well-powered
     discordant call and a never-measured axis both landed at 0.7). Orthogonal to `corroboration`
@@ -459,15 +459,15 @@ def _unknown_mass(cards) -> float:
 # The VERDICT-DISJOINT card(s) this axis reads for certainty `corroboration` (via
 # _corroboration_from_cross_consortium, which reads cross_consortium_class from cross-consortium-dependency).
 # DECLARED here so it can be cross-checked against target-contracts vocabularies/certainty_corroboration.yaml
-# (R3 follow-on — manifest authoritative): test_certainty_corroboration_matches_manifest asserts this set
+# (manifest authoritative): test_certainty_corroboration_matches_manifest asserts this set
 # equals corroboration_cards("dependency"), so the manifest and the Python source can never silently drift.
 _CERTAINTY_CORROBORATION_CARDS = frozenset({"cross-consortium-dependency"})
 
 
 def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> dict:
     """(strength, certainty{coverage, corroboration, weakest-link level, unknown_mass}) for the
-    dependency axis (CERTAINTY_MODEL #dependency reference axis). coverage = n_cell_lines power;
-    corroboration = VERDICT-DISJOINT Broad↔Sanger cross-consortium; unknown_mass = §1.1 coverage-gap
+    dependency axis (CERTAINTY_MODEL dependency reference axis). coverage = n_cell_lines power;
+    corroboration = VERDICT-DISJOINT Broad↔Sanger cross-consortium; unknown_mass = coverage-gap
     fraction. `level` = weakest-link over the MEASURED certainty components (an `unmeasured`
     corroboration drops out of the min rather than forcing low — absence is carried in unknown_mass,
     not punished as disagreement)."""
@@ -490,7 +490,7 @@ def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> di
 
 
 def _strength_certainty(cards, fired=None, verdict_pair=None):
-    """Fan-out SIDECAR hook (CERTAINTY_MODEL §3): the per-axis (strength, certainty) object the
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL): the per-axis (strength, certainty) object the
     composed target-profile fan-out captures, keyed by sub-skill short. Its signature mirrors
     `_synthesis_facet` (cards, fired, verdict_pair) so the generic certainty loader calls it uniformly;
     it reuses `_dependency_strength_certainty` (single source), so `_headline` and the sidecar cannot
@@ -509,7 +509,7 @@ def _strength_certainty(cards, fired=None, verdict_pair=None):
 # This reduces the ALREADY-EMITTED per_lineage_stats / enriched_lineages to the QUERIED indication's DepMap
 # lineage (crosswalk) and emits `dependency_verdict_by_scope` {pan_cancer, indication, subtype}. ADDITIVE +
 # verdict-INERT: the pooled dependency_verdict is byte-stable (frozen by the KRAS/COADREAD replay guard);
-# no resolver rung is touched. See plan valiant-soaring-zephyr Phase 3.
+# no resolver rung is touched.
 _LINEAGE_DEPENDENCY_CUT = -0.5     # DepMap-standard Chronos threshold for "dependent" (median)
 _LINEAGE_UNDERPOWER_FLOOR = 5      # mirrors the card's min_cell_lines_in_lineage
 # DepMap coarse lineages SHARED by >1 iDAS indication → a coarse-lineage read confounds them; the true
@@ -538,7 +538,7 @@ def _indication_lineage_map() -> dict:
 
 
 def _sublineage_read(cards, codes: list) -> dict | None:
-    """Aggregate the ADDITIVE per_oncotree_code_stats (AM #412) over an indication's OncotreeCode SET —
+    """Aggregate the ADDITIVE per_oncotree_code_stats over an indication's OncotreeCode SET —
     the de-confounded read for a SHARED coarse lineage (e.g. STAD = STAD+TSTAD+… separate from ESCA;
     NSCLC = LUAD+LUSC+… separate from SCLC). Returns {n, median_chronos, fraction_strongly_dependent,
     matched_codes, per_code} or None when the field / matching codes are unavailable (→ caller falls back
@@ -715,7 +715,7 @@ def _headline(cards, fired, verdict_pair):
                                           "paralog_buffering_class"),
         "strongest_paralog_symbol": get_card_field(cards, "paralog-buffering",
                                           "strongest_paralog_symbol"),
-        # Gate-C gap 1 (Option A): predictability CONFIDENCE annotation over the verdict —
+        # Gate-C: predictability CONFIDENCE annotation over the verdict —
         # additive; the verdict + driving_rule_id above are untouched.
         "predictability_class":     predictability_class,
         "pred_dominant_feature_class": get_card_field(cards, "dependency-predictability",
@@ -736,7 +736,7 @@ def _headline(cards, fired, verdict_pair):
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
         "model_correspondence_class": get_card_field(cards, "recommended-models", "correspondence_class"),
         "n_positive_models_in_lineage": get_card_field(cards, "recommended-models", "n_positive_models_in_lineage"),
-        # GENOTYPE-matched patient↔model facet (Track C, 2026-08-19) — complements the expression-similarity
+        # GENOTYPE-matched patient↔model facet (2026-08-19) — complements the expression-similarity
         # model_correspondence above with genotype IDENTITY (does an available model carry THIS target's
         # event?). Render facet; verdict-inert (event-correspondence rules are genomic, not dependency-*).
         "event_correspondence_class": get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
@@ -754,7 +754,7 @@ def _headline(cards, fired, verdict_pair):
         "n_compounds_evaluated":     get_card_field(cards, "prism-crispr-concordance", "n_compounds_evaluated"),
         "n_lineages_evaluated":      get_card_field(cards, "dependency-lineage-selectivity", "n_lineages_evaluated"),
     }
-    # Additive, verdict-INERT (2026-08-18, P2): the modality-blind claim vector (DEP/SEL/COND/CHEM
+    # Additive, verdict-INERT (2026-08-18): the modality-blind claim vector (DEP/SEL/COND/CHEM
     # signal×reliability) + a brief cited key-signals read — the WITHIN-lens evidence integration this
     # subskill owns, built on the SHARED claim_vector_core contract (dependency is the second concrete
     # after presence). Both are projections over the headline just built; they NEVER touch the
@@ -772,13 +772,13 @@ def _headline(cards, fired, verdict_pair):
 
 # ─── Cross-lens facet (consumed by the composed target-profile synthesis) ─────────────────────────
 # The uniform opt-in the target-profile fan-out looks for via getattr(module, "_synthesis_facet")
-# (mirrors tumor-presence #522). It reuses `_headline` (single source of truth) and returns the
+# (mirrors tumor-presence). It reuses `_headline` (single source of truth) and returns the
 # reconciliation-relevant subset — for functional-requirement the dependency verdict + the modality-
 # blind claim vector SIGNAL decomposition (DEP/SEL/COND/CHEM) + the brief cited key-signals read, plus
 # the confidence annotations FR separates from its verdict (predictability / cross-consortium) as
 # narrative context. It deliberately does NOT carry the per-axis (strength, certainty) object — that is
-# the SEPARATE `certainty_by_axis` sidecar (CERTAINTY_MODEL §3); this facet is the SIGNAL half, the
-# sidecar is the certainty half (reconciliation D1). VERDICT-INERT: the fan-out treats an absent facet
+# the SEPARATE `certainty_by_axis` sidecar (CERTAINTY_MODEL); this facet is the SIGNAL half, the
+# sidecar is the certainty half. VERDICT-INERT: the fan-out treats an absent facet
 # as no-facet; nothing here enters `fired` or the resolver.
 _SYNTHESIS_FACET_KEYS = (
     "dependency_verdict", "driving_rule_id",

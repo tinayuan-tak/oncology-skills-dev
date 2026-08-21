@@ -57,7 +57,7 @@ else:
     from ._synthesis import synthesize
     from ._resolution import TARGET_CONTRACTS
 
-# Shared evidence-package envelope writer (Phase D, D1a). Extracted byte-preserving from the
+# Shared evidence-package envelope writer. Extracted byte-preserving from the
 # former local `_assemble_evidence_package` so sibling subskills can reuse it. Import via the
 # skills/ dir on sys.path (same convention as compose_phase1/_execution/_synthesis use for
 # _skills_common) — never a hardcoded /home path.
@@ -247,14 +247,13 @@ def compose(
         out_path=out_path,
     )
 
-    # C3 fix (post-adversarial-review): validate each card output against
-    # card_output.schema.json BEFORE phase-3 reads it. This closes the layer-
-    # orthogonality gap — phase-3 cannot consume malformed phase-2 output.
+    # Validate each card output against card_output.schema.json BEFORE phase-3 reads it.
+    # This closes the layer-orthogonality gap — phase-3 cannot consume malformed phase-2 output.
     card_output_errors = _validate_card_outputs(
         phase2_result["cards"], contracts_root=contracts_root
     )
     if card_output_errors:
-        # T6 fix (2026-08-11 engineering review): the errors used to be collected here and
+        # 2026-08-11: the errors used to be collected here and
         # then dropped into a bare `pass`, only reappearing (prefixed "phase2:") in the
         # returned list — easy to miss. Surface them to stderr the moment they're detected so
         # a malformed phase-2 output is visible even when a caller ignores the returned list.
@@ -269,9 +268,9 @@ def compose(
             print(f"  - {e}", file=sys.stderr)
 
     # Phase 3 — synthesize
-    # EG4 (iter-2): pass contracts_root so synthesis can read each card_spec's
+    # Pass contracts_root so synthesis can read each card_spec's
     # interpretation_hints[i].dominant declarations for dominant-signal-plus-confirmation scoring.
-    # O1 fix (2026-08-15, safety fail-open): thread phase-2's reasoned-absence stubs
+    # 2026-08-15 (safety fail-open): thread phase-2's reasoned-absence stubs
     # (read_error / not_wired) into synthesis so a modality killer-veto card that CRASHED
     # or is UNWIRED blocks the modality (non-concludable) instead of silently evaluating
     # fired=False and letting positive primary cards score it viable.
@@ -299,7 +298,7 @@ def compose(
 
     # Validate the evidence_package
     errors = _validate_evidence_package(evidence_package, contracts_root=contracts_root)
-    # Append card_output validation errors (C3 fix) so they propagate to the caller
+    # Append card_output validation errors so they propagate to the caller
     if card_output_errors:
         errors = list(errors) + [f"phase2: {e}" for e in card_output_errors]
     return run_plan, evidence_package, errors
@@ -307,10 +306,10 @@ def compose(
 
 def _validate_card_outputs(card_outputs: list, contracts_root: Path) -> list[str]:
     """Validate each card output against card_output.schema.json (envelope) AND, when present, the
-    card's per-card summary schema (T5). Returns list of error strings (empty if all valid)."""
+    card's per-card summary schema. Returns list of error strings (empty if all valid)."""
     schema_path = contracts_root / "schemas" / "card_output.schema.json"
     if not schema_path.exists():
-        # T6 fix (2026-08-11 engineering review): card_output.schema.json is a COMMITTED
+        # 2026-08-11: card_output.schema.json is a COMMITTED
         # contract artifact — its absence is a broken checkout / misconfigured contracts_root,
         # not a backward-compat path. Previously this returned [] silently, disabling the whole
         # gate with no signal. Warn loudly; still return [] so a genuinely partial checkout
@@ -329,7 +328,7 @@ def _validate_card_outputs(card_outputs: list, contracts_root: Path) -> list[str
         card_id = card.get("card_id", f"<index_{i}>")
         for e in v.iter_errors(card):
             errors.append(f"[card_outputs[{i}] card_id={card_id}] {e.message}")
-        # T5 (2026-08-11 review): per-card summary-schema validation. OPT-IN — only cards that HAVE
+        # 2026-08-11: per-card summary-schema validation. OPT-IN — only cards that HAVE
         # a schemas/methods/<card_id>.summary.schema.json are checked, so partial rollout never
         # breaks unschematized cards. This is the "drift fails compose-time validation" gate that
         # DEVELOPMENT_GUIDELINES promised but that never existed. Skips excluded/unavailable
@@ -427,7 +426,7 @@ def main(target: str, indication: str, data_mode: str, release_pin: Optional[str
         deterministic_timestamps=deterministic_timestamps,
         out_path=out,
     )
-    # C3 fix (post-adversarial-review): when validation errors are present, write artifacts
+    # When validation errors are present, write artifacts
     # with .invalid suffix so downstream tools can structurally detect the broken state.
     # The CLI still exits non-zero, but disk artifacts no longer LIE about their validity.
     has_errors = bool(errors)
@@ -468,7 +467,7 @@ def main(target: str, indication: str, data_mode: str, release_pin: Optional[str
     click.echo(f"  → ev_package:  {ep_path}")
     click.echo(f"  → markdown:    {rendering_status}")
 
-    # 2026-08-10 REVIEW FIX (L5): the INDEX upsert previously ran BEFORE the error gate, so a
+    # 2026-08-10: the INDEX upsert previously ran BEFORE the error gate, so a
     # package that FAILED validation (written as evidence_package.invalid.json) was still recorded
     # in the per-target INDEX.md as a successful landed product — the index header claims
     # "on each successful run", and a consumer following the link hit a dir with no valid

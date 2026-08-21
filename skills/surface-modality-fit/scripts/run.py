@@ -32,7 +32,7 @@ from _skills_common.surface_claims import surface_claim_vector, surface_key_sign
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from orthogonality import score_orthogonality   # noqa: E402 — skill-local E7 facet
+from orthogonality import score_orthogonality   # noqa: E402 — skill-local facet
 
 
 SKILL_NAME = "surface-modality-fit"
@@ -53,11 +53,11 @@ CARDS = [
     "surface-abundance-density",
     "adc-tce-modality-fit",
     "normal-tissue-liability",          # HPA IHC on-target-off-tumor safety (wired 2026-07-20)
-    "sc-normal-celltype-expression",    # biologics-augment Phase 3.3 (2026-08-07): scRNA cell-type-resolved
-                                        # normal-tissue safety from Census pseudobulk (sc_rna/normal). Its F5
+    "sc-normal-celltype-expression",    # (2026-08-07): scRNA cell-type-resolved
+                                        # normal-tissue safety from Census pseudobulk (sc_rna/normal). Its
                                         # rules fire on sc_normal_expression_class: HIGH_LIABILITY →
                                         # bite_tce killer + adc/antibody opposing; MODERATE → all opposing;
-                                        # NOT_EXPRESSED → supportive (dominant). Complements HPA IHC (F4):
+                                        # NOT_EXPRESSED → supportive (dominant). Complements HPA IHC:
                                         # IHC misses low-level inducible targets + can't distinguish cell
                                         # types (e.g. hepatocyte vs Kupffer cell). LIVE for colon+lung;
                                         # other tissues → data_unavailable (honest coverage gap). ADDITIVE
@@ -75,10 +75,10 @@ CARDS = [
                                         # LIVE; card was orphaned. Rules (sc-surface-rna-poor-proxy-warning /
                                         # -adequate-proxy-supportive) feed NO resolver rung → ADDITIVE, byte-stable.
                                         # (single-cell twin of rna-protein-concordance-tumor below.)
-    "copy-number-distribution",         # P4 (2026-07-23) — genomic AMPLIFICATION → surface antigen-
+    "copy-number-distribution",         # (2026-07-23) — genomic AMPLIFICATION → surface antigen-
                                         # density argument. The SAME card is in genomic-alteration-profile
                                         # (SM/degrader read); here it fires cn-amplified-surface-antigen-
-                                        # supportive (adc/bite_tce/antibody) — Example B: one card, two
+                                        # supportive (adc/bite_tce/antibody) — one card, two
                                         # modality gates, divergent reads. ADDITIVE signal-only: its
                                         # surface rule feeds NO resolver rung (surface_modality resolves
                                         # off adc-tce-modality-fit.fit_class) → verdict byte-stable.
@@ -91,7 +91,7 @@ CARDS = [
                                         # this is the tumor-grain twin of tumor-presence's cell-line concordance
                                         # facet. ADDITIVE signal-only: surface_modality resolves off
                                         # adc-tce-modality-fit.fit_class → verdict byte-stable.
-    "protein-surface-evidence",         # Orphan-fix (biologics-augment Phase 1.1, 2026-08-06): CSPA wet-lab
+    "protein-surface-evidence",         # Orphan-fix (biologics-augment, 2026-08-06): CSPA wet-lab
                                         # surface confirmation (cspa-surface-confirmation-per-uniprot-v1), the
                                         # `measured` surface-residency tier. measurement_type surface_confirmation,
                                         # modality_relevance [adc, bite_tce, antibody], tier:target. Its rules
@@ -101,17 +101,17 @@ CARDS = [
                                         # measurement_types_pulled intent only). Measured protein-surface residency
                                         # is the strongest presence signal the surface gate can receive. ADDITIVE
                                         # signal-only (no resolver rung) → verdict byte-stable.
-    "shed-ectodomain-liability",        # Orphan-fix (biologics-augment Phase 1.1, 2026-08-06): clinically-
+    "shed-ectodomain-liability",        # Orphan-fix (biologics-augment, 2026-08-06): clinically-
                                         # established shed-ectodomain antigen-sink liability (curated serum-marker
                                         # crosswalk — CA125=MUC16, CEA=CEACAM5, SMRP=MSLN, shed-HER2-ECD). A
                                         # circulating soluble decoy sequesters antibody/ADC/TCE before tumor
                                         # delivery. measurement_type shed_ectodomain_liability, modality_relevance
-                                        # [adc, bite_tce, antibody], tier:target. Its F3 rules (shed-ectodomain-
+                                        # [adc, bite_tce, antibody], tier:target. Its rules (shed-ectodomain-
                                         # clinical-opposing + -secretome-proxy-opposing, both OPPOSING not killer —
                                         # approved biologics exist vs shed antigens) existed + were wired to the
                                         # surface_intrinsic axis but UNREACHABLE — no skill composed the card.
                                         # ADDITIVE signal-only (no resolver rung) → verdict byte-stable.
-    "tumor-scrna-celltype-expression",  # biologics-augment Phase 3.2 (2026-08-06): within-tumor antigen
+    "tumor-scrna-celltype-expression",  # biologics-augment (2026-08-06): within-tumor antigen
                                         # HOMOGENEITY via single-cell CELLxGENE Census (tce_homogeneity_class
                                         # facet — fraction of MALIGNANT cells expressing the target). For a
                                         # TCE, antigen heterogeneity is a program-killer (antigen-low cells
@@ -133,10 +133,10 @@ CARDS = [
                                         # liability (off-tumor breadth) makes. Rules (modality-window-clean-
                                         # supportive / -essential-liability-tce-opposing [adc NEUTRAL — the
                                         # ADC-vs-TCE discriminator] / -narrow-opposing) fire on window_class.
-                                        # Emits BOTH essential + full-normal ratios (Theme-1 fix). Cohort-
+                                        # Emits BOTH essential + full-normal ratios. Cohort-
                                         # honest (DLL3/SCLC → not_expressed). ADDITIVE signal-only (no resolver
                                         # rung) → verdict byte-stable.
-    "pmhc-presentation",                 # biologics enrichment E1 (2026-08-07): peptide-centric HLA
+    "pmhc-presentation",                 # biologics enrichment (2026-08-07): peptide-centric HLA
                                          # presentation (benign immunopeptidome). The peptide-centric TCE
                                          # axis — reaches INTRACELLULAR targets via the peptide-MHC complex
                                          # (KRAS/WT1/PRAME/MAGE-A4), invisible to surface presence. Its rules
@@ -144,7 +144,7 @@ CARDS = [
                                          # normal-tce-opposing) fire on pmhc_presentation_class; bite_tce-only.
                                          # Benign-atlas = normal-presentation SAFETY denominator (broad=liability;
                                          # restricted=clean, MAGE-A4). ADDITIVE (no resolver rung) → byte-stable.
-    "modality-exon-window",              # biologics enrichment E5 (2026-08-07): EXON-resolution companion of
+    "modality-exon-window",              # biologics enrichment (2026-08-07): EXON-resolution companion of
                                          # modality-therapeutic-window. Reads tcga-gtex-exon-tpm-quantiles-v1 —
                                          # tumor-dominant exon's tumor-vs-normal window + within-gene exon
                                          # heterogeneity. HONEST SCOPE (live-smoke-calibrated): a HYPOTHESIS flag,
@@ -153,18 +153,18 @@ CARDS = [
                                          # — gentle, a follow-up candidate] / exon-window-essential-liability-tce-
                                          # opposing [ADC-vs-TCE discriminator]) fire on exon_window_class. ADDITIVE
                                          # (no resolver rung) → verdict byte-stable.
-    "mutation-stratified-surface",       # E4-A2 (2026-08-07): patient-selection-aware surface presence — is the
+    "mutation-stratified-surface",       # (2026-08-07): patient-selection-aware surface presence — is the
                                          # antigen ELEVATED in a driver's MUTANT tumor subset (a biologics handle on
                                          # the mutant patient population the gene-level window dilutes away)? Reads
                                          # mutation-stratified-surface-window-v1 (v1 = KRAS×NSCLC archetype). Its rule
                                          # (mutant-up-surface-antigen-supportive) fires adc/bite_tce/antibody supportive
                                          # ONLY on mutant_up_surface. ADDITIVE (no resolver rung) → verdict byte-stable.
-    "pathway-stratified-surface",        # E4-A3 (2026-08-07): tumor-STATE-conditioned surface presence — is the antigen
+    "pathway-stratified-surface",        # (2026-08-07): tumor-STATE-conditioned surface presence — is the antigen
                                          # ELEVATED in a pathway/stress-HIGH subset (e.g. hypoxia-HIGH tertile; a biologics
                                          # handle on that compartment)? Reads pathway-stratified-surface-window-v1 (v1 =
                                          # HALLMARK_HYPOXIA×NSCLC). Rule pathway-high-up-surface-antigen-supportive fires
                                          # adc/bite_tce/antibody supportive on pathway_high_up_surface. ADDITIVE → byte-stable.
-    "cd-antigen-backbone",               # enrichment E6-CD (2026-08-07): CD/immuno-oncology antigen-BACKBONE clinical-
+    "cd-antigen-backbone",               # enrichment (2026-08-07): CD/immuno-oncology antigen-BACKBONE clinical-
                                          # PRECEDENT prior (hgnc-gene-group-471). Orthogonal to the PREDICTED-biology axes
                                          # — is the target a canonical CD/IO antigen whose class delivered approved
                                          # biologics (CD19/CD20/BCMA-class)? Its rules (cd-established-io-backbone-supportive
@@ -178,7 +178,7 @@ CARDS = [
                                          # pair_selectivity_gate.window) + target-centric best-partner rollup. Its 5 rules
                                          # (samecell-*/selectivity-window-*) are in NO resolver → ADDITIVE, verdict
                                          # byte-stable. Indication-scoped (per-indication cube); data_unavailable elsewhere.
-    "surfaceome-cohort-ranking",         # REVIVE role-2 (2026-08-20): per-target COHORT-PERCENTILE context — where
+    "surfaceome-cohort-ranking",         # REVIVE (2026-08-20): per-target COHORT-PERCENTILE context — where
                                          # does this antigen rank among ALL surface proteins in the indication by
                                          # tumor-vs-normal effect size (cohort_rank_class top_1/5/25%)? The only cross-
                                          # target ranking context in the fan-out; product landed 2026-08-18. ADDITIVE
@@ -195,7 +195,7 @@ QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    """Verdict — DELEGATES to the shared declarative resolver (2026-07-20).
     The former if-chain now lives in resolvers/surface_modality.resolver.yaml (target-contracts),
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
@@ -244,13 +244,13 @@ def _headline(cards, fired, verdict_pair):
         # antigen-reality signal; discordant flags a CSPA false-negative/coverage gap (e.g. CEACAM5).
         "surface_multimodal_support":     get_card_field(cards, "protein-surface-evidence", "surface_multimodal_support"),
         "hpa_if_surface_class":           get_card_field(cards, "protein-surface-evidence", "hpa_if_surface_class"),
-        # Shed-ectodomain antigen-sink liability (shed-ectodomain-liability). Its F3 rules fire on
+        # Shed-ectodomain antigen-sink liability (shed-ectodomain-liability). Its rules fire on
         # the surface_intrinsic axis (adc/bite_tce/antibody): clinically_shed / secretome_proxy_shed
         # → opposing (NOT killer — approved biologics exist against shed antigens; a shed ectodomain
         # demands a shed-resistant epitope + antigen-sink dose modeling). Additive; verdict byte-stable.
         "shed_liability_class":           get_card_field(cards, "shed-ectodomain-liability", "shed_liability_class"),
         "shed_serum_marker":              get_card_field(cards, "shed-ectodomain-liability", "serum_marker"),
-        # MEASURED Olink conditioned-media shed facet (E3, card v1.1.0) — PARALLEL to the
+        # MEASURED Olink conditioned-media shed facet (card v1.1.0) — PARALLEL to the
         # annotation-based shed_liability_class (unchanged). media_shed_high fires shed-ectodomain-
         # measured-media-opposing (adc/bite_tce/antibody opposing — measurement-corroborated antigen
         # sink). Panel bounded + secretome-preselected → not_on_secreted_panel is NON-informative
@@ -268,7 +268,7 @@ def _headline(cards, fired, verdict_pair):
         # Modality therapeutic window (tumor / max-essential-normal TPM, strict/TCE tier). Its rules
         # fire on window_class: clean_window → supportive; essential_tissue_liability → bite_tce opposing
         # + adc/antibody NEUTRAL (the ADC-vs-TCE discriminator, CEACAM5 pattern); narrow_window →
-        # opposing. Both denominators surfaced (Theme-1). Additive; verdict byte-stable.
+        # opposing. Both denominators surfaced. Additive; verdict byte-stable.
         "window_class":                   get_card_field(cards, "modality-therapeutic-window", "window_class"),
         "window_ratio_essential":         get_card_field(cards, "modality-therapeutic-window", "window_ratio_essential"),
         "window_ratio_full_normal":       get_card_field(cards, "modality-therapeutic-window", "window_ratio_full_normal"),
@@ -279,7 +279,7 @@ def _headline(cards, fired, verdict_pair):
         "pmhc_presentation_class":        get_card_field(cards, "pmhc-presentation", "pmhc_presentation_class"),
         "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
         "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
-        # Modality exon-window (modality-exon-window, E5) — EXON-resolution companion of the gene window.
+        # Modality exon-window (modality-exon-window) — EXON-resolution companion of the gene window.
         # Its rules fire on exon_window_class: exon_heterogeneity_flag → supportive (SECONDARY, a hypothesis
         # worth junction-level follow-up — per-exon coverage can't confirm isoform identity); essential_exon_
         # liability → bite_tce opposing / adc neutral (ADC-vs-TCE discriminator). Additive; verdict byte-stable.
@@ -287,29 +287,29 @@ def _headline(cards, fired, verdict_pair):
         "exon_best_exon_id":              get_card_field(cards, "modality-exon-window", "best_exon_id"),
         "exon_best_exon_window_ratio":    get_card_field(cards, "modality-exon-window", "best_exon_window_ratio"),
         "exon_heterogeneity_log2":        get_card_field(cards, "modality-exon-window", "exon_heterogeneity_log2"),
-        # Mutation-stratified surface window (mutation-stratified-surface, E4-A2) — patient-selection-aware
+        # Mutation-stratified surface window (mutation-stratified-surface) — patient-selection-aware
         # presence: is the antigen elevated in a driver's MUTANT subset (biologics handle on mutant patients)?
         # Its rule (mutant-up-surface-antigen-supportive) fires adc/bite_tce/antibody supportive on
         # mutant_up_surface. Additive; verdict byte-stable. v1 = KRAS×NSCLC (else not_in_product, a gap).
         "mutant_stratified_surface_class": get_card_field(cards, "mutation-stratified-surface", "mutant_stratified_surface_class"),
         "mutant_surface_driver":          get_card_field(cards, "mutation-stratified-surface", "driver_gene"),
         "mutant_surface_delta_log2":      get_card_field(cards, "mutation-stratified-surface", "delta_log2"),
-        # Pathway-stratified surface window (pathway-stratified-surface, E4-A3) — tumor-STATE-conditioned
+        # Pathway-stratified surface window (pathway-stratified-surface) — tumor-STATE-conditioned
         # presence: is the antigen elevated in a pathway/stress-HIGH subset (hypoxia-HIGH; biologics handle
         # on that compartment)? Rule fires adc/bite_tce/antibody supportive on pathway_high_up_surface.
         # Additive; verdict byte-stable. v1 = HYPOXIA×NSCLC (else not_in_product, a gap).
         "pathway_stratified_surface_class": get_card_field(cards, "pathway-stratified-surface", "pathway_stratified_surface_class"),
         "pathway_surface_signature":      get_card_field(cards, "pathway-stratified-surface", "signature"),
         "pathway_surface_delta_log2":     get_card_field(cards, "pathway-stratified-surface", "delta_log2"),
-        # CD/IO-antigen backbone (cd-antigen-backbone, E6-CD) — class-level clinical-PRECEDENT prior.
+        # CD/IO-antigen backbone (cd-antigen-backbone) — class-level clinical-PRECEDENT prior.
         # Its rules fire on cd_antigen_backbone_class: established_io_backbone → supportive (important,
         # the class delivered approved biologics); cd_antigen → supportive (secondary). SUPPORTIVE-ONLY —
         # not_cd_antigen fires nothing (not a negative). Additive; verdict byte-stable.
         "cd_antigen_backbone_class":      get_card_field(cards, "cd-antigen-backbone", "cd_antigen_backbone_class"),
         "cd_number":                      get_card_field(cards, "cd-antigen-backbone", "cd_number"),
         "cd_established_io_precedent":    get_card_field(cards, "cd-antigen-backbone", "established_io_precedent"),
-        # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression, F5 rules).
-        # F5 rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
+        # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression).
+        # Its rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
         # bite_tce killer + adc/antibody opposing; NOT_EXPRESSED → supportive (dominant). Provides
         # cell-type-level resolution HPA IHC can't deliver (e.g. hepatocyte vs Kupffer cell, AT2 vs
         # alveolar macrophage). LIVE for colon+lung; other tissues → data_unavailable (named gap).
@@ -353,7 +353,7 @@ def _headline(cards, fired, verdict_pair):
         "bulk_pair_best_not_partner":     get_card_field(cards, "surface-bulk-pair-selectivity", "best_not_partner"),
         "bulk_pair_n_partners_scanned":   get_card_field(cards, "surface-bulk-pair-selectivity", "n_partners_scanned"),
     }
-    # Orthogonality facet (E7, 2026-08-07) — VERDICT-INERT display meta-facet. Counts the
+    # Orthogonality facet (2026-08-07) — VERDICT-INERT display meta-facet. Counts the
     # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence
     # cluster collapsed to ONE line, not counted 6x). A target corroborated across 4-5
     # orthogonal axes is a stronger biologics call than one resting on a single axis at the
@@ -412,10 +412,10 @@ if __name__ == "__main__":
         # verdict-inert: the dispatcher attaches decision['llm_synthesis'] as a sibling key AFTER the
         # spine is composed, so it is structurally impossible for the narration to alter
         # surface_modality_verdict / fit_class. Without this synthesize_fn the dispatcher would fall back
-        # to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
+        # to the PRESENCE narrator (wrong lens, 2026-08-06).
         synthesize_fn=synthesize_surface_modality,
         partial_status_note=("Most surface derived products (structure-features, "
                              "surfaceome-family, cohort-ranking) are not yet on S3; "
                              "verdict is honest-insufficient until they land."),
-        isoform_check_target=True,   # arch A3: surface-modality claims need isoform caveats
+        isoform_check_target=True,   # surface-modality claims need isoform caveats
     ))

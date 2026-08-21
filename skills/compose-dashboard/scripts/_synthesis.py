@@ -70,11 +70,11 @@ NOT_INFORMATIVE_CALLS = {
 
 
 # ============================================================================
-# PRIMARY VERDICT ENGINE (Phase-D Stage 2, 2026-08-12) — the SHARED resolver.
+# PRIMARY VERDICT ENGINE (2026-08-12) — the SHARED resolver.
 # ============================================================================
 # compose-dashboard historically RECONSTRUCTED its verdict via the per-modality
 # fit_level scorer below (`_build_signal_matrix` -> fit_level). That was the second
-# composition engine and the drift source. Stage 2 makes the SHARED declarative
+# composition engine and the drift source. This makes the SHARED declarative
 # resolver (`_skills_common.resolve_verdict_for_gate` over
 # target-contracts/resolvers/<gate>.resolver.yaml) the PRIMARY verdict, over the SAME
 # fired-rule set the lens consumes. The per-modality fit_level is DEMOTED to an
@@ -107,7 +107,7 @@ SURFACE_VERDICT_PHRASE = {
     "both_viable": "both ADC and TCE arms are supported",
     "adc_preferred": "ADC-preferred (TCE arm not favored)",
     "tce_preferred": "TCE-preferred (ADC arm not favored)",
-    # The DELIBERATE Phase-D behavior change: essential-tissue relaxes ADC (bystander
+    # The DELIBERATE behavior change: essential-tissue relaxes ADC (bystander
     # payload buffer) while foreclosing only the TCE arm — see PR body.
     "adc_preferred_tce_unsafe": "ADC-preferred; TCE arm unsafe on normal-tissue liability (ADC bystander buffer tolerates it)",
     "tce_unsafe_normal_liability": "TCE arm unsafe on normal-tissue liability; no safe surface arm remains",
@@ -149,14 +149,14 @@ def synthesize(
       caveats_summary: str
       modality_fit_assessment: list[dict]
 
-    EG4 (iter-2): when contracts_root is supplied, the synthesis layer reads each card_spec's
+    When contracts_root is supplied, the synthesis layer reads each card_spec's
     interpretation_hints to identify DOMINANT calls (interpretation_hints[i].dominant: true).
     The fit_level scoring rule then becomes: "dominant signal + non-contradiction" wins strong
-    BEFORE falling back to ratio-based scoring (current iter-1b behavior). Backward-compatible:
+    BEFORE falling back to ratio-based scoring (current behavior). Backward-compatible:
     contracts_root=None falls back to pure ratio-based scoring; cards without dominant_calls
-    declarations land in the same ratio bucket they did pre-EG4.
+    declarations land in the same ratio bucket they did before.
 
-    O1 fix (2026-08-15, safety fail-open): `unavailable_cards` is phase-2's list of
+    2026-08-15 (safety fail-open): `unavailable_cards` is phase-2's list of
     reasoned-absence stubs (availability_state read_error / not_wired) — cards that CRASHED
     or are UNWIRED and therefore are absent from `card_outputs` / `card_outputs_by_id`.
     Before this fix, a modality_killer_condition whose card was unavailable hit
@@ -177,7 +177,7 @@ def synthesize(
     if not loaded_modules:
         return _synthesize_no_modules(run_plan)
 
-    # EG4: build dominant_calls map per card_id (call set declared as dominant in interpretation_hints).
+    # Build dominant_calls map per card_id (call set declared as dominant in interpretation_hints).
     # Legacy path — consumed when Tier-2 rules don't match (e.g. Card 2/4 still on the
     # interpretation_hints[].dominant pattern pre-refactor).
     dominant_calls_by_card = _build_dominant_calls_map(card_outputs, contracts_root)
@@ -207,11 +207,11 @@ def synthesize(
     # Build full card_outputs_by_id (includes BOTH present and excluded cards;
     # killer-condition evaluator needs both to check warning_id / validation_state
     # on present cards AND excluded_by_applies_when on excluded ones).
-    # C1 fix (post-adversarial-review): killer_conditions now consume structured
+    # killer_conditions now consume structured
     # predicates over the full card output, not just substring-match against calls.
     card_outputs_by_id = {c["card_id"]: c for c in card_outputs}
 
-    # O1 fix (2026-08-15, safety fail-open): phase-2's reasoned-absence stubs (read_error /
+    # 2026-08-15 (safety fail-open): phase-2's reasoned-absence stubs (read_error /
     # not_wired). A killer-veto card here is ABSENT from card_outputs_by_id, so its predicate
     # would silently evaluate `card is None -> fired=False` — the veto never fires and positive
     # primary cards score the modality viable. Thread the unavailable stubs into the killer-check
@@ -234,8 +234,8 @@ def synthesize(
         secondary_cards = emphasis.get("secondary_cards", []) or []
         killer_conditions = emphasis.get("modality_killer_conditions", []) or []
 
-        # Check killer conditions first (C1 fix: structured predicate evaluator).
-        # O1 fix: killer_blocked = killer conditions whose veto card could not be read
+        # Check killer conditions first (structured predicate evaluator).
+        # killer_blocked = killer conditions whose veto card could not be read
         # (read_error / not_wired) — these BLOCK the modality (non-concludable) instead of
         # silently evaluating fired=False on the absent card.
         killers_hit, killer_blocked = _check_killer_conditions(
@@ -245,7 +245,7 @@ def synthesize(
             data_blocked_caveats.extend(f"[{modality}] {m}" for m in killer_blocked)
 
         # Score primary cards.
-        # B-fix (2026-08-15, data-products emitter): primary_positive MUST be computed from the
+        # 2026-08-15 (data-products emitter): primary_positive MUST be computed from the
         # DETERMINISTIC signal (a fired supportive Tier-2 rule for THIS modality, or a legacy
         # POSITIVE_CALLS interpretation_call) — NOT from interpretation_call alone. In biology-first
         # mode cards emit interpretation_call="uninterpreted", so the old POSITIVE_CALLS-only count was
@@ -256,7 +256,7 @@ def synthesize(
         primary_total_in_scope = len(primary_cards) - primary_excluded
 
         # Determine fit_level
-        # L7 fix (post-adversarial-review): score against ORIGINAL primary card count
+        # Score against ORIGINAL primary card count
         # (excluded cards count as negative, not as denominator reduction). Also require
         # min_primary_in_scope >= 2 for "strong" to prevent 1/1-card squeak-bys from
         # producing high-confidence calls on sparse evidence. Without this discipline
@@ -265,7 +265,7 @@ def synthesize(
         primary_total_original = len(primary_cards)
         MIN_IN_SCOPE_FOR_STRONG = 2
 
-        # EG4 (iter-2): check for dominant-signal pattern. If ANY primary card emits a
+        # Check for dominant-signal pattern. If ANY primary card emits a
         # call declared as dominant in its card_spec, AND no primary card emits a
         # NOT_INFORMATIVE call (contradiction), the modality rates strong even when
         # the ratio is below 0.75.
@@ -283,7 +283,7 @@ def synthesize(
         primary_contradictions = []
         tier2_killer_signals = []   # per-modality killer signals from Tier-2 rules
         fired_rule_ids = set()       # traceability: which rules contributed to this modality's fit
-        # B-fix: primary cards with a DETERMINISTIC positive signal for THIS modality (a supportive
+        # Primary cards with a DETERMINISTIC positive signal for THIS modality (a supportive
         # Tier-2 rule fired, or a legacy POSITIVE_CALLS interpretation_call). Drives primary_positive.
         positive_primary_ids: set = set()
 
@@ -319,7 +319,7 @@ def synthesize(
             elif call in NOT_INFORMATIVE_CALLS:
                 primary_contradictions.append((card_id, call))
 
-        # B-fix: finalize primary_positive + ratio from the deterministic supportive set (computed in
+        # Finalize primary_positive + ratio from the deterministic supportive set (computed in
         # the loop above), NOT from interpretation_call membership alone.
         primary_positive = len(positive_primary_ids)
         positive_ratio_vs_original = primary_positive / max(primary_total_original, 1)
@@ -335,7 +335,7 @@ def synthesize(
         if killers_hit:
             fit_level = "not_viable"
         elif killer_blocked:
-            # O1 fix (safety fail-open): a killer-veto card could NOT be read (read_error /
+            # (safety fail-open): a killer-veto card could NOT be read (read_error /
             # not_wired). The veto is neither confirmed-fired nor confirmed-clear, so the
             # modality is NON-CONCLUDABLE — positive primary cards must NOT score it viable.
             # A read_error / not_wired safety veto is never a pass.
@@ -343,7 +343,7 @@ def synthesize(
         elif dominant_hits and not primary_contradictions:
             # Dominant-signal-plus-confirmation rule: at least one primary card emitted a
             # decisive call AND no primary card actively contradicts. Strong fit regardless
-            # of ratio. This is the core EG4 behavior change.
+            # of ratio. This is the core behavior change.
             fit_level = "strong"
         elif primary_total_in_scope == 0:
             fit_level = "insufficient_evidence"
@@ -386,7 +386,7 @@ def synthesize(
             "primary_cards_total": primary_total_original,
             "dominant_hits": [{"card_id": cid, "call": call} for cid, call in dominant_hits],
             "killer_conditions_hit": killers_hit,
-            # O1 fix: killer-veto cards that could not be read (read_error / not_wired). When
+            # killer-veto cards that could not be read (read_error / not_wired). When
             # non-empty the modality is non_concludable (safety veto is un-assessable, never a pass).
             "non_concludable_reasons": killer_blocked,
             "rationale": "; ".join(rationale_parts),
@@ -400,7 +400,7 @@ def synthesize(
         })
 
     # Sort by fit_level: strong > moderate > weak > insufficient_evidence > non_concludable > not_viable.
-    # non_concludable (O1: killer-veto card unavailable) ranks below the positive/neutral levels so it
+    # non_concludable (killer-veto card unavailable) ranks below the positive/neutral levels so it
     # is never chosen as a viable headline over a genuinely-assessable modality, and above not_viable
     # (a confirmed veto is a more definite negative than an un-assessable one).
     fit_priority = {"strong": 0, "moderate": 1, "weak": 2, "insufficient_evidence": 3,
@@ -410,7 +410,7 @@ def synthesize(
     target = run_plan["input_context"]["target_symbol"]
     indication = run_plan["input_context"]["indication"]
 
-    # ---- PRIMARY VERDICT (Phase-D Stage 2): the SHARED declarative resolver ----
+    # ---- PRIMARY VERDICT: the SHARED declarative resolver ----
     # Resolve the axis's gate(s) over the SAME fired-rule set the lens above consumed.
     # This — NOT the per-modality fit_level — is now compose-dashboard's verdict.
     primary_gate_verdict, additional_gate_verdicts = _resolve_gate_verdicts(
@@ -428,7 +428,7 @@ def synthesize(
     else:
         headline = _build_headline(target, indication, fit_assessment, card_outputs)
 
-    # Aggregate caveats. O1 fix: prepend the data-blocked caveats for any modality whose
+    # Aggregate caveats. Prepend the data-blocked caveats for any modality whose
     # killer-veto card was unavailable so a consumer sees WHY it is non-concludable.
     caveats_summary = _build_caveats_summary(
         run_plan, card_outputs, contracts_root, extra_caveats=data_blocked_caveats
@@ -443,7 +443,7 @@ def synthesize(
         # Additional gate verdicts resolved from the SAME fired set (intracellular emits
         # dependency / genomic_alteration / selectivity alongside the SM-tractability headline).
         "additional_gate_verdicts": additional_gate_verdicts,
-        # DEMOTED per-modality LENS (was the verdict pre-Stage-2). The class-(iii) fit_level
+        # DEMOTED per-modality LENS (was the verdict previously). The class-(iii) fit_level
         # semantics (ratio thresholds 0.75/0.50, MIN_IN_SCOPE_FOR_STRONG sparsity, fit_priority
         # ordering) live here now — they are a lens, NOT the gate verdict.
         "modality_fit_assessment": fit_assessment,
@@ -459,7 +459,7 @@ def _resolve_gate_verdicts(
 ) -> "tuple[dict | None, list[dict]]":
     """PRIMARY verdict engine — resolve the resolved-axis's gate(s) via the SHARED
     composition spine (`_skills_common.compose_core.resolve_gate_spine`), the ONE code
-    path target-profile also resolves its sub-verdicts through (Stage 1 convergence).
+    path target-profile also resolves its sub-verdicts through.
 
     Returns (primary_block | None, [additional_blocks]). Each block is
     {gate, verdict, driving_rule_id, fired_rule_ids}. Primary is None when the axis has no
@@ -497,7 +497,7 @@ def _resolve_gate_verdicts(
 def _build_resolver_headline(
     target: str, indication: str, primary: dict, additional: list[dict]
 ) -> str:
-    """Compose the headline from the PRIMARY resolver gate-verdict (Phase-D Stage 2).
+    """Compose the headline from the PRIMARY resolver gate-verdict.
 
     The verdict token + a stakeholder gloss lead; the driving_rule_id stays in the
     structured block (not the prose). For intracellular, the dependency gate verdict is
@@ -529,7 +529,7 @@ def _check_killer_conditions(
 ) -> "tuple[list[str], list[str]]":
     """Check each killer_condition predicate against card outputs.
 
-    Iter-1b post-adversarial-review (C1): structured DSL replaces free-prose strings.
+    Structured DSL replaces free-prose strings.
     Each condition is a dict with required keys {card_id, predicate_type, message}
     and an optional predicate_value. Phase-3 evaluates each predicate deterministically
     against the card's emitted output.
@@ -545,7 +545,7 @@ def _check_killer_conditions(
     Backward-compat: if a condition is a plain string (legacy format), best-effort
     substring match for graceful degradation — but emit a warning to surface the drift.
 
-    O1 fix (2026-08-15, safety fail-open): `unavailable_by_id` maps card_id → the phase-2
+    2026-08-15 (safety fail-open): `unavailable_by_id` maps card_id → the phase-2
     reasoned-absence stub (availability_state read_error / not_wired) for cards that CRASHED
     or are UNWIRED. Such a card is ABSENT from `card_outputs_by_id`, so its killer predicate
     would silently evaluate `card is None -> fired=False` and the veto would never fire. When
@@ -578,7 +578,7 @@ def _check_killer_conditions(
         if not card_id or not predicate_type:
             continue  # malformed entry; skip silently (schema validation catches this)
 
-        # O1 fix: the killer-veto card could not be read (crashed / unwired). Do NOT let the
+        # The killer-veto card could not be read (crashed / unwired). Do NOT let the
         # predicate silently evaluate fired=False on the absent card — block the modality.
         if card_id in unavailable_by_id:
             state = unavailable_by_id[card_id].get("availability_state", "unavailable")
@@ -627,7 +627,7 @@ def _build_headline(target: str, indication: str, fit_assessment: list[dict],
       - If 3+ cards actually RETURNED a non-informative call: emit "Insufficient evidence"
       - Otherwise: name the strongest-fit modality + cite primary cards
 
-    2026-08-10 REVIEW FIX (C1): the count formerly also included
+    2026-08-10: the count formerly also included
     `excluded_by_applies_when` cards. But an applies_when exclusion is ROUTINE
     subgroup gating (evidence-neutral) — e.g. the 4 subgroup-gated optional cards
     are all excluded on the default no-subgroup run — not evidence that the target
@@ -657,7 +657,7 @@ def _build_headline(target: str, indication: str, fit_assessment: list[dict],
                 f"No viable modality identified for {target} in {indication}; "
                 f"all {len(fit_assessment)} evaluated modalities hit killer conditions."
             )
-    # O1 fix (safety fail-open): the strongest reachable modality is non-concludable because a
+    # (safety fail-open): the strongest reachable modality is non-concludable because a
     # killer-veto (safety) card could not be read. Report the data-blocked state honestly — the
     # target must NOT read as viable when its veto card errored.
     if best["fit_level"] == "non_concludable":
@@ -683,7 +683,7 @@ def _format_strongest_evidence(best: dict, card_outputs: list[dict]) -> str:
     """Compose a stakeholder-readable 'strongest evidence' sentence for the headline.
 
     Three modes (in priority order):
-      1. Dominant signal: cite each card_id + its interpretation_call (the EG4 path).
+      1. Dominant signal: cite each card_id + its interpretation_call (the dominant-signal path).
       2. Ratio-based strong/moderate: report dominant-positive count framed as
          "X dominant positive (sufficient)" so a "1/3" doesn't read as failure.
       3. Killer / insufficient: cite the limiting condition.
@@ -736,7 +736,7 @@ _CAVEAT_TOKEN_RE = re.compile(r"\{([^{}]+)\}")
 def _interpolate_tokens(template: str, mapping: dict) -> str:
     """Fill `{token}` placeholders in a card warning/caveat message against `mapping`.
 
-    C-fix (2026-08-15, data-products emitter): card warning_predicate messages carry template
+    2026-08-15 (data-products emitter): card warning_predicate messages carry template
     tokens ({target.symbol}, {shed_product}, {serum_marker}, {media_mean_npx}, ...) filled from
     the target context + the card's own emitted summary. _build_caveats_summary appended these
     messages VERBATIM, so caveats_summary leaked raw tokens (e.g. "{target.symbol} has a
@@ -757,23 +757,23 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
                             contracts_root=None,
                             extra_caveats: "list[str] | None" = None) -> str:
     """Aggregate modality_specific_caveats from loaded modules + card-level caveats common
-    across multiple cards. Iter-1b: deterministic concatenation; LLM dedup is iter-2.
+    across multiple cards. Deterministic concatenation; LLM dedup is later work.
 
-    O1 fix (2026-08-15): `extra_caveats` (data-blocked / non-concludable caveats produced in
+    2026-08-15: `extra_caveats` (data-blocked / non-concludable caveats produced in
     synthesize when a modality's killer-veto card was unavailable) lead the summary so the
     safety-blocked state is the first thing a consumer reads. Empty/None → byte-stable."""
     caveats_parts = []
     if extra_caveats:
         caveats_parts.extend(extra_caveats)
 
-    # C-fix (data-products emitter): context for interpolating card warning-message tokens
+    # Context for interpolating card warning-message tokens
     # ({target.symbol}, and per-card summary fields like {shed_product}) when aggregating below.
     _ctx = run_plan.get("input_context", {}) or {}
     _target_symbol = _ctx.get("target_symbol")
     _indication = _ctx.get("indication")
 
     # Modality-specific caveats from each loaded module.
-    # T7 fix (2026-08-11 engineering review): this loop was a no-op `pass`, so the docstring's
+    # 2026-08-11: this loop was a no-op `pass`, so the docstring's
     # promise to "aggregate modality_specific_caveats from loaded modules" was silently unmet.
     # Now append each loaded module's caveats, prefixed with the modality name for provenance,
     # deduped across modules (two modality modules can share a caveat string).
@@ -842,7 +842,7 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
             predicates = {p["warning_id"]: p.get("message", "")
                           for p in card_spec.get("warning_predicates", []) or []
                           if "warning_id" in p}
-            # C-fix: interpolate the message template against the target context + THIS card's
+            # Interpolate the message template against the target context + THIS card's
             # emitted summary (the source of {shed_product}, {serum_marker}, {media_mean_npx}, …)
             # so caveats_summary carries rendered text, not raw {target.symbol}/{shed_product} tokens.
             _token_map = {"target.symbol": _target_symbol, "target": _target_symbol,
@@ -877,8 +877,8 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
 # The Tier-2 rules file (target-contracts/interpretation-rules/*.rules.yaml)
 # is the single home for normative knowledge that previously lived scattered
 # across card interpretation_hints[].dominant flags, modality killer_conditions,
-# and the synthesis-layer NOT_INFORMATIVE_CALLS set. Per the warm-rolling-bunny
-# plan's decoupling-design decisions:
+# and the synthesis-layer NOT_INFORMATIVE_CALLS set. Per the decoupling-design
+# decisions:
 #   - cards emit descriptive labels only (Tier-1)
 #   - rules map (card_id, field, value) → {modality: signal} (Tier-2)
 #   - synthesis reads the signal matrix to produce fit_level (Tier-3 deterministic)
@@ -941,7 +941,7 @@ def _build_signal_matrix(
     """
     if not rules:
         return {}
-    # CONVERGENCE (gap #5 step 5, 2026-07-20): the rule-`when`-matching (card_id/field/
+    # CONVERGENCE (2026-07-20): the rule-`when`-matching (card_id/field/
     # equals/in + the interpretation_call root-lift) is now done by the ONE shared matcher
     # `_skills_common.fired_rules` — the SAME matcher target-profile uses. This function no
     # longer re-implements it (that was the copied-not-shared duplication); it only PIVOTS
@@ -986,7 +986,7 @@ def _signals_for_card_modality(
 
 
 def _build_dominant_calls_map(card_outputs: list[dict], contracts_root) -> dict:
-    """EG4 (iter-2): build {card_id → set(dominant_call_strings)} from card_specs.
+    """Build {card_id → set(dominant_call_strings)} from card_specs.
 
     For each non-excluded card in card_outputs, load its card_spec and collect
     interpretation_hints[i].call values where interpretation_hints[i].dominant == True.

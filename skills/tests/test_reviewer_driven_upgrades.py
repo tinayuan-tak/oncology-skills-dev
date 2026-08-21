@@ -1,18 +1,18 @@
-"""Framework tests for the reviewer-driven arch + content upgrades (2026-07-08).
+"""Framework tests for the arch + content upgrades (2026-07-08).
 
 Consolidates verification tests 6-9 from the plan + a benchmark scaffold test
 + ontology-coverage + license-attestation checks. These tests enforce the
-disciplines added in Layer 0 (arch A1-A4) + Layer 2 (methods) + Layer 5
+disciplines added in Layer 0 (arch disciplines) + Layer 2 (methods) + Layer 5
 (rules/rubric) + Layer 6 (skill graduations).
 
 Test index:
-    test_composed_card_dependency_graph        — arch A1 enforcement
-    test_lens_conditional_field_split          — arch A2 enforcement
-    test_isoform_selective_warning             — arch A3 enforcement (ERBB2 fires)
-    test_on_dependency_status_validation       — arch A4 enforcement
+    test_composed_card_dependency_graph        — composed-card dependency graph enforcement
+    test_lens_conditional_field_split          — lens-conditional field split enforcement
+    test_isoform_selective_warning             — isoform-selective warning enforcement (ERBB2 fires)
+    test_on_dependency_status_validation       — on_dependency_status enforcement
     test_signor_moa_ontology_classification    — 21-class MoA taxonomy works
     test_tmbed_license_attestation             — TMbed Apache-2.0 attested in analysis-methods
-    test_panel_intersect_fisher_row_schema     — reviewer BLOCKER fix
+    test_panel_intersect_fisher_row_schema     — panel-intersect Fisher discipline
     test_all_new_cards_validate                — 11 cards structurally clean
     test_modality_rubric_weights_sum_to_100    — rubric integrity
     test_clinical_precedent_benchmark_shape    — anchor set structure
@@ -43,13 +43,13 @@ ANALYSIS_METHODS_ROOT = Path(
 
 
 # ---------------------------------------------------------------------------
-# ARCH A1 — Composed-card dependency graph
+# Composed-card dependency graph
 # ---------------------------------------------------------------------------
 
 def test_composed_card_dependency_graph():
     """The composed adc-tce-modality-fit + surface-abundance-density cards
     declare `derived_from:` upstream card_ids; the upstream cards must exist.
-    This is the arch A1 graph walk in verification form.
+    This is the composed-card graph walk in verification form.
     """
     cards_dir = TARGET_CONTRACTS_ROOT / "cards"
     existing_card_ids = set()
@@ -76,7 +76,7 @@ def test_composed_card_dependency_graph():
 
 
 # ---------------------------------------------------------------------------
-# ARCH A2 — Lens-conditional field split
+# Lens-conditional field split
 # ---------------------------------------------------------------------------
 
 def test_lens_conditional_field_split():
@@ -101,7 +101,7 @@ def test_lens_conditional_field_split():
 
 
 # ---------------------------------------------------------------------------
-# ARCH A3 — Isoform-selective warning
+# Isoform-selective warning
 # ---------------------------------------------------------------------------
 
 def test_isoform_selective_warning_fires_on_known_targets():
@@ -136,11 +136,11 @@ def test_isoform_selective_warning_fires_on_known_targets():
 
 
 # ---------------------------------------------------------------------------
-# ARCH A4 — on_dependency_status validation
+# on_dependency_status validation
 # ---------------------------------------------------------------------------
 
 def test_on_dependency_status_field_validates():
-    """Composition-schema arch A4: on_dependency_status field is optional,
+    """Composition-schema: on_dependency_status field is optional,
     validates when present, references only cards in cards_used.
     """
     from _skills_common.composition_schema import validate, DEPENDENCY_STATUS_BEHAVIORS
@@ -221,8 +221,8 @@ def test_tmbed_license_attestation():
 
     TMbed is a software TOOL (wrapped by analysis-methods
     methods/topology_predictions_tmbed/), not a redistributed dataset — modeling it as a
-    data-catalog *source* manifest was tried and deliberately reverted (data-catalog
-    #111 -> #113), and the Derived-manifest schema carries no license field. So the tool's
+    data-catalog *source* manifest was tried and deliberately reverted in data-catalog,
+    and the Derived-manifest schema carries no license field. So the tool's
     license posture is attested beside the wrapper in LICENSE_ATTRIBUTION.yaml, which this
     test verifies.
     """
@@ -249,12 +249,12 @@ def test_tmbed_license_attestation():
 
 
 # ---------------------------------------------------------------------------
-# Reviewer BLOCKER fix — Fisher panel-intersect discipline
+# Fisher panel-intersect discipline
 # ---------------------------------------------------------------------------
 
 def test_panel_intersect_fisher_row_schema():
     """The co-mutation card's row schema must declare pooled_eligible + source
-    (per-source vs pooled). This is the BLOCKER fix from reviewer R1.
+    (per-source vs pooled). This is the panel-intersect discipline.
     """
     manifest = DATA_CATALOG_ROOT / "manifests/derived/pancohort-cooccurrence-fisher-v1.yaml"
     data = yaml.safe_load(manifest.read_text())
@@ -342,12 +342,11 @@ def test_modality_rubric_weights_sum_to_100():
 # ---------------------------------------------------------------------------
 
 def test_a4_dispatcher_runtime_consumer():
-    """Arch A4 (W4e, 2026-07-09): the shared dispatcher's
-    _apply_on_dependency_status function honors the on_dependency_status
-    map — applies skip_section / emit_with_caveat / fail per the SKILL.md
-    composition contract. This test is a UNIT test of the dispatcher, not
-    an end-to-end skill test, because it exercises the A4 runtime
-    consumer directly with synthetic card_outputs.
+    """The shared dispatcher's _apply_on_dependency_status function honors
+    the on_dependency_status map — applies skip_section / emit_with_caveat /
+    fail per the SKILL.md composition contract. This test is a UNIT test of
+    the dispatcher, not an end-to-end skill test, because it exercises the
+    runtime consumer directly with synthetic card_outputs.
     """
     from _skills_common.dispatcher import _apply_on_dependency_status
 
@@ -358,7 +357,7 @@ def test_a4_dispatcher_runtime_consumer():
         {"card_id": "card-c", "summary": {}, "_missing": True},
     ]
 
-    # A4 behavior: skip missing card-b, emit-with-caveat for missing card-c
+    # behavior: skip missing card-b, emit-with-caveat for missing card-c
     on_dep = {
         "card-b": "skip_section",
         "card-c": "emit_with_caveat",
@@ -398,7 +397,7 @@ def test_clinical_precedent_benchmark_shape():
     tce_anchors = data.get("tce_positive_anchors", {})
     negative_anchors = data.get("negative_anchors", {})
 
-    # Reviewer plan mandate: ~30 ADC + ~20 TCE anchors + few negatives
+    # Plan mandate: ~30 ADC + ~20 TCE anchors + few negatives
     assert len(adc_anchors) >= 20, (
         f"ADC anchor set should have >= 20 targets for the AUROC gate; "
         f"got {len(adc_anchors)}"

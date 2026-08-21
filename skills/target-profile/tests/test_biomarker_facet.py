@@ -1,4 +1,4 @@
-"""Q12 biomarker-convergence facet — deterministic assembly (master-sequencing Part 3c).
+"""Q12 biomarker-convergence facet — deterministic assembly.
 
 Verifies the facet pulls corroboration + stratification + preferred_assay from synthetic sub_results,
 and the golden cases the plan names: KRAS-like → strong_selection_biomarker (mutant-stratified);
@@ -44,7 +44,7 @@ def test_predictive_biomarker_alteration_role_is_genomic_stratifier():
 
 
 def test_dependency_ppv_performance_flows_to_predictive_hypothesis():
-    # Thread 3: dependency-classification performance on the mutation-stratified card should (a) surface
+    # dependency-classification performance on the mutation-stratified card should (a) surface
     # in the quantitative block and (b) attach to the genomic predictive hypothesis as dependency_performance.
     sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
         "mutation_stratification_class": "mutant_strongly_dependent",
@@ -144,7 +144,7 @@ def test_subtype_stratification_class_is_a_stratification_input_not_a_verdict_pr
     assert f["preferred_assay"] != "genomic"
 
 
-# ── BEST-role classification (§1): typed, NON-exclusive biomarker_hypotheses ──────────────────
+# ── BEST-role classification: typed, NON-exclusive biomarker_hypotheses ──────────────────
 def _roles(f):
     return {h["intended_use"] for h in f["biomarker_hypotheses"]}
 
@@ -211,10 +211,10 @@ def test_best_role_data_unavailable_contributes_no_role():
     assert f["biomarker_hypotheses"] == []
 
 
-# --- A2a: quantitative re-surfacing (the raw stats behind each categorical class) ---
+# --- quantitative re-surfacing (the raw stats behind each categorical class) ---
 
 def test_quantitative_block_resurfaces_card_statistics():
-    """A2a: the facet re-surfaces the numeric companions the cards compute (r, effect size,
+    """The facet re-surfaces the numeric companions the cards compute (r, effect size,
     Mann-Whitney q, delta-Chronos, agreement fractions) alongside the categorical classes."""
     sr = _sr(
         genomic_alteration={"mutation-stratified-dependency": {

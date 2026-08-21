@@ -21,7 +21,7 @@ Three curated fixtures pin all three non-trivial verdicts:
   - CEACAM5 / COADREAD — no_curated_sl_partner (neutral; guards the suppressor does NOT over-fire).
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 

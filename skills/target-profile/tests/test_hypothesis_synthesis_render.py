@@ -167,7 +167,7 @@ def test_header_is_hypothesis_led_and_demotes_the_deterministic_scalar():
 
 def test_malformed_risk_assessment_does_not_crash_dashboard():
     """A parseable-but-wrong-shape risk_assessment degrades the panel to 'not shown', never losing the
-    whole report (review S1). dimensions-as-list and a non-dict dimension value are both tolerated."""
+    whole report. dimensions-as-list and a non-dict dimension value are both tolerated."""
     for bad in ({"dimensions": ["not", "a", "dict"]},
                 {"dimensions": {"biological": "a string, not a dict"}},
                 {"dimensions": {"safety": {"risk_level": None}}}):
@@ -235,7 +235,7 @@ def test_malformed_risk_rollup_does_not_crash():
 
 
 def test_groundable_axes_parity_with_axis_config():
-    """Drift-guard (review S2.4): _GROUNDABLE_AXES must equal ground_axis.AXIS_CONFIG's verdict_key-
+    """Drift-guard: _GROUNDABLE_AXES must equal ground_axis.AXIS_CONFIG's verdict_key-
     bearing (non-pseudo-card) axes, so a new grounded axis can't silently mis-render."""
     import importlib.util
     ga = Path(__file__).resolve().parents[2] / "literature-risk-assessment" / "scripts" / "ground_axis.py"
@@ -252,7 +252,7 @@ def test_groundable_axes_parity_with_axis_config():
         f"_GROUNDABLE_AXES drifted from AXIS_CONFIG: {rh._GROUNDABLE_AXES ^ groundable}"
 
 
-# ---------- Phase 2: per-subskill card-board summary graphic ----------
+# ---------- per-subskill card-board summary graphic ----------
 import sys as _sys
 _TPH = _sys.modules["tp_render_html"]  # the render module run.py imported
 

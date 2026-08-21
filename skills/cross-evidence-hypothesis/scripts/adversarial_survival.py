@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""adversarial_survival — WS5 intrinsic defensibility metric, PRODUCTION post-check for the
+"""adversarial_survival — intrinsic defensibility metric, PRODUCTION post-check for the
 cross-evidence hypothesis integrator.
 
 Clause-traceability (pointer-COMPLETENESS) is computed inside the integrator. This is the ORTHOGONAL
 intrinsic metric: does each clause SURVIVE a skeptic who tries to REFUTE it FROM THE SAME EVIDENCE
-ONLY? (roadmap §3 WS5 + invariant §3 retrieve-don't-recall.)
+ONLY? (retrieve-don't-recall.)
 
   - For each assertive clause (causal_rationale, therapeutic_hypothesis, population,
     therapeutic_window) a SKEPTIC LLM pass tries to refute it using ONLY the citation surface the

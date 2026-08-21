@@ -1,6 +1,6 @@
 """isoform_selective_targets — consumer for the isoform-selective-targets vocabulary.
 
-Reviewer-driven arch upgrade A3 (2026-07-08). Any card or skill that emits
+(2026-07-08): Any card or skill that emits
 modality-relevant fields (surface topology, PTM sites, ADC/TCE letter grades,
 ectodomain-length-derived features) should call `check_target(symbol)` before
 emitting to determine whether the target has a clinically-dominant alternative
@@ -9,7 +9,7 @@ isoform that makes gene-level modality reasoning systematically wrong.
 Vocabulary source of truth:
   target-contracts/vocabularies/isoform_selective_targets.yaml
 
-Failure mode this addresses (see reviewer R5, plan file § reviewer revisions):
+Failure mode this addresses:
   A gene-symbol-keyed card can emit `adc_grade: A` for ERBB2 based on full-
   length HER2 ectodomain accessibility, but in a p95HER2-dominant gastric
   tumor, the ADC-relevant N-terminal ectodomain has been proteolytically shed.
@@ -24,7 +24,7 @@ Usage pattern (from a card dispatcher):
     if warning is not None:
         summary["_isoform_selective_caveat"] = warning.caveat
         summary["_isoform_selective_severity"] = warning.warning_severity
-        # Suppress lens-conditional letter grades (arch A2)
+        # Suppress lens-conditional letter grades
         summary.pop("adc_grade", None)
         summary.pop("tce_grade", None)
         # Include the caveat in warnings emitted by the compose-dashboard
@@ -153,7 +153,7 @@ def _load_vocabulary() -> dict:
 
     with _resolve_vocab_path().open() as f:
         vocab = yaml.safe_load(f)
-    # W3b fix (2026-07-09): reject entries: null explicitly. The prior shape
+    # (2026-07-09): reject entries: null explicitly. The prior shape
     # check `"entries" not in vocab` passes when entries exists with a null
     # value, and downstream .get(target) crashes with AttributeError.
     if not isinstance(vocab, dict) or not isinstance(vocab.get("entries"), dict):

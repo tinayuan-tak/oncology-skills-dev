@@ -54,7 +54,7 @@ FRAMEWORK_VERSION = "2.0.0"
 
 
 def _resolve_skill_version() -> str:
-    """T8 fix (2026-08-11 engineering review): populate the real short git SHA of the
+    """2026-08-11: populate the real short git SHA of the
     claude-oncology-skills repo instead of the hardcoded "0a1b2c3" placeholder, so
     evidence_package.generated_by identifies the code version that produced it. Falls back to
     the gitmeta UNKNOWN_SHA sentinel ("0000000") when git is unavailable — never blocks emit."""
@@ -260,7 +260,7 @@ def _module_summary(module: dict) -> dict:
             for k, v in (module.get("threshold_overlays") or {}).items()
         ],
         "synthesis_emphasis": module.get("synthesis_emphasis", {}),
-        # T7 fix (2026-08-11 engineering review): carry the module's modality_specific_caveats
+        # 2026-08-11: carry the module's modality_specific_caveats
         # into the run_plan so phase-3 synthesis can actually aggregate them. Previously this
         # field was dropped here, so _build_caveats_summary's "for module in
         # loaded_modality_modules" loop had nothing to read (its body was a no-op `pass`).

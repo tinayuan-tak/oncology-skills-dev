@@ -1,4 +1,4 @@
-"""C2c regression: the middle gnomAD constraint band is no longer decision-inert.
+"""The middle gnomAD constraint band is no longer decision-inert.
 
 Before 2026-07-17 `moderately_constrained` had no rule → safety _verdict returned
 `insufficient` for every mid-band gene, and the 6-category risk table's safety row

@@ -27,7 +27,7 @@ Three curated fixtures pin both verdict halves AND the insufficient fall-through
     over-fire.
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 

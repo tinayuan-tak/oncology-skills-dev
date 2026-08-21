@@ -14,7 +14,7 @@ Public API:
   3. `modality_lens`     — OPTIONAL projector from fired rules to a
                             modality (small_molecule / degrader / adc /
                             bite / antibody).
-  4. `make_decision_json` / `write_decision` — emit decision.json.
+  4. `make_decision_json` — build the decision.json payload.
 
 Zero new dispatcher code, zero new rule content — skills are PROJECTIONS
 over the same layers Macro (compose-dashboard) uses.
@@ -168,7 +168,7 @@ def _summary_is_unavailable(summary: dict) -> Optional[str]:
       - raised and returned a `{"_live_read_error": ...}` sentinel, OR
       - a PRIMARY class field carries a data-unavailable marker.
 
-    2026-08-11 REVIEW FIX (M2): detection now spans any `*_class` field (see
+    2026-08-11: detection now spans any `*_class` field (see
     _data_unavailable_field), not the 3 hardcoded primaries. NOTE this flags the card
     for COVERAGE accounting (`_missing`), but resolve_cards separately marks it
     `_data_unavailable` so fired_rules still evaluates its dedicated data_unavailable
@@ -607,10 +607,3 @@ def card_summary(cards: list[dict], card_id: str) -> dict:
         if c.get("card_id") == card_id:
             return c.get("summary") or {}
     return {}
-
-
-def write_decision(decision: dict, out_dir: Path) -> Path:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    p = out_dir / "decision.json"
-    p.write_text(json.dumps(decision, indent=2, default=str))
-    return p

@@ -1,7 +1,7 @@
 """OFFLINE verdict-replay of frozen tractability-small-molecule dossiers — the drift guard this skill lacked.
 
 tractability-small-molecule is VERDICT-BEARING (druggability_snapshot via the shared resolver) and has a
-DOCUMENTED reader-drift history: the T5.1 fix (2026-08-09) caught that the headline read the WRONG field
+DOCUMENTED reader-drift history: a 2026-08-09 fix caught that the headline read the WRONG field
 names (activity_class / concordance_class instead of prism_activity_class / crispr_prism_concordance_class),
 so two chemical facts were ALWAYS None and the LLM synthesis prompt was starved — a silent reader drift no
 synthetic test caught. Its existing tests feed the resolver SYNTHETIC fired-sets (test_snapshot_ladder /
@@ -23,9 +23,9 @@ Three curated fixtures pin distinct rungs of the druggability ladder, each exerc
   - FOXA1 / COADREAD — structurally_ligandable (ligandability-predicted-sm-supportive): the structure-
     features-static forward-ligandability leg (predicted pocket, no chemical).
 
-Plus a direct guard on the T5.1 field-drift bug: the chemical-fact headline fields must resolve non-null.
+Plus a direct guard on the field-drift bug: the chemical-fact headline fields must resolve non-null.
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 
@@ -155,7 +155,7 @@ def test_egfr_triangulated_top_rung():
 
 @pytest.mark.parametrize("pair_id,target,indication,_exp", [EGFR, BRAF], ids=["egfr", "braf"])
 def test_chemical_fact_headline_fields_resolve(pair_id, target, indication, _exp):
-    """DIRECT T5.1 REGRESSION GUARD: the T5.1 bug (2026-08-09) had the headline read the WRONG field
+    """DIRECT REGRESSION GUARD: a 2026-08-09 bug had the headline read the WRONG field
     names so prism_activity_class / prism_crispr_concord were ALWAYS None — silent, no test caught it.
     For a chemically-characterised target these two headline fields MUST resolve non-null; a reader
     rename that reintroduces the wrong-field-name drift fails here."""

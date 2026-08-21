@@ -1,8 +1,8 @@
-"""surface-modality-fit _verdict coverage (C2 fix + G test-coverage, 2026-07-20).
+"""surface-modality-fit _verdict coverage (2026-07-20).
 
 surface-modality-fit shipped with NO tests (one of 3 test-less wired skills) AND its
 composed adc-tce-modality-fit card can emit fit_class `modality_ambiguous`, which had
-no rule + no verdict branch → silent fall-through to insufficient (C2). These tests
+no rule + no verdict branch → silent fall-through to insufficient. These tests
 pin EVERY fit_class rule_id → verdict mapping (EXHAUSTIVE over the 6-value fit_class
 vocabulary), so a future fall-through fails CI rather than silently collapsing.
 """
@@ -49,7 +49,7 @@ def test_isoform_dependent():
 
 
 def test_modality_ambiguous_is_explicit_not_silent_C2_regression():
-    """C2 regression: modality_ambiguous must resolve to an EXPLICIT verdict with a
+    """modality_ambiguous must resolve to an EXPLICIT verdict with a
     driving rule_id — NOT the silent (insufficient, None) fall-through it was before."""
     v, drv = _v("modality-ambiguous-insufficient")
     assert v == "modality_ambiguous"
@@ -63,7 +63,7 @@ def test_nothing_fired_is_bare_insufficient():
 
 def test_fit_class_vocabulary_is_exhaustively_handled():
     """EXHAUSTIVENESS guard: every fit_class value the card can emit must map to a
-    verdict branch (this is the manual precursor to the gap-#5 exhaustiveness
+    verdict branch (this is the manual precursor to the exhaustiveness
     validator). If the card gains a new fit_class, this test must be extended — a
     new unhandled value would otherwise silently fall through to insufficient."""
     # the 6 fit_class values (adc-tce-modality-fit.card.yaml summary_fields_vocabulary),
@@ -85,7 +85,7 @@ def test_fit_class_vocabulary_is_exhaustively_handled():
 
 
 # ---------------------------------------------------------------------------
-# SAFETY/DENSITY/SHED integration (2026-08-09, modality-fit review C1 + density-integrity).
+# SAFETY/DENSITY/SHED integration (2026-08-09, modality-fit review + density-integrity).
 # The verdict was topology-only (keyed on fit_class); the cards' KILLER/downgrade signals
 # fired into the narrative but could NOT move the verdict. These resolver combination rungs
 # (when_all_fired: fit-positive AND a liability rule) refine the call. Pin the biology + the two
@@ -139,7 +139,7 @@ def test_plain_fit_class_still_byte_stable_without_liabilities():
 
 
 # ---------------------------------------------------------------------------
-# biologics-augment Phase 1.1 (2026-08-06): protein-surface-evidence (CSPA) +
+# biologics-augment (2026-08-06): protein-surface-evidence (CSPA) +
 # shed-ectodomain-liability were wired into the skill's CARDS. Their surface-
 # intrinsic rules existed but were UNREACHABLE (no skill composed the cards).
 # These rules are ADDITIVE (supportive/opposing, no `dominant`, no resolver rung),
@@ -156,21 +156,21 @@ _NEWLY_REACHABLE_RULES = [
     # its verdict-moving behavior is pinned by test_dominant_shed_ectodomain_caveats_the_call above.
     # The secretome-proxy + measured-media shed variants remain signal-only (not promoted).
     "shed-ectodomain-secretome-proxy-opposing",
-    "shed-ectodomain-measured-media-opposing",  # enrichment E3 — measured Olink conditioned-media shed (media_shed_high)
-    # biologics-augment Phase 3.2 — within-tumor antigen-homogeneity (single-cell Census):
+    "shed-ectodomain-measured-media-opposing",  # enrichment — measured Olink conditioned-media shed (media_shed_high)
+    # biologics-augment — within-tumor antigen-homogeneity (single-cell Census):
     "sc-homogeneity-uniform-tce-supportive",  # homogeneous → TCE supportive
     "sc-homogeneity-heterogeneous-tce-opposing",  # heterogeneous → TCE opposing (escape reservoir)
     # biologics-augment window arc — modality therapeutic-window (tumor / max-essential-normal):
     "modality-window-clean-supportive",       # clean_window → supportive
     "modality-window-essential-liability-tce-opposing",  # essential liability → TCE opposing, ADC neutral
     "modality-window-narrow-opposing",        # narrow_window → opposing
-    # enrichment E1 — peptide-centric HLA presentation (bite_tce-only):
+    # enrichment — peptide-centric HLA presentation (bite_tce-only):
     "pmhc-restricted-presentation-tce-supportive",   # restricted → TCE supportive
     "pmhc-broadly-presented-normal-tce-opposing",    # broad normal presentation → TCE opposing
-    # enrichment E5 — modality exon-window (per-exon tumor-vs-normal + heterogeneity flag):
+    # enrichment — modality exon-window (per-exon tumor-vs-normal + heterogeneity flag):
     "exon-window-heterogeneity-flag-supportive",     # exon_heterogeneity_flag → secondary supportive (hypothesis)
     "exon-window-essential-liability-tce-opposing",  # essential_exon_liability → bite_tce opposing, adc neutral
-    # enrichment E6-CD — CD/IO-antigen backbone clinical-precedent (supportive-only):
+    # enrichment — CD/IO-antigen backbone clinical-precedent (supportive-only):
     "cd-established-io-backbone-supportive",         # established_io_backbone → supportive (important)
     "cd-antigen-backbone-supportive",                # cd_antigen → supportive (secondary)
 ]
@@ -181,15 +181,15 @@ def test_newly_wired_cards_are_in_the_skill_card_set():
     on live data until the skill listed them)."""
     assert "protein-surface-evidence" in smf.CARDS
     assert "shed-ectodomain-liability" in smf.CARDS
-    # Phase 3.2 — the single-cell homogeneity card carries the tce_homogeneity_class facet
+    # the single-cell homogeneity card carries the tce_homogeneity_class facet
     assert "tumor-scrna-celltype-expression" in smf.CARDS
     # window arc — the therapeutic-window card
     assert "modality-therapeutic-window" in smf.CARDS
-    # enrichment E1 — the peptide-centric pMHC card
+    # enrichment — the peptide-centric pMHC card
     assert "pmhc-presentation" in smf.CARDS
-    # enrichment E5 — the per-exon window card
+    # enrichment — the per-exon window card
     assert "modality-exon-window" in smf.CARDS
-    # enrichment E6-CD — the CD/IO-antigen backbone card
+    # enrichment — the CD/IO-antigen backbone card
     assert "cd-antigen-backbone" in smf.CARDS
 
 

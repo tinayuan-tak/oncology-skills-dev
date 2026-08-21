@@ -1,4 +1,4 @@
-"""Offline guards for the WS5 intra-package COHERENCE step + the adversarial-survival post-check.
+"""Offline guards for the intra-package COHERENCE step + the adversarial-survival post-check.
 No Bedrock: the LLM is a stub. Verifies the four coherence detectors (measured-negative sub-verdict
 or card cited as support; agent contradicts/tensions_with edge unsurfaced; intrinsic cross-card
 SL-vs-no_partner contradiction), that surfacing clears them, that therapeutic_window is exempt, that
@@ -99,7 +99,7 @@ def test_agent_contradiction_edge_unsurfaced_is_flagged():
 
 
 def test_edge_contradiction_surfaced_via_dimension_member_cards_is_credited():
-    """WS6-surfaced FALSE POSITIVE: an edge names the DIMENSION 'safety', but the LLM surfaces the
+    """FALSE POSITIVE: an edge names the DIMENSION 'safety', but the LLM surfaces the
     safety tension by citing safety's underlying CARDS (gnomad-lof-constraint, ...), not the bare
     'safety' token. The detector must credit that card-grain surfacing against the dimension-grain
     edge — else it false-fires and blocks promotion of clear positives (KRAS/ERBB2/BRAF)."""

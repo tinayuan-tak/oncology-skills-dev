@@ -5,7 +5,7 @@ Drives `_write_evidence_package` directly (target-identity read monkeypatched) s
 offline. Asserts:
   1. the envelope validates against target-contracts/schemas/evidence_package.schema.json;
   2. the SUPERSET synthesis shape (product decision): nomination fields + a compose-dashboard-style
-     primary/additional split + full per-sub-skill sub_verdicts, all sourced from the Stage-1b
+     primary/additional split + full per-sub-skill sub_verdicts, all sourced from the
      CompositionResult (r["composition"]);
   3. a gateless sub-skill (tumor-presence `expression`) contributes no gate block but keeps its
      verdict in sub_verdicts;
@@ -73,7 +73,7 @@ def _sub(card_id, fired_id, gate, verdict_pair, synthesis_facet=None):
     return out
 
 
-# A dependency synthesis_facet carrying a claim_vector with a citable evidence atom (Stage 2a).
+# A dependency synthesis_facet carrying a claim_vector with a citable evidence atom.
 _DEP_FACET = {
     "claim_vector": {
         "DEP": {"signal": "strong", "corroboration": "high", "evidence": "CRISPR strongly_selective",
@@ -160,7 +160,7 @@ def test_gateless_expression_kept_without_gate_block(tmp_path, monkeypatch):
 
 
 def test_synthesis_carries_claim_vectors_with_citable_atoms(tmp_path, monkeypatch):
-    # Stage 2a: the machine envelope carries each sub-skill's claim_vector (+ key_signals) — the SIGNAL
+    # the machine envelope carries each sub-skill's claim_vector (+ key_signals) — the SIGNAL
     # decomposition + citable evidence atoms — so a downstream reasoner sees more than the verdict label.
     ep = _build_ep(tmp_path, monkeypatch)
     cv = ep["synthesis"]["claim_vectors"]
@@ -182,7 +182,7 @@ def test_claim_vectors_empty_when_no_facets(tmp_path, monkeypatch):
 
 
 def test_none_verdict_gateless_short_in_evidence_package(tmp_path, monkeypatch):
-    """WS1 (2026-08-17): the --emit evidence-package emitter must tolerate a verdict=None GATELESS
+    """(2026-08-17): the --emit evidence-package emitter must tolerate a verdict=None GATELESS
     short (target-intrinsic — synthesis:none, no gate). It contributes NO gate block but appears in
     sub_verdicts with verdict=None/gate=None, and the envelope stays schema-valid."""
     monkeypatch.setattr(tp_evidence_package, "resolve_cards",
@@ -261,7 +261,7 @@ def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok):
 
 
 def test_validation_summary_dedupes_multi_homed_cards(tmp_path, monkeypatch):
-    """O2 (2026-08-15): a card composing under >1 sub-skill lens must be counted ONCE in
+    """(2026-08-15): a card composing under >1 sub-skill lens must be counted ONCE in
     validation_summary — the raw union double-counted it (inflated n_cards_attempted). The counts must
     equal the DEDUPED payload the evidence-package `cards` array carries."""
     shared = {"card_id": "shared-multi-homed", "summary": {"x": 1},
@@ -304,7 +304,7 @@ def test_validation_summary_dedupes_multi_homed_cards(tmp_path, monkeypatch):
 
 
 def test_no_killer_recommendation_is_coherent_not_insufficient(tmp_path, monkeypatch):
-    """FINDING #2: when no killer gate fires (gate_action=None) for a positive target, the
+    """When no killer gate fires (gate_action=None) for a positive target, the
     evidence-package headline must NOT read 'insufficient (strong confidence)' (incoherent + machine-
     misleading — it disagrees with the same run's nomination.json). It should carry the honest neutral
     'no_deterministic_kill' term instead."""
@@ -316,7 +316,7 @@ def test_no_killer_recommendation_is_coherent_not_insufficient(tmp_path, monkeyp
 
 
 def test_failed_identity_fails_schema_validation_loudly(tmp_path, monkeypatch):
-    """FINDING #1: when target-identity fails to resolve, assemble emits hgnc_id=-1 (schema requires
+    """When target-identity fails to resolve, assemble emits hgnc_id=-1 (schema requires
     >= 1) ON PURPOSE as a validation tripwire. The emitter must now VALIDATE and fail LOUD (SystemExit)
     rather than silently persist a schema-invalid governance artifact + return success. Also assert the
     -1 sentinel really is what the schema rejects (guards the tripwire itself)."""

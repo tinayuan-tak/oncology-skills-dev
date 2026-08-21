@@ -3,10 +3,10 @@ engine lacked.
 
 target-profile fans out to 10 sub-skills in-process (_run_sub_skills → _one_sub_skill). For EACH sub-skill
 the fan-out (a) resolves that sub-skill's SUB_SKILL_CARDS entry, (b) applies the gate's card preprocessor
-(preprocess_cards_for_gate — the genomic family-wise FDR, G1), (c) fires rules on both axes scoped by
+(preprocess_cards_for_gate — the genomic family-wise FDR), (c) fires rules on both axes scoped by
 card_id_filter, and (d) calls the sub-skill's OWN _verdict (which carries any post-resolver clamp — e.g.
-tumor-selectivity's normal-breadth veto, F1). This is the exact path where the F1 (selectivity veto),
-G1 (genomic FDR), and safety (alteration-role mutant-selective downgrade) seam bugs manifested.
+tumor-selectivity's normal-breadth veto). This is the exact path where the selectivity veto,
+the genomic FDR, and safety (alteration-role mutant-selective downgrade) seam bugs manifested.
 
 Unlike compose-dashboard (which has an offline byte-golden), target-profile has NO full-run offline
 golden — its resolve_cards needs live S3 — so the fan-out MACHINERY was never exercised offline over REAL
@@ -21,13 +21,13 @@ reads any un-frozen card as _missing, so the other sub-skills resolve `insuffici
 graceful degradation + that no stray rule fires). Two fixtures pin all three seam paths END-TO-END through
 the fan-out:
   - TACSTD2 / COADREAD (tumor-selectivity frozen) — selectivity resolves selective_but_broadly_normal:
-    the F1 normal-breadth VETO fires INSIDE THE FAN-OUT (via the sub-skill's own _verdict clamp). If a
+    the normal-breadth VETO fires INSIDE THE FAN-OUT (via the sub-skill's own _verdict clamp). If a
     veto-card reader drifts, TACSTD2 reads tumor_selective in the composed profile → this test goes red.
-  - KRAS / COADREAD (genomic + safety frozen) — genomic resolves biomarker_stratified_dependency (the G1
+  - KRAS / COADREAD (genomic + safety frozen) — genomic resolves biomarker_stratified_dependency (the
     FDR-preprocessed path) AND safety resolves wt_constraint_mechanism_mismatch (the mutant-selective
     downgrade — guards that alteration-role feeds the safety gate in the fan-out, the 2026-07-24 bugfix).
 
-Mirror of the per-skill replays (SK#411), lifted to the composed fan-out engine.
+Mirror of the per-skill replays, lifted to the composed fan-out engine.
 """
 from __future__ import annotations
 
@@ -126,11 +126,11 @@ def test_fanout_covers_all_sub_skills():
 
 
 def test_selectivity_veto_fires_in_the_fanout():
-    """CROWN-JEWEL (F1 in the composed path): TACSTD2 is broadly-normal epithelial — its tumor-selectivity
+    """CROWN-JEWEL (in the composed path): TACSTD2 is broadly-normal epithelial — its tumor-selectivity
     sub-verdict must resolve to selective_but_broadly_normal, i.e. the normal-breadth VETO fires INSIDE the
     fan-out (via the sub-skill's own _verdict clamp). If a veto-card reader drifts so the veto stops firing,
     TACSTD2 would read tumor_selective in the composed profile — this test goes red. This is the fan-out
-    analog of the tumor-selectivity standalone replay (F1 was DEAD in compose-dashboard; here we prove it is
+    analog of the tumor-selectivity standalone replay (the veto was DEAD in compose-dashboard; here we prove it is
     LIVE in target-profile's fan-out)."""
     v = _fan_out(*TACSTD2)
     assert v["selectivity"] == "selective_but_broadly_normal", (
@@ -139,8 +139,8 @@ def test_selectivity_veto_fires_in_the_fanout():
 
 
 def test_genomic_fdr_path_and_safety_downgrade_fire_in_the_fanout():
-    """CROWN-JEWEL (G1 + safety in the composed path): for KRAS the fan-out must
-      - resolve genomic_alteration to biomarker_stratified_dependency (the G1 family-wise-FDR
+    """CROWN-JEWEL (genomic + safety in the composed path): for KRAS the fan-out must
+      - resolve genomic_alteration to biomarker_stratified_dependency (the family-wise-FDR
         preprocess path — preprocess_cards_for_gate runs in _one_sub_skill before firing), and
       - resolve safety to wt_constraint_mechanism_mismatch (the mutant-selective downgrade — proving
         alteration-role reaches the safety gate in the fan-out; the 2026-07-24 SUB_SKILL_CARDS bugfix).

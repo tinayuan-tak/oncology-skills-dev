@@ -1,7 +1,7 @@
 """Guard test: the composer's SUB_SKILL_CARDS must not silently DROP a sub-skill's cards.
 
 The bug this catches (found 2026-07-21): `cellline-protein-abundance` (Gygi) was added to
-tumor-presence/run.py CARDS in PR #80 but never to target-profile's SUB_SKILL_CARDS — so the card
+tumor-presence/run.py CARDS but never to target-profile's SUB_SKILL_CARDS — so the card
 reached the standalone skill but was silently dropped from the COMPOSED profile (never seen by the
 LLM or scorecard). This is a whole class of drift: a card wired into a sub-skill but not into the
 composer.
@@ -107,7 +107,7 @@ def test_no_sub_skill_card_is_silently_dropped_from_the_composer():
 
 
 def test_gygi_card_is_composed_for_tumor_presence():
-    """Regression for the specific #80 bug: cellline-protein-abundance reaches the composed profile."""
+    """Regression for the specific bug: cellline-protein-abundance reaches the composed profile."""
     _sub_skills, ssc = _composer_maps()
     assert "cellline-protein-abundance" in ssc["tumor-presence"]
 
@@ -133,7 +133,7 @@ def test_composer_entry_composes_no_card_foreign_to_the_sub_skill():
     A composed card that is NOT a home card of its entry is a stale / typo'd / mis-attributed entry
     — e.g. left behind after a card RENAME (the composer still names the old id), or a rule attributed
     to a lens whose standalone skill never produces that card (so the fan-out's card_id_filter would
-    scope a rule to a card the sub-skill does not read). This closes the OTHER direction of the #80
+    scope a rule to a card the sub-skill does not read). This closes the OTHER direction of the
     silent-drift class. A DELIBERATE cross-lens attribution must be documented in
     WAIVED_FOREIGN_COMPOSER_CARDS rather than pass silently. Holds today (composer[dir] ⊆ own(dir))."""
     sub_skills, ssc = _composer_maps()
@@ -196,7 +196,7 @@ CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target
 # WHY (reaffirmed 2026-08-11 prod review): the resolver models ONE gate verdict over the flat
 # fired-set with no grouping, but tumor-presence ALSO emits per-(measurement, sample_context)
 # sub-verdicts (_per_modality_verdicts) that rank within CARD_CONTEXT buckets — a decomposition the
-# resolver grammar can't express. Its inline ladder is frozen by the golden + G1/G2/G5 regressions
+# resolver grammar can't express. Its inline ladder is frozen by the golden + presence regressions
 # in tumor-presence/tests/, not un-migrated debt. See tumor-presence/scripts/run.py::_verdict.
 # NOTE (2026-08-10): tractability-small-molecule was MIGRATED to the declarative resolver
 # (tractability-small-molecule/scripts/run.py calls resolve_verdict_for_gate(fired,
@@ -359,7 +359,7 @@ def test_facet_subskills_compose_all_headline_card_reads():
     `_synthesis_facet` must carry, under its OWN composer entry, every card its headline reads — else
     the facet raises, the fan-out's bare `except` swallows it, and that sub-skill's claim_vector is
     silently None in the COMPOSED profile (the whole atom substrate never reaches the cross-evidence
-    agent). This is the third instance of that bug (FR get_card_field #608; genomic _lift_field +
+    agent). This is the third instance of that bug (FR get_card_field; genomic _lift_field +
     tumor-presence get_card_field, 2026-08-20). Covers both strict accessors."""
     _sub_skills, ssc = _composer_maps()
     violations = {}

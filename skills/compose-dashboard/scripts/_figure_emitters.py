@@ -218,22 +218,25 @@ def _emit_expression_tumor_vs_adjacent(
 def _emit_card1_pan_cancer_dependency_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs Card 1's method internals to emit waterfall + histogram_kde SVGs.
-
-    Strategy: invoke methods.depmap_chronos_distribution.cli.load_depmap_files
-    + compute_summary_stats + emit_waterfall_plot + emit_histogram_kde_plot
-    + emit_plot_data + emit_manifest, writing into out_dir. The summary the
-    dispatcher already returned is structurally equivalent to what these helpers
-    re-compute — but the helpers need the raw chronos_by_model / model_metadata
-    dicts which the summary doesn't preserve.
-    """
+    """Emit Card 1 (chronos) figures. Prefer the OFFLINE render seam — if card resolution persisted
+    plot_data here (run with plot_data_root), render from it via the method's render_from_plot_data
+    (no live re-read, deterministic, byte-identical to a live run, cannot diverge from the verdict).
+    Falls back to the legacy live re-execution when no persisted plot_data is present, so every
+    consumer (subskill --figures, compose phase-2, gallery) keeps working during the migration."""
     if _has_live_read_error(summary):
         return []
 
     _ensure_methods_path()
-    from methods.depmap_chronos_distribution import cli as c1cli
-
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data.parquet"
+    if pd_path.exists():
+        from methods.depmap_chronos_distribution.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_chronos_distribution import cli as c1cli
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(
         release_pin="26q1", target_symbol=target
     )
@@ -286,7 +289,7 @@ def _emit_card2_dependency_lineage_selectivity(
     # Card 2 v3.0.0 is indication-decoupled. The method output no longer carries
     # `lineage_label`; figure emitter resolves the target lineage from the indication
     # → lineage map (shared INDICATION_LINEAGE constant in the method module). This
-    # is the synthesis-layer responsibility per Decision 2A.
+    # is the synthesis-layer responsibility.
     target_lineage = c2cli.INDICATION_LINEAGE.get(indication, "")
     merged_data = c2cli.emit_plot_data(
         chronos_by_model, model_metadata, target_lineage,
@@ -390,13 +393,22 @@ def _emit_cis_feature_expression_coherence(
 def _emit_card1b_pan_cancer_rnai_dependency_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs Card 1b's method internals to emit RNAi waterfall + histogram_kde SVGs."""
+    """Emit Card 1b (RNAi) figures. Prefer the OFFLINE render seam (persisted plot_data → method
+    render_from_plot_data, no live re-read, cannot diverge from the verdict); fall back to legacy live
+    re-execution when no persisted plot_data is present (migration-safe for every consumer)."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.depmap_demeter_distribution import cli as c1bcli
-
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data_rnai.parquet"
+    if pd_path.exists():
+        from methods.depmap_demeter_distribution.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_demeter_distribution import cli as c1bcli
     demeter_by_model, model_metadata, load_errors = c1bcli.load_rnai_files(
         release_pin="26q1", target_symbol=target
     )
@@ -432,7 +444,7 @@ def _emit_card1b_pan_cancer_rnai_dependency_distribution(
 def _emit_expression_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit E3.a figures. STAGE 3: prefer the OFFLINE render seam — if card resolution persisted
+    """Emit E3.a figures. Prefer the OFFLINE render seam — if card resolution persisted
     plot_data here (run with plot_data_root), render from it via the method's render_from_plot_data
     (no live re-read, deterministic, byte-identical to a live run, cannot diverge from the verdict).
     Falls back to the legacy live re-execution when no persisted plot_data is present, so every
@@ -442,7 +454,7 @@ def _emit_expression_distribution(
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # OFFLINE path (Stage 3): render from the persisted plot_data artifact when present.
+    # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data_expression.parquet"
     if pd_path.exists():
         from methods.depmap_expression_distribution.figures import render_from_plot_data
@@ -503,13 +515,22 @@ def _emit_mutation_type_counts(
 def _emit_cn_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs E3.b CN method to emit density (primary) + lineage_strip + waterfall."""
+    """Emit E3.b copy-number figures. Prefer the OFFLINE render seam (persisted plot_data → method
+    render_from_plot_data, no live re-read, cannot diverge from the verdict); fall back to legacy live
+    re-execution when no persisted plot_data is present (migration-safe for every consumer)."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.depmap_cn_distribution import cli as e3bcli
-
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data_cn.parquet"
+    if pd_path.exists():
+        from methods.depmap_cn_distribution.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_cn_distribution import cli as e3bcli
     cn_by, model_metadata, assay_used, load_errors = e3bcli.load_cn_files("26q1", target)
     if load_errors or not cn_by:
         return []
@@ -519,7 +540,7 @@ def _emit_cn_distribution(
     e3bcli.emit_waterfall_plot(cn_by, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3bcli.emit_plot_data(cn_by, model_metadata, out_dir)
     e3bcli.emit_manifest(target, "26q1", recomputed, out_dir, [])
-    return [
+    figures = [
         {"id": "density_cn", "path": "figure_density_cn.svg",
          "type": "density_histogram_with_kde_cn", "primary": True},
         {"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.svg",
@@ -527,6 +548,11 @@ def _emit_cn_distribution(
         {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg",
          "type": "ranked_waterfall_cn", "primary": False},
     ]
+    # Interactive twins — from the SAME cn_by + recomputed the SVGs used (no drift). cn gained a plotly
+    # twin with the Stage-3 migration; keep the legacy fallback aligned with the offline render seam.
+    figures += _plotly_from(e3bcli, "emit_plotly_specs", cn_by, model_metadata,
+                            target, recomputed, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_card1c_crispr_rnai_concordance(
@@ -758,15 +784,23 @@ def _emit_normal_tissue_liability(
 def _emit_protein_abundance_celline(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit the Gygi cell-line protein-abundance figures (density + lineage-strip SVG + plot_data +
-    interactive plotly). Re-runs the method load path (the summary doesn't preserve the raw
-    abundance_by_model / lineage_by_model the plots need) — mirrors _emit_expression_distribution.
-    On _live_read_error or no MS detection → []."""
+    """Emit the Gygi cell-line protein-abundance figures. Prefer the OFFLINE render seam (persisted
+    plot_data → method render_from_plot_data, no live re-read, cannot diverge from the verdict); fall
+    back to legacy live re-execution when no persisted plot_data is present. Mirrors
+    _emit_expression_distribution. On _live_read_error or no MS detection → []."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.depmap_protein_abundance import cli as pac
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data_protein_abundance.parquet"
+    if pd_path.exists():
+        from methods.depmap_protein_abundance.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_protein_abundance import cli as pac
     acc = pac.resolve_accession(target)
     if acc is None:
         return []
@@ -1316,10 +1350,10 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "prism-crispr-concordance": _emit_prism_crispr_concordance,
     "tumor-rna-vs-adjacent": _emit_expression_tumor_vs_adjacent,
     "tumor-vs-normal-selectivity": _emit_tumor_vs_normal_selectivity,
-    # SAFETY tier (viz-debt backfill 2026-07-20):
+    # SAFETY tier (2026-07-20):
     "gnomad-lof-constraint": _emit_gnomad_lof_constraint,
     "normal-tissue-liability": _emit_normal_tissue_liability,
-    # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi + CPTAC):
+    # PROTEIN tier (2026-07-21 — Gygi + CPTAC):
     "cellline-protein-abundance": _emit_protein_abundance_celline,
     "tumor-protein-abundance-cptac": _emit_protein_presence_cptac,
     # TARGET-GRAIN breadth (2026-07-22): pan-cancer by-tissue TPM distribution (TCGA tumor + GTEx

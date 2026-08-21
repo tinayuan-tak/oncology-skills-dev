@@ -1,5 +1,5 @@
 """Hermetic tests for _actionability_mode_facet — the verdict-inert cis_feature vs abundance vs
-dependency_relational selection-basis profile (Phase 0: annotation only, no routing).
+dependency_relational selection-basis profile (annotation only, no routing).
 
 Panel-based (avoids single-example overfit): clean-cis, clean-abundance, mixed (HER2-like), and the
 relational cases the binary breaks on (TP53 LoF must NOT read cis). Also pins the honesty invariants:
@@ -95,7 +95,7 @@ def test_shape_is_wellformed():
     assert set(m["arms"]) == {"cis_feature", "abundance", "dependency_relational"}
 
 
-# ── Phase-4 curated OVERRIDE ──────────────────────────────────────────────────────────────────────
+# ── curated OVERRIDE ──────────────────────────────────────────────────────────────────────
 def _cis_signals():
     return {"genomic_alteration": _R("biomarker_stratified_dependency",
             [("alteration-role", "alteration_role", "direct_driver_gof")])}

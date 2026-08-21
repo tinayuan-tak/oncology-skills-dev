@@ -6,8 +6,8 @@ logic lives in the methods repo:
 
   methods/dge_deseq2/read.py        — read_dge_gene_row()
   methods/depmap_chronos/read.py     — read_lineage_selectivity()
-  methods/gdc_somatic_hotspot/read.py (iter-1b execution session)
-  methods/tempus_rwd_aggregator/read.py (iter-1b execution session)
+  methods/gdc_somatic_hotspot/read.py
+  methods/tempus_rwd_aggregator/read.py
 
 This module is a THIN DISPATCH LAYER: each card_id maps to a method-module function
 call. No data-extraction logic lives here. If a future contributor is reading this
@@ -37,7 +37,7 @@ _TARGET_CONTRACTS_ROOT = Path(os.environ.get(
 
 
 def _load_internalizing_antigens() -> frozenset:
-    """B1 Rank-2: the curated internalizing-antigen gene set (target-contracts vocab
+    """Rank-2: the curated internalizing-antigen gene set (target-contracts vocab
     internalizing_antigen_targets.yaml). Clinically-validated ADC-internalizing antigens
     (approved/late-clinical ADC precedent). Read-only, lru-cached, never raises — an unreadable
     vocab yields an EMPTY set (→ every target stays endocytosis 'unmeasured', the honest degrade).
@@ -69,7 +69,7 @@ def _import_data_catalog_lib(lib_name: str):
     """Import a library package from the data-catalog repo's libs/ directory.
 
     target_id_resolver was migrated from claude-oncology-skills/libs/ to
-    data-catalog/libs/ (PR #55, 2026-06-29) — co-located with the source manifests
+    data-catalog/libs/ (2026-06-29) — co-located with the source manifests
     and release pins it resolves. The resolver's release-pin file lookup uses
     `_THIS_DIR.parent.parent.parent / "resolver-releases"` which only resolves
     correctly when the package lives inside the data-catalog tree.
@@ -139,7 +139,7 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
             "_data_note": (f"no tumor-vs-adjacent product for {target!r} in "
                            f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"),
         }
-    # 2026-08-11 REVIEW FIX (N2): emit expression_call_class on the non-COADREAD path too.
+    # 2026-08-11: emit expression_call_class on the non-COADREAD path too.
     # The COADREAD branch (read_dge_gene_row) emits expression_call_class via
     # _classify_expression_call; this branch previously returned only log2_fc/q_value, so the 6
     # tumor-rna-vs-adjacent interpretation rules (all keyed on field: expression_call_class) could
@@ -165,7 +165,7 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
         "gtex_q_value": sen.get("q_value_cell_c"),
         "tumor_mean_tpm": None, "adjacent_mean_tpm": None,   # not carried by sensitivity product
         "n_tumor": None, "n_adjacent": None,
-        # 2026-08-13 multi-pair review (finding #3-adjacent): the sensitivity product carries only the
+        # 2026-08-13: the sensitivity product carries only the
         # log2_fc/q verdict fields, NOT the tumor/adjacent descriptive means + sample counts (structurally
         # None above). Flag that gap EXPLICITLY so a downstream reader treats absent means/n as "not
         # carried by this product" rather than silently reading them as zero/missing. The verdict
@@ -273,7 +273,7 @@ def _dispatch_functional_gene_state(target: str, indication: str) -> Optional[di
 
 
 def _dispatch_genomic_event_model_match(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route genomic-event-model-match card (M11 — canonical P3 genomic join) to
+    """Dispatcher: route genomic-event-model-match card (M11 — canonical genomic join) to
     methods/genomic_event_model_match/cli.py::build_summary.
 
     Which DepMap models carry the SAME functional genomic event (M6 two-hit genotype) as the
@@ -304,7 +304,7 @@ def _dispatch_fusion_rearrangement_landscape(target: str, indication: str) -> Op
 # "same" axis, surfaced honestly via each record's source_cohort field.
 
 # indication → the assignments shard carrying the ENUMERATION AXIS for each panorama.
-# Iter-1b ships COADREAD only; iter-2 extends as shards land.
+# Ships COADREAD only; extends as shards land.
 #
 # NB — shard choice is the axis-membership source, NOT the value substrate:
 #   - mutation-FREQUENCY across MSI/MSS/sidedness enumerates the DIRECTLY-TAGGED
@@ -589,7 +589,7 @@ def _dispatch_expression_distribution(target: str, indication: str,
     Pan-cancer cell-line expression panel; indication accepted for dispatcher
     consistency but not consumed (this card is target-only).
 
-    MERGES an additive isoform-EXPRESSION facet (roadmap #2 model arm) from a SEPARATE method
+    MERGES an additive isoform-EXPRESSION facet (model arm) from a SEPARATE method
     module (depmap_isoform_expression -> depmap-isoform-expression-per-gene-v1): how dominated
     the gene's expression is by a single transcript across the panel. ORTHOGONAL to the
     expression-LEVEL fields (how MUCH vs WHICH transcript). Verdict-inert; degrades to
@@ -598,7 +598,7 @@ def _dispatch_expression_distribution(target: str, indication: str,
     expression panel's own cell-line count."""
     expr_module = _import_method("depmap_expression_distribution")
     _expr_kw = {"target": target, "indication": indication}
-    if plot_data_out is not None:  # figure Stage 1: persist plot_data during resolution
+    if plot_data_out is not None:  # figure persistence: persist plot_data during resolution
         _expr_kw["plot_data_out"] = plot_data_out
     out = dict(expr_module.read_expression_distribution(**_expr_kw))
     try:
@@ -626,7 +626,7 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Opt
     distribution_pattern) + matched-normal fraction-above-p95 overlay, from the TCGA + GTEx long
     products. Indication-scoped (the tumor distribution is per-indication).
 
-    MERGES an additive patient-SPLICING facet (roadmap #2 patient arm) from a SEPARATE method
+    MERGES an additive patient-SPLICING facet (patient arm) from a SEPARATE method
     module (tcga_spliceseq_psi -> tcga-spliceseq-psi-per-gene-v1): whether the gene's SPLICING is
     dysregulated in patient tumours (TCGA SpliceSeq PSI variability + tumour-vs-normal shift).
     ORTHOGONAL to the expression-LEVEL fields (how MUCH vs which SPLICE EVENTS shift); the patient
@@ -711,7 +711,7 @@ def _dispatch_sc_normal_celltype_expression(target: str, indication: str) -> Opt
     product (per-cell-type detection_fraction → sc_normal_expression_class). NOT a tumor-presence
     signal — a normal-tissue comparator consumed by tumor-presence (framing) + surface-modality-fit
     (safety). Indication-scoped (v1 shards: colon→COADREAD, lung→NSCLC); other indications →
-    data_unavailable. Was in both skills' CARDS since #267 but had no dispatcher here → read_live
+    data_unavailable. Was in both skills' CARDS but had no dispatcher here → read_live
     returned None → run_health degraded on every run; this closes that gap."""
     mod = _import_method("sc_normal_expression.cli")
     return mod.build_summary(target, indication)
@@ -723,14 +723,14 @@ def _dispatch_known_drug_tractability(target: str, indication: str) -> Optional[
 
     Target-grain (DGIdb drug-gene interactions + druggable-genome categories are a target property);
     indication accepted for the CARD_DISPATCHERS contract but NOT consumed. Wired into
-    tractability-small-molecule CARDS (#272) but had no dispatcher here → degraded runs; this closes it."""
+    tractability-small-molecule CARDS but had no dispatcher here → degraded runs; this closes it."""
     mod = _import_method("dgidb_drug_gene")
     return mod.known_drug_tractability_for_gene(target)
 
 
 def _dispatch_measured_potency_tractability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route measured-potency-tractability card (ChEMBL + BindingDB MEASURED binding
-    potency — the measured-potency leg of small-molecule tractability, T3.1) to
+    potency — the measured-potency leg of small-molecule tractability) to
     methods/measured_potency_tractability/read.py::measured_potency_for_gene.
 
     Target-grain (measured potency is a property of the gene's chemical matter); indication accepted
@@ -745,7 +745,7 @@ def _dispatch_mutation_stratified_surface(target: str, indication: str) -> Optio
     read_mutation_stratified_surface.
 
     Indication-scoped; driver defaults inside the method (v1 covers KRAS/NSCLC only → not_in_product
-    elsewhere, an honest coverage gap). Wired into surface-modality-fit CARDS (#276) but had no
+    elsewhere, an honest coverage gap). Wired into surface-modality-fit CARDS but had no
     dispatcher here → degraded runs; this closes it."""
     mod = _import_method("mutation_stratified_surface")
     return mod.read_mutation_stratified_surface(target, indication=indication)
@@ -757,7 +757,7 @@ def _dispatch_pathway_stratified_surface(target: str, indication: str) -> Option
     read_pathway_stratified_surface.
 
     Indication-scoped; signature defaults inside the method (v1 covers HALLMARK_HYPOXIA/NSCLC only →
-    not_in_product elsewhere, an honest coverage gap). Wired into surface-modality-fit CARDS (#280)
+    not_in_product elsewhere, an honest coverage gap). Wired into surface-modality-fit CARDS
     but had no dispatcher here → degraded runs; this closes it."""
     mod = _import_method("pathway_stratified_surface")
     return mod.read_pathway_stratified_surface(target, indication=indication)
@@ -958,7 +958,7 @@ def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
 
 
 # -----------------------------------------------------------------------------
-# RT1 fix-rollup 2026-07-09: dispatchers for the 11 new Phase D/E/F/G cards
+# 2026-07-09: dispatchers for the 11 new Phase D/E/F/G cards
 # from the Layer 6 skill graduations. Each dispatcher delegates to a method's
 # read.py::read_target_summary(). Hybrid cache-then-compute pattern lives in
 # the method's read.py — dispatchers stay thin.
@@ -981,7 +981,7 @@ def _dispatch_signaling_network_mechanism(target: str, indication: str) -> Optio
 
 def _dispatch_domain_modality_relevance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: domain-modality-relevance card → the INTERPRETIVE domain→modality layer via
-    methods/domain_modality_relevance/read.py (roadmap #3). Turns protein_class + domain
+    methods/domain_modality_relevance/read.py. Turns protein_class + domain
     architecture (+ a curated scaffolding vocab) into modality_implication_class — does the
     target's domain function favor a catalytic-site inhibitor or REMOVAL (degrader/glue), the
     RIPK1 scaffolding case. Target-intrinsic (indication ignored). Verdict-inert."""
@@ -1007,13 +1007,13 @@ def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[
         target, surface_family_class=surface_family_class, is_surface_protein=is_surface_protein)
 
 
-# _dispatch_ppi_interactome REMOVED (T11, 2026-08-11): the ppi-interactome card now declares
+# _dispatch_ppi_interactome REMOVED (2026-08-11): the ppi-interactome card now declares
 # module: ppi_interactome + entrypoint: read_target_summary in its card_spec, so the GENERIC
 # dispatcher (read_live_summary → _generic_dispatch) invokes it directly. No bespoke passthrough
 # function needed. This is the god-file-collapse pattern: pure passthroughs become card_spec data.
 
 
-# _dispatch_gene_ontology_annotation REMOVED (T11, 2026-08-11): the gene-ontology-annotation card
+# _dispatch_gene_ontology_annotation REMOVED (2026-08-11): the gene-ontology-annotation card
 # now declares module: gene_ontology_annotation + entrypoint: read_target_summary, so the GENERIC
 # dispatcher invokes it directly. See _generic_dispatch.
 
@@ -1076,7 +1076,7 @@ def _dispatch_structure_features_static(target: str, indication: str) -> Optiona
 
 
 def _dispatch_surface_abundance_density(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: surface-abundance-density card. TWO tiers, distinct slots (INC-4, 2026-08-08):
+    """Dispatcher: surface-abundance-density card. TWO tiers, distinct slots (2026-08-08):
 
     Tier-2 (grade-D estimate, the base summary) — methods/cptac_protein_deg/read.py::
       read_abundance_density_summary(): HPA-IHC ordinal × CPTAC log2FC order-of-magnitude copies/cell.
@@ -1192,7 +1192,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     is_surface = family.get("is_surface_protein", False)
     tm_count = topology.get("tm_pass_count", 0) or 0
     ec_length = topology.get("extracellular_residue_count", 0) or 0
-    # GPI-ANCHOR RESCUE (2026-08-09, modality-fit review M1). TMbed 1D topology STRUCTURALLY cannot
+    # GPI-ANCHOR RESCUE (2026-08-09). TMbed 1D topology STRUCTURALLY cannot
     # see a GPI anchor (no membrane-spanning segment) → a GPI-anchored antigen reads tm_count==0 and
     # would fall to `neither_viable` below, despite being displayed on the outer leaflet with a real
     # ECD. FOLR1 (Elahere — approved ADC), MSLN, CD59 are exactly this false-negative (live: tm=0,
@@ -1214,7 +1214,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     ubiq_measured = n_ubiq_raw is not None
     endo_high_conf = endo_raw or 0
     n_ubiq = n_ubiq_raw or 0
-    # B1 Rank-2: curated clinical-precedent internalization signal. A gene with an approved/
+    # Rank-2: curated clinical-precedent internalization signal. A gene with an approved/
     # late-clinical ADC (internalizing_antigen_targets.yaml) is internalizing by regulatory/trial
     # fact — a MEASURED-POSITIVE that supersedes the topology-only 'unmeasured' abstention. Positive-
     # only: a gene NOT in the vocab is unchanged (stays 'unmeasured'), never marked non-internalizing.
@@ -1230,7 +1230,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     else:
         endocytosis_confidence = "unmeasured"
 
-    # E2b (2026-08-07): distinguish a genuine COVERAGE GAP (topology/family product unavailable) from a
+    # 2026-08-07: distinguish a genuine COVERAGE GAP (topology/family product unavailable) from a
     # MEASURED non-surface. When family/topology came back data_unavailable, the composed call is a gap
     # (data_unavailable), NOT a measured neither_viable killer — otherwise a target with no topology/family
     # product reads as a hard biologics no-go rather than "unknown" (measured-vs-data_unavailable doctrine).
@@ -1239,7 +1239,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     # A GPI-anchored antigen is surface-accessible even at tm_count==0 (TMbed can't see the anchor).
     # It rescues the no_transmembrane false-negative ONLY when there is also a real bindable ECD.
     gpi_surface_accessible = is_gpi_anchored and is_surface and tm_count == 0 and ec_length >= 100
-    # E2b hardening (2026-08-12, adc-tce-modality-fit audit): EITHER required input missing is a coverage
+    # Hardening (2026-08-12): EITHER required input missing is a coverage
     # gap, not a measured no-go — was `and` (both). fit_class fundamentally needs BOTH the surfaceome-family
     # call (is_surface) and the topology product (tm_count/ec_length) to distinguish ADC vs TCE vs neither.
     # When topology is data_unavailable, tm_count/ec_length coalesce to 0 (lines above), which would trip
@@ -1297,7 +1297,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         else:
             fit_class = "modality_ambiguous"
 
-    # Isoform-selective A3 suppression check — now INDICATION-SCOPED at the topology dispatcher
+    # Isoform-selective suppression check — now INDICATION-SCOPED at the topology dispatcher
     # (2026-08-14): isoform_selective_warning is set ONLY in-context, so a gene with a dominant alt
     # isoform in a DIFFERENT indication (EGFRvIII in LUAD, METex14 in COADREAD) no longer has its
     # fit_class blanked — the computed categorical stands and the off-context caveat is passed through.
@@ -1310,7 +1310,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
                          f"endo_motif_hc={endo_high_conf if endo_measured else 'unmeasured'}, "
                          f"n_ubiq={n_ubiq if ubiq_measured else 'unmeasured'}"
                          + (", GPI-anchored (TMbed-invisible surface antigen rescued)" if gpi_surface_accessible else ""),
-        # GPI-anchor rescue provenance (M1 fix): surfaced so a GPI-driven surface call is auditable
+        # GPI-anchor rescue provenance: surfaced so a GPI-driven surface call is auditable
         # (the topology_class stays no_transmembrane — TMbed can't see the anchor — but fit_class is
         # computed on the ECD as a surface antigen). is_gpi_anchored is the curated UniProt LIPID fact.
         "is_gpi_anchored": is_gpi_anchored,
@@ -1422,7 +1422,7 @@ def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[
                "_rna_read_error": f"{type(e).__name__}: {e}"}
 
     # The RNA reader emits GENERIC field names (n_indications_tested, ...); the card contract
-    # (tumor-elevation-breadth.card.yaml, Slice C-4) declares them rna_-PREFIXED so they never
+    # (tumor-elevation-breadth.card.yaml) declares them rna_-PREFIXED so they never
     # collide with the protein layer's n_cohorts_* fields. Namespace them here so the card's
     # declared summary_fields resolve (the class field is already rna_-prefixed by the reader).
     _RNA_FIELD_MAP = {
@@ -1481,7 +1481,7 @@ def _dispatch_combinatorial_dependency(target: str, indication: str) -> Optional
 
 
 def _dispatch_clinvar_pathogenicity(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: clinvar-pathogenicity-safety card (P5 follow-on) -> methods/opentargets_clinvar/
+    """Dispatcher: clinvar-pathogenicity-safety card -> methods/opentargets_clinvar/
     read.py::read_clinvar_pathogenic. ClinVar germline-pathogenic safety (somatic guardrailed out).
     A 4th corroborating germline leg. Per-target (indication not consumed)."""
     mod = _import_method("opentargets_clinvar.read")
@@ -1489,7 +1489,7 @@ def _dispatch_clinvar_pathogenicity(target: str, indication: str) -> Optional[di
 
 
 def _dispatch_mouse_ko_phenotype(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: mouse-ko-phenotype card (P5 Slice 4) -> methods/opentargets_mouse_phenotype/read.py
+    """Dispatcher: mouse-ko-phenotype card -> methods/opentargets_mouse_phenotype/read.py
     ::read_mouse_ko_phenotype. Mouse-KO normal-physiology safety (developmental-guardrailed): adult
     lethality = adult-essential signal; embryonic/preweaning = caveat. INFERRED (model). Per-target."""
     mod = _import_method("opentargets_mouse_phenotype.read")
@@ -1497,7 +1497,7 @@ def _dispatch_mouse_ko_phenotype(target: str, indication: str) -> Optional[dict]
 
 
 def _dispatch_clingen_dosage(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: clingen-dosage card (P5 Slice 3) -> methods/opentargets_clingen/read.py::
+    """Dispatcher: clingen-dosage card -> methods/opentargets_clingen/read.py::
     read_clingen_dosage. ClinGen dosage sensitivity: is single-copy loss pathogenic (autosomal-
     dominant / haploinsufficiency) = a full-KO safety concern? Per-target (indication not consumed)."""
     mod = _import_method("opentargets_clingen.read")
@@ -1505,7 +1505,7 @@ def _dispatch_clingen_dosage(target: str, indication: str) -> Optional[dict]:
 
 
 def _dispatch_gene_burden_safety(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: gene-burden-safety card (P5 Slice 2, first verdict-moving) →
+    """Dispatcher: gene-burden-safety card (first verdict-moving) →
     methods/opentargets_gene_burden/read.py::read_gene_burden.
 
     Population rare-variant burden LoF-tolerance: does losing this gene's function increase
@@ -1517,13 +1517,13 @@ def _dispatch_gene_burden_safety(target: str, indication: str) -> Optional[dict]
 
 
 def _dispatch_target_safety_prioritisation(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: target-safety-prioritisation card (P5 Slice 1) →
+    """Dispatcher: target-safety-prioritisation card →
     methods/opentargets_target_prioritisation/read.py::read_target_prioritisation.
 
     A CONTEXT view of Open Targets 26.06 engineered target-prioritisation scores (safety-event,
     genetic-constraint, mouse-KO) — verdict-inert orientation for the safety skill, NOT a per-fact
     read. Per-target (indication accepted for the contract, not consumed — OT prioritisation is one
-    row per gene). The authoritative per-fact reads are gnomad-lof-constraint + the P5 Slices 2-4
+    row per gene). The authoritative per-fact reads are gnomad-lof-constraint + the
     measured cards."""
     mod = _import_method("opentargets_target_prioritisation.read")
     return mod.read_target_prioritisation(target, indication)
@@ -1568,11 +1568,11 @@ CARD_DISPATCHERS = {
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
     "cellline-rna-distribution-by-subtype": _dispatch_cellline_expression_distribution_subtype,
     "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
-    "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket (#267 added to CARDS, dispatcher was missing)
-    "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg (#272 added to CARDS, dispatcher was missing)
-    "measured-potency-tractability": _dispatch_measured_potency_tractability,     # ChEMBL/BindingDB MEASURED potency leg (T3.1)
-    "mutation-stratified-surface": _dispatch_mutation_stratified_surface,         # mutant-subset surface window (#276 added to CARDS, dispatcher was missing)
-    "pathway-stratified-surface": _dispatch_pathway_stratified_surface,           # tumor-state-high surface window (#280 added to CARDS, dispatcher was missing)
+    "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket
+    "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg
+    "measured-potency-tractability": _dispatch_measured_potency_tractability,     # ChEMBL/BindingDB MEASURED potency leg
+    "mutation-stratified-surface": _dispatch_mutation_stratified_surface,         # mutant-subset surface window
+    "pathway-stratified-surface": _dispatch_pathway_stratified_surface,           # tumor-state-high surface window
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "tumor-vs-normal-percentile-crossing-by-subtype": _dispatch_selectivity_crossing_subtype,  # Phase B: per-stratum crossing panorama
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
@@ -1593,10 +1593,10 @@ CARD_DISPATCHERS = {
     "subtype-survival-association": _dispatch_subtype_survival_association,         # Q2-subtype (2026-08-20): OS across molecular subtypes
     "phospho-pathway-activity": _dispatch_phospho_pathway_activity,
     "copy-number-distribution": _dispatch_cn_distribution,
-    # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
+    # 2026-07-09: 11 Phase D/E/F/G card dispatchers
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
     "tahoe-drug-perturbation": _dispatch_tahoe_drug_perturbation,
-    # gene-ontology-annotation + ppi-interactome REMOVED from CARD_DISPATCHERS (T11, 2026-08-11):
+    # gene-ontology-annotation + ppi-interactome REMOVED from CARD_DISPATCHERS (2026-08-11):
     # both now route through the GENERIC dispatcher via card_spec module/entrypoint declarations.
     "domain-modality-relevance": _dispatch_domain_modality_relevance,  # interpretive domain→modality (roadmap #3)
     "degradation-feasibility": _dispatch_degradation_feasibility,  # degrader-lens E3 slice 3 (UbiBrowser + precedent + location gate)
@@ -1612,15 +1612,15 @@ CARD_DISPATCHERS = {
     "combinatorial-dependency": _dispatch_combinatorial_dependency,
     "combo-crispr-screen": _dispatch_combo_crispr_screen,
     "resistance-emergence-signature": _dispatch_resistance_emergence_signature,
-    "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
-    "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
-    "clingen-dosage": _dispatch_clingen_dosage,                                # P5 Slice 3 (ClinGen dosage sensitivity, verdict-moving)
-    "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
-    "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # P5 follow-on (ClinVar germline-pathogenic, verdict-moving)
+    "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # OT safety context
+    "gene-burden-safety": _dispatch_gene_burden_safety,                        # OT rare-variant burden, verdict-moving
+    "clingen-dosage": _dispatch_clingen_dosage,                                # ClinGen dosage sensitivity, verdict-moving
+    "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # mouse-KO normal-physiology, developmental-guardrailed
+    "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # ClinVar germline-pathogenic, verdict-moving
     "immune-context": _dispatch_immune_context,
-    # NOTE: a pure-passthrough card needs NO entry here since T11 (#341) — read_live_summary falls
+    # NOTE: a pure-passthrough card needs NO entry here — read_live_summary falls
     # back to the generic dispatcher driven by the card_spec's `module`/`entrypoint`. Add a bespoke
-    # _dispatch_* only for multi-method merges or non-standard readers. (Removed a stale Iter-1b
+    # _dispatch_* only for multi-method merges or non-standard readers. (Removed a stale
     # dispatcher-roadmap comment here: tumor-vs-normal-selectivity is now a live entry above, and
     # subgroup-stratified-expression's blocked-on-per-sample-reader status lives on its card.)
 }
@@ -1634,7 +1634,7 @@ PANORAMA_DISPATCHERS = {
         _dispatch_subgroup_stratified_mutation_frequency, _MUTATION_ASSIGNMENTS_MANIFEST),
     "subgroup-stratified-dependency": (
         _dispatch_subgroup_stratified_dependency, _DEPENDENCY_ASSIGNMENTS_MANIFEST),
-    # CN + fusion subtype panoramas (scope-coherence Phase 3): both are TCGA-patient-tissue, so they
+    # CN + fusion subtype panoramas: both are TCGA-patient-tissue, so they
     # reuse the molecular TCGA assignments shard (no LOT/GENIE split — that split is mutation-only).
     "subgroup-stratified-copy-number": (
         _dispatch_subgroup_stratified_copy_number, _MUTATION_ASSIGNMENTS_MANIFEST),
@@ -1672,7 +1672,7 @@ def read_live_summary(card_id: str, target: str, indication: str,
     Accepting the kwarg (rather than the legacy scalar-only signature) is what lets
     _execution._call_live_reader pass it through without hitting the TypeError shim.
 
-    T4 (2026-08-11): data_context {data_mode, release_pin} is accepted (and forwarded to any
+    (2026-08-11): data_context {data_mode, release_pin} is accepted (and forwarded to any
     dispatcher whose signature declares it) so a release-aware method can pick the right manifest
     version via catalog_query.resolve_release. Single-release dispatchers ignore it. Accepting the
     kwarg here is what lets _call_live_reader's signature-introspection pass it through cleanly.
@@ -1680,7 +1680,7 @@ def read_live_summary(card_id: str, target: str, indication: str,
     Returns None if no dispatcher exists yet (caller falls back to stub or marks failed).
     """
     ctx = subgroup_context or {}
-    _dctx = data_context or {}  # T4: {data_mode, release_pin}; forwarded to release-aware dispatchers
+    _dctx = data_context or {}  # {data_mode, release_pin}; forwarded to release-aware dispatchers
     subgroups = ctx.get("resolved_strata_ids") or []
 
     # Panorama path: only when the card is panorama-capable AND strata are in scope.
@@ -1721,16 +1721,16 @@ def read_live_summary(card_id: str, target: str, indication: str,
 
     dispatcher = CARD_DISPATCHERS.get(card_id)
     if dispatcher is None:
-        # T11 (2026-08-11 engineering review): no BESPOKE dispatcher registered — try the GENERIC
+        # 2026-08-11: no BESPOKE dispatcher registered — try the GENERIC
         # data-driven path. If the card_spec's method declares a `module` + `entrypoint`, invoke it
         # directly, so a new pure-passthrough card needs NO hand-written _dispatch_* function. Returns
         # None only when the card has no generic wiring either (genuinely unwired → caller stubs/fails).
         return _generic_dispatch(card_id, target, indication, data_context=_dctx,
                                  plot_data_root=plot_data_root)
     try:
-        # T4: forward data_context ONLY to dispatchers whose signature declares it (release-aware
+        # Forward data_context ONLY to dispatchers whose signature declares it (release-aware
         # readers); single-release dispatchers keep the (target, indication) signature untouched.
-        # Figure Stage 1: same introspection forwards plot_data_out (a per-card dir) to dispatchers
+        # Figure persistence: same introspection forwards plot_data_out (a per-card dir) to dispatchers
         # that declare it, so card RESOLUTION persists plot_data. Inert for dispatchers that don't.
         kwargs = {"target": target, "indication": indication}
         import inspect
@@ -1751,7 +1751,7 @@ def read_live_summary(card_id: str, target: str, indication: str,
 def _generic_dispatch(card_id: str, target: str, indication: str,
                       data_context: Optional[dict] = None,
                       plot_data_root: Optional[Path] = None) -> Optional[dict]:
-    """Data-driven dispatch (T11): resolve (module, entrypoint) from the card_spec's first method
+    """Data-driven dispatch: resolve (module, entrypoint) from the card_spec's first method
     and call it as fn(target=, indication=). This collapses the ~30 pure-passthrough dispatchers
     (mod = _import_method(X); return mod.read_Y(target=, indication=)) into card_spec data, so a new
     card that follows that pattern needs no bespoke _dispatch_* function.
@@ -1760,7 +1760,7 @@ def _generic_dispatch(card_id: str, target: str, indication: str,
     dispatcher (multi-method merges, positional-arg readers, .cli quirks) is unaffected. Returns
     None when the card has no method with an `entrypoint` declared (genuinely unwired).
 
-    M3 fix (2026-08-15): forward release-pin context to the entrypoint the SAME way the bespoke
+    2026-08-15: forward release-pin context to the entrypoint the SAME way the bespoke
     path does — by INTROSPECTING the entrypoint signature and passing `data_context` and/or
     `release_pin` only when the reader declares them (or accepts **kwargs). Before this fix the
     generic path always called fn(target=, indication=), so a release-pinned generic-routed card
@@ -1803,7 +1803,7 @@ def _generic_dispatch(card_id: str, target: str, indication: str,
                 pin = _dctx.get("release_pin")
                 if pin is not None:
                     kwargs["release_pin"] = pin
-            # Figure Stage 1: forward a per-card plot_data dir ONLY to readers that declare
+            # Figure persistence: forward a per-card plot_data dir ONLY to readers that declare
             # plot_data_out (or **kwargs). Omitted otherwise → byte-identical to the legacy call.
             if plot_data_root is not None and (accepts_var_kw or "plot_data_out" in params):
                 kwargs["plot_data_out"] = Path(plot_data_root) / "cards" / card_id

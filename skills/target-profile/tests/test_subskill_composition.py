@@ -105,7 +105,7 @@ def test_attach_is_byte_additive_raw_fired_untouched(monkeypatch):
     dups kept — NOT the sorted set on the carrier. Prove the attach did not disturb r["fired"]
     (fan-out axes × the fake list) and that the two conventions genuinely differ.
     2026-08-14: 3 axes (+combinatorial_dependency); 2026-08-20: 4 (+cis_coherence), then 6
-    (+combination_opportunity +resistance_emergence, R9) → 6× the per-axis fake list."""
+    (+combination_opportunity +resistance_emergence) → 6× the per-axis fake list."""
     _install_fakes(monkeypatch)
     results = tp._run_sub_skills("KRAS", "COADREAD")
 
@@ -117,7 +117,7 @@ def test_attach_is_byte_additive_raw_fired_untouched(monkeypatch):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# WS1 (2026-08-17): target-intrinsic composed as a GATELESS descriptive PEER.
+# (2026-08-17): target-intrinsic composed as a GATELESS descriptive PEER.
 # It is the framework's FIRST verdict=None gateless short (`expression` /
 # `combinatorial_dependency` are gateless but DO emit a verdict). These guards pin
 # BOTH the structural gateless guarantee AND that the None-verdict gateless short is

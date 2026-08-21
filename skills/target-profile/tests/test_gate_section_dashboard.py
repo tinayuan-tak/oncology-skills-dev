@@ -488,7 +488,7 @@ def test_groundable_axis_without_record_renders_no_block():
 
 def test_nongroundable_axis_renders_not_configured_note():
     """A subskill whose axis is NOT groundable renders an honest 'not yet configured' grounding note
-    (coverage-gap honesty). Post-#500 the grounded reader covers ALL indication-conditioned subskills,
+    (coverage-gap honesty). The grounded reader covers ALL indication-conditioned subskills,
     so the only non-groundable subskill section is the indication-independent target_intrinsic."""
     sr = _sr()
     sr["target_intrinsic"] = {"skill_dir": "target-intrinsic",

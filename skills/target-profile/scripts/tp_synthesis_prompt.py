@@ -185,7 +185,7 @@ def _build_synthesis_tool() -> dict:
 
 
 def _render_matrix_slice_for_prompt(ordinal_matrix: dict) -> list[str]:
-    """The gate × modality ordinal matrix as prompt text (gap #4b): lets synthesis reason over
+    """The gate × modality ordinal matrix as prompt text: lets synthesis reason over
     the MATRIX-SLICE (which modality does each gate favor?) instead of only the flat verdict list.
     Emphatically labeled a REPROJECTION of the same signals — not new evidence, not a score."""
     cols = ordinal_matrix["axes"]["columns"]
@@ -497,7 +497,7 @@ def _build_user_prompt(
         lines.append(f"- corroboration (→ confidence in biology verdicts): "
                      f"{corr if corr else 'none reachable'}")
         lines.append(f"- stratification (→ patient selection): {strat if strat else 'none reachable'}")
-        # A2c: surface the QUANTITATIVE strengths behind the classes (from A2a's `quantitative` block)
+        # surface the QUANTITATIVE strengths behind the classes (from the `quantitative` block)
         # so the narration reports HOW STRONG each biomarker signal is, not just its bucket. Each stat
         # is glossed in plain language for a non-computational reader (publication-register discipline).
         quant = {k: v for k, v in (bf.get("quantitative") or {}).items() if v}

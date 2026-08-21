@@ -1,7 +1,7 @@
 """Regression test — SKILL.md ↔ scripts drift catcher.
 
-W4b (2026-07-09): This test would have caught the class of bug that
-shipped in Layer 6 and surfaced as code-review findings #3, #4, #5:
+This test (2026-07-09) would have caught the class of bug that
+shipped in Layer 6 and surfaced in code review:
 SKILL.md advertised status: wired or partial, but scripts/run.py still
 called emit_placeholder(). This test invokes each wired/partial skill's
 run.py end-to-end and asserts:
@@ -50,11 +50,11 @@ _ALWAYS_WIRED = [
     "genomic-alteration-profile",        # reframed from mutation-profile 2026-07-14
     "tractability-small-molecule",       # split from tractability-and-modality 2026-07-14
     "surface-modality-fit",              # split from tractability-and-modality 2026-07-14 (partial)
-    "mechanism-and-pharmacology",       # W2a graduation
-    "differentiation-landscape",         # W2b graduation
-    "on-target-safety-liability",        # W2c graduation
-    "surfaceome-cohort-ranking",         # W4-only skill (no target arg required)
-    "target-intrinsic",                  # indication-INDEPENDENT dossier (SK#201); descriptive/verdict-free,
+    "mechanism-and-pharmacology",       # graduated
+    "differentiation-landscape",         # graduated
+    "on-target-safety-liability",        # graduated
+    "surfaceome-cohort-ranking",         # no target arg required
+    "target-intrinsic",                  # indication-INDEPENDENT dossier; descriptive/verdict-free,
                                          # so it is in the SHAPE+status list but NOT _MUST_FIRE_ON_KRAS_COADREAD
                                          # (it mints no verdict by design). Added 2026-08-11 prod-readiness pass.
     "cis-feature-coherence",             # cis-coherence Stage 1 (2026-08-20); dedicated self-contained axis,

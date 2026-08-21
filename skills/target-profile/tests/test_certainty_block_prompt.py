@@ -1,13 +1,13 @@
-"""Phase 0 of the per-axis certainty layer: the ALREADY-computed fragility facet is routed into
+"""Per-axis certainty layer: the ALREADY-computed fragility facet is routed into
 the Tier-3 synthesis prompt as a per-axis how-solid block, so synthesis stops treating a
 coverage-thin / flip-fragile axis identically to a rock-solid one.
 
 Pins that _build_user_prompt embeds the certainty block with (a) a per-axis coverage +
 call-fragility + missing-card row, (b) the aggregate fragility indices, (c) the blind-axis gap
 list, and (d) the honesty framing (weakest-link, absence-of-evidence != negative, VERDICT-INERT).
-Purely additive: omitting `fragility` leaves the prompt in its pre-Phase-0 shape. Bedrock-free
+Purely additive: omitting `fragility` leaves the prompt in its pre-existing shape. Bedrock-free
 (renders the prompt string only). The DETERMINISTIC verdict/gate/confidence spine is untouched by
-this change — this test guards the prompt text only, which is exactly the boundary Phase 0 moves.
+this change — this test guards the prompt text only, which is exactly the boundary this change moves.
 """
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ def test_certainty_block_carries_weakest_link_and_mnar_framing():
 
 
 def test_certainty_block_separates_fragility_from_evidence_strength():
-    """Phase 0.5 (MET/LUAD A/B fix): the block must tell the LLM that CALL-FRAGILITY is a
+    """The block must tell the LLM that CALL-FRAGILITY is a
     STRUCTURAL property of the resolver ladder, NOT a measure of evidence strength — so a
     flip-fragile-but-concordant negative (MET dependency) is not narrated as evidentiary doubt."""
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(), fragility=_fragility())
@@ -113,7 +113,7 @@ def test_certainty_block_separates_fragility_from_evidence_strength():
 
 
 def test_prompt_backward_compatible_without_fragility():
-    """Omitting `fragility` (the pre-Phase-0 call shape) must still produce a valid prompt with NO
+    """Omitting `fragility` (the pre-existing call shape) must still produce a valid prompt with NO
     certainty block — purely additive, so the spine and every existing prompt test are unaffected."""
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results())  # no fragility
     assert "### Per-axis how-solid facet" not in prompt

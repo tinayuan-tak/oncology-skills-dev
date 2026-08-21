@@ -1,6 +1,6 @@
 """dispatcher — shared graduated-skill runner.
 
-W4 fix rollup (2026-07-09): factors the canonical wired-skill flow
+Fix rollup (2026-07-09): factors the canonical wired-skill flow
 (resolve_cards → fired_rules → verdict → write_package) into a single
 `run_wired_skill(...)` entry point. Replaces the ~130-line hand-written
 main() body in each wired skill with a ~30-40-line configuration.
@@ -8,11 +8,10 @@ main() body in each wired skill with a ~30-40-line configuration.
 Purpose: enforce the compositional-architecture pillar (Layered
 separation) at the code layer, not just at the SKILL.md metadata layer.
 Every graduated skill's dispatcher is now a single shared code path;
-the SKILL.md ↔ scripts drift class of bug (fix rollup findings #3, #4,
-#5) becomes structurally impossible because there is only one
-dispatcher implementation.
+the SKILL.md ↔ scripts drift class of bug becomes structurally
+impossible because there is only one dispatcher implementation.
 
-Also lands the arch A4 runtime consumer: when a card in `cards_used`
+Also lands the runtime consumer: when a card in `cards_used`
 resolves to `missing=True`, the dispatcher applies the
 `on_dependency_status[card_id]` behavior (skip_section /
 emit_with_caveat / fail) declared in the SKILL.md front-matter.
@@ -74,7 +73,7 @@ SynthesizeFn = Callable[[dict, Optional[str], Optional[str]], dict]
 SubtypePanoramaFn = Callable[[str, Optional[str], list], dict]
 
 
-# ARCH A4 — behaviors when a `cards_used` dep is missing at runtime.
+# Behaviors when a `cards_used` dep is missing at runtime.
 # Sourced from _skills_common.composition_schema.DEPENDENCY_STATUS_BEHAVIORS.
 _A4_SKIP = "skip_section"
 _A4_FAIL = "fail"
@@ -85,7 +84,7 @@ def _apply_on_dependency_status(
     cards: list[dict],
     on_dependency_status: dict[str, str],
 ) -> tuple[list[dict], list[str], list[str]]:
-    """Apply arch-A4 behavior when a card comes back missing.
+    """Apply the dependency-status behavior when a card comes back missing.
 
     Returns (surviving_cards, skipped_card_ids, caveat_messages).
     Raises RuntimeError on `fail` behavior.
@@ -136,7 +135,7 @@ def _apply_on_dependency_status(
     return surviving, skipped, caveats
 
 
-# ── D1b: opt-in evidence-package envelope emission for a focused subskill ──────────────
+# ── opt-in evidence-package envelope emission for a focused subskill ──────────────
 # governance.data_mode is a CLOSED enum (latest_approved | pinned | exploratory). A subskill
 # envelope is exploratory-grade by construction (no concurrence, no manifest pinning yet), so a
 # free-form --data-mode value (default "live") is mapped to a schema-valid governance value;
@@ -149,7 +148,7 @@ _GOVERNANCE_DATA_MODE = {
 
 
 def _provenance_warnings(provenance: dict) -> list:
-    """run_health observability (2026-08-13 multi-pair review, finding #4): surface any per-family
+    """run_health observability (2026-08-13 multi-pair review): surface any per-family
     catalog-head resolution failure that resolved_release_governance recorded fail-open in
     provenance.resolved_releases[<fam>].resolution_error. Previously that error lived ONLY in the
     provenance block, so run_health reported status='ok' for a run whose DGE family failed to resolve
@@ -256,7 +255,7 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
                             emitted_cards: list[dict], headline: dict,
                             verdict_pair: "Optional[tuple[str, Optional[str]]]",
                             fired: list[dict]) -> Path:
-    """Assemble + write evidence_package.json around a subskill's resolver verdict (D1b, opt-in).
+    """Assemble + write evidence_package.json around a subskill's resolver verdict (opt-in).
 
     PURELY ADDITIVE: consumes the already-computed decision outputs (emitted_cards, headline,
     verdict_pair, fired) and writes a sibling evidence_package.json in args.out. Never touches
@@ -336,7 +335,7 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
     try:
         # COMPOSE_SCRIPTS was added to sys.path by resolve_cards()'s dispatcher import above.
         from compose_phase1 import FRAMEWORK_VERSION as _fv
-    except Exception:  # noqa: BLE001 — fall back to the iter-1 framework version
+    except Exception:  # noqa: BLE001 — fall back to the default framework version
         _fv = "2.0.0"
 
     ep = assemble_evidence_package(
@@ -423,7 +422,7 @@ def run_wired_skill(
             uses selectivity_class directly) can omit this.
         headline_fn: optional callback (cards, fired, verdict_pair) → dict.
             When omitted, a minimal default headline is emitted.
-        on_dependency_status: arch A4 behavior map card_id → behavior. Passed
+        on_dependency_status: dependency-status behavior map card_id → behavior. Passed
             through from SKILL.md composition.on_dependency_status. When
             None or empty, missing cards are retained + surfaced in headline.
         partial_status_note: optional string surfaced in headline when the
@@ -431,8 +430,8 @@ def run_wired_skill(
         isoform_check_target: when True, the dispatcher calls
             isoform_selective_targets.check_target(args.target) and injects
             two fields (isoform_selective_warning + isoform_selective_
-            dominant_isoform) into the headline. Enables arch A3 discipline
-            for skills that emit modality-relevant fields.
+            dominant_isoform) into the headline. Enables isoform-selective
+            checking for skills that emit modality-relevant fields.
         subtype_panorama_fn: optional (target, indication, [stratum_ids]) -> dict resolver for
             a DESCRIPTIVE per-subtype panorama (e.g. dependency by MSI status). Invoked ONLY when
             the run receives --subtypes AND this fn is supplied. Its cards are appended to the
@@ -453,7 +452,7 @@ def run_wired_skill(
         argv: optional argv override (for tests / programmatic invocation).
 
     Returns:
-        exit code (0 on success). Raises RuntimeError under arch A4 fail.
+        exit code (0 on success). Raises RuntimeError under a 'fail' dependency-status behavior.
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True, help="HGNC gene symbol")
@@ -554,7 +553,7 @@ def run_wired_skill(
     _read_secs = time.perf_counter() - _t0
     _compute_start = time.perf_counter()
 
-    # 2. Apply arch A4 on_dependency_status behavior
+    # 2. Apply on_dependency_status behavior
     card_outputs, skipped_card_ids, a4_caveats = _apply_on_dependency_status(
         card_outputs, on_dependency_status or {}
     )
@@ -590,7 +589,7 @@ def run_wired_skill(
             subtype_result = {"cards": [], "scope_subtypes": _subtypes,
                               "_subtype_panorama_error": f"{type(e).__name__}: {e}"}
 
-    # 5. Isoform-selective A3 check (optional)
+    # 5. Isoform-selective check (optional)
     isoform_warning = None
     if isoform_check_target:
         from .isoform_selective_targets import check_target
@@ -622,7 +621,7 @@ def run_wired_skill(
             "driving_rule_id": verdict_pair[1] if verdict_pair else None,
         }
 
-    # Attach arch A4 provenance + isoform-selective flags uniformly
+    # Attach dependency-status provenance + isoform-selective flags uniformly
     headline["cards_available"] = sum(1 for c in card_outputs
                                        if not c.get("_missing"))
     headline["cards_missing"] = [c["card_id"] for c in card_outputs
@@ -683,12 +682,12 @@ def run_wired_skill(
     )
 
     # 8a. Per-subskill RUN-HEALTH record (observability; sibling key, never touches the spine).
-    # status: ok = all consumed cards resolved; degraded = some card missing/skipped (arch A4)
+    # status: ok = all consumed cards resolved; degraded = some card missing/skipped (dependency-status)
     # but the run completed. (A hard failure raises before here, so a written decision.json is
     # never 'error' — the ABSENCE of a fresh run_health is itself the error signal downstream.)
     _cards_missing = [c["card_id"] for c in card_outputs if c.get("_missing")]
     _cards_fired_ids = sorted({f.get("card_id") for f in fired if f.get("card_id")})
-    # PROVENANCE WARNINGS (2026-08-13 multi-pair review, finding #4): resolved_release_governance
+    # PROVENANCE WARNINGS (2026-08-13 multi-pair review): resolved_release_governance
     # records a per-family catalog-head resolution failure fail-open in
     # provenance.resolved_releases[<fam>].resolution_error (it must never sink emission). That error
     # was previously observable ONLY in the provenance block — run_health never read it, so a run
@@ -802,7 +801,7 @@ def run_wired_skill(
     if skipped_card_ids:
         print(f"  arch A4 skipped: {skipped_card_ids}")
 
-    # 10. OPT-IN evidence-package envelope (D1b). Default OFF ⇒ this whole block is skipped ⇒
+    # 10. OPT-IN evidence-package envelope. Default OFF ⇒ this whole block is skipped ⇒
     # zero behavior change for every existing invocation. When set, assemble + write a sibling
     # evidence_package.json around the verdict already computed above (decision.json untouched —
     # byte-identical). A failure here degrades to a note; it must never break the deterministic run.

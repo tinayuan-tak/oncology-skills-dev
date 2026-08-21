@@ -1,8 +1,8 @@
-"""P4 Example-B divergence test: ONE card, TWO modality gates, DIVERGENT modality reads.
+"""Divergence test: ONE card, TWO modality gates, DIVERGENT modality reads.
 
-The master-sequencing capstone's Example B: a recurrent copy-number AMPLIFICATION reads adc-favorable
+A recurrent copy-number AMPLIFICATION reads adc-favorable
 at the SURFACE modality gate (antigen density) AND SM-relevant at the genomic/intracellular gate — from
-the SAME immutable copy-number-distribution card. Slice 2 added the surface-axis rule; slice 3 put the
+the SAME immutable copy-number-distribution card. One change added the surface-axis rule; a follow-up put the
 card in surface-modality-fit's set. This test proves the divergence at the fired-rules layer (signal
 matrix), NOT the verdict layer (the surface verdict still resolves off adc-tce-modality-fit.fit_class —
 byte-stable). Reads the LIVE target-contracts rules; graceful-skips if not checked out alongside."""
@@ -34,7 +34,7 @@ def _amplified_cn_card() -> dict:
                     reason="target-contracts not checked out alongside")
 def test_amplification_diverges_across_modality_gates():
     """The SAME amplified copy-number card fires adc/bite_tce/antibody `supportive` on the surface
-    axis AND small_molecule/degrader on the intracellular axis — Example B divergence."""
+    axis AND small_molecule/degrader on the intracellular axis — the divergence."""
     cards = [_amplified_cn_card()]
 
     surface = fired_rules(cards, axis="surface_intrinsic",

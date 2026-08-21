@@ -29,7 +29,7 @@ Four curated fixtures pin all four non-trivial verdict classes AND both conditio
     (guards the 1.4.0 precedence fix: the P5 HOLD must fire ABOVE the soft/tolerant gnomAD rungs).
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ BRAF = ("braf_coadread", "BRAF", "COADREAD", "wt_constraint_mechanism_mismatch")
 EGFR = ("egfr_coadread", "EGFR", "COADREAD", "wt_human_genetics_mechanism_mismatch")
 TP53 = ("tp53_coadread", "TP53", "COADREAD", "highly_constrained_safety_concern")
 VHL  = ("vhl_coadread",  "VHL",  "COADREAD", "human_genetics_safety_concern")
-# S1-1 (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven. Unlike the
+# (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven. Unlike the
 # DOWNGRADE cases (activating -> mutant-selective downgrade), the amplification guard KEEPS the raw HOLD
 # because a drug hits the WILD-TYPE (amplified) protein — the mutant-selective-sparing logic fails.
 ERBB2 = ("erbb2_brca", "ERBB2", "BRCA", "human_genetics_safety_concern")
@@ -206,12 +206,12 @@ def test_non_gof_concern_is_not_downgraded(pair_id, target, indication, expected
 
 
 def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
-    """S1-1 (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven must KEEP
+    """(cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven must KEEP
     its on-target-safety HOLD, NOT be mutant-selectively downgraded — a drug (ADC/TCE/degrader/WT-hitting
     inhibitor) engages the WILD-TYPE (amplified) protein, so the mutant-selective-sparing logic fails.
     ERBB2/BRCA: activating (IntOGen Act) + ONCOGENE + recurrent_focal_amplification + a WT-loss warning.
     WITHOUT the GROUP-0 amplification guard this would resolve to wt_human_genetics_mechanism_mismatch
-    (the S1-1 bug — a false safety pass); WITH it, the raw HOLD stands, driven by the amp guard rule."""
+    (the bug — a false safety pass); WITH it, the raw HOLD stands, driven by the amp guard rule."""
     pair_id, target, indication, _ = ERBB2
     d = _decision(pair_id, target, indication)
     h = d.get("headline") or {}

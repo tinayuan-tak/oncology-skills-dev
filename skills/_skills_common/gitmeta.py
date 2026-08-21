@@ -1,6 +1,6 @@
 """Shared git-provenance helper for compositional skills.
 
-T8 fix (2026-08-11 engineering review): the framework's audit spine leaned on placeholder
+(2026-08-11): the framework's audit spine leaned on placeholder
 provenance — compose-dashboard shipped `SKILL_VERSION = "0a1b2c3"` (a hardcoded stub, never
 populated) and stamped method-call `git_sha` with an execution-MODE tag ("phase2_live"), not a
 real SHA. So an evidence_package could not answer "which code version produced this."

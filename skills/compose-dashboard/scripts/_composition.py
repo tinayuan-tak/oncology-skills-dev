@@ -76,7 +76,7 @@ def compose_card_run_plan(
         else:
             failed.append(entry["failure_entry"])
 
-    # 3. Placeholder cards (TC #310): declared-but-not-yet-wired cards (card.status
+    # 3. Placeholder cards: declared-but-not-yet-wired cards (card.status
     #    placeholder_not_wired / dormant_pending_data). Surfaced in excluded_at_compose for roadmap
     #    transparency — visible in the plan/package but never run (no method/product). NOT gated by
     #    when: (they never run regardless of context). Reuses the standard exclusion_entry shape so
@@ -141,8 +141,8 @@ def _try_compose_card(
     version_range = card_ref.get("version", "")
 
     # CHECK data_status FIRST — before attempting to load the card_spec.
-    # Cards with data_status: data_blocked or method_pending are intentionally paper-only
-    # for iter-1b; their card_spec may not exist on disk. Treat as excluded, not failed.
+    # Cards with data_status: data_blocked or method_pending are intentionally paper-only;
+    # their card_spec may not exist on disk. Treat as excluded, not failed.
     data_status = card_ref.get("data_status")
     if data_status in ("data_blocked", "method_pending"):
         return {
@@ -223,7 +223,7 @@ def _evaluate_dashboard_when(when_predicate: Optional[str], subgroup_spec: objec
     Phase-1 supports a minimal predicate subset:
       - "subgroup_spec != null"  → True iff subgroup_spec is not None
       - 'indication in ["X","Y"]' → True iff (we don't have indication context; treat as true)
-                                    Indication-gating is iter-1b execution-session work.
+                                    Indication-gating is execution-session work.
     """
     if when_predicate is None:
         return True
@@ -245,7 +245,7 @@ def _merge_threshold_overlays(
 ) -> tuple[dict, list[str]]:
     """Merge threshold overlays from loaded modality modules for this card_id.
 
-    C2 fix (post-adversarial-review): conservative-merge with severity ordering.
+    Conservative-merge with severity ordering.
     When multiple modules tune the same threshold key:
       - For SEVERITY_TIER keys (those ending in `_severity_tier`): pick the STRICTEST tier
         across all contributing modules. Ordering: strict > moderate > pathway_dependent.
@@ -290,7 +290,7 @@ def _merge_threshold_overlays(
     # Step 3: apply numerical overlays. Numerical overlays are rare (the severity_tier pattern is
     # preferred), but when >1 module tunes the same numerical key we must NOT silently resolve by
     # insertion order — that made the merged threshold depend on module LOAD ORDER (a
-    # non-deterministic, invisible dependency). T19 fix (2026-08-11 engineering review): resolve
+    # non-deterministic, invisible dependency). 2026-08-11: resolve
     # order-INDEPENDENTLY. Single contributor → use it. Multiple AGREEING → use the (shared) value.
     # Multiple DISAGREEING → pick the strictest (min) so composition stays deterministic and errs
     # toward false-negative (same discipline as the severity-tier strictest-wins rule), and emit a
@@ -332,7 +332,7 @@ def _merge_threshold_overlays(
             effective["essential_tissue_active_threshold"] = effective[tier_threshold_key]
 
     # Backward-compat: legacy `severity_threshold` (string) overlay support — used by
-    # iter-1a modality modules before tiered thresholds. Maps `moderate`/`strict` to
+    # modality modules before tiered thresholds. Maps `moderate`/`strict` to
     # `essential_tissue_severity_tier` for the normal-tissue-liability card specifically.
     if "severity_threshold" in effective and card_id == "normal-tissue-liability":
         legacy_tier = effective["severity_threshold"]

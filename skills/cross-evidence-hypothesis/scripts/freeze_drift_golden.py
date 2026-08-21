@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""freeze_drift_golden — (re)generate the WS4 offline golden-set drift-CI fixtures (roadmap §9).
+"""freeze_drift_golden — (re)generate the offline golden-set drift-CI fixtures.
 
 For each golden case (KRAS/COADREAD, MARK2/PAAD) this:
   1. TRIMS the full target-profile evidence_package to the integrator-relevant fields

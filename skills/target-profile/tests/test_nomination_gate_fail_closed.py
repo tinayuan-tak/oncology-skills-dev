@@ -1,4 +1,4 @@
-"""Regression fixtures for the FAIL-CLOSED, GATE-COMPLETE nomination gate (roadmap §6.6).
+"""Regression fixtures for the FAIL-CLOSED, GATE-COMPLETE nomination gate.
 
 The gate previously (a) FAILED OPEN — an unknown/renamed/malformed verdict on a veto-capable
 axis returned None → a silent permissive pass; and (b) was not gate-complete — kill verdicts

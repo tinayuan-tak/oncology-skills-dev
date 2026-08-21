@@ -89,7 +89,7 @@ def _fit_class(topology: dict, family: dict | None = None) -> str:
 
 
 def test_both_viable_is_reachable():
-    """A target with ADC topology AND low n_ubiq should be both_viable (C3 regression).
+    """A target with ADC topology AND low n_ubiq should be both_viable.
 
     ADC (fixed): tm=1, ec>=200, endo_hc>=3  (n_ubiq >= 5 requirement removed)
     TCE (fixed): tm>=1, ec>=100, n_ubiq<=3  (endo_hc <= 2 requirement removed)
@@ -331,7 +331,7 @@ def test_multiple_rows_parse_correctly(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# C3b — ADC-reachability on the LIVE path (B1 fix, 2026-08-06)
+# ADC-reachability on the LIVE path (2026-08-06)
 # The live topology product carries NO endocytosis/ubiquitination data (both None,
 # _ptm_coverage=data_unavailable). Before B1, `endo_hc or 0` collapsed None→0, so an
 # UNMEASURED field vetoed the ADC branch → ADC_preferred/both_viable were unreachable on
@@ -339,7 +339,7 @@ def test_multiple_rows_parse_correctly(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_adc_preferred_reachable_when_endocytosis_UNMEASURED():
-    """The core B1 fix: TROP2-like single-pass, long-ECD, endocytosis UNMEASURED (None, the live
+    """TROP2-like single-pass, long-ECD, endocytosis UNMEASURED (None, the live
     product state) must reach ADC_preferred on topology — an unmeasured field cannot veto."""
     r = _fit(_topo(tm=1, ec=248, endo_hc=None, n_ubiq=None))  # TROP2-like ECD ~248
     assert r["fit_class"] in ("ADC_preferred", "both_viable"), (
@@ -485,7 +485,7 @@ def _positive_card(card_id: str) -> dict:
 
 
 def test_killer_veto_card_read_error_marks_modality_non_concludable():
-    """CORE O1 fix: two positive primary cards would score the modality 'strong', but the
+    """Two positive primary cards would score the modality 'strong', but the
     killer-veto (safety) card CRASHED (read_error) and is absent from card_outputs. The modality
     must be NON-CONCLUDABLE, never viable."""
     run_plan = _run_plan_with_killer(

@@ -22,7 +22,7 @@ has_pd_marker); this projection reads the already-computed cards and never feeds
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals
+from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, corr as _corr
 
 # network_class = ANNOTATION DENSITY, not biological strength → CAPPED at moderate (never strong).
 _NETWORK_SIGNAL = {
@@ -73,12 +73,6 @@ def _sig(card, field, smap):
     def fn(h, c):
         cls = (c.get(card) or {}).get(field)
         return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
-    return fn
-
-
-def _corr(card, field, smap):
-    def fn(h, c):
-        return "moderate" if smap.get((c.get(card) or {}).get(field), "unmeasured") != "unmeasured" else "unmeasured"
     return fn
 
 

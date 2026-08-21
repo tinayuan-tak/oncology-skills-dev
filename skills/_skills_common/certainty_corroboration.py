@@ -1,7 +1,7 @@
-"""Accessor for the per-gate certainty-corroboration manifest (R3 follow-on: manifest authoritative).
+"""Accessor for the per-gate certainty-corroboration manifest (follow-on: manifest authoritative).
 
 Reads target-contracts vocabularies/certainty_corroboration.yaml — the declarative, VERDICT-DISJOINT
-corroboration-source cards per gate (CERTAINTY_MODEL §2). A sub-skill's certainty extractor computes its
+corroboration-source cards per gate (CERTAINTY_MODEL). A sub-skill's certainty extractor computes its
 `corroboration` from a per-axis expert call (the model forbids a generic extractor), so this manifest
 can't DRIVE the extractor — but the extractor can DECLARE which card(s) it reads for corroboration and
 cross-check them against this manifest, so the two can't silently drift (the check the disjointness

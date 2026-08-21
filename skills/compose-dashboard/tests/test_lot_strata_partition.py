@@ -82,7 +82,7 @@ def test_lot_only_routes_to_genie(monkeypatch):
 def test_lot_without_shard_emits_note_not_crash(monkeypatch):
     fake = _patch(monkeypatch)
     # STAD has no LOT shard in the map → LOT arm degrades to a data-note, molecular arm still runs.
-    # (NSCLC/COADREAD now HAVE LOT shards — Phase 3d/iter-1 — so an unsharded indication is used here.)
+    # (NSCLC/COADREAD now HAVE LOT shards, so an unsharded indication is used here.)
     out = L._dispatch_subgroup_stratified_mutation_frequency(
         "KRAS", "STAD", subgroups=["MSS", "LOT_1L_only"],
         subgroup_assignments_manifest="tcga-subgroup-assignments-stad-v1")
@@ -91,7 +91,7 @@ def test_lot_without_shard_emits_note_not_crash(monkeypatch):
     assert "_data_note" in out and "LOT" in out["_data_note"]
 
 
-# --- Finding 4 (bug-audit): read_live_summary must NOT prematurely bail for an indication that
+# --- read_live_summary must NOT prematurely bail for an indication that
 #     has ONLY a GENIE-BPC LOT shard (e.g. NSCLC). The outer gate keyed on the molecular-only
 #     manifest map, so the NSCLC LOT panorama was unreachable + emitted a factually-wrong note. ---
 

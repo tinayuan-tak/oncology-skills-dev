@@ -1,5 +1,5 @@
 """Subtype-refinement figure — a compact SVG of the per-stratum claim vector
-(headline['claim_vector_by_subtype'], from #527). Shows the strata-varying claims (A abundance,
+(headline['claim_vector_by_subtype']). Shows the strata-varying claims (A abundance,
 distributional B) per molecular subtype, so a target-indication-SUBTYPE reader sees where the pooled
 signal concentrates (e.g. CD274 → MSI-H). Additive / display-only, emitted via the --figures hook.
 

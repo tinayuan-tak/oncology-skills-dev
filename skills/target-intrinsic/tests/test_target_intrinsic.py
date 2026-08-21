@@ -40,7 +40,7 @@ def test_cards_match_skill_md():
 def test_measurement_types_parity():
     """DATA_TO_SKILL_CONTRACT Rule 3: every consumed card pulls one measurement_type, so
     measurement_types_pulled must have the SAME cardinality as cards_used. Guards the drift that
-    shipped when target-development-level (#322) was added to cards_used but NOT to
+    shipped when target-development-level was added to cards_used but NOT to
     measurement_types_pulled (18 vs 19), uncaught because test_cards_match_skill_md only checks
     CARDS↔cards_used."""
     comp = _skill_md_composition()
@@ -108,7 +108,7 @@ def test_every_card_is_surfaced_in_headline():
     A descriptive skill (verdict_fn=None) has no ladder to force a card's signal into output, so
     a card added to CARDS but never surfaced resolves INVISIBLY — it costs a live read and
     inflates cards_available, but its data is silently dropped. That is exactly what happened to
-    domain-modality-relevance (in CARDS via #264, but unread until 2026-08-08). This asserts it
+    domain-modality-relevance (in CARDS but unread until 2026-08-08). This asserts it
     cannot recur: CARDS ⊆ cards-in-_HEADLINE_SPEC."""
     cards = set(_cards_from_runpy())
     read = _cards_read_in_headline()

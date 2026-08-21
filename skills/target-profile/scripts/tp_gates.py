@@ -41,7 +41,7 @@ from tp_common import _CONTRACTS_REPO
 # hardcoded fallback-of-record.
 #
 # HISTORY: this gate's killer-short-circuit shape once echoed compose-dashboard's
-# _synthesis.py fit_level scorer. That second engine was removed in Phase D (#377) —
+# _synthesis.py fit_level scorer. That second engine was removed —
 # compose-dashboard now routes through the same shared resolver — so the "two composition
 # engines" that motivated the copied-not-shared pattern no longer exist; only this
 # higher-level nomination layer remains, and it is intentionally its own declarative gate.
@@ -70,10 +70,10 @@ _FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
     ("safety", "human_genetics_safety_concern"): "hold",       # P5 human-genetics WT-loss concern
     ("subtype_fit", "subtype_specific_non_dependence"): "hold",  # queried subtype has no dependency
 }
-# Precedence when multiple gates fire: veto dominates hold. R7 follow-on (2026-08-20): READ from the
+# Precedence when multiple gates fire: veto dominates hold. (2026-08-20): READ from the
 # owner-editable vocab (nomination_verdict_gate.action_precedence) so the vocab is authoritative, with
 # this hardcoded map as the conservative fallback-of-record — NEVER empty (a missing precedence must not
-# flatten veto vs hold into a permissive tie). The R6/R7 guard test asserts the loaded value matches vocab.
+# flatten veto vs hold into a permissive tie). The guard test asserts the loaded value matches vocab.
 _FALLBACK_GATE_ACTION_RANK = {"veto": 2, "hold": 1}
 
 
@@ -92,7 +92,7 @@ def _load_action_precedence(contracts_repo: Path | None = None) -> dict:
 
 _GATE_ACTION_RANK = _load_action_precedence()
 
-# --- Fail-closed, gate-complete guard (roadmap §6.6, invariant 6) -----------
+# --- Fail-closed, gate-complete guard (invariant 6) -----------
 #
 # The GATING (recommendation-forcing) axes: the sub-skills that can force
 # overall_recommendation via a `gates` veto/hold. An UNKNOWN / RENAMED / MALFORMED
@@ -202,7 +202,7 @@ def _load_gate_verdicts(contracts_repo: Path | None = None) -> tuple[dict[tuple[
 def _load_kill_capable_verdicts(
     contracts_repo: Path | None = None,
 ) -> tuple[dict[tuple[str, str], str], str]:
-    """Load the COMPLETE kill_capable_verdicts registry (roadmap §6.6) from the vocab.
+    """Load the COMPLETE kill_capable_verdicts registry from the vocab.
     Returns ({(sub_skill, verdict): disposition}, source), disposition ∈
     {gated, excluded_modality_scoped, contradiction}.
 
@@ -346,7 +346,7 @@ def _gate_recommendation(
         # never fail-closed on it (that would veto every target an axis was blind on). Skip.
         if not v:
             continue
-        # FAIL-CLOSED (§6.6): a MALFORMED verdict tuple on a veto-capable (gating) axis is NOT a
+        # FAIL-CLOSED: a MALFORMED verdict tuple on a veto-capable (gating) axis is NOT a
         # silent continue — a garbled sub-verdict on dependency/safety/subtype could be masking a
         # kill. Route to the axis's least-permissive action; never None.
         well_formed = isinstance(v, (list, tuple)) and len(v) >= 1 and isinstance(v[0], str)
@@ -368,7 +368,7 @@ def _gate_recommendation(
                          "action": action, "driving_rule_id": driving_rule_id,
                          "policy_source": policy_source})
             continue
-        # No gate action matched. FAIL-CLOSED (§6.6): on a gating axis, an UNRECOGNIZED verdict
+        # No gate action matched. FAIL-CLOSED: on a gating axis, an UNRECOGNIZED verdict
         # token (renamed kill, unknown enum) is NOT a silent permissive pass — if the token is not
         # in the axis's complete recognized vocabulary it may be a renamed veto, so route to the
         # axis's least-permissive action. Recognized-but-non-gating verdicts (positives, neutrals,
@@ -400,7 +400,7 @@ def _hard_gates_status(
     sub_results: dict, hits: list[dict], suppressions: list[dict],
     contracts_repo: Path | None = None,
 ) -> list[dict]:
-    """Build the COMPLETE-declared-set hard-gate status block (roadmap §6.6, gate-complete
+    """Build the COMPLETE-declared-set hard-gate status block (gate-complete
     ceiling). Iterates EVERY kill-capable verdict declared in the target-contracts
     kill_capable_verdicts registry (hardcoded complete fallback on load failure) and reports,
     per (sub_skill, verdict), its status THIS run — so the full hard-gate set is legible and a
@@ -461,11 +461,11 @@ def _hard_gates_status(
     return rows
 
 
-# --- Deciding-axis router (L / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 3) -----
+# --- Deciding-axis router -----
 #
 # Turns a bare `insufficient_evidence` into a ROUTING statement: which gate is load-bearing
-# for THIS run, and whether the framework can evidence it. HONESTY GUARDRAIL (Reframe 3 lines
-# 103-106): this does NOT predict which gate WILL decide a target prospectively ("a mis-route
+# for THIS run, and whether the framework can evidence it. HONESTY GUARDRAIL: this does NOT
+# predict which gate WILL decide a target prospectively ("a mis-route
 # fails more confidently than a portrait"). It only REPORTS, from the run's actual sub-verdicts:
 #   - gate FIRED (veto/hold)  → the firing gate IS the deciding axis (known, not predicted);
 #                               framework_can_evidence = captured (we evidenced it → it fired).

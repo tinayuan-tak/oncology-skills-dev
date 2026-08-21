@@ -1,6 +1,6 @@
 """End-to-end tests for compose-dashboard's full 3-phase orchestrator.
 
-These tests verify the architectural commitments of iter-1b end-to-end:
+These tests verify the architectural commitments end-to-end:
   - phase-1 → phase-2 → phase-3 pipeline produces a schema-valid evidence_package
   - KRAS-COADREAD (positive case) produces non-trivial card outputs + meaningful synthesis
   - TG-COADREAD (negative-control) gracefully refuses with structured message
@@ -46,7 +46,7 @@ def test_e2e_kras_coadread_full_pipeline():
     assert vs["n_cards_failed"] == 0, "no card should have failed in stub mode"
 
     # Phase-3 commitments — meaningful synthesis.
-    # D2 RE-POINT (2026-08-12): the headline now reads from the PRIMARY resolver gate verdict
+    # 2026-08-12: the headline now reads from the PRIMARY resolver gate verdict
     # (tractability_small_molecule), not the per-modality fit_level (which is a demoted lens).
     # Pre-swap this asserted the fit_level phrasing ("small_molecule ... strong/moderate") was the
     # verdict; post-swap we assert the resolver verdict spine + keep the lens as a secondary check.
@@ -83,7 +83,7 @@ def test_e2e_tg_coadread_negative_control_unknown_axis():
         execution_mode="stub",
         deterministic_timestamps=True,
     )
-    # L4 fix (post-adversarial-review): refusal packages with unknown axis NOW correctly
+    # Refusal packages with unknown axis NOW correctly
     # produce a hgnc_id=-1 sentinel which fails evidence_package schema validation
     # (schema requires hgnc_id >= 1). This is the right behavior — a package missing
     # target identity is structurally NOT a valid governance-grade artifact. Test
@@ -135,7 +135,7 @@ def test_e2e_kras_explicit_small_molecule():
     assert len(ep["synthesis"]["modality_fit_assessment"]) == 1
     assert ep["synthesis"]["modality_fit_assessment"][0]["modality"] == "small_molecule"
 
-    # D2 RE-POINT (2026-08-12): headline reads from the resolver's tractability_small_molecule
+    # 2026-08-12: headline reads from the resolver's tractability_small_molecule
     # gate verdict, not the fit_level. The gate is modality-independent (the small_molecule /
     # degrader lens restriction does not change the intracellular tractability gate), so the
     # verdict is the same well_covered as the both-modalities run.
@@ -148,7 +148,7 @@ def test_e2e_kras_explicit_small_molecule():
 # ============================================================================
 
 def test_e2e_invariance_byte_identical_reruns():
-    """The card-invariance discipline (A2) extends to the full evidence_package
+    """The card-invariance discipline extends to the full evidence_package
     when deterministic timestamps are used."""
     import json
     plans_eps = [
@@ -185,7 +185,7 @@ def test_e2e_kras_adc_incompatible_handled_gracefully():
         execution_mode="stub",
         deterministic_timestamps=True,
     )
-    # L4 fix (post-adversarial-review): incompatibility refusals also produce hgnc_id=-1
+    # Incompatibility refusals also produce hgnc_id=-1
     # sentinel → schema error is expected. The framework correctly refuses to ship a
     # package with unresolved target identity, signaled via schema validation failure.
     assert any("hgnc_id" in e for e in errors), \

@@ -19,7 +19,7 @@ Two curated fixtures pin two distinct verdicts that fire on real COADREAD data:
   - FBXW7 / COADREAD — strong_cooccurring (a distinct verdict).
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Shared evidence-package envelope writer (Phase D, D1a — 2026-08-12).
+"""Shared evidence-package envelope writer (Phase D, 2026-08-12).
 
 ONE reusable builder for the top-level evidence_package.json envelope. Extracted
 byte-preserving from compose-dashboard's `_assemble_evidence_package`, so that other
@@ -13,8 +13,8 @@ provenance identity (`generated_by`) and version stamping (`framework_version`).
 the writer reusable across skills: each caller stamps its OWN `generated_by` (e.g.
 `skills/<skill>@<sha>`) rather than inheriting compose-dashboard's.
 
-D1b (2026-08-12): the writer takes `input_context` + `dashboard_spec_ref` as EXPLICIT
-params instead of digging into a `run_plan` dict. A focused subskill (dispatcher.py
+A later refinement (2026-08-12): the writer takes `input_context` + `dashboard_spec_ref` as
+EXPLICIT params instead of digging into a `run_plan` dict. A focused subskill (dispatcher.py
 run_wired_skill --emit-envelope) has no run_plan, so decoupling the writer from that
 compose-dashboard-only structure lets a subskill emit the same envelope around its own
 resolver verdict. compose-dashboard passes input_context=run_plan["input_context"] and
@@ -39,7 +39,7 @@ def build_governance(data_mode: str, release_pin: str, validation_summary: dict)
     target-profile directly) so the block cannot drift between them — the Phase-D single-engine
     invariant applied to governance. Keys mirror the evidence_package schema's governance object
     (data_mode, release_pin, validation_summary); note we deliberately do NOT emit a lockfile_ref
-    (nothing writes a lockfile — see the L3 fix in assemble_evidence_package).
+    (nothing writes a lockfile — see the fix in assemble_evidence_package).
     """
     return {
         "data_mode": data_mode,
@@ -136,7 +136,7 @@ def _refine_product_id_staleness(resolved: dict) -> None:
     'stale' signal. We cannot know the concrete release read from a product_id alone (that needs a
     reader-side stamp of the resolved manifest id), so staleness is INDETERMINATE, not True.
 
-    SCHEMA-SAFE REPRESENTATION (O4, 2026-08-15): this runs on the evidence_package ENVELOPE path
+    SCHEMA-SAFE REPRESENTATION (2026-08-15): this runs on the evidence_package ENVELOPE path
     (assemble_evidence_package), whose governance.resolved_releases[*].is_stale is schema-typed
     `boolean` — so we OMIT is_stale (dropping the false True) and add a `stale_indeterminate` marker
     (an allowed additional property) rather than setting is_stale=None (which would fail schema
@@ -174,7 +174,7 @@ def resolved_release_governance(card_outputs, data_mode, release_pin,
     Never raises (governance must not block emission). `resolve_release`/`family_of` are injectable for
     hermetic testing; otherwise lazily imported.
 
-    `refine_product_id_staleness` (O4, 2026-08-15): when True, families whose `used` ids are all
+    `refine_product_id_staleness` (2026-08-15): when True, families whose `used` ids are all
     products.yaml product_ids get an HONEST-staleness rewrite (see _refine_product_id_staleness) —
     the false-True is_stale is dropped and a stale_indeterminate marker is added. DEFAULT FALSE so the
     compose-dashboard byte-golden envelope is unchanged (only target-profile's --emit envelope opts in,
@@ -262,7 +262,7 @@ def build_subskill_provenance(card_outputs: list, data_mode: str, release_pin: "
     if resolver_release_pin:
         prov["resolver_release_pin"] = resolver_release_pin
     prov.update(resolved_release_governance(card_outputs, data_mode, release_pin or "unpinned"))
-    # (B, 2026-08-14) HONEST STALENESS for product-id-declared families — SUBSKILL-ONLY. Cards declare
+    # (2026-08-14) HONEST STALENESS for product-id-declared families — SUBSKILL-ONLY. Cards declare
     # their inputs as products.yaml product_ids (card_spec.required_inputs[].product_id), so a family
     # whose `used` ids are all product_ids (not concrete manifest ids) has is_stale = (head not in used)
     # = trivially True even when the run read the current head — a false 'stale' signal. We cannot know
@@ -288,7 +288,7 @@ def build_subskill_provenance(card_outputs: list, data_mode: str, release_pin: "
 
 def _stamp_evidence_substrate(entry: dict) -> None:
     """Stamp (measurement_type, evidence_substrate, provenance.required_product_ids) onto a
-    card_present entry IN PLACE (cross-evidence roadmap invariant 8). Best-effort + fail-open: any
+    card_present entry IN PLACE (cross-evidence independence invariant). Best-effort + fail-open: any
     unresolved key is omitted and a skills-only / registry-unreachable checkout is a silent no-op —
     provenance enrichment must never block or crash evidence-package emission."""
     card_id = entry.get("card_id")
@@ -333,23 +333,23 @@ def assemble_evidence_package(
         passes run_plan["input_context"]; a subskill builds an equivalent dict.
     `dashboard_spec_ref` — the dashboard/skill spec this package was composed against.
         compose-dashboard passes its resolved base dashboard (or "unresolved"); a subskill
-        passes "skill:<skill_name>". Explicit param (D1b) so the writer no longer digs into
+        passes "skill:<skill_name>". Explicit param so the writer no longer digs into
         a run_plan["axis_resolution"] structure that only compose-dashboard has.
     `framework_version` — semver stamped into the envelope (e.g. "2.0.0").
     `generated_by` — producer identity + git sha (e.g. "skills/compose-dashboard@a1b2c3d").
         The caller owns this so the writer is reusable across skills.
-    `unavailable_cards` (F, 2026-07-20): reasoned absences (unwired / data-blocked / etc.)
+    `unavailable_cards` (2026-07-20): reasoned absences (unwired / data-blocked / etc.)
     collected by phase-2 separately from the synthesis-input card_outputs; emitted as
     card_unavailable envelope entries so a consumer can see WHY a card is absent instead of
     an opaque n_cards_failed integer.
 
-    `refine_product_id_staleness` (O4, 2026-08-15): forwarded to resolved_release_governance so a
+    `refine_product_id_staleness` (2026-08-15): forwarded to resolved_release_governance so a
     caller reading product-id-declared cards (target-profile's --emit) emits HONEST staleness
     (indeterminate, not false-True) for those families. DEFAULT FALSE — compose-dashboard leaves it
     off so its byte-golden envelope is unchanged.
 
-    `stamp_evidence_substrate` (2026-08-16, cross-evidence roadmap invariant 8 — "independence before
-    certainty"): when True, each present card_present entry is stamped with its `measurement_type` +
+    `stamp_evidence_substrate` (2026-08-16, cross-evidence independence invariant — "independence
+    before certainty"): when True, each present card_present entry is stamped with its `measurement_type` +
     `evidence_substrate` (resolved from the measurement_types registry's `cards:` back-refs +
     `evidence_substrates` vocab) and its provenance carries the DECLARED `required_product_ids`
     (card_spec.required_inputs[].product_id). This lets a cross-evidence integrator detect which cards
@@ -367,8 +367,8 @@ def assemble_evidence_package(
 
     package_id = f"ep-{target}-{indication}-{release_pin}-{data_mode}-001".lower()
 
-    # Determine concurrence absence — iter-1b ships without concurrence by default.
-    # 2026-08-10 REVIEW FIX (L3): do NOT advertise governance.lockfile_ref="lockfile.yaml" —
+    # Determine concurrence absence — ships without concurrence by default.
+    # 2026-08-10 fix: do NOT advertise governance.lockfile_ref="lockfile.yaml" —
     # nothing in the pipeline ever WROTE that file, so the envelope pointed at a nonexistent
     # provenance artifact (phantom reproducibility claim). lockfile_ref is optional in the
     # evidence_package schema and the renderer guards it (`if gov.get("lockfile_ref")`), so
@@ -399,7 +399,7 @@ def assemble_evidence_package(
         if s.get("resolved_uniprot_canonical"):
             target_block["uniprot"] = s["resolved_uniprot_canonical"]
     else:
-        # L4 fix (post-adversarial-review): no more hgnc_id=1 placeholder. When
+        # Fix (post-adversarial-review): no more hgnc_id=1 placeholder. When
         # target-identity-summary is missing/failed/excluded, the framework MUST NOT
         # fabricate an identity. We emit a clearly-marked placeholder hgnc_id that
         # downstream consumers can detect (-1 means "not resolved"; downstream renderer
@@ -444,7 +444,7 @@ def assemble_evidence_package(
                 _stamp_evidence_substrate(entry)
             cards.append(entry)
 
-    # Append reasoned-absence entries (F, 2026-07-20): the card_unavailable envelope variant.
+    # Append reasoned-absence entries (2026-07-20): the card_unavailable envelope variant.
     # A card whose live reader returned None (unwired) is no longer silently dropped to the
     # n_cards_failed integer — it appears here with a typed availability_state so a consumer
     # (and the deciding-axis router) can distinguish "not built yet" from a measured absence.
@@ -470,7 +470,7 @@ def assemble_evidence_package(
         "dashboard_spec_ref": dashboard_spec_ref,
         "cards": cards,
         "synthesis": synthesis_block,
-        # 2026-08-10 REVIEW FIX (L4): the pointer said "renderings/dashboard.md" but main() writes
+        # 2026-08-10 fix: the pointer said "renderings/dashboard.md" but main() writes
         # the rendering to the package ROOT (out / "dashboard.md") — no renderings/ subdir is ever
         # created, so the self-describing pointer was wrong on every emitted package. Point at the
         # actual file. (Keeping the file at root; only the pointer was inconsistent.)

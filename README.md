@@ -114,15 +114,15 @@ A full profile walks A → K; a focused question invokes a single skill.
 |---|---|---|
 | **A** Presence | Is the target expressed in the tumor (RNA + protein, cell-line + patient)? | [`tumor-presence`](skills/tumor-presence/) |
 | **B** Selectivity | Is it tumor-selective vs normal tissue, robustly across comparators? | [`tumor-selectivity`](skills/tumor-selectivity/) |
-| **C** Requirement | Is it a genetic dependency (CRISPR + RNAi + lineage), and is a null read a context-conditional false negative? | [`functional-requirement`](skills/functional-requirement/), [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) |
-| **C** Combinatorial dependency | Is it a measured paralog dual-KO (synthetic-lethal / buffering) co-dependency? | [`combinatorial-dependency`](skills/combinatorial-dependency/) |
+| **C** Requirement | Is it a genetic dependency (CRISPR + RNAi + lineage), and is a null read a context-conditional false negative? | [`functional-requirement`](skills/functional-requirement/) |
+| **C** Combination & vulnerability | What does it depend on / combine with — SL partners, measured dual-KO co-dependencies, combo co-targets, resistance mediators? | [`combination-and-vulnerability`](skills/combination-and-vulnerability/) *(consolidates the retired `synthetic-lethal-partners`, `combinatorial-dependency`, `combo-and-resistance` — each still runnable standalone)* |
 | **A/E** Genomic alteration | How is it altered — SNV/indel, copy-number, fusion — and which class drives? | [`genomic-alteration-profile`](skills/genomic-alteration-profile/) |
 | **D** Mechanism | What upstream/downstream signaling context and candidate MoA hooks exist? | [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) |
 | **E** Differentiation | What co-mutation / mutual-exclusivity landscape frames patient selection? | [`differentiation-landscape`](skills/differentiation-landscape/) |
 | **F** Tractability & modality | Is it small-molecule druggable? Does surface biology support ADC/TCE? Whole-surfaceome scan; logic-gated antigen-pair scan. | [`tractability-small-molecule`](skills/tractability-small-molecule/), [`surface-modality-fit`](skills/surface-modality-fit/), [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/), [`bispecific-pair-scan`](skills/bispecific-pair-scan/) |
 | **F** Immune context | Is the tumor immune-hot enough (CD8 effector population) to redirect a TCE? | [`immune-context`](skills/immune-context/) |
 | **G** Safety | Is it germline-constrained (gnomAD) — what does that imply for a full-KO modality? | [`on-target-safety-liability`](skills/on-target-safety-liability/) |
-| **I** Combination/resistance | On inhibition, what combinations / resistance signatures emerge? | [`combo-and-resistance`](skills/combo-and-resistance/) *(wired)* |
+| **I** Combination/resistance | On inhibition, what combinations / resistance signatures emerge? | [`combination-and-vulnerability`](skills/combination-and-vulnerability/) *(now the live home; the former [`combo-and-resistance`](skills/combo-and-resistance/) is **deprecated**, runnable standalone)* |
 | **J** Translational readiness | Models, PD assays, imaging tracers available? | [`translational-readiness`](skills/translational-readiness/) *(partial)* |
 | **—** Target-intrinsic | Indication-independent molecular dossier (localization, pathways, PPIs, domains, protein class). | [`target-intrinsic`](skills/target-intrinsic/) |
 
@@ -180,29 +180,30 @@ Productization (Phase D / D1): standalone subskills can emit the same `evidence_
 
 | Skill | Ver | Phase | Data mode | Status |
 |---|---|---|---|---|
-| [`tumor-presence`](skills/tumor-presence/) | 1.2.0 | A | `derived_read` | wired — 11 cards, 7 verdict-bearing + 4 display facets |
-| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.2.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
-| [`functional-requirement`](skills/functional-requirement/) | 1.3.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog + subtype panorama |
-| [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | — | C | `derived_read` | wired — SynLethDB v3 veto-suppressor (annotation, not measurement) |
-| [`combinatorial-dependency`](skills/combinatorial-dependency/) | 1.0.0 | C | `derived_read` | wired — measured paralog dual-KO co-dependency (DepMap ParalogV2 26Q1); self-contained verdict |
-| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.0.0 | A, E | `derived_read` | wired — SNV/indel + copy-number + fusion [LIVE, additive] |
-| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.2.0 | D | `derived_read` | wired — SIGNOR/OmniPath MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
-| [`differentiation-landscape`](skills/differentiation-landscape/) | 1.2.0 | E | `derived_read` | partial — co-mutation wired; clinical-precedent / patent placeholder |
-| [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.1.0 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
-| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.0.0 | F | `derived_read` | partial — surfaceome-family + topology + density readers live (+ CSPA surface-confirmation, shed-ectodomain, sc-homogeneity, therapeutic-window, pMHC, exon-window, mutation-/pathway-stratified, CD-antigen backbone as additive signal facets); structure-features (PDB/AlphaFold + ligandability) landed 2026-08-07, feeding the small-molecule ligandability leg (does not feed the biologics `fit_class` by design) |
+| [`tumor-presence`](skills/tumor-presence/) | 1.12.0 | A | `derived_read` | wired — 11 cards, 7 verdict-bearing + 4 display facets |
+| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.11.1 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
+| [`functional-requirement`](skills/functional-requirement/) | 1.4.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog + subtype panorama |
+| [`combination-and-vulnerability`](skills/combination-and-vulnerability/) | 0.1.0 | C | `derived_read` | partial — consolidated relational annex: SL (SynLethDB v3) + measured dual-KO + combo co-targets + resistance mediators; ranked-partner-table output, gateless (verdict=None) |
+| [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | — | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. SL cards now compose under `combination-and-vulnerability` |
+| [`combinatorial-dependency`](skills/combinatorial-dependency/) | 1.0.0 | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. Dual-KO card now composes under `combination-and-vulnerability` |
+| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.7.0 | A, E | `derived_read` | wired — SNV/indel + copy-number + fusion [LIVE, additive] |
+| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.6.1 | D | `derived_read` | wired — SIGNOR/CollecTRI/Reactome MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
+| [`differentiation-landscape`](skills/differentiation-landscape/) | 1.3.0 | E | `derived_read` | partial — co-mutation wired; clinical-precedent / patent placeholder |
+| [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.4.0 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
+| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.3.0 | F | `derived_read` | partial — surfaceome-family + topology + density readers live (+ CSPA surface-confirmation, shed-ectodomain, sc-homogeneity, therapeutic-window, pMHC, exon-window, mutation-/pathway-stratified, CD-antigen backbone as additive signal facets); structure-features (PDB/AlphaFold + ligandability) landed 2026-08-07, feeding the small-molecule ligandability leg (does not feed the biologics `fit_class` by design) |
 | [`immune-context`](skills/immune-context/) | 1.0.0 | F | `derived_read` | partial — CIBERSORT LM22 CD8 infiltration (per-indication); TCE effector-arm companion to surface-modality-fit; antigen-conditioned join is v2 |
-| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.7.0 | G | `derived_read` | partial — 6 human-genetics legs live (gnomAD LoF + Open Targets 26.06: gene-burden, ClinGen dosage, mouse-KO, ClinVar, target-priority) + GTEx breadth; two axes remain incomplete |
+| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.8.0 | G | `derived_read` | partial — 6 human-genetics legs live (gnomAD LoF + Open Targets 26.06: gene-burden, ClinGen dosage, mouse-KO, ClinVar, target-priority) + GTEx breadth; two axes remain incomplete |
 | [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/) | 1.1.0 | F | `batch_compute` | target-scan hook — per-indication whole-surfaceome ranking |
 | [`bispecific-pair-scan`](skills/bispecific-pair-scan/) | 1.0.0 | F | `batch_compute` | partial — logic-gated (AND/OR/NOT) antigen-pair tumor-vs-normal selectivity scan; background candidate-generation hook, not interactive |
-| [`target-intrinsic`](skills/target-intrinsic/) | 1.0.0 | A,C,F,G | `live_read` | wired — 18 live cards, indication-independent dossier |
-| [`combo-and-resistance`](skills/combo-and-resistance/) | 2.0.0 | I | `derived_read` | wired — combination half (combo-crispr-screen → DepMap 26Q1 drug-anchor) + resistance-emergence half (sign-mirror of the same screens; landed 2026-08-10); two self-contained verdicts |
-| [`translational-readiness`](skills/translational-readiness/) | 1.0.0 | J | `derived_read` | partial — target-model-availability card wired (HCMI patient-derived model coverage per indication; graduated 2026-08-14); PD-assay / imaging-tracer / internal-model legs remain unwired |
+| [`target-intrinsic`](skills/target-intrinsic/) | 1.2.1 | A,C,F,G | `live_read` | wired — 18 live cards, indication-independent dossier |
+| [`combo-and-resistance`](skills/combo-and-resistance/) | 3.0.0 | I | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. Its combination + resistance cards now compose under `combination-and-vulnerability` |
+| [`translational-readiness`](skills/translational-readiness/) | 1.1.0 | J | `derived_read` | partial — target-model-availability card wired (HCMI patient-derived model coverage per indication; graduated 2026-08-14); PD-assay / imaging-tracer / internal-model legs remain unwired |
 
 ### Composition & orchestration skills
 
 | Skill | Ver | Role |
 |---|---|---|
-| [`target-profile`](skills/target-profile/) | 1.0.0 | Fans out (in-process) to the 10 wired question skills, collects each sub-verdict, then runs Tier-3 structured LLM synthesis (Bedrock, tool-choice-forced) for `executive_summary` + `tension_analysis` + `recommendation`. Emits `target_profile.md` + `nomination.json` + provenance. Deterministic sub-verdicts and LLM narrative live in **distinct schema slots** — the audit spine is invariant even if narrative drifts. |
+| [`target-profile`](skills/target-profile/) | 1.1.0 | Fans out (in-process) to the 13 wired question skills, collects each sub-verdict, then runs Tier-3 structured LLM synthesis (Bedrock, tool-choice-forced) for `executive_summary` + `tension_analysis` + `recommendation`. Emits `target_profile.md` + `nomination.json` + provenance. Deterministic sub-verdicts and LLM narrative live in **distinct schema slots** — the audit spine is invariant even if narrative drifts. |
 | [`compose-dashboard`](skills/compose-dashboard/) | — | Consumes a `dashboard_spec` (from `target-contracts`) + invocation context (target, indication, subgroup, data_mode, release_pin) and produces `evidence_package.json` (+ `run_plan.yaml`, `dashboard.md`, `INDEX.md`) in the `data-products` repo; the validation summary is embedded in `evidence_package.governance` (there is no separate `lockfile.yaml` / `validation_report.json`). All three phases (compose → execute → synthesize) are implemented. |
 | [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). Invoked automatically by `compose-dashboard`. |
 | [`query-target-evidence`](skills/query-target-evidence/) | 2.0.0 | **Retrieval-only.** Reads a stored `evidence.json` from `core-artifacts/`, validates + checks staleness, returns. If an artifact is missing it names the batch job that produces it — it never triggers compute. |
@@ -226,7 +227,7 @@ Productization (Phase D / D1): standalone subskills can emit the same `evidence_
 | [skills/_skills_common/](skills/_skills_common/) | Shared helpers used across skills. |
 | [libs/target_id_resolver/](libs/target_id_resolver/) | Target-ID resolver consumed by ingestion + skills so raw-ID joins don't silently drop. |
 | [core-artifacts-schema/](core-artifacts-schema/) | The stored-artifact contract (`evidence.schema.json`, `target.schema.json`) + per-product `result` schemas. Consumed by `query-target-evidence`. |
-| [batch/](batch/) | Out-of-band compute. `batch/expression_rna_COADREAD/` is the reference R/Bioconductor DGE pipeline (DESeq2 + ComBat-seq + lfcShrink(apeglm)); `batch/loaders/` defines the source-loader `Protocol`. Batch jobs write artifacts; they are **never invoked by Claude**. |
+| [batch/](batch/) | Out-of-band compute. `batch/expression_rna_COADREAD/` is the reference R/Bioconductor DGE pipeline (DESeq2 + ComBat-seq + lfcShrink(apeglm)). Batch jobs write artifacts; they are **never invoked by Claude**. |
 | [configs/](configs/) | Per-indication parameters (`COADREAD.yaml`: cohorts, subtypes, FDR tiers, reference). |
 | [docs/](docs/) | Design + governance docs — scope reviews, defect register, `target-profile` walkthrough, showcase design, worked examples. |
 | [notebooks/](notebooks/) | Exploration before code hardens into `batch/` or a method module. |

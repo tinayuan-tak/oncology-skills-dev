@@ -74,12 +74,6 @@ class PubMedSearchResult:
     disease: str
     abstracts_by_category: dict[str, list[PubMedAbstract]] = field(default_factory=dict)
 
-    @property
-    def all_pmids(self) -> set[str]:
-        return {
-            a.pmid for cat in self.abstracts_by_category.values() for a in cat
-        }
-
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -153,7 +147,7 @@ def _esearch(query: str, *, retmax: int, timeout_s: float,
              mindate: str | None = None, maxdate: str | None = None) -> list[str]:
     """Return up to `retmax` PMIDs for a query. When mindate/maxdate are given, bounds the
     publication-date window (datetype=pdat) so the corpus is pinnable/reproducible — the fix
-    for the unbounded-corpus reproducibility gap (RISK_ASSESSMENT_INTEGRATION.md §5 precond #1)."""
+    for the unbounded-corpus reproducibility gap (RISK_ASSESSMENT_INTEGRATION.md)."""
     params = {
         'db': 'pubmed',
         'term': query,

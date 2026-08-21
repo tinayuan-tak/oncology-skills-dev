@@ -1,6 +1,6 @@
 """target-profile `--emit evidence-package` — first-class `subtype_resolved` block (Option A).
 
-subtype-first-class-evidence-axis spec (WS1, EMIT side). Makes per-stratum subtype SIGNALS
+subtype-first-class-evidence-axis spec (EMIT side). Makes per-stratum subtype SIGNALS
 machine-readable in the evidence package so the cross-evidence integrator can later reason at
 subtype resolution — WITHOUT changing the deterministic spine's deliberate "subtype = context, not
 a gate" treatment. Pins:

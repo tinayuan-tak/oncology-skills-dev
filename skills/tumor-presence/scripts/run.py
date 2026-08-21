@@ -191,8 +191,8 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
     ("tumor-breadth-not-elevated-neutral",              "not_tumor_elevated"),
     ("protein-modestly-down-opposing",                  "protein_modestly_downregulated"),
     ("protein-strongly-down-opposing",                  "protein_strongly_downregulated"),
-    # (protein-not-detected-degrader-killer removed 2026-08-20, review G2a: the CPTAC classifier never
-    #  emits not_detected — whole-proteome TMT can't assert per-gene absence; target-contracts #467
+    # (protein-not-detected-degrader-killer removed 2026-08-20: the CPTAC classifier never
+    #  emits not_detected — whole-proteome TMT can't assert per-gene absence; target-contracts
     #  retired the rule. The reachable protein-absence signal is the cell-line-MS broadly_low rung below.)
     ("protein-abundance-broadly-low-degrader-killer",   "protein_broadly_low"),
     ("protein-data-unavailable-insufficient",           "data_unavailable"),
@@ -288,13 +288,13 @@ _PROT_POS_RIDS = frozenset(rid for rid, _ in _PROT_POS)
 # a tumor-vs-normal DOWN contrast (protein-{modestly,strongly}-down-opposing) means the protein was
 # MEASURED PRESENT but is lower in tumor than matched normal — a Phase-B SELECTIVITY signal, NOT absence
 # (Phase A). Demoting a present call to "protein_absent" off a down-contrast is a category error (the
-# tumor-presence expert-review finding G2b), so those rungs are deliberately EXCLUDED here. Absence =
+# tumor-presence expert-review finding), so those rungs are deliberately EXCLUDED here. Absence =
 # cell-line whole-panel broadly_low (detected in <30% of the Gygi MS panel, AND — post the
 # depmap_protein_abundance lineage-restricted-floor fix — not a rescued lineage-restricted antigen). The
 # down-contrasts remain in _MEASURED_NEGATIVE_VERDICTS so the collapse ordering + the
 # `presence_headline_conflict` guard still surface them per-bucket — only the WORD-level demotion is
 # narrowed. (CPTAC not_detected is NOT here: whole-proteome TMT can't assert per-gene absence — a missing
-# protein resolves to data_unavailable, not a measured negative — so target-contracts #467 retired that
+# protein resolves to data_unavailable, not a measured negative — so target-contracts retired that
 # dead rule + card vocab; the cell-line broadly_low rung is the reachable protein-absence signal.)
 _PROTEIN_ABSENCE_RIDS = frozenset({
     "protein-abundance-broadly-low-degrader-killer",   # cell-line: broadly-low MS detection (genuine absence)
@@ -323,7 +323,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     `present_rna_only_protein_absent` (still a present call — the driving RNA rung is retained for
     traceability — but the word now carries the caveat that `presence_headline_conflict` also surfaces).
 
-    NOTE (finding G2b): the trigger is genuine ABSENCE only, NOT a tumor-vs-normal down-CONTRAST. A
+    NOTE: the trigger is genuine ABSENCE only, NOT a tumor-vs-normal down-CONTRAST. A
     protein measured present-but-lower in tumor (protein-{modestly,strongly}-down-opposing) is a
     selectivity signal, not absence, and must not demote a present call to "protein_absent". Those rungs
     stay in the collapse's measured-negative tier (and in the headline_conflict guard) but are excluded
@@ -562,7 +562,7 @@ def _abundance_floor(cards, collapsed_verdict):
     return ("present_low_abundance" if low else "adequate_abundance"), low
 
 
-# ─── Protein-confirmation state (VERDICT-INERT headline facet — finding G5) ───────────────
+# ─── Protein-confirmation state (VERDICT-INERT headline facet) ───────────────
 # The collapsed one-word presence_verdict, for a positive-RNA target, can read `present` while protein
 # was never TESTED (most indications have no CPTAC / cell-line-MS coverage — the modal case). The
 # measured-ABSENT contradiction is handled at the spine (present_rna_only_protein_absent, a rare +
@@ -577,7 +577,7 @@ def _abundance_floor(cards, collapsed_verdict):
 # tumor-CPTAC-present / cell-line-absent target is confirmed present) — mirrors the positives-over-
 # negatives collapse philosophy. Verdict-inert: never touches presence_verdict.
 _PROTEIN_PRESENT_VERDICTS = frozenset(v for _, v in _PROT_POS) | {
-    "protein_present_not_elevated",                                    # M2 rescue: quantified, flat
+    "protein_present_not_elevated",                                    # rescue: quantified, flat
     "protein_modestly_downregulated", "protein_strongly_downregulated",  # measured present-but-lower
 }
 _PROTEIN_ABSENT_VERDICTS = frozenset({"protein_broadly_low"})  # only reachable protein-absence (see above)
@@ -654,7 +654,7 @@ def _headline(cards, fired, verdict_pair):
         "abundance_floor_flag":          _abundance_floor_flag,
         "abundance_floor_low_lenses":    _abundance_low_lenses,
         "presence_abundance_is_relative": True,
-        # protein_confirmation_state (finding G5): is a PRESENT call protein-confirmed, protein-measured-
+        # protein_confirmation_state: is a PRESENT call protein-confirmed, protein-measured-
         # absent, or protein-UNTESTED (RNA-only)? Verdict-inert legibility of the confidence behind the
         # one-word headline — most indications lack CPTAC/cell-line-MS, so a positive-RNA target commonly
         # reads present with protein untested; this names that state instead of silently over-reassuring.
@@ -677,8 +677,7 @@ def _headline(cards, fired, verdict_pair):
         # ── Bulk protein (whole-cell-lysate MS) ───────────────────────────────
         "protein_expression_class": get_card_field(cards, "tumor-protein-abundance-cptac", "protein_expression_class"),
         "protein_effect_size":      get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_size"),
-        # Variance-standardized companion to the RAW protein_effect_size (analysis-methods #432 / card
-        # #450). protein_expression_class thresholds on the raw log2 effect, blind to variance; the
+        # Variance-standardized companion to the RAW protein_effect_size. protein_expression_class thresholds on the raw log2 effect, blind to variance; the
         # standardized class/d expose a `modest_up` that only cleared significance via cohort size.
         # Verdict-inert context (does not touch the ladder).
         "protein_effect_standardized_class":  get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_standardized_class"),
@@ -725,7 +724,7 @@ def _headline(cards, fired, verdict_pair):
         "sc_malignant_detection_fraction":     get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_fraction"),
         "sc_malignant_abundance_log1p_cp10k":  get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_abundance_log1p_cp10k"),
         "sc_malignant_compartment_available":  get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_compartment_available"),
-        # Total malignant cells behind the sc call (analysis-methods G3 floor: MIN_MALIGNANT_CELLS_TOTAL).
+        # Total malignant cells behind the sc call (analysis-methods floor: MIN_MALIGNANT_CELLS_TOTAL).
         # Surfaced so a reader can see whether a `sc_malignant_detected` rests on a ~509k-cell COADREAD
         # cube or a thin pooled one — the power behind the detection fraction, not just the fraction.
         "sc_malignant_n_cells":                get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_n_cells"),

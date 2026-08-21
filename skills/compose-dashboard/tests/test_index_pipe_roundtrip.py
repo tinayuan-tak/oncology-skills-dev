@@ -1,4 +1,4 @@
-r"""Finding 17 (bug-audit): _parse_existing_index must survive a pipe in a headline / class-call
+r"""_parse_existing_index must survive a pipe in a headline / class-call
 cell. The writer escapes a literal '|' as '\|' to keep the markdown table valid; the reader must
 split on UNESCAPED pipes (then unescape), else the row splits into >6 cells and is silently dropped
 — and lost on the next full re-render (which re-reads + re-writes the whole table)."""

@@ -8,16 +8,16 @@ description: |
     - tumor-presence
     - tumor-selectivity
     - functional-requirement
-    - synthetic-lethal-partners         (SL co-dependency / combination discovery)
-    - combinatorial-dependency          (MEASURED dual-KO SL complement; gateless, additive)
     - mechanism-and-pharmacology
     - genomic-alteration-profile        (SNV + copy-number + fusion [LIVE, additive])
     - differentiation-landscape
     - tractability-small-molecule       (small-molecule chemical-genetic half)
     - surface-modality-fit              (biologics ADC/TCE half)
+    - immune-context                    (TCE effector-arm: CD8 infiltration companion to surface-modality-fit)
     - on-target-safety-liability
     - target-intrinsic                  (indication-independent dossier; GATELESS, verdict=None)
     - cis-feature-coherence             (locus→expression→dependency coherence; GATELESS, verdict-inert)
+    - combination-and-vulnerability     (consolidated relational annex: SL + measured dual-KO + combo + resistance; GATELESS, verdict=None)
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +
@@ -123,10 +123,11 @@ composition:
 
 - Runs the 13 wired question-answering skills in parallel (all data-package
   producers): tumor-presence, tumor-selectivity, functional-requirement,
-  synthetic-lethal-partners, combinatorial-dependency, mechanism-and-pharmacology,
-  genomic-alteration-profile, differentiation-landscape, tractability-small-molecule,
-  surface-modality-fit, on-target-safety-liability, target-intrinsic, cis-feature-coherence.
-  - `combinatorial-dependency`, `target-intrinsic`, and `cis-feature-coherence` are **gateless**
+  mechanism-and-pharmacology, genomic-alteration-profile, differentiation-landscape,
+  tractability-small-molecule, surface-modality-fit, immune-context,
+  on-target-safety-liability, target-intrinsic, cis-feature-coherence,
+  combination-and-vulnerability.
+  - `combination-and-vulnerability`, `target-intrinsic`, and `cis-feature-coherence` are **gateless**
     (absent from the resolver-gate map): they surface in `sub_verdicts` + the LLM synthesis but do
     NOT drive the recommendation spine, which stays byte-stable. `cis-feature-coherence` emits a
     resolver verdict (unlike `target-intrinsic`) but its `cis_coherence` axis is a dedicated

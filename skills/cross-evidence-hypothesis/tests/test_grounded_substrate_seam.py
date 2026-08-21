@@ -9,7 +9,7 @@ output shape actually matches what the CONSUMER expects — each skill only test
 This test drives real producer output through the real consumer (offline, no Bedrock, no network)
 and asserts the shape holds end-to-end: findings, cited PMIDs (which become CITABLE), the
 anchor_verdict, and the engine<->literature discordance flag all survive the hand-off. It also
-guards that the `severity` field added to findings (LRA #532) is TOLERATED by the consumer (the
+guards that the `severity` field added to findings is TOLERATED by the consumer (the
 hypothesis ignores it; it is a risk_rollup concern) rather than breaking the parse.
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ def test_producer_output_parses_through_consumer_full_record():
 
     # the producer already contained confabulation: 999 was not retrieved -> dropped
     assert rec["grounded"]["confabulated_dropped"] == ["999"]
-    assert rec["grounded"]["findings"][0]["severity"] == "high"   # #532 field present on the producer side
+    assert rec["grounded"]["findings"][0]["severity"] == "high"   # severity field present on the producer side
 
     parsed = hc.parse_grounded_substrate({"safety": rec})
     assert parsed["present"] is True and parsed["n_findings"] == 1

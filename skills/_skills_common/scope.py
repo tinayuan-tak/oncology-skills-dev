@@ -6,7 +6,7 @@ modes: target_only, indication, multi_indication, indication_subtype,
 multi_indication_subtype.
 
 Design lives in target-contracts docs/design/IDAS_SUBTYPE_PIPELINE.md.
-Locked decisions (Phase-0d + subsequent user checkpoints):
+Locked decisions (from user checkpoints):
 - Every iDAS = one indication. Multi-indication queries use
   `indications=[list]`, not a `panel` field. Strategic buckets (Thoracic,
   GI-upper, GI-lower, Heme) resolve to indication-lists at construction time
@@ -198,7 +198,7 @@ def parse_cli_scope(
 
     Called by target-profile run.py after argparse. Handles all 5 modes:
 
-    Backward-compat single-indication (target-profile PR #22 legacy):
+    Backward-compat single-indication (target-profile legacy):
       --indication COADREAD
       → Scope(indication="COADREAD")
 

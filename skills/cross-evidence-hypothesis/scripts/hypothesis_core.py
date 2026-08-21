@@ -7,11 +7,11 @@ fail-closed gate-complete ceiling, the clamp, the citation-surface assembly, the
 evidence-substrate correlated-evidence discount, the modality-scope enum, and the weakest-link
 certainty. The LLM two-call pipeline (edges → hypothesis) lives in run.py and calls into here.
 
-Porting note: this evolves framework-runs/cross-dim-agent/hypothesis_agent.py (WS4 of
-CROSS_EVIDENCE_INTEGRATION_ROADMAP.md). The prototype's gate_ceiling modelled only 2 gates and
+Porting note: this evolves framework-runs/cross-dim-agent/hypothesis_agent.py
+(CROSS_EVIDENCE_INTEGRATION_ROADMAP.md). The prototype's gate_ceiling modelled only 2 gates and
 FAILED OPEN; here the ceiling consumes synthesis.recommendation_gate.hard_gates (the landed
-complete fail-closed hard-gate set, #462) and is fail-closed + gate-complete (§6.6). Subtype
-(#464) and evidence_substrate (#463) consumption are new (§6.8 / roadmap invariant 8).
+complete fail-closed hard-gate set) and is fail-closed + gate-complete. Subtype
+and evidence_substrate consumption are new.
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 # routinely surfaces that dimension's tension by citing the dimension's underlying CARDS
 # (gnomad-lof-constraint, clingen-dosage, ...) rather than the bare dimension token. Without this map
 # the surfacing check can't see that a card-grain tension surfaces a dimension-grain contradiction, so
-# it FALSE-fires `edge_contradiction_unsurfaced` and blocks promotion (WS6-surfaced: KRAS/ERBB2/BRAF
+# it FALSE-fires `edge_contradiction_unsurfaced` and blocks promotion (KRAS/ERBB2/BRAF
 # demoted conditional_on_biomarker → advanceable_flagged despite surfacing the safety tension).
 # Authoritative source = target-profile SUB_SKILL_CARDS ∘ SUB_SKILLS (skill_dir → short); mirrored here
 # because importing tp_fanout pulls the whole spine runtime. A drift-guard test
@@ -152,7 +152,7 @@ GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_assessed", "not_i
 
 # MEASURED-NEGATIVE sub-verdicts (distinct from GAP_VERDICTS, which are absence): a line that was
 # evaluated and returned a NEGATIVE call. A positive-thesis clause may not cite one of these as
-# SUPPORT without surfacing the tension (intra-package coherence, §6.5 / WS5 adversarial-survival —
+# SUPPORT without surfacing the tension (intra-package coherence, adversarial-survival —
 # the SL-vs-non_dependent class of internal contradiction). Curated conservative set + a few stems so
 # suffix variants (e.g. non_dependent_paralog_buffered) are covered; positive tokens
 # (strongly_selective_dependency, strong_tumor_selective, lineage_selective, discordant_*) do NOT match.
@@ -188,7 +188,7 @@ MODALITY_SCOPE: dict[str, set] = {
     # NOT a cell-intrinsic genetic dependency. So the dependency-FAMILY axes are out-of-scope — a
     # `dependency:non_dependent` (or SL/combinatorial) reading must NOT veto a surface target (e.g. an
     # approved ADC/TCE antigen like DLL3/NECTIN4 that is not itself a fitness dependency). tractability_sm
-    # (small-molecule chemistry) is likewise out-of-scope. #2 (WS6-surfaced).
+    # (small-molecule chemistry) is likewise out-of-scope.
     "adc":              {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
     "bite_tce":         {"tractability_sm", "dependency", "combination_vulnerability"},
     "antibody":         {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
@@ -199,8 +199,8 @@ MODALITY_SCOPE: dict[str, set] = {
 # dependency→veto, safety→hold, subtype_fit→hold). ONLY dependency carries a veto disposition
 # (non_dependent / pan_essential_killer). safety + subtype_fit are HOLD-grade: a fired/blind safety or
 # subtype gate is a HOLD (cap at advanceable_flagged), NEVER a decline — because safety is
-# mechanism-conditionable (a window may exist) and the spine itself forces `hold`, not veto. #1
-# (WS6-surfaced: the ceiling was declining on hold-grade safety, wrongly killing approved ADCs etc.).
+# mechanism-conditionable (a window may exist) and the spine itself forces `hold`, not veto.
+# (the ceiling was declining on hold-grade safety, wrongly killing approved ADCs etc.).
 _VETO_GATE_AXES = frozenset({"dependency"})
 _HOLD_GRADE_GATE_AXES = frozenset({"safety", "subtype_fit"})
 # Free-text objective → controlled modality (strict keyword map; unknown → modality_agnostic + flag).
@@ -287,7 +287,7 @@ def _sv_verdict(sv, key):
     return (v.get("verdict") if isinstance(v, dict) else v) if v is not None else None
 
 
-# Mechanism-conditioning of the dependency veto (#3, WS6-surfaced). #488 removed the dependency veto
+# Mechanism-conditioning of the dependency veto. Removed the dependency veto
 # for SURFACE biologics (modality-scoped). This handles the ORTHOGONAL mutant-selective case, at ANY
 # modality: a `dependency:non_dependent` reading does NOT disqualify a MUTANT-SELECTIVE / GoF driver —
 # an allele-selective agent (e.g. IDH1-R132 ivosidenib) need not make the WT gene a cell-intrinsic
@@ -304,25 +304,25 @@ _NON_DEPENDENT_TOKENS = frozenset({"non_dependent", "non_dependent_paralog_buffe
                                    "not_a_dependency", "non_essential"})
 
 
-# --- FAIL-CLOSED, GATE-COMPLETE ceiling (§6.6) — consumes recommendation_gate.hard_gates ------------
+# --- FAIL-CLOSED, GATE-COMPLETE ceiling — consumes recommendation_gate.hard_gates ------------
 def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     """The most permissive verdict the deterministic spine permits; the hypothesis is clamped to it.
 
     KEY UPGRADE over the prototype (which modelled only rec-gate.fired + safety, and FAILED OPEN):
     this iterates the COMPLETE hard-gate set the spine emits at
-    `synthesis.recommendation_gate.hard_gates` (#462 — every kill-capable (short, verdict) with a
+    `synthesis.recommendation_gate.hard_gates` (every kill-capable (short, verdict) with a
     per-run status ∈ {fired, suppressed, excluded, opposing, blind, latent}). The ceiling is the
     LEAST-permissive value implied by that set:
       - dependency gate `fired`         → declined (the sole veto axis), UNLESS mechanism-conditioned
-                                          (#3): `non_dependent` on a mutant-selective driver
+                                          — `non_dependent` on a mutant-selective driver
                                           (safety=wt_*_mechanism_mismatch) is mechanism-excluded.
                                           pan_essential_killer (no selectivity window) stays a veto.
       - dependency gate `blind`         → declined, FAIL-CLOSED (veto cannot be ruled out), unless the
-                                          driver is mutant-selective (#3) → mechanism-excluded.
-      - hold-grade gate (safety/subtype)→ cap at advanceable_flagged (never a veto — #1/#488).
+                                          driver is mutant-selective → mechanism-excluded.
+      - hold-grade gate (safety/subtype)→ cap at advanceable_flagged (never a veto).
       - any contradiction `opposing`    → cap at advanceable_with_caveat (opposing measured
                                           evidence blocks `strong`, not a veto).
-      - excluded (modality-scoped, #2)  → surfaced, does NOT blanket-veto the ceiling.
+      - excluded (modality-scoped)      → surfaced, does NOT blanket-veto the ceiling.
     If the package cannot be parsed / has no synthesis, the ceiling is `declined` (fail-closed).
     If `hard_gates` is ABSENT (older package), fall back to a fail-closed rec-gate + sub-verdict
     scan (never the prototype's fail-open behaviour)."""
@@ -336,8 +336,8 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     safety = _sv_verdict(sv, "safety")
     rg = syn.get("recommendation_gate") or {}
     hard_gates = rg.get("hard_gates")
-    oos = out_of_scope_dims(modality) if modality else set()   # dims out-of-scope for this modality (#2)
-    mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY      # mechanism-conditions the dependency veto (#3)
+    oos = out_of_scope_dims(modality) if modality else set()   # dims out-of-scope for this modality
+    mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY      # mechanism-conditions the dependency veto
 
     signals: list[tuple[int, str]] = []   # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
@@ -354,10 +354,10 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             axis_oos = short in oos   # e.g. dependency is out-of-scope for a surface/ligand biologic
             if status == "fired":
                 if axis_oos:
-                    # #2: the axis does not decide this modality — surfaced, does NOT veto the ceiling
+                    # the axis does not decide this modality — surfaced, does NOT veto the ceiling
                     excluded.append(tag)
                 elif short in _VETO_GATE_AXES:
-                    # #3: mechanism-condition the dependency veto. A `non_dependent` reading on a
+                    # mechanism-condition the dependency veto. A `non_dependent` reading on a
                     # mutant-selective/GoF driver is EXPECTED (WT need not be a fitness dependency) →
                     # mechanism-excluded, not a veto. pan_essential_killer (no selectivity window) stays
                     # a genuine veto.
@@ -367,14 +367,14 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
                         active_vetoes.append(tag)
                         signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
                 else:
-                    # #1: HOLD-grade axis (safety / subtype_fit) fired → a HOLD, not a kill
+                    # HOLD-grade axis (safety / subtype_fit) fired → a HOLD, not a kill
                     signals.append((VERDICT_RANK["advanceable_flagged"],
                                     f"hold-grade gate fired ({tag})"))
             elif status == "blind" and disp == "gated":
                 if axis_oos:
                     excluded.append(tag)      # not in scope this run → not a coverage gap
                 elif short in _VETO_GATE_AXES and mutant_selective:
-                    # #3: dependency axis does not decide a mutant-selective driver → mechanism-excluded
+                    # dependency axis does not decide a mutant-selective driver → mechanism-excluded
                     excluded.append(tag)
                 elif short in _VETO_GATE_AXES:
                     # a VETO-capable axis produced no verdict → cannot rule the veto out → fail closed
@@ -382,7 +382,7 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
                     signals.append((VERDICT_RANK["declined"],
                                     f"fail-closed: veto-capable axis blind ({short})"))
                 else:
-                    # #1: a HOLD-grade axis blind → fail-closed to a HOLD, not a decline
+                    # a HOLD-grade axis blind → fail-closed to a HOLD, not a decline
                     signals.append((VERDICT_RANK["advanceable_flagged"],
                                     f"fail-closed hold-grade axis blind ({short})"))
             elif status == "opposing":
@@ -400,15 +400,15 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             signals.append((VERDICT_RANK["declined"],
                             f"recommendation_gate fired ({rg.get('verdict') or 'veto'})"))
         # scan the veto-capable sub-verdicts for kill tokens the prototype ignored — DEPENDENCY only
-        # (the sole veto axis), and only when dependency is in scope for the modality (#2).
+        # (the sole veto axis), and only when dependency is in scope for the modality.
         dep = _sv_verdict(sv, "dependency")
         if dep in {"pan_essential_killer", "non_dependent"} and "dependency" not in oos:
             if dep in _NON_DEPENDENT_TOKENS and mutant_selective:
-                pass  # #3: mutant-selective driver — WT non-dependence is expected, not a veto
+                pass  # mutant-selective driver — WT non-dependence is expected, not a veto
             else:
                 active_vetoes.append(f"dependency:{dep}")
                 signals.append((VERDICT_RANK["declined"], f"dependency kill token ({dep})"))
-        # NOTE: safety is HOLD-grade, never a fallback kill (#1) — handled by the hold-grade line below.
+        # NOTE: safety is HOLD-grade, never a fallback kill — handled by the hold-grade line below.
 
     # safety hold-grade (both paths) — a hold, not a kill. SAFETY IS NEVER A VETO (mirrors the spine's
     # safety→hold policy): both SAFETY_HOLD and the former SAFETY_KILL tokens cap at advanceable_flagged.
@@ -437,7 +437,7 @@ def clamp(proposed: Optional[str], ceiling: str) -> tuple:
     return p, False
 
 
-# --- subtype-resolved parse (#464) ------------------------------------------------------------------
+# --- subtype-resolved parse ------------------------------------------------------------------
 def parse_subtype_resolved(pkg: dict) -> dict:
     """Project the first-class `subtype_resolved` block into an agent-consumable summary + the set of
     per-stratum citation tokens (so a subtype claim in the hypothesis is TRACEABLE, not free-text).
@@ -474,12 +474,12 @@ def parse_subtype_resolved(pkg: dict) -> dict:
             "convergence_facet": block.get("convergence_facet")}
 
 
-# --- evidence-substrate correlated-evidence discount (#463 / roadmap invariant 8, WS7 half) ---------
+# --- evidence-substrate correlated-evidence discount ---------
 def substrate_independence(pkg: dict) -> dict:
-    """Group present cards by their declared `evidence_substrate` (#463). Cards that SHARE a substrate
+    """Group present cards by their declared `evidence_substrate`. Cards that SHARE a substrate
     are the same underlying measurement re-displayed (e.g. the recount3 TCGA/GTEx bulk-RNA
     tumor/normal cluster, or the DepMap-Chronos dependency cluster) and must count ONCE toward
-    certainty — this is the WS7 certainty-discount half. Untagged cards are conservatively treated as
+    certainty — this is the certainty-discount half. Untagged cards are conservatively treated as
     their own independent unit (we cannot prove correlation). Returns the grouping + the effective
     independent-unit count the certainty ceiling consumes."""
     cards = pkg.get("cards") or []
@@ -529,11 +529,11 @@ def weakest_link_certainty(conviction: dict, in_scope: list) -> tuple:
 
 
 def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: list) -> dict:
-    """Apply the two orthogonal certainty caps AFTER the weakest-link base (roadmap invariant 8:
+    """Apply the two orthogonal certainty caps AFTER the weakest-link base (
     'the correlated-evidence discount is applied before certainty is reported'):
       - independence cap: < 2 independent substrate-units → cap `low` (all corroboration is one
         measurement); this is where cards sharing a substrate stop inflating certainty.
-      - degradation cap: a missing optional input (dossier / risk) → cap `low` (§12: a missing
+      - degradation cap: a missing optional input (dossier / risk) → cap `low` (a missing
         input must never inflate certainty)."""
     cap = CERTAINTY_RANK["high"]
     reasons = []
@@ -548,7 +548,7 @@ def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: l
             "capped": final_rank < CERTAINTY_RANK.get(base, 0), "cap_reasons": reasons}
 
 
-# --- retrieve-don't-recall + clause-traceability WITH TEETH (§6.3–6.5) ------------------------------
+# --- retrieve-don't-recall + clause-traceability WITH TEETH ------------------------------
 _PMID_RE = re.compile(r"\b\d{6,9}\b")
 
 
@@ -559,7 +559,7 @@ def _norm(s):
 def check_traceability(clause_citations: list, surface: dict) -> list:
     """Return the atomic citation tokens that do NOT resolve to THIS package's deterministic spine.
 
-    RETRIEVE-DON'T-RECALL (§6.3): any PMID-shaped token (a standalone 6–9 digit number) must be an
+    RETRIEVE-DON'T-RECALL: any PMID-shaped token (a standalone 6–9 digit number) must be an
     EXACT member of the risk agent's retrieved `allowed_pmids` — NO substring/any() escape for
     PMIDs (a self-invented PMID is confabulation). Non-PMID tokens (card_ids / sub-verdict names /
     rule_ids / dossier fields / stratum tokens) may match by normalized-exact or by embedding a
@@ -596,7 +596,7 @@ def check_traceability(clause_citations: list, surface: dict) -> list:
     return bad
 
 
-# --- intra-package coherence (§6.5 / WS5 adversarial-survival) --------------------------------------
+# --- intra-package coherence (adversarial-survival) --------------------------------------
 # The positive-thesis clauses whose job is to ASSERT a case for the target. therapeutic_window is
 # deliberately EXEMPT from the negative-signal rule: its job is to weigh liabilities, so citing a
 # negative safety / selectivity line there is honest framing, not an incoherent positive assertion.
@@ -609,7 +609,7 @@ ALL_SUPPORT_CLAUSES = ("causal_rationale", "therapeutic_hypothesis", "population
 # contradiction is between a CITED positive line and a PRESENT-but-UNCITED negative sibling, so the
 # clause-cites-a-negative-line rule cannot see it. Stated generally (not tuned to any one target):
 # claiming a synthetic-lethal / combination strategy is incoherent when the partner-mapping line found
-# no actionable partner — this is the SL-vs-no_partner_mapped class the WS5 smoke surfaced on MARK2.
+# no actionable partner — this is the SL-vs-no_partner_mapped class the smoke surfaced on MARK2.
 # The registry is the extensible home for further principled cross-card incoherences.
 INTRINSIC_CONTRADICTIONS = [
     {
@@ -639,7 +639,7 @@ def is_negative_verdict(v) -> bool:
 
 def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions: list,
                          present_norm: set, out_of_scope=None, card_calls: dict = None) -> dict:
-    """INTRA-PACKAGE COHERENCE (the WS5 root-cause fix): the integrator may not assert a positive
+    """INTRA-PACKAGE COHERENCE (the root-cause fix): the integrator may not assert a positive
     claim on a signal that ANOTHER present package signal contradicts, UNLESS the clause surfaces the
     tension. Enforced FOUR ways:
 
@@ -668,7 +668,7 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         return token_out_of_scope(tok, oos)
 
     card_calls = card_calls or {}
-    # MECHANISM-CONDITIONING (#3, mirrors gate_ceiling): for a mutant-selective / GoF driver
+    # MECHANISM-CONDITIONING (mirrors gate_ceiling): for a mutant-selective / GoF driver
     # (safety=wt_*_mechanism_mismatch) a `non_dependent` reading on the dependency axis is EXPECTED, not a
     # contradiction — so a positive thesis may rest on such a target without the dependency non-dependence
     # counting as an unsurfaced negative. Applies at BOTH grains (the `dependency` dimension and its member
@@ -684,7 +684,7 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
     # measured-negative SIGNALS keyed by normalized token → (display_name, verdict). Covers both
     # sub-verdict dimensions and card-grain interpretation calls. OUT-OF-SCOPE-modality signals are
     # excluded (e.g. the ADC/TCE surface cards for a small-molecule objective); mechanism-benign
-    # dependency non-dependence (mutant-selective driver) is likewise excluded (#3).
+    # dependency non-dependence (mutant-selective driver) is likewise excluded.
     neg_norm: dict = {}
     for d, v in conviction.items():
         if not _oos(_norm(d)) and is_negative_verdict(v) and not _mechanism_benign(_norm(d), v):
@@ -782,9 +782,9 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
 
 def surface_coherence_tensions(coherence_v: dict) -> list:
     """REMEDIATE detected intra-package coherence violations by SURFACING each into the structured
-    `tensions` slot (the roadmap's "fold the contradiction into the clause OR into `tensions`"), so
+    `tensions` slot (fold the contradiction into the clause OR into `tensions`), so
     the emitted hypothesis carries the contradiction explicitly for a reviewer + a skeptic instead of
-    burying it. This deliberately does NOT mutate any LLM clause statement (invariant 9 — LLM-narrated
+    burying it. This deliberately does NOT mutate any LLM clause statement (LLM-narrated
     fields stay in slots distinct from deterministic ones): it returns DETERMINISTIC, clearly-tagged
     tension entries (`source: integrator_coherence_guard`) the caller appends to the emitted tensions.
     The always-on detection + promotion block (in run.py) remain the teeth; this is the artifact-level
@@ -810,14 +810,14 @@ def surface_coherence_tensions(coherence_v: dict) -> list:
     return out_tensions
 
 
-# --- per-subskill GROUNDED SUBSTRATE (the design-correct literature path, §13) ----------------------
+# --- per-subskill GROUNDED SUBSTRATE (the design-correct literature path) ----------------------
 def parse_grounded_substrate(substrate: Optional[dict]) -> dict:
     """Project the per-axis `ground_axis` blocks (the SHARED grounded substrate) into an
     agent-consumable per-axis finding list + the set of grounded PMIDs (which become CITABLE, traceable
     evidence) + the axes whose literature CONTRADICTS the deterministic verdict (engine↔literature
     discordance).
 
-    This is the DESIGN-CORRECT literature path (grounded-substrate two-projection design §13):
+    This is the DESIGN-CORRECT literature path (grounded-substrate two-projection design):
     literature reaches the hypothesis via the per-subskill grounding DIRECTLY, NOT via the risk
     projection (the two projections are siblings; neither feeds the other). ESCALATE-ONLY BY
     CONSTRUCTION: the findings + PMIDs only ENRICH the panel + can RAISE a discordance tension; they
@@ -897,7 +897,7 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
     subtype = parse_subtype_resolved(pkg)
     substrate_ind = substrate_independence(pkg)
 
-    # per-subskill GROUNDED SUBSTRATE (the design-correct literature path, §13). Its cited PMIDs join
+    # per-subskill GROUNDED SUBSTRATE (the design-correct literature path). Its cited PMIDs join
     # the citation surface so a hypothesis clause may cite grounded literature and stay TRACEABLE;
     # the findings ride the panel (below) for the LLM to reason over. Escalate-only: they never touch
     # the deterministic ceiling (computed downstream purely from the package hard_gates).

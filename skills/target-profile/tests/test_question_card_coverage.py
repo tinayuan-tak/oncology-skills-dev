@@ -5,7 +5,7 @@ Why this exists: the ontology already guards the FORWARD direction (test_skill_q
 answered_by resolves to a real card, so `drift` is 0). But nothing guarded the REVERSE — a card added to
 a skill's run.py CARDS without a matching answered_by is silently STRANDED (unanswered by any question).
 The 2026-08-19 revive/cross-wire PRs stranded 6 cards exactly this way (found by a manual multi-agent
-audit, fixed in target-contracts #444). This test makes "every consumed card answers a question" a CI
+audit, fixed in target-contracts). This test makes "every consumed card answers a question" a CI
 invariant so that class of ontology-lag can't recur — a future card-wiring PR fails here until the
 ontology is updated too.
 

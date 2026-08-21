@@ -315,7 +315,7 @@ def test_render_from_existing_graceful_on_missing_decision(tmp_path):
     assert (out / "index.html").exists()                 # index still written (row marked NO decision.json)
 
 
-# --- provenance surfacing in card metrics (WS-A) ----------------------------
+# --- provenance surfacing in card metrics ----------------------------
 
 def test_scrna_card_surfaces_indication_and_atlas_provenance(tmp_path):
     """The single-cell card must render its indication + atlas + donor/dataset provenance so a
@@ -517,7 +517,7 @@ def test_dependency_claim_scope_layout(tmp_path):
 
 def test_dependency_question_table_leads(tmp_path):
     """functional-requirement LEADS with the 7-question signal+confidence dependency table; the
-    claim×scope layout is demoted to a drill-down below it (mirrors the presence table, #553)."""
+    claim×scope layout is demoted to a drill-down below it (mirrors the presence table)."""
     page = G.render_page(_dependency_decision(), tmp_path, fig_map={}, interactive=False)
     assert "Dependency at a glance" in page
     # signal meters (7 rows × 5 segs) + confidence dots present

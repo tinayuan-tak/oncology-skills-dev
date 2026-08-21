@@ -879,8 +879,8 @@ def _flow_tabs_html(cid: str, summary: dict, fired_for_card: list, uid: str,
     return f'<div class="flowtabs">{radios}{labels}{panels}</div>'
 
 
-# The presence matrix hero has its OWN dedicated render path in render_page (the #487 block, which
-# re-emits it from the decision so it shows even without --figures). Exclude it here so a
+# The presence matrix hero has its OWN dedicated render path in render_page (it re-emits it from
+# the decision so it shows even without --figures). Exclude it here so a
 # tumor-presence page does not render the SAME hero TWICE (generic strip + presence-specific block).
 _HERO_OWNED_ELSEWHERE = {"figure_presence_context_matrix.svg"}
 
@@ -1558,7 +1558,7 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     for r in decision.get("fired_rules", []) or []:
         fired_by_card.setdefault(r.get("card_id"), []).append(r)
 
-    # Skill-gated layout. tumor-presence: sample-context × data-type × scope ladder (#549).
+    # Skill-gated layout. tumor-presence: sample-context × data-type × scope ladder.
     # functional-requirement: the DEP/SEL/COND/CHEM claim×scope layout. Every OTHER skill keeps the
     # flat "Evidence at a glance" collapsible list. All three render each card via the SAME
     # _card_block_html, so the per-card HTML is identical across paths.

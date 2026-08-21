@@ -1,4 +1,4 @@
-"""Synthesis-substrate fix (Expression-Extraction-Refinement plan, Step 0): the LLM prompt must
+"""Synthesis-substrate fix (Expression-Extraction-Refinement plan): the LLM prompt must
 PRESERVE load-bearing distribution fields + pass rule COLOR.
 
 The old _build_user_prompt truncation loop dropped `_`-prefixed keys, sampled any list>5 to 3 + a

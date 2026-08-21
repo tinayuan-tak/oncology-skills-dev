@@ -378,7 +378,7 @@ def test_cards_without_evidence_section_reconciles_reasoned_and_residual():
     assert "reasoned-absence panels" in md
     assert "1 of 2" in md                       # reasoned count reconciled against the total
     assert "1 further card(s) were dropped" in md   # the residual
-    # 2026-08-10 REVIEW FIX (L3): the residual note no longer points at the phantom
+    # 2026-08-10: the residual note no longer points at the phantom
     # validation_report.json (never written); it points at the real failure signals.
     assert "validation_report.json" not in md
     assert "evidence_package.invalid.json" in md
@@ -390,7 +390,7 @@ def test_no_failed_no_section():
 
 
 # ============================================================================
-# TOC dangling-anchor regression (bug-audit P7 / finding 16): a Contents link
+# TOC dangling-anchor regression: a Contents link
 # must appear only when its target section actually renders.
 # ============================================================================
 
@@ -413,7 +413,7 @@ def test_toc_omits_cards_without_evidence_link_unless_cards_failed():
 
 
 # ============================================================================
-# O1 (#447): non_concludable fit_level must NOT render as a green "dominant positive"
+# non_concludable fit_level must NOT render as a green "dominant positive"
 # ============================================================================
 
 def _non_concludable_entry() -> dict:

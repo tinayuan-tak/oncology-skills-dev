@@ -1,13 +1,13 @@
-"""Guard for the nomination-gate VOCAB ↔ skills gating-constants coupling (arch-review R6 + R7).
+"""Guard for the nomination-gate VOCAB ↔ skills gating-constants coupling.
 
 tp_gates.py hardcodes three gating constants — _GATING_AXES, _RECOGNIZED_GATING_VERDICTS,
 _GATING_AXIS_FAILCLOSED_ACTION — plus _GATE_ACTION_RANK. Adding a NEW veto/hold gate (or a new gating
 verdict) to target-contracts/vocabularies/nomination_verdict_gate.yaml therefore requires a coordinated
 hardcoded skills edit; if that edit is forgotten, the fail-closed guard silently degrades:
 
-  R6: a vocab veto/hold whose sub_skill ∉ _GATING_AXES is NOT fail-closed-guarded — an unknown/renamed
-      verdict on it returns a SILENT PERMISSIVE PASS (the exact failure §6.6 fail-closed was built to kill).
-  R7: _GATE_ACTION_RANK duplicates the vocab's owner-editable `action_precedence`; a silent drift would
+  A vocab veto/hold whose sub_skill ∉ _GATING_AXES is NOT fail-closed-guarded — an unknown/renamed
+      verdict on it returns a SILENT PERMISSIVE PASS (the exact failure fail-closed was built to kill).
+  _GATE_ACTION_RANK duplicates the vocab's owner-editable `action_precedence`; a silent drift would
       change veto-vs-hold precedence without anyone noticing.
 
 These tests make both couplings CI-enforced (fail on drift → conscious update). Verdict-inert (checks
@@ -34,7 +34,7 @@ def _vocab() -> dict:
 
 
 def test_every_vocab_veto_hold_gate_is_in_skills_gating_constants():
-    """R6: every vocab `gates` entry with action ∈ {veto, hold} must have its sub_skill in _GATING_AXES,
+    """Every vocab `gates` entry with action ∈ {veto, hold} must have its sub_skill in _GATING_AXES,
     its verdict in _RECOGNIZED_GATING_VERDICTS[sub_skill], and a fail-closed action — else an unknown
     verdict on that axis is a silent permissive pass."""
     gates = _vocab().get("gates", [])
@@ -56,7 +56,7 @@ def test_every_vocab_veto_hold_gate_is_in_skills_gating_constants():
 
 
 def test_gate_action_rank_matches_vocab_action_precedence():
-    """R7: _GATE_ACTION_RANK is now LOADED from the vocab's owner-editable action_precedence (R7 follow-on),
+    """_GATE_ACTION_RANK is now LOADED from the vocab's owner-editable action_precedence,
     so the effective value must equal the vocab. AND the conservative _FALLBACK (used when the vocab is
     unreadable) must itself match the vocab — else a real vocab edit would silently diverge from the
     fallback-of-record that guards veto>hold when the file can't be read."""

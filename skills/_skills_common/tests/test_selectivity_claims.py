@@ -116,7 +116,7 @@ def test_not_selective_case():
 
 
 def test_field_names_are_corroboration_not_reliability():
-    """Post reliability→corroboration rename (#545): the claim dicts carry `corroboration`."""
+    """Post reliability→corroboration rename: the claim dicts carry `corroboration`."""
     vec = selectivity_claim_vector(_ceacam5_headline(), [])
     assert "corroboration" in vec["WIN"] and "reliability" not in vec["WIN"]
 

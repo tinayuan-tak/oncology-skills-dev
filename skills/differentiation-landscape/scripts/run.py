@@ -4,7 +4,7 @@
 Co-mutation + mutual-exclusivity landscape from panel-intersect-aware Fisher
 scan across TCGA MC3 + GENIE 19.0-public.
 
-W4c refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
+Calls the shared run_wired_skill dispatcher (2026-07-09).
 Skill-specific logic reduces to CARDS + verdict + headline callbacks.
 """
 
@@ -42,7 +42,7 @@ CARDS = [
                                          # The better-powered pan-cancer CORROBORATION of the single-cohort
                                          # expression-clinical-association card above. ADDITIVE, VERDICT-INERT
                                          # (no resolver rung; differentiation verdict byte-stable). reads precog_prognostic.
-    "pathway-node-leverage",             # WS3 (2026-08-17): COMPARATIVE node-leverage — is the target the best
+    "pathway-node-leverage",             # (2026-08-17): COMPARATIVE node-leverage — is the target the best
                                          # NODE to hit in its complex/pathway neighbourhood, or dominated? ADDITIVE,
                                          # VERDICT-INERT (its rules emit soft axis_fit signals + fired_rule_ids for
                                          # the cross-evidence hypothesis agent; feed NO resolver → differentiation
@@ -71,7 +71,7 @@ PARTIAL_STATUS_NOTE = (
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    """Verdict — DELEGATES to the shared declarative resolver (2026-07-20).
     The former if-chain now lives in resolvers/differentiation.resolver.yaml (target-contracts),
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
@@ -116,7 +116,7 @@ def _headline(cards, fired, verdict_pair):
                                                  "pan_cancer_meta_z"),
         "precog_indication_approx":         get_card_field(cards, "precog-prognostic-association",
                                                  "precog_indication_approx"),
-        # WS3 comparative node-leverage (soft/verdict-inert differentiation context; feeds NO resolver —
+        # comparative node-leverage (soft/verdict-inert differentiation context; feeds NO resolver —
         # its axis_fit signals + fired_rule_ids are consumed by the cross-evidence hypothesis agent):
         "node_leverage_class":              get_card_field(cards, "pathway-node-leverage",
                                                  "node_leverage_class"),

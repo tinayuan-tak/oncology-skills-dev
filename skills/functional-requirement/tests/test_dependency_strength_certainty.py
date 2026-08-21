@@ -1,4 +1,4 @@
-"""Step-3 reference axis: dependency (strength, certainty) — validated BY CONSTRUCTION.
+"""Reference axis: dependency (strength, certainty) — validated BY CONSTRUCTION.
 
 Per CERTAINTY_MODEL.md, certainty needs NO outcome labels: it's a property of the evidence.
 So we assert the construction rules directly — well-powered + concordant → high; thin-n →
@@ -37,7 +37,7 @@ def test_coverage_and_corroboration_thresholds():
     assert rc._coverage_from_n(10) == "medium"
     assert rc._coverage_from_n(3) == "low"
     assert rc._coverage_from_n(None) == "low"
-    # corroboration is now VERDICT-DISJOINT Broad↔Sanger cross-consortium (CERTAINTY_MODEL §2),
+    # corroboration is now VERDICT-DISJOINT Broad↔Sanger cross-consortium (CERTAINTY_MODEL),
     # NOT CRISPR↔RNAi concordance. Independent consortia agreeing (dependent OR non-dependent) → high;
     # discordant → low; single consortium → medium; absent → unmeasured (never a fabricated medium).
     assert rc._corroboration_from_cross_consortium("concordant_dependent") == "high"
@@ -88,7 +88,7 @@ def test_certainty_weakest_link_by_construction(monkeypatch):
 
 
 def test_unknown_mass_is_measured_coverage_gap():
-    """§1.1: unknown_mass = fraction of decision-relevant cards blind this run — measured, not a
+    """unknown_mass = fraction of decision-relevant cards blind this run — measured, not a
     level-lookup. A card absent / _missing / data_unavailable-primary counts as blind."""
     cards = _all_decision_cards_present()
     assert rc._unknown_mass(cards) == 0.0
@@ -107,7 +107,7 @@ def test_unknown_mass_is_measured_coverage_gap():
 
 
 def test_corroboration_is_verdict_disjoint(monkeypatch):
-    """Disjointness guard (CERTAINTY_MODEL §2): corroboration must track the VERDICT-DISJOINT
+    """Disjointness guard (CERTAINTY_MODEL): corroboration must track the VERDICT-DISJOINT
     cross-consortium signal and be INVARIANT to the CRISPR↔RNAi concordance that resolves the verdict.
     Regression guard against re-coupling certainty to the verdict driver."""
     vals = {"n_cell_lines_evaluated": 40, "fraction_strongly_dependent": 0.6}

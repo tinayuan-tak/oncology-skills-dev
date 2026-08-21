@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """target-profile — composed target profile with Tier-3 LLM narrative synthesis.
 
-Fans out to the 10 question-answering sub-skills in SUB_SKILLS (tumor-presence,
-tumor-selectivity, functional-requirement, synthetic-lethal-partners, mechanism-
-and-pharmacology, genomic-alteration-profile, differentiation-landscape,
-tractability-small-molecule, surface-modality-fit, on-target-safety-liability)
+Fans out to the 13 question-answering sub-skills in SUB_SKILLS (tumor-presence,
+tumor-selectivity, functional-requirement, mechanism-and-pharmacology,
+genomic-alteration-profile, differentiation-landscape, tractability-small-molecule,
+surface-modality-fit, immune-context, on-target-safety-liability, target-intrinsic,
+cis-feature-coherence, combination-and-vulnerability)
 + an opt-in subtype_fit tier (--subtypes), collects their sub-verdicts + fired
 rules, then invokes Bedrock (via _skills_common.llm) with a forced structured
 tool_use to produce executive_summary + tension_analysis + recommendation. The
@@ -248,19 +249,19 @@ def main() -> int:
         verdict_str = v[0] if v else "(no verdict)"
         print(f"  - {short:15s} -> {verdict_str}", file=sys.stderr)
 
-    # Ordinal matrix VIEW (gap #3 "now"): gate × modality signals projected onto the ordinal
+    # Ordinal matrix VIEW: gate × modality signals projected onto the ordinal
     # scale. Labeled, additive, NOT a verdict input (ordinal_view contract). Computed BEFORE the
-    # prompt so synthesis can reason over the matrix-SLICE (gap #4b), not only the flat verdict
+    # prompt so synthesis can reason over the matrix-SLICE, not only the flat verdict
     # list; also emitted in nomination.json for downstream consumers.
     ordinal_matrix = _ordinal_matrix(sub_results)
 
-    # Biomarker convergence facet (Q12, Part 3c): a deterministic, additive, verdict-inert assembly of
+    # Biomarker convergence facet (Q12): a deterministic, additive, verdict-inert assembly of
     # the scattered biomarker byproducts (corroboration + stratification + preferred_assay). Like the
     # ordinal matrix, computed BEFORE the prompt so synthesis can reason over it, and emitted in
     # nomination.json. One-directional: informs confidence, never mints a nominate.
     biomarker_facet = _biomarker_facet(sub_results)
 
-    # Subtype convergence facet (capstone Part 3c integration layer): converge the three
+    # Subtype convergence facet (integration layer): converge the three
     # subtype-grain panoramas (expression / dependency / mutation-frequency) BY molecular subtype
     # to surface cross-axis patient-selection strata. Like the biomarker facet: deterministic,
     # additive, verdict-inert; computed before the prompt so synthesis can reason over it, and
@@ -275,12 +276,12 @@ def main() -> int:
     # hands the reasoner the skill's computed reconciliation. VERDICT-INERT (presence ∉ _SHORT_TO_GATE).
     presence_facet = _presence_facet(sub_results)
 
-    # Selectivity facet (Phase R): tumor-selectivity's 8-question leading table (WIN/DIST/INT/SAFE) +
+    # Selectivity facet: tumor-selectivity's 8-question leading table (WIN/DIST/INT/SAFE) +
     # the tumor-vs-normal WINDOW gate. Parallel to presence_facet; rendered as the leading table in the
     # composed dashboard. VERDICT-INERT — selectivity's verdict is owned by its resolver + veto clamp.
     selectivity_facet = _selectivity_facet(sub_results)
 
-    # Dependency claim-vector facet (P2 phase 3-claim, 2026-08-18): functional-requirement's SIGNAL
+    # Dependency claim-vector facet (2026-08-18): functional-requirement's SIGNAL
     # decomposition (claim_vector DEP/SEL/COND/CHEM + key_signals + confidence annotations), parallel to
     # presence_facet. The SIGNAL half of the reconciliation; the certainty roll-up is certainty_by_axis.
     # VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
@@ -305,14 +306,14 @@ def main() -> int:
     addressable_population = _addressable_population_facet(sub_results)
     # Actionability-mode facet (2026-08-19): VERDICT-INERT selection-basis profile — cis_feature vs
     # abundance vs dependency_relational (+ mixed / insufficient), the HANDLE by which the target is
-    # actioned, orthogonal to biology_axis. Post-hoc over sub_results. Graduated past Phase 0: it now
+    # actioned, orthogonal to biology_axis. Post-hoc over sub_results. Graduated past the annotation-only phase: it now
     # routes render emphasis (tp_render_md) AND injects a synthesis EMPHASIS governance block
     # (tp_synthesis_prompt.format_mode_governance_block), so the prompt + prompt_hash DO change when a
     # mode is present. The DETERMINISTIC verdict spine (recommendation/confidence/gate) stays
     # byte-identical — emphasis-only, never a verdict; prompt_hash is NOT byte-stable (see design doc).
     actionability_mode = _actionability_mode_facet(sub_results, target=args.target)
 
-    # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3): the verdict-DISJOINT reliability
+    # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL): the verdict-DISJOINT reliability
     # object each opting-in sub-skill emits beside its verdict (coverage + Broad↔Sanger corroboration +
     # measured coverage-gap unknown_mass), assembled by short. VERDICT-INERT — a reliability projection
     # for the reader/panel, NEVER in sub_verdicts or the recommendation spine. {} until an axis opts in
@@ -425,13 +426,13 @@ def main() -> int:
                   f"(dims={sorted({h['short'] for h in pos_hits})}); "
                   f"confidence floor {floor}", file=sys.stderr)
 
-    # Gate-complete ceiling (§6.6): attach the COMPLETE declared hard-gate set with per-gate
+    # Gate-complete ceiling: attach the COMPLETE declared hard-gate set with per-gate
     # fired/suppressed/excluded/blind status. Additive — reads the resolved gate state, forces
     # nothing; flows into nomination.json + evidence_package via recommendation_gate.
     recommendation_gate["hard_gates"] = _hard_gates_status(
         sub_results, gate_hits, gate_suppressions)
 
-    # Deciding-axis router (L): name the load-bearing gate + whether the framework can
+    # Deciding-axis router: name the load-bearing gate + whether the framework can
     # evidence it. Reports (never predicts): a fired gate is the deciding axis; on abstention,
     # the unevidenced necessity gates are the routing instruction. Purely additive — reads the
     # already-resolved gate/positive state, touches no verdict.
@@ -527,7 +528,7 @@ def main() -> int:
                   file=sys.stderr)
 
     # 3a-bis. Produce per-card distribution figures (SVG + interactive .plotly.json) via the shared
-    # figure registry. This is the dynamic-dashboard Phase B change: a run now PRODUCES the per-card
+    # figure registry. This is the dynamic-dashboard change: a run now PRODUCES the per-card
     # charts (previously rules/summary-only). Best-effort — never blocks artefact emission.
     # PERF Stage 1: --no-figures skips this (the figure double-read + the 4.6MB plotly inline). The
     # HTML then degrades to the tested static no-JS fallback; the verdict spine is byte-identical
@@ -575,7 +576,7 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
 
-    # Governance / reproducibility. Phase-D convergence (#9): build the governance block via the SHARED
+    # Governance / reproducibility. Build the governance block via the SHARED
     # _skills_common.build_governance so it can no longer drift from compose-dashboard's — same keys,
     # same construction, one source. Uses the 5-field validation_summary composed above (shared with
     # the --emit evidence-package path). release_pin is a pass-through (target-profile reads live and
@@ -627,7 +628,7 @@ def main() -> int:
         # presence against the normal-tissue window. Presence ∉ _SHORT_TO_GATE, so it never moves
         # the recommendation. None when tumor-presence supplied no facet.
         "presence_facet": presence_facet,
-        # Selectivity facet (Phase R): tumor-selectivity's 8-question leading table + WIN/DIST/INT/SAFE +
+        # Selectivity facet: tumor-selectivity's 8-question leading table + WIN/DIST/INT/SAFE +
         # the tumor-vs-normal WINDOW gate. A FACET (not a gate) — selectivity's verdict is owned by its
         # resolver + veto clamp; never moves the recommendation. None when tumor-selectivity supplied none.
         "selectivity_facet": selectivity_facet,
@@ -646,12 +647,12 @@ def main() -> int:
         "heterogeneity": heterogeneity,
         "addressable_population": addressable_population,
         "actionability_mode": actionability_mode,
-        # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL §3), keyed by sub-skill short. A
+        # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL), keyed by sub-skill short. A
         # verdict-INERT reliability projection (coverage + verdict-disjoint corroboration +
         # coverage-gap unknown_mass) for the reader/panel; NOT in sub_verdicts, never moves the gate.
         "certainty_by_axis": certainty_by_axis,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
-        # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
+        # card_id, paths relative to figures/. The dynamic HTML renderer embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
         "card_figures": card_figures,
         "llm_synthesis": llm_output,

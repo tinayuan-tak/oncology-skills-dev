@@ -2,8 +2,8 @@
 """render-evidence-package — Stage-1 markdown renderer for evidence_package.json.
 
 Consumes an evidence_package matching evidence_package.schema.json and produces a
-human-readable Stage-1 markdown rendering. This is the only renderer that ships in
-iter-1b; HTML (Stage 2), PowerPoint (Stage 3), decision memo (Stage 3+), and
+human-readable Stage-1 markdown rendering. This is the only renderer that ships
+now; HTML (Stage 2), PowerPoint (Stage 3), decision memo (Stage 3+), and
 interactive UI (Stage 4) are deferred.
 
 The renderer is intentionally simple: it walks the evidence_package's top-level
@@ -64,7 +64,7 @@ def render_evidence_package(ep: dict) -> str:
         sections.append(f"_Caveats_: {syn['caveats_summary']}")
         sections.append("")
 
-    # ===== PRIMARY resolver gate-verdict (Phase-D Stage 2) =====
+    # ===== PRIMARY resolver gate-verdict (Stage 2) =====
     # The declarative resolver's gate verdict is the headline row; the per-modality
     # fit_level below is a demoted secondary LENS. A verdict-only synthesis block (no
     # modality_fit_assessment) must not crash — the fit section is gated on `fit`.
@@ -134,12 +134,12 @@ def _render_refusal_page(ep: dict) -> list[str]:
 
 FIT_ICONS = {"strong": "🟢", "moderate": "🟡", "weak": "🟠",
               "insufficient_evidence": "⚪", "not_viable": "🔴",
-              # O1 (#447): a killer-veto card could not be read (read_error / not_wired), so the
+              # A killer-veto card could not be read (read_error / not_wired), so the
               # safety veto is neither confirmed-fired nor confirmed-clear. The modality is
               # un-assessable — a data-blocked ⚪, NOT a green pass, even if primaries are positive.
               "non_concludable": "⚪"}
 
-# Resolver-verdict vocabulary → icon (Phase-D Stage 2). Covers the surface_modality,
+# Resolver-verdict vocabulary → icon (Stage 2). Covers the surface_modality,
 # tractability_small_molecule, dependency, genomic_alteration and selectivity gate
 # verdicts. A verdict absent from the map renders with a neutral marker (never crashes).
 VERDICT_ICONS = {
@@ -177,7 +177,7 @@ VERDICT_ICONS = {
 
 def _render_gate_verdicts(primary: dict, additional: list[dict]) -> list[str]:
     """Render the PRIMARY resolver gate-verdict as the headline row + any additional gate
-    verdicts (Phase-D Stage 2). This is the VERDICT; the modality-fit table that follows is a
+    verdicts (Stage 2). This is the VERDICT; the modality-fit table that follows is a
     demoted lens."""
     sections = ["## Verdict", ""]
 
@@ -209,7 +209,7 @@ def _render_gate_verdicts(primary: dict, additional: list[dict]) -> list[str]:
 def _fmt_evidence_cell(entry: dict) -> str:
     """Render the 'Primary Evidence' cell of the modality-fit table.
 
-    Distinguishes the EG4 dominant-signal path (worth the loudest cell) from the
+    Distinguishes the dominant-signal path (worth the loudest cell) from the
     ratio-based path. Avoids the misleading 'X/N primary positive' phrasing when
     the dominant rule fired — the underlying decision logic is 'one dominant call
     is sufficient', so the cell should reflect that.
@@ -218,7 +218,7 @@ def _fmt_evidence_cell(entry: dict) -> str:
     positive = entry.get("primary_cards_positive_count", 0)
     in_scope = entry.get("primary_cards_in_scope", 0)
     total = entry.get("primary_cards_total", in_scope)
-    # O1 (#447): a non_concludable modality's safety veto could not be assessed (killer-veto card
+    # A non_concludable modality's safety veto could not be assessed (killer-veto card
     # read_error / not_wired). This MUST short-circuit BEFORE the dominant/positive branches —
     # otherwise a non_concludable modality with positive primaries renders "N dominant positive
     # (sufficient)" green, silently defeating the fail-open safety fix in the human-facing table.
@@ -324,7 +324,7 @@ def _render_toc(ep: dict, fit: list[dict]) -> list[str]:
 
 
 def _render_failed_cards_section(ep: dict) -> list[str]:
-    """Reconcile the n_cards_failed count with the reasoned-absence panels (F, 2026-07-20).
+    """Reconcile the n_cards_failed count with the reasoned-absence panels (2026-07-20).
 
     Cards whose reader returned None are now emitted as card_unavailable entries (rendered
     as their own reasoned panels above), so the failure count is auditable BY NAME. This
@@ -356,7 +356,7 @@ def _render_failed_cards_section(ep: dict) -> list[str]:
             f"{n_residual} further card(s) were dropped without a reasoned-absence entry — a "
             f"genuine drop (e.g. a validation failure that never reached the availability path). "
             f"_Likely causes_: method not importable, or all input sources errored. "
-            # 2026-08-10 REVIEW FIX (L3): don't point at `validation_report.json` — that file is
+            # 2026-08-10 fix: don't point at `validation_report.json` — that file is
             # never written. The validation errors surface on the compose-dashboard CLI stderr, and
             # a failed run's package is written with the `.invalid.json` suffix.
             f"Validation errors are reported on the compose-dashboard CLI (stderr); a failed run's "
@@ -398,7 +398,7 @@ def _render_governance(ep: dict) -> list[str]:
     return sections
 
 
-# Human-readable gloss per availability_state (F, 2026-07-20). Keep in sync with
+# Human-readable gloss per availability_state (2026-07-20). Keep in sync with
 # target-contracts/vocabularies/availability_state.enum.yaml.
 _AVAILABILITY_GLOSS = {
     "not_wired": "no live reader is registered for this card yet (framework-coverage gap — "
@@ -428,7 +428,7 @@ def _render_card_panel(card: dict) -> list[str]:
         sections.append("")
         return sections
 
-    # Unavailable card (F, 2026-07-20) → a reasoned absence, NOT a present card. Surfaces the
+    # Unavailable card (2026-07-20) → a reasoned absence, NOT a present card. Surfaces the
     # typed availability_state so a reader can tell "not built yet" from a measured absence
     # (previously such a card fell through to the present-card path and rendered as
     # "? uninterpreted", losing the reason entirely).

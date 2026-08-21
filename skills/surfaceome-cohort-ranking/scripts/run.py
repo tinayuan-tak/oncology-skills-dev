@@ -5,7 +5,7 @@ Emits a per-indication whole-surfaceome effect-size ranking parquet +
 slide-drop PNG, filtered to cells_supporting >= 3. When --target is
 provided, highlights the target's rank + concordance call.
 
-W4c refactor (2026-07-09): decision.json now emits the canonical
+Refactor (2026-07-09): decision.json now emits the canonical
 wired-skill shape (`skill` key, headline dict, standard data-package
 tree) so downstream consumers (target-profile, compose-dashboard) see a
 uniform decision-json contract across all wired skills. The bespoke

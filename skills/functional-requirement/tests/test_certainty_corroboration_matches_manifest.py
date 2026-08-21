@@ -1,4 +1,4 @@
-"""R3 follow-on: FR's declared certainty-corroboration source cards must EQUAL the target-contracts
+"""FR's declared certainty-corroboration source cards must EQUAL the target-contracts
 manifest (vocabularies/certainty_corroboration.yaml). This makes the manifest authoritative, not merely
 parallel — the disjointness validator checks the manifest vs the resolvers, but only THIS check catches
 drift between the manifest and the card(s) the Python certainty extractor actually reads.

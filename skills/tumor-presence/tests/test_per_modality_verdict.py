@@ -1,13 +1,13 @@
 """Test tumor-presence per-(measurement, sample_context) sub-verdicts.
 
-Slice A2 (MODALITY_TAXONOMY.md) refines the per-modality view: buckets are now keyed
+Per MODALITY_TAXONOMY.md, the per-modality view keys buckets
 by the (measurement, sample_context) PAIR — `bulk_rna/cell_line`, `bulk_rna/tumor`,
 `bulk_protein_ms/cell_line`, `bulk_protein_ms/tumor` — so a cell-line-RNA signal is
 never conflated with a tumor-RNA signal (both are `measurement: bulk_rna`).
 
 The refactor is ADDITIVE: the collapsed `presence_verdict` (the audit spine the
 target-profile consumer reads as `verdict`) stays byte-stable. These tests pin:
-  1. collapsed verdict = same rank ladder as before (F1-safe / consumer contract);
+  1. collapsed verdict = same rank ladder as before (consumer contract);
   2. fired rules group by their card's (measurement, sample_context) pair (CARD_CONTEXT);
   3. within-bucket ranking uses the MEASUREMENT's ladder (rule vocab is measurement-scoped);
   4. buckets with no card (sc_rna/tumor, protein_ihc/normal) emit explicit
@@ -43,7 +43,7 @@ def _fr(rule_id, card_id):
             "value": "y", "signals": {}}
 
 
-# --- collapsed verdict unchanged (F1-safe / consumer contract) --------------
+# --- collapsed verdict unchanged (consumer contract) --------------
 
 def test_collapsed_verdict_ranks_across_all_cards():
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
@@ -60,7 +60,7 @@ def test_collapsed_verdict_no_rules_is_insufficient():
 
 def test_bulk_rna_buckets_are_split_by_sample_context():
     """Two bulk_rna cards with DIFFERENT sample_context land in SEPARATE buckets —
-    the whole point of Slice A2. Previously both collapsed into one `bulk_rna` key."""
+    the whole point. Previously both collapsed into one `bulk_rna` key."""
     fired = [_fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent"),
              _fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
@@ -95,7 +95,7 @@ def test_protein_bucket_is_separate_from_rna():
 
 
 def test_protein_only_signal_not_swallowed_C1_regression():
-    """C1 regression guard (2026-07-20): a target with a MEASURED bulk_protein_ms
+    """Regression guard (2026-07-20): a target with a MEASURED bulk_protein_ms
     signal and NO expression signal must produce a real protein verdict — NOT the
     silent `insufficient` collapse the expression-only ladder caused."""
     # measured cell-line protein presence, no RNA
@@ -151,7 +151,7 @@ def test_measured_expression_still_wins_over_measured_protein_byte_stable():
 
 
 def test_tumor_elevation_breadth_shares_protein_tumor_bucket():
-    """Slice B3: tumor-elevation-breadth is bulk_protein_ms × tumor — SAME bucket as
+    """tumor-elevation-breadth is bulk_protein_ms × tumor — SAME bucket as
     the CPTAC per-indication card, ranked against _PROTEIN_RANK."""
     assert tp.CARD_CONTEXT["tumor-elevation-breadth"] == ("bulk_protein_ms", "tumor")
     fired = [_fr("tumor-breadth-broadly-supportive", "tumor-elevation-breadth")]
@@ -161,7 +161,7 @@ def test_tumor_elevation_breadth_shares_protein_tumor_bucket():
 
 
 def test_breadth_gives_target_only_query_a_tumor_signal():
-    """THE Slice-B3 payoff: in a target-ONLY query, the per-indication tumor cards
+    """THE payoff: in a target-ONLY query, the per-indication tumor cards
     (CPTAC, tumor-vs-adjacent) don't fire — but breadth DOES (it rolls up over all
     cohorts). So bulk_protein_ms/tumor reads `measured` (broadly_tumor_elevated) even
     though bulk_rna/tumor stays data_unavailable. Breadth is the one tumor-context
@@ -197,7 +197,7 @@ def test_breadth_not_elevated_is_neutral_not_killer():
 
 
 def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
-    """The cellline-protein-abundance card (E3b) is bulk_protein_ms × cell_line — its
+    """The cellline-protein-abundance card is bulk_protein_ms × cell_line — its
     fired rule lands in the bulk_protein_ms/cell_line bucket, DISTINCT from CPTAC's
     bulk_protein_ms/tumor bucket."""
     assert tp.CARD_CONTEXT["cellline-protein-abundance"] == ("bulk_protein_ms", "cell_line")
@@ -213,7 +213,7 @@ def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
 
 def test_genuine_protein_absence_demotes_collapsed_verdict():
     """RNA broadly_high + a MEASURED genuine protein-ABSENCE (cell-line broadly_low, detected in <30% of
-    the Gygi MS panel). The protein-absence demotion (Principle 1 Stage B) fires: the collapsed verdict
+    the Gygi MS panel). The protein-absence demotion fires: the collapsed verdict
     is no longer the un-caveated `broadly_high_expression` (which buried the protein contradiction under
     the one word) — it demotes to `present_rna_only_protein_absent` (still a present call; the driving
     RNA rung is retained). The per-bucket breakdown continues to expose the disagreement directly."""
@@ -228,7 +228,7 @@ def test_genuine_protein_absence_demotes_collapsed_verdict():
 
 
 def test_protein_down_contrast_does_not_demote_G2b_regression():
-    """G2b (tumor-presence expert review): a tumor-vs-normal protein DOWN contrast
+    """Tumor-presence expert review: a tumor-vs-normal protein DOWN contrast
     (protein-{strongly,modestly}-down-opposing) is a Phase-B SELECTIVITY signal — the protein was
     MEASURED PRESENT but is lower in tumor than matched normal — NOT absence. It must NOT demote a
     present RNA call to `present_rna_only_protein_absent` (a category error the old demotion committed by
@@ -252,7 +252,7 @@ def test_protein_down_contrast_does_not_demote_G2b_regression():
 def test_protein_absence_demotion_requires_all_three_conditions():
     """The demotion fires ONLY on (RNA-lens positive) AND (a genuine protein-ABSENCE rule) AND (no
     protein-positive). Each condition alone leaves the ordinary collapse untouched. The protein-negative
-    must be an ABSENCE signal (broadly_low / not_detected), not a down-contrast (see the G2b test)."""
+    must be an ABSENCE signal (broadly_low / not_detected), not a down-contrast (see the down-contrast test)."""
     rna = _fr("expression-broadly-high-supportive", "cellline-rna-distribution")
     prot_absent = _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance")
     prot_pos = _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")
@@ -270,7 +270,7 @@ def test_protein_absence_demotion_requires_all_three_conditions():
 # --- honest gaps: unbuilt substrates are data_unavailable, never negative ---
 
 def test_unbuilt_substrates_are_data_unavailable():
-    """After Phase 3.3 (2026-08-07) all buckets are card-backed (no more unbuilt gaps).
+    """After the 2026-08-07 update all buckets are card-backed (no more unbuilt gaps).
     sc_rna/normal is a safety comparator backed by sc-normal-celltype-expression;
     protein_ihc/normal is backed by normal-tissue-liability. When no comparator value is
     available (card absent / data_unavailable), buckets still emit data_unavailable."""
@@ -287,10 +287,10 @@ def test_unbuilt_substrates_are_data_unavailable():
     assert pm["sc_rna/tumor"]["evidence_state"] == "data_unavailable"
 
 
-# --- sc_rna slice (2026-08-04): sc_rna/tumor is now card-backed --------------
+# --- sc_rna (2026-08-04): sc_rna/tumor is now card-backed --------------
 
 def test_sc_rna_bucket_resolves_when_card_fires():
-    """THE sc_rna slice payoff: the sc_rna/tumor bucket, formerly a hard-coded named gap, now
+    """THE sc_rna payoff: the sc_rna/tumor bucket, formerly a hard-coded named gap, now
     resolves to a real MEASURED verdict when the tumor-scrna-celltype-expression card fires."""
     fired = [_fr("sc-expression-malignant-broadly-detected-supportive",
                  "tumor-scrna-celltype-expression")]
@@ -398,10 +398,10 @@ def test_verdict_fn_discoverable_by_composer():
     assert hasattr(tp, "_verdict") or hasattr(tp, "_snapshot")
 
 
-# --- Finding B (2026-08-04): tumor-RNA now moves the verdict -----------------
+# --- tumor-RNA now moves the verdict (2026-08-04) -----------------
 
 def test_tumor_rna_distribution_now_resolves_bucket_not_insufficient():
-    """FINDING B: tumor-rna-distribution's rule was emitted by a live card but was
+    """tumor-rna-distribution's rule was emitted by a live card but was
     NOT in the ladder, so bulk_rna/tumor resolved `insufficient` on real tumor-RNA data.
     Now it produces a real presence verdict in its bucket."""
     fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
@@ -447,7 +447,7 @@ def test_tumor_vs_adjacent_down_reads_now_in_ladder():
     assert v_modest == "modestly_downregulated_in_tumor"
 
 
-# --- Finding A (2026-08-04): subtype scope elevated to the headline ----------
+# --- subtype scope elevated to the headline (2026-08-04) ----------
 
 def _all_cards_with(subtype_summary):
     """_headline calls get_card_field for EVERY card in CARDS (raises KeyError on a missing id), so a
@@ -458,7 +458,7 @@ def _all_cards_with(subtype_summary):
 
 
 def test_subtype_scope_surfaces_in_headline():
-    """FINDING A: the subtype presence landscape (tumor-rna-distribution-by-subtype) is now in
+    """The subtype presence landscape (tumor-rna-distribution-by-subtype) is now in
     the headline/audit spine, not just a side table. One-directional facet — it does NOT touch the
     presence_verdict (byte-stable), only adds subtype_* context fields."""
     cards = _all_cards_with({"subtype_axis_available": True, "n_subtypes_measured": 7,
@@ -483,10 +483,10 @@ def test_subtype_scope_degrades_honestly_when_no_shard():
     assert h["presence_verdict"] == "broadly_moderate_expression"
 
 
-# --- 2026-08-11 production review: verdict-integrity regressions (G1/G2/G5) ---
+# --- 2026-08-11 production review: verdict-integrity regressions ---
 
 def test_protein_modest_down_is_reachable_G1_regression():
-    """G1: `protein-modestly-down-opposing` fires (intracellular-intrinsic.rules.yaml:2895) but
+    """`protein-modestly-down-opposing` fires (intracellular-intrinsic.rules.yaml:2895) but
     had NO rung in _PROTEIN_RANK, so a MEASURED modest_down protein read collapsed to
     `insufficient` and the verdict `protein_modestly_downregulated` was UNREACHABLE. The
     contracts-side fix (the rule) landed; the skill-side rung never did — a cross-repo half-fix.
@@ -502,7 +502,7 @@ def test_protein_modest_down_is_reachable_G1_regression():
 
 
 def test_sc_normal_comparator_survives_cross_axis_veto_G2_regression():
-    """G2: `tvn-sc-normal-critical-organ-veto` is a tumor-SELECTIVITY veto that lives on the
+    """`tvn-sc-normal-critical-organ-veto` is a tumor-SELECTIVITY veto that lives on the
     intracellular axis and keys the sc-normal-celltype-expression card THIS skill dispatches, so
     it FIRES inside tumor-presence and is tagged (sc_rna, normal) via CARD_CONTEXT. Because
     _per_modality_verdicts ranked the fired group BEFORE the comparator branch, the veto (absent
@@ -520,7 +520,7 @@ def test_sc_normal_comparator_survives_cross_axis_veto_G2_regression():
 
 
 def test_cellline_broadly_low_does_not_kill_tumor_present_G5_regression():
-    """G5 (VERDICT-MOVING — pending sign-off): a target broadly-LOW across DepMap cell lines but
+    """VERDICT-MOVING (pending sign-off): a target broadly-LOW across DepMap cell lines but
     broadly-HIGH in the actual TCGA tumor collapsed to the cell-line degrader-killer
     `broadly_low_expression` — a FALSE-NEGATIVE headline for a tumor-PRESENCE question, because
     the cell-line proxy (`expression-broadly-low-degrader-killer`) outranked the direct tumor
@@ -546,7 +546,7 @@ def test_cellline_broadly_low_does_not_kill_tumor_present_G5_regression():
 def test_full_per_modality_golden_spine():
     """GOLDEN (2026-08-11 production review): a representative multi-modality fired-set that
     populates every card-backed bucket, snapshotted so any future ladder/bucket edit surfaces as
-    an explicit diff. Deterministic + offline, so #337's skills-validate CI runs it. Guards the
+    an explicit diff. Deterministic + offline, so the skills-validate CI runs it. Guards the
     presence spine the way the 9 resolver gates are guarded by resolver_golden_snapshots.json."""
     fired = [
         _fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
@@ -574,10 +574,10 @@ def test_full_per_modality_golden_spine():
     assert tp._verdict(fired)[0] == "broadly_high_expression"
 
 
-# --- G3 (2026-08-11 production review): RNA tumor-elevation breadth surfaced ---
+# --- 2026-08-11 production review: RNA tumor-elevation breadth surfaced ---
 
 def test_rna_tumor_elevation_breadth_surfaced_in_headline_G3():
-    """G3: the parallel RNA tumor-elevation breadth layer (rna_tumor_elevation_breadth_class, 27
+    """The parallel RNA tumor-elevation breadth layer (rna_tumor_elevation_breadth_class, 27
     indications) + breadth_layer_concordance are emitted by tumor-elevation-breadth but were never
     read by _headline — a dead sub-axis that silently discarded a measured RNA-elevation signal for
     the RNA-only indications CPTAC (10 cohorts) does not cover. Now surfaced as verdict-inert
@@ -596,10 +596,10 @@ def test_rna_tumor_elevation_breadth_surfaced_in_headline_G3():
     assert h["presence_verdict"] == "insufficient"
 
 
-# --- H2 / M3 / M2 full-review verdict regressions (2026-08-13) --------------
+# --- full-review verdict regressions (2026-08-13) --------------
 
 def test_h2_measured_protein_positive_outranks_rna_killer():
-    """H2: a target broadly-LOW in cell-line RNA (a degrader-killer) but strongly-UP in tumor PROTEIN
+    """A target broadly-LOW in cell-line RNA (a degrader-killer) but strongly-UP in tumor PROTEIN
     must collapse to the measured protein positive, NOT the RNA killer — a false-negative before the
     fix (the RNA killer sat above every protein rung)."""
     fired = [_fr("expression-broadly-low-degrader-killer", "cellline-rna-distribution"),
@@ -611,7 +611,7 @@ def test_h2_measured_protein_positive_outranks_rna_killer():
 
 
 def test_h2_measured_sc_positive_outranks_protein_killer():
-    """H2 (sc arm): a measured sc malignant-detected positive outranks a measured protein-absence
+    """sc arm: a measured sc malignant-detected positive outranks a measured protein-absence
     killer (cell-line broadly_low)."""
     fired = [_fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance"),
              _fr("sc-expression-malignant-broadly-detected-supportive",
@@ -621,7 +621,7 @@ def test_h2_measured_sc_positive_outranks_protein_killer():
 
 
 def test_h2_rna_positive_still_wins_over_protein_positive_bytestable():
-    """H2 byte-stability: among POSITIVES, RNA remains the backbone (expr before protein), so an
+    """Byte-stability: among POSITIVES, RNA remains the backbone (expr before protein), so an
     established positive-RNA verdict is unchanged."""
     fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
              _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
@@ -630,7 +630,7 @@ def test_h2_rna_positive_still_wins_over_protein_positive_bytestable():
 
 
 def test_m3_not_informative_does_not_mask_protein_positive():
-    """M3: not_informative (a flat tumor-vs-adjacent COVERAGE gap) sinks below all measured, so it can
+    """not_informative (a flat tumor-vs-adjacent COVERAGE gap) sinks below all measured, so it can
     never bury a measured protein positive in the collapse."""
     fired = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent"),
              _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
@@ -639,7 +639,7 @@ def test_m3_not_informative_does_not_mask_protein_positive():
 
 
 def test_m3_not_informative_sinks_below_measured_negative():
-    """M3: not_informative also sinks below a measured NEGATIVE — a measured protein down-read is more
+    """not_informative also sinks below a measured NEGATIVE — a measured protein down-read is more
     informative than a flat RNA differential."""
     fired = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent"),
              _fr("protein-strongly-down-opposing", "tumor-protein-abundance-cptac")]
@@ -648,7 +648,7 @@ def test_m3_not_informative_sinks_below_measured_negative():
 
 
 def test_m3_not_informative_alone_still_reported():
-    """M3 does not change the not_informative-ONLY case: with nothing measured to outrank it, the
+    """This does not change the not_informative-ONLY case: with nothing measured to outrank it, the
     collapse still surfaces not_informative (from the gap tier)."""
     fired = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent")]
     verdict, _ = tp._verdict(fired)
@@ -660,7 +660,7 @@ import pytest as _pytest  # noqa: E402
 
 @_pytest.mark.parametrize("flat_class", ["not_significant", "small_effect", "ns"])
 def test_m2_resolved_but_flat_cptac_bucket_is_measured(flat_class):
-    """M2: a resolved-but-flat CPTAC class (present, not tumor-elevated) marks the bulk_protein_ms/tumor
+    """A resolved-but-flat CPTAC class (present, not tumor-elevated) marks the bulk_protein_ms/tumor
     bucket `measured` (protein_present_not_elevated), NOT data_unavailable — 'measured, flat' must not
     read as 'not measured'. These classes fire no rule (deliberately un-ruled), so the bucket is rescued
     off the resolved card directly. 2026-08-14: covers the split vocab (not_significant / small_effect)
@@ -674,7 +674,7 @@ def test_m2_resolved_but_flat_cptac_bucket_is_measured(flat_class):
 
 
 def test_m2_no_resolved_cptac_stays_data_unavailable():
-    """M2 guard: with NO cptac card resolved (truly not measured), the bucket stays data_unavailable —
+    """Guard: with NO cptac card resolved (truly not measured), the bucket stays data_unavailable —
     the rescue only fires on a genuinely resolved-but-unruled present read."""
     pm = tp._per_modality_verdicts([], cards=[])
     b = pm["bulk_protein_ms/tumor"]
@@ -694,7 +694,7 @@ def _lens_disc(fired):
 
 
 def test_reanchor_resolves_the_cellline_moderate_but_tumor_broad_case():
-    """EPCAM/FOLR1/KRAS pattern (cell-line broadly_moderate + tumor broadly-expressed). BEFORE the F
+    """EPCAM/FOLR1/KRAS pattern (cell-line broadly_moderate + tumor broadly-expressed). BEFORE the
     re-anchor the collapsed headline inherited the CELL-LINE lens (broadly_moderate) and the
     cell_line_vs_tumor_discordant flag fired to warn the one-word verdict understated tumor presence.
     AFTER the re-anchor the TUMOR lens wins the headline (tumor_broadly_expressed), so the case is now
@@ -777,7 +777,7 @@ def test_headline_surfaces_single_cell_compartment_caf_and_homogeneity():
 
 
 def test_headline_surfaces_sc_malignant_cell_and_donor_counts():
-    """G3 follow-up: the total malignant CELLS (+ donors) behind the sc call are surfaced in the headline
+    """Follow-up: the total malignant CELLS (+ donors) behind the sc call are surfaced in the headline
     and synthesis facet, so a reader can tell a ~509k-cell COADREAD call from a thin pooled cube (the
     analysis-methods MIN_MALIGNANT_CELLS_TOTAL floor's companion legibility)."""
     sc = {"sc_expression_class": "malignant_broadly_detected",

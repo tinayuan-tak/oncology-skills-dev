@@ -1,4 +1,4 @@
-"""C2a regression: RNAi-only non-dependence must NOT drive a veto.
+"""RNAi-only non-dependence must NOT drive a veto.
 
 Before 2026-07-17 the _verdict collapsed both `non-dependent-killer` (CRISPR,
 emits killer signals) AND `rnai-non-dependent-neutral` (RNAi, emits NEUTRAL

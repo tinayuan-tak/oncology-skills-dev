@@ -18,7 +18,7 @@ Two curated fixtures pin the two verdict rungs that fire on real COADREAD data:
   - CEACAM5 / COADREAD — partial (a surface antigen with a thin signaling network).
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
-tumor-selectivity's replay (SK#411).
+tumor-selectivity's replay.
 """
 from __future__ import annotations
 

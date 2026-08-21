@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""drift_golden — shared helpers for the WS4 offline golden-set drift-CI (roadmap §9).
+"""drift_golden — shared helpers for the offline golden-set drift-CI.
 
 Both `freeze_drift_golden.py` (regenerate the frozen golden) and `tests/test_drift_guard.py`
 (assert no drift) import from here so the trim projection + the frozen deterministic-spine subset are
@@ -12,7 +12,7 @@ the DETERMINISTIC SPINE outputs — the clamped verdict, the gate ceiling / clam
 clause-traceability score, the computed certainty + its caps, the data gaps, the substrate-discount
 decision, the intra-package coherence result, and the two provenance PINS (prompt_template_hash +
 model_id). The LLM PROSE (edge rationales, clause statements) is deliberately NOT frozen — only the
-deterministic spine the roadmap requires to be run-to-run stable.
+deterministic spine required to be run-to-run stable.
 """
 from __future__ import annotations
 

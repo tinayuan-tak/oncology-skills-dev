@@ -64,7 +64,7 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
     if positive_hits:
         shorts = sorted({h["short"] for h in positive_hits})
         rows = [_row(s) for s in shorts]
-        # R15: describe the routing from the actual BAND of the supporting axes, not a blanket "necessity
+        # describe the routing from the actual BAND of the supporting axes, not a blanket "necessity
         # biology" — some positive axes are sufficiency-band (tractability_sm, surface_modality), so
         # labelling them "necessity" mis-states what was evidenced.
         _nec = any(r.get("band") == "necessity" for r in rows)
@@ -97,7 +97,7 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
                         "cannot decide; no gate produced a signal and no coverage map available.")}
 
 
-# --- Ordinal matrix VIEW (gap #3 "now" / gap #4 demo) ------------------------
+# --- Ordinal matrix VIEW ------------------------
 #
 # A gate × modality signal matrix, projected onto the ordinal scale for DISPLAY + RANKING.
 # This is the "evidence matrix" made concrete for a single (target, indication) run: rows = the
@@ -153,11 +153,11 @@ def _ordinal_matrix(sub_results: dict) -> dict:
     }
 
 
-# --- Biomarker convergence facet (Q12; master-sequencing Part 3c) -----------
+# --- Biomarker convergence facet (Q12) -----------
 #
 # A FACET, not a gate: biomarker is always "a biomarker OF something" — it has no standalone verdict
 # about the target, it MODIFIES other gates' verdicts. This assembles the scattered biomarker-relevant
-# byproducts each extraction plan produces into ONE structured object with two jobs (Part 3c):
+# byproducts each extraction plan produces into ONE structured object with two jobs:
 #   - corroboration_role  → raises CONFIDENCE in a biology-gate verdict
 #   - stratification_role → defines the patient-selection population + preferred assay
 # DETERMINISTIC + ADDITIVE + ONE-DIRECTIONAL (mirrors _ordinal_matrix): computed pre-prompt from the
@@ -186,7 +186,7 @@ _BIOMARKER_INPUTS = {
 }
 
 
-# ── A2a: quantitative re-surfacing (biomarker-axis plan §A2a) ─────────────────────────────────
+# ── quantitative re-surfacing (biomarker-axis plan) ─────────────────────────────────
 # The categorical *_class fields above are BUCKETED from raw statistics the cards already compute
 # (pearson_r, effect sizes, Mann-Whitney q, delta-Chronos, agreement fractions) — but the facet
 # collapses each card to its class and DISCARDS the numbers. This map names, per sub-skill, the
@@ -199,7 +199,7 @@ _BIOMARKER_QUANT = {
     "genomic_alteration": ["hotspot_mannwhitney_q", "hotspot_effect_size",
                            "delta_chronos_hotspot_mut_vs_wt",
                            "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype",
-                           # Thread 3 (2026-08-09): dependency-classification PERFORMANCE — the
+                           # (2026-08-09): dependency-classification PERFORMANCE — the
                            # biomarker as a classifier for the DepMap-dependency phenotype. PPV-lift
                            # separates rare-sharp (BRAF ~9.6x) from common-dep high-PPV-low-lift (KRAS
                            # ~2.2x) markers the coarse class hides. DEPENDENCY performance, NOT clinical.
@@ -218,7 +218,7 @@ _BIOMARKER_QUANT = {
 
 
 def _biomarker_quantitative(sub_results: dict) -> dict:
-    """Re-surface the raw statistics behind the biomarker categorical classes (A2a). Returns a
+    """Re-surface the raw statistics behind the biomarker categorical classes. Returns a
     {sub_skill: {field: value}} dict of the numeric companion fields that were present this run —
     reusing _first_card_summary_field (same accessor as the categorical read). Verdict-inert: this
     is display strength only; null/absent fields are simply omitted (honest coverage, not fabricated)."""
@@ -237,7 +237,7 @@ def _biomarker_quantitative(sub_results: dict) -> dict:
     return quant
 
 
-# ── BEST-role classification (biomarker-axis plan §1) ────────────────────────────────────────
+# ── BEST-role classification (biomarker-axis plan) ────────────────────────────────────────
 # The facet's corroboration/stratification blocks answer "IS there a biomarker signal?" but NOT
 # "what KIND?". A biomarker is always one of a fixed set of intended-uses, and they MUST stay
 # separate — high target expression may be PROGNOSTIC but not PREDICTIVE; a driver LoF may define a
@@ -261,10 +261,10 @@ def _biomarker_quantitative(sub_results: dict) -> dict:
 def _classify_biomarker_best_roles(corroboration: dict, stratification: dict,
                                     quantitative: dict = None) -> list:
     """Type the assembled biomarker signals into a LIST of {intended_use, basis, evidence_strength}
-    hypotheses (BEST-role §1). Pure fn — deterministic, no I/O; roles are NON-exclusive. A field that
+    hypotheses (BEST-role). Pure fn — deterministic, no I/O; roles are NON-exclusive. A field that
     is null / data_unavailable / not_informative contributes nothing (honest — never fabricates a role).
 
-    When `quantitative` carries the genomic dependency-classification performance (Thread 3), the
+    When `quantitative` carries the genomic dependency-classification performance, the
     genomic predictive hypothesis is annotated with the computed dependency-PPV + PPV-lift — a real
     metric on the DepMap-dependency ground truth (NOT drug-response / clinical PPV)."""
     quantitative = quantitative or {}
@@ -273,7 +273,7 @@ def _classify_biomarker_best_roles(corroboration: dict, stratification: dict,
         return v not in (None, "data_unavailable", "not_informative", "insufficient_survival_data",
                          "insufficient_mutation_rate", "insufficient_paired_models")
 
-    # Dependency-classification performance for the genomic stratifier (Thread 3), if present.
+    # Dependency-classification performance for the genomic stratifier, if present.
     _gq = quantitative.get("genomic_alteration", {}) or {}
     _dep_ppv = _gq.get("hotspot_dependency_ppv")
     _dep_lift = _gq.get("hotspot_dependency_ppv_lift")
@@ -311,7 +311,7 @@ def _classify_biomarker_best_roles(corroboration: dict, stratification: dict,
                "_note": "mutation-stratified DEPENDENCY (CRISPR) — a dependency-predictive "
                         "hypothesis; NOT auto an inhibitor biomarker (KO removes noncatalytic "
                         "functions). Confirm with a pharmacologic (PRISM) arm before clinical framing."}
-        # Thread 3: attach the computed dependency-classification performance. PPV-lift is the
+        # attach the computed dependency-classification performance. PPV-lift is the
         # informativeness above the panel base-rate — it separates a rare-sharp predictor (high lift)
         # from a common-dependency high-PPV-low-lift marker (the coarse strength label hides this).
         perf = _ppv_perf()
@@ -410,24 +410,24 @@ def _biomarker_facet(sub_results: dict) -> dict:
     else:
         verdict = "none"
 
-    # A2a: re-surface the raw statistics behind the categorical classes (strength, not just bucket).
+    # re-surface the raw statistics behind the categorical classes (strength, not just bucket).
     quantitative = _biomarker_quantitative(sub_results)
 
-    # BEST-role classification (§1): type the assembled signals into a LIST of non-exclusive
+    # BEST-role classification: type the assembled signals into a LIST of non-exclusive
     # hypotheses, each naming its intended_use. Kept SEPARATE from the facet verdict (which is a
     # confidence/patient-selection summary) — this answers "what KIND of biomarker(s)", the verdict
     # answers "how strong a selector". Verdict-inert, additive. `quantitative` is passed so a
-    # predictive hypothesis can carry the computed dependency-PPV performance (Thread 3).
+    # predictive hypothesis can carry the computed dependency-PPV performance.
     biomarker_hypotheses = _classify_biomarker_best_roles(corroboration, stratification, quantitative)
     intended_uses = sorted({h["intended_use"] for h in biomarker_hypotheses})
 
     return {
         "corroboration_role": corroboration,
         "stratification_role": stratification,
-        "quantitative": quantitative,                   # A2a: raw stats behind the classes (verdict-inert)
+        "quantitative": quantitative,                   # raw stats behind the classes (verdict-inert)
         "preferred_assay": preferred_assay,
         "verdict": verdict,
-        "biomarker_hypotheses": biomarker_hypotheses,   # BEST-role §1: typed, non-exclusive
+        "biomarker_hypotheses": biomarker_hypotheses,   # BEST-role: typed, non-exclusive
         "intended_uses": intended_uses,                 # rollup of distinct roles present
         "_disclaimer": ("Biomarker is a FACET, not a gate: it corroborates other gates' verdicts "
                         "(→ confidence) and defines patient-selection (→ stratification); it never "
@@ -459,7 +459,7 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
     return expr.get("synthesis_facet")
 
 
-# Selectivity facet (Phase R): tumor-selectivity's `_synthesis_facet`, carried by the fan-out as
+# Selectivity facet: tumor-selectivity's `_synthesis_facet`, carried by the fan-out as
 # sub_results['selectivity']['synthesis_facet']. Parallel to _presence_facet — a thin reader surfacing
 # the selectivity 8-question `question_table` (WIN/DIST/INT/SAFE) + the tumor-vs-normal WINDOW gate for
 # the composed dashboard's leading table. VERDICT-INERT (selectivity's verdict is owned by its resolver
@@ -470,19 +470,19 @@ def _selectivity_facet(sub_results: dict) -> Optional[dict]:
     return sel.get("synthesis_facet")
 
 
-# Dependency claim-vector facet (P2 phase 3-claim): functional-requirement's `_synthesis_facet`,
+# Dependency claim-vector facet: functional-requirement's `_synthesis_facet`,
 # carried by the fan-out as sub_results['dependency']['synthesis_facet']. Parallel to _presence_facet —
 # a thin reader surfacing the dependency SIGNAL decomposition (claim_vector DEP/SEL/COND/CHEM +
 # key_signals + confidence annotations) for the synthesis prompt + evidence package. The per-axis
-# certainty roll-up is the SEPARATE certainty_by_axis sidecar; this is the SIGNAL half (reconciliation
-# D1). VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
+# certainty roll-up is the SEPARATE certainty_by_axis sidecar; this is the SIGNAL half.
+# VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
 # Returns None when functional-requirement is absent / supplied no facet.
 def _dependency_facet(sub_results: dict) -> Optional[dict]:
     dep = (sub_results or {}).get("dependency") or {}
     return dep.get("synthesis_facet")
 
 
-# --- PER-AXIS (strength, certainty) sidecar assembly (CERTAINTY_MODEL §3) ------------------------
+# --- PER-AXIS (strength, certainty) sidecar assembly (CERTAINTY_MODEL) ------------------------
 # Each verdict-bearing sub-skill MAY expose `_strength_certainty`; the fan-out captures it as
 # sub_results[short]['strength_certainty'] (None for skills without the hook). This thin reader
 # assembles the present ones into a {short: {strength, certainty{level, coverage, corroboration,
@@ -577,8 +577,8 @@ def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
     }
 
 
-# --- SUBTYPE convergence facet (capstone Part 3c integration layer) ----------------------------
-# The cross-card per-molecular-subtype convergence the capstone owed. Where _biomarker_facet
+# --- SUBTYPE convergence facet (integration layer) ----------------------------
+# The cross-card per-molecular-subtype convergence the integration layer owed. Where _biomarker_facet
 # converges SCALAR biomarker roles, this converges the PER-STRATUM panoramas: the three
 # subtype-grain cards each emit `per_subgroup_metrics` (one record per molecular subtype, carrying
 # evidence_state measured/underpowered/absent + a metric), scattered across three sub-skills. Nothing
@@ -643,7 +643,7 @@ def _load_subtype_crosswalk(indication: str, contracts_repo: Path | None = None)
 
 def _subtype_facet(sub_results: dict, indication: str = None,
                    contracts_repo: Path | None = None) -> dict:
-    """Assemble the per-molecular-subtype CONVERGENCE facet (capstone Part 3c). Deterministic;
+    """Assemble the per-molecular-subtype CONVERGENCE facet. Deterministic;
     additive; VERDICT-INERT (a synthesis facet, never a gate — informs patient-selection confidence,
     never mints a nominate). Converges the three subtype-grain panoramas BY SUBTYPE:
 
@@ -1036,7 +1036,7 @@ def _norm_entropy(labels: list) -> "Optional[float]":
 #
 # Companion to fragility: fragility asks "how easily does the CALL move?"; heterogeneity asks "does a
 # single pooled verdict HIDE a split?" — a target strong in some strata/comparators/assays and absent
-# in others. NARROW by design (round-2 review): dispersion is only computable where the underlying
+# in others. NARROW by design: dispersion is only computable where the underlying
 # MULTI-VALUE data survives — the tumor-vs-normal four-cell (always), CRISPR-vs-RNAi fraction_agree
 # (always), and the per-molecular-subtype dependency panorama (ONLY under --subtypes; not pulled
 # otherwise). Most pooled cards carry no per-value array, so a GENERAL cross-cohort dispersion is
@@ -1199,14 +1199,14 @@ def _addressable_population_facet(sub_results: dict) -> dict:
 # A PROFILE, never a partition: cis_feature / abundance / mixed / dependency_relational / insufficient,
 # with per-arm tiers (dominant|supporting|none|unknown) + a dominant call. Pure post-hoc function over
 # already-fired sub_results (like _biomarker_facet); absent from _SHORT_TO_GATE → structurally cannot
-# move the verdict spine. Now GRADUATED past Phase 0: it emits a synthesis EMPHASIS governance block
+# move the verdict spine. Now GRADUATED past the annotation-only phase: it emits a synthesis EMPHASIS governance block
 # (tp_synthesis_prompt.format_mode_governance_block) AND routes render emphasis (tp_render_md) — so the
 # LLM prompt (and thus prompt_hash) DO change when a mode is present. What stays byte-identical is the
 # DETERMINISTIC verdict spine (recommendation / confidence / gate), NOT the prompt: this facet reorders
 # narrative emphasis only, never a verdict. (Do not re-add a "no prompt change / prompt_hash byte-stable"
-# claim here — Phases 2-4 falsified it; see the actionability-mode design doc.)
+# claim here — later phases falsified it; see the actionability-mode design doc.)
 # `unknown` (read-failure/uncurated) is strictly distinct from `none` (measured-absent): a blind arm
-# lowers confidence and never cedes to another mode. Thresholds are Phase-1-calibratable; unrecognized
+# lowers confidence and never cedes to another mode. Thresholds are calibratable; unrecognized
 # card values degrade to none/unknown (honest), never crash. See the actionability-mode design doc.
 _ABUNDANCE_FIT = frozenset({"both_viable", "adc_preferred", "tce_preferred",
                             "ADC_preferred", "TCE_preferred"})
@@ -1217,7 +1217,7 @@ _SELECTIVE_VERDICTS = frozenset({"strong_tumor_selective", "modest_tumor_selecti
 
 @functools.lru_cache(maxsize=1)
 def _actionability_mode_overrides() -> dict:
-    """Curated actionability_mode overrides (Phase 4) — symbol/alias (UPPER) -> {mode, rationale}. From
+    """Curated actionability_mode overrides — symbol/alias (UPPER) -> {mode, rationale}. From
     target-contracts vocabularies/actionability_mode_lookup.yaml; graceful-skip → {} if absent. Pins the
     documented multi-axis duals (ERBB2/HER2, EGFR, MET) as `mixed` so a thin run can't collapse them."""
     path = _CONTRACTS_REPO / "vocabularies" / "actionability_mode_lookup.yaml"
@@ -1241,7 +1241,7 @@ def _actionability_mode_overrides() -> dict:
 def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> dict:
     """VERDICT-INERT selection-basis profile: cis_feature vs abundance vs dependency_relational (+ mixed
     / insufficient). Post-hoc over fired sub_results; never touches the gate. A curated override
-    (actionability_mode_lookup.yaml, Phase 4) pins `dominant` for listed high-value duals; the derived
+    (actionability_mode_lookup.yaml) pins `dominant` for listed high-value duals; the derived
     value is retained as `derived_dominant` for audit."""
     def _cs(card_id, field):
         return (_find_card_summary(sub_results, card_id) or {}).get(field)
@@ -1316,7 +1316,7 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
     else:
         confidence = "low"
 
-    # Curated OVERRIDE (Phase 4): a listed high-value dual (ERBB2/EGFR/MET) is pinned so a thin/one-sided
+    # Curated OVERRIDE: a listed high-value dual (ERBB2/EGFR/MET) is pinned so a thin/one-sided
     # run can't collapse it; the derived call is retained as derived_dominant for audit.
     source = "derived"
     derived_dominant = dominant
@@ -1326,7 +1326,7 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
         source = "curated_override"
         if dominant == "mixed":
             secondary = None
-        # R11: a curated override pins the DOMINANT mode, but confidence must reflect THIS run's arms —
+        # a curated override pins the DOMINANT mode, but confidence must reflect THIS run's arms —
         # else a thin/one-sided run (every arm unknown/none) falsely reads `high`. High only when at least
         # one arm was actually measured this run; otherwise curation-anchored `moderate`.
         confidence = "high" if any(t not in ("unknown", "none") for t in arms.values()) else "moderate"

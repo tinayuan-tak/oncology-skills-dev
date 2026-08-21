@@ -65,7 +65,7 @@ def test_kras_coadread_no_modality_enumerates_plausible():
         "normal-tissue-liability",
     }
     assert expected_base_required.issubset(cards), f"missing: {expected_base_required - cards}"
-    # clinical-precedent moved required_cards -> placeholder_cards (TC #310, 2026-08-12): it is
+    # clinical-precedent moved required_cards -> placeholder_cards (2026-08-12): it is
     # status=placeholder_not_wired (no method/product), so it is no longer a required card and
     # compose-dashboard does not run placeholder_cards. It must NOT be in to_run — guards against
     # re-adding a non-wired card to required_cards.
@@ -131,8 +131,8 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
         "normal-tissue-liability",
     }
     assert expected_base_required.issubset(cards), f"missing: {expected_base_required - cards}"
-    # antigen-prevalence + clinical-precedent moved required_cards -> placeholder_cards (TC #310,
-    # 2026-08-12): both status=placeholder_not_wired (no method/product), so no longer required and
+    # antigen-prevalence + clinical-precedent moved required_cards -> placeholder_cards
+    # (2026-08-12): both status=placeholder_not_wired (no method/product), so no longer required and
     # compose-dashboard does not run placeholder_cards. Must NOT be in to_run.
     assert {"antigen-prevalence", "clinical-precedent"}.isdisjoint(cards), \
         "antigen-prevalence/clinical-precedent are now placeholder_cards (TC #310) — must not be in to_run"
@@ -140,9 +140,9 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
     assert {"antigen-prevalence", "clinical-precedent"}.issubset(_card_ids_excluded(plan)), \
         "placeholder_cards antigen-prevalence/clinical-precedent must be surfaced in excluded_at_compose"
 
-    # T2-adjacent (2026-08-11 review): this assertion was STALE. The ADC module used to add a
+    # This assertion was STALE. The ADC module used to add a
     # phantom `antigen-density-evidence` card (data_blocked → excluded), but that card never
-    # existed and was repointed 2026-08-06 (PR #199) to the LIVE `surface-abundance-density`
+    # existed and was repointed 2026-08-06 to the LIVE `surface-abundance-density`
     # card, which lands in to_run. The genuinely data_blocked card in this composition is the
     # antibody module's `functional-blockade-rationale`. Assert the current contract:
     assert "antigen-density-evidence" not in (cards | _card_ids_excluded(plan)), \
@@ -157,7 +157,7 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
 # ============================================================================
 # Test 4: TG-COADREAD (NEGATIVE CONTROL — TG not in target_biology_axis_lookup)
 # Expected: axis=unknown, no base dashboard loaded, fallback_reason populated
-# This is the iter-1b critical negative-control test (T1.1 criterion 7 substrate).
+# This is the critical negative-control test.
 # ============================================================================
 
 def test_tg_coadread_unknown_axis_fallback():

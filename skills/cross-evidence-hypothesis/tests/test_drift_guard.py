@@ -1,4 +1,4 @@
-"""WS4 drift-guard — the OFFLINE golden-set drift-CI (roadmap §9 / invariant 7).
+"""drift-guard — the OFFLINE golden-set drift-CI.
 
 Runs the integrator fully OFFLINE (canned two-call `llm_replay.json` via `replay_synthesize`) against
 TRIMMED evidence packages for KRAS/COADREAD + MARK2/PAAD, and asserts the DETERMINISTIC SPINE outputs
@@ -16,7 +16,7 @@ reviewed, deliberate change:
 
 TOLERANCE: the offline spine is EXACTLY reproducible run-to-run (no Bedrock, fixed replay), so every
 frozen field is compared for exact equality; the one float (clause_traceability) is compared within
-DRIFT_FLOAT_TOL to be robust to platform float formatting. The roadmap's "beyond tolerance on
+DRIFT_FLOAT_TOL to be robust to platform float formatting. The "beyond tolerance on
 model/prompt change" channel is handled by regeneration + review (a flipped prompt_template_hash makes
 this test fail loudly), not by loosening the offline comparison.
 """
@@ -70,7 +70,7 @@ def test_deterministic_spine_no_drift(case_name):
 @pytest.mark.parametrize("case_name", CASES)
 def test_provenance_pins_frozen(case_name):
     """prompt_template_hash + model_id are the drift-guard's PINS: a prompt/schema edit flips the
-    hash → this fails → forces golden regeneration + review (roadmap invariant 7)."""
+    hash → this fails → forces golden regeneration + review."""
     case = dg.load_golden_case(GOLDEN / case_name)
     r = _run_offline(GOLDEN / case_name, case)
     assert r["provenance"]["prompt_template_hash"] == case["expected"]["prompt_template_hash"]
@@ -102,7 +102,7 @@ def test_perturbing_a_deterministic_output_is_detected():
     pkg = json.loads(Path(case["pkg"]).read_text())
     # flip dependency to a hard kill token → gate ceiling must move toward declined.
     # Use pan_essential_killer, an UNCONDITIONAL veto: `non_dependent` is now mechanism-conditioned
-    # (#3 — mechanism-excluded for a mutant-selective driver like the KRAS golden case), so it would
+    # (mechanism-excluded for a mutant-selective driver like the KRAS golden case), so it would
     # NOT move the spine and would make this teeth-test vacuous. pan_essential_killer has no
     # selectivity window and stays a veto regardless of mechanism.
     pkg["synthesis"]["sub_verdicts"]["dependency"] = {"verdict": "pan_essential_killer"}

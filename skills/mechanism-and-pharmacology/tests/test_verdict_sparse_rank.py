@@ -1,4 +1,4 @@
-"""C2b regression: a sparse network must not be masked by has_pd_marker.
+"""A sparse network must not be masked by has_pd_marker.
 
 Before 2026-07-17, has_pd_marker (fires on >=1 downstream effector — also true for
 many sparse networks) outranked sparse in _verdict, so a sparse network with any PD

@@ -43,7 +43,7 @@ def _safety_cards(**summaries):
 
 
 def test_both_fired_downgrades_to_mechanism_mismatch():
-    # #378: the mutant-selective GoF downgrade now requires BOTH activating-driver-role AND
+    # The mutant-selective GoF downgrade now requires BOTH activating-driver-role AND
     # oncogene-role co-signals (so a TSG carrying a spurious intOGen 'activating' label is NOT
     # downgraded — the SMARCA2 fix). Both must fire for the mechanism-mismatch downgrade.
     v = _sf._verdict([{"rule_id": "highly-constrained-safety-warning"},

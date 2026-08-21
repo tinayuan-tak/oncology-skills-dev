@@ -3,10 +3,10 @@
 Phase-2 takes a run_plan (from phase-1) and produces per-card outputs that phase-3
 synthesizes. Two execution modes:
 
-  - stub: emit pre-authored summary metrics from fixtures (iter-1b auth-session-runnable;
+  - stub: emit pre-authored summary metrics from fixtures (auth-session-runnable;
           no R env, no real data needed). Used for testing the synthesis pipeline.
   - live: in-process import of the method module (`methods.<name>`) via the
-          _live_readers dispatch layer (iter-1b EXECUTION-session work; requires
+          _live_readers dispatch layer (EXECUTION-session work; requires
           real data + pixi envs + method implementations). NOT a subprocess — the
           seam is a direct Python function call; see _live_readers.py.
 
@@ -50,14 +50,14 @@ def execute_run_plan(
       - 'live'        — read real data products via _live_readers.CARD_READERS;
                         cards without a live reader fall through to None (marked failed)
       - 'live-stub-fallback' — try live first; if no live reader exists for a card,
-                                fall back to its stub fixture. Useful during iter-1b
-                                where some cards are live and others are still stub.
+                                fall back to its stub fixture. Useful while some cards
+                                are live and others are still stub.
 
-    L3 fix (post-adversarial-review): subgroup_resolution from the run_plan is now
+    Subgroup_resolution from the run_plan is now
     extracted and passed to live readers via the subgroup_context parameter, so
     cards like subgroup-stratified-expression actually receive the resolved strata
     set and can stratify their analyses. In stub mode, subgroup_context is currently
-    not consumed (fixtures already encode stratified output); iter-1b execution
+    not consumed (fixtures already encode stratified output); the execution
     session wires live readers that consume the context.
     """
     if execution_mode not in ("stub", "live", "live-stub-fallback"):
@@ -67,12 +67,12 @@ def execute_run_plan(
 
     target = run_plan["input_context"]["target_symbol"]
     indication = run_plan["input_context"]["indication"]
-    # L3: extract subgroup_resolution from the run_plan and make it available to dispatchers.
+    # Extract subgroup_resolution from the run_plan and make it available to dispatchers.
     # The subgroup_context carries the resolved strata + applicable data sources so
     # subgroup-aware cards (subgroup-stratified-expression, rwd-stratified-expression)
     # can wire to the correct assignment Parquets in live mode.
     subgroup_context = run_plan.get("subgroup_resolution", {}) or {}
-    # T4 (2026-08-11 engineering review): extract data_mode + release_pin from the run_plan and
+    # 2026-08-11: extract data_mode + release_pin from the run_plan and
     # make them available to live readers as a data_context dict, so a reader/dispatcher can
     # resolve WHICH manifest version to read (via catalog_query.resolve_release). Previously these
     # flowed only into ID strings and never reached the data-access layer. Threaded the SAME way
@@ -84,7 +84,7 @@ def execute_run_plan(
     }
 
     card_outputs: list[dict] = []
-    unavailable_cards: list[dict] = []   # F: structured card_unavailable stubs (not synthesis inputs)
+    unavailable_cards: list[dict] = []   # structured card_unavailable stubs (not synthesis inputs)
     n_passed = 0
     n_passed_with_warnings = 0
     n_failed = 0
@@ -105,7 +105,7 @@ def execute_run_plan(
         card_spec, _ = load_card_spec(card_id, contracts_root=contracts_root)
 
         # Obtain summary per execution_mode
-        # L3 fix: pass subgroup_context to live readers so subgroup-aware cards can
+        # Pass subgroup_context to live readers so subgroup-aware cards can
         # consume the resolved strata + assignment Parquet paths.
         summary = None
         if execution_mode == "stub":
@@ -118,7 +118,7 @@ def execute_run_plan(
             if summary is None or (isinstance(summary, dict) and "_live_read_error" in summary):
                 summary = _load_stub_summary(card_id, target, indication, fixtures_dir)
 
-        # T3 fix (2026-08-11 engineering review): a live reader that RAISED returns a
+        # 2026-08-11: a live reader that RAISED returns a
         # truthy {"_live_read_error": ...} sentinel (see _live_readers.read_live_summary).
         # In pure `live` mode that dict is non-None, so without this guard it flowed past
         # the `if summary is None` check below, through _evaluate_interpretation_hints, and
@@ -142,8 +142,8 @@ def execute_run_plan(
             # None when CARD_DISPATCHERS.get(card_id) is None) — the card is UNWIRED (a
             # framework-coverage gap), e.g. fusion-rearrangement-landscape (placeholder card,
             # no method). Previously this was silently dropped to the n_cards_failed integer
-            # with NO per-card reason. Now record a structured availability stub (F, 2026-
-            # 07-20) carrying a typed availability_state, surfaced as a card_unavailable
+            # with NO per-card reason. Now record a structured availability stub
+            # (2026-07-20) carrying a typed availability_state, surfaced as a card_unavailable
             # envelope entry so a consumer can distinguish "not built yet" from a measured
             # absence. Kept SEPARATE from card_outputs (the synthesis-input stream): an
             # unwired card has no signal to interpret, so it must not enter card_call_map /
@@ -199,7 +199,7 @@ def execute_run_plan(
     n_attempted = n_passed + n_passed_with_warnings + n_failed
     return {
         "cards": card_outputs,
-        "unavailable_cards": unavailable_cards,   # F: reasoned absences → card_unavailable envelope entries
+        "unavailable_cards": unavailable_cards,   # reasoned absences → card_unavailable envelope entries
         "validation_summary": {
             "n_cards_attempted": n_attempted,
             "n_cards_passed": n_passed,
@@ -217,7 +217,7 @@ def _load_stub_summary(card_id: str, target: str, indication: str,
     Fixture layout: fixtures_dir/stubs/{target}_{indication}.yaml mapping card_id → summary dict.
     Returns None if no fixture is found OR the specific card_id is missing from an existing fixture.
 
-    L2 fix (post-adversarial-review): emit a diagnostic to stderr naming the expected
+    Emit a diagnostic to stderr naming the expected
     fixture path so users hitting "all cards failed" understand why and what to author.
     """
     import sys
@@ -248,12 +248,12 @@ def _read_live_summary(card_id: str, target: str, indication: str,
                         data_context: Optional[dict] = None) -> Optional[dict]:
     """Live mode: dispatch to a card-specific live reader in _live_readers.CARD_READERS.
 
-    L3 fix (post-adversarial-review): subgroup_context (the run_plan's subgroup_resolution)
+    Subgroup_context (the run_plan's subgroup_resolution)
     is now plumbed through so subgroup-aware cards can consume the resolved strata. Live
     readers that don't need it can ignore; readers like the subgroup-stratified-expression
     reader consume the catalog_ref + resolved_strata_ids fields.
 
-    T4 (2026-08-11): data_context {data_mode, release_pin} is plumbed the same way so a reader
+    (2026-08-11): data_context {data_mode, release_pin} is plumbed the same way so a reader
     can resolve which manifest version to read (via catalog_query.resolve_release). Readers that
     don't accept it are called via the back-compat shim (unchanged behavior).
 
@@ -284,7 +284,7 @@ def _call_live_reader(read_fn, card_id: str, target: str, indication: str,
                        subgroup_context: Optional[dict],
                        data_context: Optional[dict] = None) -> Optional[dict]:
     """Invoke a live reader, passing ONLY the optional context kwargs its signature actually
-    declares. Iter-1b/T4 readers are being migrated to accept subgroup_context / data_context; a
+    declares. Readers are being migrated to accept subgroup_context / data_context; a
     legacy reader that accepts neither is called with just the 3 positional args.
 
     Uses signature INTROSPECTION (not blanket try/except TypeError) so that a TypeError raised
@@ -380,7 +380,7 @@ def _evaluate_predicate(predicate: str, summary: dict, thresholds: dict) -> bool
 def _provenance_method_calls(plan_entry: dict, execution_mode: str = "stub") -> list[dict]:
     """Convert run_plan method_invocations to evidence_package provenance method_calls.
 
-    T8 fix (2026-08-11 engineering review): `git_sha` now carries the REAL short SHA of the
+    2026-08-11: `git_sha` now carries the REAL short SHA of the
     analysis-methods repo (where the invoked read functions live), not an execution-mode tag.
     The mode tag ("stub"/"live"/...) moves to its own `execution_mode` field, so a consumer
     can tell BOTH which code version ran AND whether it read real data or a fixture — instead

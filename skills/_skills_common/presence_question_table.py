@@ -23,6 +23,8 @@ Confidence reuses the corroboration vocabulary (high>moderate>low, unmeasured). 
 from __future__ import annotations
 from typing import Optional
 
+from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, row as _row
+
 # Signal tier → (meter fill 0-5, polarity). Polarity: supports / opposes / neutral / none.
 _SIG_META = {
     "strong":     (5, "supports"),
@@ -33,25 +35,11 @@ _SIG_META = {
     "negative":   (1, "opposes"),     # measured against (e.g. microenvironment-dominant)
     "unmeasured": (0, "none"),
 }
-_CONF_DOTS = {"high": 3, "moderate": 2, "low": 1, "unmeasured": 0}
-
-
-def _cbyid(cards):
-    return {c.get("card_id"): (c.get("summary") or {}) for c in (cards or [])}
 
 
 def _sig(tier: str, label: str) -> dict:
     fill, pol = _SIG_META.get(tier, (0, "none"))
     return {"tier": tier, "fill": fill, "polarity": pol, "label": label}
-
-
-def _conf(tier: str, label: str = "") -> dict:
-    return {"tier": tier, "dots": _CONF_DOTS.get(tier, 0), "label": label or tier}
-
-
-def _row(qid, question, primary, support, signal, confidence):
-    return {"id": qid, "question": question, "primary": primary, "support": support,
-            "signal": signal, "confidence": confidence}
 
 
 # ── per-question builders ────────────────────────────────────────────────────────────────────────
