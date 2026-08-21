@@ -332,11 +332,7 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
         "n_cards_failed": len(env_unavailable),
         "n_cards_excluded_by_applies_when": 0,
     }
-    try:
-        # COMPOSE_SCRIPTS was added to sys.path by resolve_cards()'s dispatcher import above.
-        from compose_phase1 import FRAMEWORK_VERSION as _fv
-    except Exception:  # noqa: BLE001 — fall back to the default framework version
-        _fv = "2.0.0"
+    from . import FRAMEWORK_VERSION as _fv
 
     ep = assemble_evidence_package(
         input_context=input_context,

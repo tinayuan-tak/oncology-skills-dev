@@ -141,10 +141,10 @@ def _deciding_short(deciding_axis: dict) -> Optional[str]:
 
 
 def _framework_version() -> str:
-    """The framework semver stamped into the envelope (distinct from SKILL_VERSION). Mirrors the
-    dispatcher's --emit-envelope fallback: read compose_phase1.FRAMEWORK_VERSION, else '2.0.0'."""
+    """The framework semver stamped into the envelope (distinct from SKILL_VERSION). Reads the
+    canonical _skills_common.FRAMEWORK_VERSION (rehomed from the retired compose-dashboard)."""
     try:
-        from compose_phase1 import FRAMEWORK_VERSION  # type: ignore  # on sys.path via resolve_cards
+        from _skills_common import FRAMEWORK_VERSION
         return FRAMEWORK_VERSION
     except Exception:  # noqa: BLE001
         return "2.0.0"

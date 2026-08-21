@@ -1,11 +1,11 @@
 name: Skills Validate
 
-# T9 (2026-08-11 engineering review): the claude-oncology-skills repo had NO CI — the
-# 230-test compose-dashboard suite (and every other skill's tests) never ran on a PR, so
-# schema-vs-reality drift and regressions shipped silently. This workflow runs the skill
-# test suites on every PR. Live-data tests that need S3 skip themselves when the onc-compbio
-# bucket is unreadable (see skills/compose-dashboard/tests/conftest.py::skip_if_no_data), so
-# the suite is green on a credential-less CI runner.
+# T9 (2026-08-11 engineering review): the claude-oncology-skills repo had NO CI — the skill
+# test suites never ran on a PR, so schema-vs-reality drift and regressions shipped silently.
+# This workflow runs the skill test suites on every PR. Live-data tests that need S3 skip
+# themselves when the onc-compbio bucket is unreadable (see
+# skills/_skills_common/tests/conftest.py::skip_if_no_data), so the suite is green on a
+# credential-less CI runner.
 #
 # CROSS-REPO LAYOUT: this repo's pixi.toml editable-depends on THREE sibling repos via `../`
 # paths (analysis-methods, target-contracts, data-catalog/libs/target_id_resolver). CI must
@@ -75,12 +75,8 @@ jobs:
           cache: true
           manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
 
-      # The compose-dashboard suite is the v2 orchestration spine; run it explicitly first so a
-      # failure there is unmistakable, then the rest of the skill suites + the shared harness.
-      - name: compose-dashboard suite
-        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
-        run: pixi run pytest skills/compose-dashboard/tests/ -q
-
+      # compose-dashboard was RETIRED 2026-08-21 — its shared engine (live-readers + figure registry)
+      # moved into _skills_common (covered by the step below) and its orchestrator was deleted.
       - name: _skills_common shared harness suite
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/_skills_common/tests/ -q
@@ -105,9 +101,9 @@ jobs:
 
       # BLOCKING-BY-DEFAULT coverage of the remaining skills (promoted from non-blocking 2026-08-12:
       # every remaining per-skill suite is green locally under pixi except the denylisted skill below).
-      # The four suites above are their own BLOCKING steps (compose-dashboard = v2 orchestration engine,
-      # _skills_common = shared harness, target-profile = composed nomination skill, skills/tests =
-      # cross-skill invariant guards); this loop covers everything else. Each remaining skill runs in
+      # The three suites above are their own BLOCKING steps (_skills_common = shared harness + engine,
+      # target-profile = composed nomination skill, skills/tests = cross-skill invariant guards); this
+      # loop covers everything else. Each remaining skill runs in
       # its OWN pytest process — the Fix-1 isolation: many skills ship scripts/run.py, and batching them
       # into a single `pytest skills/` process made `import run` bind to whichever skill loaded FIRST
       # (sys.modules cache), so a later skill's test got the wrong run.py (`cannot import name
@@ -140,8 +136,8 @@ jobs:
           gate_fail=0
           for d in skills/*/tests; do
             skill=$(basename "$(dirname "$d")")
-            # the three suites above are their own BLOCKING steps — don't double-run them here
-            case "$skill" in compose-dashboard|_skills_common|target-profile) continue ;; esac
+            # the two suites above are their own BLOCKING steps — don't double-run them here
+            case "$skill" in _skills_common|target-profile) continue ;; esac
             ls "$d"/test_*.py >/dev/null 2>&1 || continue   # skip dirs with no test files
             echo "::group::$skill"
             pixi run pytest "$d" -q --import-mode=importlib

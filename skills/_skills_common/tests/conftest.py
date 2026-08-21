@@ -32,3 +32,38 @@ def _scrub_volatile(pkg: dict) -> dict:
 def scrub_volatile():
     """The volatile-field scrubber for two-slot byte-stability tests (see _scrub_volatile)."""
     return _scrub_volatile
+
+
+# --- live-data skip helper (ported from compose-dashboard/tests/conftest on the 2026-08-21 retire;
+#     the live-reader chain/dispatch tests moved here with the _live_readers engine). ---------------
+# Credential PRESENCE and even head_bucket can succeed in environments that STILL cannot read the
+# specific object key, so a pre-probe is unreliable. Instead, wrap the live read: if it EITHER raises
+# an S3 access/credential failure OR degrades to a structured no-data dict, skip — that's an
+# environment limitation, not a regression. A dict with real populated fields returns normally.
+_S3_ACCESS_MARKERS = (
+    "access_denied", "accessdenied",
+    "nocredentials", "unable to locate credentials",
+    "forbidden", "403",
+    "expiredtoken", "invalidaccesskeyid",
+    "profilenotfound",
+)
+
+
+def skip_if_no_data(thunk):
+    """Call `thunk()` and return its result; skip the test if the live read could not access data
+    (S3 access error raised, OR a structured no-data dict returned). Non-S3 exceptions propagate."""
+    try:
+        result = thunk()
+    except Exception as e:  # noqa: BLE001 — classify, then re-raise if not an S3 access issue
+        msg = f"{type(e).__name__}: {e}".lower()
+        if any(marker in msg for marker in _S3_ACCESS_MARKERS):
+            pytest.skip(f"live S3 object read not permitted in this environment ({type(e).__name__})")
+        raise
+
+    if isinstance(result, dict):
+        if "_live_read_error" in result:
+            pytest.skip(f"live read returned _live_read_error: {result['_live_read_error']}")
+        note = result.get("_data_note")
+        if note and all(v is None for k, v in result.items() if not k.startswith("_")):
+            pytest.skip(f"live read returned no data ({note})")
+    return result

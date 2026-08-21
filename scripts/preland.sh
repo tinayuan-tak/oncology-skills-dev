@@ -9,12 +9,11 @@
 #   To gate worktree code, run from the home checkout against the worktree paths, e.g.
 #     pixi run python -m pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q
 #
-# Mirrors the five CI steps, in order:
-#   1. compose-dashboard suite            (BLOCKING)
-#   2. _skills_common shared harness      (BLOCKING)
-#   3. target-profile suite               (BLOCKING)
-#   4. shared cross-skill invariant guards (skills/tests/, --import-mode=importlib)  (BLOCKING)
-#   5. remaining per-skill suites loop (skills/*/tests, --import-mode=importlib, blocking-by-default
+# Mirrors the four CI steps, in order:
+#   1. _skills_common shared harness      (BLOCKING; includes the rehomed live-reader + figure engine)
+#   2. target-profile suite               (BLOCKING)
+#   3. shared cross-skill invariant guards (skills/tests/, --import-mode=importlib)  (BLOCKING)
+#   4. remaining per-skill suites loop (skills/*/tests, --import-mode=importlib, blocking-by-default
 #      with an empty denylist, each in its OWN pytest process for run.py import isolation)
 set -uo pipefail
 export PATH="$HOME/.pixi/bin:$HOME/.local/bin:$PATH"
@@ -25,7 +24,6 @@ run() { local label="$1"; shift; local out
   else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
 
 # --- blocking gates (transcribed from skills-validate.yml, in CI order) ---
-run "compose-dashboard"        pixi run pytest skills/compose-dashboard/tests/ -q
 run "_skills_common"           pixi run pytest skills/_skills_common/tests/ -q
 run "target-profile"           pixi run pytest skills/target-profile/tests/ -q
 run "skills/tests guards"      pixi run pytest skills/tests/ -q --import-mode=importlib
@@ -40,7 +38,7 @@ NON_BLOCKING_SKILLS=(
 is_nonblocking() { local s="$1" n; for n in "${NON_BLOCKING_SKILLS[@]}"; do [ "$s" = "$n" ] && return 0; done; return 1; }
 for d in skills/*/tests; do
   skill=$(basename "$(dirname "$d")")
-  case "$skill" in compose-dashboard|_skills_common|target-profile) continue ;; esac   # own blocking steps above
+  case "$skill" in _skills_common|target-profile) continue ;; esac   # own blocking steps above
   ls "$d"/test_*.py >/dev/null 2>&1 || continue
   if out=$(pixi run pytest "$d" -q --import-mode=importlib 2>&1); then
     echo "PASS  $skill"

@@ -64,7 +64,10 @@ from .composite_panel import render_composite_panel
 # --- environment discovery -------------------------------------------------
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
-COMPOSE_SCRIPTS = SKILLS_DIR / "compose-dashboard" / "scripts"
+
+# Framework version stamp (rehomed 2026-08-21 from the retired compose-dashboard compose_phase1).
+# Emitted into evidence-package / decision.json governance blocks by every engine.
+FRAMEWORK_VERSION = "2.0.0"
 
 
 def _import_dispatcher():
