@@ -189,7 +189,11 @@ def execute_run_plan(
         # AND a per-card emitter is registered AND the summary contains real data,
         # not a _live_read_error). Failures are absorbed — no figure ≠ no card.
         if out_path is not None:
-            from ._figure_emitters import emit_figures_for_card
+            import sys as _sys
+            _skills_dir = Path(__file__).resolve().parent.parent.parent  # scripts->compose-dashboard->skills
+            if str(_skills_dir) not in _sys.path:
+                _sys.path.insert(0, str(_skills_dir))
+            from _skills_common._figure_emitters import emit_figures_for_card
             figures = emit_figures_for_card(card_id, summary, out_path, target, indication)
             if figures:
                 card_output["figures"] = figures

@@ -44,7 +44,8 @@ from typing import Optional
 # merged v2-architecture trunk — without rebasing the gallery branch onto it. Figure emitters are
 # resolved from the SAME tree so their card coverage matches the run.
 SKILLS_DIR = Path(os.environ.get("SKILLS_ROOT", str(Path(__file__).resolve().parents[2])))  # skills/
-FIGURE_EMITTERS_DIR = SKILLS_DIR / "compose-dashboard" / "scripts"
+# The shared figure-emitter registry now lives in _skills_common (rehomed off the retiring
+# compose-dashboard). It is imported as `_skills_common._figure_emitters` with SKILLS_DIR on sys.path.
 
 # target-contracts (sibling repo) — for the per-card provenance chain (method/measurement/inputs).
 # env-overridable; falls back to the standard sibling checkout.
@@ -103,11 +104,11 @@ def _card_meta() -> dict:
 # figure emission (reuse the existing standalone seam)
 # ---------------------------------------------------------------------------
 def _load_emit_figures_for_card():
-    """Import emit_figures_for_card from compose-dashboard WITHOUT its orchestration."""
-    if str(FIGURE_EMITTERS_DIR) not in sys.path:
-        sys.path.insert(0, str(FIGURE_EMITTERS_DIR))
+    """Import emit_figures_for_card from the shared _skills_common figure registry."""
+    if str(SKILLS_DIR) not in sys.path:
+        sys.path.insert(0, str(SKILLS_DIR))
     try:
-        from _figure_emitters import emit_figures_for_card  # noqa: E402
+        from _skills_common._figure_emitters import emit_figures_for_card  # noqa: E402
         return emit_figures_for_card
     except Exception as e:  # noqa: BLE001 — figures are best-effort; gallery still renders text
         print(f"[gallery] figure emitters unavailable ({type(e).__name__}: {e}); "

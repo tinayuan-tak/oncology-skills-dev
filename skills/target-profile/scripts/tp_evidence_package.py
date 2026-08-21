@@ -60,18 +60,18 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
 
 
 def _load_figure_registry():
-    """Import compose-dashboard's figure-emission registry (emit_figures_for_card).
+    """Import the shared figure-emission registry (emit_figures_for_card).
 
-    Both engines share ONE figure registry (the one-source-many-consumers lesson): the same
-    per-card emitters that draw compose-dashboard's SVGs + Plotly specs draw them for target-profile.
-    Graceful None on import failure — a run without per-card figures still emits every other artifact.
+    ONE figure registry, many consumers (the one-source-many-consumers lesson): it lives in
+    `_skills_common/_figure_emitters/` and the same per-card emitters draw the SVGs + Plotly specs for
+    target-profile, the subskill --figures path, and example-gallery. Graceful None on import failure —
+    a run without per-card figures still emits every other artifact.
     """
     try:
-        fe_dir = SKILLS_DIR / "compose-dashboard" / "scripts"
-        if str(fe_dir) not in sys.path:
-            sys.path.insert(0, str(fe_dir))
-        import _figure_emitters  # type: ignore
-        return _figure_emitters
+        if str(SKILLS_DIR) not in sys.path:
+            sys.path.insert(0, str(SKILLS_DIR))
+        import _skills_common._figure_emitters as _fe  # type: ignore
+        return _fe
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: figure registry unavailable: {e}", file=sys.stderr)
         return None

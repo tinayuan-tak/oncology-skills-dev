@@ -12,8 +12,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(SKILL_DIR / "scripts"))
+SKILL_DIR = Path(__file__).resolve().parent.parent            # skills/_skills_common
+sys.path.insert(0, str(SKILL_DIR))                            # _skills_common on path → _figure_emitters
 
 import _figure_emitters as fe  # noqa: E402
 

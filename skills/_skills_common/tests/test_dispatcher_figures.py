@@ -42,9 +42,11 @@ def test_write_package_collects_nested_and_flat_figures(tmp_path):
 
 
 def _fake_registry(monkeypatch, emit_fn):
-    mod = types.ModuleType("_figure_emitters")
+    # dispatcher imports the registry relatively (`from ._figure_emitters import ...`), which resolves
+    # to _skills_common._figure_emitters — inject the fake under that fully-qualified name.
+    mod = types.ModuleType("_skills_common._figure_emitters")
     mod.emit_figures_for_card = emit_fn
-    monkeypatch.setitem(sys.modules, "_figure_emitters", mod)
+    monkeypatch.setitem(sys.modules, "_skills_common._figure_emitters", mod)
 
 
 def test_emit_card_figures_calls_registry_and_skips_missing(tmp_path, monkeypatch):
@@ -78,6 +80,6 @@ def test_emit_card_figures_is_best_effort_on_error(tmp_path, monkeypatch):
 
 def test_emit_card_figures_graceful_when_registry_absent(tmp_path, monkeypatch):
     # simulate the registry being unimportable → 0 figures, no raise
-    monkeypatch.setitem(sys.modules, "_figure_emitters", None)
+    monkeypatch.setitem(sys.modules, "_skills_common._figure_emitters", None)
     n = D._emit_card_figures([{"card_id": "a", "summary": {}}], tmp_path, "T", "I")
     assert n == 0

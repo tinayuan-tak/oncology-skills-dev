@@ -17,8 +17,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-SKILL_DIR = Path(__file__).resolve().parent.parent            # skills/compose-dashboard
-sys.path.insert(0, str(SKILL_DIR / "scripts"))                # _figure_emitters
+SKILL_DIR = Path(__file__).resolve().parent.parent            # skills/_skills_common
+sys.path.insert(0, str(SKILL_DIR))                            # _skills_common on path → _figure_emitters
 _AM = os.environ.get("ANALYSIS_METHODS_ROOT",
                      "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 sys.path.insert(0, _AM)

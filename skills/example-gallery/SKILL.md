@@ -27,7 +27,7 @@ It deliberately AVOIDS `compose-dashboard` (the heavy compose→execute→synthe
 a dashboard_spec + data_mode + schema-validation gates + evidence_package envelope). Instead it
 reuses the two pieces that actually matter:
 - runs each subskill's own `scripts/run.py` (→ `decision.json` + `summary.yaml` + `tables/`), and
-- calls `compose-dashboard/scripts/_figure_emitters.emit_figures_for_card` — the STANDALONE figure
+- calls `_skills_common._figure_emitters.emit_figures_for_card` — the STANDALONE figure
   seam that needs only a card's summary dict — to produce the SVGs the subskill run doesn't emit.
 
 ## How to run

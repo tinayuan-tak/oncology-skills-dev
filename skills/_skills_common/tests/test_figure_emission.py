@@ -29,9 +29,9 @@ import pytest
 
 METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT",
                                    "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"))
-SKILL_DIR = Path(__file__).resolve().parent.parent
+SKILL_DIR = Path(__file__).resolve().parent.parent            # skills/_skills_common
 
-sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(SKILL_DIR))            # _skills_common on path → `import _figure_emitters`
 sys.path.insert(0, str(METHODS_REPO))
 
 

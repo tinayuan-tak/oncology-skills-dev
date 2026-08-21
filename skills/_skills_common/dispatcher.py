@@ -356,17 +356,16 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
 
 
 def _emit_card_figures(card_outputs: list[dict], out_dir, target: str, indication: str) -> int:
-    """OPT-IN (--figures): emit per-card figures via the shared compose-dashboard figure-emitter
+    """OPT-IN (--figures): emit per-card figures via the shared _skills_common figure-emitter
     registry into <out_dir>/figures/cards/<card_id>/. Best-effort per card; never raises (figure
     emission is additive augmentation, not the decision spine). Returns the count of figures written.
 
-    The registry (compose-dashboard/scripts/_figure_emitters.py) is the SAME one the composed engine
-    uses, so a subskill --figures run produces the identical per-card SVG (+ interactive plotly twin)
-    the dashboard does — no separate plotting code. COMPOSE_SCRIPTS is already on sys.path (resolve_cards
-    imported the live-reader dispatcher from there). A card with no registered emitter, a missing card,
-    or a failed method data load simply contributes no figure."""
+    The registry (_skills_common/_figure_emitters/) is the SAME one every consumer uses (target-profile
+    dashboard, example-gallery), so a subskill --figures run produces the identical per-card SVG (+
+    interactive plotly twin) — no separate plotting code. A card with no registered emitter, a missing
+    card, or a failed method data load simply contributes no figure."""
     try:
-        from _figure_emitters import emit_figures_for_card
+        from ._figure_emitters import emit_figures_for_card
     except Exception as e:  # noqa: BLE001 — registry import is best-effort
         print(f"[dispatcher] --figures: figure-emitter registry unavailable "
               f"({type(e).__name__}: {e}); no figures emitted.", file=sys.stderr)
