@@ -58,12 +58,19 @@ def read_lineage_selectivity(
     indication: str,
     strong_threshold: float = -1.0,
     moderate_threshold: float = -0.5,
+    plot_data_out: Optional[Path] = None,
 ) -> dict:
     """Compute lineage selectivity for a target in an indication's DepMap lineage.
 
     Delegates to cli.load_depmap_files + cli.compute_lineage_summary — same code
     paths the CLI and the figure-emission registry use. Returns the dict shape
     matching Card 2's outputs.summary_fields.
+
+    plot_data_out (figure Stage 1): OPT-IN. When set, persist the per-cell-line chronos+lineage
+    frame (cli.emit_plot_data → plot_data.parquet) under it AS AN ARTIFACT OF RESOLUTION, so the
+    figure can render OFFLINE from it (no second DepMap load at figure time). target_lineage is
+    left "" here (the read is indication-decoupled, Card 2 v3); the figure re-derives it from its
+    indication. None => byte-identical to the former call.
 
     On data-unreachable errors, returns a dict with `_live_read_error` key.
     """
@@ -87,6 +94,15 @@ def read_lineage_selectivity(
             "_remediation": f"target {target!r} not found in CRISPRGeneEffect.csv; confirm HGNC symbol.",
             "enrichment_class": "data_unavailable",
         }
+
+    # Figure Stage 1: persist the per-cell-line chronos+lineage frame during resolution so the
+    # figure renders offline from it (target_lineage="" — the figure re-derives it from indication).
+    if plot_data_out is not None:
+        try:
+            plot_data_out.mkdir(parents=True, exist_ok=True)
+            _cli.emit_plot_data(chronos_by_model, model_metadata, "", strong_threshold, plot_data_out)
+        except Exception:  # noqa: BLE001 — persistence is best-effort; never break the verdict read
+            pass
 
     # `indication` accepted for back-compat with existing callers but NOT consumed
     # by the compute path. Card 2 is target-only per Decision 2A.
