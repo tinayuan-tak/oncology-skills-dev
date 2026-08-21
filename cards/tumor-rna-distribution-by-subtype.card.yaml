@@ -52,6 +52,11 @@ outputs:
   summary_fields:
     - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
     - subtype_axis_available                    # is a shard landed for this indication?
+    - subtype_axis_quality                      # powered | underpowered | empty | unavailable — the HONEST
+                                                # capability grade: subtype_axis_available:true alone masks a
+                                                # hollow axis (only 1 powered stratum / all strata empty). Lets a
+                                                # consumer distinguish an ACTIONABLE subtype axis (>=2 powered
+                                                # strata, contrastable) from one present-but-unusable. Verdict-inert.
     - n_subtypes_measured                       # strata clearing the n-floor
     - n_subtypes_enriched                       # strata flagged subtype_enriched
     - n_subtypes_restricted                     # strata flagged subtype_restricted (present here, absent pooled)
@@ -80,6 +85,11 @@ outputs:
     - subtype_effect_size_class                  # categorical — large / moderate / negligible / data_unavailable
     - which_subtypes_separate                    # {highest, lowest} stratum ids at the median extremes (or null)
   summary_fields_vocabulary:
+    subtype_axis_quality:
+      - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
+      - underpowered                             # axis has samples but <2 measured strata → context only
+      - empty                                    # axis defined but every stratum absent (0 members ∩ cohort)
+      - unavailable                              # no assignment shard / indication has no subtype axis
     subtype_effect_size_class:
       - large                                    # ε² >= subtype_effect_large (subtype a strong patient-selection axis)
       - moderate                                 # ε² >= subtype_effect_moderate

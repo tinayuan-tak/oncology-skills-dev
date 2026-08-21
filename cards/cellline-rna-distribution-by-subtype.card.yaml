@@ -51,6 +51,9 @@ outputs:
   summary_fields:
     - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
     - subtype_axis_available                    # is a DepMap shard landed for this indication?
+    - subtype_axis_quality                      # powered | underpowered | empty | unavailable — HONEST capability
+                                                # grade. Catches the DepMap STAD/PAAD case where the axis is defined
+                                                # in the catalog but every stratum has 0 cell lines (empty). Verdict-inert.
     - n_subtypes_measured                       # strata clearing the n-floor (>=30 cell lines)
     - n_subtypes_enriched                       # strata whose median is >= delta above the pooled median
     - n_subtypes_depleted                       # strata whose median is >= delta below the pooled median
@@ -64,6 +67,11 @@ outputs:
     - min_subgroup_expression
     - cross_subgroup_delta_expression
   summary_fields_vocabulary:
+    subtype_axis_quality:
+      - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
+      - underpowered                             # axis has cell lines but <2 measured strata → context only
+      - empty                                    # axis defined but every stratum absent (0 cell lines — DepMap STAD/PAAD)
+      - unavailable                              # no DepMap assignment shard for this indication
     subtype_stratification_class:
       - subtype_enriched                         # >=1 stratum enriched, none depleted
       - subtype_depleted                         # >=1 stratum depleted, none enriched
