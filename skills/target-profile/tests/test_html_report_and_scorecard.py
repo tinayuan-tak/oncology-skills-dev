@@ -257,7 +257,9 @@ def test_html_additive_without_optional_sections():
     h = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {})  # no scorecard/da/matrix
     assert h.startswith("<!DOCTYPE") and "</html>" in h
     assert "Gate scorecard" not in h                # omitted cleanly
-    assert "Recommendation" in h                    # core still renders
+    # no hypothesis supplied → the header falls back to the deterministic recommendation, tagged
+    # AI-proposed + gate-checked (the redesigned header leads with the integrator verdict when present).
+    assert "AI-proposed" in h and "gate-checked" in h   # core recommendation still renders
 
 
 # ---------- GI-style layout (PR-B3) ----------

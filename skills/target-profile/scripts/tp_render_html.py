@@ -211,6 +211,12 @@ code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 /* Deciding-axis banner */
 .banner{background:linear-gradient(90deg,#eef4f8,var(--surface));border-left:4px solid var(--brand-accent);
   padding:12px 16px;border-radius:8px;margin:0 0 12px;font-size:14px}
+/* Collapsible hypothesis clauses — scannable summary lines; expand for the full cited statement */
+details.hyp-part{margin:4px 0;padding:6px 0;border-top:1px solid var(--line-2)}
+details.hyp-part>summary{cursor:pointer;list-style:none;font-size:13.5px}
+details.hyp-part>summary::-webkit-details-marker{display:none}
+details.hyp-part>summary::before{content:'▸ ';color:var(--brand-accent)}
+details.hyp-part[open]>summary::before{content:'▾ '}
 /* Ordinal matrix heatmap */
 .mtx{font-size:12.5px}
 .mtx td{text-align:center;font-variant-numeric:tabular-nums;font-weight:600;border:2px solid var(--surface)}
@@ -410,6 +416,21 @@ def _plotly_bundle() -> Optional[str]:
     except Exception:  # noqa: BLE001
         _PLOTLY_JS_CACHE = None
     return _PLOTLY_JS_CACHE
+
+
+def _plotly_script_tag() -> str:
+    """Load plotly.js from the CDN instead of inlining the ~4.6 MB library. This keeps the report a
+    few hundred KB — small enough for the VS Code Simple Browser (which silently drops any single
+    inline <script> over ~4.5 MB, the failure that made inlined dashboards look 'broken'). Version is
+    the bundled plotly.JS version (NOT plotly.py's __version__ — they differ, e.g. plotly.py 6.x ships
+    plotly.js 3.x; a .py version in the URL would 404), so the CDN client matches the embedded specs."""
+    ver = "3.0.1"
+    bundle = _plotly_bundle()
+    if bundle:
+        m = re.search(r"plotly\.js v([\d.]+)", bundle[:400])
+        if m:
+            ver = m.group(1)
+    return f"<script src='https://cdn.plot.ly/plotly-{ver}.min.js' charset='utf-8'></script>"
 
 
 def _read_card_plotly_specs(card_figures: Optional[dict], figures_dir: Optional[Path],
@@ -1132,6 +1153,55 @@ def _grounded_block_html(short: str, grounded_record: Optional[dict]) -> list[st
     return out
 
 
+def _subskill_summary_svg_html(short: str, sub_results: dict, presence_facet: Optional[dict],
+                               target: str, indication: str) -> list[str]:
+    """Per-subskill high-level SUMMARY GRAPHIC. Two levels, presence idiom:
+      1. the CLAIM-VECTOR lane chart — the four claims at a glance (signal bar × reliability dots),
+      2. the CARD BOARD as a collapsible drill-down — every card as ● signal / ○ no-signal /
+         ▨ not-measured (no-signal ≠ not-measured), reliability channel, role-aware polarity.
+    Phase-2 rollout: PRESENCE (expression) first (it ships the card→claim/role map); other subskills
+    slot in as their maps are authored. Returns [] (renders nothing) for a subskill without one yet."""
+    if short != "expression":
+        return []
+    sr = (sub_results or {}).get(short) or {}
+    if not (sr.get("cards") or []):
+        return []
+    # card board + claim vector are card-id-keyed; feed the FULL pool across subskills (de-duped) so the
+    # reliability + normal-tissue-comparator cards (owned by selectivity/surface-modality) populate too.
+    pool, seen = [], set()
+    for _r in (sub_results or {}).values():
+        for c in (_r.get("cards") or []):
+            cid = c.get("card_id")
+            if cid and cid not in seen:
+                seen.add(cid); pool.append(c)
+    import importlib
+    out: list[str] = []
+    # 1) HIGH-LEVEL claim-vector lane chart (A/B/C/D signal × reliability), recomputed from the cards
+    # (the stored claim_vector is not persisted to nomination.json — recompute is deterministic).
+    try:
+        pc = importlib.import_module("_skills_common.presence_claims")
+        cvfig = importlib.import_module("_skills_common.presence_claims_figure")
+        lane = cvfig.render_claim_vector_svg(pc.presence_claim_vector(presence_facet or {}, pool),
+                                             target, indication)
+        out.append("<div class=summary-graphic style='margin:6px 0 2px'>"
+                   "<p class=h style='margin:0 0 4px'>Signal summary "
+                   "<span class=n>— the four presence claims at a glance (signal strength × reliability)"
+                   "</span></p>" + lane + "</div>")
+    except Exception:  # noqa: BLE001 — a summary graphic must never break the section
+        pass
+    # 2) DRILL-DOWN card board (every card), collapsible beneath the claim vector
+    try:
+        cb = importlib.import_module("_skills_common.presence_cardboard_figure")
+        svg = cb.render_card_board_svg(pool, presence_facet or {}, target,
+                                       indication).replace(">None</text>", ">—</text>")
+        out.append("<details class=hyp-part style='margin-top:2px'><summary><b>Per-card detail</b> "
+                   "<span class=sub>— every card as ● signal · ○ measured-negative · ▨ not-measured "
+                   "(gap) · ▲ normal-tissue liability</span></summary>" + svg + "</details>")
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
 def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
     """Render the cross-evidence-hypothesis agent's structured output (hypothesis.json) as the
     synthesis section — REPLACING target-profile's original Tier-3 LLM narrative (executive_summary +
@@ -1149,16 +1219,36 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
     _PART = "margin-top:10px;padding-top:8px;border-top:1px solid var(--line-2)"
 
     def _chips(cits, warn=False):
+        """Render each citation as a chip. A numeric PMID becomes a CLICKABLE PubMed reference
+        (literature); an engine token (card_id / rule_id / sub-verdict / dossier field) stays a code
+        chip — so the supporting evidence reads in a citation style, literature vs engine distinct."""
         if not cits:
             return ""
         cls = "chip chip-neg" if warn else "chip chip-gap"
         pre = "⚠ " if warn else ""
-        return " ".join(f"<span class='{cls}' style='font-size:11px'>{pre}<code>{_esc(str(c))}</code></span>"
-                        for c in cits)
+        out = []
+        for c in cits:
+            s = str(c)
+            if s.isdigit() and len(s) >= 6:   # PMID → clickable PubMed citation
+                out.append(f"<span class='{cls}' style='font-size:11px'>{pre}"
+                           f"<a href='https://pubmed.ncbi.nlm.nih.gov/{_esc(s)}/' target=_blank "
+                           f"rel=noopener>PMID {_esc(s)}</a></span>")
+            else:                             # engine token (card / rule / sub-verdict / field)
+                out.append(f"<span class='{cls}' style='font-size:11px'>{pre}<code>{_esc(s)}</code></span>")
+        return " ".join(out)
+
+    def _summarize(text, n=88):
+        t = str(text or "").strip()
+        head = t.split(". ")[0]
+        s = head if len(head) <= n else t[:n].rsplit(" ", 1)[0]
+        return s + ("…" if len(t) > len(s) else "")
 
     def _part(label, part, extra=()):
+        """One clause as a COLLAPSIBLE: summary line (label + one-liner) visible; full statement +
+        citations on expand. Keeps the section scannable instead of a wall of prose."""
         if not part:
             return ""
+        stmt = part.get("statement") or "—"
         ex = ""
         for lbl, f in extra:
             if part.get(f):
@@ -1167,10 +1257,31 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
         contra = part.get("contradicting_citations")
         contra_html = (f"<div class=sub style='margin-top:3px'>Countervailing: {_chips(contra, warn=True)}</div>"
                        if contra else "")
-        return (f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>{_esc(label)}{ex}</p>"
-                f"<p style='margin:2px 0'>{_esc(part.get('statement') or '—')}</p>"
+        return (f"<details class=hyp-part><summary><b>{_esc(label)}</b> "
+                f"<span class=sub>— {_esc(_summarize(stmt))}</span></summary>"
+                f"<p style='margin:4px 0'>{_esc(stmt)}{ex}</p>"
                 + (f"<div class=sub>Evidence: {cites}</div>" if cites else "")
-                + contra_html + "</div>")
+                + contra_html + "</details>")
+
+    def _ev_strip(eg):
+        """Visual per-line evidence grade: 4-segment bar per dimension (scannable, replaces the table)."""
+        pl = eg.get("per_line") or []
+        if not pl:
+            return ""
+        fill = {"strong": 4, "moderate": 3, "weak": 2, "absent": 1, "insufficient": 1}
+        col = {"strong": "#184f95", "moderate": "#2a78d6", "weak": "#f0a030",
+               "absent": "#d03b3b", "insufficient": "#c9ccd1"}
+        rows = []
+        for x in pl:
+            s = str(x.get("strength") or ""); n = fill.get(s, 0); c = col.get(s, "#c9ccd1")
+            blocks = "".join("<span style='display:inline-block;width:13px;height:9px;margin-right:2px;"
+                             f"border-radius:2px;background:{c if j < n else '#e8eaed'}'></span>"
+                             for j in range(4))
+            rows.append("<div style='display:flex;align-items:center;gap:8px;margin:2px 0'>"
+                        f"<span class=sub style='width:150px'>{_esc(x.get('dimension'))}</span>"
+                        f"<span>{blocks}</span><span class=sub>{_esc(s)}</span></div>")
+        return (f"<div style='{_PART}'><p class=h style='margin:0 0 4px'>Evidence grade "
+                f"<span class=n>— overall {_esc(eg.get('overall'))}</span></p>" + "".join(rows) + "</div>")
 
     vcls = {"advanceable": "chip-pos", "advanceable_with_caveat": "chip-neu",
             "conditional_on_biomarker": "chip-neu", "advanceable_flagged": "chip-neu",
@@ -1179,48 +1290,31 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
     trace_pct = f"{trace * 100:.0f}%" if isinstance(trace, (int, float)) else "—"
     out = ["<section id=s-hypothesis class='llm llm-exec'>"
            "<span class='tag tag-corner'>AI-generated · cross-evidence integrator</span>"
-           "<h2>Cross-evidence hypothesis <span class=n>— gate-checked, cited synthesis across all "
-           "subskills</span></h2>",
-           "<p class=sub>The cross-evidence integrator's structured hypothesis (replaces the free-text "
-           "synthesis). Every clause is traceable to a cited subskill; the agent's verdict is bounded by "
-           "the deterministic gate spine — it can be clamped DOWN, never up.</p>",
-           f"<div class=banner><b>Integrator verdict:</b> "
+           "<h2>Cross-evidence hypothesis <span class=n>— reasoning across all subskills</span></h2>",
+           f"<div class=banner><b>Verdict:</b> "
            f"<span class='chip {vcls}'>{_esc(_humanize(V.get('computed')))}</span>"
-           + (" <span class=sub>(clamped down from "
-              f"{_esc(_humanize(V.get('proposed_by_agent')))})</span>" if V.get('was_clamped') else "")
-           + (f" <span class=sub>(ceiling {_esc(_humanize(V.get('gate_ceiling')))}"
-              + (f" — {_esc(V.get('gate_reason'))}" if V.get('gate_reason') else "") + ")</span>"
-              if V.get('gate_ceiling') else "")
-           + f" · certainty <span class=pill>{_esc(U.get('overall_certainty') or '—')}</span>"
-           + f" · clause-traceability {trace_pct} "
-             f"({D.get('n_fully_traceable', '?')}/{D.get('n_clauses', '?')})"
-           + f" · coherence violations {D.get('n_coherence_violations', '?')}"
+           + f" · confidence <span class=pill>{_esc(U.get('overall_certainty') or '—')}</span>"
            + (" · <b>promotable</b>" if D.get('promotable') else "")
            + "</div>"]
+    # THESIS (lead) — the one-line 'why this verdict', bolded as the takeaway.
     rv = V.get("reason") or {}
     rv_val = rv.get("value") if isinstance(rv, dict) else rv
     if rv_val:
-        out.append(f"<p><b>Why this verdict:</b> {_esc(rv_val)}</p>")
+        out.append(f"<p style='font-size:15px;margin:8px 0 4px'><b>{_esc(rv_val)}</b></p>")
+    # EVIDENCE STRIP — the visual per-line grade (scannable), replacing the old table.
+    out.append(_ev_strip(H.get("evidence_grade") or {}))
+    # COLLAPSIBLE clauses — one-line summaries; expand for the full cited statement.
+    out.append("<p class=h style='margin:10px 0 2px'>Reasoning <span class=n>— click to expand each</span></p>")
     out.append(_part("Causal rationale", H.get("causal_rationale")))
     out.append(_part("Therapeutic hypothesis", H.get("therapeutic_hypothesis"), (("modality", "modality"),)))
     out.append(_part("Population", H.get("population"), (("biomarker", "subtype_or_biomarker"),)))
     out.append(_part("Therapeutic window", H.get("therapeutic_window")))
-    eg = H.get("evidence_grade") or {}
-    if eg:
-        def _sc(s):
-            return "chip-pos" if s == "strong" else "chip-neg" if s == "absent" else "chip-neu"
-        rows = "".join(f"<tr><td>{_esc(x.get('dimension'))}</td>"
-                       f"<td><span class='chip {_sc(x.get('strength'))}'>{_esc(x.get('strength'))}</span></td></tr>"
-                       for x in (eg.get("per_line") or []))
-        out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Evidence grade "
-                   f"— overall {_esc(eg.get('overall'))}</p>"
-                   f"<table style='margin-top:4px'><tr><th>Dimension</th><th>Strength</th></tr>{rows}</table></div>")
     tens = H.get("tensions") or []
     if tens:
         items = "".join(f"<li>{_esc(t.get('statement'))} "
                         f"<span class=sub>{_chips(t.get('citations'))}</span></li>" for t in tens)
-        out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Tensions &amp; trade-offs</p>"
-                   f"<ul>{items}</ul></div>")
+        out.append(f"<details class=hyp-part><summary><b>Tensions &amp; trade-offs</b> "
+                   f"<span class=sub>— {len(tens)} noted</span></summary><ul>{items}</ul></details>")
     gf = H.get("go_forth") or {}
     if gf:
         out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Go-forth — value of "
@@ -1228,11 +1322,9 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
                    f"{_esc(gf.get('next_evidence') or '—')}</p>"
                    f"<p style='margin:2px 0' class=sub><b>Why it's decisive:</b> "
                    f"{_esc(gf.get('value_of_information') or '—')}</p></div>")
-    out.append(f"<p class=sub style='margin-top:8px'>Cross-evidence integrator "
-               f"<code>{_esc(doc.get('skill_version', ''))}</code> · model "
-               f"<code>{_esc(prov.get('model_id', ''))}</code> · prompt_hash "
-               f"<code>{_esc(str(prov.get('prompt_template_hash', ''))[:12])}</code> · a meta-layer above "
-               "target-profile (composes no cards; reasons over the evidence_package).</p>")
+    out.append(f"<p class=sub style='margin-top:8px'>AI-generated by the cross-evidence integrator "
+               f"({_esc(prov.get('model_id', 'model') or 'model')}) reasoning over all subskill evidence. "
+               f"Every clause is cited; the verdict cannot exceed the deterministic gate.</p>")
     out.append("</section>")
     return [x for x in out if x]
 
@@ -1354,34 +1446,32 @@ def _render_target_profile_html(
         p.append(f"<header><h1>{_esc(target)} <span style='opacity:.6;font-weight:400'>×</span> "
                  f"{_esc(indication)}</h1></header>")
     else:
-        # Confidence coherence (review S1/G1): the recommendation + `confidence` are LLM-authored
-        # (temperature > 0). Label their provenance EXPLICITLY (not just a faint tag), surface the
-        # DETERMINISTIC confidence tier as the primary figure, and show the LLM narrative's word only
-        # as a transparent secondary — so the reproducible signal is never hidden behind an AI headline.
+        # HYPOTHESIS-LED header (2026-08-18 redesign): the cross-evidence integrator's verdict is the
+        # top-line; the deterministic gate recommendation is DEMOTED to a small 'engine:' chip. The
+        # scalar is LLM-authored + can under-call mutant-selective targets (see KRAS/COADREAD, where an
+        # expression-lens selectivity signal drags a clear mutant-conditioned nominate to 'hold'), so it
+        # is no longer the headline. Falls back to the deterministic recommendation as the lead only when
+        # no hypothesis was supplied (backward-compatible).
         det_tier = (confidence_tier or {}).get("tier")
-        llm_conf = _val("confidence")
-        conf_html = (f"<span class=pill>{_esc(det_tier)}</span> <span class=sub>(deterministic tier; "
-                     f"AI narrative said “{_esc(llm_conf)}”)</span>" if det_tier
-                     else f"<span class=pill>{_esc(llm_conf)}</span> <span class=sub>(AI narrative)</span>")
-        # When the cross-evidence integrator ran, show ITS verdict + certainty on the header too, so the
-        # top line does not silently contradict the hypothesis section below (review S1).
-        recon = ""
         _hv = hypothesis.get("verdict") if isinstance(hypothesis, dict) else None
         if hypothesis and isinstance(_hv, dict) and _hv.get("computed"):
-            hv = _hv
-            _hu = hypothesis.get("uncertainty")
+            _hu = hypothesis.get("uncertainty") or {}
             hcert = _hu.get("overall_certainty") if isinstance(_hu, dict) else None
-            recon = ("<div class=sub style='margin-top:4px'>Cross-evidence integrator: "
-                     f"<b>{_esc(_humanize(hv.get('computed')))}</b>"
-                     + (f" · certainty {_esc(hcert)}" if hcert else "")
-                     + " — a fuller, fully-cited read that may be more conservative than this headline "
-                       "(see the Cross-evidence hypothesis section).</div>")
+            # hypothesis-led: verdict + confidence ONLY. The deterministic scalar is NOT in the header
+            # (it under-calls mutant-selective targets and read as confusing) — it lives in the detail
+            # sections below, not the top-line.
+            lead = (f"<b>{_esc(_humanize(_hv.get('computed')))}</b> "
+                    f"<span class=sub>cross-evidence integrator</span>"
+                    + (f" · confidence <span class=pill>{_esc(hcert)}</span>" if hcert else ""))
+        else:
+            conf = det_tier or _val("confidence")
+            lead = (f"{action_html} <span class=sub>(AI-proposed, gate-checked)</span>"
+                    + (f" · confidence <span class=pill>{_esc(conf)}</span>" if conf else "")
+                    + f" {checked}")
         p.append("<header>"
                  f"<h1>{_esc(target)} <span style='opacity:.7;font-weight:400'>in</span> {_esc(indication)}"
                  " — target profile</h1>"
-                 f"<div class=rec>Recommendation <span class=sub>(AI-proposed, gate-checked)</span>: "
-                 f"{action_html} · confidence {conf_html} {checked}</div>"
-                 f"{recon}"
+                 f"<div class=rec>{lead}</div>"
                  "</header>")
 
     # --- Presence at a glance: the 7-question (data · signal · confidence) table -------------------
@@ -1464,8 +1554,6 @@ def _render_target_profile_html(
     else:
         if risk_rollup:
             nav.append("<a href='#s-risk-rollup'>Risk by category (deterministic)</a>")
-        if addressable_population:
-            nav.append("<a href='#s-population'>Addressable population</a>")
         if risk_assessment:
             nav.append("<a href='#s-litrisk'>Literature risk (context)</a>")
         if scorecard:
@@ -1524,11 +1612,9 @@ def _render_target_profile_html(
     if risk_rollup and not presence_only:
         p.extend(_safe_panel(_render_risk_rollup_html, risk_rollup, _what="risk-rollup"))
 
-    # --- Addressable population (DETERMINISTIC sizing) — surfaces the reproducible biomarker
-    # prevalence alongside the risk lead (review G2). Suppressed in presence_only.
-    if addressable_population and not presence_only:
-        p.extend(_safe_panel(_render_addressable_population_html, addressable_population,
-                             _what="addressable-population"))
+    # --- Addressable-population sizing intentionally NOT rendered (not ready for prime time,
+    # 2026-08-18). The _render_addressable_population_html helper + param are retained for a future
+    # rework; the section is simply omitted from the dashboard.
 
     # --- Synthesis (LLM) — the lead reasoning. When a cross-evidence hypothesis is supplied it
     # REPLACES the original Tier-3 executive-summary + tension narrative with the gate-clamped, cited
@@ -1564,8 +1650,11 @@ def _render_target_profile_html(
     # place the summary sections (Evidence summary + Modality-fit matrix) ABOVE them.
     bands_html: list[str] = []
     for short, label, sec_id in _sections:
-        grounded_html = _safe_panel(_grounded_block_html, short, grounded_by_axis.get(short),
-                                    _what=f"grounded[{short}]")
+        # per-subskill SUMMARY GRAPHIC (card-board) at the top of the section, then the grounded block
+        summary_html = _safe_panel(_subskill_summary_svg_html, short, sub_results, presence_facet,
+                                   target, indication, _what=f"summary[{short}]")
+        grounded_html = summary_html + _safe_panel(_grounded_block_html, short, grounded_by_axis.get(short),
+                                                   _what=f"grounded[{short}]")
         gate_html, n_g = _render_gate_section_html(
             "", label, [short], sub_results, scorecard_by_short,
             card_figures, figures_dir, indication=indication, modality_note=None,
@@ -1586,10 +1675,8 @@ def _render_target_profile_html(
                  " · focused Presence view · projection of nomination.json (no recompute).</footer>")
         p.append("</div>")   # close .content (matches the full-report path's single close)
         if n_plotly:
-            bundle = _plotly_bundle()
-            if bundle:
-                p.append(f"<script>{bundle}</script>")
-                p.append(_PLOTLY_BOOTSTRAP_JS)
+            p.append(_plotly_script_tag())
+            p.append(_PLOTLY_BOOTSTRAP_JS)
         p.append(_TAB_BOOTSTRAP_JS)
         p.append("</body></html>")
         return "".join(p)
@@ -1786,12 +1873,11 @@ def _render_target_profile_html(
 
     # --- Interactive layer (Phase B): inline plotly.js + a small vanilla-JS bootstrap that draws
     # every embedded spec. Emitted ONLY when ≥1 figure was produced — the no-figure report stays
-    # pure static HTML (no JS, no 4.6 MB payload). Self-contained: plotly.js is INLINED, never a CDN.
+    # pure static HTML (no JS). plotly.js loads from the CDN (a few hundred KB of HTML) rather than
+    # inlining ~4.6 MB, which the VS Code Simple Browser silently refuses (inline-<script> cap ~4.5MB).
     if n_plotly:
-        bundle = _plotly_bundle()
-        if bundle:
-            p.append(f"<script>{bundle}</script>")
-            p.append(_PLOTLY_BOOTSTRAP_JS)
+        p.append(_plotly_script_tag())
+        p.append(_PLOTLY_BOOTSTRAP_JS)
     # Tab bootstrap whenever a gate section (with subtabs) was rendered — independent of Plotly, so
     # the tabs work even on a static/no-figure run. Presence gate is the current trigger.
     if "expression" in sub_results:

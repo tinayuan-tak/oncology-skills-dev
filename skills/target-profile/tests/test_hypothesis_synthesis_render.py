@@ -88,12 +88,14 @@ def test_hypothesis_replaces_the_tier3_synthesis():
 
 
 def test_hypothesis_surfaces_verdict_defensibility_and_go_forth():
+    # 2026-08-18 simplification: the banner shows Verdict + confidence + promotable only; the dense
+    # ceiling / clause-traceability / coherence-violations metadata was removed as low-value jargon.
     h = _render(hypothesis=_HYP)
-    assert "Advanceable" in h                       # humanized computed verdict
-    assert "ceiling" in h                           # gate-clamp ceiling shown
-    assert "clause-traceability 100%" in h          # 1.0 → 100%
+    assert "Advanceable" in h                       # humanized computed verdict (banner lead)
+    assert "promotable" in h                        # defensibility still surfaced, plainly
     assert "Run an isogenic mutant-vs-WT organoid panel." in h   # go_forth
     assert "No actionable SL partner mapped in COADREAD." in h    # tensions inside the section
+    assert "clause-traceability" not in h           # dense metadata jargon removed
 
 
 def test_hypothesis_cites_and_flags_countervailing():
@@ -102,12 +104,14 @@ def test_hypothesis_cites_and_flags_countervailing():
     assert "Countervailing" in h and "partner-conditional-dependency" in h  # contradicting-citation flag
 
 
-def test_deterministic_recommendation_stays_the_header_top_line():
-    """User decision: the header recommendation stays the rule-fired verdict; the integrator's
-    go/no-go lives inside the hypothesis section, not the top-line."""
+def test_deterministic_recommendation_not_in_header_when_hypothesis_present():
+    """2026-08-18 redesign: the header is HYPOTHESIS-LED — it leads with the integrator verdict and
+    does NOT show the deterministic scalar at all (it under-called + confused). The scalar lives in the
+    detail sections below, not the top-line."""
     h = _render(hypothesis=_HYP)
-    head = h.split("<div class=rec>", 1)[1].split("</div>", 1)[0]
-    assert "Nominate" in head or "nominate" in head   # deterministic recommendation, not the integrator's
+    head = h.split("<div class=rec>", 1)[1].split("</header>", 1)[0]
+    assert "Advanceable" in head                       # hypothesis verdict leads
+    assert "Nominate" not in head and "engine:" not in head   # deterministic scalar dropped from the header
 
 
 def test_no_hypothesis_keeps_original_executive_summary():
@@ -133,16 +137,11 @@ _AP = {"addressable_population_class": "broad", "selection_basis": "snv_indel_st
        "_note": None}
 
 
-def test_addressable_population_surfaces_reproducible_prevalence():
-    """Review G2: the deterministic biomarker_prevalence (previously hidden in nomination.json) is
-    rendered, with the alteration-class-vs-druggable-allele reconciliation caveat."""
-    h = _render2(addressable_population=_AP)
-    assert "id=s-population" in h
-    assert "43.5%" in h and "genie" in h and "559" in h
-    assert "alteration class" in h and "druggable-allele" in h   # the reconciliation caveat
-
-
-def test_addressable_population_absent_no_section():
+def test_addressable_population_section_is_not_rendered():
+    """2026-08-18: the addressable-population section was removed from the dashboard (not ready for
+    prime time). The helper + param are retained, but the section must NOT appear even when data is
+    supplied — this guards against it silently reappearing."""
+    assert "id=s-population" not in _render2(addressable_population=_AP)
     assert "id=s-population" not in _render2(addressable_population=None)
 
 
@@ -151,17 +150,19 @@ def test_malformed_addressable_population_does_not_crash():
     assert "id=s-evidence" in h and "</html>" in h
 
 
-def test_header_surfaces_deterministic_tier_and_flags_ai_provenance():
-    """Review S1/G1: the header must NOT present the LLM 'confidence: high' as the headline. It shows
-    the deterministic confidence_tier as primary, marks the recommendation AI-proposed, and (when a
-    hypothesis ran) reconciles with the integrator verdict so the top line doesn't silently contradict
-    the section below."""
+def test_header_is_hypothesis_led_and_demotes_the_deterministic_scalar():
+    """2026-08-18 redesign: the header LEADS with the cross-evidence integrator verdict + its
+    confidence; the deterministic recommendation is DEMOTED to a small 'engine:' chip (the single
+    scalar can under-call mutant-selective targets). The old 'deterministic tier / AI narrative said /
+    reconciliation line' clutter is gone."""
     h = _render2(hypothesis=_HYP, confidence_tier={"tier": "moderate"})
-    assert "AI-proposed" in h                              # recommendation provenance explicit
-    assert "deterministic tier" in h and "moderate" in h   # deterministic confidence surfaced
-    assert 'AI narrative said' in h                        # LLM 'high' shown only as transparent secondary
-    assert "Cross-evidence integrator:" in h and "Advanceable" in h   # reconciliation line
-    assert "✓ gate-checked" in h                           # not "rule-checked" (over-claims determinism)
+    head = h.split("<div class=rec>", 1)[1].split("</header>", 1)[0]
+    assert "Advanceable" in head                           # integrator verdict is the lead
+    assert "cross-evidence integrator" in head
+    assert "engine:" not in head                           # deterministic scalar dropped from the header
+    assert "low" in head                                   # hypothesis certainty (NOT the LLM 'high')
+    # the old clutter is gone
+    assert "deterministic tier" not in head and "AI narrative said" not in head
 
 
 def test_malformed_risk_assessment_does_not_crash_dashboard():
@@ -249,3 +250,34 @@ def test_groundable_axes_parity_with_axis_config():
     rspec.loader.exec_module(rh)
     assert rh._GROUNDABLE_AXES == groundable, \
         f"_GROUNDABLE_AXES drifted from AXIS_CONFIG: {rh._GROUNDABLE_AXES ^ groundable}"
+
+
+# ---------- Phase 2: per-subskill card-board summary graphic ----------
+import sys as _sys
+_TPH = _sys.modules["tp_render_html"]  # the render module run.py imported
+
+
+def test_presence_subskill_gets_card_board_summary_graphic():
+    """The presence (expression) section leads with the card-board summary graphic — every card as a
+    ternary signal / no-signal / not-measured, reading real card values."""
+    sr = {"expression": {"skill_dir": "tumor-presence", "verdict": ("x", "y"), "fired": [], "cards": [
+        {"card_id": "tumor-rna-distribution", "summary": {"tumor_expression_class": "broadly_high",
+                                                          "n_tumor_samples": 300}},
+        {"card_id": "tumor-rna-vs-adjacent", "summary": {"expression_call_class": "strong_down",
+                                                         "q_value": 0.9}},
+        {"card_id": "tumor-elevation-breadth", "summary": {"tumor_elevation_breadth_class": "data_unavailable"}},
+    ]}}
+    out = _TPH._subskill_summary_svg_html("expression", sr, {}, "KRAS", "COADREAD")
+    h = "".join(out)
+    assert "card board" in h and "Signal summary" in h
+    assert "●" in h and "○" in h and "▨" in h   # signal + no-signal + not-measured all distinct
+
+
+def test_non_presence_subskill_has_no_summary_graphic_yet():
+    # other subskills slot in as their card->claim maps are authored; until then, render nothing.
+    sr = {"safety": {"cards": [{"card_id": "gnomad", "summary": {}}]}}
+    assert _TPH._subskill_summary_svg_html("safety", sr, {}, "KRAS", "COADREAD") == []
+
+
+def test_summary_graphic_empty_when_no_cards():
+    assert _TPH._subskill_summary_svg_html("expression", {"expression": {"cards": []}}, {}, "K", "C") == []

@@ -1,11 +1,11 @@
 """Dynamic-dashboard Phase B (PR-2) — the HTML report embeds interactive Plotly figures.
 
 When a run produced per-card interactive specs (`card_figures` + `figures_dir`), the report embeds
-them inline: a <div> per figure, its Plotly JSON in a sibling <script type=application/json>, plotly.js
-inlined ONCE, and a vanilla-JS bootstrap that draws them. When no figure was produced (the default),
-the report degrades to static tables with NO JS (guarded by test_html_report_and_scorecard). These
-tests pin the dynamic path + the honesty invariants (self-contained: plotly.js inlined not CDN'd;
-renderer embeds the method-drawn spec, never re-plots). Bedrock-free — synthetic specs on disk.
+each figure's Plotly JSON inline (a <div> + a sibling <script type=application/json>) and loads the
+plotly.js LIBRARY from the CDN (2026-08-18: inlining ~4.6 MB tripped the VS Code Simple Browser's
+inline-<script> cap and looked broken). When no figure was produced (the default), the report
+degrades to static tables with NO JS (guarded by test_html_report_and_scorecard). These tests pin the
+dynamic path + the invariants (specs embedded not re-plotted; library from CDN). Bedrock-free.
 """
 from __future__ import annotations
 
@@ -76,15 +76,15 @@ def test_dynamic_html_embeds_plotly_div_and_spec(tmp_path):
     assert "data-target=plt-card-crispr-waterfall" in h   # spec wired to its div id
 
 
-def test_dynamic_html_inlines_plotlyjs_and_bootstrap(tmp_path):
+def test_dynamic_html_loads_plotly_from_cdn_and_bootstrap(tmp_path):
+    # 2026-08-18: plotly.js is loaded from the CDN instead of inlining ~4.6 MB — a single inline
+    # <script> that big is silently dropped by the VS Code Simple Browser (its ~4.5 MB cap), which
+    # made dashboards look "broken". The figure SPECS stay inline; only the library is CDN'd.
     h = _dynamic_html(tmp_path)
-    assert "Plotly.newPlot" in h                          # the vanilla-JS bootstrap
-    assert "plotly.js" in h.lower()                        # the inlined bundle (its banner comment)
-    # self-contained: no external resource is LOADED. We check the TAGS we emit — not raw substrings,
-    # because the inlined ~4.6 MB plotly.js legitimately contains "https://" URLs in its own comments
-    # and error strings. The invariant is "nothing is fetched", i.e. no <script src=>, <link>, <img src=http>.
-    assert re.search(r"<script\b[^>]*\bsrc=", h) is None   # every <script> is inline (no src=)
-    assert "<link" not in h                                 # no external stylesheet
+    assert "Plotly.newPlot" in h                                   # the vanilla-JS bootstrap
+    assert re.search(r"<script\b[^>]*\bsrc=['\"]?https://cdn\.plot\.ly/plotly-[\d.]+\.min\.js", h)
+    assert "plotly.js v" not in h                                  # the 4.6MB library banner is NOT inlined
+    assert "<link" not in h                                         # no external stylesheet
     assert re.search(r"<img\b[^>]*\bsrc=[\"']?https?://", h) is None
 
 

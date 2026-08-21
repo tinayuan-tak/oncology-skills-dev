@@ -68,3 +68,28 @@ def test_dry_run_prints_three_stages_and_runs_nothing(capsys, tmp_path):
     assert "[1 GROUND]" in out and "[2 HYPOTHESIZE]" in out and "[3 RENDER]" in out
     # dry-run must not create the output root
     assert not (tmp_path / L.GROUND_DIR).exists()
+
+
+def test_dossier_stage_produced_and_fed_by_default():
+    """Stage 0 produces the target-intrinsic dossier and stage 2 receives it via --target-dossier —
+    without it the hypothesis runs degraded and floors certainty to 'low'."""
+    c = L.dossier_cmd(PY, "KRAS", Path("/o"))
+    assert "--target" in c and c[c.index("--target") + 1] == "KRAS"
+    assert c[c.index("--out") + 1] == str(Path("/o") / L.DOSSIER_DIR)
+
+
+def test_dry_run_includes_dossier_stage_and_wires_it_into_hypothesis(capsys, tmp_path):
+    rc = L.main(["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path), "--dry-run"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "[0 DOSSIER]" in out                              # stage 0 present by default
+    # the hypothesis stage is handed the produced dossier
+    assert "--target-dossier" in out and str(tmp_path / L.DOSSIER_DIR / "decision.json") in out
+
+
+def test_no_dossier_flag_skips_stage_zero(capsys, tmp_path):
+    rc = L.main(["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path),
+                 "--no-dossier", "--dry-run"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "[0 DOSSIER]" not in out and "--target-dossier" not in out

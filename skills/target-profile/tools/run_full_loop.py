@@ -35,8 +35,17 @@ _SKILL_DIR = Path(__file__).resolve().parent.parent          # skills/target-pro
 _SKILLS = _SKILL_DIR.parent                                  # skills/
 _TP_RUN = _SKILL_DIR / "scripts" / "run.py"
 _CEH_RUN = _SKILLS / "cross-evidence-hypothesis" / "scripts" / "run.py"
+_TI_RUN = _SKILLS / "target-intrinsic" / "scripts" / "run.py"
 
-GROUND_DIR, HYP_DIR, DASH_DIR = "01-ground", "02-hypothesis", "03-dashboard"
+DOSSIER_DIR, GROUND_DIR, HYP_DIR, DASH_DIR = "00-dossier", "01-ground", "02-hypothesis", "03-dashboard"
+
+
+def dossier_cmd(py: str, target: str, out: Path) -> list:
+    """Stage 0: the indication-INDEPENDENT target-intrinsic DOSSIER (decision.json). It feeds the
+    hypothesis's causal-rationale + therapeutic-window; WITHOUT it the hypothesis runs degraded and
+    floors certainty to 'low' regardless of how strong the indication evidence is. The dossier
+    headline is deterministic, so no synthesis is needed here (cheap)."""
+    return [py, str(_TI_RUN), "--target", target, "--out", str(out / DOSSIER_DIR)]
 
 
 def ground_cmd(py: str, target: str, indication: str, out: Path, ground: str,
@@ -105,25 +114,36 @@ def main(argv=None) -> int:
     ap.add_argument("--modality", default=None, help="controlled modality enum (threaded to both skills)")
     ap.add_argument("--objective", default=None, help="free-text objective for the hypothesis (narration)")
     ap.add_argument("--target-dossier", default=None, type=Path,
-                    help="target-intrinsic decision.json (indication-independent biology) for the hypothesis")
-    ap.add_argument("--dry-run", action="store_true", help="print the three commands; run nothing")
+                    help="target-intrinsic decision.json (indication-independent biology) for the hypothesis; "
+                         "if omitted, stage 0 PRODUCES one (see --no-dossier)")
+    ap.add_argument("--no-dossier", action="store_true",
+                    help="skip stage 0 (do not produce a target-intrinsic dossier). The hypothesis then runs "
+                         "degraded and floors certainty to 'low' — only use for a quick ground+render check")
+    ap.add_argument("--dry-run", action="store_true", help="print the stage commands; run nothing")
     args = ap.parse_args(argv)
 
     py = sys.executable
     out = args.out
+    # Stage 0 DOSSIER: use an explicitly-supplied one, else PRODUCE it (unless opted out). Feeding the
+    # dossier is what keeps the hypothesis out of degraded mode (which caps certainty at 'low').
+    produce_dossier = args.target_dossier is None and not args.no_dossier
+    dossier_path = args.target_dossier or (out / DOSSIER_DIR / "decision.json")
+    c0 = dossier_cmd(py, args.target, out) if produce_dossier else None
     c1 = ground_cmd(py, args.target, args.indication, out, args.ground, args.ground_indication)
     ep_path = out / GROUND_DIR / "evidence_package.json"
-    # stage 2/3 commands that don't depend on stage-1 output are built up-front so --dry-run shows all
-    # three; the substrate spec list is only knowable after stage 1, so it's resolved at run time.
     if args.dry_run:
         subs_preview = collect_substrate(out / GROUND_DIR)  # whatever exists now (usually none)
-        c2 = hypothesis_cmd(py, ep_path, subs_preview, out, args.modality, args.target_dossier, args.objective)
+        d_preview = dossier_path if (produce_dossier or args.target_dossier) else None
+        c2 = hypothesis_cmd(py, ep_path, subs_preview, out, args.modality, d_preview, args.objective)
         c3 = render_cmd(py, args.target, args.indication, out, args.modality)
-        for label, c in (("1 GROUND", c1), ("2 HYPOTHESIZE", c2), ("3 RENDER", c3)):
+        stages = ([("0 DOSSIER", c0)] if c0 else []) + [("1 GROUND", c1), ("2 HYPOTHESIZE", c2), ("3 RENDER", c3)]
+        for label, c in stages:
             print(f"[{label}] {' '.join(c)}")
         return 0
 
     out.mkdir(parents=True, exist_ok=True)
+    if c0:
+        _run(c0, "0 DOSSIER")
     _run(c1, "1 GROUND")
     if not ep_path.exists():
         print(f"stage 1 did not produce {ep_path}; aborting", file=sys.stderr)
@@ -132,7 +152,11 @@ def main(argv=None) -> int:
     if not substrate:
         print("WARNING: stage 1 produced no grounded_<axis>.json — the hypothesis will run WITHOUT "
               "grounded literature (substrate-empty). Check --ground / --ground-indication.", file=sys.stderr)
-    _run(hypothesis_cmd(py, ep_path, substrate, out, args.modality, args.target_dossier, args.objective),
+    hyp_dossier = dossier_path if (produce_dossier or args.target_dossier) and dossier_path.exists() else None
+    if produce_dossier and hyp_dossier is None:
+        print("WARNING: stage 0 did not produce a dossier; the hypothesis will run degraded "
+              "(certainty capped 'low').", file=sys.stderr)
+    _run(hypothesis_cmd(py, ep_path, substrate, out, args.modality, hyp_dossier, args.objective),
          "2 HYPOTHESIZE")
     _run(render_cmd(py, args.target, args.indication, out, args.modality), "3 RENDER")
     print(f"\n✓ full loop complete → {out / DASH_DIR / 'target_profile.html'}", file=sys.stderr)
