@@ -392,16 +392,20 @@ _CRITICAL_FILL, _CRITICAL_LINE = "#cf2828", "#8f1a1a"   # critical organs — re
 _NONCRIT_FILL, _NONCRIT_LINE = "#a9c5db", "#5b7f99"      # non-critical — muted blue
 
 
-def emit_liability_svg(target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS) -> Optional[Path]:
+def emit_liability_svg(target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS,
+                       *, presampled=None) -> Optional[Path]:
     """Tier-3 SVG for the Q3 liability card: per-GTEx-tissue median expression bar (ranked),
-    critical organs highlighted red, the HIGH cutoff marked. None if the target is absent."""
+    critical organs highlighted red, the HIGH cutoff marked. None if the target is absent.
+
+    presampled (figure Stage 6): OPT-IN atlas {tissue: [values]} from persisted plot_data → draw
+    OFFLINE with no live re-read. None = read live (legacy)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     from . import stats as _st
     _load_style(contracts_dir)
-    atlas = _read.read_all_normal_tissues(target)
+    atlas = presampled if presampled is not None else _read.read_all_normal_tissues(target)
     out_path = Path(out_dir) / "figure_normal_tissue_liability.svg"
     if not atlas:
         return None
@@ -430,8 +434,10 @@ def emit_liability_svg(target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_
 
 
 def emit_liability_plotly_specs(target: str, out_dir: Path,
-                                contracts_dir=DEFAULT_TARGET_CONTRACTS) -> list:
-    """Interactive twin of the liability atlas bar (same per-tissue medians). Best-effort."""
+                                contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> list:
+    """Interactive twin of the liability atlas bar (same per-tissue medians). Best-effort.
+
+    presampled (figure Stage 6): OPT-IN atlas {tissue: [values]} → no live re-read."""
     try:
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
@@ -439,7 +445,7 @@ def emit_liability_plotly_specs(target: str, out_dir: Path,
         return []
     import numpy as np
     from . import stats as _st
-    atlas = _read.read_all_normal_tissues(target)
+    atlas = presampled if presampled is not None else _read.read_all_normal_tissues(target)
     rows = []
     for tissue, vals in (atlas or {}).items():
         arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]

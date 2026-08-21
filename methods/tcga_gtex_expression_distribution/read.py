@@ -588,16 +588,29 @@ def _classify_percentile_crossing(frac_p95, frac_p99, overlap) -> str:
     return "minimally_enriched"
 
 
-def read_normal_tissue_liability(target: str) -> dict:
+def read_normal_tissue_liability(target: str, indication: "Optional[str]" = None,
+                                 plot_data_out: "Optional[Path]" = None) -> dict:
     """Q3 assembler: normal-tissue-liability over the GTEx atlas (all tissues) for a target — the
     therapeutic-window / on-target-off-tumor question. Composes normal_tissue_liability over the
     per-tissue vectors from read_all_normal_tissues (recount3, same axis as the tumor TPM, so
-    tumor-vs-normal ratios are directly comparable). target-grain (no indication). data-gap-safe."""
+    tumor-vs-normal ratios are directly comparable). target-grain (no indication). data-gap-safe.
+
+    plot_data_out (figure Stage 6): OPT-IN — persist the atlas {tissue: [values]} as long rows
+    (plot_data_normal_tissue_atlas.parquet) so the liability figure renders offline. Best-effort."""
     atlas = read_all_normal_tissues(target)
     if not atlas:
         return {"liability_class": "data_unavailable", "n_tissues_tested": 0,
                 "highest_tissue": None, "critical_organ_max": None,
                 "_data_note": "target absent from GTEx long product"}
+    if plot_data_out is not None:
+        try:
+            import pandas as pd
+            Path(plot_data_out).mkdir(parents=True, exist_ok=True)
+            rows = [{"tissue": t, "log2_tpm": float(v)} for t, vals in atlas.items() for v in vals]
+            pd.DataFrame(rows, columns=["tissue", "log2_tpm"]).to_parquet(
+                Path(plot_data_out) / "plot_data_normal_tissue_atlas.parquet", index=False)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
     summ = _stats.normal_tissue_liability(atlas)
     summ["liability_class"] = _classify_normal_liability(
         summ["critical_organ_max"], summ["highest_tissue_median"], summ["tissue_breadth_fraction"])

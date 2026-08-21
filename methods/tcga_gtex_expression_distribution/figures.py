@@ -60,3 +60,40 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     except Exception:  # noqa: BLE001 — additive interactive twin; the SVG is the contract
         pass
     return static + dynamic
+
+
+# ---- Q3 normal-tissue-liability atlas (separate figure; atlas = {tissue: [values]}) ---------------
+_LIABILITY_COLUMNS = ("tissue", "log2_tpm")
+
+
+def render_liability_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
+                                    out_dir: "Union[str, Path]", target: str,
+                                    indication: "Optional[str]" = None, *,
+                                    target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+    """Render the normal-tissue-liability atlas OFFLINE from persisted plot_data
+    (plot_data_normal_tissue_atlas.parquet: tissue, log2_tpm). Reconstructs the atlas
+    {tissue: [values]} and replays it into the vector-driven cli.emit_liability_svg. NO live read."""
+    import pandas as pd
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tcd = Path(target_contracts_dir) if target_contracts_dir else _cli.DEFAULT_TARGET_CONTRACTS
+
+    df = plot_data if hasattr(plot_data, "columns") else pd.read_parquet(Path(plot_data))
+    missing = [c for c in _LIABILITY_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"plot_data missing required columns {missing}; got {list(df.columns)}")
+    atlas = {str(t): sub["log2_tpm"].astype(float).tolist() for t, sub in df.groupby("tissue")}
+
+    _cli.emit_liability_svg(target, out_dir, tcd, presampled=atlas)
+    static = [
+        {"id": "normal_tissue_liability_atlas", "path": "figure_normal_tissue_liability.svg",
+         "type": "normal_tissue_atlas_bar", "primary": True},
+    ]
+    dynamic: list[dict] = []
+    try:
+        specs = _cli.emit_liability_plotly_specs(target, out_dir, tcd, presampled=atlas) or []
+        dynamic = [{**s, "dynamic": True} for s in specs]
+    except Exception:  # noqa: BLE001 — additive interactive twin
+        pass
+    return static + dynamic
