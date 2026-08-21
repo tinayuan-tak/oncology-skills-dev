@@ -84,6 +84,10 @@ outputs:
     - subtype_variance_explained                 # float — ε² ∈ [0,1] (variance subtype explains)
     - subtype_effect_size_class                  # categorical — large / moderate / negligible / data_unavailable
     - which_subtypes_separate                    # {highest, lowest} stratum ids at the median extremes (or null)
+    # PURITY confounder context (2026-08-21) — a subtype whose "enrichment" tracks LOW tumor purity
+    # is a stromal signal, not tumor-intrinsic. Verdict-inert (like the omnibus).
+    - purity_source                              # pancanatlas_absolute | unavailable
+    - subtype_purity_spread                      # {max_median_purity, min_median_purity, delta} over measured strata (or null)
   summary_fields_vocabulary:
     subtype_axis_quality:
       - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
@@ -118,6 +122,10 @@ outputs:
       distribution_pattern: string
       tumor_expression_class: string
       match_rate: number                        # stratum join coverage (id-convention guard)
+      # per-stratum tumor PURITY (ABSOLUTE / PanCanAtlas) — a low-purity stratum's expression
+      # enrichment may be stromal, not tumor-intrinsic. Verdict-inert context. Null when no purity call.
+      median_purity: number
+      n_purity_paired: integer
       # per-subtype matched-normal WINDOW (therapeutic-window / patient-selection — Option 2). Null
       # when the indication has no true matched normal (then see proxy_normal_windows).
       fraction_tumor_above_normal_p95: number
