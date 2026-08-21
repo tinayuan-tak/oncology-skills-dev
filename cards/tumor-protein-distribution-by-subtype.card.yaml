@@ -1,0 +1,94 @@
+# Card — TUMOR PROTEIN DISTRIBUTION BY MOLECULAR SUBTYPE (CPTAC)
+#
+# The target_subtype-grain SIBLING of tumor-protein-abundance-cptac. Same measurement_type
+# (tumor_protein_abundance), same CPTAC whole-cell-lysate TMT substrate (tumor-vs-reference log2
+# ratio) — but recomputes the distribution WITHIN each molecular-subtype member-set of the
+# indication's CPTAC tumor aliquots, emitting a per-stratum panorama. The PROTEIN analogue of
+# tumor-rna-distribution-by-subtype.
+#
+# Framework grain-split convention: a POOLED card (tumor-protein-abundance-cptac) beside a SEPARATE
+# tier:subtype card (this one). The GRAIN-CHECK validator enforces that a card declaring
+# per_subgroup_metrics binds a per-sample stratified reader; cptac-protein-distribution IS one
+# (read_stratified_protein + build_protein_subtype_panorama) — it recomputes per stratum via
+# subgroup_common.panorama.build_panorama over the CPTAC assignment shard, keyed by
+# aliquot_submitter_id (bridged aliquot->case->Patient_ID).
+#
+# PRESENCE-side (Gate A / tumor-presence). DESCRIPTIVE / verdict-inert: subtype is CONTEXT for
+# patient-selection, NEVER a veto — the pooled tumor-protein-abundance-cptac card carries the
+# protein read; this card enriches it. COMPUTE-ALL-SPOTLIGHT-ONE.
+
+card_id: tumor-protein-distribution-by-subtype
+version: 0.1.0
+question: "How does {target.symbol} tumor protein abundance (CPTAC TMT) DISTRIBUTE across the molecular subtypes of {indication.label} — which strata are enriched or depleted vs the pooled cohort?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype]
+  rationale: "CPTAC tumor protein abundance can vary by molecular stratum (e.g. an antigen tracking with MSI status). Backed by cptac-protein-distribution, which recomputes the per-aliquot log2-ratio distribution within each stratum's member-set of the CPTAC assignment shard — not an emit-time aggregate."
+
+applies_when:
+  # COADREAD-only for the pattern proof: cptac-subgroup-assignments-coadread-v1 (MSI_H / MSS from
+  # MMR-IHC) is the only landed CPTAC assignment shard today. Additional indications / strata follow
+  # as their CPTAC assignment shards land — extend this allowlist in lockstep with the skills
+  # dispatcher's _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS map. Not listed -> subtype_axis_available:false.
+  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-sample-v1  # per-aliquot log2 ratios (the substrate)
+  - product_id: cptac-subgroup-assignments-coadread-v1       # the CPTAC MSI assignment shard
+
+methods:
+  - call: cptac-protein-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
+    - subtype_axis_available                    # is a CPTAC shard landed for this indication?
+    - subtype_axis_quality                      # powered | underpowered | empty | unavailable — honest
+                                                # capability grade (MSI_H is frequently below the n-floor
+                                                # in CPTAC's small cohorts). Verdict-inert.
+    - n_subtypes_measured                       # strata clearing the n-floor (>=30 aliquots)
+    - n_subtypes_enriched                       # strata whose median log2-ratio is >= delta above pooled
+    - n_subtypes_depleted                       # strata whose median is >= delta below pooled
+    - subtype_stratification_class              # subtype_enriched | subtype_depleted | subtype_variable | pan_subtype_uniform
+                                                # One-directional CONTEXT — NEVER moves presence_verdict.
+    - pooled_cohort_median_log2_ratio           # the enrichment baseline (all tumor aliquots)
+  summary_fields_vocabulary:
+    subtype_axis_quality:
+      - powered                                  # >=2 strata clear the n-floor -> cross-subtype contrast supportable
+      - underpowered                             # axis has aliquots but <2 measured strata -> context only
+      - empty                                    # axis defined but every stratum absent
+      - unavailable                              # no CPTAC assignment shard for this indication
+    subtype_stratification_class:
+      - subtype_enriched
+      - subtype_depleted
+      - subtype_variable
+      - pan_subtype_uniform
+      - subtype_axis_unavailable
+  summary_fields_record_schemas:
+    per_subgroup_metrics:
+      stratum: string
+      class: {enum: [protein_elevated, protein_neutral, protein_reduced, insufficient], type: string}
+      subtype_signal: {enum: [enriched, depleted, uniform], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      median_log2_ratio: number
+      detectable_fraction: number
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      source_cohort: string
+
+caveats:
+  - "DESCRIPTIVE / verdict-inert: subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-protein-abundance-cptac card carries the protein read; this card enriches it."
+  - "COADREAD-only (2026-08-21): cptac-subgroup-assignments-coadread-v1 (MSI_H/MSS from MMR-IHC) is the only landed CPTAC assignment shard. MSI is an MMR-IHC surrogate; ~43% of aliquots are is_member=null (not tested). Other indications return subtype_axis_available:false until their shards land."
+  - "CPTAC whole-cell-lysate TMT measures PRODUCED protein (tumor-vs-reference log2 ratio), NOT surface-accessible antigen; small per-stratum n means MSI_H is frequently underpowered (see subtype_axis_quality)."
+
+measurement_type: tumor_protein_abundance
+entity_grains: [target_subtype]
+schema_version: 1

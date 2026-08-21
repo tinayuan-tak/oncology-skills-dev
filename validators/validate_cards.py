@@ -79,6 +79,11 @@ PER_SAMPLE_STRATIFIABLE_CALLS = {
                                           # build_expression_subtype_panorama — recomputes the cell-line RNA
                                           # distribution WITHIN each DepMap-shard stratum member-set (ModelID-keyed,
                                           # no barcode bridge), reusing subgroup_common.panorama.build_panorama.
+    'cptac-protein-distribution',         # methods/cptac_protein_distribution: read_stratified_protein +
+                                          # build_protein_subtype_panorama — recomputes the CPTAC tumor-protein
+                                          # (log2-ratio) distribution WITHIN each stratum member-set of the CPTAC
+                                          # assignment shard (aliquot-keyed, aliquot->case bridge), reusing
+                                          # subgroup_common.panorama.build_panorama. — 2026-08-21.
 }
 
 # The list-typed summary field names that signal a card emits a per-subgroup

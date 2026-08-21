@@ -253,9 +253,13 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "Is target present at protein level in tumor vs matched normal (CPTAC MS)?"
-    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
-    cards: [tumor-protein-abundance-cptac]
+    entity_grains: [target_indication, target_subtype]   # pooled + subtype sibling (target_subtype, LIVE 2026-08-21)
+    cards: [tumor-protein-abundance-cptac, tumor-protein-distribution-by-subtype]  # pooled + subtype sibling
     providers:
+      # per-cohort = pooled provider; the subtype card's per-aliquot substrate
+      # (cptac-protein-tumor-vs-normal-per-sample-v1) is declared in that card's required_inputs, not
+      # here (a second type-level provider would demand a multi_provider_policy — the two are the same
+      # measurement, different grain, never averaged).
       - {kind: dataset, source: cptac-protein-tumor-vs-normal-per-cohort-v1, evidence_tier: measured}
 
   phospho_pathway_activity:
