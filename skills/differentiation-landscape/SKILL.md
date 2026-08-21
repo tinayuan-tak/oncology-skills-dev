@@ -6,9 +6,10 @@ description: |
 
   GRADUATED 2026-07-08: placeholder → partial. Co-mutation card wired via
   cooccurrence_fisher_pancohort method + pancohort-cooccurrence-fisher-v1
-  derived manifest. Remaining cards (clinical-precedent, patent-landscape)
-  stay placeholder; their commercial-data-licensing dependencies are not
-  resolved. Paralog-buffering was RE-HOMED to functional-requirement skill
+  derived manifest. clinical-precedent is now WIRED (2026-08-21) via public-domain
+  AACT (ClinicalTrials.gov) — no commercial license needed — and is produced in the
+  composed dashboards; only patent-landscape remains placeholder (PatBase-equivalent
+  licensing unresolved). Paralog-buffering was RE-HOMED to functional-requirement skill
   (Phase C-adjacent) per reviewer content flag — buffering is a
   dependency-hardening signal, not a differentiation signal.
 
@@ -39,12 +40,13 @@ composition:
     - pathway-node-leverage               # WS3 (2026-08-17): COMPARATIVE node-leverage (is target the best NODE to hit, or dominated?); soft/verdict-inert differentiation context — its rules emit axis_fit signals + fired_rule_ids for the cross-evidence hypothesis agent; feeds NO resolver (verdict byte-stable)
     - alteration-clinical-association       # Q11-alteration (2026-08-20): OS by target MUTATION status; verdict-inert prognostic render facet (alteration arm of the differentiation prognostic question)
     - subtype-survival-association          # Q2-subtype (2026-08-20): OS ACROSS molecular subtypes (target-independent patient-selection context); verdict-inert
-    # clinical-precedent + patent-landscape intentionally NOT listed — they are
-    # excluded from the runtime card set (commercial-data licensing unresolved) and
-    # never reach run.py CARDS; see NOTE below. (Trimmed 2026-08-05 to match run.py.)
+    # clinical-precedent + patent-landscape intentionally NOT listed here. clinical-precedent is now
+    # WIRED (AACT, 2026-08-21) + produced in the composed dashboards — adding it to THIS focused
+    # skill's cards_used is an optional follow-up; patent-landscape stays unwired (PatBase licensing).
+    # See NOTE below. (Trimmed 2026-08-05 to match run.py.)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
-  # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent is a data-blocked
-  # future-intent (its clinical-precedent card is licensing-blocked and NOT in cards_used — kept as a
+  # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent's card is now WIRED
+  # (public-domain AACT) but is NOT YET in THIS skill's cards_used (optional follow-up) — kept as a
   # declared roadmap pull). expression_clinical_association (Q11) is an ADDITIVE render facet
   # (verdict-inert). 2026-08-14 review: added stemness_context — the stemness-context card (Malta 2018,
   # added 2026-08-10) is in cards_used but its type was omitted here. test_differentiation_measurement_types.py
@@ -54,7 +56,7 @@ composition:
     - stemness_context                    # stemness-context (Malta 2018 mRNAsi; verdict-inert)
     - expression_clinical_association     # expression-clinical-association (Q11; verdict-inert render facet)
     - precog_prognostic_association       # precog-prognostic-association (PRECOG pan-cancer meta-Z; verdict-inert)
-    - clinical_precedent                  # data-blocked future-intent (clinical-precedent card licensing-blocked; NOT in cards_used)
+    - clinical_precedent                  # card now WIRED (public-domain AACT, 2026-08-21); NOT YET in this skill's cards_used (optional follow-up)
     - pathway_node_leverage               # WS3 (2026-08-17): pathway-node-leverage card (comparative; verdict-inert soft differentiation context)
     - alteration_clinical_association     # alteration-clinical-association (Q11-alteration; verdict-inert prognostic render facet)
     - subtype_survival_association        # subtype-survival-association (Q2-subtype; verdict-inert)
@@ -67,9 +69,10 @@ composition:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
   status: partial
-  # NOTE: clinical-precedent + patent-landscape are intentionally NOT in
-  # cards_used above — they are excluded from the runtime card set (their
-  # commercial-data licensing is unresolved), so they never reach dispatch.
+  # NOTE: clinical-precedent + patent-landscape are intentionally NOT in cards_used above.
+  # clinical-precedent is now WIRED (public-domain AACT) + produced in the composed dashboards;
+  # adding it to THIS focused skill is an optional follow-up. patent-landscape stays unwired
+  # (PatBase-equivalent licensing unresolved), so it never reaches dispatch.
   # (A previous `on_dependency_status: skip_section` block was removed here
   # because run.py never passed it — the skip is by omission, not by that
   # mechanism. Wiring on_dependency_status is a separate feature decision.)
@@ -89,9 +92,10 @@ Given a target + indication:
 
 ## What this skill does NOT do (yet)
 
-- **Clinical-precedent feed:** Cortellis / IQVIA licensing pending. The card
-  is not in this skill's runtime card set, so no section is produced for it.
-- **Patent landscape:** PatBase licensing pending. Likewise not in the card set.
+- **Clinical-precedent feed:** now WIRED via public-domain AACT (no Cortellis/IQVIA
+  license needed) and produced in the composed dashboards. Adding it to THIS focused
+  skill's runtime card set is a follow-up — it is not yet in this skill's cards_used.
+- **Patent landscape:** PatBase-equivalent licensing pending. Not in the card set.
 - **Paralog buffering** (re-homed): functional-requirement skill consumes
   this — paralog buffering is a Phase C-adjacent dependency-hardening
   signal, not a Phase E differentiation signal (reviewer content flag).
@@ -128,7 +132,7 @@ are always available for panel-ineligible genes.
 
 ## Iter-2 roadmap
 
-1. Cortellis / IQVIA licensing → clinical-precedent card wiring.
+1. clinical-precedent card DONE (2026-08-21, public-domain AACT); optional: add to this skill's cards_used.
 2. PatBase or equivalent → patent-landscape card wiring.
 3. Method upgrade: DISCOVER (Canisius 2016) or SELECT (Mina 2020)
    alongside Fisher — cited in the card's caveats as principled successors.

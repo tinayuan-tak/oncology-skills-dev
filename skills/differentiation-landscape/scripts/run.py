@@ -70,9 +70,11 @@ QUESTION = ("What genes co-occur with or are mutually exclusive to "
             "does the pattern support in {indication}?")
 
 PARTIAL_STATUS_NOTE = (
-    "differentiation-landscape is status: partial; clinical-precedent + "
-    "patent-landscape cards not wired (licensing pending). Only co-mutation "
-    "signal reflected in this decision."
+    "differentiation-landscape is status: partial. The clinical-precedent card is now WIRED "
+    "(2026-08-21) via public-domain AACT (aact_clinical_precedent) — NO commercial license needed — "
+    "and is produced in the composed dashboards; adding it to THIS focused skill's cards_used is a "
+    "follow-up. patent-landscape remains unwired (PatBase-equivalent licensing pending). This "
+    "skill's own decision still reflects the co-mutation / mutual-exclusivity signal."
 )
 
 
