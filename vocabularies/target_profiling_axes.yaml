@@ -227,6 +227,26 @@ questions:
       functional-requirement (paralog-buffering, partner-conditional-dependency). Consolidation
       target = the combination-and-vulnerability skill; see relational_consolidation.
 
+  - short: cis_coherence
+    question: "Does the target's OWN locus feature (copy-number / promoter methylation) explain its OWN expression AND its OWN dependency — a coherent cis-driven addiction, or co-occurring but mechanistically-independent axes?"
+    band: necessity                    # characterizes WHY the target is a dependency (cis-driven addiction); does not itself flip the nomination verdict
+    characterization_only: true        # gateless coherence axis (the "verdict" is a 2×2 leg interaction), advisory like `mechanism` — not a hard gate
+    risk_category: biology
+    home_skill: cis-feature-coherence
+    foreign_consumers: []
+    framework_can_evidence: partial    # wired (7 composer cards + cis-coherence.rules.yaml); thin leg = cross-grain TCGA-patient corroboration
+    status: wired
+    reports_into: [dependency]         # a coherent cis-driven addiction strengthens the dependency read
+    conditioned_by: [subtype, molecular_form]
+    legacy_letters: {scaffold_8gate: "n/a (not in the 8-gate)", gate_coverage_v2: "n/a (post-v2 axis, 2026-08-20 consolidation)", skill_phase: "cis-feature-coherence owner"}
+    evidences: "cell-line CNV / methylation × expression × dependency coherence (DepMap 26Q1) + cross-grain TCGA-patient corroboration."
+    coverage_note: |
+      GATELESS coherence owner: the answer is a 2×2 leg interaction (does CN/methylation drive the
+      target's own expression, and does that expression predict its own dependency), NOT a scalar gate.
+      Owned by the cis-feature-coherence skill; CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT claim_vector with
+      cross-grain TCGA-patient corroboration. Registered as a first-class question 2026-08-21 to close
+      the #479 dangling primary_axis (cis-feature-coherence pointed here before the axis existed).
+
 # ===========================================================================
 # CONDITIONER AXES — orthogonal refinements of the questions (NOT questions/gates themselves).
 # "8 questions × modality × subtype × molecular-form" (GATE_SCAFFOLD_MODALITY_CONDITIONAL.md).

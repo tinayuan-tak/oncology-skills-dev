@@ -236,8 +236,11 @@ def test_skill_question_sets_wellformed_and_reference_real_cards():
             assert ab, f"{s['skill']}: question {entry.get('q')!r} needs a non-empty answered_by"
             unknown = [c for c in ab if c not in real]
             assert not unknown, f"{s['skill']}: answered_by names unknown cards {unknown}"
-    # the whole nomination fan-out (+ the descriptive/relational skills) should be built out now
-    assert n_with_questions >= 15, f"expected >=15 skills with question sets, got {n_with_questions}"
+    # the whole nomination fan-out (+ the descriptive/relational skills) should be built out now.
+    # Floor dropped 15→14 by #479: the relational trio (synthetic-lethal-partners /
+    # combinatorial-dependency / combo-and-resistance) was consolidated into a single
+    # combination-and-vulnerability skill (net -2) and cis-feature-coherence gained a question set (+1).
+    assert n_with_questions >= 14, f"expected >=14 skills with question sets, got {n_with_questions}"
 
 
 def test_every_skill_objective_has_at_least_an_objective():
@@ -254,12 +257,21 @@ def test_relational_axis_is_first_class_and_pair_grained():
     assert "dependency" in cv.get("reports_into", []), "SL context reports_into dependency (veto-suppressor)"
 
 
-def test_relational_skills_retagged_to_the_relational_axis():
-    """SL / combinatorial-dependency / combo-and-resistance no longer stopgap-tagged as `dependency`."""
+def test_relational_trio_consolidated_into_the_relational_axis():
+    """Post-#479 (2026-08-20): the relational trio (synthetic-lethal-partners /
+    combinatorial-dependency / combo-and-resistance) was RETIRED from the fan-out and consolidated
+    into a single combination-and-vulnerability skill that owns the relational axis. The trio must no
+    longer appear as standalone skill_objectives, the consolidated owner must carry the relational
+    axis, and the retirement must be recorded in the relational_consolidation annex."""
     by_skill = {s["skill"]: s for s in AX["skill_objectives"]}
-    for skill in ("synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"):
-        assert by_skill[skill]["primary_axis"] == "combination_vulnerability", \
-            f"{skill}: should map to the relational axis"
+    assert by_skill["combination-and-vulnerability"]["primary_axis"] == "combination_vulnerability", \
+        "the consolidated skill must own the relational axis"
+    trio = {"synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"}
+    lingering = trio & set(by_skill)
+    assert not lingering, f"retired relational trio should not be standalone skill_objectives: {lingering}"
+    # the retirement is the consolidation annex's record
+    absorbed = {e["skill"] for e in AX["relational_consolidation"]["absorbed_skills"]}
+    assert absorbed == trio, f"relational_consolidation.absorbed_skills should record the retired trio, got {absorbed}"
 
 
 def test_output_contracts_and_consolidation_wellformed():
@@ -268,12 +280,13 @@ def test_output_contracts_and_consolidation_wellformed():
     assert "combination_vulnerability" in oc["ranked_partner_table"]["used_by_axis"]
     rc = AX["relational_consolidation"]
     assert rc["axis"] == "combination_vulnerability"
-    absorbed = {e["skill"] for e in rc["absorbs_skills"]}
+    # #479 renamed absorbs_skills → absorbed_skills and marked the consolidation completed.
+    absorbed = {e["skill"] for e in rc["absorbed_skills"]}
     assert absorbed == {"synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"}
-    # every absorbed skill also actually carries the relational primary_axis
+    # the absorbed trio is RETIRED from skill_objectives; the consolidation TARGET now carries the axis.
     by_skill = {s["skill"]: s for s in AX["skill_objectives"]}
-    for sk in absorbed:
-        assert by_skill[sk]["primary_axis"] == "combination_vulnerability"
+    assert rc["target_skill"] == "combination-and-vulnerability"
+    assert by_skill[rc["target_skill"]]["primary_axis"] == "combination_vulnerability"
 
 
 def test_scientific_gaps_cover_every_hard_gap_axis():
