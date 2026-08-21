@@ -69,8 +69,16 @@ def _emit_protein_presence_cptac(
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.cptac_protein_deg import read as cptac
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted per-cohort stats (incl. raw arrays) when present.
+    pd_path = out_dir / "plot_data_protein_per_cohort.parquet"
+    if pd_path.exists():
+        from methods.cptac_protein_deg.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: recompute from the per-sample product live (pre-migration behavior).
+    from methods.cptac_protein_deg import read as cptac
     if not cptac.per_cohort_distribution_stats(target):
         return []                                   # target absent from every CPTAC cohort
     cptac.emit_per_cohort_panel(target, out_dir, TARGET_CONTRACTS)

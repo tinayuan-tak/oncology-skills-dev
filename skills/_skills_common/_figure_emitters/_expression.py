@@ -142,8 +142,16 @@ def _emit_tumor_elevation_breadth(
     for a target-only query even when protein breadth is data_unavailable — which is exactly the
     degenerate target-only case the breadth card exists to rescue."""
     _ensure_methods_path()
-    from methods.tcga_gtex_tpm_quantiles import read as tpmq
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted quantile rows when present (no S3 re-read).
+    pd_path = out_dir / "plot_data_pan_cancer_by_tissue.parquet"
+    if pd_path.exists():
+        from methods.tcga_gtex_tpm_quantiles.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-read the quantile product live (pre-migration behavior); persist for reuse.
+    from methods.tcga_gtex_tpm_quantiles import read as tpmq
     if tpmq.read_pan_cancer_by_tissue(target).empty:
         return []                                   # target absent from the quantile product
     tpmq.emit_by_tissue_distribution(target, out_dir, TARGET_CONTRACTS)
@@ -440,10 +448,18 @@ def _emit_tumor_vs_normal_selectivity(
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted 3-group per-sample when present (no recount3 re-stream).
+    pd_path = out_dir / "plot_data_dge_per_sample.parquet"
+    if pd_path.exists():
+        from methods.dge_deseq2.figures import render_selectivity_from_plot_data
+        return render_selectivity_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: stream per-sample from recount3 live; persist it for reuse (offline next time).
     from methods.dge_deseq2 import read as dge_read
     from methods.dge_deseq2 import emit as dge_emit
 
-    out_dir.mkdir(parents=True, exist_ok=True)
     try:
         per_sample = dge_read.read_per_sample_expression_all_three_groups(
             target=target, indication=indication,
@@ -457,6 +473,7 @@ def _emit_tumor_vs_normal_selectivity(
         target=target, indication=indication,
         out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
     )
+    dge_emit.emit_plot_data(per_sample, out_dir)
     figures = [
         {"id": "tumor_vs_normal_selectivity_4panel",
          "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
@@ -492,6 +509,13 @@ def _emit_expression_tumor_vs_adjacent(
     from methods.dge_deseq2 import emit as dge_emit
 
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # NB no offline seam here (unlike tumor-vs-normal-selectivity): this card's forest is drawn from
+    # the separately-read sensitivity GENE-ROW (`sens`), NOT the card verdict `summary` — the card
+    # summary does not carry the 4-cell log2fc fields — so an offline render keyed on `summary` would
+    # diverge (empty forest). The selectivity sibling IS migrated because its forest already draws
+    # off `summary`. Left live; figures.render_adjacent_from_plot_data exists for a future seam once
+    # the sensitivity gene-row is persisted alongside per_sample.
 
     # Preferred: 3-group panel from the 4-cell sensitivity product (cell A = adjacent, cell C = GTEx).
     try:

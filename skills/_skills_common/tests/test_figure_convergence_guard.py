@@ -47,6 +47,12 @@ from methods.depmap_rna_protein_concordance import figures as rp_fig  # noqa: E4
 from methods.depmap_rna_protein_concordance import read as rp_read  # noqa: E402
 from methods.patient_model_expression_correspondence import figures as pm_fig  # noqa: E402
 from methods.patient_model_expression_correspondence import read as pm_read  # noqa: E402
+from methods.tcga_gtex_tpm_quantiles import figures as breadth_fig  # noqa: E402
+from methods.tcga_gtex_tpm_quantiles import read as breadth_read  # noqa: E402
+from methods.cptac_protein_deg import figures as cptac_fig  # noqa: E402
+from methods.cptac_protein_deg import read as cptac_read  # noqa: E402
+from methods.dge_deseq2 import figures as dge_fig  # noqa: E402
+from methods.dge_deseq2 import read as dge_read  # noqa: E402
 
 
 def _write_rp_points(name):
@@ -348,6 +354,75 @@ def test_recommended_models_gallery_convergence(tmp_path, monkeypatch):
         "read_recommended_models", "plot_data_recommended_models.parquet",
         _write_pm_models, {"correspondence_class": "strong_correspondence", "patient_iqr": [2.0, 4.0]},
         tmp_path, monkeypatch)
+
+
+# --- Stage-6 TAIL: breadth (tcga_gtex_tpm_quantiles), CPTAC (cptac_protein_deg), DGE-selectivity
+#     (dge_deseq2). One case per newly-migrated card. -----------------------------------------------
+
+def _write_breadth_quantiles(d):
+    """Persist the pan-cancer by-tissue quantile rows the offline breadth render replays."""
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    rows = ([{"gene_symbol": "MYGENE", "ensembl_gene_id": "ENSG1", "source": "tcga_tumor",
+              "group": g, "n": 10, "min": 1.0, "q1": 2.0, "median": 3.0, "q3": 4.0, "max": 5.0,
+              "mean": 3.0} for g in ("COAD", "READ")]
+            + [{"gene_symbol": "MYGENE", "ensembl_gene_id": "ENSG1", "source": "gtex_normal",
+                "group": g, "n": 8, "min": 0.1, "q1": 0.5, "median": 1.0, "q3": 1.5, "max": 2.0,
+                "mean": 1.0} for g in ("Colon", "SmallIntestine")])
+    pd.DataFrame(rows).to_parquet(d / "plot_data_pan_cancer_by_tissue.parquet", index=False)
+
+
+def test_breadth_by_tissue_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "tumor-elevation-breadth", breadth_read, breadth_fig.render_from_plot_data,
+        "read_pan_cancer_by_tissue", "plot_data_pan_cancer_by_tissue.parquet",
+        _write_breadth_quantiles, {}, tmp_path, monkeypatch)
+
+
+def _write_cptac_per_cohort(d):
+    """Persist the CPTAC per-cohort stats + raw per-aliquot arrays the offline render replays."""
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    rows = [{"cohort": "COAD", "n_tumor": 5, "n_normal": 4,
+             "tumor_min": 0.1, "tumor_q1": 0.3, "tumor_median": 0.5, "tumor_q3": 0.7, "tumor_max": 0.9,
+             "normal_min": -0.2, "normal_q1": -0.1, "normal_median": 0.0, "normal_q3": 0.1,
+             "normal_max": 0.2, "delta_median": 0.5, "welch_p": 0.01, "mwu_p": 0.02,
+             "tumor_values": [0.1, 0.3, 0.5, 0.7, 0.9], "normal_values": [-0.2, -0.1, 0.0, 0.1]}]
+    pd.DataFrame(rows).to_parquet(d / "plot_data_protein_per_cohort.parquet", index=False)
+
+
+def test_cptac_per_cohort_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "tumor-protein-abundance-cptac", cptac_read, cptac_fig.render_from_plot_data,
+        "per_cohort_distribution_stats", "plot_data_protein_per_cohort.parquet",
+        _write_cptac_per_cohort, {}, tmp_path, monkeypatch)
+
+
+def _write_dge_per_sample(d):
+    """Persist the DGE 3-group per-sample long frame the offline selectivity render replays."""
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    rows = ([{"group": "tumor", "sample_id": f"T{i}", "submitter_id": f"s{i}", "study": "COAD",
+              "tissue_subregion": None, "log2_cpm": 5.0 + i * 0.1, "log2_tpm": 4.0 + i * 0.1,
+              "tpm": 16.0, "gtex_tissue": "Colon", "gene_ensembl_id": "ENSG1"} for i in range(6)]
+            + [{"group": "adjacent", "sample_id": f"A{i}", "submitter_id": f"a{i}", "study": "COAD",
+                "tissue_subregion": None, "log2_cpm": 3.0 + i * 0.1, "log2_tpm": 2.5 + i * 0.1,
+                "tpm": 5.0, "gtex_tissue": "Colon", "gene_ensembl_id": "ENSG1"} for i in range(5)]
+            + [{"group": "gtex", "sample_id": f"G{i}", "submitter_id": None, "study": None,
+                "tissue_subregion": "Colon - Sigmoid", "log2_cpm": None, "log2_tpm": 2.0 + i * 0.1,
+                "tpm": 3.0, "gtex_tissue": "Colon", "gene_ensembl_id": "ENSG1"} for i in range(7)])
+    pd.DataFrame(rows).to_parquet(d / "plot_data_dge_per_sample.parquet", index=False)
+
+
+def test_dge_selectivity_gallery_convergence(tmp_path, monkeypatch):
+    # summary carries the 4-cell sensitivity fields the SVG forest + plotly contrasts draw from
+    # (the selectivity card's summary IS the sensitivity summary — offline draws from it, as live does).
+    summary = {"log2fc_cell_a": 1.5, "q_value_cell_a": 0.001,
+               "log2fc_cell_c": 1.2, "q_value_cell_c": 0.01}
+    _assert_convergence(
+        "tumor-vs-normal-selectivity", dge_read, dge_fig.render_selectivity_from_plot_data,
+        "read_per_sample_expression_all_three_groups", "plot_data_dge_per_sample.parquet",
+        _write_dge_per_sample, summary, tmp_path, monkeypatch)
 
 
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):
