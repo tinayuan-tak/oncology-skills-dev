@@ -99,6 +99,29 @@ def _s3fs():
     return _S3FS
 
 
+_DATASETS: dict = {}
+_DATASET_LOCK = _threading.Lock()
+
+
+def _rank_dataset(key: str):
+    """Process-wide pyarrow Dataset singleton per rank-parquet key. `pq.read_table(path, filters=)`
+    builds a fresh Dataset — re-reading the parquet FOOTER from S3 — on EVERY call, and the rank
+    parquets are read once per gene (control_position resolves the target + ~18 curated control
+    genes → ~19 reads/card, ×2 heavy cards). Reusing one Dataset object reads the footer once, then
+    each pushdown query is a `.to_table(filter=)` against it: measured 18 reads 4.4s → 0.9s. The
+    parquet is immutable within the process; Datasets are thread-safe for reads (parallel card path).
+    Double-checked locking."""
+    ds = _DATASETS.get(key)
+    if ds is None:
+        with _DATASET_LOCK:
+            ds = _DATASETS.get(key)
+            if ds is None:
+                import pyarrow.dataset as pads
+                ds = pads.dataset(f"{S3_BUCKET}/{key}", filesystem=_s3fs(), format="parquet")
+                _DATASETS[key] = ds
+    return ds
+
+
 @lru_cache(maxsize=4096)
 def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
     """Pushdown-read every (source, group) row for the given ensembl id(s). Cached per
@@ -107,12 +130,13 @@ def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
     if not ensembl_ids:
         return ()
     try:
-        import pyarrow.parquet as pq
-        filters = [("ensembl_gene_id", "in", list(ensembl_ids)), ("source", "==", source)]
-        tbl = pq.read_table(f"{S3_BUCKET}/{TUMOR_RANK_KEY}", filesystem=_s3fs(),
-                            filters=filters,
-                            columns=["group", "allgene_percentile", "allgene_rank",
-                                     "n_genes_in_group", "median"])
+        import pyarrow.compute as pc
+        # Same predicate as the former read_table DNF filters, against a reused Dataset (footer read
+        # once) — see _rank_dataset. Byte-identical rows/columns to the prior pq.read_table path.
+        expr = pc.field("ensembl_gene_id").isin(list(ensembl_ids)) & (pc.field("source") == source)
+        tbl = _rank_dataset(TUMOR_RANK_KEY).to_table(
+            filter=expr,
+            columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median"])
         df = tbl.to_pandas()
     except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
         raise _RankReadError(str(e)) from e
@@ -170,11 +194,11 @@ def _depmap_row(gene_symbol: str) -> Optional[tuple]:
     if not gene_symbol:
         return None
     try:
-        import pyarrow.parquet as pq
-        tbl = pq.read_table(f"{S3_BUCKET}/{DEPMAP_RANK_KEY}", filesystem=_s3fs(),
-                            filters=[("gene_symbol", "==", gene_symbol)],
-                            columns=["allgene_percentile", "allgene_rank", "n_genes",
-                                     "panel_median_log2tpm"])
+        import pyarrow.compute as pc
+        # Reused Dataset (footer read once) + pushdown — byte-identical to the prior read_table filter.
+        tbl = _rank_dataset(DEPMAP_RANK_KEY).to_table(
+            filter=pc.field("gene_symbol") == gene_symbol,
+            columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm"])
         df = tbl.to_pandas()
     except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
         raise _RankReadError(str(e)) from e
