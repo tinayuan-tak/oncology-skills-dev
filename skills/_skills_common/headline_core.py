@@ -166,6 +166,7 @@ def compose_headline_text(verdict: dict, confidence: dict, tension: Optional[dic
     the LLM narration (that stays a separate, optional llm_synthesis) — it is the always-available,
     reproducible headline."""
     phrase = verdict.get("phrase") or verdict.get("call") or "No call"
+    phrase = str(phrase).rstrip(". ")   # descriptive phrases may end in "." → avoid a double period
     lvl = confidence.get("level", "insufficient")
     conf_clause = "coverage insufficient for a confidence call" if lvl == "insufficient" else f"{lvl} confidence"
     text = f"{phrase} — {conf_clause}"

@@ -436,6 +436,11 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         # honest-staleness refinement so those families report indeterminate, not false-stale. Kept
         # OFF for compose-dashboard (its envelope byte-golden is unchanged).
         refine_product_id_staleness=True,
+        # Stamp per-card (measurement_type, evidence_substrate, required_product_ids) so
+        # cross-evidence-hypothesis's correlated-evidence discount (substrate_independence) actually
+        # fires — without a stamp every card counts as its own independent substrate and the discount
+        # is inert. Best-effort / fail-open in envelope; the fields are schema-declared-optional.
+        stamp_evidence_substrate=True,
     )
     # First-class subtype_resolved block (subtype-first-class-evidence, Option A). Attached ONLY under
     # --subtypes; a default run adds no key, so the envelope is byte-identical. Added AFTER assembly
