@@ -220,7 +220,11 @@ _MEASUREMENT_RANK: dict[str, list[tuple[str, str]]] = {
 _MEASURED_NEGATIVE_VERDICTS = frozenset({
     "modestly_downregulated_in_tumor", "strongly_downregulated_in_tumor", "broadly_low_expression",
     "protein_modestly_downregulated", "protein_strongly_downregulated",
-    "protein_not_detected", "protein_broadly_low",
+    # `protein_broadly_low` (cell-line whole-panel MS) is the ONLY reachable protein-absence negative.
+    # The former `protein_not_detected` was retired (target-contracts #467): whole-proteome CPTAC TMT
+    # cannot assert per-gene absence (a missing protein → data_unavailable), so no rule ever emitted it —
+    # keeping it here pinned a structurally-unreachable token and gave false assurance.
+    "protein_broadly_low",
 })
 _COLLAPSE_GAP_VERDICTS = frozenset({"data_unavailable", "not_informative"})
 
@@ -564,7 +568,7 @@ _PROTEIN_PRESENT_VERDICTS = frozenset(v for _, v in _PROT_POS) | {
     "protein_present_not_elevated",                                    # M2 rescue: quantified, flat
     "protein_modestly_downregulated", "protein_strongly_downregulated",  # measured present-but-lower
 }
-_PROTEIN_ABSENT_VERDICTS = frozenset({"protein_broadly_low", "protein_not_detected"})
+_PROTEIN_ABSENT_VERDICTS = frozenset({"protein_broadly_low"})  # only reachable protein-absence (see above)
 
 
 def _protein_confirmation_state(per_modality: dict, collapsed_verdict: str | None) -> str:

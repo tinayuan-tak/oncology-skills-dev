@@ -119,7 +119,10 @@ def test_rna_backbone_precedes_protein_precedes_sc_in_positive_tier():
 
 
 def test_protein_absence_is_a_measured_negative():
-    """Principle: a measured protein-absence (not_detected / broadly_low) is a presence-NEGATIVE, so it
-    lands in the negative tier and trips presence_headline_conflict — never treated as a coverage gap."""
-    assert "protein_not_detected" in tp._MEASURED_NEGATIVE_VERDICTS
+    """Principle: a measured protein-absence is a presence-NEGATIVE, so it lands in the negative tier and
+    trips presence_headline_conflict — never treated as a coverage gap. The ONLY reachable protein-absence
+    signal is cell-line whole-panel MS `protein_broadly_low`; the former `protein_not_detected` was retired
+    (target-contracts #467 — whole-proteome CPTAC TMT cannot assert per-gene absence), so the negative set
+    must NOT still carry that unreachable token."""
     assert "protein_broadly_low" in tp._MEASURED_NEGATIVE_VERDICTS
+    assert "protein_not_detected" not in tp._MEASURED_NEGATIVE_VERDICTS

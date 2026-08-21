@@ -209,15 +209,17 @@ golden-spine test + the guards' own unit tests):
 
   **Absence ≠ down-contrast (finding G2b, 2026-08-20).** The demotion trigger is genuine protein ABSENCE
   ONLY — cell-line `protein_broadly_low` (the reachable signal: detected in <30% of the Gygi MS panel and
-  not a rescued lineage-restricted antigen) or a CPTAC per-cohort `not_detected`. It deliberately EXCLUDES
+  not a rescued lineage-restricted antigen). It deliberately EXCLUDES
   the tumor-vs-normal DOWN contrasts (`protein-{modestly,strongly}-down-opposing`): a protein measured
   present-but-lower in tumor is a Phase-B *selectivity* signal, not Phase-A absence, so demoting a present
   call to "protein_absent" off a down-contrast is a category error. Those down rungs remain in the
   collapse's measured-negative tier (and in the `presence_headline_conflict` guard) — only the WORD-level
-  demotion is narrowed to `_PROTEIN_ABSENCE_RIDS`. (Note: CPTAC `not_detected` is currently un-emitted by
-  the `cptac_protein_deg` classifier — the reachable absence trigger is the cell-line `protein_broadly_low`
-  rung; the dead `not_detected` rule + card vocab value are slated for a coordinated target-contracts
-  cleanup.) Regression-covered by `test_per_modality_verdict.py::{test_genuine_protein_absence_demotes_
+  demotion is narrowed to `_PROTEIN_ABSENCE_RIDS`. (The former CPTAC `not_detected` token was retired —
+  whole-proteome TMT cannot assert per-gene absence, so a missing protein resolves to `data_unavailable`,
+  not a measured negative: the dead rule + card vocab value were dropped in target-contracts #467, and the
+  unreachable `protein_not_detected` verdict token was removed from `_MEASURED_NEGATIVE_VERDICTS` /
+  `_PROTEIN_ABSENT_VERDICTS` in the 2026-08-21 sweep. Cell-line `protein_broadly_low` is the sole reachable
+  protein-absence trigger.) Regression-covered by `test_per_modality_verdict.py::{test_genuine_protein_absence_demotes_
   collapsed_verdict, test_protein_down_contrast_does_not_demote_G2b_regression,
   test_protein_absence_demotion_requires_all_three_conditions}`.
 
@@ -237,7 +239,7 @@ golden-spine test + the guards' own unit tests):
 
 - **`protein_confirmation_state`** (finding G5 — *name the untested case*). For a PRESENT collapsed
   verdict, states whether protein was `confirmed` (measured present in the tumor-CPTAC or cell-line-MS
-  bucket), `measured_absent` (measured broadly_low / not_detected and nowhere confirmed present),
+  bucket), `measured_absent` (measured cell-line `protein_broadly_low` and nowhere confirmed present),
   `untested` (no protein bucket is `measured` — RNA-only presence), or `not_applicable` (the collapsed
   verdict is not a presence-positive). A protein PRESENT reading in ANY context wins (cell-line MS
   under-samples surface antigens, so a tumor-present / cell-line-absent target is `confirmed`), mirroring

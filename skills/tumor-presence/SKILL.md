@@ -131,7 +131,7 @@ composition:
   - `decision.json` — `presence_verdict` + `presence_verdict_by_modality` + fired rules + provenance
   - `summary.yaml` — per-card summary dicts
   - `tables/` — per-card summary_stats CSVs
-  - `figures/` — populated per-card if a card emitter is wired
+  - `figures/` — populated ONLY when `--figures` is passed (hero matrix + claim-vector + card-board + subtype figures); empty by default
   - `provenance.yaml` — audit anchor including `invoked_lenses`
 
 ## Verdict resolution (rank-ordered collapse)
@@ -141,8 +141,8 @@ three measurement ladders (`run.py`) as:
 
 1. **all measured PRESENCE-POSITIVES** — expression, then protein, then sc_rna (RNA is the backbone,
    so a positive-RNA target's verdict is byte-stable). Positives = present (supportive/neutral-present).
-2. **then all measured PRESENCE-NEGATIVES** — the opposing/killer reads (down-regulated, broadly-low,
-   protein-not-detected) across the same modality order. A measured positive in ANY modality therefore
+2. **then all measured PRESENCE-NEGATIVES** — the opposing/killer reads (down-regulated, broadly-low
+   RNA, cell-line `protein_broadly_low`) across the same modality order. A measured positive in ANY modality therefore
    outranks a measured negative in another — a cell-line-RNA killer no longer buries a measured
    tumor-protein/sc positive.
 3. **then coverage GAPS** — `data_unavailable` plus tumor-vs-adjacent `not_informative` (a flat
@@ -200,8 +200,12 @@ Rationale: for antigens that **de-differentiate in 2D culture** (EPCAM, FOLR1, C
 pan-cancer cell-line median collapses while the tumor tissue reads top-percentile — a cell-line-anchored
 headline would UNDERSTATE tumor presence. Cell-line `broadly_high` is kept at the top (when both lenses
 agree the verdict is unchanged), and a per-indication `tumor_sparsely_expressed` (NEUTRAL) stays below
-the cell-line positives. This ranking is backed by a 43-pair backtest across 10 indications (23 flips,
-all → `tumor_broadly_expressed`, zero dangerous flips) frozen in `test_reanchor_flip_matrix.py`.
+the cell-line positives. This ranking was justified by an offline A/B backtest over 43 target-indication
+pairs (23 flips, every one → `tumor_broadly_expressed`, zero dangerous flips); that backtest ran
+out-of-tree and its per-pair data was not committed. Its conclusion is preserved two ways:
+`test_reanchor_flip_matrix.py` pins the three representative flip classes, and
+`test_ladder_invariants.py` proves the **no-dangerous-flip** property *totally* over the whole ladder
+(the structural guard that supersedes the unreproducible per-pair matrix).
 
 Verdict-inert lens fields (they feed no rule):
 - **`cell_line_vs_tumor_discordant`** — a STANDING INVARIANT GUARD: it should be `False` for every
@@ -239,6 +243,7 @@ Set by the skill's `run.py` via the shared dispatcher (`_skills_common/dispatche
 | `--subtype <S>` | With `--synthesize`: foreground one molecular subtype (e.g. `MSI_H`) in the narration. Emphasis-only — no spine change. |
 | `--subtypes <a,b>` | Inert for tumor-presence (no subtype-panorama resolver wired); a complete no-op. |
 | `--verdict-only` | FAST mode: read only verdict-relevant cards, skip enrichment reads + synthesis. Verdict spine byte-identical. No-op for tumor-presence (no verdict-card subset declared → reads all cards). |
+| `--figures` | OPT-IN: emit figures into `figures/` — the Presence × Context hero matrix, the claim-vector (signal × reliability) figure, the per-card card-board, and (when the indication has a subtype axis) the subtype-refinement figure. Best-effort per emitter; additive — `decision.json` byte-identical. Without this flag `figures/` stays empty. |
 | `--emit-envelope` | OPT-IN: ALSO write a governance-grade `evidence_package.json` beside `decision.json`. Purely additive — `decision.json` byte-identical. |
 | `--data-mode <m>` / `--release-pin <p>` | Carried into the emitted envelope's governance block only. Inert unless `--emit-envelope` is set. |
 

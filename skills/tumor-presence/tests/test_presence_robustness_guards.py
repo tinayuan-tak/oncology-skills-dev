@@ -36,17 +36,18 @@ def _bucket(measurement, sample_context, verdict, evidence_state="measured"):
 
 # ── presence_headline_conflict ─────────────────────────────────────────────────────────────────
 def test_conflict_fires_when_measured_protein_absence_buried_under_rna_positive():
-    """The canonical dangerous shape: RNA broadly_high (positive headline) while CPTAC protein is a
-    MEASURED not_detected. The collapse ranks the positive first, so the killer is invisible in the
-    one-word verdict — the flag must fire and name the protein bucket."""
+    """The canonical dangerous shape: RNA broadly_high (positive headline) while cell-line MS protein is a
+    MEASURED `protein_broadly_low` (the only reachable protein-absence negative — `protein_not_detected`
+    was retired, target-contracts #467). The collapse ranks the positive first, so the killer is invisible
+    in the one-word verdict — the flag must fire and name the protein bucket."""
     pm = {
         "bulk_rna/cell_line": _bucket("bulk_rna", "cell_line", "broadly_high_expression"),
-        "bulk_protein_ms/tumor": _bucket("bulk_protein_ms", "tumor", "protein_not_detected"),
+        "bulk_protein_ms/cell_line": _bucket("bulk_protein_ms", "cell_line", "protein_broadly_low"),
     }
     conflict, note, buckets = tp._headline_conflict("broadly_high_expression", pm)
     assert conflict is True
-    assert buckets == ["bulk_protein_ms/tumor"]
-    assert note and "bulk_protein_ms/tumor" in note
+    assert buckets == ["bulk_protein_ms/cell_line"]
+    assert note and "bulk_protein_ms/cell_line" in note
 
 
 def test_conflict_silent_on_neutral_cptac_not_a_negative():
