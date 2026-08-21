@@ -29,7 +29,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
 SKILLS = SKILL_DIR.parent
-for p in (str(SKILLS), str(SKILLS / "compose-dashboard" / "scripts")):
+for p in (str(SKILLS),):     # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
     if p not in sys.path:
         sys.path.insert(0, p)
 
