@@ -69,14 +69,23 @@ def _emit_card1_pan_cancer_dependency_distribution(
 def _emit_card2_dependency_lineage_selectivity(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs Card 2's method internals to emit forest_plot + lineage_strip SVGs."""
+    """Emit Card 2 (dependency-lineage-selectivity) figures. Prefer the OFFLINE render seam (persisted
+    plot_data → method render_from_plot_data, no live re-read, cannot diverge from the verdict); fall
+    back to legacy live re-execution when no persisted plot_data is present (migration-safe)."""
     if _has_live_read_error(summary):
         return []
 
     _ensure_methods_path()
-    from methods.depmap_chronos import cli as c2cli
-
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data.parquet"
+    if pd_path.exists():
+        from methods.depmap_chronos.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_chronos import cli as c2cli
     chronos_by_model, model_metadata, load_errors = c2cli.load_depmap_files(
         release_pin="26q1", target_symbol=target
     )

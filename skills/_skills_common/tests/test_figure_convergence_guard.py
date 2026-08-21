@@ -31,6 +31,8 @@ from methods.depmap_cn_distribution import cli as cn_cli  # noqa: E402
 from methods.depmap_cn_distribution import figures as cn_fig  # noqa: E402
 from methods.depmap_protein_abundance import cli as prot_cli  # noqa: E402
 from methods.depmap_protein_abundance import figures as prot_fig  # noqa: E402
+from methods.depmap_chronos import cli as chr2_cli  # noqa: E402  (card2 dependency-lineage-selectivity)
+from methods.depmap_chronos import figures as chr2_fig  # noqa: E402
 
 
 def _panel():
@@ -149,6 +151,17 @@ def test_cn_distribution_gallery_convergence(tmp_path, monkeypatch):
         "copy-number-distribution", cn_cli, cn_fig.render_from_plot_data,
         "load_cn_files", "plot_data_cn.parquet",
         lambda d: cn_cli.emit_plot_data(cn, meta, d), summary, tmp_path, monkeypatch)
+
+
+def test_card2_lineage_selectivity_gallery_convergence(tmp_path, monkeypatch):
+    # Stage-6 dependency family, card2. Bowel = the COADREAD lineage (the figure highlights it).
+    chronos, meta = _dep_panel({"Bowel": [-1.2, -1.4, -0.9, -1.1, -1.3],
+                                "Lung": [-0.6, -0.5, -0.7, -0.4, -0.55],
+                                "Breast": [0.05, -0.1, 0.1, -0.05, 0.0]})
+    _assert_convergence(
+        "dependency-lineage-selectivity", chr2_cli, chr2_fig.render_from_plot_data,
+        "load_depmap_files", "plot_data.parquet",
+        lambda d: chr2_cli.emit_plot_data(chronos, meta, "", -1.0, d), {}, tmp_path, monkeypatch)
 
 
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):
