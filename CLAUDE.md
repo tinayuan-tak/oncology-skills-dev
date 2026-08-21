@@ -125,3 +125,28 @@ children first, or pass `--retarget-children` to move them onto the base.
 - `.claude/hooks/pre-push` — invisible-work + parallel-collision
 
 `--no-verify` bypass discouraged.
+
+## Testing & landing invariants
+
+- Run pytest under `pixi run` from THIS home checkout, never bare `python` (a bare
+  env red-fails the resolver golden snapshots) and never from a `/tmp` worktree
+  (pixi deep-copies a multi-GB env there → ENOSPC and a wedged `/tmp`). To gate code
+  living in a worktree, run from the home checkout against the worktree paths
+  (e.g. `pixi run pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q`). Run
+  `scripts/preland.sh` before landing — it mirrors the CI-required gates in
+  `.github/workflows/skills-validate.yml`.
+- Trunk is `v2-architecture`, never `main`.
+- A resolver / verdict-contract change fans out into golden snapshots + synthetic
+  fired-sets + stub fixtures across multiple skill dirs, so run the FULL skills suite
+  (`skills/_skills_common/`, `skills/compose-dashboard/`, `skills/target-profile/`,
+  the changed `skills/<skill>/`, and the cross-skill guards in `skills/tests/`) — a
+  `-k` subset silently misses the fan-out. Regenerate the golden via
+  `skills/_skills_common/tests/regenerate_resolver_golden.py` (manually append any NEW
+  `rule_id` to the relevant `<gate>.rule_ids` first).
+- Stale skills PR branches share no merge-base with the rewritten `v2-architecture`
+  trunk, so reland via `gh pr diff <n> > /tmp/pr.patch` then `git apply --3way`
+  (NOT a rebase), and push with `git push --force-with-lease`.
+- `--synthesize` needs system python + `BEDROCK_AWS_PROFILE=cmp-dev`; compose-dashboard
+  live mode needs `AWS_PROFILE=cbg` for the onc-compbio bucket.
+- After a SageMaker restart, `gh` (`~/.local/bin/gh`) and `pixi` (`~/.pixi/bin`) fall
+  off PATH — re-export both before running any gate.
