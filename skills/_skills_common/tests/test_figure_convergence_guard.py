@@ -43,6 +43,28 @@ from methods.depmap_cis_dosage import cli as cis_cli  # noqa: E402  (cis-feature
 from methods.depmap_cis_dosage import figures as cis_fig  # noqa: E402
 from methods.tcga_gtex_expression_distribution import figures as tcga_fig  # noqa: E402
 from methods.tcga_gtex_expression_distribution import read as tcga_read  # noqa: E402
+from methods.depmap_rna_protein_concordance import figures as rp_fig  # noqa: E402
+from methods.depmap_rna_protein_concordance import read as rp_read  # noqa: E402
+from methods.patient_model_expression_correspondence import figures as pm_fig  # noqa: E402
+from methods.patient_model_expression_correspondence import read as pm_read  # noqa: E402
+
+
+def _write_rp_points(name):
+    def _w(d):
+        import pandas as pd
+        d.mkdir(parents=True, exist_ok=True)
+        pts = [{"rna": 1.0 + i * 0.2, "protein": 0.8 + i * 0.18} for i in range(25)]
+        pd.DataFrame(pts).to_parquet(d / name, index=False)
+    return _w
+
+
+def _write_pm_models(d):
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    rows = [{"target_log2tpm": 3.0, "chronos": -1.2, "screen_role": "positive_model", "lineage_match": True},
+            {"target_log2tpm": 0.2, "chronos": None, "screen_role": "negative_control", "lineage_match": False},
+            {"target_log2tpm": 4.1, "chronos": -0.9, "screen_role": "positive_model", "lineage_match": False}]
+    pd.DataFrame(rows).to_parquet(d / "plot_data_recommended_models.parquet", index=False)
 
 
 def _write_tcga_per_sample(d):
@@ -300,6 +322,32 @@ def test_subtype_panel_gallery_convergence(tmp_path, monkeypatch):
         "tumor-rna-distribution-by-subtype", tcga_read, tcga_fig.render_subtype_from_plot_data,
         "read_tumor_subtype_values", "plot_data_subtype.parquet",
         _write_tcga_subtype, {"subtype_axis_available": True}, tmp_path, monkeypatch)
+
+
+def test_rna_protein_cellline_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "cellline-rna-protein-concordance", rp_read, rp_fig.render_from_plot_data,
+        "read_rna_protein_scatter", "plot_data_rna_protein.parquet",
+        _write_rp_points("plot_data_rna_protein.parquet"),
+        {"rna_as_biomarker": "partial_proxy", "rna_protein_r": 0.6, "n_paired_models": 25},
+        tmp_path, monkeypatch)
+
+
+def test_rna_protein_tumor_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "rna-protein-concordance-tumor", rp_read, rp_fig.render_tumor_from_plot_data,
+        "read_tumor_rna_protein_scatter", "plot_data_rna_protein_tumor.parquet",
+        _write_rp_points("plot_data_rna_protein_tumor.parquet"),
+        {"rna_as_biomarker": "partial_proxy", "rna_protein_r": 0.6, "n_paired_tumors": 25,
+         "cptac_cohort": "COAD"}, tmp_path, monkeypatch)
+
+
+def test_recommended_models_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "recommended-models", pm_read, pm_fig.render_from_plot_data,
+        "read_recommended_models", "plot_data_recommended_models.parquet",
+        _write_pm_models, {"correspondence_class": "strong_correspondence", "patient_iqr": [2.0, 4.0]},
+        tmp_path, monkeypatch)
 
 
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):

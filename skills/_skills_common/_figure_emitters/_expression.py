@@ -329,8 +329,16 @@ def _emit_recommended_models(
     if not summary or summary.get("correspondence_class") == "data_unavailable":
         return []
     _ensure_methods_path()
-    from methods.patient_model_expression_correspondence import cli as pmc
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted full model rows when present.
+    pd_path = out_dir / "plot_data_recommended_models.parquet"
+    if pd_path.exists():
+        from methods.patient_model_expression_correspondence.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.patient_model_expression_correspondence import cli as pmc
     svg = pmc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
@@ -356,8 +364,16 @@ def _emit_rna_protein_concordance(
                                                           "insufficient_paired_models"):
         return []
     _ensure_methods_path()
-    from methods.depmap_rna_protein_concordance import cli as rpc
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted per-model scatter points when present.
+    pd_path = out_dir / "plot_data_rna_protein.parquet"
+    if pd_path.exists():
+        from methods.depmap_rna_protein_concordance.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_rna_protein_concordance import cli as rpc
     svg = rpc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
@@ -383,8 +399,16 @@ def _emit_rna_protein_concordance_tumor(
                                                           "insufficient_paired_tumors"):
         return []
     _ensure_methods_path()
-    from methods.depmap_rna_protein_concordance import cli as rpc
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted per-tumor scatter points when present.
+    pd_path = out_dir / "plot_data_rna_protein_tumor.parquet"
+    if pd_path.exists():
+        from methods.depmap_rna_protein_concordance.figures import render_tumor_from_plot_data
+        return render_tumor_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_rna_protein_concordance import cli as rpc
     svg = rpc.emit_tumor_svg(target, indication, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
