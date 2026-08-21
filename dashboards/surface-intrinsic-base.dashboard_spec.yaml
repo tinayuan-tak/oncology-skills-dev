@@ -24,6 +24,8 @@ required_context:
 required_cards:
   - card_id: target-identity-summary
     version: ">=1.0.0,<2"
+  - card_id: clinical-precedent           # WIRED 2026-08-21 (AACT) — graduated from placeholder_cards.
+    version: ">=1.1.0,<2"                 # degrades to insufficient/no_known_agent (always produces).
   - card_id: tumor-rna-vs-adjacent
     version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-07-01
   - card_id: tumor-vs-normal-selectivity
@@ -80,8 +82,7 @@ placeholder_cards:
   # SK#373); validate_cards forbids a non-wired card in required_cards (so "required" keeps meaning "must produce").
   - card_id: antigen-prevalence
     version: ">=1.0.0,<2"        # status: placeholder_not_wired — no prevalence-aggregator method yet
-  - card_id: clinical-precedent
-    version: ">=1.0.0,<2"        # status: placeholder_not_wired — literature-snapshot not landed (iter-2)
+  # (clinical-precedent graduated to required_cards 2026-08-21 — WIRED to AACT.)
   # EG1 (iter-2): lineage-restriction-evidence — discovery-driving signal for surface modalities
   # (DLL3/CLDN18.2/GUCY2C single/two-tissue DOMINANT calls). Dormant until hpa-normal-tissue-expression lands.
   - card_id: lineage-restriction-evidence
