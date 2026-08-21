@@ -24,5 +24,6 @@ run "pytest subgroup+coverage"           python -m pytest tests/validators/test_
 run "pytest framework_discrimination"    python -m pytest tests/calibration/test_framework_discrimination.py -q
 run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q
 run "pytest nomination-gate+subtype-tier" python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
+run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/test_target_profiling_axes.py -q
 [ $fail -eq 0 ] && echo "ALL GATES PASS" || echo "GATES FAILED"
 exit $fail
