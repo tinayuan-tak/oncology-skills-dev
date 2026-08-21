@@ -17,6 +17,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.resolver import resolve_or_raise
 
 
@@ -122,6 +124,100 @@ _MECHANISM_MISMATCH_VERDICTS = frozenset({
 })
 
 
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# The safety declaration for the shared headline_core builder: the five INVERSE-VALENCE liability claim
+# axes (CONSTRAINT/BURDEN/DOSAGE/CLINVAR/MOUSE_KO), the safety-verdict vocabulary → human phrase, and the
+# mutant-selective-downgrade conditionality as the skill-specific tension source. Verdict-INERT — a
+# one-way projection over the already-computed headline (the safety spine stays byte-stable, frozen by
+# test_safety_replay.py + the golden-oracle resolver test).
+#
+# POLARITY (colours the hero badge). These are LIABILITY axes: a STRONG claim signal is a safety CONCERN.
+# But the BADGE polarity encodes the DESIRABILITY of the resolved verdict FOR A DRUG PROGRAM (how a reader
+# reads a red/blue badge), NOT the raw signal direction:
+#   * a safety-LIABILITY / LoF-intolerant HOLD (highly_constrained / human_genetics concern) is UNdesirable
+#     → "negative" (red);
+#   * a tolerant / reduced-risk read — AND a mutant-selective mechanism DOWNGRADE, where the WT-loss
+#     concern no longer applies to an allele-selective agent — is desirable/reassuring → "positive" (blue);
+#   * the equivocal mid-band (moderately_constrained) + coverage gaps (data_unavailable / insufficient)
+#     → "neutral" (grey).
+_SAFETY_VERDICT_PHRASE = {
+    # safety CONCERNS (nomination HOLDs) — undesirable for a full-KO modality
+    "highly_constrained_safety_concern":     "Highly LoF-constrained — safety concern",
+    "human_genetics_safety_concern":         "Human-genetics safety concern",
+    # mutant-selective DOWNGRADES — the WT-loss concern is nullified for an allele-selective agent
+    "wt_constraint_mechanism_mismatch":      "WT-constraint concern downgraded (mutant-selective)",
+    "wt_human_genetics_mechanism_mismatch":  "Human-genetics concern downgraded (mutant-selective)",
+    # tolerant / reduced-risk
+    "tolerant_reduced_safety_risk":          "LoF-tolerant — reduced safety risk",
+    # equivocal mid-band + gaps
+    "moderately_constrained_safety":         "Moderately LoF-constrained (equivocal)",
+    "data_unavailable":                      "Data unavailable",
+    "insufficient":                          "Insufficient evidence",
+}
+
+# Verdict → program-desirability polarity (see the POLARITY note above). Reused by the hero-badge colour;
+# never a gate.
+_SAFETY_CONCERN_VERDICTS = frozenset({
+    "highly_constrained_safety_concern", "human_genetics_safety_concern",
+})
+_SAFETY_REASSURING_VERDICTS = frozenset({
+    "tolerant_reduced_safety_risk",
+    "wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch",
+})
+
+
+def _safety_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the resolved verdict (colours the hero badge; never a gate). Polarity
+    encodes DESIRABILITY for a drug program, not raw signal direction (these are inverse-valence liability
+    axes): a LoF-intolerant HOLD is a CONCERN (negative); a tolerant read OR a mutant-selective downgrade
+    is reassuring (positive); the equivocal mid-band + coverage gaps stay neutral."""
+    if v in _SAFETY_CONCERN_VERDICTS:
+        return "negative"
+    if v in _SAFETY_REASSURING_VERDICTS:
+        return "positive"
+    return "neutral"
+
+
+def _safety_tension_extra(headline: dict):
+    """The sharpest safety caveat: the mutant-selective DOWNGRADE is CONDITIONAL on an allele-selective
+    modality — a pan-target degrader / WT-hitting inhibitor re-exposes the WT-loss concern. Surfaced only
+    when the verdict is a downgrade (mechanism_conditioning_note is set)."""
+    if headline.get("mechanism_conditioning_note"):
+        return {"text": ("the downgraded WT-loss safety concern is CONDITIONAL on an allele-selective "
+                         "modality — a pan-target degrader / WT-hitting inhibitor re-exposes it"),
+                "source": "mechanism_conditioning_note", "severity": 3}
+    return None
+
+
+_SAFETY_HEADLINE_SPEC = HeadlineSpec(
+    gate="safety",
+    axis_labels={"CONSTRAINT": "gnomAD LoF constraint", "BURDEN": "population gene-burden",
+                 "DOSAGE": "ClinGen dosage", "CLINVAR": "germline pathogenicity",
+                 "MOUSE_KO": "mouse-KO phenotype"},
+    axis_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO"),
+    critical_axes=("CONSTRAINT",),
+    verdict_label=lambda v: _SAFETY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_safety_tension_extra,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed safety headline. Reads the resolved
+    verdict + the verdict-inert claim_vector / key_signals; never moves the spine. No CERTAINTY_MODEL
+    sidecar is emitted by this skill, so confidence is derived from the claim vector's corroboration."""
+    v = headline.get("safety_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_SAFETY_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_safety_verdict_polarity(v))
+
+
+def _emit_skill_figures(decision, figures_root):
+    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
+    display-only, offline, best-effort (missing block → [], spine unaffected)."""
+    return emit_headline_hero(decision, figures_root)
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
@@ -176,6 +272,17 @@ def _headline(cards, fired, verdict_pair):
     # cross-evidence agent via _synthesis_facet. Never feeds the safety verdict.
     hl["claim_vector"] = safety_claim_vector(hl, cards)
     hl["key_signals"] = safety_key_signals(hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
+    # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
+    # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
+    # safety spine already fully built in `hl` (same degrade discipline the dispatcher applies to synthesis
+    # / figures). On the happy path this is byte-identical (no _enrichment_errors key added), so the
+    # golden-oracle + replay fixtures are unaffected.
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -186,6 +293,8 @@ _SYNTHESIS_FACET_KEYS = (
     "clinvar_pathogenic_class", "mouse_ko_phenotype_class",
     "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
     "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -212,5 +321,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
         partial_status_note=PARTIAL_STATUS_NOTE,
     ))
