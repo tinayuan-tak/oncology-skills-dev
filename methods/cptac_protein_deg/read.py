@@ -1113,11 +1113,17 @@ _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
 def emit_per_cohort_panel(target: str, out_dir: Path,
-                          target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> Path:
+                          target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"),
+                          *, presampled=None) -> Path:
     """Grouped tumor-vs-normal BOXPLOT per CPTAC cohort, drawn from the per-aliquot log-ratios
     (per-sample product), ordered by tumor-vs-normal median delta. Each cohort shows the true
     tumor + normal distributions side by side; the per-cohort Welch/Mann-Whitney significance
-    (recomputed from the same samples) + n annotate each pair. Replaces the median-only dumbbell."""
+    (recomputed from the same samples) + n annotate each pair. Replaces the median-only dumbbell.
+
+    OFFLINE seam (figure-consolidation Stage 6): pass `presampled` — the per-cohort stats list
+    (as returned by per_cohort_distribution_stats, INCLUDING the raw `_tumor_values`/`_normal_values`
+    arrays the boxes are drawn from) — to render from it with NO per-sample product re-read. When
+    None the legacy live recompute (per_cohort_distribution_stats) is taken."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -1125,7 +1131,7 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
     _load_takeda_style(target_contracts_dir)
     out_dir = Path(out_dir)
     out_path = out_dir / "figure_protein_per_cohort_tumor_vs_normal.svg"
-    stats = per_cohort_distribution_stats(target)
+    stats = presampled if presampled is not None else per_cohort_distribution_stats(target)
     if not stats:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target} — not quantified in any CPTAC cohort", ha="center",
@@ -1196,28 +1202,38 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
 
 def emit_plot_data(target: str, out_dir: Path) -> Path:
     """Per-cohort distribution-statistics parquet (one row per cohort tested): n_tumor/n_normal,
-    tumor/normal quartiles, delta_median, welch_p, mwu_p. The recomputed-from-samples stats behind
-    the boxplot (raw per-aliquot arrays are NOT persisted here — the source-of-record for those is
-    the per-sample product itself)."""
+    tumor/normal quartiles, delta_median, welch_p, mwu_p, PLUS the raw per-aliquot arrays
+    (`tumor_values`/`normal_values` list-columns) the boxes are drawn from — so the OFFLINE figure
+    seam (figures.render_from_plot_data) can replay the boxplot with NO per-sample product re-read.
+    The `_`-prefixed in-memory keys are persisted under public column names (tumor_values/
+    normal_values); figures.render_from_plot_data maps them back."""
     import pandas as pd
     stats = per_cohort_distribution_stats(target)
-    df = pd.DataFrame([{k: v for k, v in s.items() if not k.startswith("_")} for s in stats])
+    rows = []
+    for s in stats:
+        row = {k: v for k, v in s.items() if not k.startswith("_")}
+        row["tumor_values"] = list(s.get("_tumor_values") or [])
+        row["normal_values"] = list(s.get("_normal_values") or [])
+        rows.append(row)
+    df = pd.DataFrame(rows)
     out_file = Path(out_dir) / "plot_data_protein_per_cohort.parquet"
     df.to_parquet(out_file, index=False)
     return out_file
 
 
 def emit_plotly_specs(target: str, out_dir: Path,
-                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> list:
+                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"),
+                      *, presampled=None) -> list:
     """Interactive grouped tumor-vs-normal boxplot per cohort, built from the SAME
     per_cohort_distribution_stats (and their raw per-aliquot arrays) the SVG uses — no drift.
-    Best-effort (plotly optional)."""
+    Best-effort (plotly optional). OFFLINE seam: pass `presampled` (the per-cohort stats list with
+    raw `_tumor_values`/`_normal_values`) to render from it with NO per-sample product re-read."""
     try:
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
         print(f"[cptac_protein_deg] plotly spec emission skipped: {e}", file=__import__("sys").stderr)
         return []
-    stats = per_cohort_distribution_stats(target)
+    stats = presampled if presampled is not None else per_cohort_distribution_stats(target)
     if not stats:
         return []
     # most tumor-elevated first (top of the plot); plotly categorical y stacks bottom-up so reverse

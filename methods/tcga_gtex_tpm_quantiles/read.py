@@ -161,11 +161,16 @@ def _ordered_rows(df):
 
 
 def emit_by_tissue_distribution(target: str, out_dir: Path,
-                                target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> Path:
+                                target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"),
+                                *, presampled=None) -> Path:
     """Pan-cancer by-tissue tumor-vs-normal distribution boxplot for `target`, drawn from the
     precomputed quantile product. TCGA tumor (per study) + GTEx normal (per tissue) share ONE
     log2(TPM+1) axis. Tumor boxes (navy) on top, normal boxes (blue) below, each block sorted by
-    median descending. Returns the SVG path (placeholder SVG if the gene is absent)."""
+    median descending. Returns the SVG path (placeholder SVG if the gene is absent).
+
+    OFFLINE seam (figure-consolidation Stage 6): pass `presampled` — the persisted quantile-rows
+    DataFrame (columns match read_pan_cancer_by_tissue) — to render from it with NO S3 re-read.
+    When None the legacy live read (read_pan_cancer_by_tissue) is taken."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -180,7 +185,7 @@ def emit_by_tissue_distribution(target: str, out_dir: Path,
 
     out_dir = Path(out_dir)
     out_path = out_dir / "figure_pan_cancer_by_tissue_distribution.svg"
-    df = read_pan_cancer_by_tissue(target)
+    df = presampled if presampled is not None else read_pan_cancer_by_tissue(target)
     if df is None or df.empty:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target} — no TCGA/GTEx TPM quantiles", ha="center", va="center",
@@ -236,17 +241,19 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 
 
 def emit_plotly_specs(target: str, out_dir: Path,
-                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> list:
+                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"),
+                      *, presampled=None) -> list:
     """Interactive by-tissue distribution built from the SAME quantile rows the SVG uses (no drift).
     Uses plotly's precomputed-box fields (q1/median/q3/lowerfence/upperfence) — no per-sample data.
-    Best-effort (plotly optional)."""
+    Best-effort (plotly optional). OFFLINE seam: pass `presampled` (the persisted quantile-rows
+    DataFrame) to render from it with NO S3 re-read."""
     try:
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
         print(f"[tcga_gtex_tpm_quantiles] plotly spec emission skipped: {e}",
               file=__import__("sys").stderr)
         return []
-    df = read_pan_cancer_by_tissue(target)
+    df = presampled if presampled is not None else read_pan_cancer_by_tissue(target)
     if df is None or df.empty:
         return []
     tumor_rows, normal_rows = _ordered_rows(df)

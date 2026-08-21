@@ -767,3 +767,45 @@ def _sig_stars_plotly(q):
     if q < 0.05:
         return "*"
     return "ns"
+
+
+# --- offline-seam persistence (figure-consolidation Stage 6) ---------------------------------
+# The DGE 3-group figure draws from per_sample_data that is fetched LIVE from recount3 at figure
+# time (~10-30s). Unlike the DepMap family, the verdict path never reads per-sample, so there is no
+# resolve-time read to reuse; instead the legacy figure path persists per_sample_data via
+# emit_plot_data after its live read, and figures.render_*_from_plot_data replays it — so any SECOND
+# figure consumer in the pipeline (gallery re-render, dashboard) renders OFFLINE with NO re-stream.
+
+_PLOT_DATA_PARQUET = "plot_data_dge_per_sample.parquet"
+_PLOT_DATA_SAMPLE_FIELDS = ("sample_id", "submitter_id", "study", "tissue_subregion",
+                            "log2_cpm", "log2_tpm", "tpm")
+_PLOT_DATA_GROUP_KEYS = ("tumor_samples", "adjacent_samples", "gtex_samples")
+
+
+def emit_plot_data(per_sample_data: Optional[dict], out_dir: Path) -> Optional[Path]:
+    """Persist the 3-group per-sample expression (tumor / adjacent / gtex) behind the DGE figure as
+    a long parquet (one row per sample; `group` ∈ {tumor,adjacent,gtex}) plus the constant
+    gtex_tissue / gene_ensembl_id metadata columns — so figures.render_*_from_plot_data can replay
+    the 4-panel OFFLINE with NO recount3 re-stream. Returns the parquet path, or None when there is
+    nothing to persist (per_sample_data is None / has no samples)."""
+    import pandas as pd
+
+    if not per_sample_data:
+        return None
+    gtex_tissue = per_sample_data.get("gtex_tissue")
+    gene_ensembl_id = per_sample_data.get("gene_ensembl_id")
+    rows = []
+    for key in _PLOT_DATA_GROUP_KEYS:
+        group = key.replace("_samples", "")
+        for s in (per_sample_data.get(key) or []):
+            row = {f: s.get(f) for f in _PLOT_DATA_SAMPLE_FIELDS}
+            row["group"] = group
+            row["gtex_tissue"] = gtex_tissue
+            row["gene_ensembl_id"] = gene_ensembl_id
+            rows.append(row)
+    if not rows:
+        return None
+    out_file = Path(out_dir) / _PLOT_DATA_PARQUET
+    pd.DataFrame(rows, columns=["group", *_PLOT_DATA_SAMPLE_FIELDS,
+                                "gtex_tissue", "gene_ensembl_id"]).to_parquet(out_file, index=False)
+    return out_file
