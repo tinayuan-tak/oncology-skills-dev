@@ -29,10 +29,100 @@ from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from orthogonality import score_orthogonality   # noqa: E402 — skill-local facet
+
+
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# The surface-modality declaration for the shared headline_core builder: the 5 surface claim axes
+# (FIT/TOPOLOGY/DENSITY/SAFETY/SHED, critical = FIT+TOPOLOGY), the composed `fit_class` vocabulary →
+# human phrase, and the resolver's KILLER/downgrade (safety/density/shed) verdict as the skill-specific
+# tension source. Verdict-INERT — a one-way projection over the computed headline (spine byte-stable).
+# The canonical `call` is the composed adc-tce-modality-fit `fit_class` (the modality-substrate call the
+# FIT claim axis keys on); the resolver's safety/density/shed DOWNGRADE — which lives in
+# surface_modality_verdict, not fit_class — is surfaced as the sharpest top tension (like presence's
+# buried cross-modal killer), so a reader of the one canonical call is not falsely reassured.
+_FIT_CLASS_PHRASE = {
+    # positives — a viable / preferred biologics-modality substrate
+    "ADC_preferred": "ADC-favorable",
+    "TCE_preferred": "TCE-favorable",
+    "both_viable":   "ADC & TCE viable",
+    # measured negative — no viable surface-modality substrate
+    "neither_viable": "Neither ADC nor TCE viable",
+    # gaps / undefined
+    "modality_ambiguous":          "Modality ambiguous",
+    "isoform_dependent_undefined": "Isoform-dependent (undefined)",
+    "insufficient":                "Insufficient evidence",
+    "data_unavailable":            "Data unavailable",
+}
+_FIT_CLASS_POSITIVE = frozenset({"ADC_preferred", "TCE_preferred", "both_viable"})
+_FIT_CLASS_NEGATIVE = frozenset({"neither_viable"})
+
+# The resolver DOWNGRADE verdicts (surface_modality_verdict, NOT fit_class) — a KILLER safety liability,
+# a below-floor antigen density, or a clinically-shed ectodomain that opposes the base fit. Each is the
+# skill's sharpest caveat when it fires, so it wins the single top-tension slot (severity 3).
+_SURFACE_DOWNGRADE_REASON = {
+    "adc_preferred_tce_unsafe":       "a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe (ADC still preferred)",
+    "tce_unsafe_normal_liability":    "a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe",
+    "surface_viable_density_caveated": "measured antigen surface density reads below the TCE payload floor",
+    "shed_dominant_opposed":          "a clinically-shed ectodomain acts as a circulating antigen sink / decoy",
+}
+
+
+def _surface_tension_extra(headline: dict):
+    """The resolver KILLER/downgrade (safety / density / shed) — carried in surface_modality_verdict but
+    NOT in the canonical fit_class `call` — is surface-modality-fit's sharpest caveat. Surfaced so the
+    one-word fit_class call does not hide a TCE-unsafe / below-density-floor / shed-sink downgrade."""
+    v = headline.get("surface_modality_verdict")
+    reason = _SURFACE_DOWNGRADE_REASON.get(v)
+    if reason:
+        return {"text": f"surface verdict downgraded to {v}: {reason} (base fit_class="
+                        f"{headline.get('fit_class')})",
+                "source": "surface_modality_downgrade", "severity": 3}
+    return None
+
+
+_SURFACE_HEADLINE_SPEC = HeadlineSpec(
+    gate="surface_modality",
+    axis_labels={"FIT": "ADC/TCE modality fit", "TOPOLOGY": "surface topology / ECD",
+                 "DENSITY": "antigen abundance", "SAFETY": "normal-tissue window",
+                 "SHED": "ectodomain shedding"},
+    axis_keys=("FIT", "TOPOLOGY", "DENSITY", "SAFETY", "SHED"),
+    critical_axes=("FIT", "TOPOLOGY"),
+    verdict_label=lambda v: _FIT_CLASS_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_surface_tension_extra,
+)
+
+
+def _fit_class_polarity(fit_class) -> str:
+    """The skill's OWN reading of the modality-fit call (colours the hero badge; never a gate). Positive
+    for a viable/preferred modality; negative for neither_viable; neutral for gaps / undefined."""
+    if fit_class in _FIT_CLASS_POSITIVE:
+        return "positive"
+    if fit_class in _FIT_CLASS_NEGATIVE:
+        return "negative"
+    return "neutral"
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed surface headline. The canonical `call`
+    is the composed fit_class; the resolver's safety/density/shed downgrade rides as the top tension.
+    Reads the verdict-inert claim_vector / key_signals; never moves the spine."""
+    fit_class = headline.get("fit_class")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_SURFACE_HEADLINE_SPEC, verdict_token=fit_class,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_fit_class_polarity(fit_class))
+
+
+def _emit_skill_figures(decision, figures_root):
+    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
+    display-only; best-effort (returns [] when the decision predates the headline block)."""
+    return emit_headline_hero(decision, figures_root)
 
 
 SKILL_NAME = "surface-modality-fit"
@@ -369,6 +459,15 @@ def _headline(cards, fired, verdict_pair):
     # this projection cannot move the verdict (pinned by the replay/golden guards).
     hl["claim_vector"] = surface_claim_vector(hl, cards)
     hl["key_signals"] = surface_key_signals(hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
+    # headline message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
+    # projection over the claim_vector / key_signals just built; best-effort (a build fault degrades to
+    # None, never aborts the surface spine — same discipline the dispatcher applies to synthesis/figures).
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -378,6 +477,8 @@ _SYNTHESIS_FACET_KEYS = (
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -414,6 +515,9 @@ if __name__ == "__main__":
         # surface_modality_verdict / fit_class. Without this synthesize_fn the dispatcher would fall back
         # to the PRESENCE narrator (wrong lens, 2026-08-06).
         synthesize_fn=synthesize_surface_modality,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
+        # top tension). Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
         partial_status_note=("Most surface derived products (structure-features, "
                              "surfaceome-family, cohort-ranking) are not yet on S3; "
                              "verdict is honest-insufficient until they land."),

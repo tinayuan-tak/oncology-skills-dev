@@ -162,6 +162,36 @@ def test_bite_killer_downgrades_tce(pair_id, target, indication, expected):
         f"exercises the killer DOWNGRADE (base fit drifted); re-curate/refreeze.")
 
 
+def test_replay_headline_block_populated_and_verdict_inert():
+    """The canonical headline_block builds end-to-end over the REAL CEACAM5/COADREAD summaries and stays
+    verdict-inert:
+      * no _enrichment_errors['headline_block'] (a build fault degrades, never crashes — but must NOT
+        degrade on this fully-populated crown-jewel fixture);
+      * verdict.call == the composed fit_class (the canonical modality-substrate call), gate/phrase set;
+      * verdict.driving_rule_id echoes the spine's driving_rule_id (an inert echo, not an override);
+      * confidence is a real level, not None; the hero carries all FIVE surface claim axes;
+      * the resolver's TCE-unsafe DOWNGRADE surfaces as the top tension (CEACAM5 = adc_preferred_tce_unsafe
+        while base fit_class == both_viable — the killer must be legible in the headline)."""
+    d = _decision(*CEACAM5[:3])
+    h = d.get("headline") or {}
+    assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
+        f"headline_block degraded on the CEACAM5 replay: "
+        f"{(h.get('_enrichment_errors') or {}).get('headline_block')}")
+    blk = h.get("headline_block")
+    assert isinstance(blk, dict), "no headline_block on the CEACAM5 replay"
+    assert blk["verdict"]["call"] == h.get("fit_class")
+    assert blk["verdict"]["gate"] == "surface_modality" and blk["verdict"]["phrase"]
+    assert blk["verdict"]["driving_rule_id"] == h.get("driving_rule_id")  # verdict-inert echo, not override
+    assert blk["confidence"]["level"] in ("strong", "moderate", "weak", "insufficient")
+    assert [a["key"] for a in blk["hero"]["axes"]] == ["FIT", "TOPOLOGY", "DENSITY", "SAFETY", "SHED"]
+    # CEACAM5 base fit is both_viable but the resolved verdict is a TCE-unsafe downgrade — the killer must
+    # be surfaced as the top tension so the fit_class call does not falsely read "TCE safe".
+    assert h.get("fit_class") == "both_viable" and h.get("surface_modality_verdict") == "adc_preferred_tce_unsafe"
+    tension = blk.get("top_tension")
+    assert tension and tension.get("source") == "surface_modality_downgrade", (
+        f"expected the TCE-unsafe downgrade as top tension, got {tension!r}")
+
+
 def test_base_fit_rung_has_no_spurious_killer():
     """ERBB2 resolves an isoform_dependent_undefined base fit_class rung with NO bite killer — guards that
     the killers do NOT over-fire on a target lacking the normal-tissue liability, and that a base fit rung
