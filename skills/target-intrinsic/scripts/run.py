@@ -30,6 +30,8 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.target_intrinsic_claims import (
     target_intrinsic_claim_vector, target_intrinsic_key_signals)
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 
 
 SKILL_NAME = "target-intrinsic"
@@ -145,6 +147,37 @@ _HEADLINE_SPEC = [
 ]
 
 
+# ── canonical HEADLINE block (verdict + confidence + top tension) — DESCRIPTIVE MODE ─────────────
+# target-intrinsic is GATELESS (verdict_fn=None), so there is no gate verdict to headline. The shared
+# headline_core builder supports a DESCRIPTIVE MODE (verdict_token=None + descriptive_phrase): the block
+# stays well-formed — verdict.call=None, verdict.phrase=the deterministic dominant-signal summary,
+# polarity="neutral" — so this descriptive lens gets the SAME verdict+confidence+top-tension shape as a
+# gated skill. Confidence is weakest-link over the claim_vector's MODALITY_ROUTING / TRACTABILITY_
+# PRECEDENT corroboration; both are critical axes. Verdict-INERT: a one-way projection over the
+# already-computed claim_vector / key_signals — it never mints a call (there is none).
+_TARGET_INTRINSIC_HEADLINE_SPEC = HeadlineSpec(
+    gate="target_intrinsic",
+    axis_labels={"MODALITY_ROUTING": "domain→modality implication",
+                 "TRACTABILITY_PRECEDENT": "Pharos/IDG development level"},
+    axis_keys=("MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"),
+    critical_axes=("MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"),
+    # No verdict_label (descriptive — no verdict token to phrase); no cross-cutting tension source beyond
+    # the claim_vector conflicts + key_signals caveat.
+    tension_extra=None,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed target-intrinsic headline, in
+    DESCRIPTIVE MODE (verdict_token=None). The descriptive_phrase is the deterministic dominant-signal
+    summary (key_signals.headline); polarity defaults to neutral. Verdict-inert — target-intrinsic mints
+    no verdict, so this carries the confidence + top-tension shape without a gate call."""
+    ks = headline.get("key_signals") or {}
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_TARGET_INTRINSIC_HEADLINE_SPEC, verdict_token=None,
+                          descriptive_phrase=ks.get("headline"))
+
+
 def _headline(cards, fired, verdict_pair):
     """Descriptive target dossier — one field per target-intrinsic sub-axis, built from the declarative
     _HEADLINE_SPEC table. No verdict spine (verdict_fn=None): target-intrinsic evidence informs
@@ -156,6 +189,14 @@ def _headline(cards, fired, verdict_pair):
     # modality fit. Both source cards are in the composer entry, so this populates in the COMPOSED profile.
     hl["claim_vector"] = target_intrinsic_claim_vector(hl, cards)
     hl["key_signals"] = target_intrinsic_key_signals(hl, cards)
+    # Canonical HEADLINE block (DESCRIPTIVE MODE — no gate verdict): a verdict-INERT projection over the
+    # claim_vector / key_signals just built. Best-effort (a formatting/read fault must NEVER discard the
+    # descriptive dossier already built in `hl`, mirroring the fleet's degrade-on-exception discipline).
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the dossier
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -167,13 +208,30 @@ def _synthesis_facet(cards, fired, verdict_pair=None):
     atoms + the two class fields. target-intrinsic is gateless (verdict_fn=None) — this never moves a verdict."""
     cv = target_intrinsic_claim_vector({}, cards)
     ks = target_intrinsic_key_signals({}, cards)
-    return {
+    facet = {
         "modality_implication_class": get_card_field(cards, "domain-modality-relevance", "modality_implication_class"),
         "tdl_class": get_card_field(cards, "target-development-level", "tdl_class"),
         "claim_vector": cv, "key_signals": ks,
         "_facet_note": ("Deterministic target-intrinsic facet; claim_vector is a DESCRIPTIVE modality-routing "
                         "+ tractability-precedent projection (direction/meaning in the atoms). Gateless — no verdict."),
     }
+    # Canonical HEADLINE block (DESCRIPTIVE MODE) — flows to the composed fan-out IDENTICALLY to
+    # claim_vector / key_signals (this facet is target-intrinsic's fan-out carrier — the skill exposes NO
+    # _SYNTHESIS_FACET_KEYS tuple). Built from THIS facet's self-contained cv/ks (not _headline, which
+    # reads cards HOME'd under other subskills, absent from the composer entry). Best-effort / verdict-inert.
+    try:
+        facet["headline_block"] = _build_headline_block(facet)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the facet
+        facet.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        facet["headline_block"] = None
+    return facet
+
+
+def _emit_skill_figures(decision, figures_root):
+    """Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive dominant-signal
+    phrase · confidence · top tension). Additive / display-only; offline (reads only
+    decision['headline']['headline_block'])."""
+    return emit_headline_hero(decision, figures_root)
 
 
 if __name__ == "__main__":
@@ -185,4 +243,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=None,                   # DESCRIPTIVE dossier — no nomination (indication-conditioned)
         headline_fn=_headline,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive mode).
+        # Additive / display-only; the descriptive dossier is byte-stable without it.
+        skill_figures_fn=_emit_skill_figures,
     ))

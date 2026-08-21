@@ -125,3 +125,27 @@ def test_replay_headline_resolves_broadly(egfr_decision):
         f"only {len(non_null)}/{len(headline)} headline fields resolved for the frozen EGFR replay — "
         f"suspect a reader field-name drift vs _HEADLINE_SPEC (g('card','field') -> None). "
         f"Non-null keys: {sorted(non_null)}")
+
+
+def test_replay_headline_block_descriptive_and_verdict_inert(egfr_decision):
+    """The canonical HEADLINE block must BUILD (not silently degrade) on the real EGFR replay in
+    DESCRIPTIVE MODE (target-intrinsic is gateless, verdict_fn=None):
+      * no _enrichment_errors['headline_block'] (a build fault degrades, never crashes — but must NOT
+        happen on the canonical fixture);
+      * verdict.call is None (no gate verdict) yet verdict.phrase is a non-empty string (the
+        deterministic dominant-signal summary) and polarity == 'neutral';
+      * confidence.level is a valid tier;
+      * the hero lists exactly the two claim axes (MODALITY_ROUTING, TRACTABILITY_PRECEDENT)."""
+    h = egfr_decision.get("headline") or {}
+    assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
+        f"headline_block degraded on the EGFR replay: "
+        f"{(h.get('_enrichment_errors') or {}).get('headline_block')}")
+    blk = h.get("headline_block")
+    assert isinstance(blk, dict), "no headline_block on the EGFR replay"
+    assert blk["verdict"]["call"] is None                    # gateless — descriptive, no verdict token
+    assert isinstance(blk["verdict"]["phrase"], str) and blk["verdict"]["phrase"]
+    assert blk["verdict"]["gate"] == "target_intrinsic"
+    assert blk["verdict"]["polarity"] == "neutral"           # a descriptive lens has no positive/negative call
+    assert blk["confidence"]["level"] in ("strong", "moderate", "weak", "insufficient")
+    assert [a["key"] for a in blk["hero"]["axes"]] == ["MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"]
+    assert blk["headline_text"].endswith(".")
