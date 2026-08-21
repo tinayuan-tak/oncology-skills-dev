@@ -24,6 +24,12 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+# Presence builds its claims MANUALLY (the signal/corroboration/conflict for a claim are legitimately
+# COUPLED — e.g. the abundance-floor downgrades corroboration AND raises a conflict together — so the
+# ClaimSpec signal_fn/corroboration_fn split does not fit cleanly). But it shares the core PRIMITIVES
+# (ordinal scale, card indexer, number formatter) so those can never drift from the fleet contract.
+from _skills_common.claim_vector_core import SIGNAL_ORD as _SIG_ORD, cards_by_id as _by_id, fmt as _f
+
 CLAIM_NAME = {"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"}
 # light-touch routing (which downstream lens each claim informs) — NOT a gate.
 CLAIM_INFORMS = {
@@ -32,15 +38,6 @@ CLAIM_INFORMS = {
     "C": "malignant-cell-intrinsic — informs tumor-cell-targeted modalities (ADC/TCE/CAR)",
     "D": "generality/breadth — patient-population & pan-cancer framing",
 }
-_SIG_ORD = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0, "unmeasured": None}
-
-
-def _by_id(cards):
-    return {c["card_id"]: (c.get("summary") or {}) for c in (cards or [])}
-
-
-def _f(v, nd=2):
-    return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
 
 
 def _patom(card_id, summary, keys, entity, read):
