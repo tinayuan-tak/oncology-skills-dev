@@ -129,16 +129,22 @@ def _emit_card2_dependency_lineage_selectivity(
 def _emit_card4_expression_dependency_correlation(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs Card 4's method internals to emit scatter + lineage-stratified SVGs.
-
-    Strategy mirrors Card 1+2: invoke methods.depmap_expression_dependency.cli's
-    public helpers (load_depmap_files_for_card4 → compute_correlation_summary →
-    build_merged_data → emit_scatter_regression_plot + emit_lineage_stratified_scatter
-    + emit_plot_data + emit_manifest)."""
+    """Emit Card 4 (expression-dependency-correlation) figures. Prefer the OFFLINE render seam
+    (persisted plot_data → method render_from_plot_data, no live re-read); fall back to legacy live
+    re-execution when no persisted plot_data is present (migration-safe)."""
     if _has_live_read_error(summary):
         return []
 
     _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data.parquet"
+    if pd_path.exists():
+        from methods.depmap_expression_dependency.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_expression_dependency import cli as c4cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -257,13 +263,22 @@ def _emit_card1b_pan_cancer_rnai_dependency_distribution(
 def _emit_card1c_crispr_rnai_concordance(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs Card 1c (derived concordance) to emit scatter + partition-bar SVGs."""
+    """Emit Card 1c (crispr-rnai-concordance) figures. Prefer the OFFLINE render seam (persisted
+    plot_data → method render_from_plot_data, no live re-read); fall back to legacy live re-execution
+    when no persisted plot_data is present (migration-safe)."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.depmap_crispr_rnai_concordance import cli as c1ccli
-
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data_concordance.parquet"
+    if pd_path.exists():
+        from methods.depmap_crispr_rnai_concordance.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.depmap_crispr_rnai_concordance import cli as c1ccli
     chronos_by, demeter_by, model_meta, load_errors = c1ccli.load_concordance_inputs(target, "26q1")
     if load_errors:
         return []
@@ -291,14 +306,23 @@ def _emit_card1c_crispr_rnai_concordance(
 def _emit_card3_mutation_stratified_dependency(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Re-runs Card 3 method internals to emit mut-vs-WT + per-hotspot figures."""
+    """Emit Card 3 (mutation-stratified-dependency) figures. Prefer the OFFLINE render seam (persisted
+    plot_data → method render_from_plot_data, no live re-read); fall back to legacy live re-execution
+    when no persisted plot_data is present (migration-safe)."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted plot_data artifact when present.
+    pd_path = out_dir / "plot_data.parquet"
+    if pd_path.exists():
+        from methods.depmap_mutation_dependency.figures import render_from_plot_data
+        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_mutation_dependency import cli as c3cli
     from methods.depmap_chronos_distribution import cli as c1cli
-
-    out_dir.mkdir(parents=True, exist_ok=True)
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(
         release_pin="26q1", target_symbol=target
     )

@@ -33,6 +33,12 @@ from methods.depmap_protein_abundance import cli as prot_cli  # noqa: E402
 from methods.depmap_protein_abundance import figures as prot_fig  # noqa: E402
 from methods.depmap_chronos import cli as chr2_cli  # noqa: E402  (card2 dependency-lineage-selectivity)
 from methods.depmap_chronos import figures as chr2_fig  # noqa: E402
+from methods.depmap_expression_dependency import cli as c4_cli  # noqa: E402  (card4)
+from methods.depmap_expression_dependency import figures as c4_fig  # noqa: E402
+from methods.depmap_crispr_rnai_concordance import cli as c1c_cli  # noqa: E402  (card1c)
+from methods.depmap_crispr_rnai_concordance import figures as c1c_fig  # noqa: E402
+from methods.depmap_mutation_dependency import cli as c3_cli  # noqa: E402  (card3)
+from methods.depmap_mutation_dependency import figures as c3_fig  # noqa: E402
 
 
 def _panel():
@@ -162,6 +168,51 @@ def test_card2_lineage_selectivity_gallery_convergence(tmp_path, monkeypatch):
         "dependency-lineage-selectivity", chr2_cli, chr2_fig.render_from_plot_data,
         "load_depmap_files", "plot_data.parquet",
         lambda d: chr2_cli.emit_plot_data(chronos, meta, "", -1.0, d), {}, tmp_path, monkeypatch)
+
+
+def test_card4_expression_dependency_gallery_convergence(tmp_path, monkeypatch):
+    chronos, tpm, meta = {}, {}, {}
+    i = 1
+    for lin, rows in {"Bowel": [(-1.3, 6.0), (-1.1, 5.6), (-0.9, 5.0), (-1.2, 6.2), (-0.8, 4.8)],
+                      "Lung": [(-0.4, 2.1), (-0.2, 1.8), (-0.5, 2.4), (-0.1, 1.2), (-0.3, 2.0)]}.items():
+        for cv, tv in rows:
+            mid = f"ACH-{i:06d}"; chronos[mid] = cv; tpm[mid] = tv
+            meta[mid] = {"OncotreeLineage": lin, "CellLineName": f"CL{i}"}; i += 1
+    summary = c4_cli.compute_correlation_summary(chronos, tpm, meta, indication="COADREAD")
+    _assert_convergence(
+        "expression-dependency-correlation", c4_cli, c4_fig.render_from_plot_data,
+        "load_depmap_files_for_card4", "plot_data.parquet",
+        lambda d: c4_cli.emit_plot_data(c4_cli.build_merged_data(chronos, tpm, meta, "Bowel"), d),
+        summary, tmp_path, monkeypatch)
+
+
+def test_card1c_concordance_gallery_convergence(tmp_path, monkeypatch):
+    chronos = {"ACH-1": -1.2, "ACH-2": -0.9, "ACH-3": -0.3, "ACH-4": 0.1, "ACH-5": -1.0, "ACH-6": -0.6}
+    demeter = {"ACH-1": -0.7, "ACH-2": -0.5, "ACH-3": -0.1, "ACH-4": 0.0, "ACH-5": -0.55, "ACH-7": -0.3}
+    meta = {f"ACH-{i}": {"CCLEName": f"CL{i}", "OncotreeLineage": "Bowel"} for i in range(1, 8)}
+    summary = c1c_cli.compute_concordance(chronos, demeter, meta)
+    _assert_convergence(
+        "crispr-rnai-dependency-concordance", c1c_cli, c1c_fig.render_from_plot_data,
+        "load_concordance_inputs", "plot_data_concordance.parquet",
+        lambda d: c1c_cli.emit_plot_data(summary["per_line_concordance"], d),
+        summary, tmp_path, monkeypatch)
+
+
+def test_card3_mutation_stratified_gallery_convergence(tmp_path, monkeypatch):
+    chronos, hot, dam, meta = {}, {}, {}, {}
+    i = 1
+    for lin, (muts, wts) in {"Bowel": ([-1.4, -1.2, -1.3], [-0.2, -0.1]),
+                             "Lung": ([-1.1, -1.3], [-0.3, 0.0, -0.1])}.items():
+        for v in muts:
+            mid = f"ACH-{i:06d}"; chronos[mid] = v; hot[mid] = True; dam[mid] = False
+            meta[mid] = {"OncotreeLineage": lin, "CellLineName": f"CL{i}"}; i += 1
+        for v in wts:
+            mid = f"ACH-{i:06d}"; chronos[mid] = v; hot[mid] = False; dam[mid] = False
+            meta[mid] = {"OncotreeLineage": lin, "CellLineName": f"CL{i}"}; i += 1
+    _assert_convergence(
+        "mutation-stratified-dependency", c3_cli, c3_fig.render_from_plot_data,
+        "load_mutation_data", "plot_data.parquet",
+        lambda d: c3_cli.emit_plot_data(chronos, hot, dam, meta, d), {}, tmp_path, monkeypatch)
 
 
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):
