@@ -64,7 +64,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.12.0"
+SKILL_VERSION = "1.13.0"
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -246,6 +246,15 @@ _VERDICT_RANK: list[tuple[str, str]] = (
     + _EXPR_NEG + _PROT_NEG + _SC_NEG
     + _EXPR_GAP + _PROT_GAP + _SC_GAP
 )
+
+# Driving-rule provenance for the verdict-INERT signal-strength facet (M1). A positive-tier rung whose
+# rule fires with `-neutral` intent is a measured NEUTRAL/low presence read (tumor_sparsely_expressed,
+# sc_broadly_low, broadly_moderate_expression, …). By design these collapse INTO the positive tier — a
+# per-indication low read never kills a target-wide nomination (see _SC_RNA_RANK note) — so
+# `_is_presence_positive` is True for them, yet the driving evidence is only neutral. We derive the
+# supportive/neutral rule sets FROM the ladder rule_id suffix so they self-maintain with any ladder edit.
+_SUPPORTIVE_RIDS = frozenset(rid for rid, _v in _VERDICT_RANK if rid.endswith("-supportive"))
+_NEUTRAL_POSITIVE_RIDS = frozenset(rid for rid, _v in _VERDICT_RANK if rid.endswith("-neutral"))
 
 
 def _rank_verdict(fired: list[dict], ladder: list[tuple[str, str]] | None = None) -> tuple[str, str | None]:
@@ -473,6 +482,22 @@ def _is_presence_positive(verdict: str | None) -> bool:
         and verdict not in _COLLAPSE_GAP_VERDICTS and verdict != "insufficient"
 
 
+def _presence_signal_strength(driving_rule_id: str | None, verdict: str | None) -> str:
+    """VERDICT-INERT legibility of the evidence BEHIND a presence call (M1). `_is_presence_positive`
+    alone cannot tell a strong present call from one resting only on a NEUTRAL/low rung (the sole-signal
+    sc_broadly_low / tumor_sparsely_expressed case that still collapses into the positive tier by design).
+    Returns 'supportive' (a `-supportive` rung drove it), 'neutral' (only a `-neutral` low/moderate rung),
+    'none' (nothing fired → insufficient), or 'other' (a measured-negative / gap drove it). Keyed on the
+    DRIVING rule so it tracks whichever rung actually won the collapse. Never touches the spine."""
+    if not driving_rule_id or verdict == "insufficient":
+        return "none"
+    if driving_rule_id in _SUPPORTIVE_RIDS:
+        return "supportive"
+    if driving_rule_id in _NEUTRAL_POSITIVE_RIDS:
+        return "neutral"
+    return "other"
+
+
 def _headline_conflict(collapsed_verdict, per_modality):
     """VERDICT-INERT safety guard (Principle 1): the collapsed headline reads PRESENT (a measured
     positive) while another modality carries a MEASURED presence-NEGATIVE (e.g. RNA broadly_high but
@@ -570,6 +595,15 @@ def _headline(cards, fired, verdict_pair):
          "tumor-tissue presence for this target (typical of antigens that de-differentiate in "
          "2D culture).")
         if _cl_tumor_discordant else None)
+    # M2 legibility (verdict-INERT): the collapse can read `insufficient` while a bucket is MEASURED-present
+    # — e.g. a CPTAC-flat-only target, where `protein_present_not_elevated` is rescued in the per-modality
+    # map but fires NO ladder rung, so it cannot lift the collapsed word off `insufficient`. List those
+    # buckets so the one-word `insufficient` is not mistaken for "nothing measured". Empty otherwise.
+    _measured_present_despite_insufficient = (
+        sorted(k for k, b in (per_modality or {}).items()
+               if isinstance(b, dict) and b.get("evidence_state") == "measured"
+               and _is_presence_positive(b.get("verdict")))
+        if v == "insufficient" else [])
     # Robustness facets (verdict-inert): a measured presence-negative buried under the positive headline
     # (Principle 1), and a presence-positive whose absolute abundance level reads bottom-decile
     # (Principle 2). Both are additive legibility guards; neither touches v / drv / per_modality.
@@ -609,6 +643,14 @@ def _headline(cards, fired, verdict_pair):
         # one-word headline — most indications lack CPTAC/cell-line-MS, so a positive-RNA target commonly
         # reads present with protein untested; this names that state instead of silently over-reassuring.
         "protein_confirmation_state":    _protein_confirmation_state(per_modality, v),
+        # presence_signal_strength (M1): supportive / neutral / other / none — is the PRESENT call driven
+        # by a supportive rung, or only by a NEUTRAL low rung (sc_broadly_low, tumor_sparsely_expressed)?
+        # Verdict-inert; lets a downstream consumer distinguish 'present' from 'only-neutral-evidence-present'
+        # without re-tiering the collapse (which _is_presence_positive alone cannot).
+        "presence_signal_strength":      _presence_signal_strength(drv, v),
+        # measured_present_despite_insufficient (M2): buckets that are MEASURED-present while the collapsed
+        # word is `insufficient` (e.g. CPTAC-flat-only). Empty unless that specific disagreement holds.
+        "measured_present_despite_insufficient": _measured_present_despite_insufficient,
         "presence_interpretation_note":  _presence_interpretation_note,
         # ── Bulk RNA ──────────────────────────────────────────────────────────
         "median_log2tpm_panel":     get_card_field(cards, "cellline-rna-distribution", "median_log2tpm_panel"),

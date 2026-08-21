@@ -249,6 +249,24 @@ golden-spine test + the guards' own unit tests):
   presence). The one word therefore stays byte-stable; read `protein_confirmation_state` (and the claim
   vector) for the confidence behind it. Regression-covered by `tests/test_protein_confirmation_state.py`.
 
+- **`presence_signal_strength`** (verdict-inert — *name the neutral-only present call*). `supportive`
+  (a `-supportive` rung drove the collapse), `neutral` (only a `-neutral` low/moderate rung — e.g. a
+  sole single-cell `sc_broadly_low` or a `tumor_sparsely_expressed`), `none` (nothing fired →
+  `insufficient`), or `other` (a measured-negative / gap drove it). These neutral/low rungs collapse
+  INTO the positive tier BY DESIGN (a per-indication low read must never kill a target-wide nomination),
+  so `_is_presence_positive` is `True` for them — but the driving evidence is only neutral. This facet
+  lets a downstream consumer distinguish a strong present call from an only-neutral-evidence one WITHOUT
+  re-tiering the collapse. Keyed on the driving rule (self-maintains with the ladder via the
+  `-supportive`/`-neutral` rule_id suffix). Pinned by `tests/test_collapse_tier_legibility.py`.
+
+- **`measured_present_despite_insufficient`** (verdict-inert — *name the insufficient-vs-measured
+  disagreement*). Sorted list of `(measurement, sample_context)` buckets that read a MEASURED-present
+  sub-verdict while the collapsed word is `insufficient`. The one case this fires on is a CPTAC-flat-only
+  target: `protein_present_not_elevated` is rescued into the `bulk_protein_ms/tumor` bucket by
+  `_MEASURED_UNRULED_PRESENT` but fires NO ladder rung, so it cannot lift the collapsed word off
+  `insufficient`. The field keeps the one word from being mistaken for "nothing measured". Empty for
+  every other case. Pinned by `tests/test_collapse_tier_legibility.py`.
+
 ## Ladder governance (why an inline verdict is still guarded)
 
 Because the verdict is resolved inline (not via a `*.resolver.yaml`), the ladder ORDER — which encodes
@@ -265,6 +283,7 @@ never committed. The synthetic flip-class assertions in `test_reanchor_flip_matr
 
 | version | date | change |
 |---|---|---|
+| 1.13.0 | 2026-08-21 | Verdict-inert collapse-tier legibility: `presence_signal_strength` (M1 — distinguishes a supportive present call from an only-neutral-evidence one, e.g. sole `sc_broadly_low`) + `measured_present_despite_insufficient` (M2 — names a CPTAC-flat-only bucket measured-present under an `insufficient` collapse). `cell_line_vs_tumor_discordant` unreachability now proved TOTAL over the two-lens RNA space (L6). Spine byte-stable. |
 | 1.12.0 | 2026-08-20 | Surface the variance-standardized CPTAC effect (analysis-methods #432 / card #450) into the headline + synthesis facet (`protein_effect_standardized_class`, `protein_effect_cohens_d`, `protein_effect_standardized_t`, `protein_effect_standardized_method`) — the variance-aware companion to the raw `protein_effect_size` the class thresholds on. Verdict-inert. |
 | 1.11.0 | 2026-08-20 | Surface the two-axis TCE antigen-escape readout (analysis-methods #429 / card #449) into the headline + synthesis facet (`sc_within_tumor_coverage_class`, `sc_inter_donor_consistency_class`, `sc_tce_antigen_escape_class`, `sc_malignant_detection_donor_iqr`, `sc_fraction_donors_broadly_detecting`) — the honest heterogeneity call superseding the lenient `sc_tce_homogeneity_class` (retained). Cosmetic: `present_rna_only_protein_absent` added to the composite-panel color map + target-profile risk-render MEDIUM bucket. Verdict-inert. |
 | 1.10.0 | 2026-08-20 | **Verdict-moving**: protein-absence demotion (Principle 1 Stage B) — an RNA-lens positive with a MEASURED protein-negative and no protein-positive now collapses to the new value `present_rna_only_protein_absent` (still a present call; driving RNA rung retained) instead of an un-caveated RNA positive that buried the protein contradiction. Verdict-inert to the nomination spine. |
