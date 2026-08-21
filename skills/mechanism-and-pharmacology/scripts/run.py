@@ -26,6 +26,8 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.mechanism_claims import mechanism_claim_vector, mechanism_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
@@ -150,6 +152,70 @@ def _predictability_mechanism_facet(cards):
     }
 
 
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# mechanism-and-pharmacology's declaration for the shared headline_core builder. This skill is largely
+# DESCRIPTIVE: the mechanism_verdict is a signaling-network CHARACTERIZATION class (well_characterized /
+# partial / sparse / has_pd_marker / data_unavailable / insufficient), and — per mechanism_claims.py —
+# NETWORK is ANNOTATION DENSITY (SIGNOR/Reactome edge count = curation, NOT target biology, capped at
+# moderate). So none of these rungs is a favorable/unfavorable target-quality CALL; every rung is coloured
+# NEUTRAL (there is no clear positive/negative program signal to encode). Verdict-INERT — a one-way
+# projection over the already-computed headline (mechanism_verdict stays byte-stable, frozen by the
+# EGFR/CEACAM5 replay guard).
+
+# The mechanism.resolver verdict vocabulary → human phrase (prettify fallback for any future addition).
+_MECHANISM_VERDICT_PHRASE = {
+    "well_characterized": "Well-characterized signaling network",
+    "partial":            "Partially-characterized signaling network",
+    "sparse":             "Sparse signaling network",
+    "has_pd_marker":      "PD-marker candidate present",
+    "data_unavailable":   "Data unavailable",
+    "insufficient":       "Insufficient evidence",
+}
+
+
+def _mechanism_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the mechanism verdict (colours the hero badge; never a gate). This skill
+    is DESCRIPTIVE — the verdict is a network-characterization / annotation-density class, NOT a
+    favorable/unfavorable target call — so every rung is NEUTRAL (a richly-curated network is not a better
+    TARGET, just a better-annotated one; the honesty cap in mechanism_claims.py)."""
+    return "neutral"
+
+
+_MECHANISM_HEADLINE_SPEC = HeadlineSpec(
+    gate="mechanism",
+    axis_labels={"NETWORK": "signaling-network topology", "PHOSPHO": "phospho-activity",
+                 "PATHWAY": "pathway activity context", "PERTURBATION": "drug-perturbation engagement",
+                 "PREDICTABILITY": "dependency predictability"},
+    axis_keys=("NETWORK", "PHOSPHO", "PATHWAY", "PERTURBATION", "PREDICTABILITY"),
+    critical_axes=("NETWORK",),   # NETWORK (is there a catalogued signaling network?) is the axis the
+                                  # mechanism verdict keys on — the decision-critical coverage floor.
+    verdict_label=lambda v: _MECHANISM_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    # No cross-cutting flag beyond the claim_vector conflicts + key_signals caveat: this skill's key_signals
+    # emits no caveat (caveat_fns={}), and the NETWORK annotation-density honesty is a STRUCTURAL disclaimer
+    # (mechanism_claims._DISCLAIMER), not a per-run tension. So tension_extra=None (matching FR). Any real
+    # per-axis conflict is already ranked by headline_core.rank_tension.
+    tension_extra=None,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed mechanism headline. Reads the resolved
+    mechanism_verdict + the verdict-inert claim_vector / key_signals; never moves the spine. No
+    CERTAINTY_MODEL sidecar is emitted by this skill, so confidence is derived from the claim vector's
+    corroboration (weakest-link over measured axes, capped by conflict/coverage)."""
+    v = headline.get("mechanism_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_MECHANISM_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_mechanism_verdict_polarity(v))
+
+
+def _emit_skill_figures(decision, figures_root):
+    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
+    display-only, offline, best-effort (missing block → [], spine unaffected)."""
+    return emit_headline_hero(decision, figures_root)
+
+
 def _headline(cards, fired, verdict_pair):
     """Skill-specific headline: SIGNOR-network descriptive fields + verdict-inert facets."""
     v, drv = verdict_pair or ("insufficient", None)
@@ -205,6 +271,17 @@ def _headline(cards, fired, verdict_pair):
     # signaling-network-mechanism, so this projection cannot move the verdict.
     headline["claim_vector"] = mechanism_claim_vector(headline, cards)
     headline["key_signals"] = mechanism_key_signals(headline, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
+    # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
+    # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
+    # mechanism spine already fully built in `headline` (same degrade discipline the dispatcher applies to
+    # synthesis / figures). On the happy path this is byte-identical (no _enrichment_errors key added), so
+    # the EGFR/CEACAM5 replay fixtures are unaffected.
+    try:
+        headline["headline_block"] = _build_headline_block(headline)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        headline["headline_block"] = None
     return headline
 
 
@@ -212,6 +289,8 @@ _SYNTHESIS_FACET_KEYS = (
     "mechanism_verdict", "driving_rule_id", "network_class", "has_actionable_moa",
     "phospho_activity_class", "pathway_activity_class", "tahoe_perturbation_class",
     "pred_predictability_class", "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -240,4 +319,6 @@ if __name__ == "__main__":
         verdict_fn=_verdict,
         headline_fn=_headline,
         isoform_check_target=True,          # warn on p95HER2 / AR-V7 / etc.
+        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
     ))
