@@ -4,13 +4,20 @@ Reads from s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/ via
 pyarrow. Column projection means a per-target read pulls 1-2 MB from the parquet
 column chunks instead of parsing the 500 MB source CSV.
 
-Session caching:
-  - In-process @lru_cache on target-symbol reads (same target requested twice in
-    one session returns instantly).
-  - Local-disk cache under ~/.cache/framework-depmap-26q1-parquet/ for the FULL
-    parquet files (one-time download per session; subsequent sessions reuse the
-    local files). Cache-invalidation would come with a parquet-v2 release —
-    the version suffix is baked into the S3 prefix + cache directory names.
+Read policy (2026-08-21 data-layer hardening — parquet-storage-standard):
+  - PER-TARGET reads STREAM via a pyarrow S3FileSystem with column/row-group pushdown
+    (`_stream_table`): a per-gene read pulls only that column's chunks (1-2 MB) over HTTP
+    range requests — NO whole-file download. This optimises the cold single-shot (a fresh
+    process reading one target skips the 250-740 MB matrix download entirely). The parquet
+    footer/schema is read once per (file, release) and lru-cached (`_remote_schema_names`),
+    so a batch of per-target calls reuses it.
+  - WHOLE-MATRIX consumers (batch precompute jobs iterating over thousands of genes) use
+    `get_full_matrix_path`, which downloads once to the release-scoped local cache under
+    ~/.cache/framework-depmap-<pin>-parquet/ and returns the path — the right amortisation
+    when you WILL touch most of the matrix. This is the deliberate split: stream for the
+    single-target read path; download-and-cache for the full-scan batch path.
+  - In-process @lru_cache on target-symbol reads (same target twice in one session = instant).
+  - Cache-invalidation rides the version suffix baked into the S3 prefix (parquet-v2 release).
 
 Public API (all return pandas objects, or None when target is absent):
     get_chronos_column(target)   -> DataFrame with {ModelID, <target_col>}
@@ -59,6 +66,54 @@ def _release_prefix(release_pin: str = "26q1") -> str:
     from methods.catalog_query.read import bucket_prefix_for
     _bucket, prefix = bucket_prefix_for(f"depmap-{release_pin}-parquet-v1")
     return prefix.rstrip("/")   # sibling loaders.py idiom: strip trailing slash, join with "/"
+
+
+# ── Streamed pushdown read path (per-target reads; no whole-file download) ───────────────────
+# Mirrors dge_deseq2/read.py + tcga_gtex_expression_distribution/read.py _get_s3fs: a process-wide
+# S3FileSystem singleton (construction costs a region-probe + client init, so build it once and
+# share it — pyarrow's S3FileSystem is safe for concurrent reads, which the parallel card-read pool
+# relies on). Region pinned to us-east-1 (the onc-compbio bucket) to skip the region round-trip.
+import threading
+
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
+
+
+def _get_s3fs():
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as pafs
+                _S3FS = pafs.S3FileSystem(region="us-east-1")
+    return _S3FS
+
+
+def _remote_uri(filename: str, release_pin: str = "26q1") -> str:
+    """`bucket/key` URI for a DepMap parquet, resolved PER release_pin from the catalog manifest.
+    Calls _release_prefix, so an UNREGISTERED release raises FileNotFoundError HERE — before any S3
+    op — preserving the release-pin guard (tests/methods/depmap_common/test_release_pin_guard.py)."""
+    prefix = _release_prefix(release_pin)
+    return f"{DEPMAP_S3_BUCKET}/{prefix}/{filename}"
+
+
+@lru_cache(maxsize=32)
+def _remote_schema_names(uri: str) -> tuple:
+    """Column names of a remote parquet, read from the FOOTER once per (file, release) and cached.
+    A wide DepMap matrix has ~19k columns; caching the footer means a batch of per-target reads
+    resolves the gene column without re-fetching the footer each call."""
+    import pyarrow.parquet as pq
+    return tuple(pq.read_schema(uri, filesystem=_get_s3fs()).names)
+
+
+def _stream_table(uri: str, columns=None, filters=None):
+    """Streamed pushdown read of a remote parquet — only the requested columns' chunks (and, with
+    filters, only the matching row groups) transit the wire. No whole-file download. Errors
+    propagate (a missing product surfaces as pyarrow FileNotFoundError = definitive absence; a
+    transient/creds error propagates so the caller's live-read seam records the real cause — we do
+    NOT wrap in a broad except that would mask the two, per the reader-absence-discipline guard)."""
+    import pyarrow.parquet as pq
+    return pq.read_table(uri, filesystem=_get_s3fs(), columns=columns, filters=filters)
 
 
 _GENE_LABEL_RE = re.compile(r'^"?([A-Za-z0-9._-]+)\s*\(\d+\)"?$')
@@ -119,11 +174,19 @@ def _find_gene_column(schema_names, target_symbol: str) -> Optional[str]:
 
 def _read_wide_target_column(filename: str, target_symbol: str,
                               id_col_hints: tuple = ("ModelID", "ModelConditionID"),
-                              release_pin: str = "26q1"):
-    """Read a WIDE parquet with column projection: only ID/metadata cols + target gene."""
+                              release_pin: str = "26q1", *, source_path=None):
+    """Read a WIDE parquet with column projection: only ID/metadata cols + the target gene.
+
+    Streams over S3 (footer cached, only the target column's chunks transit the wire) — no
+    whole-file download. `source_path` (offline test seam): a local parquet path bypasses S3."""
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet(filename, release_pin)
-    schema_names = pq.read_schema(local_path).names
+    if source_path is not None:
+        schema_names = tuple(pq.read_schema(source_path).names)
+        read = lambda cols: pq.read_table(source_path, columns=cols)   # noqa: E731
+    else:
+        uri = _remote_uri(filename, release_pin)
+        schema_names = _remote_schema_names(uri)
+        read = lambda cols: _stream_table(uri, columns=cols)           # noqa: E731
     target_col = _find_gene_column(schema_names, target_symbol)
     if target_col is None:
         return None
@@ -134,8 +197,7 @@ def _read_wide_target_column(filename: str, target_symbol: str,
     for extra in ("IsDefaultEntryForModel", "IsDefaultEntryForMC"):
         if extra in schema_names and extra not in cols:
             cols.append(extra)
-    table = pq.read_table(local_path, columns=cols)
-    return table.to_pandas()
+    return read(cols).to_pandas()
 
 
 @lru_cache(maxsize=128)
@@ -192,7 +254,8 @@ def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q1"):
+def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q1",
+                                  *, source_path=None):
     """Column-projection read of a wide DepMap matrix parquet, keyed on ModelID.
 
     Unlike get_cn_column_wgs / get_*_mutation_column (which project ModelConditionID or
@@ -204,15 +267,19 @@ def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin
     (e.g. 'OmicsSomaticMutationsMatrixDamaging.parquet').
     """
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet(filename, release_pin)
-    schema_names = pq.read_schema(local_path).names
+    if source_path is not None:
+        schema_names = tuple(pq.read_schema(source_path).names)
+        read = lambda cols: pq.read_table(source_path, columns=cols)   # noqa: E731
+    else:
+        uri = _remote_uri(filename, release_pin)
+        schema_names = _remote_schema_names(uri)
+        read = lambda cols: _stream_table(uri, columns=cols)           # noqa: E731
     target_col = _find_gene_column(schema_names, target_symbol)
     if target_col is None:
         return None
     if "ModelID" not in schema_names:
         return None
-    table = pq.read_table(local_path, columns=["ModelID", target_col])
-    return table.to_pandas()
+    return read(["ModelID", target_col]).to_pandas()
 
 
 @lru_cache(maxsize=128)
@@ -223,11 +290,10 @@ def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
     is a single row (~700 float32 values, ~3 KB). Uses filter pushdown on the
     gene_symbol column added at precompute time.
     """
-    import pyarrow.parquet as pq
-    local_path = _fetch_parquet("D2_combined_gene_dep_scores.parquet", release_pin)
-    # Filter to target row via gene_symbol column
-    filters = [("gene_symbol", "=", target_symbol)]
-    table = pq.read_table(local_path, filters=filters)
+    # Streamed filter pushdown on the sorted-by-gene_symbol parquet — only the target row's
+    # row group transits the wire (the D2 product is transposed: gene rows × cell-line cols).
+    table = _stream_table(_remote_uri("D2_combined_gene_dep_scores.parquet", release_pin),
+                          filters=[("gene_symbol", "=", target_symbol)])
     if table.num_rows == 0:
         return None
     df = table.to_pandas()
@@ -251,10 +317,8 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
     the target gene are skipped entirely. Drops per-query read from ~738 MB CSV
     parse to <10 MB parquet slice.
     """
-    import pyarrow.parquet as pq
-    local_path = _fetch_parquet("OmicsSomaticMutations.parquet", release_pin)
-    filters = [("HugoSymbol", "=", target_symbol)]
-    table = pq.read_table(local_path, filters=filters)
+    table = _stream_table(_remote_uri("OmicsSomaticMutations.parquet", release_pin),
+                          filters=[("HugoSymbol", "=", target_symbol)])
     return table.to_pandas()
 
 
@@ -267,16 +331,15 @@ def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
     full 738 MB CSV. Cached (maxsize=1) since the denominator is a per-release
     constant, not per-target.
     """
-    import pyarrow.parquet as pq
-    local_path = _fetch_parquet("OmicsSomaticMutations.parquet", release_pin)
+    uri = _remote_uri("OmicsSomaticMutations.parquet", release_pin)
     # Also apply IsDefaultEntryForModel filter to match the CSV path's semantics
     filters = [("IsDefaultEntryForModel", "=", "Yes")]
     try:
-        table = pq.read_table(local_path, columns=["ModelID"], filters=filters)
-    except Exception:
+        table = _stream_table(uri, columns=["ModelID"], filters=filters)
+    except Exception:  # absence-discipline: exempt -- pyarrow filter-pushdown version fallback, not S3-absence masking (a real read error re-raises on the retry below)
         # Filter pushdown on a categorical column may fail on some pyarrow versions;
-        # fall back to reading + filtering in pandas
-        table = pq.read_table(local_path, columns=["ModelID", "IsDefaultEntryForModel"])
+        # fall back to reading the two columns + filtering in pandas.
+        table = _stream_table(uri, columns=["ModelID", "IsDefaultEntryForModel"])
         df = table.to_pandas()
         df = df[df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
         return int(df["ModelID"].nunique())
@@ -310,3 +373,4 @@ def clear_all_parquet_caches() -> None:
     get_hotspot_mutation_column.cache_clear()
     get_damaging_mutation_column.cache_clear()
     get_matrix_column_by_model_id.cache_clear()
+    _remote_schema_names.cache_clear()   # streamed-read footer/schema cache
