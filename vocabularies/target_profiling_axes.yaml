@@ -503,7 +503,8 @@ skill_objectives:
       - {q: "Population burden / dosage sensitivity?", answered_by: [gene-burden-safety, clingen-dosage]}
       - {q: "Mouse-KO normal-physiology phenotype?", answered_by: [mouse-ko-phenotype]}
       - {q: "Germline pathogenicity (ClinVar)?", answered_by: [clinvar-pathogenicity-safety]}
-      - {q: "Normal-tissue expression breadth?", answered_by: [normal-tissue-liability-gtex]}
+      - {q: "Normal-tissue expression breadth (RNA atlas + essential-tissue protein)?", answered_by: [normal-tissue-liability-gtex, normal-tissue-liability]}   # normal-tissue-liability = HPA-IHC essential-tissue PROTEIN liability (data-util 2026-08-21)
+      - {q: "Broadly pan-essential (non-selective tox liability)?", answered_by: [pan-cancer-crispr-dependency-distribution]}   # DepMap common-essential broad-tox safety signal (data-util 2026-08-21)
       - {q: "Mechanism downgrade (GoF mutant-selective / amplification)?", answered_by: [alteration-role, copy-number-distribution]}
       - {q: "Engineered safety prior?", answered_by: [target-safety-prioritisation]}
   - skill: differentiation-landscape
