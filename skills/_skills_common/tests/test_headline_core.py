@@ -78,6 +78,29 @@ def test_certainty_sidecar_wins():
     assert conf["basis"] == "certainty_model_sidecar"
 
 
+def test_certainty_sidecar_low_medium_high_normalized():
+    # a sidecar graded in the low/medium/high vocabulary (functional-requirement's strength_certainty)
+    # is accepted verbatim and normalized onto the headline's strong/moderate/weak.
+    cv = _cv(a=("strong", "high", None))
+    for raw, want in (("high", "strong"), ("medium", "moderate"), ("low", "weak")):
+        conf = derive_confidence(cv, SPEC.axis_keys, SPEC.critical_axes,
+                                 certainty={"certainty": {"level": raw}})
+        assert conf["level"] == want
+        assert conf["basis"] == "certainty_model_sidecar"
+
+
+def test_descriptive_phrase_used_when_no_verdict():
+    # a GATELESS skill (verdict_token=None) headlines with a descriptive phrase; block stays well-formed.
+    cv = _cv(b=("moderate", "moderate", None))
+    blk = build_headline({}, cv, {"caveat": None}, spec=SPEC, verdict_token=None,
+                         descriptive_phrase="Co-mutation landscape mapped")
+    assert blk["verdict"]["call"] is None
+    assert blk["verdict"]["phrase"] == "Co-mutation landscape mapped"
+    assert blk["verdict"]["polarity"] == "neutral"          # descriptive → neutral badge
+    assert blk["headline_text"].startswith("Co-mutation landscape mapped — ")
+    assert [a["key"] for a in blk["hero"]["axes"]] == ["A", "B", "C", "D"]
+
+
 # ── tension ─────────────────────────────────────────────────────────────────────────────────────
 def test_tension_prefers_conflict_on_strong_claim_over_caveat():
     cv = _cv(a=("strong", "high", "abundance floor: bottom-decile"), b=("weak", "low", None))

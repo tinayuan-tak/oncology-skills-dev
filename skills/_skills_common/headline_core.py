@@ -36,6 +36,10 @@ from _skills_common.claim_vector_core import SIGNAL_ORD, CORROBORATION_ORD, weak
 # but MEASURED read).
 CONFIDENCE_ORD = {"strong": 3, "moderate": 2, "weak": 1, "insufficient": 0}
 _CONF_BY_INDEX = {3: "strong", 2: "moderate", 1: "weak", 0: "insufficient"}
+# A CERTAINTY_MODEL sidecar may grade its level in the low/medium/high vocabulary (functional-requirement's
+# strength_certainty) rather than the headline's strong/moderate/weak. Normalize so a skill can pass its
+# sidecar verbatim instead of hand-writing an adapter.
+_CERTAINTY_LEVEL_ALIAS = {"high": "strong", "medium": "moderate", "low": "weak"}
 # corroboration tier → confidence tier (a claim's support quality maps onto how much we trust the call).
 _CORR_TO_CONF = {"high": "strong", "moderate": "moderate", "low": "weak", "unmeasured": "insufficient"}
 
@@ -79,6 +83,7 @@ def derive_confidence(claim_vector: dict, axis_keys: Sequence[str], critical_axe
     if certainty and isinstance(certainty, dict):
         lvl = ((certainty.get("certainty") or {}).get("level")
                if isinstance(certainty.get("certainty"), dict) else certainty.get("level"))
+        lvl = _CERTAINTY_LEVEL_ALIAS.get(lvl, lvl)   # accept low/medium/high sidecars verbatim
         if lvl in CONFIDENCE_ORD:
             return {"level": lvl, "basis": "certainty_model_sidecar", "coverage": coverage}
 
@@ -185,18 +190,29 @@ def collect_citations(claim_vector: dict, axis_keys: Sequence[str]) -> list:
 # ── the builder ─────────────────────────────────────────────────────────────────────────────────
 def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spec: HeadlineSpec,
                    verdict_token: Optional[str], driving_rule_id: Optional[str] = None,
-                   verdict_polarity: Optional[str] = None, certainty: Optional[dict] = None) -> dict:
+                   verdict_polarity: Optional[str] = None, certainty: Optional[dict] = None,
+                   descriptive_phrase: Optional[str] = None) -> dict:
     """Assemble the canonical Headline block from a skill's ALREADY-computed decision objects.
 
     verdict_polarity: OPTIONAL "positive" | "negative" | "neutral" — the skill's OWN reading of the call
     (it knows its polarity; the renderer colours the badge by it, falling back to a lexical heuristic).
+
+    descriptive_phrase: OPTIONAL — for GATELESS / descriptive skills (verdict_token is None), the phrase
+    to headline with (e.g. the deterministic key_signals.headline dominant-signal summary). The block
+    stays well-formed (call=None, polarity defaults "neutral") so descriptive lenses get the same
+    verdict+confidence+tension shape without a gate verdict.
 
     Pure projection — reads the headline + claim_vector + key_signals and writes nothing back. Returns
     {verdict, confidence, top_tension, headline_text, hero, provenance, _disclaimer}."""
     crit = spec.critical_axes or spec.axis_keys
     confidence = derive_confidence(claim_vector, spec.axis_keys, crit, certainty=certainty)
     tension = rank_tension(claim_vector, key_signals, spec, headline)
-    phrase = spec.verdict_label(verdict_token) if verdict_token is not None else "No call"
+    if verdict_token is not None:
+        phrase = spec.verdict_label(verdict_token)
+    else:
+        phrase = descriptive_phrase or "No call"
+        if verdict_polarity is None:
+            verdict_polarity = "neutral"    # a descriptive lens has no positive/negative call to colour
     verdict = {"call": verdict_token, "phrase": phrase, "gate": spec.gate,
                "driving_rule_id": driving_rule_id, "polarity": verdict_polarity}
     hero = headline_hero_plot_data(verdict=verdict, confidence=confidence, tension=tension,
