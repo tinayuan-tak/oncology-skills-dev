@@ -63,6 +63,14 @@ _MODEL_PREFIX = bucket_prefix_for("depmap-consortium-26q1")[1].rstrip("/")
 MODEL_KEY = f"{_MODEL_PREFIX}/Model.csv"
 DEFAULT_AWS_PROFILE = "cbg"
 
+# DERIVED long/tidy pushdown product (parquet-storage-standard, 2026-08-21): replaces the
+# whole-wide-CSV read of harmonized_MS_CCLE_Gygi.csv on the LIVE Gygi path. Per-protein pushdown
+# (filters=[("uniprot_base","=",accession)]) reads ~1 row group instead of 64 MB; the all-gene
+# median null is a precomputed co-located sidecar. Byte-identical summaries to the wide-CSV path.
+# The wide-CSV code below is PRESERVED for the offline test seam (matrix_path=) and the Olink
+# fallback (matrix_key=OLINK_MATRIX_KEY), which stay on CSV.
+DERIVED_PRODUCT_MANIFEST_ID = "depmap-gygi-protein-abundance-per-protein-v1"
+
 # --- card thresholds (mirror cellline-protein-abundance.card.yaml) ---
 BROADLY_DETECTED_FRACTION = 0.70   # detected in >70% of panel
 LOW_DETECTION_FRACTION = 0.30      # detected in <30% → broadly_low
@@ -127,6 +135,91 @@ def _read_parquet(path_or_none, bucket, key):
     return pd.read_parquet(io.BytesIO(body))
 
 
+@lru_cache(maxsize=1)
+def _derived_bucket_key() -> tuple:
+    """(bucket, key) of the derived long-parquet payload, resolved from the manifest (never hard-coded)."""
+    from methods.catalog_query.read import bucket_key_for
+    return bucket_key_for(DERIVED_PRODUCT_MANIFEST_ID)
+
+
+@lru_cache(maxsize=1)
+def _derived_manifest() -> dict:
+    from methods.catalog_query.read import load_manifest
+    return load_manifest(DERIVED_PRODUCT_MANIFEST_ID)
+
+
+@lru_cache(maxsize=1)
+def _derived_panel_size() -> Optional[int]:
+    """Total MS cell lines (detection denominator) — a release constant carried in manifest params
+    (NOT recoverable from the detected-only long table)."""
+    v = (_derived_manifest().get("parameters", {}) or {}).get("panel_size_n_cell_lines")
+    return int(v) if v is not None else None
+
+
+def _select_abundance_from_table(tbl, accession: str, panel_size) -> tuple:
+    """Post-read selection shared by the live + offline paths. `tbl` is a pyarrow Table of the rows
+    for one uniprot_base. Returns (abundance_by_model | None, panel_size)."""
+    if tbl.num_rows == 0:
+        return None, panel_size  # accession not in the Gygi panel -> caller tries Olink fallback
+    d = tbl.to_pydict()
+    # 'first base-match column' semantics (parity with the wide-CSV load_abundance_column): if
+    # isoform-suffixed variants share the base accession, deterministically pick the min uniprot_id.
+    uids = sorted(set(d["uniprot_id"]))
+    chosen = accession if accession in uids else uids[0]
+    out = {m: float(v) for u, m, v in zip(d["uniprot_id"], d["model_id"], d["log2_abundance"])
+           if u == chosen}
+    return (out or None), panel_size
+
+
+def _load_gygi_abundance_pushdown(accession: str, product_path=None) -> tuple:
+    """Gygi path: pushdown-read one protein's per-cell-line abundance from the derived long parquet.
+    Returns (abundance_by_model | None, panel_size). `product_path` (offline test seam) reads a local
+    parquet with the same filter; None => the live S3 product (cached per accession)."""
+    import pyarrow.parquet as pq
+    if product_path is not None:
+        tbl = pq.read_table(str(product_path), filters=[("uniprot_base", "=", accession)])
+        return _select_abundance_from_table(tbl, accession, _derived_panel_size())
+    return _load_gygi_abundance_pushdown_live(accession)
+
+
+@lru_cache(maxsize=128)
+def _load_gygi_abundance_pushdown_live(accession: str) -> tuple:
+    """LIVE S3 pushdown, cached per accession (a single small row-group slice). A transient failure
+    RAISES and is NOT cached, so a later call retries — lru_cache never memoizes exceptions."""
+    import pyarrow.parquet as pq
+    import pyarrow.fs as pafs
+    ensure_aws_profile()
+    bucket, key = _derived_bucket_key()
+    tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(),
+                        filters=[("uniprot_base", "=", accession)])
+    return _select_abundance_from_table(tbl, accession, _derived_panel_size())
+
+
+def _load_allgene_null_sidecar(null_path=None) -> tuple:
+    """All-protein median null: read the precomputed sidecar (one median per raw protein column) in
+    full. `null_path` (offline test seam) reads a local parquet; None => the live co-located S3 sidecar
+    (cached). Returns a hashable tuple of medians."""
+    import pyarrow.parquet as pq
+    if null_path is not None:
+        tbl = pq.read_table(str(null_path), columns=["median_log2_abundance"])
+        return tuple(float(x) for x in tbl.to_pydict()["median_log2_abundance"])
+    return _load_allgene_null_sidecar_live()
+
+
+@lru_cache(maxsize=1)
+def _load_allgene_null_sidecar_live() -> tuple:
+    import pyarrow.parquet as pq
+    import pyarrow.fs as pafs
+    ensure_aws_profile()
+    bucket, key = _derived_bucket_key()
+    null_file = (_derived_manifest().get("parameters", {}) or {}).get(
+        "null_sidecar_file", "depmap_gygi_protein_abundance.allgene_null.parquet")
+    null_key = key.rsplit("/", 1)[0] + "/" + null_file
+    tbl = pq.read_table(f"{bucket}/{null_key}", filesystem=pafs.S3FileSystem(),
+                        columns=["median_log2_abundance"])
+    return tuple(float(x) for x in tbl.to_pydict()["median_log2_abundance"])
+
+
 def resolve_accession(target: str, sidecar_path=None) -> Optional[str]:
     """target (HGNC symbol) → UniProt accession (matrix column) via the sidecar.
 
@@ -161,6 +254,10 @@ def load_abundance_column(accession: str, matrix_path=None, matrix_key: str = MA
     Single read of the matrix (panel size + column come from the same load).
     `matrix_key` selects the source matrix (default Gygi MS; OLINK_MATRIX_KEY for the fallback) —
     both share the ModelID-rows × UniProt-accession-cols shape, so the same column logic applies."""
+    # LIVE Gygi path -> derived long parquet via column-pushdown (parquet-storage-standard). A local
+    # matrix_path (offline tests) or a non-Gygi matrix_key (Olink fallback) keep the wide-CSV path below.
+    if matrix_path is None and matrix_key == MATRIX_KEY:
+        return _load_gygi_abundance_pushdown(accession)
     import pandas as pd
     df = _read_csv(matrix_path, S3_BUCKET, matrix_key)
     id_col = df.columns[0]  # unnamed index col holding ACH-* ids
@@ -442,6 +539,13 @@ def _all_protein_median_null(matrix_path=None) -> tuple:
     pass (axis=0) over the already-cached matrix. lru_cached (built once). Returned as
     a tuple so it stays hashable/cache-safe. Zero new I/O beyond the matrix read that
     load_abundance_column already does."""
+    # LIVE path -> precomputed all-gene median-null sidecar (tiny; no whole-matrix scan). A local
+    # matrix_path (offline tests) keeps the wide-matrix column-median pass below.
+    if matrix_path is None:
+        try:
+            return _load_allgene_null_sidecar()
+        except Exception:
+            return tuple()
     try:
         df = _read_csv(matrix_path, S3_BUCKET, MATRIX_KEY)
         id_col = df.columns[0]
