@@ -39,18 +39,26 @@ def _load_style(contracts_dir):
 
 
 def emit_svg(target: str, indication, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS):
+             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None):
     """Tier-3 SVG: per-model RNA (x) vs protein (y) scatter with the fitted trend + r annotation.
-    None if data_unavailable / underpowered."""
+    None if data_unavailable / underpowered.
+
+    presampled (figure Stage 6): OPT-IN per-model points list ([{rna, protein}]) → draw OFFLINE with
+    no live re-read. None = read live (legacy)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     _load_style(contracts_dir)
     out_path = Path(out_dir) / "figure_rna_protein_concordance.svg"
-    scatter = _read.read_rna_protein_scatter(target)
-    pts = scatter.get("points") or []
-    if not scatter.get("available") or len(pts) < _read.MIN_PAIRED_MODELS:
+    if presampled is not None:
+        pts = presampled
+    else:
+        scatter = _read.read_rna_protein_scatter(target)
+        pts = scatter.get("points") or []
+        if not scatter.get("available"):
+            return None
+    if len(pts) < _read.MIN_PAIRED_MODELS:
         return None
     x = np.array([p["rna"] for p in pts]); y = np.array([p["protein"] for p in pts])
     fig, ax = plt.subplots(figsize=(5.6, 4.8))
@@ -71,17 +79,25 @@ def emit_svg(target: str, indication, summary: dict, out_dir: Path,
     return out_path
 
 
-def emit_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
-    """Interactive twin — same per-model points (hover = ModelID). Best-effort."""
+def emit_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS,
+                      *, presampled=None, summary=None):
+    """Interactive twin — same per-model points (hover = ModelID). Best-effort.
+    presampled (Stage 6): OPT-IN points + summary → no live re-read."""
     try:
         import plotly.graph_objects as go
     except Exception:  # noqa: BLE001
         return []
-    scatter = _read.read_rna_protein_scatter(target)
-    pts = scatter.get("points") or []
-    if not scatter.get("available") or len(pts) < _read.MIN_PAIRED_MODELS:
+    if presampled is not None:
+        pts = presampled
+    else:
+        scatter = _read.read_rna_protein_scatter(target)
+        pts = scatter.get("points") or []
+        if not scatter.get("available"):
+            return []
+    if len(pts) < _read.MIN_PAIRED_MODELS:
         return []
-    summary = _read.read_rna_protein_concordance(target)
+    if summary is None:
+        summary = _read.read_rna_protein_concordance(target)
     fig = go.Figure(go.Scatter(
         x=[p["rna"] for p in pts], y=[p["protein"] for p in pts], mode="markers",
         marker=dict(color=_FILL, size=6, opacity=0.6),
@@ -96,21 +112,30 @@ def emit_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFA
              "path": "figure_rna_protein_concordance.plotly.json", "type": "plotly"}]
 
 
-def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
+def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS,
+                   *, presampled=None, summary=None):
     """Tier-3 SVG for the TUMOR arm: per-tumor RNA (x) vs protein (y) scatter + fitted trend + r.
-    None if data_unavailable / underpowered / no CPTAC cohort."""
+    None if data_unavailable / underpowered / no CPTAC cohort.
+
+    presampled (figure Stage 6): OPT-IN per-tumor points ([{rna, protein}]) + summary → OFFLINE."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     _load_style(contracts_dir)
     out_path = Path(out_dir) / "figure_rna_protein_concordance_tumor.svg"
-    scatter = _read.read_tumor_rna_protein_scatter(target, indication)
-    pts = scatter.get("points") or []
-    if not scatter.get("available") or len(pts) < _read.MIN_PAIRED_TUMORS:
+    if presampled is not None:
+        pts = presampled
+    else:
+        scatter = _read.read_tumor_rna_protein_scatter(target, indication)
+        pts = scatter.get("points") or []
+        if not scatter.get("available"):
+            return None
+    if len(pts) < _read.MIN_PAIRED_TUMORS:
         return None
     x = np.array([p["rna"] for p in pts]); y = np.array([p["protein"] for p in pts])
-    summary = _read.read_tumor_rna_protein_concordance(target, indication)
+    if summary is None:
+        summary = _read.read_tumor_rna_protein_concordance(target, indication)
     fig, ax = plt.subplots(figsize=(5.6, 4.8))
     ax.scatter(x, y, s=16, color="#7b4a8f", edgecolor="#553f7a", linewidth=0.4, alpha=0.6, zorder=3)
     if len(pts) >= 2 and np.ptp(x) > 0:
@@ -121,23 +146,31 @@ def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT
     ax.set_ylabel(f"{target} protein — log2-abundance, CPTAC")
     ax.set_title(f"{target} in {indication} — TUMOR RNA↔protein concordance\n"
                  f"Pearson r={summary.get('rna_protein_r')} ({summary.get('rna_as_biomarker','')}); "
-                 f"n={summary.get('n_paired_tumors')} ({scatter.get('cptac_cohort')})")
+                 f"n={summary.get('n_paired_tumors')} ({summary.get('cptac_cohort')})")
     ax.grid(alpha=0.25, linewidth=0.4)
     fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
     return out_path
 
 
-def emit_tumor_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
-    """Interactive twin of the tumor scatter (hover = Patient_ID). Best-effort."""
+def emit_tumor_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS,
+                            *, presampled=None, summary=None):
+    """Interactive twin of the tumor scatter (hover = Patient_ID). Best-effort.
+    presampled (Stage 6): OPT-IN points + summary → no live re-read."""
     try:
         import plotly.graph_objects as go
     except Exception:  # noqa: BLE001
         return []
-    scatter = _read.read_tumor_rna_protein_scatter(target, indication)
-    pts = scatter.get("points") or []
-    if not scatter.get("available") or len(pts) < _read.MIN_PAIRED_TUMORS:
+    if presampled is not None:
+        pts = presampled
+    else:
+        scatter = _read.read_tumor_rna_protein_scatter(target, indication)
+        pts = scatter.get("points") or []
+        if not scatter.get("available"):
+            return []
+    if len(pts) < _read.MIN_PAIRED_TUMORS:
         return []
-    summary = _read.read_tumor_rna_protein_concordance(target, indication)
+    if summary is None:
+        summary = _read.read_tumor_rna_protein_concordance(target, indication)
     fig = go.Figure(go.Scatter(
         x=[p["rna"] for p in pts], y=[p["protein"] for p in pts], mode="markers",
         marker=dict(color="#7b4a8f", size=7, opacity=0.65),

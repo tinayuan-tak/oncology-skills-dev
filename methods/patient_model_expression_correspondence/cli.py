@@ -38,9 +38,12 @@ def _load_style(contracts_dir):
 
 
 def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS) -> Optional[Path]:
+             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> Optional[Path]:
     """Tier-3 SVG: target TPM (x) vs Chronos (y) scatter over DepMap models, colored by screen role,
-    lineage-matched models emphasized, the patient tumor IQR band shaded. None if data_unavailable."""
+    lineage-matched models emphasized, the patient tumor IQR band shaded. None if data_unavailable.
+
+    presampled (figure Stage 6): OPT-IN full models list from persisted plot_data → draw OFFLINE with
+    no live re-read. None = read live (legacy)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -48,9 +51,12 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
     out_path = Path(out_dir) / "figure_recommended_models.svg"
     if summary.get("correspondence_class") == "data_unavailable":
         return None
-    # the scatter wants ALL models (not just the top-N table); re-read with a high cap.
-    full = _read.read_recommended_models(target, indication, top_n=100000)
-    models = full.get("recommended_models") or []
+    if presampled is not None:
+        models = presampled
+    else:
+        # the scatter wants ALL models (not just the top-N table); re-read with a high cap.
+        full = _read.read_recommended_models(target, indication, top_n=100000)
+        models = full.get("recommended_models") or []
     if not models:
         return None
     fig, ax = plt.subplots(figsize=(7.0, 4.6))
@@ -78,13 +84,15 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
 
 
 def emit_plotly_specs(target: str, indication: str, out_dir: Path,
-                      contracts_dir=DEFAULT_TARGET_CONTRACTS) -> list:
-    """Interactive twin — same model points (hover = cell line + role). Best-effort."""
+                      contracts_dir=DEFAULT_TARGET_CONTRACTS, *, summary=None) -> list:
+    """Interactive twin — same model points (hover = cell line + role). Best-effort.
+    summary (Stage 6): OPT-IN pass the resolved summary to avoid a build_summary re-read (offline)."""
     try:
         import plotly.graph_objects as go
     except Exception:  # noqa: BLE001
         return []
-    summary = build_summary(target, indication)
+    if summary is None:
+        summary = build_summary(target, indication)
     models = [r for r in (summary.get("recommended_models") or []) if r.get("chronos") is not None]
     if summary.get("correspondence_class") == "data_unavailable" or not models:
         return []

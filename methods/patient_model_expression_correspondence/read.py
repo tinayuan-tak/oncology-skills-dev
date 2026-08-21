@@ -7,6 +7,7 @@ patient tumor TARGET distribution, and classify each into a screen role (positiv
 from __future__ import annotations
 
 from typing import Optional
+from pathlib import Path
 
 # indication → DepMap OncotreeLineage. SINGLE SOURCE: import the canonical map from
 # depmap_chronos.read rather than forking it here. The prior local fork mapped GC/STAD →
@@ -65,7 +66,7 @@ def _representativeness(tpm, p25, p75) -> float:
 
 
 def read_recommended_models(target: str, indication: str, release_pin: str = "26q1",
-                            top_n: int = 15) -> dict:
+                            top_n: int = 15, plot_data_out: "Optional[Path]" = None) -> dict:
     """Q4 assembler. Returns the recommended_models table + rollup for a (target, indication).
 
     Ranking: lineage-matched models first (models of the indication's DepMap lineage are the
@@ -119,6 +120,19 @@ def read_recommended_models(target: str, indication: str, release_pin: str = "26
     # rank: lineage-matched first, then representativeness, then dependency strength (more negative first)
     rows.sort(key=lambda r: (not r["lineage_match"], -r["representativeness"],
                              r["chronos"] if r["chronos"] is not None else 0.0))
+    # Figure Stage 6: persist the FULL per-model rows (the scatter shows ALL models, not just the
+    # top-N table) so the figure renders offline. Best-effort, verdict-inert.
+    if plot_data_out is not None:
+        try:
+            import pandas as _pd
+            Path(plot_data_out).mkdir(parents=True, exist_ok=True)
+            _pd.DataFrame([{"target_log2tpm": r["target_log2tpm"], "chronos": r["chronos"],
+                            "screen_role": r["screen_role"], "lineage_match": r["lineage_match"]}
+                           for r in rows]).to_parquet(
+                Path(plot_data_out) / "plot_data_recommended_models.parquet", index=False)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
+
     n_pos = sum(1 for r in rows if r["screen_role"] == "positive_model")
     n_pos_lineage = sum(1 for r in rows if r["screen_role"] == "positive_model" and r["lineage_match"])
     base.update({

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 from typing import Optional
+from pathlib import Path
 
 from methods.catalog_query.read import bucket_key_for
 
@@ -38,11 +39,25 @@ def _paired_rna_protein(target: str, release_pin: str = "26q1"):
     return rna_by_model, prot_by_model, None
 
 
-def read_rna_protein_concordance(target: str, release_pin: str = "26q1") -> dict:
+def read_rna_protein_concordance(target: str, release_pin: str = "26q1",
+                                 plot_data_out: "Optional[Path]" = None) -> dict:
     """Q5 assembler — cell-line RNA↔protein concordance for target. target-grain (no indication).
 
     Returns rna_protein_r (Pearson) + spearman + n_paired_models + detection fractions +
-    rna_high_protein_low_fraction (the RNA-misleads population) + rna_as_biomarker verdict."""
+    rna_high_protein_low_fraction (the RNA-misleads population) + rna_as_biomarker verdict.
+
+    plot_data_out (figure Stage 6): OPT-IN — persist the per-model scatter points
+    (plot_data_rna_protein.parquet) so the figure renders offline. Best-effort, verdict-inert."""
+    if plot_data_out is not None:
+        try:
+            import pandas as _pd
+            pts = (read_rna_protein_scatter(target, release_pin=release_pin).get("points")) or []
+            if pts:
+                Path(plot_data_out).mkdir(parents=True, exist_ok=True)
+                _pd.DataFrame([{"rna": p["rna"], "protein": p["protein"]} for p in pts]).to_parquet(
+                    Path(plot_data_out) / "plot_data_rna_protein.parquet", index=False)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
     rna_by_model, prot_by_model, note = _paired_rna_protein(target, release_pin=release_pin)
     base = {"target": target, "release_pin": release_pin}
     if not rna_by_model or not prot_by_model:
@@ -186,9 +201,23 @@ def _read_matched_cohort(cohort: str):
         raise
 
 
-def read_tumor_rna_protein_concordance(target: str, indication: str) -> dict:
+def read_tumor_rna_protein_concordance(target: str, indication: str,
+                                       plot_data_out: "Optional[Path]" = None) -> dict:
     """Q5 TUMOR arm — CPTAC matched tumor RNA↔protein concordance for target in the indication's
-    CPTAC cohort. Same correlation + rna_as_biomarker vocab as the cell-line arm. data_unavailable-safe."""
+    CPTAC cohort. Same correlation + rna_as_biomarker vocab as the cell-line arm. data_unavailable-safe.
+
+    plot_data_out (figure Stage 6): OPT-IN — persist the per-tumor scatter points
+    (plot_data_rna_protein_tumor.parquet) so the figure renders offline. Best-effort."""
+    if plot_data_out is not None:
+        try:
+            import pandas as _pd
+            pts = (read_tumor_rna_protein_scatter(target, indication).get("points")) or []
+            if pts:
+                Path(plot_data_out).mkdir(parents=True, exist_ok=True)
+                _pd.DataFrame([{"rna": p["rna"], "protein": p["protein"]} for p in pts]).to_parquet(
+                    Path(plot_data_out) / "plot_data_rna_protein_tumor.parquet", index=False)
+        except Exception:  # noqa: BLE001 — persistence best-effort
+            pass
     cohort = INDICATION_TO_CPTAC_COHORT.get(indication.upper().strip())
     base = {"target": target, "indication": indication, "cptac_cohort": cohort,
             "substrate": "cptac_tumor"}
