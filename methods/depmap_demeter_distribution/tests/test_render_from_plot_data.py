@@ -61,8 +61,9 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
     assert _svg_ok(out / "figure_waterfall_rnai.svg")
     assert _svg_ok(out / "figure_histogram_kde_rnai.svg")
-    assert {d["id"] for d in descs} == {"waterfall_rnai", "histogram_kde_rnai"}
-    assert [d for d in descs if d["primary"]][0]["id"] == "waterfall_rnai"
+    assert {d["id"] for d in descs if not d.get("dynamic")} == {"waterfall_rnai", "histogram_kde_rnai"}
+    assert [d for d in descs if d.get("primary")][0]["id"] == "waterfall_rnai"
+    assert all(d.get("dynamic") for d in descs if d.get("type") == "plotly")
 
 
 def test_missing_columns_raises(tmp_path):
@@ -74,3 +75,19 @@ def test_missing_columns_raises(tmp_path):
         assert "demeter2_score" in str(e)
     else:
         raise AssertionError("expected ValueError on missing required column")
+
+
+def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
+    """Stage-3 parity: render_from_plot_data RETURNS the plotly-twin descriptors (dynamic:True), not
+    just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
+    demeter, meta = _panel()
+    summary = c.compute_summary_stats(demeter, meta)
+    src = tmp_path / "src"; src.mkdir()
+    c.emit_plot_data(demeter, meta, -0.5, src)
+
+    monkeypatch.setattr(c, "emit_plotly_specs",
+                        lambda *a, **k: [{"id": "waterfall_rnai",
+                                          "path": "figure_waterfall_rnai.plotly.json", "type": "plotly"}])
+    descs = f.render_from_plot_data(src / "plot_data_rnai.parquet", summary, tmp_path / "out", "MYGENE")
+    dyn = [d for d in descs if d.get("dynamic")]
+    assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True

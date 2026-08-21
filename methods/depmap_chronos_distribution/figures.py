@@ -54,16 +54,24 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
 
     _cli.emit_waterfall_plot(chronos_by_model, model_metadata, target, summary, out_dir, tcd)
     _cli.emit_histogram_kde_plot(chronos_by_model, target, summary, out_dir, tcd)
-    # Interactive plotly twin from the SAME reconstructed frame. Best-effort (additive; never breaks).
-    try:
-        _cli.emit_plotly_specs(chronos_by_model, model_metadata, target, summary, out_dir, tcd)
-    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
-        pass
 
     # Descriptor shape mirrors the current registry emitter (_emit_card1_pan_cancer_dependency_
     # distribution). Type canonicalization to the FIGURE_CATALOG closed enum is a Stage-5 concern.
-    return [
+    static = [
         {"id": "waterfall", "path": "figure_waterfall.svg", "type": "waterfall_plot", "primary": True},
         {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "histogram_kde",
          "primary": False},
     ]
+    # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
+    # We RETURN their descriptors (dynamic: True) too — mirroring the skills _plotly_from wrapping — so
+    # this is an EXACT drop-in for the Stage-3 registry repoint (the emitter delegates fully here and
+    # the interactive dashboard keeps its plotly specs). Best-effort: absence/failure just contributes
+    # no dynamic descriptors; the SVGs remain the guaranteed contract.
+    dynamic: list[dict] = []
+    try:
+        specs = _cli.emit_plotly_specs(chronos_by_model, model_metadata, target, summary,
+                                       out_dir, tcd) or []
+        dynamic = [{**s, "dynamic": True} for s in specs]
+    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
+        pass
+    return static + dynamic

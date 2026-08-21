@@ -544,6 +544,117 @@ def emit_lineage_strip(cn_by_model: dict, model_metadata: dict, target_symbol: s
     return out_path
 
 
+def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: str,
+                      summary: dict, out_dir: Path, target_contracts_dir: Path) -> list:
+    """Emit interactive Plotly figure specs SIBLING to the copy-number SVGs (dynamic-dashboard twin).
+
+    Built from the SAME in-memory cn_by_model the SVGs + plot_data_cn.parquet use → the interactive
+    chart cannot drift (one data source, N renderings). Mirrors the expression/chronos/rnai/protein
+    plotly twins so the copy-number-distribution card reaches interactive parity (FIGURE_CATALOG
+    Stage-5 backfill). Writes:
+      - figure_density_cn.plotly.json        (pan-cancer CN histogram density + threshold reflines)
+      - figure_waterfall_cn.plotly.json      (ranked per-cell-line bars)
+      - figure_lineage_strip_cn.plotly.json  (per-lineage box, n>=5, ordered by median)
+    Reflines mirror the SVGs: shallow-del (≤{SHALLOW_DEL}) amber, focal-amp (>{FOCAL_AMP}) red,
+    diploid (1.0) grey. Best-effort — the SVGs are the guaranteed artifact; a missing Plotly / any
+    error just contributes no descriptors.
+    """
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+        sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
+        print(f"[copy-number-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    assay = str(summary.get("cn_assay_used", "wes")).upper()
+    axis_title = f"Relative copy number ({assay} gene-level)"
+    reflines = [(SHALLOW_DEL, "#f0a020", "dash", f"shallow del ≤{SHALLOW_DEL}"),
+                (FOCAL_AMP, "#cf2828", "dash", f"focal amp >{FOCAL_AMP}"),
+                (1.0, "#666666", "dot", "diploid 1.0")]
+    written: list = []
+
+    scores = np.array(list(cn_by_model.values()), dtype=float)
+    if scores.size == 0:
+        return []
+    # Fixed-floor, adaptive-ceiling range — mirrors the SVGs so the threshold band stays readable.
+    x_min = 0.0
+    x_max = float(max(5.0, np.percentile(scores, 95) + 0.5))
+
+    # --- Density histogram (mirrors emit_density_plot) ---
+    try:
+        clipped = scores[scores <= x_max]
+        fig = go.Figure(go.Histogram(
+            x=clipped, histnorm="probability density", nbinsx=60,
+            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.45,
+            hovertemplate="relative CN %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        for xv, col, dash, lab in reflines:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.3))
+        fig.update_layout(
+            title=dict(text=f"{target_symbol} — pan-cancer copy-number (n={len(scores)})", font_size=13),
+            xaxis_title=axis_title, yaxis_title="Density", xaxis=dict(range=[x_min, x_max]),
+            template="plotly_white", showlegend=False, height=300,
+            margin=dict(l=54, r=16, t=40, b=44), font=dict(size=11))
+        (out_dir / "figure_density_cn.plotly.json").write_text(fig.to_json())
+        written.append({"id": "density_cn", "path": "figure_density_cn.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[copy-number-distribution] density plotly skipped: {e}", file=sys.stderr)
+
+    # --- Ranked waterfall (mirrors emit_waterfall_plot; sorted per-cell-line bars, lineage hover) ---
+    try:
+        rows = sorted(
+            ((mid, v, (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"))
+             for mid, v in cn_by_model.items()), key=lambda r: r[1])
+        vals = [v for _, v, _ in rows]
+        names = [model_metadata.get(mid, {}).get("CCLEName", mid) for mid, _, _ in rows]
+        lineages = [lg for _, _, lg in rows]
+        fig = go.Figure(go.Bar(
+            x=list(range(len(rows))), y=vals, marker_color="#0a2540",
+            customdata=list(zip(names, lineages)),
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>relative CN %{y:.2f}<extra></extra>"))
+        for yv, col, dash, lab in reflines:
+            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top left")
+        fig.update_layout(
+            title=f"{target_symbol} — pan-cancer CN (ranked waterfall)",
+            xaxis_title=f"Cell lines (n={len(rows)}, sorted by CN)",
+            yaxis_title=axis_title, template="plotly_white", showlegend=False,
+            bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+        (out_dir / "figure_waterfall_cn.plotly.json").write_text(fig.to_json())
+        written.append({"id": "waterfall_cn", "path": "figure_waterfall_cn.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[copy-number-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
+
+    # --- Per-lineage box (mirrors emit_lineage_strip; n>=5, ordered by median asc so highest sits top) ---
+    try:
+        by_lineage: dict = {}
+        for mid, v in cn_by_model.items():
+            lg = model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"
+            by_lineage.setdefault(lg, []).append(v)
+        lins = [(lg, vals) for lg, vals in by_lineage.items() if len(vals) >= 5]
+        lins.sort(key=lambda lv: float(np.median(lv[1])))
+        fig = go.Figure()
+        for lg, vals in lins:
+            fig.add_trace(go.Box(
+                x=vals, name=lg, orientation="h", boxpoints="all", jitter=0.4, pointpos=0,
+                marker=dict(size=3, opacity=0.5, color="#0a2540"),
+                line=dict(color="#7fa7c0", width=1),
+                hovertemplate=f"{lg}<br>relative CN %{{x:.2f}}<extra></extra>"))
+        for xv, col, dash, lab in reflines:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.2))
+        fig.update_layout(
+            title=dict(text=f"{target_symbol} — per-lineage CN (n≥5)", font_size=13),
+            xaxis_title=axis_title, xaxis=dict(range=[x_min, x_max]), template="plotly_white",
+            showlegend=False, margin=dict(l=130, r=16, t=40, b=40), font=dict(size=11),
+            height=max(260, 18 * len(lins) + 70))
+        (out_dir / "figure_lineage_strip_cn.plotly.json").write_text(fig.to_json())
+        written.append({"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[copy-number-distribution] lineage plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(cn_by_model: dict, model_metadata: dict, out_path: Path) -> Path:
     import pandas as pd
     records = []

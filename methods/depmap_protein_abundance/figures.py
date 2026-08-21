@@ -48,16 +48,23 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
 
     _cli.emit_density_protein(abundance_by_model, target, summary, out_dir, tcd)
     _cli.emit_lineage_strip_protein(abundance_by_model, lineage_by_model, target, summary, out_dir, tcd)
-    try:
-        _cli.emit_plotly_specs(abundance_by_model, lineage_by_model, target, summary, out_dir, tcd)
-    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
-        pass
 
     # Descriptor shape mirrors the current registry emitter (_emit_protein_abundance_celline). Type
     # canonicalization to the FIGURE_CATALOG closed enum is a Stage-5 concern.
-    return [
+    static = [
         {"id": "density_protein_abundance", "path": "figure_density_protein_abundance.svg",
          "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_protein", "path": "figure_lineage_strip_protein.svg",
          "type": "per_lineage_strip_plot", "primary": False},
     ]
+    # Interactive plotly twins from the SAME reconstructed frame — RETURNED (dynamic: True) so this is
+    # an EXACT drop-in for the Stage-3 registry repoint (mirrors the skills _plotly_from wrapping).
+    # Best-effort: absence/failure contributes no dynamic descriptors; the SVGs are the contract.
+    dynamic: list[dict] = []
+    try:
+        specs = _cli.emit_plotly_specs(abundance_by_model, lineage_by_model, target, summary,
+                                       out_dir, tcd) or []
+        dynamic = [{**s, "dynamic": True} for s in specs]
+    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
+        pass
+    return static + dynamic

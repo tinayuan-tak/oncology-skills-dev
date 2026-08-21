@@ -65,8 +65,9 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
     assert _svg_ok(out / "figure_density_protein_abundance.svg")
     assert _svg_ok(out / "figure_lineage_strip_protein.svg")
-    assert {d["id"] for d in descs} == {"density_protein_abundance", "lineage_strip_protein"}
-    assert [d for d in descs if d["primary"]][0]["id"] == "density_protein_abundance"
+    assert {d["id"] for d in descs if not d.get("dynamic")} == {"density_protein_abundance", "lineage_strip_protein"}
+    assert [d for d in descs if d.get("primary")][0]["id"] == "density_protein_abundance"
+    assert all(d.get("dynamic") for d in descs if d.get("type") == "plotly")
 
 
 def test_missing_columns_raises(tmp_path):
@@ -78,3 +79,19 @@ def test_missing_columns_raises(tmp_path):
         assert "log2_abundance" in str(e)
     else:
         raise AssertionError("expected ValueError on missing required column")
+
+
+def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
+    """Stage-3 parity: render_from_plot_data RETURNS the plotly-twin descriptors (dynamic:True), not
+    just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
+    ab, lin = _panel()
+    src = tmp_path / "src"; src.mkdir()
+    c.emit_plot_data_protein(ab, lin, src)
+
+    monkeypatch.setattr(c, "emit_plotly_specs",
+                        lambda *a, **k: [{"id": "density_protein_abundance",
+                                          "path": "figure_density_protein_abundance.plotly.json",
+                                          "type": "plotly"}])
+    descs = f.render_from_plot_data(src / "plot_data_protein_abundance.parquet", {}, tmp_path / "out", "MYGENE")
+    dyn = [d for d in descs if d.get("dynamic")]
+    assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True

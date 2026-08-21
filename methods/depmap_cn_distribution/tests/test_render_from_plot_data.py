@@ -61,8 +61,9 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     assert _svg_ok(out / "figure_density_cn.svg")
     assert _svg_ok(out / "figure_waterfall_cn.svg")
     assert _svg_ok(out / "figure_lineage_strip_cn.svg")
-    assert {d["id"] for d in descs} == {"density_cn", "waterfall_cn", "lineage_strip_cn"}
-    assert [d for d in descs if d["primary"]][0]["id"] == "density_cn"
+    assert {d["id"] for d in descs if not d.get("dynamic")} == {"density_cn", "waterfall_cn", "lineage_strip_cn"}
+    assert [d for d in descs if d.get("primary")][0]["id"] == "density_cn"
+    assert all(d.get("dynamic") for d in descs if d.get("type") == "plotly")
 
 
 def test_missing_columns_raises(tmp_path):
@@ -74,3 +75,38 @@ def test_missing_columns_raises(tmp_path):
         assert "relative_cn" in str(e)
     else:
         raise AssertionError("expected ValueError on missing required column")
+
+
+def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
+    """Stage-3 parity + copy-number plotly-twin backfill: render_from_plot_data RETURNS the plotly-twin
+    descriptors (dynamic:True), not just the SVGs — the copy-number twin landed with this migration
+    (was the FIGURE_CATALOG parity gap). Env-independent via a deterministic plotly stub."""
+    cn, meta = _panel()
+    summary = c.compute_summary_stats(cn, meta, assay_used="wes")
+    src = tmp_path / "src"; src.mkdir()
+    c.emit_plot_data(cn, meta, src)
+
+    monkeypatch.setattr(c, "emit_plotly_specs",
+                        lambda *a, **k: [{"id": "density_cn",
+                                          "path": "figure_density_cn.plotly.json", "type": "plotly"}])
+    descs = f.render_from_plot_data(src / "plot_data_cn.parquet", summary, tmp_path / "out", "MYGENE")
+    dyn = [d for d in descs if d.get("dynamic")]
+    assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True
+
+
+def test_cn_plotly_twin_writes_json(tmp_path):
+    """The new copy-number plotly twin actually renders three .plotly.json specs from the in-memory
+    frame (density / waterfall / per-lineage box). Skipped where plotly is unavailable."""
+    import importlib.util
+    if importlib.util.find_spec("plotly") is None:
+        import pytest
+        pytest.skip("plotly not installed")
+    cn, meta = _panel()
+    summary = c.compute_summary_stats(cn, meta, assay_used="wes")
+    out = tmp_path / "out"; out.mkdir()
+    from methods.depmap_cn_distribution.cli import DEFAULT_TARGET_CONTRACTS
+    written = c.emit_plotly_specs(cn, meta, "MYGENE", summary, out, DEFAULT_TARGET_CONTRACTS)
+    ids = {w["id"] for w in written}
+    assert ids == {"density_cn", "waterfall_cn", "lineage_strip_cn"}
+    for w in written:
+        assert (out / w["path"]).exists() and (out / w["path"]).stat().st_size > 0

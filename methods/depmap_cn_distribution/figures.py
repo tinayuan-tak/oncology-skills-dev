@@ -53,11 +53,10 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_density_plot(cn_by_model, target, summary, out_dir, tcd)
     _cli.emit_waterfall_plot(cn_by_model, model_metadata, target, summary, out_dir, tcd)
     _cli.emit_lineage_strip(cn_by_model, model_metadata, target, summary, out_dir, tcd)
-    # NB: depmap_cn_distribution has no plotly twin today (a Stage-5 parity backfill per FIGURE_CATALOG).
 
     # Descriptor shape mirrors the current registry emitter (_emit_cn_distribution). Type
     # canonicalization to the FIGURE_CATALOG closed enum is a Stage-5 concern.
-    return [
+    static = [
         {"id": "density_cn", "path": "figure_density_cn.svg",
          "type": "density_histogram_with_kde_cn", "primary": True},
         {"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.svg",
@@ -65,3 +64,15 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
         {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg",
          "type": "ranked_waterfall_cn", "primary": False},
     ]
+    # Interactive plotly twins from the SAME reconstructed frame — RETURNED (dynamic: True) so this is
+    # an EXACT drop-in for the Stage-3 registry repoint (mirrors the skills _plotly_from wrapping).
+    # The copy-number plotly twin landed with this migration (was the FIGURE_CATALOG parity gap).
+    # Best-effort: absence/failure contributes no dynamic descriptors; the SVGs are the contract.
+    dynamic: list[dict] = []
+    try:
+        specs = _cli.emit_plotly_specs(cn_by_model, model_metadata, target, summary,
+                                       out_dir, tcd) or []
+        dynamic = [{**s, "dynamic": True} for s in specs]
+    except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
+        pass
+    return static + dynamic
