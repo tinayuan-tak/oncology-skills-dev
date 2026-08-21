@@ -88,6 +88,7 @@ detail:
     - safety
     rules:
     - clingen-dominant-loss-safety-warning
+    - clingen-recessive-only-safety-favorable
   clinvar-pathogenicity-safety:
     resolvers:
     - safety
@@ -212,18 +213,22 @@ detail:
     - mut-no-mutations-neutral
   normal-tissue-liability:
     resolvers:
+    - safety
     - surface_modality
     rules:
     - normal-tissue-essential-bite-killer
+    - normal-tissue-protein-liability-safety-warning
   pan-cancer-crispr-dependency-distribution:
     resolvers:
     - dependency
+    - safety
     rules:
     - broadly-dependent-neutral
     - common-essential-underpowered-insufficient
     - data-unavailable-insufficient
     - non-dependent-killer
     - non-dependent-underpowered-insufficient
+    - pan-essential-broad-tox-safety-warning
     - pan-essential-killer
     - strongly-selective-supportive
   pan-cancer-rnai-dependency-distribution:

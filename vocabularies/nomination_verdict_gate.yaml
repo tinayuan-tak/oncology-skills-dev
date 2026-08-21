@@ -26,7 +26,14 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.6.0   # 1.6.0 (2026-08-20): cis-coherence GRADUATION — coherent_cis_driver positive_signal (supportive,
+version: 1.7.0   # 1.7.0 (2026-08-21): safety data-utilization expansion — 2 new safety HOLD verdicts gated +
+                 #   registered kill-capable: pan_essential_broad_tox_concern (DepMap common-essential broad tox)
+                 #   and normal_tissue_protein_safety_concern (HPA-IHC essential-tissue protein). Both HOLD (not
+                 #   veto), mirroring highly_constrained_safety_concern. The pan-essential HOLD is redundant-with
+                 #   the existing dependency pan_essential_killer VETO (veto > hold), so it never loosens a
+                 #   nomination — it makes the SAFETY-axis broad-tox reason legible. recessive-only reassurance
+                 #   reuses tolerant_reduced_safety_risk (already a passing verdict) so needs no gate entry.
+                 # 1.6.0 (2026-08-20): cis-coherence GRADUATION — coherent_cis_driver positive_signal (supportive,
                  #   grouped w/ genomic_alteration) + expressed_cis_coupled_inert positive_contradiction + kill_capable entry.
                  # 1.5.0 (2026-08-16): + kill_capable_verdicts registry (roadmap §6.6 fail-closed, gate-
                  #   complete). Per-resolver enumeration of EVERY verdict with negative decision semantics,
@@ -96,6 +103,31 @@ gates:
       DOWNGRADES this to wt_human_genetics_mechanism_mismatch, ungated, when an
       activating-driver context co-fires — exactly like the gnomAD path).
     driving_rule_ids: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill (data-utilization expansion, 2026-08-21)
+    verdict: pan_essential_broad_tox_concern
+    action: hold
+    rationale: |
+      DepMap classes the target common_essential — depleted across essentially the whole cell-line
+      panel — so a full-KO modality abrogates an essential function in NORMAL tissue too (on-target
+      broad toxicity). HOLD, not veto: a constrained window may still be addressable with a
+      mutant-selective modality (the resolver DOWNGRADES this to wt_human_genetics_mechanism_mismatch,
+      ungated, when an activating-driver context co-fires), or in a specific subtype. NOTE this is the
+      SAFETY-axis reading of pan-essentiality and is DELIBERATELY redundant with the dependency-axis
+      pan_essential_killer VETO (veto > hold in precedence): it never loosens a nomination — it makes
+      the broad-tox reason legible on the safety scorecard rather than only as a dependency veto.
+    driving_rule_ids: [pan-essential-broad-tox-safety-warning]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill (data-utilization expansion, 2026-08-21)
+    verdict: normal_tissue_protein_safety_concern
+    action: hold
+    rationale: |
+      HPA immunohistochemistry detects the target protein in >=1 curated ESSENTIAL normal tissue
+      (heart, brain/CNS, ...) — an on-target-off-tumor liability for a systemically-delivered full-KO
+      SM/degrader. HOLD, not veto: a narrow therapeutic index / delivery-restricted / subtype-selective
+      program may still be addressable. This is the intracellular-axis (SM/degrader) reading of the same
+      normal-tissue-liability card the surface-modality skill uses for its BiTE/TCE killer.
+    driving_rule_ids: [normal-tissue-protein-liability-safety-warning]
 
   - sub_skill: subtype_fit              # subtype-panorama sub-verdict (2026-07-17)
     verdict: subtype_specific_non_dependence
@@ -189,6 +221,8 @@ kill_capable_verdicts:
   safety:
     - {verdict: highly_constrained_safety_concern, disposition: gated}         # hold
     - {verdict: human_genetics_safety_concern,     disposition: gated}         # hold
+    - {verdict: pan_essential_broad_tox_concern,   disposition: gated}         # hold (data-util expansion 2026-08-21)
+    - {verdict: normal_tissue_protein_safety_concern, disposition: gated}      # hold (data-util expansion 2026-08-21)
   subtype_fit:
     - {verdict: subtype_specific_non_dependence,   disposition: gated}         # hold (no resolver; gates-checked)
   selectivity:

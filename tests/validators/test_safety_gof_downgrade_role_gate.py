@@ -51,7 +51,9 @@ def test_oncogene_role_rule_defined_and_fires_on_oncogene():
 
 
 # --- S1-1 (cards review 2026-08-17): amplification-driven-GoF guard --------------------------------
-_HOLDS = {"highly_constrained_safety_concern", "human_genetics_safety_concern"}
+# pan_essential_broad_tox_concern (2026-08-21): the pan-essential broad-tox HOLD also carries a
+# GROUP-1 mutant-selective downgrade, so it needs the same amplification guard as the gnomAD/burden holds.
+_HOLDS = {"highly_constrained_safety_concern", "human_genetics_safety_concern", "pan_essential_broad_tox_concern"}
 _AMP_GUARD = "copy-number-amplified-oncogene-safety-context"
 
 

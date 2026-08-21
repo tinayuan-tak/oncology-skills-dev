@@ -4471,3 +4471,93 @@ rules:
     rationale: |
       Target absent from the organoid gene-effect matrix (or the product is unavailable) — a
       coverage gap, not evidence for or against a dependency. Never a veto.
+
+  # ============================================================================
+  # Safety data-utilization expansion (2026-08-21) — three additional on-target-safety legs that
+  # wire ALREADY-INGESTED signals the safety resolver did not previously see. All three are
+  # INTRACELLULAR-axis (SM/degrader full-KO) safety signals, consumed by safety.resolver.yaml.
+  # ============================================================================
+
+  # (1) DepMap pan-essentiality as a BROAD-TOX safety signal. dependency_class == common_essential
+  #     means the gene is required for viability across the whole DepMap panel — so a full-KO
+  #     modality abrogates an essential function in NORMAL cells too (on-target broad toxicity).
+  #     This is a DISTINCT rationale from the dependency-axis pan-essential-killer VETO (which is
+  #     "no therapeutic window"): here it is a SAFETY concern about normal-tissue tox. A dedicated
+  #     -safety-warning rule (not a reuse of pan-essential-killer, which routes the DEPENDENCY
+  #     verdict). OPPOSING + dominant, mirroring the gnomAD / ClinGen-dominant safety warnings.
+  #     Composes with the mutant-selective downgrade: a mutant-selective agent against an activating
+  #     driver spares the WT essential protein in normal cells (safety.resolver GROUP-1, reusing
+  #     wt_human_genetics_mechanism_mismatch), and the amplification guard (GROUP-0) KEEPS the HOLD
+  #     for an amplification-driven oncogene whose WT protein IS the target.
+  - rule_id: pan-essential-broad-tox-safety-warning
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      equals: common_essential
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      DepMap classes the target common_essential — strongly depleted across essentially the whole
+      cell-line panel (~2000 housekeeping/ribosomal/proteasomal-type genes). A full-KO modality
+      (degrader, RNA therapeutic, full-inhibition SM) therefore abrogates an essential function in
+      NORMAL tissue as well, an on-target broad-toxicity liability. This is the SAFETY reading of
+      pan-essentiality; the DEPENDENCY skill separately vetoes the same signal as "no therapeutic
+      window" (pan-essential-killer). OPPOSING + dominant, parallel to the gnomAD highly-constrained
+      and ClinGen dominant-loss safety warnings. A MUTANT-SELECTIVE therapy against an activating
+      driver spares the WT protein normal cells depend on — the resolver's mechanism-conditioning
+      downgrade nullifies it (when_all_fired with activating-driver-role-safety-context), while the
+      amplification guard keeps the HOLD when the WT protein itself is the drugged target.
+
+  # (2) ClinGen recessive-only inheritance as full-KO REASSURANCE. germline_inheritance_mode ==
+  #     recessive_only = disease requires loss of BOTH alleles; carriers (single-allele loss) are
+  #     healthy — human-genetics evidence that partial/full reduction is tolerated. This is the
+  #     in-hand OMIM-style inheritance signal the dosage_sensitivity_class understates (it collapses
+  #     recessive -> dosage_sufficient). SUPPORTIVE (a positive down-weight), not merely neutral like
+  #     clingen-dosage-sufficient-neutral. The resolver places its reassurance rung BELOW every HOLD
+  #     rung, so a co-firing dominant-loss / gnomAD / burden HOLD always wins (recessive-only cannot
+  #     rescue a gene that is ALSO dominantly haploinsufficient).
+  - rule_id: clingen-recessive-only-safety-favorable
+    when:
+      card_id: clingen-dosage
+      field: germline_inheritance_mode
+      equals: recessive_only
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      ClinGen high-confidence gene-disease associations for this gene are EXCLUSIVELY recessive —
+      disease requires biallelic loss, and heterozygous carriers are healthy. That is direct
+      human-genetics evidence that single-allele (and often substantial) reduction of function is
+      tolerated, a full-KO REASSURANCE for a degrader / RNA / full-inhibition SM program. SUPPORTIVE
+      rather than neutral (contrast clingen-dosage-sufficient-neutral): recessive-only carrier health
+      is a positive tolerance signal, not merely an absence of a dominant-loss concern. NOT dominant
+      and NOT a veto-mate: the resolver gates it below all HOLD rungs, so a gene that is ALSO
+      dominantly haploinsufficient (dominant_and_recessive) still holds on the dominant signal.
+
+  # (3) HPA-IHC protein normal-tissue liability as an on-target-off-tumor SAFETY signal for the
+  #     intracellular full-KO axis. essential_tissue_flag == present = the target protein is detected
+  #     by IHC in a curated essential normal tissue (heart, brain/CNS, ...). The same card drives a
+  #     surface (BiTE/TCE) killer in surface-intrinsic.rules.yaml; here it is the SM/degrader safety
+  #     reading — a systemically-acting full-KO agent knocks the protein down wherever it is
+  #     expressed, so essential-tissue expression is an on-target tox liability. OPPOSING + dominant.
+  - rule_id: normal-tissue-protein-liability-safety-warning
+    when:
+      card_id: normal-tissue-liability
+      field: essential_tissue_flag
+      equals: present
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      HPA immunohistochemistry detects the target protein in >=1 curated ESSENTIAL normal tissue
+      (heart, brain/CNS, and similar organs with no regenerative buffer). A systemically-delivered
+      full-KO modality abrogates the protein in those tissues too — an on-target-off-tumor safety
+      liability distinct from the germline/population legs (this is measured PROTEIN presence in a
+      critical organ, not an inferred LoF-intolerance). OPPOSING + dominant, parallel to the gnomAD
+      and pan-essential warnings. The safety skill previously saw only GTEx-RNA breadth (verdict-
+      inert); this leg adds the protein-level critical-organ read the surface-modality skill already
+      used. No mutant-selective downgrade: full-KO SM/degrader engages the WT protein regardless of
+      any activating mutation, so the essential-tissue concern is not spared by allele selectivity.
