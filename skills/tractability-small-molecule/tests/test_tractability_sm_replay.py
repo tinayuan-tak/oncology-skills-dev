@@ -153,6 +153,35 @@ def test_egfr_triangulated_top_rung():
     assert h.get("druggability_snapshot") in _TRACTABLE
 
 
+@pytest.mark.parametrize("pair_id,target,indication,expected", ALL, ids=[p[1].lower() for p in ALL])
+def test_headline_block_present_and_consistent(pair_id, target, indication, expected):
+    """CANONICAL HEADLINE guard: every replay emits a non-degraded headline_block whose canonical verdict
+    matches the druggability spine, a valid confidence level, and a 5-axis hero (POTENCY/ACTIVITY/STRUCT/
+    DRUG/DEGRADER). The block is a verdict-INERT projection — this asserts it rode the spine intact
+    (no _enrichment_errors) and did not perturb druggability_snapshot."""
+    d = _decision(pair_id, target, indication)
+    h = d.get("headline") or {}
+    # the block built (best-effort emitter must have succeeded on real data)
+    assert not (h.get("_enrichment_errors") or {}).get("headline_block"), (
+        f"headline_block degraded for {target}: {(h.get('_enrichment_errors') or {}).get('headline_block')}")
+    block = h.get("headline_block")
+    assert isinstance(block, dict) and block, f"no headline_block emitted for {target}"
+    # canonical verdict.call tracks the druggability spine (single source of truth)
+    verdict = block.get("verdict") or {}
+    assert verdict.get("call") == h.get("druggability_snapshot") == expected
+    assert verdict.get("gate") == "tractability_sm"
+    assert verdict.get("polarity") == "positive"       # all three curated fixtures are tractable rungs
+    assert verdict.get("phrase")                        # a human phrase was produced
+    # confidence is one of the canonical tiers
+    assert (block.get("confidence") or {}).get("level") in {"strong", "moderate", "weak", "insufficient"}
+    # deterministic headline_text present
+    assert isinstance(block.get("headline_text"), str) and block["headline_text"].endswith(".")
+    # hero surfaces exactly the 5 declared claim axes, in order
+    hero = block.get("hero") or {}
+    assert [a.get("key") for a in (hero.get("axes") or [])] == \
+        ["POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"]
+
+
 @pytest.mark.parametrize("pair_id,target,indication,_exp", [EGFR, BRAF], ids=["egfr", "braf"])
 def test_chemical_fact_headline_fields_resolve(pair_id, target, indication, _exp):
     """DIRECT REGRESSION GUARD: a 2026-08-09 bug had the headline read the WRONG field

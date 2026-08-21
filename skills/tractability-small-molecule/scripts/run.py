@@ -40,6 +40,94 @@ from _skills_common import get_card_field
 from _skills_common.tractability_claims import small_molecule_claim_vector, small_molecule_key_signals
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
+
+
+def _emit_skill_figures(decision, figures_root):
+    """Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence · top
+    tension). Additive / display-only, offline, best-effort — mirrors tumor-presence."""
+    return emit_headline_hero(decision, figures_root)
+
+
+# ── canonical HEADLINE block (verdict + confidence + top tension) ─────────────────────────────────
+# The tractability-small-molecule declaration for the shared headline_core builder: the 5 POSITIVE-valence
+# claim axes (POTENCY / ACTIVITY / STRUCT / DRUG / DEGRADER), the druggability_snapshot vocabulary → human
+# phrase, and the chemical↔genetic DISCORDANCE as the skill-specific tension source. Verdict-INERT — a
+# one-way projection over the computed headline (druggability_snapshot spine byte-stable).
+# The druggability_snapshot vocabulary (the resolver rungs) → human phrase. Positives are the tractable
+# rungs; negatives are the intractable / off-target rungs; `insufficient` is the coverage gap.
+_DRUGGABILITY_VERDICT_PHRASE = {
+    # positives — a druggable / tractable call
+    "well_covered":                 "Well-covered small-molecule target",
+    "chemically_confirmed_genetic": "Chemically confirmed genetic dependency",
+    "chemically_active":            "Chemically active compound",
+    "measured_potent_ligand":       "Measured potent ligand",
+    "clinical_precedent_only":      "Clinical precedent only",
+    "tool_compound_only":           "Tool compound only",
+    "weakly_active":                "Weakly active compound",
+    "structurally_ligandable":      "Structurally ligandable pocket",
+    # negatives — an intractable / undruggable / off-target call
+    "structurally_intractable":     "Structurally intractable",
+    "chemically_unhit":             "Chemically unhit (no compound found)",
+    "discordant":                   "Discordant off-target activity",
+    # gap
+    "insufficient":                 "Insufficient evidence",
+}
+
+# Positive (tractable) vs negative (intractable / off-target) druggability rungs — used only to colour
+# the hero badge polarity; never a gate. Kept in sync with the resolver rung vocabulary.
+_TRACTABILITY_POSITIVE = frozenset({
+    "well_covered", "chemically_confirmed_genetic", "chemically_active", "measured_potent_ligand",
+    "clinical_precedent_only", "tool_compound_only", "weakly_active", "structurally_ligandable",
+})
+_TRACTABILITY_NEGATIVE = frozenset({"structurally_intractable", "chemically_unhit", "discordant"})
+
+
+def _tractability_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the druggability_snapshot (colours the hero badge; never a gate)."""
+    if v in _TRACTABILITY_POSITIVE:
+        return "positive"
+    if v in _TRACTABILITY_NEGATIVE:
+        return "negative"
+    return "neutral"
+
+
+def _tractability_tension_extra(headline: dict):
+    """The sharpest small-molecule tractability caveat: a chemical↔genetic DISCORDANT read — an active
+    compound whose cell-kill does NOT track the CRISPR/RNAi genetic dependency (off-target), which argues
+    AGAINST small-molecule tractability. Surfaced from the `discordant` verdict + the concordance class."""
+    if headline.get("druggability_snapshot") == "discordant":
+        concord = headline.get("prism_crispr_concord")
+        return {"text": ("chemical activity is discordant with the genetic dependency (off-target) — the "
+                         "compound kill does not track the CRISPR/RNAi requirement"
+                         + (f"; concordance: {concord}" if concord else "")),
+                "source": "chemical_genetic_discordance", "severity": 3}
+    return None
+
+
+_TRACTABILITY_HEADLINE_SPEC = HeadlineSpec(
+    gate="tractability_sm",
+    axis_labels={"POTENCY": "measured binding", "ACTIVITY": "functional compound",
+                 "STRUCT": "ligandable pocket", "DRUG": "known-drug pharmacology",
+                 "DEGRADER": "degrader feasibility"},
+    axis_keys=("POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"),
+    critical_axes=("POTENCY", "ACTIVITY"),
+    verdict_label=lambda v: _DRUGGABILITY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_tractability_tension_extra,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed tractability headline. Reads the
+    druggability_snapshot + the verdict-inert claim_vector / key_signals; never moves the spine. The
+    skill emits no CERTAINTY_MODEL sidecar, so confidence is the derived weakest-link over the claim
+    vector's corroboration."""
+    v = headline.get("druggability_snapshot")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_TRACTABILITY_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_tractability_verdict_polarity(v))
 
 
 SKILL_NAME = "tractability-small-molecule"
@@ -222,6 +310,22 @@ def _headline(cards, fired, verdict_pair):
     # signal decomposition + citable atoms the composed fan-out lifts to the cross-evidence agent.
     hl["claim_vector"] = small_molecule_claim_vector(hl, cards)
     hl["key_signals"] = small_molecule_key_signals(hl, cards)
+
+    # The canonical HEADLINE block is a verdict-INERT projection over the claim_vector / key_signals just
+    # built. Run it best-effort: a formatting/read fault must NEVER discard the druggability spine already
+    # composed in `hl` (same degrade-on-exception discipline the dispatcher applies to synthesis/figures).
+    # On the happy path this adds only the `headline_block` key (no _enrichment_errors), so the golden
+    # ladder + replay fixtures stay byte-stable.
+    def _enrich(label, fn, *fn_args):
+        try:
+            return fn(*fn_args)
+        except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+            hl.setdefault("_enrichment_errors", {})[label] = f"{type(exc).__name__}: {exc}"
+            return None
+
+    # Canonical HEADLINE block (verdict + confidence + top tension) — deterministic text + a
+    # renderer-agnostic hero payload for every consumer. Verdict-INERT; best-effort.
+    hl["headline_block"] = _enrich("headline_block", _build_headline_block, hl)
     return hl
 
 
@@ -229,6 +333,8 @@ _SYNTHESIS_FACET_KEYS = (
     "druggability_snapshot", "driving_rule_id", "degrader_snapshot",
     "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
     "degradability_machinery", "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -253,6 +359,9 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_snapshot,
         headline_fn=_headline,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
+        # top tension). Additive / display-only; mirrors tumor-presence.
+        skill_figures_fn=_emit_skill_figures,
         # Opt-in --synthesize narrates through the SMALL-MOLECULE tractability lens — its own tool schema
         # + prompt, foregrounding ON-TARGET-chemical vs FORWARD-structural vs neither (a discordant read
         # ARGUES AGAINST), plus the additive degrader read. Two-slot / verdict-inert: the dispatcher
