@@ -10,7 +10,10 @@
 # See IDAS_SUBTYPE_PIPELINE.md master design + parent plan
 # .claude/plans/deep-foraging-thompson.md Phase 1.
 
-version: 1.0.0
+version: 1.1.0   # 1.1.0 (2026-08-21): + mesh_terms lane per indication — the OncoTree/canonical ->
+                 # MeSH (ClinicalTrials.gov browse_conditions.downcase_mesh_term) crosswalk that lets a
+                 # method filter the AACT trial-precedent product to an indication. Curated from the
+                 # AACT 2026-07 condition vocabulary. Additive; all prior fields unchanged.
 schema_version: 1
 curation_status: iter1_authored
 
@@ -21,6 +24,7 @@ indications:
 
   # ===== GI-lower (standalone bucket) =====
   - canonical_code: COADREAD
+    mesh_terms: ["colorectal neoplasms", "colonic neoplasms", "rectal neoplasms"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Colorectal Cancer (CRC)"
     strategic_bucket: GI-lower
     oncotree_code: COADREAD
@@ -36,6 +40,7 @@ indications:
 
   # ===== Thoracic bucket =====
   - canonical_code: NSCLC
+    mesh_terms: ["carcinoma, non-small-cell lung", "adenocarcinoma of lung", "lung neoplasms"]   # AACT MeSH (lung neoplasms = NSCLC-dominant parent)
     display_name: "Non-Small Cell Lung Cancer"
     strategic_bucket: Thoracic
     oncotree_code: NSCLC
@@ -53,6 +58,7 @@ indications:
     iter1_status: live
 
   - canonical_code: SCLC
+    mesh_terms: ["small cell lung carcinoma", "carcinoma, small cell"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Small Cell Lung Cancer"
     strategic_bucket: Thoracic
     oncotree_code: SCLC
@@ -70,6 +76,7 @@ indications:
     notes: "SCLC has NO TCGA-standard cohort. iter-1 SCLC is DepMap-only. Patient-cohort ingestion (George 2015, cBioPortal SCLC) is iter-2 unblock."
 
   - canonical_code: HNSC
+    mesh_terms: ["head and neck neoplasms", "squamous cell carcinoma of head and neck"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Head & Neck Cancer"
     strategic_bucket: Thoracic
     oncotree_code: HNSC
@@ -85,6 +92,7 @@ indications:
 
   # ===== GI-upper bucket =====
   - canonical_code: STAD
+    mesh_terms: ["stomach neoplasms"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Gastric Cancer"
     strategic_bucket: GI-upper
     oncotree_code: STAD
@@ -102,6 +110,7 @@ indications:
     iter1_status: live
 
   - canonical_code: ESCA
+    mesh_terms: ["esophageal neoplasms", "adenocarcinoma of esophagus", "esophageal squamous cell carcinoma"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Esophageal Cancer"
     strategic_bucket: GI-upper
     oncotree_code: ESCA  # (contains both ESCC and EAC — histology stratum distinguishes)
@@ -119,6 +128,7 @@ indications:
     notes: "ESCC and EAC are biologically distinct — see docs/design/idas-strata/esca.md open question about splitting into two iDAS entries"
 
   - canonical_code: PAAD
+    mesh_terms: ["carcinoma, pancreatic ductal", "pancreatic neoplasms"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Pancreatic Ductal Adenocarcinoma (PDAC)"
     strategic_bucket: GI-upper
     oncotree_code: PAAD
@@ -133,6 +143,7 @@ indications:
 
   # ===== Heme bucket =====
   - canonical_code: AML
+    mesh_terms: ["leukemia, myeloid, acute"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Acute Myeloid Leukemia"
     strategic_bucket: Heme
     oncotree_code: AML
@@ -147,6 +158,7 @@ indications:
     notes: "Multi-cohort iter-1: TCGA-LAML (~200) + BeatAML1 (~500) + TARGET-AML pediatric. GENIE panels PROV-AMLC + VICC-01-MYELOID. CPTAC has AML drug-resistance cell-line proteomics only (FLT3 gilteritinib/quizartinib resistance) — flag as `cell-line-context-only` if wired downstream."
 
   - canonical_code: CML
+    mesh_terms: ["leukemia, myelogenous, chronic, bcr-abl positive", "leukemia, myeloid, chronic-phase"]   # AACT browse_conditions.downcase_mesh_term
     display_name: "Chronic Myeloid Leukemia"
     strategic_bucket: Heme
     oncotree_code: CML
