@@ -278,6 +278,15 @@ _SYNTHESIS_FACET_KEYS = (
     "rna_protein_tvn_concordance",
     "sc_normal_safety_essential_class",              # the veto input (why a target down-graded)
     "claim_vector", "key_signals",
+    # Phase R (#563): carry the 8-question leading table + the tumor-vs-normal WINDOW gate fields so the
+    # composed target-profile dashboard can render the "Selectivity at a glance" leading table. All are
+    # produced by _headline (single source of truth); absent ones project to None (verdict-inert).
+    "question_table",
+    "cells_supporting", "cells_ran", "max_abs_log2fc",
+    "therapeutic_window_class", "sc_normal_max_detection_cell_type",
+    "percentile_crossing_class", "fraction_tumor_above_normal_p95", "distribution_overlap_tumor_normal",
+    "selectivity_allgene_percentile",
+    "sc_tumor_expression_class", "sc_malignant_detection_fraction", "sc_caf_vs_malignant_class",
 )
 
 

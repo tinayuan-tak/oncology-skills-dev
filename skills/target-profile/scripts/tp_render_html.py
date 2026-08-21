@@ -1302,6 +1302,7 @@ def _render_target_profile_html(
     figures_dir: Optional[Path] = None,
     presence_only: bool = False,
     presence_facet: Optional[dict] = None,
+    selectivity_facet: Optional[dict] = None,
     risk_assessment: Optional[dict] = None,
     grounded_by_axis: Optional[dict] = None,
     hypothesis: Optional[dict] = None,
@@ -1395,6 +1396,23 @@ def _render_target_profile_html(
                                              include_css=True)
             if _qt:
                 p.append(f"<section id=s-presence-table class=det>{_qt}</section>")
+        except Exception:  # noqa: BLE001 — an additive summary must never break the report
+            pass
+
+    # selectivity facet (question_table) via the SHARED renderer — the composed dashboard inherits the
+    # one-glance tumor-vs-normal SELECTIVITY summary (WIN-drives / SAFE-gates). Verdict-INERT; best-effort.
+    if selectivity_facet and selectivity_facet.get("question_table"):
+        try:
+            from _skills_common.presence_question_table import render_question_table_html
+            _st = render_question_table_html(selectivity_facet["question_table"],
+                                             verdict=selectivity_facet.get("selectivity_class"),
+                                             include_css=True)
+            if _st:
+                p.append("<section id=s-selectivity-table class=det>"
+                         "<h2>Selectivity at a glance <span class=n>— tumor-vs-normal window, "
+                         "per-sample separation, malignant-intrinsic attribution &amp; the normal-tissue "
+                         "gate</span></h2>"
+                         f"{_st}</section>")
         except Exception:  # noqa: BLE001 — an additive summary must never break the report
             pass
 

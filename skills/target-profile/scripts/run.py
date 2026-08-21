@@ -59,7 +59,7 @@ from tp_facets import (
     _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _deciding_axis, _dependency_facet,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
-    _subtype_facet,
+    _selectivity_facet, _subtype_facet,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import _SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool, _build_user_prompt
@@ -274,6 +274,11 @@ def main() -> int:
     # cross-modal tension (RNA-high/protein-absent; tumor-high/normal-high) from raw card numbers. This
     # hands the reasoner the skill's computed reconciliation. VERDICT-INERT (presence ∉ _SHORT_TO_GATE).
     presence_facet = _presence_facet(sub_results)
+
+    # Selectivity facet (Phase R): tumor-selectivity's 8-question leading table (WIN/DIST/INT/SAFE) +
+    # the tumor-vs-normal WINDOW gate. Parallel to presence_facet; rendered as the leading table in the
+    # composed dashboard. VERDICT-INERT — selectivity's verdict is owned by its resolver + veto clamp.
+    selectivity_facet = _selectivity_facet(sub_results)
 
     # Dependency claim-vector facet (P2 phase 3-claim, 2026-08-18): functional-requirement's SIGNAL
     # decomposition (claim_vector DEP/SEL/COND/CHEM + key_signals + confidence annotations), parallel to
@@ -560,6 +565,7 @@ def main() -> int:
             catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
             card_figures=card_figures, figures_dir=figures_dir,
             presence_facet=presence_facet,
+            selectivity_facet=selectivity_facet,
             risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
             hypothesis=hypothesis, confidence_tier=confidence_tier,
             risk_rollup=risk_rollup, addressable_population=addressable_population,
@@ -621,6 +627,10 @@ def main() -> int:
         # presence against the normal-tissue window. Presence ∉ _SHORT_TO_GATE, so it never moves
         # the recommendation. None when tumor-presence supplied no facet.
         "presence_facet": presence_facet,
+        # Selectivity facet (Phase R): tumor-selectivity's 8-question leading table + WIN/DIST/INT/SAFE +
+        # the tumor-vs-normal WINDOW gate. A FACET (not a gate) — selectivity's verdict is owned by its
+        # resolver + veto clamp; never moves the recommendation. None when tumor-selectivity supplied none.
+        "selectivity_facet": selectivity_facet,
         # Dependency claim-vector facet (P2 phase 3-claim): functional-requirement's SIGNAL decomposition
         # (claim_vector + key_signals + confidence annotations). A FACET (not a gate) — the SIGNAL half;
         # the per-axis certainty roll-up is certainty_by_axis. None when FR supplied no facet.

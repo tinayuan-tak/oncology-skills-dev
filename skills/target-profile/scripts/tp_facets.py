@@ -459,6 +459,17 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
     return expr.get("synthesis_facet")
 
 
+# Selectivity facet (Phase R): tumor-selectivity's `_synthesis_facet`, carried by the fan-out as
+# sub_results['selectivity']['synthesis_facet']. Parallel to _presence_facet — a thin reader surfacing
+# the selectivity 8-question `question_table` (WIN/DIST/INT/SAFE) + the tumor-vs-normal WINDOW gate for
+# the composed dashboard's leading table. VERDICT-INERT (selectivity's verdict is owned by its resolver
+# + veto clamp; this projection never moves the nomination spine). None when tumor-selectivity is
+# absent / supplied no facet.
+def _selectivity_facet(sub_results: dict) -> Optional[dict]:
+    sel = (sub_results or {}).get("selectivity") or {}
+    return sel.get("synthesis_facet")
+
+
 # Dependency claim-vector facet (P2 phase 3-claim): functional-requirement's `_synthesis_facet`,
 # carried by the fan-out as sub_results['dependency']['synthesis_facet']. Parallel to _presence_facet —
 # a thin reader surfacing the dependency SIGNAL decomposition (claim_vector DEP/SEL/COND/CHEM +
