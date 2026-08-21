@@ -792,6 +792,18 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     from methods.subgroup_common.panorama import (evidence_state as _evstate,
                                                    SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
     from methods.subgroup_common.scoping import compute_join_coverage
+    from statistics import median as _median
+    # Per-stratum tumor-PURITY annotation (ABSOLUTE, PanCanAtlas). Reused loader — same TCGA
+    # case-barcode space as the strata. A subtype whose "enrichment" tracks LOW purity is a
+    # stromal/microenvironment signal, not tumor-intrinsic; median_purity lets a consumer catch
+    # that (esp. CMS4-mesenchymal / immune-high strata). Verdict-inert display annotation; a
+    # purity-fetch failure degrades to None (never aborts the panorama).
+    try:
+        from methods.expression_purity_confound.read import (_load_purity_by_case as _load_purity,
+                                                              _tcga_case as _to_case)
+        _purity_by_case = _load_purity()
+    except Exception:  # noqa: BLE001 — additive display field; absence is honest, never fatal
+        _purity_by_case, _to_case = {}, None
 
     pooled = read_tumor_expression_distribution(target, indication)
 
@@ -861,6 +873,14 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         rec = {"stratum_id": stratum_id, "evidence_state": state,
                "subgroup_n_floor_met": floor_met, "n_tumor_samples": n,
                "match_rate": cov.match_rate}
+        # per-stratum tumor purity (ABSOLUTE): median over member cases carrying a purity call.
+        # Verdict-inert context — a low-purity stratum's expression enrichment may be stromal.
+        _strat_purities = ([_purity_by_case[_to_case(c)] for c in member_cases
+                            if _to_case(c) in _purity_by_case]
+                           if (_purity_by_case and _to_case is not None) else [])
+        rec["n_purity_paired"] = len(_strat_purities)
+        rec["median_purity"] = (round(float(_median(_strat_purities)), 4)
+                                if _strat_purities else None)
         if n > 0:
             summary = _distribution_summary(vals)
             # Option 1 (2026-08-04): project the FULL distribution block per stratum (was 5 fields) so
@@ -959,7 +979,20 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     # this card, never moves presence_verdict.
     omnibus = _stats.kruskal_epsilon_squared(powered_vectors)
 
+    # PURITY spread across MEASURED strata (2026-08-21) — lets a consumer see whether the subtype
+    # enrichment signal co-varies with tumor purity: if the "enriched" strata are systematically
+    # LOWER purity, the enrichment is a stromal/microenvironment artefact, not tumor-intrinsic.
+    # Verdict-inert context (like the omnibus). None when <2 measured strata carry a purity call.
+    _measured_purities = [r["median_purity"] for r in landscape
+                          if r["evidence_state"] == "measured" and r.get("median_purity") is not None]
+    subtype_purity_spread = ({"max_median_purity": max(_measured_purities),
+                              "min_median_purity": min(_measured_purities),
+                              "delta": round(max(_measured_purities) - min(_measured_purities), 4)}
+                             if len(_measured_purities) >= 2 else None)
+
     base.update({"subtype_axis_available": True, "subtype_landscape": landscape,
+                 "purity_source": ("pancanatlas_absolute" if _purity_by_case else "unavailable"),
+                 "subtype_purity_spread": subtype_purity_spread,
                  "assignment_manifest": manifest, "matched_normal_tissue": normal_tissue,
                  "normal_comparator_type": comparator_type,
                  "proxy_normal_tissues": sorted(proxy_normals.keys()) if proxy_normals else [],

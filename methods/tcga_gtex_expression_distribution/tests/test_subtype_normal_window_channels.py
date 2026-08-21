@@ -42,6 +42,23 @@ def test_hnsc_and_paad_are_subtype_enabled_but_differ_in_comparator():
     assert "PAAD" in R.INDICATION_TO_GTEX_TISSUE and "PAAD" not in R.INDICATION_TO_PROXY_NORMAL_TISSUES
 
 
+def test_per_stratum_purity_annotation_is_present_and_guarded():
+    """Each stratum carries a median_purity + n_purity_paired (ABSOLUTE), and the envelope carries a
+    subtype_purity_spread rollup — so a consumer can catch a stromal-confounded 'enrichment'. The
+    purity loader MUST be guarded: a fetch failure degrades to None, never aborts the panorama."""
+    import inspect
+    src = inspect.getsource(R.read_tumor_expression_subtype_landscape)
+    # per-stratum fields
+    assert '"median_purity"' in src or "rec[\"median_purity\"]" in src
+    assert "n_purity_paired" in src
+    # envelope rollup + provenance
+    assert "subtype_purity_spread" in src
+    assert "pancanatlas_absolute" in src
+    # the loader import + call is wrapped so a fetch failure degrades to {} (None purities), not abort
+    assert "_load_purity_by_case" in src
+    assert "except Exception" in src
+
+
 def test_proxy_rollup_is_per_tissue_and_matched_rollup_is_scalar():
     """The matched window rollup is a single scalar (n_subtypes_clearing_normal_window); the proxy
     rollup is a PER-TISSUE map (n_subtypes_clearing_proxy_window_by_tissue) because proxy windows are
