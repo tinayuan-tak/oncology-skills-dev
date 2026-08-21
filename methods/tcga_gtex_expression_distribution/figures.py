@@ -97,3 +97,56 @@ def render_liability_from_plot_data(plot_data: "Union[str, Path, object]", summa
     except Exception:  # noqa: BLE001 — additive interactive twin
         pass
     return static + dynamic
+
+
+# ---- Subtype panel (per-stratum box+strip; data = {available, strata:[...], pooled_median}) --------
+_SUBTYPE_COLUMNS = ("stratum_id", "log2_tpm")
+_POOLED_STRATUM = "__POOLED__"
+
+
+def render_subtype_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
+                                  out_dir: "Union[str, Path]", target: str,
+                                  indication: "Optional[str]" = None, *,
+                                  target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+    """Render the per-subtype panel OFFLINE from persisted plot_data (plot_data_subtype.parquet:
+    stratum_id, subtype_signal, log2_tpm; the pooled distribution stored under stratum_id
+    '__POOLED__'). Reconstructs the read_tumor_subtype_values() dict and replays it into the
+    vector-driven cli.emit_subtype_svg. NO live read."""
+    import pandas as pd
+    from statistics import median
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tcd = Path(target_contracts_dir) if target_contracts_dir else _cli.DEFAULT_TARGET_CONTRACTS
+
+    df = plot_data if hasattr(plot_data, "columns") else pd.read_parquet(Path(plot_data))
+    missing = [c for c in _SUBTYPE_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"plot_data missing required columns {missing}; got {list(df.columns)}")
+
+    pooled_df = df[df["stratum_id"] == _POOLED_STRATUM]
+    pooled_values = [float(v) for v in pooled_df["log2_tpm"]]
+    strata = []
+    for sid, sub in df[df["stratum_id"] != _POOLED_STRATUM].groupby("stratum_id"):
+        vals = [float(v) for v in sub["log2_tpm"]]
+        sig = str(sub["subtype_signal"].iloc[0]) if "subtype_signal" in sub.columns and not sub.empty else None
+        strata.append({"stratum_id": str(sid), "values": vals, "subtype_signal": sig, "n": len(vals)})
+    strata.sort(key=lambda s: (median(s["values"]) if s["values"] else 0.0))
+    data = {"available": True, "strata": strata,
+            "pooled_values": pooled_values,
+            "pooled_median": (float(median(pooled_values)) if pooled_values else None)}
+
+    svg = _cli.emit_subtype_svg(target, indication, out_dir, tcd, presampled=data)
+    if svg is None:
+        return []
+    static = [
+        {"id": "expression_distribution_subtype_panel", "path": "figure_expression_distribution_subtype.svg",
+         "type": "per_subtype_distribution_panel", "primary": True},
+    ]
+    dynamic: list[dict] = []
+    try:
+        specs = _cli.emit_subtype_plotly_specs(target, indication, out_dir, tcd, presampled=data) or []
+        dynamic = [{**s, "dynamic": True} for s in specs]
+    except Exception:  # noqa: BLE001 — additive interactive twin
+        pass
+    return static + dynamic

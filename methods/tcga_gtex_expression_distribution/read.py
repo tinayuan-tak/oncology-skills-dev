@@ -809,7 +809,8 @@ def classify_subtype_stratification(landscape: list) -> str:
 
 
 def read_tumor_expression_subtype_landscape(target: str, indication: str,
-                                            subtype: Optional[str] = None) -> dict:
+                                            subtype: Optional[str] = None,
+                                            plot_data_out: "Optional[Path]" = None) -> dict:
     """Subtype-stratified tumor expression for a (target, indication).
 
     COMPUTE-ALL: fans out over EVERY stratum of the indication's assignment shard,
@@ -1045,6 +1046,28 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                  "n_subtypes_clearing_normal_window": n_window,
                  "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy,
                  **omnibus})
+
+    # Figure Stage 6: persist the per-stratum per-sample VALUES (the panel's substrate — the landscape
+    # carries only summary stats) so the subtype figure renders offline. Long rows keyed by stratum_id;
+    # the pooled distribution stored under '__POOLED__'. Best-effort, verdict-inert.
+    if plot_data_out is not None:
+        try:
+            import pandas as pd
+            vals = read_tumor_subtype_values(target, indication)
+            if vals.get("available") and vals.get("strata"):
+                rows = []
+                for s in vals["strata"]:
+                    for v in s.get("values", []):
+                        rows.append({"stratum_id": str(s["stratum_id"]),
+                                     "subtype_signal": s.get("subtype_signal"), "log2_tpm": float(v)})
+                for v in (vals.get("pooled_values") or []):
+                    rows.append({"stratum_id": "__POOLED__", "subtype_signal": None, "log2_tpm": float(v)})
+                if rows:
+                    Path(plot_data_out).mkdir(parents=True, exist_ok=True)
+                    pd.DataFrame(rows, columns=["stratum_id", "subtype_signal", "log2_tpm"]).to_parquet(
+                        Path(plot_data_out) / "plot_data_subtype.parquet", index=False)
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
     return base
 
 

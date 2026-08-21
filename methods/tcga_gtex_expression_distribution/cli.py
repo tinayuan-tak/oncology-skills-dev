@@ -312,7 +312,7 @@ def emit_plotly_specs(target: str, indication: str, out_dir: Path,
 
 
 def emit_subtype_svg(target: str, indication: str, out_dir: Path,
-                     contracts_dir=DEFAULT_TARGET_CONTRACTS) -> Optional[Path]:
+                     contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> Optional[Path]:
     """Tier-3 SVG for the SUBTYPE card: one box+strip row per molecular subtype, ordered by
     median, colored by subtype_signal (enriched/depleted/restricted/uniform), with the pooled
     median as a dashed reference line. Returns None if the subtype axis is unavailable."""
@@ -321,7 +321,7 @@ def emit_subtype_svg(target: str, indication: str, out_dir: Path,
     import matplotlib.pyplot as plt
     import numpy as np
     _load_style(contracts_dir)
-    data = _read.read_tumor_subtype_values(target, indication)
+    data = presampled if presampled is not None else _read.read_tumor_subtype_values(target, indication)
     out_path = Path(out_dir) / "figure_expression_distribution_subtype.svg"
     if not data.get("available") or not data.get("strata"):
         return None
@@ -355,14 +355,16 @@ def emit_subtype_svg(target: str, indication: str, out_dir: Path,
 
 
 def emit_subtype_plotly_specs(target: str, indication: str, out_dir: Path,
-                              contracts_dir=DEFAULT_TARGET_CONTRACTS) -> list:
-    """Interactive twin of the subtype panel — same per-stratum values (no drift). Best-effort."""
+                              contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> list:
+    """Interactive twin of the subtype panel — same per-stratum values (no drift). Best-effort.
+
+    presampled (figure Stage 6): OPT-IN read_tumor_subtype_values() dict → no live re-read."""
     try:
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
         _log(f"[expr-dist-subtype] plotly skipped: {e}")
         return []
-    data = _read.read_tumor_subtype_values(target, indication)
+    data = presampled if presampled is not None else _read.read_tumor_subtype_values(target, indication)
     strata = [s for s in (data.get("strata") or []) if s["n"] > 0]
     if not data.get("available") or not strata:
         return []
