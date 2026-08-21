@@ -267,19 +267,13 @@ def _read_live_summary(card_id: str, target: str, indication: str,
       - None when no live reader exists yet for this card_id (caller decides
         whether to fall back to stub or mark failed)
     """
-    try:
-        from ._live_readers import read_live_summary
-    except ImportError:
-        # In tests, the relative import may not resolve cleanly
-        import importlib.util
-        from pathlib import Path
-        spec = importlib.util.spec_from_file_location(
-            "_live_readers", str(Path(__file__).parent / "_live_readers.py")
-        )
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return _call_live_reader(mod.read_live_summary, card_id, target, indication,
-                                 subgroup_context, data_context)
+    # _live_readers was rehomed to _skills_common (off the retiring compose-dashboard).
+    import sys as _sys
+    from pathlib import Path as _Path
+    _skills_dir = _Path(__file__).resolve().parent.parent.parent  # scripts->compose-dashboard->skills
+    if str(_skills_dir) not in _sys.path:
+        _sys.path.insert(0, str(_skills_dir))
+    from _skills_common._live_readers import read_live_summary
     return _call_live_reader(read_live_summary, card_id, target, indication,
                              subgroup_context, data_context)
 
@@ -414,7 +408,7 @@ def _analysis_methods_sha() -> str:
         if str(skills_dir) not in sys.path:
             sys.path.insert(0, str(skills_dir))
         from _skills_common.gitmeta import git_sha
-        from _live_readers import METHODS_REPO
+        from _skills_common._live_readers import METHODS_REPO
         return git_sha(str(METHODS_REPO))
     except Exception:  # noqa: BLE001 — provenance best-effort
         return "0000000"

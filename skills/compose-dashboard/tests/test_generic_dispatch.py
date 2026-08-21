@@ -17,8 +17,9 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # skills/ — _live_readers in _skills_common
 
-import _live_readers as lr  # noqa: E402
+from _skills_common import _live_readers as lr  # noqa: E402
 from conftest import skip_if_no_data  # noqa: E402  (T10: live-S3 skip guard)
 
 _CONTRACTS = Path(os.environ.get(

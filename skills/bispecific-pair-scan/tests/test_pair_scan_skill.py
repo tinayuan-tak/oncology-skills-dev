@@ -37,15 +37,15 @@ def test_run_scan_degrades_to_unavailable_on_method_error(monkeypatch):
     # an honest empty/data_unavailable contract instead of crashing. (Was a tautology: it monkeypatched
     # _run_scan to itself and asserted a hand-built literal, testing nothing.)
     import types
-    fake_live_readers = types.ModuleType("_live_readers")
+    fake_live_readers = types.ModuleType("_skills_common._live_readers")
 
     def _boom(method_name):
         raise ImportError(f"forced-test-failure: cannot import method {method_name}")
 
     fake_live_readers._import_method = _boom
-    # _run_scan does `from _live_readers import _import_method` then calls it — the injected module makes
-    # that call raise, exercising the broad-except degrade path.
-    monkeypatch.setitem(sys.modules, "_live_readers", fake_live_readers)
+    # _run_scan does `from _skills_common._live_readers import _import_method` then calls it — the
+    # injected module makes that call raise, exercising the broad-except degrade path.
+    monkeypatch.setitem(sys.modules, "_skills_common._live_readers", fake_live_readers)
 
     scan = bps._run_scan("EPCAM", ["CEACAM5", "ERBB2", "DLL3"], "COADREAD", "AND")
 

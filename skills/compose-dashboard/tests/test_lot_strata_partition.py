@@ -13,8 +13,9 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # skills/ — _live_readers in _skills_common
 
-import _live_readers as L  # noqa: E402
+from _skills_common import _live_readers as L  # noqa: E402
 
 
 class _FakeHotspot:

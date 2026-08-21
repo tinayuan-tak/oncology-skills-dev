@@ -61,10 +61,7 @@ def _run_scan(target: str, partners: list, indication: str, gate: str) -> dict:
     results = []
     load_error = None
     try:
-        from _skills_common import COMPOSE_SCRIPTS
-        if str(COMPOSE_SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(COMPOSE_SCRIPTS))
-        from _live_readers import _import_method
+        from _skills_common._live_readers import _import_method
         _import_method("pair_selectivity_gate")  # ensures analysis-methods repo on path
         from methods.pair_selectivity_gate import read as _pair
         results = _pair.scan_partner_set(target, partners, indication, gate)

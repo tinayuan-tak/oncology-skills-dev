@@ -26,9 +26,9 @@ Design principles:
 - Rules are loaded via the canonical `rules_loader.load_interpretation_rules`
   function (this package). Skills do NOT reach into compose-dashboard's
   private `_synthesis._load_interpretation_rules` — decoupled since 2026-07-07.
-- Dispatchers ARE still imported from compose-dashboard's `_live_readers`
-  because the dispatcher registry is inherently Macro-side (cards need one
-  canonical dispatch table across the framework).
+- The live-reader dispatcher (`_live_readers`) lives HERE in _skills_common — one
+  canonical dispatch table across the framework (rehomed 2026-08-21 off the retiring
+  compose-dashboard skill; consumed via `_import_dispatcher()` / `from ._live_readers import`).
 """
 
 from __future__ import annotations
@@ -68,11 +68,9 @@ COMPOSE_SCRIPTS = SKILLS_DIR / "compose-dashboard" / "scripts"
 
 
 def _import_dispatcher():
-    """Import compose-dashboard's live-reader dispatcher. Dispatch table is
-    a framework-wide registry (16 wired cards); skills don't own it."""
-    if str(COMPOSE_SCRIPTS) not in sys.path:
-        sys.path.insert(0, str(COMPOSE_SCRIPTS))
-    from _live_readers import read_live_summary          # noqa: F401
+    """Import the shared live-reader dispatcher. Dispatch table is a framework-wide registry
+    (16 wired cards) that lives in _skills_common (rehomed off the retiring compose-dashboard)."""
+    from ._live_readers import read_live_summary          # noqa: F401
     return read_live_summary
 
 

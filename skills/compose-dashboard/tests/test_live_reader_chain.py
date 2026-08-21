@@ -31,8 +31,9 @@ import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(SKILL_DIR.parent))     # skills/ — _live_readers rehomed to _skills_common
 
-from _live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
+from _skills_common._live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
 
 _CONTRACTS = Path(os.environ.get(
     "TARGET_CONTRACTS_ROOT",
@@ -185,7 +186,7 @@ def test_card1_pan_cancer_distribution_chain_specifically():
 # Prior bug: the dispatcher hardcoded {COADREAD: coadread-dge-df06320} and returned
 # only a _data_note for every other indication (26 of 27) — despite the catalog
 # having {ind}-dge-tumor-vs-normal-sensitivity-v1 products the reader can read.
-from _live_readers import _dispatch_expression_tumor_vs_adjacent  # noqa: E402
+from _skills_common._live_readers import _dispatch_expression_tumor_vs_adjacent  # noqa: E402
 from conftest import skip_if_no_data  # noqa: E402  (T10: live-S3 skip guard)
 
 
@@ -220,7 +221,7 @@ def test_tumor_vs_adjacent_coadread_uses_legacy_manifest():
 # fire for 26/27 indications (silent driving_rule_id drift + dropped degrader-killer rules).
 # These are HERMETIC (mock the dge module) so they run without S3.
 import unittest.mock as _mock  # noqa: E402
-import _live_readers as _lr  # noqa: E402
+from _skills_common import _live_readers as _lr  # noqa: E402
 
 
 @pytest.mark.parametrize("log2fc,q,expected", [
@@ -301,7 +302,7 @@ _SKILLS_ROOT = SKILL_DIR.parent  # .../skills
 
 # Buckets legitimately absent from CARD_DISPATCHERS: panorama cards are routed via the SEPARATE
 # PANORAMA_DISPATCHERS table (subgroup-aware), not CARD_DISPATCHERS.
-from _live_readers import PANORAMA_DISPATCHERS  # noqa: E402
+from _skills_common._live_readers import PANORAMA_DISPATCHERS  # noqa: E402
 
 
 def _skill_cards(run_py: Path) -> list[str]:
@@ -370,7 +371,7 @@ def test_every_skill_card_has_a_dispatcher(skill, card_id):
 
 
 # --- DUAL-GRAIN routing (tumor-vs-normal-selectivity: pooled scalar + per-subgroup panorama) --------
-import _live_readers as _lr_dg  # noqa: E402
+from _skills_common import _live_readers as _lr_dg  # noqa: E402
 
 
 def test_dual_grain_selectivity_routes_to_subgroup_only_with_strata(monkeypatch):

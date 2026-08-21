@@ -22,9 +22,10 @@ import pytest
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(SKILL_DIR.parent))     # skills/ — _live_readers rehomed to _skills_common
 
-import _live_readers  # noqa: E402
-from _live_readers import _dispatch_adc_tce_modality_fit, _import_method  # noqa: E402
+from _skills_common import _live_readers  # noqa: E402
+from _skills_common._live_readers import _dispatch_adc_tce_modality_fit, _import_method  # noqa: E402
 from compose_dashboard import _parse_existing_index  # noqa: E402
 from _synthesis import synthesize, _build_headline  # noqa: E402
 

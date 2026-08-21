@@ -52,19 +52,14 @@ def _load_ranking(indication: str, target: str | None) -> dict:
         "cohort_rank_class", "method_version",
     ]
 
-    # Reach the method module's cache helper via the same compose-dashboard
-    # method loader the dispatchers use. _skills_common knows where
-    # _live_readers lives (COMPOSE_SCRIPTS). The whole import+cache chain is
-    # wrapped: any failure (unimportable _live_readers/method module, S3
-    # error) degrades to an EMPTY ranking (→ honest data_unavailable) rather
-    # than crashing the skill — the old /tmp `.exists()` check never raised,
-    # so we preserve that graceful-degradation contract.
+    # Reach the method module's cache helper via the shared method loader the dispatchers use
+    # (_skills_common._live_readers._import_method). The whole import+cache chain is wrapped: any
+    # failure (unimportable _live_readers/method module, S3 error) degrades to an EMPTY ranking
+    # (→ honest data_unavailable) rather than crashing the skill — the old /tmp `.exists()` check
+    # never raised, so we preserve that graceful-degradation contract.
     ranking_path = None
     try:
-        from _skills_common import COMPOSE_SCRIPTS
-        if str(COMPOSE_SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(COMPOSE_SCRIPTS))
-        from _live_readers import _import_method
+        from _skills_common._live_readers import _import_method
         _import_method("surfaceome_cohort_ranking")  # ensures methods repo on path
         from methods.surfaceome_cohort_ranking import read as _srm_read
         ranking_path = _srm_read._ensure_derived_cached()  # Path or None
