@@ -112,3 +112,16 @@ children first, or pass `--retarget-children` to move them onto `main`.
   `core.hooksPath = .claude/hooks`
 
 `--no-verify` bypass discouraged.
+
+## Landing invariants
+
+- This repo is **bare python** — there is NO pixi. Gates run as plain
+  `python` / `python -m pytest`.
+- Before landing a `cards/` | `interpretation-rules/` | `resolvers/` |
+  `vocabularies/` change, run `scripts/preland.sh`. It mirrors, in order,
+  every gate in `.github/workflows/contracts-validate.yml`. Plain `pytest`
+  does NOT run `validators/validate_*.py`, and `contracts-validate` is not a
+  branch-protection-required check — so a schema violation can green-light
+  pytest yet turn trunk RED for every open PR.
+- Card schema caps to remember: `caveats` ≤ 500 chars; vocabulary lists are
+  string-only (no `null` entries).
