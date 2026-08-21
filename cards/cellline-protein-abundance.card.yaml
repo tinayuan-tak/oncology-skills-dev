@@ -28,7 +28,12 @@ applies_when:
   - "context.data_sources.depmap_proteomics_available == true"
 
 required_inputs:
-  - product_id: depmap-consortium-26q1-proteomics
+  # Consumed via the derived long/tidy pushdown product (parquet-storage-standard, 2026-08-21):
+  # the reader pyarrow-column-pushdowns one protein from it instead of downloading the 64MB wide
+  # harmonized_MS_CCLE_Gygi.csv. It is derived_from depmap-consortium-26q1-proteomics (lineage in
+  # the manifest); declaring the derived product here keeps the resolve_cards provenance stamp equal
+  # to what is actually read.
+  - product_id: depmap-gygi-protein-abundance-per-protein-v1
 
 methods:
   # call = the method-ID matching the backing module methods/depmap_protein_abundance (the live
