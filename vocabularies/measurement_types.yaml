@@ -885,7 +885,12 @@ measurement_types:
     entity_grains: [target_indication, target_pair]
     cards: [surface-bulk-pair-selectivity]
     providers:
-      - {kind: derived, source: bispecific-bulk-pair-selectivity-per-indication-v1, method: pair_selectivity_gate, evidence_tier: computed}
+      # kind: dataset (reads a MATERIALIZED derived manifest via source:, like tcga-tumor-tpm / gtex —
+      # NOT derived_from, which is for on-read derivations declaring `inputs: [<measurement_type>]`).
+      # evidence_tier: inferred — a logic-gated (AND/OR/NOT) selectivity CALL is a derived inference over
+      # measured TPM, so it must not fire measured-strength killers. (`computed` was an invalid enum value;
+      # valid tiers are measured | inferred | estimated.)
+      - {kind: dataset, source: bispecific-bulk-pair-selectivity-per-indication-v1, method: pair_selectivity_gate, evidence_tier: inferred}
 
   spatial_colocalization:
     claim: "For a target on malignant cells, which neighbour compartments (immune / stromal / endothelial / normal epithelium) are spatially CO-LOCALIZED with the target-positive malignant cells in situ — and is the target-high tumour immune-excluded or adjacent to normal epithelium?"
