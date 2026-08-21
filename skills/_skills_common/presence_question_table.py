@@ -100,23 +100,44 @@ def _q4_subtype(h, c, cv):
     nmeas = s.get("n_subtypes_measured") or h.get("n_subtypes_measured")
     nenr = s.get("n_subtypes_enriched") or h.get("n_subtypes_enriched")
     spot = s.get("spotlight_subtype") or h.get("spotlight_subtype")
-    if not cls or cls in ("data_unavailable", "subtype_axis_unavailable", "no_subtype_axis"):
+    # HONEST capability grade first: an underpowered/empty axis must NOT read as a differential, even
+    # when a single stratum happens to clear the enrichment delta (NSCLC KRAS_G12C / DepMap STAD-PAAD).
+    quality = s.get("subtype_axis_quality") or h.get("subtype_axis_quality")
+    if quality in ("unavailable", None) and (not cls or cls in (
+            "data_unavailable", "subtype_axis_unavailable", "no_subtype_axis")):
         sig, primary = _sig("unmeasured", "no subtype axis"), "no molecular-subtype axis for this indication"
+    elif quality in ("empty", "underpowered"):
+        # axis is DEFINED but not usable — say so; never assert a cross-subtype contrast here.
+        detail = "all strata empty" if quality == "empty" else f"only {nenr or 0}/{nmeas or 0} powered — underpowered"
+        sig = _sig("unmeasured", f"axis {quality}")
+        primary = f"subtype axis present but {quality} ({detail}); not a usable selection axis"
     elif cls in ("subtype_enriched", "subtype_restricted", "subtype_differential"):
         sig = _sig("moderate", f"enriched: {spot}" if spot else "subtype-differential")
         primary = f"{cls}" + (f" (spotlight {spot})" if spot else "") + f"; {nenr}/{nmeas} enriched"
-    else:  # pan_subtype_uniform
+    else:  # pan_subtype_uniform (on a powered axis)
         sig = _sig("uniform", "uniform across subtypes")
         primary = f"pan-subtype uniform ({nenr or 0}/{nmeas} enriched)"
     clsub = c.get("cellline-rna-distribution-by-subtype", {}).get("subtype_stratification_class")
     hom = h.get("sc_tce_homogeneity_class")
     support_bits = []
+    if quality == "powered":
+        support_bits.append("axis powered")
     if clsub:
         support_bits.append(f"cell-line (genotype axis): {clsub}")
     if hom and hom != "data_unavailable":
         support_bits.append(f"single-cell homogeneity: {hom}")
+    # Purity confounder flag: a large across-stratum purity spread means an "enrichment" may be stromal.
+    spread = s.get("subtype_purity_spread") or h.get("subtype_purity_spread")
+    if isinstance(spread, dict) and isinstance(spread.get("delta"), (int, float)) and spread["delta"] >= 0.15:
+        support_bits.append(f"⚠ purity varies across strata (Δ={spread['delta']:.2f}) — enrichment may be stromal")
     support = " · ".join(support_bits) if support_bits else "—"
-    conf = "high" if isinstance(nmeas, int) and nmeas >= 5 else "moderate" if nmeas else "unmeasured"
+    # Confidence keyed on the capability grade, not just the measured count.
+    if quality == "powered":
+        conf = "high" if isinstance(nmeas, int) and nmeas >= 5 else "moderate"
+    elif quality in ("empty", "underpowered"):
+        conf = "unmeasured"
+    else:
+        conf = "high" if isinstance(nmeas, int) and nmeas >= 5 else "moderate" if nmeas else "unmeasured"
     return _row("Q4", "Do subtypes differ (from each other / normals)?", primary, support, sig, _conf(conf))
 
 

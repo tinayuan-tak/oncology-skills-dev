@@ -43,7 +43,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.synthesis import synthesize_presence
-from _skills_common import get_card_field
+from _skills_common import get_card_field, resolve_cards
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
                                             presence_key_signals)
@@ -53,6 +53,108 @@ from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
 from _skills_common.presence_cardboard_figure import emit_card_board_figure
+
+
+# ── --subtypes panorama (opt-in, verdict-INERT) ───────────────────────────────────────────────────
+# Power floor mirroring subgroup_common/panorama.py SUBGROUP_N_FLOOR + the card's min_n_required.
+_SUBGROUP_N_FLOOR = 30
+# The presence-by-subtype PANORAMA card. Like functional-requirement's subgroup-stratified-dependency,
+# it needs externally-resolved strata (subgroup_context.resolved_strata_ids) and resolves on a SEPARATE,
+# --subtypes-gated path (the dispatcher's subtype_panorama_fn hook), NEVER on the whole-cohort spine.
+_SUBTYPE_PANORAMA_CARDS = ["tumor-rna-distribution-by-subtype"]
+
+
+def _stratum_presence_call(rec: dict) -> str:
+    """Coarse per-stratum presence call from a per_subgroup_metrics record's tumor_expression_class.
+    present / low_present / absent / insufficient. Used only for the negative-selection scope read."""
+    cls = (rec.get("tumor_expression_class") or "").lower()
+    if not cls or cls == "data_unavailable":
+        return "insufficient"
+    if "low" in cls:
+        return "absent"
+    if "sparse" in cls:
+        return "low_present"
+    if any(t in cls for t in ("expressed", "detected", "moderate", "high")):
+        return "present"
+    return "insufficient"
+
+
+def _presence_subtype_scope_read(per_subgroup: list, requested: list) -> dict:
+    """POWER-GATED, NEGATIVE-SELECTION-ONLY scoped presence read over the requested strata.
+
+    Preserves the framework's never-lift asymmetry: a subtype finding may only HOLD/flag (assert
+    `subtype_specific_absence` when a requested stratum is measured-and-absent while others are present),
+    NEVER MINT a positive presence verdict — the pooled presence_verdict spine stays byte-stable. An
+    underpowered stratum (evidence_state != measured OR n < floor) is inadmissible and never read as a
+    subtype-specific difference (guards multiple-testing over the strata). ADDITIVE / verdict-inert."""
+    req = {s.strip() for s in requested if s and s.strip()}
+    by_stratum: dict = {}
+    for r in per_subgroup or []:
+        stratum = r.get("stratum_id") or r.get("stratum")
+        if not stratum or (req and stratum not in req):
+            continue
+        n = r.get("n_tumor_samples") if r.get("n_tumor_samples") is not None else r.get("subgroup_n")
+        powered = (r.get("evidence_state") == "measured"
+                   and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR)
+        by_stratum[stratum] = _stratum_presence_call(r) if powered else "underpowered"
+    admissible = {s: v for s, v in by_stratum.items() if v not in {"underpowered", "insufficient"}}
+    absent = [s for s, v in admissible.items() if v == "absent"]
+    present = [s for s, v in admissible.items() if v in {"present", "low_present"}]
+    if not admissible:
+        scoped, headline = "no_admissible_subtype", (
+            "no adequately-powered requested stratum (below n-floor / not measured)")
+    elif absent and present:
+        # the ONLY directional call this read makes — a genuine subtype-specific ABSENCE (a HOLD-analog)
+        scoped, headline = "subtype_specific_absence", (
+            f"present in {', '.join(present)} but absent in {', '.join(absent)}")
+    elif absent and not present:
+        scoped, headline = "absent_across_measured_subtypes", (
+            f"absent across measured requested strata ({', '.join(absent)})")
+    else:
+        scoped, headline = "present_across_measured_subtypes", (
+            f"present across measured requested strata ({', '.join(present)}) — pooled spine unchanged")
+    return {"by_stratum": by_stratum, "n_admissible": len(admissible),
+            "scoped_read": scoped, "headline": headline}
+
+
+def _resolve_presence_subtype_panorama(target: str, indication: "str | None", subtypes: list) -> dict:
+    """DESCRIPTIVE presence-by-subtype panorama for the dispatcher's subtype_panorama_fn hook (opt-in
+    via --subtypes). Resolves tumor-rna-distribution-by-subtype scoped to the requested strata and
+    projects a `subtype_presence_panorama` block: the per-stratum abundance/window records, the honest
+    axis-quality grade, the purity-spread confounder, and a power-gated NEGATIVE-SELECTION-ONLY scoped
+    read. NO ladder rung is touched → the pooled presence_verdict is byte-stable with or without
+    --subtypes (mirrors functional-requirement's dependency panorama)."""
+    subgroup_context = {"resolved_strata_ids": list(subtypes), "catalog_status": "resolved_active"}
+    sub_cards = resolve_cards(_SUBTYPE_PANORAMA_CARDS, target, indication,
+                              subgroup_context=subgroup_context)
+    card = next((c for c in sub_cards if c["card_id"] == "tumor-rna-distribution-by-subtype"), None)
+    summary = (card or {}).get("summary") or {}
+    per_subgroup = summary.get("per_subgroup_metrics") or []
+    return {
+        "cards": sub_cards,
+        "scope_subtypes": list(subtypes),
+        "subtype_presence_panorama": {
+            "subtype_axis_quality":     summary.get("subtype_axis_quality"),
+            "subtype_stratification_class": summary.get("subtype_stratification_class"),
+            "n_subtypes_measured":      summary.get("n_subtypes_measured"),
+            "subtype_purity_spread":    summary.get("subtype_purity_spread"),
+            # the power-gated, negative-selection-only scoped read (never mints a positive verdict)
+            "scoped_read":              _presence_subtype_scope_read(per_subgroup, subtypes),
+            # per-stratum abundance + matched-normal window, surfaced with power so an underpowered
+            # stratum is never over-read
+            "per_stratum": [{"stratum": r.get("stratum_id") or r.get("stratum"),
+                             "evidence_state": r.get("evidence_state"),
+                             "n_tumor_samples": r.get("n_tumor_samples"),
+                             "tumor_expression_class": r.get("tumor_expression_class"),
+                             "subtype_signal": r.get("subtype_signal"),
+                             "median_log2tpm": r.get("median_log2tpm"),
+                             "median_purity": r.get("median_purity"),
+                             "fraction_tumor_above_normal_p95": r.get("fraction_tumor_above_normal_p95")}
+                            for r in per_subgroup],
+            "_missing": bool(card is None or card.get("_missing")),
+            "_missing_reason": (card or {}).get("_missing_reason"),
+        },
+    }
 
 
 def _emit_skill_figures(decision, figures_root):
@@ -781,12 +883,21 @@ def _headline(cards, fired, verdict_pair):
                                           ("adequate_proxy", "partial_proxy", "poor_proxy") else "cell_line"),
         # Subtype panoramas (tumor + cell-line) — one-directional confidence/context, never a veto.
         "subtype_scope_available":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_axis_available"),
+        # HONEST capability grade (powered/underpowered/empty/unavailable) — subtype_scope_available:true
+        # alone masks a hollow axis (NSCLC only KRAS_G12C powered; DepMap STAD/PAAD all-empty). A consumer
+        # should trust cross-subtype claims only when this is `powered`.
+        "subtype_axis_quality":         get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_axis_quality"),
         "n_subtypes_measured":          get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_measured"),
         "n_subtypes_enriched":          get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_enriched"),
         "spotlight_subtype":            get_card_field(cards, "tumor-rna-distribution-by-subtype", "spotlight_subtype"),
         "subtype_stratification_class": get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_stratification_class"),
         "n_subtypes_restricted":        get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_restricted"),
+        # Purity confounder framing — if the enriched strata are systematically lower-purity, the subtype
+        # "enrichment" is stromal, not tumor-intrinsic. Verdict-inert, like the omnibus.
+        "subtype_purity_source":        get_card_field(cards, "tumor-rna-distribution-by-subtype", "purity_source"),
+        "subtype_purity_spread":        get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_purity_spread"),
         "cellline_subtype_scope_available":      get_card_field(cards, "cellline-rna-distribution-by-subtype", "subtype_axis_available"),
+        "cellline_subtype_axis_quality":         get_card_field(cards, "cellline-rna-distribution-by-subtype", "subtype_axis_quality"),
         "cellline_n_subtypes_measured":          get_card_field(cards, "cellline-rna-distribution-by-subtype", "n_subtypes_measured"),
         "cellline_subtype_stratification_class": get_card_field(cards, "cellline-rna-distribution-by-subtype", "subtype_stratification_class"),
         "cellline_spotlight_subtype":            get_card_field(cards, "cellline-rna-distribution-by-subtype", "spotlight_subtype"),
@@ -903,6 +1014,10 @@ _SYNTHESIS_FACET_KEYS = (
     "normal_tissue_ihc_breadth_class", "normal_tissue_ihc_essential_flag",
     "sc_normal_expression_class", "sc_normal_safety_essential_class",
     "sc_normal_max_det_cell_type", "sc_normal_max_det_fraction", "sc_normal_top_essential_cell_types",
+    # Subtype axis capability + purity confounder framing — so the composed reasoner trusts a
+    # cross-subtype claim only when the axis is `powered`, and discounts a low-purity "enrichment".
+    "subtype_scope_available", "subtype_axis_quality", "subtype_stratification_class", "spotlight_subtype",
+    "subtype_purity_source", "subtype_purity_spread", "cellline_subtype_axis_quality",
     # Modality-blind claim vector + brief cited read (the within-lens integration this subskill owns).
     "claim_vector", "claim_vector_by_subtype", "key_signals",
     # the 7-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
@@ -942,4 +1057,8 @@ if __name__ == "__main__":
         # Skill-level graphics (opt-in --figures): the Presence × Context hero matrix + the
         # claim-vector (signal × reliability) figure. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
+        # Opt-in --subtypes: resolve a DESCRIPTIVE presence-by-subtype panorama + a power-gated,
+        # negative-selection-only scoped read. Verdict-INERT — the pooled presence_verdict is
+        # byte-stable with or without --subtypes (no ladder rung is touched).
+        subtype_panorama_fn=_resolve_presence_subtype_panorama,
     ))
