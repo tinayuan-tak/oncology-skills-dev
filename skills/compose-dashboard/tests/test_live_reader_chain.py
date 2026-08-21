@@ -367,3 +367,25 @@ def test_every_skill_card_has_a_dispatcher(skill, card_id):
         f"tagged _missing → run_health 'degraded' on every run (the PR #267 bug). Either add a "
         f"_dispatch_* wrapper + registry entry, or declare module+entrypoint in the card_spec."
     )
+
+
+# --- DUAL-GRAIN routing (tumor-vs-normal-selectivity: pooled scalar + per-subgroup panorama) --------
+import _live_readers as _lr_dg  # noqa: E402
+
+
+def test_dual_grain_selectivity_routes_to_subgroup_only_with_strata(monkeypatch):
+    """The follow-on wiring: tumor-vs-normal-selectivity carries BOTH a pooled reader and a per-subgroup
+    panorama reader on ONE card_id. With strata in scope → the subgroup reader; WITHOUT strata → the
+    pooled read must be UNAFFECTED (the dual-grain arm must not short-circuit it, unlike PANORAMA_DISPATCHERS)."""
+    monkeypatch.setitem(_lr_dg.DUAL_GRAIN_SUBGROUP_DISPATCHERS, "tumor-vs-normal-selectivity",
+                        lambda target, indication, subgroups: {"_routed": "subgroup", "subgroups": subgroups})
+    monkeypatch.setitem(_lr_dg.CARD_DISPATCHERS, "tumor-vs-normal-selectivity",
+                        lambda target, indication: {"_routed": "pooled"})
+    # strata in scope → subgroup panorama reader
+    r = _lr_dg.read_live_summary("tumor-vs-normal-selectivity", "CEACAM5", "COADREAD",
+                                 subgroup_context={"resolved_strata_ids": ["CMS1", "CMS2"]})
+    assert r.get("_routed") == "subgroup" and r.get("subgroups") == ["CMS1", "CMS2"]
+    # NO strata → pooled read preserved (the crux — dual-grain must NOT break the pooled path)
+    assert _lr_dg.read_live_summary("tumor-vs-normal-selectivity", "CEACAM5", "COADREAD").get("_routed") == "pooled"
+    assert _lr_dg.read_live_summary("tumor-vs-normal-selectivity", "CEACAM5", "COADREAD",
+                                    subgroup_context={"resolved_strata_ids": []}).get("_routed") == "pooled"

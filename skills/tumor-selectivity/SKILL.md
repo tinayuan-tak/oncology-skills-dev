@@ -68,6 +68,13 @@ composition:
                                              # adjacency (verdict-inert; a spatial selectivity/safety facet).
     - spatial-surface-protein-abundance      # in-situ spatial PROTEIN (GeoMx DSP; verdict-inert);
                                              # data_unavailable where the protein panel doesn't cover the indication.
+    - tumor-vs-normal-percentile-crossing-by-subtype  # SUBTYPE axis (Phase B): per-stratum tumor-vs-normal
+                                             # percentile-crossing panorama; tier:subtype, DESCRIPTIVE, resolves
+                                             # ONLY on the --subtypes path (SUBTYPE_CARDS / subtype_panorama_fn),
+                                             # never the whole-cohort spine. Shares the tumor_vs_normal_percentile_
+                                             # crossing measurement_type with the pooled sibling at target_subtype
+                                             # grain (identity = type × grain), so it is NOT added to
+                                             # measurement_types_pulled again.
   # One measurement_type per card in cards_used (DATA_TO_SKILL_CONTRACT Rule 3; enforced framework-wide
   # by test_measurement_types_resolver.py). tumor_vs_normal_selectivity is the efficacy-window framing,
   # distinct from safety's normal_tissue_breadth.

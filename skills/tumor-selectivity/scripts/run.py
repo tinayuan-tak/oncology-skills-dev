@@ -17,7 +17,7 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import card_summary
+from _skills_common import card_summary, resolve_cards
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_selectivity import synthesize_selectivity
@@ -295,6 +295,82 @@ def _synthesis_facet(cards, fired, verdict_pair):
         "distribution-crossing / INT tumor-cell-intrinsic (purity/single-cell) / SAFE normal-liability, "
         "each a signal tier. The per-axis certainty roll-up is the separate certainty_by_axis sidecar.")
     return facet
+# ── SUBTYPE PANORAMA (Phase B; --subtypes; DESCRIPTIVE / verdict-INERT) ────────────────────────────
+# The target_subtype-grain crossing card. Resolved ONLY when the run receives --subtypes AND this fn
+# is passed to run_wired_skill; its cards are appended to the package + the panorama merged into the
+# headline, but NEVER enter `fired` — the selectivity_class spine + normal-breadth veto are
+# byte-identical with or without --subtypes (mirrors functional-requirement's dependency panorama).
+SUBTYPE_CARDS = ["tumor-vs-normal-percentile-crossing-by-subtype"]
+_CROSSING_VARIES_DELTA = 0.25   # fraction-range span flagging subtype-specific crossing (mirrors the card)
+
+
+def _resolve_selectivity_subtype_panorama(target: str, indication: str | None, subtypes: list) -> dict:
+    """DESCRIPTIVE per-subtype percentile-crossing selectivity panorama — resolve
+    tumor-vs-normal-percentile-crossing-by-subtype across the requested strata (e.g. MSI_H, MSS). The
+    card is a COMPUTE-ALL panorama dispatcher (fans out over every stratum internally), so a queried
+    subtype spotlights but does not scope the computation. Mirrors functional-requirement's
+    _resolve_dependency_subtype_panorama; NO resolver rung is touched (verdict spine byte-stable).
+    Reads the card's ACTUAL emitted fields (per_subgroup_metrics: stratum_id / percentile_crossing_
+    class / evidence_state / fraction_tumor_above_normal_p95 / distribution_overlap_tumor_normal)."""
+    subgroup_context = {"resolved_strata_ids": list(subtypes), "catalog_status": "resolved_active"}
+    sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication, subgroup_context=subgroup_context)
+    xs = next((c for c in sub_cards
+               if c["card_id"] == "tumor-vs-normal-percentile-crossing-by-subtype"), None)
+    summary = (xs or {}).get("summary") or {}
+    per_subgroup = summary.get("per_subgroup_metrics") or []
+    measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"
+                and r.get("fraction_tumor_above_normal_p95") is not None]
+
+    # SECOND subtype view (complementary): the aggregate FOUR-CELL DESeq2 sensitivity per stratum
+    # (product {indication}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1), resolved by re-reading the
+    # POOLED tumor-vs-normal-selectivity card WITH subgroup_context — the DUAL_GRAIN arm in
+    # _live_readers routes that to read_stratified_tumor_vs_normal_selectivity (the pooled read on the
+    # verdict spine is untouched). The crossing view (above) is per-sample fraction-above-normal-p95;
+    # this is the MODELED log2FC selectivity_class per stratum. DESCRIPTIVE / verdict-inert.
+    dge_cards = resolve_cards(["tumor-vs-normal-selectivity"], target, indication,
+                              subgroup_context=subgroup_context)
+    dg = next((c for c in dge_cards if c["card_id"] == "tumor-vs-normal-selectivity"), None)
+    dg_sum = (dg or {}).get("summary") or {}
+    dg_per = dg_sum.get("per_subgroup_metrics") or []
+    dge_by_subgroup = {
+        "status":                              dg_sum.get("status"),
+        "selectivity_class_by_subgroup":       dg_sum.get("selectivity_class_by_subgroup"),
+        "cross_subgroup_selectivity_divergence": dg_sum.get("cross_subgroup_selectivity_divergence"),
+        "cross_subgroup_delta_log2fc":         dg_sum.get("cross_subgroup_delta_log2fc"),
+        "any_subgroup_strong_selective":       dg_sum.get("any_subgroup_strong_selective"),
+        "per_stratum": [{"stratum": r.get("stratum"),
+                         "selectivity_class": r.get("selectivity_class"),
+                         "evidence_state": r.get("evidence_state"),
+                         "max_abs_log2fc": r.get("max_abs_log2fc"),
+                         "subgroup_n": r.get("subgroup_n")}
+                        for r in dg_per],
+        "_missing": bool(dg is None or dg.get("_missing")),
+    }
+
+    return {
+        "cards": sub_cards + dge_cards,
+        "scope_subtypes": list(subtypes),
+        "subtype_selectivity_panorama": {
+            # display-only flavor: does per-sample crossing selectivity vary across subtypes?
+            "crossing_varies_by_subtype":        summary.get("crossing_varies_by_subtype"),
+            "n_subtypes_measured":               summary.get("n_subtypes_measured"),
+            "n_subtypes_strongly_enriched":      summary.get("n_subtypes_strongly_enriched"),
+            "max_subtype_fraction_above_normal_p95": summary.get("max_subtype_fraction_above_normal_p95"),
+            "min_subtype_fraction_above_normal_p95": summary.get("min_subtype_fraction_above_normal_p95"),
+            "matched_normal_tissue":             summary.get("matched_normal_tissue"),
+            "measured_strata":                   [r.get("stratum_id") for r in measured],
+            "per_stratum": [{"stratum_id": r.get("stratum_id"),
+                             "percentile_crossing_class": r.get("percentile_crossing_class"),
+                             "evidence_state": r.get("evidence_state"),
+                             "fraction_tumor_above_normal_p95": r.get("fraction_tumor_above_normal_p95"),
+                             "distribution_overlap_tumor_normal": r.get("distribution_overlap_tumor_normal")}
+                            for r in per_subgroup],
+            "_missing": bool(xs is None or xs.get("_missing")),
+            "_missing_reason": (xs or {}).get("_missing_reason"),
+            # the complementary modeled-DESeq2 per-stratum selectivity view (four-cell log2FC classes)
+            "dge_by_subgroup": dge_by_subgroup,
+        },
+    }
 
 
 if __name__ == "__main__":
@@ -313,4 +389,7 @@ if __name__ == "__main__":
         # independent comparator axes incl. the normal-tissue WINDOW veto) over decision['headline'].
         # Additive / display-only; reads no S3; decision.json byte-identical whether or not it runs.
         skill_figures_fn=emit_selectivity_hero,
+        # Opt-in --subtypes: a DESCRIPTIVE per-subtype percentile-crossing panorama (Phase B). Its
+        # cards/panorama are appended; NEVER enter `fired` → selectivity_class spine byte-identical.
+        subtype_panorama_fn=_resolve_selectivity_subtype_panorama,
     ))

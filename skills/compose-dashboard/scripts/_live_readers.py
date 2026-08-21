@@ -773,6 +773,34 @@ def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str) 
     return mod.build_selectivity_crossing_summary(target, indication)
 
 
+def _dispatch_selectivity_crossing_subtype(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-vs-normal-percentile-crossing-by-subtype card (target_subtype grain,
+    Phase B) to methods/tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_subtype_
+    panorama.
+
+    Per-stratum tumor-vs-matched-normal percentile-crossing — the subtype analogue of the pooled Q2
+    crossing. COMPUTE-ALL: fans out over EVERY stratum of the indication's landed shard internally
+    (compute-all-spotlight-one), so it takes the scalar (target, indication) signature and lives in
+    CARD_DISPATCHERS. No shard for the indication → subtype_axis_available:false (honest)."""
+    mod = _import_method("tcga_gtex_expression_distribution.cli")
+    return mod.build_selectivity_crossing_subtype_panorama(target, indication)
+
+
+def _dispatch_selectivity_by_subgroup(target: str, indication: str, subgroups=None) -> Optional[dict]:
+    """DUAL-GRAIN subgroup reader: route the tumor-vs-normal-selectivity card (when strata are in
+    scope) to methods/dge_deseq2/read.py::read_stratified_tumor_vs_normal_selectivity — the per-stratum
+    FOUR-CELL DESeq2 sensitivity panorama (product {indication}-dge-tumor-vs-normal-sensitivity-by-
+    subgroup-v1). The MODELED-magnitude subtype view, complementary to the per-sample crossing panorama.
+
+    COMPUTE-ALL: the reader fans out over every stratum/axis baked into the product (compute-all-
+    spotlight-one), so `subgroups` is accepted for the panorama-dispatch signature but not used to
+    scope the read. Returns the reader's status:'live' | 'data_unavailable' envelope verbatim (honest
+    absence when no by-subgroup product for the indication). Called ONLY when subgroups are in scope
+    (read_live_summary's DUAL_GRAIN arm); the pooled read stays on the CARD_DISPATCHERS scalar path."""
+    mod = _import_method("dge_deseq2.read")
+    return mod.read_stratified_tumor_vs_normal_selectivity(target, indication)
+
+
 def _dispatch_normal_tissue_liability_gtex(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route normal-tissue-liability-gtex card (Q3, Safety + surface-modality-fit) to
     methods/tcga_gtex_expression_distribution/cli.py::build_normal_liability_summary.
@@ -1546,6 +1574,7 @@ CARD_DISPATCHERS = {
     "mutation-stratified-surface": _dispatch_mutation_stratified_surface,         # mutant-subset surface window (#276 added to CARDS, dispatcher was missing)
     "pathway-stratified-surface": _dispatch_pathway_stratified_surface,           # tumor-state-high surface window (#280 added to CARDS, dispatcher was missing)
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
+    "tumor-vs-normal-percentile-crossing-by-subtype": _dispatch_selectivity_crossing_subtype,  # Phase B: per-stratum crossing panorama
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "recommended-models": _dispatch_recommended_models,
     "cellline-rna-protein-concordance": _dispatch_rna_protein_concordance,
@@ -1613,6 +1642,17 @@ PANORAMA_DISPATCHERS = {
         _dispatch_subgroup_stratified_fusion, _MUTATION_ASSIGNMENTS_MANIFEST),
 }
 
+# DUAL-GRAIN cards: a SINGLE card_id that carries BOTH a pooled scalar reader (CARD_DISPATCHERS) AND a
+# per-subgroup panorama reader (the card's subgroup_stratification block). Route to the subgroup reader
+# ONLY when strata are in scope; otherwise fall through to the pooled CARD_DISPATCHERS entry. This is
+# distinct from PANORAMA_DISPATCHERS (dedicated panorama card_ids like subgroup-stratified-dependency),
+# which have NO pooled read and short-circuit to a data-note when no strata are in scope — a card that
+# is ALSO read pooled (tumor-vs-normal-selectivity) cannot live there without breaking its pooled read.
+# The per-subgroup product is baked with its strata, so no assignments-manifest map is needed here.
+DUAL_GRAIN_SUBGROUP_DISPATCHERS = {
+    "tumor-vs-normal-selectivity": _dispatch_selectivity_by_subgroup,
+}
+
 
 def read_live_summary(card_id: str, target: str, indication: str,
                        subgroup_context: Optional[dict] = None,
@@ -1666,6 +1706,16 @@ def read_live_summary(card_id: str, target: str, indication: str,
         try:
             return dispatcher(target=target, indication=indication,
                               subgroups=subgroups, subgroup_assignments_manifest=manifest_id)
+        except Exception as e:
+            return {"_live_read_error": str(e)}
+
+    # DUAL-GRAIN path: a card with BOTH a pooled reader AND a per-subgroup panorama reader on the same
+    # card_id (tumor-vs-normal-selectivity). Route to the subgroup reader ONLY when strata are in scope;
+    # otherwise fall through to the pooled CARD_DISPATCHERS entry below (so the pooled read is unaffected).
+    dual = DUAL_GRAIN_SUBGROUP_DISPATCHERS.get(card_id)
+    if dual is not None and subgroups:
+        try:
+            return dual(target=target, indication=indication, subgroups=subgroups)
         except Exception as e:
             return {"_live_read_error": str(e)}
 
