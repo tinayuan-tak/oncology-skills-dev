@@ -57,8 +57,8 @@ def _emit_card1_pan_cancer_dependency_distribution(
     c1cli.emit_manifest(target, "26q1", recomputed_summary, chronos_by_model, out_dir, [])
 
     figures = [
-        {"id": "waterfall", "path": "figure_waterfall.svg", "type": "waterfall_plot", "primary": True},
-        {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "histogram_kde", "primary": False},
+        {"id": "waterfall", "path": "figure_waterfall.svg", "type": "ranked_waterfall", "primary": True},
+        {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "density_histogram_with_kde", "primary": False},
     ]
     figures += _plotly_from(c1cli, "emit_plotly_specs", chronos_by_model, model_metadata,
                             target, recomputed_summary, out_dir, TARGET_CONTRACTS)
@@ -234,9 +234,9 @@ def _emit_card1b_pan_cancer_rnai_dependency_distribution(
 
     figures = [
         {"id": "waterfall_rnai", "path": "figure_waterfall_rnai.svg",
-         "type": "ranked_waterfall_rnai", "primary": True},
+         "type": "ranked_waterfall", "primary": True},
         {"id": "histogram_kde_rnai", "path": "figure_histogram_kde_rnai.svg",
-         "type": "density_histogram_with_kde_rnai", "primary": False},
+         "type": "density_histogram_with_kde", "primary": False},
     ]
     # Interactive twins — from the SAME demeter_by_model + recomputed_summary the SVGs used (no drift).
     figures += _plotly_from(c1bcli, "emit_plotly_specs", demeter_by_model, model_metadata,

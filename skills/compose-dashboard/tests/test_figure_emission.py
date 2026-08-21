@@ -471,9 +471,9 @@ def test_dashboard_md_embeds_figure_references(tmp_path):
             "provenance": {"method_calls": [], "input_manifest_ids": []},
             "figures": [
                 {"id": "waterfall", "path": "cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg",
-                 "type": "waterfall_plot", "primary": True},
+                 "type": "ranked_waterfall", "primary": True},
                 {"id": "histogram_kde", "path": "cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg",
-                 "type": "histogram_kde", "primary": False},
+                 "type": "density_histogram_with_kde", "primary": False},
             ],
         }],
         "synthesis": {"headline": "test", "caveats_summary": [], "modality_fit_assessment": []},
@@ -483,9 +483,9 @@ def test_dashboard_md_embeds_figure_references(tmp_path):
 
     md = render_evidence_package(ep)
 
-    assert "![waterfall_plot](cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg)" in md, \
+    assert "![ranked_waterfall](cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg)" in md, \
         "Primary figure not embedded in markdown"
-    assert "![histogram_kde](cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg)" in md, \
+    assert "![density_histogram_with_kde](cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg)" in md, \
         "Alternate figure not embedded in markdown"
     assert "<details><summary>Alternate views</summary>" in md, \
         "Alternate-views collapsible block missing"

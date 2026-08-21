@@ -48,11 +48,11 @@ def _emit_expression_distribution(
     e3acli.emit_manifest(target, "26q1", recomputed, out_dir, [])
     figures = [
         {"id": "density_expression", "path": "figure_density_expression.svg",
-         "type": "density_histogram_with_kde_expression", "primary": True},
+         "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
-         "type": "per_lineage_strip_expression", "primary": False},
+         "type": "per_lineage_strip_plot", "primary": False},
         {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
-         "type": "ranked_waterfall_expression", "primary": False},
+         "type": "ranked_waterfall", "primary": False},
     ]
     figures += _plotly_from(e3acli, "emit_plotly_specs", tpm_by_model, model_metadata,
                             target, recomputed, out_dir, TARGET_CONTRACTS, indication)
@@ -117,11 +117,11 @@ def _emit_cn_distribution(
     e3bcli.emit_manifest(target, "26q1", recomputed, out_dir, [])
     figures = [
         {"id": "density_cn", "path": "figure_density_cn.svg",
-         "type": "density_histogram_with_kde_cn", "primary": True},
+         "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.svg",
-         "type": "per_lineage_strip_cn", "primary": False},
+         "type": "per_lineage_strip_plot", "primary": False},
         {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg",
-         "type": "ranked_waterfall_cn", "primary": False},
+         "type": "ranked_waterfall", "primary": False},
     ]
     # Interactive twins — from the SAME cn_by + recomputed the SVGs used (no drift). cn gained a plotly
     # twin with the Stage-3 migration; keep the legacy fallback aligned with the offline render seam.
