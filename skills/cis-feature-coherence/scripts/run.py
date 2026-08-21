@@ -24,6 +24,8 @@ from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 
 
 SKILL_NAME = "cis-feature-coherence"
@@ -58,6 +60,87 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     ordered 2×2 cross-tab against the fired cis-coherence rule set. Single source of truth — the ladder
     lives in the YAML (validated + golden-tested there), not re-encoded here."""
     return resolve_or_raise(fired, "cis_coherence")
+
+
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# cis-feature-coherence's declaration for the shared headline_core builder: the four coherence-LEG claim
+# axes (CIS_DOSAGE / SILENCING / EXPR_DEP / CONJOINT), the cis_coherence-verdict vocabulary → human
+# phrase, and the cross-grain PATIENT-disagreement caveat as the skill-specific tension source.
+# Verdict-INERT — a one-way projection over the already-computed headline (the cis_coherence spine stays
+# byte-stable, frozen by test_verdict.py + the target-contracts resolver golden). The cis_coherence
+# verdict is a 2×2 INTERACTION owned by the resolver; the claim_vector axes are its LEG decomposition.
+#
+# POLARITY (colours the hero badge). This skill is VERDICT-INERT / coherence-CLASSIFYING — every class
+# is a description of the locus→expression→dependency coherence pattern, not a drug call, so the DEFAULT
+# is neutral. The one clearly FAVORABLE class is `coherent_cis_driver` (CN explains expression AND
+# expression explains dependency — a coherent cis-driven oncogene addiction, the amplification-addiction
+# signal that supports the target). No class is a clear UNfavorable call (an inert/uncoupled read is
+# informative, not adverse), so everything else stays neutral.
+_CIS_COHERENCE_VERDICT_PHRASE = {
+    "coherent_cis_driver":          "Coherent cis-driven addiction (CN → expression → dependency)",
+    "expressed_cis_coupled_inert":  "Expressed via cis-dosage, but dependency-inert",
+    "dependency_without_cis_dosage": "Dependency without cis-dosage coupling (trans-regulated)",
+    "cis_uncoupled_no_dependency":  "Cis-uncoupled, no dependency",
+    "insufficient_cis_coherence":   "Insufficient cis-coherence evidence",
+}
+
+_CIS_COHERENCE_FAVORABLE = frozenset({"coherent_cis_driver"})
+
+
+def _cis_coherence_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the coherence class (colours the hero badge; never a gate). VERDICT-INERT
+    coherence-classifying skill → neutral by default; the one clearly FAVORABLE call is coherent_cis_driver
+    (a coherent cis-driven oncogene addiction). No class is a clear UNfavorable drug call, so everything
+    else stays neutral."""
+    return "positive" if v in _CIS_COHERENCE_FAVORABLE else "neutral"
+
+
+def _cis_tension_extra(headline: dict):
+    """The sharpest cis-coherence caveat that is NOT already a per-axis claim conflict (the wrong-direction
+    positive_anomaly / amp_expr_negative reads are surfaced by headline_core.rank_tension as claim
+    conflicts): the cross-grain PATIENT arm DISAGREES with the cell-line call — the TCGA patient tumours do
+    NOT replicate the cell-line cis-dosage (or methylation-silencing) coupling, a real corroboration
+    failure. Severity 2 (below a wrong-direction conflict on a strong claim, which can reach 3, so that
+    still wins the single slot). None when the patient arm agrees or was not measured."""
+    if headline.get("patient_dosage_agrees_with_cellline") is False:
+        return {"text": ("the cell-line cis-dosage coupling is NOT replicated in the TCGA patient arm "
+                         "(cross-grain disagreement)"),
+                "source": "patient_dosage_agrees_with_cellline", "severity": 2}
+    if headline.get("patient_silencing_agrees_with_cellline") is False:
+        return {"text": ("the cell-line methylation-silencing coupling is NOT replicated in the TCGA "
+                         "patient arm (cross-grain disagreement)"),
+                "source": "patient_silencing_agrees_with_cellline", "severity": 2}
+    return None
+
+
+_CIS_COHERENCE_HEADLINE_SPEC = HeadlineSpec(
+    gate="cis_coherence",
+    axis_labels={"CIS_DOSAGE": "CN→expression cis-dosage", "SILENCING": "methylation→low-expression",
+                 "EXPR_DEP": "expression→dependency", "CONJOINT": "amp∩overexpr addiction"},
+    axis_keys=("CIS_DOSAGE", "SILENCING", "EXPR_DEP", "CONJOINT"),
+    critical_axes=("EXPR_DEP",),   # EXPR_DEP (does expression explain dependency?) is THE decision-critical
+                                   # leg — without it the CN→expression coupling is abundance, not addiction.
+    verdict_label=lambda v: _CIS_COHERENCE_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_cis_tension_extra,
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed cis-coherence headline. Reads the
+    resolved cis_coherence_verdict + the verdict-inert claim_vector / key_signals; never moves the spine.
+    No CERTAINTY_MODEL sidecar is emitted by this skill, so confidence is derived from the claim vector's
+    corroboration (which draws on the cross-grain TCGA patient-agreement arm — a real second leg)."""
+    v = headline.get("cis_coherence_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_CIS_COHERENCE_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_cis_coherence_verdict_polarity(v))
+
+
+def _emit_skill_figures(decision, figures_root):
+    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
+    display-only, offline, best-effort (missing block → [], spine unaffected)."""
+    return emit_headline_hero(decision, figures_root)
 
 
 def _headline(cards, fired, verdict_pair):
@@ -121,6 +204,16 @@ def _headline(cards, fired, verdict_pair):
     # verdict echo, so it stays verdict-inert (byte-stable).
     hl["claim_vector"] = cis_coherence_claim_vector(hl, cards)
     hl["key_signals"] = cis_coherence_key_signals(hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
+    # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
+    # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
+    # cis-coherence spine already fully built in `hl` (same degrade discipline as tumor-presence / safety).
+    # On the happy path this is byte-additive (no _enrichment_errors key), so the verdict spine is unaffected.
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
     return hl
 
 
@@ -129,6 +222,8 @@ _SYNTHESIS_FACET_KEYS = (
     "expression_dependency_correlation_class", "amp_expr_stratification_class",
     "patient_dosage_agrees_with_cellline", "patient_silencing_agrees_with_cellline",
     "claim_vector", "key_signals",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 
@@ -154,4 +249,6 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+        skill_figures_fn=_emit_skill_figures,
     ))
