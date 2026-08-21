@@ -115,8 +115,13 @@ def test_review_fixes_applied():
 
 # --- conditioner axes --------------------------------------------------------
 
-def test_three_conditioner_axes_present():
-    assert _conditioner_ids() == {"modality", "subtype", "molecular_form"}
+def test_conditioner_axes_present():
+    # The three original orthogonal refinements + the two blind conditioners the card-audit
+    # (2026-08-21) surfaced (genetic_ancestry, disease_setting). Pinned as an exact set so any
+    # further conditioner axis is a conscious, reviewed addition — not silent drift.
+    assert _conditioner_ids() == {
+        "modality", "subtype", "molecular_form", "genetic_ancestry", "disease_setting",
+    }
 
 
 def test_conditioners_refine_real_questions():

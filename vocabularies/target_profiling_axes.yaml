@@ -279,6 +279,38 @@ conditioner_axes:
       - "bulk-cohort splice (SpliceSeq PSI) misses low-frequency isoforms (AR-V7-type read 'stable')."
       - "measured molecular-form (isoform/splice) is orthogonal to the curated isoform_selective_targets guardrail; surface them together as one story."
 
+  # --- NEW conditioner axes (card-audit 2026-08-21) ---------------------------------------------
+  # The audit ("should we nominate target X in indication Y?") surfaced two orthogonal refinements the
+  # framework was BLIND to as conditioners. Both are registered here as first-class conditioner_axes
+  # (NOT questions/gates) and enumerated in scientific_gaps as blind conditioners. They deliberately do
+  # NOT belong in subtype_crosswalk.yaml — that file is strictly per-indication molecular strata with a
+  # catalog-existence invariant; ancestry / disease-setting have no data-catalog subgroup members.
+  - id: genetic_ancestry
+    definition: |
+      Genetic-ancestry stratum of the cohort (continental ancestry). A conditioner (like subtype/
+      modality), NOT a gate. Alteration frequency, expression, and selectivity can differ by ancestry
+      (e.g. EGFR-mutant NSCLC enrichment in EAS) — so a pan-cohort answer can mislead for an
+      ancestry-enriched patient population. BLIND today: no ancestry-stratified product is wired
+      (the ancestry-stratified-alteration-frequency card is captured-as-draft only, not landed).
+    refines: [genomic_alteration, expression, selectivity]
+    values: [EUR, AFR, EAS, SAS, AMR]   # 1000G/gnomAD continental-ancestry labels
+    framework_can_evidence: blind
+    home: "conditioner only; no landed card. Draft: ancestry-stratified-alteration-frequency (captured, not wired)."
+
+  - id: disease_setting
+    definition: |
+      Disease SETTING / treatment LINE the drug is actually given in — primary vs metastatic, and
+      treatment-naive vs post-treatment/relapsed. A conditioner (like subtype/modality), NOT a gate.
+      Target expression can drift across the disease timeline (antigen down-regulation under therapy
+      pressure; gain/loss in the metastatic transition), so a static-cohort answer can misstate
+      presence in the setting where the drug is used. This is the conditioner the BLIND translational
+      axis needs; the one card-addressable feed is temporal-setting-expression-shift (placeholder,
+      blocked_needs_per_sample_reader).
+    refines: [expression, selectivity, translational]
+    values: [primary, metastatic, treatment_naive, post_treatment, relapsed]
+    framework_can_evidence: blind
+    home: "surfaced by temporal-setting-expression-shift (temporal_expression_shift measurement_type; placeholder_not_wired) + the RWD-LOT-only rwd-stratified-expression."
+
 # ===========================================================================
 # BIOMARKER FACETS — relational feature×outcome evidence. PORTED from gate_coverage.yaml v2.
 # NOT questions: each surfaces UNDER the question it reports_into. grain: sub_skill = scorecard row;
@@ -561,6 +593,12 @@ scientific_gaps:
   - axis: molecular_form
     standing: partial
     gap: "bulk-cohort splice misses low-frequency isoforms; exon-window blind to transcript identity."
+  - axis: genetic_ancestry
+    standing: blind
+    gap: "conditioner (card-audit 2026-08-21): no ancestry-stratified alteration/expression product wired; alteration frequency + expression differ by continental ancestry. Draft card captured (ancestry-stratified-alteration-frequency), not landed."
+  - axis: disease_setting
+    standing: blind
+    gap: "conditioner (card-audit 2026-08-21): the translational-readiness feed. temporal-setting-expression-shift is placeholder_not_wired (blocked_needs_per_sample_reader); no per-sample setting-annotated RNA cohort reader (MSK-MET/GENIE-BPC/paired primary-metastatic) has landed."
 
 # ===========================================================================
 # OUTPUT CONTRACTS — the shape a skill's answer takes. Scalar axes emit a verdict + driving_rule_id;

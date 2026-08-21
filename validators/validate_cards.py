@@ -377,6 +377,11 @@ KNOWN_FIGURE_DEBT = {
     'antigen-prevalence', 'clinical-precedent', 'lineage-restriction-evidence',
     'protein-surface-evidence', 'surface-abundance-density', 'adc-tce-modality-fit',
     'fusion-rearrangement-landscape', 'rwd-stratified-expression',
+    # card-audit delta landing (2026-08-21): placeholder_not_wired cards that declare a figure but
+    # have no product/method built yet (same data-blocked class as antigen-prevalence above).
+    'temporal-setting-expression-shift',   # setting_shift_bar — no setting-annotated cohort reader landed
+    'antigen-internalization',             # internalization_turnover_panel — no internalization/turnover product
+    'antigen-prevalence-protein',          # protein_prevalence_curve_with_thresholds — no CPTAC protein-prevalence product
     'target-identity-summary',
     'modality-therapeutic-window',   # figure modality_window_tumor_vs_essential_normal declared at card
                                      # creation (2026-08-06) but emitter never registered — pre-existing

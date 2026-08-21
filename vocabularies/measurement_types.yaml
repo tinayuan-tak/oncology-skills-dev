@@ -221,11 +221,32 @@ measurement_types:
 
   antigen_expressing_prevalence:
     claim: "What fraction of tumors express target above a clinically relevant level (patient-selection prevalence)?"
-    evidence_substrate: recount3_tcga_gtex_bulk_rna   # reads the SAME dge-tumor-vs-adjacent product as tumor_vs_adjacent_expression (recount3 substrate)
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # describes the DOMINANT (RNA) provider — reads the SAME dge-tumor-vs-adjacent product as tumor_vs_adjacent_expression (recount3 substrate). The protein provider below is a DISTINCT MS substrate (CPTAC TMT), surfaced side-by-side via surface_discordance and never pooled — so this tag intentionally names only the RNA leg.
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
-    cards: [antigen-prevalence]
+    cards: [antigen-prevalence, antigen-prevalence-protein]
+    # >1 provider (RNA upper-bound vs protein patient-selection read): the two are reported SIDE-BY-SIDE
+    # and their disagreement is DIAGNOSTIC (RNA over-estimates; protein is the sharper gate) — never
+    # averaged/pick-one. surface_discordance is the correct policy (the concordance-test discipline).
+    multi_provider_policy: surface_discordance
     providers:
-      - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}
+      - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}                    # RNA prevalence (upper bound) — antigen-prevalence
+      - {kind: dataset, source: cptac-protein-prevalence-per-cohort-v1, evidence_tier: measured}   # PROTEIN prevalence (CPTAC TMT, patient-selection read) — antigen-prevalence-protein (product not yet built; card is placeholder_not_wired)
+
+  temporal_expression_shift:
+    # NEW (card-audit 2026-08-21): the one card-addressable feed into the BLIND sufficiency:translational
+    # axis. The scientific object is the CROSS-SETTING SHIFT (primary<->metastatic, naive<->post-treatment),
+    # NOT static tumor expression (cell_line_/tumor_ rna types) and NOT the RWD-line-of-therapy-only
+    # rwd_stratified_expression. Static presence answers "is it expressed in the indication"; this answers
+    # the translational-readiness follow-up "is it STILL expressed in the setting where the drug is given".
+    # NO modality_relevance at the type level — a biology/expression axis with no modality facet (like
+    # phospho_pathway_activity), so its card is not required to declare modality_relevance.
+    claim: "Does target expression shift between disease settings (primary vs metastatic; treatment-naive vs post-treatment/relapsed) — is the target still expressed where the drug is used?"
+    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (no per-sample setting-annotated reader landed)
+    cards: [temporal-setting-expression-shift]
+    providers:
+      # setting-annotated / paired academic cohorts (MSK-MET, GENIE-BPC, paired primary-metastatic RNA),
+      # rolled to a cross-setting shift metric. Product not yet built; card is placeholder_not_wired.
+      - {kind: dataset, source: setting-annotated-expression-shift, evidence_tier: measured}
 
   tumor_protein_abundance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
@@ -964,13 +985,36 @@ measurement_types:
     # fraction — ADT ambient spillover over-calls a >0 count). Routes: Safety (off-tumor floor).
     modality_relevance: [adc, bite_tce, antibody]
     entity_grains: [target]
-    cards: [sc-surface-normal-safety]
+    cards: [sc-surface-normal-safety, sc-surface-normal-safety-solid]
     multi_provider_policy: tier_dominant
     # v1 provider = the immune (PBMC) shard; HuBMAP solid-tissue CITE-seq shards join as the same
     # provider/claim at additional tissues (mirrors sc_tumor_celltype_expression's per-indication note).
+    # The solid-tissue shard is the SCOPE-EXTENSION to safety-essential SOLID organs (kidney/heart/
+    # spleen/thymus/lymph-node) — compartment_scope=solid_tissue on the card keeps it from being
+    # conflated with the immune-PBMC sibling in the per-modality sub-verdict view.
     providers:
       - {kind: dataset, source: sc-cite-surface-normal-immune-v1, method: sc_cite_surface, evidence_tier: measured}       # peripheral immune (PBMC)
       - {kind: dataset, source: sc-cite-surface-normal-bonemarrow-v1, method: sc_cite_surface, evidence_tier: measured}   # bone marrow (hematopoietic-progenitor compartment)
+      - {kind: dataset, source: sc-cite-surface-normal-solid-v1, method: sc_cite_surface, evidence_tier: measured}        # solid safety-essential organs (HuBMAP / Tabula Sapiens-surface) — sc-surface-normal-safety-solid (product not yet built; card is placeholder_not_wired)
+
+  antigen_internalization:
+    # NEW (card-audit 2026-08-21): the MEASURED axis that discriminates ADC-viable from TCE-only within
+    # the partial surface_modality axis. adc-tce-modality-fit's endocytosis signal is HARDCODED NULL
+    # (endocytosis_confidence='unmeasured') and internalizing_antigen_targets.yaml is a binary curated
+    # stopgap — no card MEASURES whether antibody binding triggers receptor-mediated endocytosis efficient
+    # enough to deliver an ADC payload, nor surface turnover. modality_relevance is TYPE-LEVEL: an ADC
+    # requires internalization (payload must reach the cytosol); a TCE / naked antibody does NOT (acts at
+    # the surface synapse) — so every card of this type must declare modality_relevance (enforced).
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "Is target's surface antigen internalized upon antibody binding (endocytosis efficient enough for ADC payload delivery), and what is its surface turnover — the axis routing ADC-viable vs TCE-only?"
+    entity_grains: [target]   # internalization/turnover is a property of the protein, indication-independent (never stratifies)
+    cards: [antigen-internalization]
+    providers:
+      # MEASURED tier: an antibody-internalization / surface-turnover product (surface-proteomics pulse-chase
+      # or curated-experimental promotion). Product not yet built; card is placeholder_not_wired. The curated
+      # clinical-ADC-precedent tier (internalizing_antigen_targets.yaml) is a target-contracts-internal
+      # reference consumed by the reader, NOT a catalog product — so it is not a provider here.
+      - {kind: dataset, source: antibody-internalization-per-protein-v1, evidence_tier: measured}
 
   normal_tissue_protein_breadth:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
