@@ -466,19 +466,6 @@ skill_objectives:
       - {q: "Prognostic association — does survival differ ACROSS the indication's molecular subtypes?", answered_by: [subtype-survival-association], arms: {by_subtype: built}}
       - {q: "Stemness / aggressiveness context?", answered_by: [stemness-context]}
       - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage]}
-  - skill: synthetic-lethal-partners
-    objective: "Does the target have a curated SL partner that contextualizes a pooled non-dependent read?"
-    primary_axis: combination_vulnerability
-    also_facets: dependency             # the SL annotation ALSO reports_into dependency (veto-suppressor)
-    role_note: "relational (target×partner); CONSOLIDATION CANDIDATE → combination-and-vulnerability (Debt #2)."
-    questions:
-      - {q: "Is there a curated SL partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
-  - skill: combinatorial-dependency
-    objective: "Is the target a combinatorial (dual-KO) dependency — constitutive or context-conditional?"
-    primary_axis: combination_vulnerability
-    role_note: "relational (target×paralog); gateless additive; CONSOLIDATION CANDIDATE → combination-and-vulnerability (Debt #2)."
-    questions:
-      - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which partner is strongest?", answered_by: [combinatorial-dependency]}
   - skill: target-intrinsic
     objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
     primary_axis: null
@@ -507,13 +494,25 @@ skill_objectives:
     role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2)."
     questions:
       - {q: "Is there a CD8 effector T-cell population (immune-hot vs cold) for a TCE to redirect?", answered_by: [immune-context]}
-  - skill: combo-and-resistance
-    objective: "Under inhibition, which co-targets become essential (combination) and which KOs rescue (resistance)?"
+  - skill: combination-and-vulnerability
+    objective: "What does the target depend on / combine with — synthetic-lethal partners, measured dual-KO co-dependencies, combination co-targets under inhibition, and resistance mediators?"
     primary_axis: combination_vulnerability
-    role_note: "relational (target×co-target); two verdicts; not in the nomination fan-out; CONSOLIDATION CANDIDATE → combination-and-vulnerability (Debt #2)."
+    role_note: "CONSOLIDATED relational (gene×gene) fan-out member (2026-08-20); absorbs the retired synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance skills. Gateless (verdict=None); output = ranked_partner_table + SL/CODEP/COMBO/RESISTANCE claim_vector (target_pair atoms)."
     questions:
-      - {q: "Which co-targets become MORE essential under inhibition (combination)?", answered_by: [combo-crispr-screen]}
-      - {q: "Which knockouts RESCUE the cell (candidate resistance mediators)?", answered_by: [resistance-emergence-signature]}
+      - {q: "Is there a curated synthetic-lethal partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
+      - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which paralog partner is strongest?", answered_by: [combinatorial-dependency]}
+      - {q: "Which co-targets become MORE essential under inhibition (rational combination partners)?", answered_by: [combo-crispr-screen]}
+      - {q: "Which knockouts RESCUE the cell under inhibition (candidate resistance mediators — a monitoring liability)?", answered_by: [resistance-emergence-signature]}
+  - skill: cis-feature-coherence
+    objective: "Does the target's own locus feature (copy-number / methylation) explain its own expression AND its own dependency — a coherent cis-driven addiction, or co-occurring axes?"
+    primary_axis: cis_coherence
+    role_note: "GATELESS coherence owner (the verdict is a 2×2 leg interaction); CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT claim_vector with cross-grain TCGA-patient corroboration."
+    questions:
+      - {q: "GoF leg-1: does copy-number drive the target's OWN expression (cis-dosage coupling)?", answered_by: [cis-feature-expression-coherence]}
+      - {q: "LoF leg-1: does promoter methylation drive the target's LOW expression (epigenetic silencing)?", answered_by: [cellline-methylation-expression-coherence]}
+      - {q: "Leg-2: does the target's expression predict its OWN dependency (correlation + amp∩overexpr conjoint addiction)?", answered_by: [expression-dependency-correlation, amp-expr-stratified-dependency]}
+      - {q: "Does the TCGA patient arm replicate the cell-line cis call (cross-grain corroboration)?", answered_by: [patient-cis-coherence]}
+      - {q: "Which transcript / isoform is expressed (molecular-form context for the cis read)?", answered_by: [cellline-isoform-dominance, cellline-isoform-expression]}
 
 # ===========================================================================
 # CANDIDATE EDGES — cross-axis edge cards the objective NEEDS but that DO NOT EXIST yet. First
@@ -591,10 +590,11 @@ relational_consolidation:
   target_skill: combination-and-vulnerability
   axis: combination_vulnerability
   output_contract: ranked_partner_table
-  absorbs_skills:
-    - {skill: synthetic-lethal-partners, brings: [synthetic-lethal-partners], today: "gated veto-suppressor + dependency facet"}
-    - {skill: combinatorial-dependency,  brings: [combinatorial-dependency],  today: "gateless additive (dual-KO GI)"}
-    - {skill: combo-and-resistance,      brings: [combo-crispr-screen, resistance-emergence-signature], today: "NOT in the fan-out"}
+  status: completed_2026-08-20   # combination-and-vulnerability wired into the fan-out; the 3 source skills RETIRED from SUB_SKILLS (still runnable standalone, SKILL.md marked retired-from-fanout).
+  absorbed_skills:
+    - {skill: synthetic-lethal-partners, brought: [synthetic-lethal-partners], was: "gated veto-suppressor + dependency facet"}
+    - {skill: combinatorial-dependency,  brought: [combinatorial-dependency],  was: "gateless additive (dual-KO GI)"}
+    - {skill: combo-and-resistance,      brought: [combo-crispr-screen, resistance-emergence-signature], was: "gateless additive (combination + resistance)"}
   surfaces_edge_cards:                   # keep HOMED in functional-requirement; surface UNDER the relational annex too
     - paralog-buffering
     - partner-conditional-dependency
