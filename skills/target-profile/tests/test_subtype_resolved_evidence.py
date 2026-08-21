@@ -217,3 +217,40 @@ def test_subtypes_envelope_validates_against_schema(tmp_path, monkeypatch):
     ep = _emit(tmp_path, monkeypatch, subtypes=["MSI_H", "MSS"], subtype_facet=facet,
                skip_schema=False)
     assert "subtype_resolved" in ep
+
+
+# ---------- (5) expression / presence axis (2026-08-21) ----------
+
+def test_expression_presence_axis_populated_from_by_subtype_card():
+    """The tumor-rna-distribution-by-subtype panorama (under the 'expression' short) now contributes an
+    `expression` axis to each stratum record — so the integrator can reason subtype-resolved PRESENCE.
+    Uses the reader's own row keys (stratum_id / n_tumor_samples) — n must normalize to subgroup_n and
+    bookkeeping keys must NOT leak into the metric."""
+    by_subtype_card = {
+        "card_id": "tumor-rna-distribution-by-subtype",
+        "summary": {"subtype_axis_quality": "powered", "per_subgroup_metrics": [
+            {"stratum_id": "MSS", "evidence_state": "measured", "n_tumor_samples": 193,
+             "subgroup_n_floor_met": True, "match_rate": 0.97,
+             "tumor_expression_class": "tumor_broadly_expressed", "median_log2tpm": 6.2,
+             "subtype_signal": "subtype_enriched", "median_purity": 0.71},
+            {"stratum_id": "MSI_H", "evidence_state": "underpowered", "n_tumor_samples": 12,
+             "subgroup_n_floor_met": False, "tumor_expression_class": "data_unavailable"},
+        ]},
+        "interpretation_call": "informative",
+        "provenance": {"method_calls": [], "input_manifest_ids": []},
+    }
+    sub_results = {"expression": {"cards": [by_subtype_card]}}
+    block = tp_evidence_package._subtype_resolved_block(sub_results, ["MSI_H", "MSS"], None)
+    strata = {r["stratum"]: r for r in block["per_stratum"]}
+    assert set(strata) == {"MSI_H", "MSS"}
+    mss = strata["MSS"]["axes"]["expression"]
+    assert mss["evidence_state"] == "measured"
+    assert mss["subgroup_n"] == 193                       # n_tumor_samples normalized → subgroup_n
+    assert mss["subgroup_n_floor_met"] is True
+    # metric carries the presence signal, NOT bookkeeping (stratum_id / n_tumor_samples / match_rate)
+    assert mss["metric"]["tumor_expression_class"] == "tumor_broadly_expressed"
+    assert mss["metric"]["subtype_signal"] == "subtype_enriched"
+    assert mss["metric"]["median_purity"] == 0.71
+    assert "stratum_id" not in mss["metric"] and "n_tumor_samples" not in mss["metric"]
+    # underpowered stratum carried but flagged (absence-discipline)
+    assert strata["MSI_H"]["axes"]["expression"]["subgroup_n_floor_met"] is False

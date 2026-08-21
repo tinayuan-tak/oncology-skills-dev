@@ -214,13 +214,21 @@ def _validation_summary_from_sub_results(sub_results: dict) -> dict:
 # convergence blob (_subtype_facet) — previously computed but DROPPED from the package (it rode only
 # to nomination.json) — is embedded here too. The block is emitted ONLY under --subtypes; a default
 # (no-strata) run gets None (no key added → byte-stable).
+# (source-short, card_id, axis) — mirrors tp_facets._SUBTYPE_INPUTS so the per_stratum axes map covers
+# the SAME three subtype-grain cards the convergence facet does. The expression (tumor-presence) card
+# lives under the 'expression' short; dependency + mutation-frequency resolve under SUBTYPE_SHORT in
+# production (per-gate short in the synthetic fixtures) — both are tried, per axis.
 _SUBTYPE_STRAT_CARDS = [
-    ("dependency", "subgroup-stratified-dependency"),
-    ("mutation_frequency", "subgroup-stratified-mutation-frequency"),
+    ("expression",         "tumor-rna-distribution-by-subtype",      "expression"),
+    ("dependency",         "subgroup-stratified-dependency",         "dependency"),
+    ("genomic_alteration", "subgroup-stratified-mutation-frequency", "mutation_frequency"),
 ]
 # per_subgroup_metrics bookkeeping keys → everything else on a row is the axis metric (effect-size).
-_SUBTYPE_BOOKKEEPING = {"stratum", "subgroup_id", "subgroup_label", "subgroup",
-                        "subgroup_n", "subgroup_n_floor_met", "evidence_state", "source_cohort"}
+# Includes the tumor-rna-distribution-by-subtype reader's row keys (stratum_id / n_tumor_samples /
+# match_rate) so the expression axis's metric block is not polluted by bookkeeping.
+_SUBTYPE_BOOKKEEPING = {"stratum", "stratum_id", "subgroup_id", "subgroup_label", "subgroup",
+                        "subgroup_n", "n_tumor_samples", "match_rate",
+                        "subgroup_n_floor_met", "evidence_state", "source_cohort"}
 _SUBTYPE_RESOLVED_DISCLAIMER = (
     "SOFT integrator context, NOT a gate (subtype-first-class-evidence, Option A): per-stratum "
     "subtype SIGNALS surfaced machine-readable for the cross-evidence integrator. The deterministic "
@@ -235,8 +243,15 @@ def _subtype_resolved_block(sub_results: dict, subtypes: list,
                             subtype_facet: Optional[dict]) -> dict:
     """Assemble the first-class `subtype_resolved` evidence block. Per requested stratum: the
     per-axis per_subgroup_metrics projection (evidence_state + subgroup_n + n-floor-met + the
-    effect-size metric) from the dependency + mutation-frequency subtype-grain cards, PLUS the
-    cross-axis convergence facet (`_subtype_facet`). Deterministic, additive, verdict-inert.
+    effect-size metric) from the THREE subtype-grain cards — expression/presence
+    (tumor-rna-distribution-by-subtype), dependency, and mutation-frequency — PLUS the cross-axis
+    convergence facet (`_subtype_facet`). Deterministic, additive, verdict-inert.
+
+    The expression/presence axis (added 2026-08-21) lets the integrator reason subtype-resolved
+    PRESENCE — "present in MSS but absent/underpowered in MSI-H" — which was previously impossible
+    (the presence per-stratum signal collapsed to display-only card scalars and never reached this
+    block). Mirrors tp_facets._SUBTYPE_INPUTS so the per_stratum axes and the convergence facet cover
+    the same cards.
 
     Absence is HONEST: a stratum/axis with no per_subgroup_metrics row contributes nothing; a row
     below its n-floor is carried with subgroup_n_floor_met=false so a consumer must not credit it.
@@ -248,9 +263,9 @@ def _subtype_resolved_block(sub_results: dict, subtypes: list,
 
     per_stratum_map: dict = {}
     available: set = set()
-    for axis, card_id in _SUBTYPE_STRAT_CARDS:
+    for source_short, card_id, axis in _SUBTYPE_STRAT_CARDS:
         rows: list = []
-        for _src in (SUBTYPE_SHORT, axis):
+        for _src in (source_short, SUBTYPE_SHORT):
             r = sub_results.get(_src)
             if r:
                 rows = _first_card_per_subgroup(r, card_id)
@@ -264,9 +279,12 @@ def _subtype_resolved_block(sub_results: dict, subtypes: list,
             rec_block = per_stratum_map.setdefault(st, {"stratum": st, "axes": {}})
             metric = {k: v for k, v in rec.items()
                       if k not in _SUBTYPE_BOOKKEEPING and v is not None}
+            # n normalization: the tumor-rna-distribution-by-subtype reader exposes per-stratum n as
+            # `n_tumor_samples`, the subgroup_common panoramas as `subgroup_n`.
+            n = rec.get("subgroup_n") if rec.get("subgroup_n") is not None else rec.get("n_tumor_samples")
             rec_block["axes"][axis] = {
                 "evidence_state": rec.get("evidence_state"),
-                "subgroup_n": rec.get("subgroup_n"),
+                "subgroup_n": n,
                 "subgroup_n_floor_met": rec.get("subgroup_n_floor_met"),
                 "metric": metric,
             }
