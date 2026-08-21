@@ -1,10 +1,12 @@
-"""Dispatcher synthesize_fn routing + backward-compat.
+"""Dispatcher synthesize_fn routing.
 
-The bug this fixes: run_wired_skill used to HARDCODE `from .synthesis import synthesize_presence`,
-so a --synthesize tumor-selectivity run was narrated by the PRESENCE narrator (wrong lens). The
-dispatcher now takes an optional synthesize_fn; when omitted it falls back to synthesize_presence
-(so tumor-presence is unchanged). These tests pin BOTH paths + the two-slot byte-stability.
-Bedrock fully mocked.
+Each skill narrates through its OWN synthesizer, passed as synthesize_fn — INCLUDING tumor-presence,
+which now passes synthesize_presence explicitly. When a skill declares NO narrator, --synthesize is an
+honest no-op: the dispatcher NEVER falls back to another lens's narrator. (The former fallback ran the
+PRESENCE narrator for any verdict-bearing skill without its own synthesize_fn — mis-lensing a
+safety/mechanism/differentiation verdict through a presence prompt.) These tests pin: (a) a supplied
+synthesize_fn runs; (b) a verdict-bearing skill WITHOUT a narrator honest-skips (no presence fallback);
+(c) a descriptive skill honest-skips; (d) two-slot byte-stability. Bedrock fully mocked.
 """
 from __future__ import annotations
 
@@ -66,27 +68,25 @@ def test_synthesize_fn_is_invoked_not_presence(tmp_path):
     assert "selectivity_relevance_for_target" in d["llm_synthesis"]
 
 
-def test_no_synthesize_fn_falls_back_to_presence(tmp_path):
-    """Backward-compat: a VERDICT-bearing skill that passes no synthesize_fn (tumor-presence today)
-    still narrates via the presence fallback."""
+def test_verdict_bearing_without_narrator_skips_not_mislens(tmp_path):
+    """A VERDICT-bearing skill that declares NO synthesize_fn must NOT be narrated through the presence
+    lens (the removed mis-lensing fallback). --synthesize honest-skips with a note; presence never runs."""
     with patch("_skills_common.synthesis.synthesize_presence",
-               return_value={"expression_relevance_for_target": {
-                   "value": "supports_with_caveats", "_source": "llm_synthesized"}}) as m:
+               side_effect=AssertionError("presence narrator must NOT run for a narrator-less skill")):
         d = _run(tmp_path / "pres", synthesize=True, synthesize_fn=None)  # verdict_fn defaults present
-    assert m.called
-    assert "expression_relevance_for_target" in d["llm_synthesis"]
+    s = d["llm_synthesis"]
+    assert s.get("_synthesis_skipped") == "no_narrator_declared"
+    assert "expression_relevance_for_target" not in s   # no mis-lensed presence fields leaked in
 
 
 def test_descriptive_skill_skips_synthesis_not_mislens(tmp_path):
-    """2026-08-08 synthesis-review F2: a DESCRIPTIVE skill (verdict_fn=None AND no synthesize_fn —
-    e.g. target-intrinsic) must NOT fall back to the presence narrator (wrong lens → garbage on an
-    indication-independent dossier). --synthesize is a no-op skip with an honest note; the presence
-    narrator must never be invoked."""
+    """A DESCRIPTIVE skill (verdict_fn=None AND no synthesize_fn — e.g. target-intrinsic) must also
+    honest-skip, never mis-lensing through the presence narrator."""
     with patch("_skills_common.synthesis.synthesize_presence",
                side_effect=AssertionError("presence narrator must NOT run for a descriptive skill")):
         d = _run(tmp_path / "desc", synthesize=True, synthesize_fn=None, verdict_fn=None)
     s = d["llm_synthesis"]
-    assert s.get("_synthesis_skipped") == "descriptive_skill_no_narrator"
+    assert s.get("_synthesis_skipped") == "no_narrator_declared"
     # no mis-lensed presence fields leaked in
     assert "expression_relevance_for_target" not in s
     assert "selectivity_relevance_for_target" not in s

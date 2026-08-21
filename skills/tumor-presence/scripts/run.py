@@ -42,6 +42,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.synthesis import synthesize_presence
 from _skills_common import get_card_field
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
@@ -935,6 +936,9 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Presence narrates through its OWN synthesizer, passed explicitly (no dispatcher fallback):
+        # the dispatcher no longer defaults a narrator-less skill to the presence lens.
+        synthesize_fn=synthesize_presence,
         # Skill-level graphics (opt-in --figures): the Presence × Context hero matrix + the
         # claim-vector (signal × reliability) figure. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,

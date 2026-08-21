@@ -721,32 +721,24 @@ def run_wired_skill(
     # without --synthesize; a synthesis failure degrades to a note (the deterministic run must
     # never break because the narration layer is unavailable — Bedrock auth, network, etc.).
     if args.synthesize:
-        # Each single-lens skill narrates through its OWN synthesizer (its tool schema + prompt
-        # match its evidence). synthesize_fn is passed by the skill's run.py; when omitted, fall
-        # back to synthesize_presence (backward-compat for tumor-presence). This is the fix for the
-        # former hardcoded `from .synthesis import synthesize_presence` — a --synthesize selectivity
-        # run used to be narrated by the PRESENCE narrator (wrong lens).
+        # Each skill narrates through its OWN synthesizer (its tool schema + prompt match its
+        # evidence), passed as synthesize_fn by the skill's run.py — INCLUDING tumor-presence, which
+        # now passes synthesize_presence explicitly. When a skill declares NO narrator, --synthesize is
+        # an honest no-op: we NEVER fall back to another lens's narrator. The former fallback ran the
+        # PRESENCE narrator for any verdict-bearing skill without its own synthesize_fn, mis-lensing a
+        # safety / mechanism / differentiation verdict through a presence prompt — the exact bug the
+        # per-skill synthesize_fn was introduced to fix. There is no lens-appropriate narration for a
+        # skill that declares none, so skip honestly and leave the deterministic decision intact.
         _synth = synthesize_fn
-        if _synth is None and verdict_fn is None:
-            # DESCRIPTIVE skill (synthesis: none — e.g. target-intrinsic passes verdict_fn=None AND
-            # no synthesize_fn): there is no verdict to narrate and no lens for this grain. The former
-            # blanket fallback ran the PRESENCE narrator here, producing garbage on an indication-
-            # independent dossier ("Complete absence of presence data — the lens cannot be evaluated";
-            # 2026-08-08 synthesis review). Refuse honestly rather than mis-lens: emit a note, leave the
-            # descriptive decision intact. (A skill that WANTS narration supplies synthesize_fn.)
+        if _synth is None:
             decision["llm_synthesis"] = {
-                "_synthesis_skipped": "descriptive_skill_no_narrator",
-                "_note": ("This skill is descriptive (no verdict spine) and declares no synthesis "
-                          "narrator, so --synthesize is a no-op — there is no lens-appropriate "
-                          "narration for this grain. The deterministic dossier above is complete."),
+                "_synthesis_skipped": "no_narrator_declared",
+                "_note": ("This skill declares no synthesis narrator, so --synthesize is a no-op — "
+                          "there is no lens-appropriate narration for this grain, and the framework "
+                          "will not narrate it through another skill's lens. The deterministic "
+                          "decision above is complete."),
             }
         else:
-            if _synth is None:
-                # A VERDICT-bearing skill that didn't supply its own narrator → the presence narrator
-                # is the backward-compat default (tumor-presence). A skill with a non-presence verdict
-                # should pass its own synthesize_fn (tumor-selectivity/functional-requirement do).
-                from .synthesis import synthesize_presence
-                _synth = synthesize_presence
             try:
                 decision["llm_synthesis"] = _synth(
                     decision, args.synthesis_model, args.subtype)
