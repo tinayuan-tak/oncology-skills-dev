@@ -16,7 +16,7 @@ description: |
   dependency?"
 
 metadata:
-  version: 3.4.0   # +known-drug (#272) +degradation (#266) +T1/T3.1 (discordant reorder, clinical_precedent_only, measured-potency)
+  version: 3.5.0   # +question_table emitted into headline; +known-drug (#272) +degradation (#266) +T1/T3.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

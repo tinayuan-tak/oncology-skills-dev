@@ -38,6 +38,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.tractability_claims import small_molecule_claim_vector, small_molecule_key_signals
+from _skills_common.tractability_sm_question_table import tractability_sm_question_table
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -131,7 +132,8 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.4.0"     # 3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
+SKILL_VERSION = "3.5.0"     # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
+                            # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
                             # 3.0.0: split from tractability-and-modality 2.1.0.
 
@@ -326,6 +328,10 @@ def _headline(cards, fired, verdict_pair):
     # Canonical HEADLINE block (verdict + confidence + top tension) — deterministic text + a
     # renderer-agnostic hero payload for every consumer. Verdict-INERT; best-effort.
     hl["headline_block"] = _enrich("headline_block", _build_headline_block, hl)
+    # The per-question (data · signal · confidence) LEADING table — verdict-INERT projection over the
+    # just-built headline + claim_vector (mirrors tumor-presence / tumor-selectivity). Carried through
+    # _synthesis_facet so the composed target-profile dashboard renders the same table. Best-effort.
+    hl["question_table"] = _enrich("question_table", tractability_sm_question_table, hl, cards)
     return hl
 
 
@@ -333,6 +339,8 @@ _SYNTHESIS_FACET_KEYS = (
     "druggability_snapshot", "driving_rule_id", "degrader_snapshot",
     "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
     "degradability_machinery", "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )

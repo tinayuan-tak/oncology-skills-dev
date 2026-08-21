@@ -41,11 +41,12 @@ from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr, _bh_qvalues,
 )
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
+from _skills_common.genomic_question_table import genomic_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.7.0"
+SKILL_VERSION = "2.8.0"
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
 # cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
@@ -603,6 +604,15 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         headline.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         headline["headline_block"] = None
+    # The per-question (data · signal · confidence) LEADING table — a verdict-INERT projection over the
+    # just-built headline + claim_vector (mirrors tumor-presence / tumor-selectivity). Carried through
+    # _synthesis_facet so the composed target-profile dashboard renders the same table. Best-effort:
+    # a formatting/read fault must NEVER discard the genomic spine already fully built in `headline`.
+    try:
+        headline["question_table"] = genomic_question_table(headline, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        headline["question_table"] = None
     return headline
 
 
@@ -617,6 +627,8 @@ _SYNTHESIS_FACET_KEYS = (
     "genomic_alteration_profile", "driving_rule_id",
     "genomic_alteration_by_class", "genomic_alteration_by_scope",
     "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )

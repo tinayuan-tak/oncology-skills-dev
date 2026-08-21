@@ -4,6 +4,12 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-08-21 (v2.8.0)
+- Emit the EXISTING per-question `genomic_question_table` into `decision.headline["question_table"]`
+  (and add it to `_SYNTHESIS_FACET_KEYS`), mirroring tumor-presence / tumor-selectivity. Additive +
+  verdict-INERT: a best-effort projection over the already-built headline + claim_vector; a formatting
+  fault records `_enrichment_errors["question_table"]` and never aborts the multi-class genomic spine.
+
 ## 2026-08-19 (v2.7.0)
 - Added the Q4 KO-dependency CONFIDENCE annotations (deferred item, verdict-inert): cross-consortium-dependency
   (Broad↔Sanger CRISPR agreement) + dependency-predictability (omics-learnability). Both are additive

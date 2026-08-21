@@ -29,6 +29,7 @@ from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
+from _skills_common.surface_modality_question_table import surface_modality_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
@@ -126,7 +127,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.3.0"   # +sc-surface-normal-safety +sc-surface-rna-protein-concordance (dead-card revival 2026-08-19; additive/byte-stable)
+SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
 # cards reachability.verdict_relevant_cards("surface_modality") derives — adc-tce-modality-fit
@@ -468,6 +469,14 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # The per-question (data · signal · confidence) LEADING table — verdict-INERT projection over the
+    # just-built headline + claim_vector (mirrors tumor-presence / tumor-selectivity). Carried through
+    # _synthesis_facet so the composed target-profile dashboard renders the same table. Best-effort.
+    try:
+        hl["question_table"] = surface_modality_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
     return hl
 
 
@@ -477,6 +486,8 @@ _SYNTHESIS_FACET_KEYS = (
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )

@@ -17,13 +17,14 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
+from _skills_common.safety_question_table import safety_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.8.0"   # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.9.0"   # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                           # (guarded by skills/tests/test_version_parity.py).
                           # 1.8.0: compose copy-number-distribution to activate the
                           # amplification guard. run.py constant was left at 1.7.0 while SKILL.md
@@ -283,6 +284,14 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # The per-question (data · signal · confidence) LEADING table — verdict-INERT projection over the
+    # just-built headline + claim_vector (mirrors tumor-presence / tumor-selectivity). Carried through
+    # _synthesis_facet so the composed target-profile dashboard renders the same table. Best-effort.
+    try:
+        hl["question_table"] = safety_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
     return hl
 
 
@@ -293,6 +302,8 @@ _SYNTHESIS_FACET_KEYS = (
     "clinvar_pathogenic_class", "mouse_ko_phenotype_class",
     "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
     "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )

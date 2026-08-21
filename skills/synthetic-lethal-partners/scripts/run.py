@@ -24,6 +24,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.sl_question_table import sl_question_table
 
 
 SKILL_NAME = "synthetic-lethal-partners"
@@ -46,7 +47,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
-    return {
+    hl = {
         "sl_partner_verdict":       v,
         "driving_rule_id":          drv,
         "sl_partner_class":         get_card_field(cards, "synthetic-lethal-partners", "sl_partner_class"),
@@ -55,6 +56,16 @@ def _headline(cards, fired, verdict_pair):
         "has_experimental_partner": get_card_field(cards, "synthetic-lethal-partners", "has_experimental_partner"),
         "best_evidence_tier":       get_card_field(cards, "synthetic-lethal-partners", "best_evidence_tier"),
     }
+    # The compact 2-row LEADING table (Partner · Support) — a verdict-INERT projection over the just-built
+    # headline (mirrors tumor-presence / tumor-selectivity). Best-effort: a formatting/read fault must
+    # NEVER discard the sl_partner spine already built in `hl` (this skill is a nomination-gate veto-
+    # suppressor, so its verdict must survive any display-layer fault).
+    try:
+        hl["question_table"] = sl_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
+    return hl
 
 
 if __name__ == "__main__":

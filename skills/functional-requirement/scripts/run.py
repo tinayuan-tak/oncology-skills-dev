@@ -26,6 +26,7 @@ from _skills_common import get_card_field, resolve_cards, _summary_is_unavailabl
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_dependency import synthesize_dependency
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
+from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 # Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
@@ -33,7 +34,8 @@ from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
+SKILL_VERSION = "1.5.0"   # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
+                          # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
                           #        guard (test_functional_requirement_replay.py) + SKILL.md parity
                           #        (rules_scope: -dependency-predictability [verdict-inert], +partner-conditional-
                           #        dependency [verdict-bearing]; measurement_types += partner_conditional +
@@ -863,6 +865,15 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # The 7-question (data · signal · confidence) LEADING table — a verdict-INERT projection over the
+    # just-built headline + claim_vector (mirrors tumor-presence / tumor-selectivity). Carried through
+    # _synthesis_facet so the composed target-profile dashboard renders the same table. Best-effort:
+    # a formatting/read fault must NEVER discard the dependency spine already fully built in `hl`.
+    try:
+        hl["question_table"] = dependency_question_table(hl, cards, hl.get("claim_vector"))
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
     return hl
 
 
@@ -894,6 +905,8 @@ _SYNTHESIS_FACET_KEYS = (
     # scope-parameterized read (Phase 3) — pooled pan-cancer vs the QUERIED indication's lineage;
     # lets the composed synthesis cite the indication answer instead of the pan-cancer one. Verdict-inert.
     "dependency_verdict_by_scope",
+    # the 7-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )
