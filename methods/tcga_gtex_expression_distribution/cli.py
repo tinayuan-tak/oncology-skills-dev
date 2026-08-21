@@ -194,11 +194,17 @@ def build_normal_liability_summary(target: str, indication: str = None) -> dict:
     return summary
 
 
-def emit_plot_data(target: str, indication: str, out_dir: Path) -> Path:
-    """Tier-2: the per-sample long-format rows behind the figure (tumor + matched normal)."""
+def emit_plot_data(target: str, indication: str, out_dir: Path, *, presampled=None) -> Path:
+    """Tier-2: the per-sample long-format rows behind the figure (tumor + matched normal).
+
+    presampled (figure Stage 6): OPT-IN (tumor, normal, tissue) already-loaded vectors — pass them to
+    persist WITHOUT a second read (the resolver already loaded tumor). None = read live (legacy)."""
     import pandas as pd
-    tumor = _read.read_tumor_samples(target, indication)
-    normal, tissue = _read.read_normal_samples(target, indication)
+    if presampled is not None:
+        tumor, normal, tissue = presampled
+    else:
+        tumor = _read.read_tumor_samples(target, indication)
+        normal, tissue = _read.read_normal_samples(target, indication)
     rows = ([{"group": "tumor", "source": "TCGA", "log2_tpm": v} for v in tumor]
             + [{"group": "normal", "source": f"GTEx:{tissue}", "log2_tpm": v} for v in normal])
     out = Path(out_dir) / "plot_data_expression_distribution.parquet"
@@ -217,9 +223,12 @@ def _load_style(contracts_dir):
 
 
 def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS) -> Path:
+             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> Path:
     """Tier-3 SVG: tumor vs matched-normal per-sample distribution (box + strip), with the
-    normal-p95 line + fraction-above annotation."""
+    normal-p95 line + fraction-above annotation.
+
+    presampled (figure Stage 6): OPT-IN (tumor, normal, tissue) vectors from persisted plot_data →
+    draw OFFLINE with no live re-read. None = read live (legacy)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -227,8 +236,11 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
     _load_style(contracts_dir)
     out_path = Path(out_dir) / "figure_expression_distribution.svg"
 
-    tumor = _read.read_tumor_samples(target, indication)
-    normal, tissue = _read.read_normal_samples(target, indication)
+    if presampled is not None:
+        tumor, normal, tissue = presampled
+    else:
+        tumor = _read.read_tumor_samples(target, indication)
+        normal, tissue = _read.read_normal_samples(target, indication)
     if not tumor:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target} — no TCGA tumor samples for {indication}", ha="center",
@@ -267,15 +279,20 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
 
 
 def emit_plotly_specs(target: str, indication: str, out_dir: Path,
-                      contracts_dir=DEFAULT_TARGET_CONTRACTS) -> list:
-    """Interactive twin — same per-sample values as the SVG (no drift). Best-effort."""
+                      contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> list:
+    """Interactive twin — same per-sample values as the SVG (no drift). Best-effort.
+
+    presampled (figure Stage 6): OPT-IN (tumor, normal, tissue) vectors → no live re-read."""
     try:
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
         _log(f"[expr-dist] plotly skipped: {e}")
         return []
-    tumor = _read.read_tumor_samples(target, indication)
-    normal, tissue = _read.read_normal_samples(target, indication)
+    if presampled is not None:
+        tumor, normal, tissue = presampled
+    else:
+        tumor = _read.read_tumor_samples(target, indication)
+        normal, tissue = _read.read_normal_samples(target, indication)
     if not tumor:
         return []
     fig = go.Figure()

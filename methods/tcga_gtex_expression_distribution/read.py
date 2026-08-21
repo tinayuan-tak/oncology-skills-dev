@@ -528,12 +528,16 @@ def _distribution_summary(values: list) -> dict:
     return out
 
 
-def read_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> dict:
+def read_tumor_vs_normal_percentile_crossing(target: str, indication: str,
+                                             plot_data_out: "Optional[Path]" = None) -> dict:
     """Q2 assembler: per-sample tumor-vs-matched-normal PERCENTILE-CROSSING selectivity for a
     (target, indication). The spec's headline enrichment metric — the fraction of tumors above the
     Nth percentile of matched-normal expression — computed on the directly-comparable per-sample
     matrices (recount3/GENCODE-v26). This is SELECTIVITY (Gate B), distinct from the aggregate
-    log2FC on tumor-vs-normal-selectivity and from PRESENCE (Q1). data_unavailable-safe."""
+    log2FC on tumor-vs-normal-selectivity and from PRESENCE (Q1). data_unavailable-safe.
+
+    plot_data_out (figure Stage 6): OPT-IN — persist the per-sample tumor+normal vectors so the Q2
+    figure (the same per-sample box+strip as Q1) renders offline. Best-effort, verdict-inert."""
     tumor = read_tumor_samples(target, indication)
     normal, tissue = read_normal_samples(target, indication)
     studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip(), [])
@@ -555,6 +559,13 @@ def read_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> di
     out["selectivity_class"] = _classify_percentile_crossing(
         out["fraction_tumor_above_normal_p95"], out["fraction_tumor_above_normal_p99"],
         out["distribution_overlap_tumor_normal"])
+    if plot_data_out is not None:
+        try:
+            from . import cli as _cli
+            _cli.emit_plot_data(target, indication, Path(plot_data_out),
+                                presampled=(tumor, normal, tissue))
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
     return out
 
 
@@ -641,9 +652,15 @@ def _tumor_control_position(target: str, indication: str) -> dict:
         return {"control_position_class": "data_unavailable"}
 
 
-def read_tumor_expression_distribution(target: str, indication: str) -> dict:
+def read_tumor_expression_distribution(target: str, indication: str,
+                                       plot_data_out: "Optional[Path]" = None) -> dict:
     """Q1 assembler: the tumor per-sample distribution summary for a (target, indication).
-    Composes the stats primitives into the spec's `tumor_expression` block. data_unavailable-safe."""
+    Composes the stats primitives into the spec's `tumor_expression` block. data_unavailable-safe.
+
+    plot_data_out (figure Stage 6): OPT-IN. When set, persist the per-sample tumor+normal vectors
+    (cli.emit_plot_data → plot_data_expression_distribution.parquet) AS AN ARTIFACT OF RESOLUTION so
+    the figure renders offline from it (no second recount3 read at figure time). Best-effort,
+    verdict-inert; None = byte-identical no-op."""
     tumor = read_tumor_samples(target, indication)
     studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip(), [])
     if not tumor:
@@ -656,6 +673,14 @@ def read_tumor_expression_distribution(target: str, indication: str) -> dict:
                 "control_position_class": "data_unavailable",
                 "_data_note": "target absent from TCGA long product for this indication",
                 "studies": studies}
+    if plot_data_out is not None:
+        try:
+            normal, tissue = read_normal_samples(target, indication)
+            from . import cli as _cli
+            _cli.emit_plot_data(target, indication, Path(plot_data_out),
+                                presampled=(tumor, normal, tissue))
+        except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
+            pass
     return {**_distribution_summary(tumor), **_tumor_allgene_percentile(target, studies),
             **_tumor_control_position(target, indication), "studies": studies}
 
