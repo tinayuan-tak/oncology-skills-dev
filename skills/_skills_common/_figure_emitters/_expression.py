@@ -226,8 +226,16 @@ def _emit_tumor_expression_distribution_subtype(
     if not summary or not summary.get("subtype_axis_available"):
         return []                                   # no landed shard for this indication (honest)
     _ensure_methods_path()
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # OFFLINE path: render from the persisted per-stratum values when present.
+    pd_path = out_dir / "plot_data_subtype.parquet"
+    if pd_path.exists():
+        from methods.tcga_gtex_expression_distribution.figures import render_subtype_from_plot_data
+        return render_subtype_from_plot_data(pd_path, summary, out_dir, target, indication)
+
+    # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
     svg = exprdist.emit_subtype_svg(target, indication, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []                                   # axis available but no measured strata

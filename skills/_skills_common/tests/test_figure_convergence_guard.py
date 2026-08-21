@@ -281,6 +281,27 @@ def test_normal_tissue_liability_gallery_convergence(tmp_path, monkeypatch):
         _write_tcga_atlas, {"liability_class": "critical_organ_liability"}, tmp_path, monkeypatch)
 
 
+def _write_tcga_subtype(d):
+    import pandas as pd
+    d.mkdir(parents=True, exist_ok=True)
+    strata = {"CMS1": ([5.8, 6.1, 5.6, 6.0], "subtype_enriched"),
+              "CMS2": ([3.0, 3.2, 2.8, 3.1], "subtype_uniform"),
+              "CMS4": ([1.0, 1.2, 0.9, 1.1], "subtype_depleted")}
+    rows = [{"stratum_id": sid, "subtype_signal": sig, "log2_tpm": float(v)}
+            for sid, (vals, sig) in strata.items() for v in vals]
+    rows += [{"stratum_id": "__POOLED__", "subtype_signal": None, "log2_tpm": float(v)}
+             for v in (5.8, 3.0, 1.0, 6.1, 3.2, 1.2)]
+    pd.DataFrame(rows, columns=["stratum_id", "subtype_signal", "log2_tpm"]).to_parquet(
+        d / "plot_data_subtype.parquet", index=False)
+
+
+def test_subtype_panel_gallery_convergence(tmp_path, monkeypatch):
+    _assert_convergence(
+        "tumor-rna-distribution-by-subtype", tcga_read, tcga_fig.render_subtype_from_plot_data,
+        "read_tumor_subtype_values", "plot_data_subtype.parquet",
+        _write_tcga_subtype, {"subtype_axis_available": True}, tmp_path, monkeypatch)
+
+
 def test_protein_abundance_gallery_convergence(tmp_path, monkeypatch):
     ab, lin = {}, {}
     for i, (lg, v) in enumerate([("Lung", 4.0), ("Lung", 4.3), ("Lung", 3.8), ("Lung", 4.1), ("Lung", 3.9),
