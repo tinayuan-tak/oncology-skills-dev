@@ -54,8 +54,13 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
     for short, r in sub_results.items():
         facet = r.get("synthesis_facet")
         if isinstance(facet, dict) and isinstance(facet.get("claim_vector"), dict):
-            out[short] = {"claim_vector": facet["claim_vector"],
-                          "key_signals": facet.get("key_signals")}
+            entry = {"claim_vector": facet["claim_vector"],
+                     "key_signals": facet.get("key_signals")}
+            # The canonical headline block (verdict + confidence + top tension + hero payload), carried
+            # alongside the signal decomposition so the store / dashboard / reasoner read ONE object.
+            if isinstance(facet.get("headline_block"), dict):
+                entry["headline_block"] = facet["headline_block"]
+            out[short] = entry
     return out
 
 

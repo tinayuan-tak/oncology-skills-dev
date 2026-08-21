@@ -47,20 +47,92 @@ from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
                                             presence_key_signals)
 from _skills_common.presence_question_table import presence_question_table
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
 from _skills_common.presence_cardboard_figure import emit_card_board_figure
 
 
 def _emit_skill_figures(decision, figures_root):
-    """Combined --figures emitter: the Presence × Context hero matrix, the claim-vector
-    (signal × reliability) figure, the per-card card-board (ternary signal/no-signal/not-measured
-    grouped by claim), and — when the indication has a subtype axis — the subtype-refinement figure.
-    All additive / display-only; best-effort per emitter."""
-    return (emit_presence_matrix(decision, figures_root)
+    """Combined --figures emitter: the canonical headline hero (verdict · confidence · top tension),
+    the Presence × Context hero matrix, the claim-vector (signal × reliability) figure, the per-card
+    card-board (ternary signal/no-signal/not-measured grouped by claim), and — when the indication has
+    a subtype axis — the subtype-refinement figure. All additive / display-only; best-effort per emitter."""
+    return (emit_headline_hero(decision, figures_root)
+            + emit_presence_matrix(decision, figures_root)
             + emit_claim_vector_figure(decision, figures_root)
             + emit_card_board_figure(decision, figures_root)
             + emit_subtype_refinement_figure(decision, figures_root))
+
+
+# ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
+# The presence declaration for the shared headline_core builder: A/B/C/D claim axes, presence verdict
+# vocabulary → human phrase, and the cross-modal `presence_headline_conflict` guard as the skill-specific
+# tension source. Verdict-INERT — a one-way projection over the computed headline (spine byte-stable).
+# The presence_verdict vocabulary (the collapsed RNA-lens ladder tokens) → human phrase. Positives are
+# the _RNA_PRESENCE_POSITIVE tiers; negatives are _MEASURED_NEGATIVE_VERDICTS; the rest are gaps.
+_PRESENCE_VERDICT_PHRASE = {
+    # positives
+    "broadly_high_expression":        "Broadly, highly expressed",
+    "tumor_broadly_expressed":        "Broadly expressed in tumor",
+    "strongly_upregulated_in_tumor":  "Strongly up-regulated in tumor",
+    "broadly_moderate_expression":    "Broadly, moderately expressed",
+    "tumor_moderately_expressed":     "Moderately expressed in tumor",
+    "modestly_upregulated_in_tumor":  "Modestly up-regulated in tumor",
+    "lineage_restricted":             "Lineage-restricted expression",
+    # measured negatives
+    "broadly_low_expression":         "Broadly low expression",
+    "tumor_sparsely_expressed":       "Sparsely expressed in tumor",
+    "modestly_downregulated_in_tumor": "Modestly down-regulated in tumor",
+    "strongly_downregulated_in_tumor": "Strongly down-regulated in tumor",
+    "protein_modestly_downregulated":  "Protein modestly down-regulated",
+    "protein_strongly_downregulated":  "Protein strongly down-regulated",
+    "protein_broadly_low":            "Protein broadly low",
+    # gaps
+    "data_unavailable":               "Data unavailable",
+    "not_informative":                "Not informative",
+    "insufficient":                   "Insufficient evidence",
+}
+
+
+def _presence_tension_extra(headline: dict):
+    """The buried MEASURED presence-negative that the positive-over-negative collapse hides — surfaced by
+    the existing `presence_headline_conflict` guard — is presence's sharpest cross-modal tension."""
+    if headline.get("presence_headline_conflict"):
+        return {"text": headline.get("presence_headline_conflict_note") or "cross-modal presence conflict",
+                "source": "presence_headline_conflict", "severity": 3}
+    return None
+
+
+_PRESENCE_HEADLINE_SPEC = HeadlineSpec(
+    gate="presence",
+    axis_labels={"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"},
+    axis_keys=("A", "B", "C", "D"),
+    critical_axes=("A", "B", "C"),
+    verdict_label=lambda v: _PRESENCE_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
+    tension_extra=_presence_tension_extra,
+)
+
+
+def _presence_verdict_polarity(v) -> str:
+    """The skill's OWN reading of the collapsed verdict (colours the hero badge; never a gate). Reuses
+    the presence positive/negative vocabularies so the polarity can't drift from the spine."""
+    if _is_presence_positive(v):
+        return "positive"
+    if v in _MEASURED_NEGATIVE_VERDICTS:
+        return "negative"
+    return "neutral"
+
+
+def _presence_headline_block(headline: dict) -> dict:
+    """Build the canonical Headline block from the already-computed presence headline. Reads the
+    collapsed verdict + the verdict-inert claim_vector / key_signals; never moves the spine."""
+    v = headline.get("presence_verdict")
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_PRESENCE_HEADLINE_SPEC, verdict_token=v,
+                          driving_rule_id=headline.get("driving_rule_id"),
+                          verdict_polarity=_presence_verdict_polarity(v))
 
 
 SKILL_NAME = "tumor-presence"
@@ -789,6 +861,10 @@ def _headline(cards, fired, verdict_pair):
     # headline + card fields (Signal from the claim_vector, Confidence from corroboration). Verdict-inert;
     # carried through _synthesis_facet so the composed target-profile dashboard renders the same table.
     hl["question_table"] = _enrich("question_table", presence_question_table, hl, cards)
+    # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
+    # headline message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
+    # projection over the claim_vector / key_signals just built; best-effort (same degrade discipline).
+    hl["headline_block"] = _enrich("headline_block", _presence_headline_block, hl)
     return hl
 
 
@@ -830,6 +906,8 @@ _SYNTHESIS_FACET_KEYS = (
     "claim_vector", "claim_vector_by_subtype", "key_signals",
     # the 7-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
+    # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
+    "headline_block",
 )
 
 

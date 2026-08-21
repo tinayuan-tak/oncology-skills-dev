@@ -64,6 +64,12 @@ def render_evidence_package(ep: dict) -> str:
         sections.append(f"_Caveats_: {syn['caveats_summary']}")
         sections.append("")
 
+    # ===== Per-skill canonical HEADLINE block (verdict · confidence · top tension) =====
+    # The distilled one-line headline each sub-skill emits (headline_core.build_headline), carried into
+    # synthesis.claim_vectors[short].headline_block. Leads the dashboard so the reader sees every lens's
+    # call + confidence + sharpest tension before the detail. Verdict-inert; absent for un-migrated skills.
+    sections.extend(_render_skill_headlines(syn))
+
     # ===== PRIMARY resolver gate-verdict (Stage 2) =====
     # The declarative resolver's gate verdict is the headline row; the per-modality
     # fit_level below is a demoted secondary LENS. A verdict-only synthesis block (no
@@ -102,6 +108,32 @@ def render_evidence_package(ep: dict) -> str:
 # ============================================================================
 # Sub-renderers
 # ============================================================================
+
+def _render_skill_headlines(syn: dict) -> list[str]:
+    """Leading table of each sub-skill's canonical headline block: call · confidence · top tension.
+    Reads synthesis.claim_vectors[short].headline_block; returns [] when none carry one (byte-stable
+    for un-migrated packages)."""
+    cvs = syn.get("claim_vectors") or {}
+    rows = []
+    for short in sorted(cvs):
+        blk = (cvs[short] or {}).get("headline_block")
+        if not isinstance(blk, dict):
+            continue
+        verdict = (blk.get("verdict") or {}).get("phrase") or (blk.get("verdict") or {}).get("call") or "—"
+        conf = (blk.get("confidence") or {}).get("level", "—")
+        tension = (blk.get("top_tension") or {}).get("text", "") if blk.get("top_tension") else ""
+        rows.append((short, str(verdict), str(conf), str(tension).replace("|", "\\|")))
+    if not rows:
+        return []
+    out = ["## Skill Headlines", "",
+           "_Each lens's canonical call, confidence, and sharpest tension (verdict-inert)._", "",
+           "| Skill | Verdict | Confidence | Top tension |",
+           "|---|---|---|---|"]
+    for short, verdict, conf, tension in rows:
+        out.append(f"| {short} | {verdict} | {conf} | {tension or '—'} |")
+    out.append("")
+    return out
+
 
 def _render_refusal_page(ep: dict) -> list[str]:
     """Render the refusal page when the framework cannot proceed (axis unresolved,

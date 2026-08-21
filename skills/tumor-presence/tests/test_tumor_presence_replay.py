@@ -201,3 +201,28 @@ def test_replay_headline_resolves_broadly(epcam_decision):
     assert len(non_null) >= 30, (
         f"only {len(non_null)}/{len(headline)} headline fields resolved for the frozen EPCAM replay — "
         f"suspect a reader field-name drift (get_card_field -> None). Non-null keys: {sorted(non_null)}")
+
+
+def test_replay_headline_block_populated_and_verdict_inert(epcam_decision):
+    """The canonical HEADLINE block must BUILD (not silently degrade) on the real EPCAM/COADREAD run,
+    and stay verdict-inert. EPCAM is broadly present with the fullest bucket coverage, so:
+      * no _enrichment_errors['headline_block'] (a build fault degrades, never crashes — but must NOT
+        happen on the canonical fixture);
+      * verdict.call == the collapsed presence_verdict, verdict.driving_rule_id == the spine's (inert);
+      * confidence is a real level, not 'insufficient' (full coverage);
+      * the hero carries all four claim axes;
+      * the sharpest tension surfaces the bottom-decile abundance floor (claim A conflict) — EPCAM's
+        cell-line protein is bottom-decile while presence is positive."""
+    h = epcam_decision.get("headline") or {}
+    assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
+        f"headline_block degraded on the canonical EPCAM replay: "
+        f"{(h.get('_enrichment_errors') or {}).get('headline_block')}")
+    blk = h.get("headline_block")
+    assert isinstance(blk, dict), "no headline_block on the EPCAM replay"
+    assert blk["verdict"]["call"] == h.get("presence_verdict")
+    assert blk["verdict"]["gate"] == "presence" and blk["verdict"]["phrase"]
+    assert blk["verdict"]["driving_rule_id"] == h.get("driving_rule_id")  # verdict-inert echo, not override
+    assert blk["confidence"]["level"] in ("strong", "moderate", "weak")   # measured — never insufficient here
+    assert [a["key"] for a in blk["hero"]["axes"]] == ["A", "B", "C", "D"]
+    assert blk["headline_text"].endswith(".")
+    assert blk["top_tension"] and "abundance" in blk["top_tension"]["text"].lower()
