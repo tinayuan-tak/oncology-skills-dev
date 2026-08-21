@@ -136,6 +136,22 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
 
     n_above_20 = int((reliable[det_col] > 0.20).sum())
 
+    # Ranked per-cell-type footprint (top by detection) — the normal analogue of the tumor card's
+    # per_compartment vector. Surfaces the full liability landscape (not just the argmax cell type)
+    # for the summary and the normal-tissue liability figure. Safety-essential cell types are flagged.
+    _has_tissue = "tissue" in reliable.columns
+    _has_frac = frac_col in reliable.columns
+    per_cell_type_top = []
+    for _, r in reliable.sort_values(det_col, ascending=False).head(15).iterrows():
+        per_cell_type_top.append({
+            "cell_type": str(r["cell_type"]),
+            "tissue": str(r["tissue"]) if _has_tissue else None,
+            "median_detection_fraction": float(r[det_col]),
+            "expressing_donor_fraction": float(r[frac_col]) if _has_frac else None,
+            "n_donors_reliable": int(r["n_donors_reliable"]),
+            "is_safety_essential": _is_safety_essential(str(r["cell_type"])),
+        })
+
     return {
         "sc_normal_expression_class": liability,
         # CATEGORICAL companion to the safety_essential_flags dict, so the categorical rule engine can
@@ -159,6 +175,7 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         "safety_essential_flags": safety_flags,
         "n_cell_types_above_20pct": n_above_20,
         "n_reliable_cell_types": int(len(reliable)),
+        "per_cell_type_top": per_cell_type_top,
     }
 
 
@@ -172,5 +189,6 @@ def _data_unavailable_class(note: str = "") -> dict:
         "safety_essential_flags": {},
         "n_cell_types_above_20pct": 0,
         "n_reliable_cell_types": 0,
+        "per_cell_type_top": [],
         "_data_note": note or "No Tier-1 normal-tissue product available or insufficient donor coverage",
     }

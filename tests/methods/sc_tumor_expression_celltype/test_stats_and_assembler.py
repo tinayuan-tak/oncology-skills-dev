@@ -346,3 +346,34 @@ def test_assembler_data_unavailable_carries_homogeneity(monkeypatch):
     monkeypatch.setattr(R, "read_gene_compartment_rows", lambda t, i: None)
     out = R.read_sc_expression_presence("EPCAM", "PAAD")
     assert out["tce_homogeneity_class"] == "data_unavailable"
+
+
+# --- compartment figure (per_compartment: detection + abundance + CAF) -------
+def test_emit_compartment_bar_uses_per_compartment(tmp_path):
+    """The figure renders from the full per_compartment vector (abundance + CAF flag), not just the
+    detection dict, and writes a non-empty SVG."""
+    summary = {
+        "indication": "COADREAD", "malignant_detection_fraction": 0.889,
+        "tce_homogeneity_class": "homogeneous",
+        "compartment_detection": {"malignant": 0.889, "stromal": 0.081},
+        "per_compartment": [
+            {"compartment": "malignant", "median_detection_fraction": 0.889,
+             "median_abundance_log1p_cp10k": 2.08, "n_donors": 374, "n_cells_total": 509769, "is_caf": False},
+            {"compartment": "stromal", "median_detection_fraction": 0.081,
+             "median_abundance_log1p_cp10k": 0.07, "n_donors": 279, "n_cells_total": 136199, "is_caf": True},
+        ]}
+    C.emit_compartment_bar(summary, "EPCAM", tmp_path)
+    svg = tmp_path / "figure_sc_compartment_detection.svg"
+    assert svg.exists() and svg.stat().st_size > 0
+
+
+def test_emit_compartment_bar_falls_back_to_detection_dict(tmp_path):
+    """Older summaries with only compartment_detection still render (no per_compartment)."""
+    C.emit_compartment_bar({"indication": "OV", "compartment_detection": {"malignant": 0.6, "immune": 0.1}},
+                           "FOLR1", tmp_path)
+    assert (tmp_path / "figure_sc_compartment_detection.svg").exists()
+
+
+def test_emit_compartment_bar_noop_when_nothing_to_plot(tmp_path):
+    C.emit_compartment_bar({"indication": "GBM"}, "X", tmp_path)
+    assert not (tmp_path / "figure_sc_compartment_detection.svg").exists()

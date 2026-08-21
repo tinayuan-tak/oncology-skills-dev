@@ -305,3 +305,39 @@ def test_cli_build_summary_adds_method_version(monkeypatch):
     out = C.build_summary("EPCAM", "PAAD")
     assert out["method_version"] == C.METHOD_VERSION
     assert out["sc_normal_expression_class"] == "data_unavailable"
+
+
+# --- per_cell_type_top (ranked footprint) + liability figure -----------------
+def test_per_cell_type_top_ranks_and_flags_safety_essential():
+    """The ranked per-cell-type footprint carries the full liability landscape (not just the argmax),
+    ordered by detection descending, with safety-essential cell types flagged."""
+    rows = _tier1_rows([
+        ("colonocyte",     20, 0.85, 0.90),   # safety-essential (enterocyte/colonocyte lineage)
+        ("cardiomyocyte",  18, 0.60, 0.75),   # safety-essential (critical organ)
+        ("fibroblast",     15, 0.10, 0.20),   # not essential
+    ], tissue="colon")
+    top = S.classify_sc_normal_expression(rows)["per_cell_type_top"]
+    assert [r["cell_type"] for r in top] == ["colonocyte", "cardiomyocyte", "fibroblast"]
+    assert top[0]["median_detection_fraction"] >= top[-1]["median_detection_fraction"]
+    flags = {r["cell_type"]: r["is_safety_essential"] for r in top}
+    assert flags["cardiomyocyte"] is True and flags["fibroblast"] is False
+    assert top[0]["tissue"] == "colon" and top[0]["n_donors_reliable"] == 20
+
+
+def test_per_cell_type_top_empty_when_data_unavailable():
+    assert S._data_unavailable_class()["per_cell_type_top"] == []
+
+
+def test_emit_normal_celltype_liability_writes_svg(tmp_path):
+    summary = S.classify_sc_normal_expression(_tier1_rows([
+        ("colonocyte", 20, 0.85, 0.90), ("cardiomyocyte", 18, 0.60, 0.75),
+        ("fibroblast", 15, 0.10, 0.20)], tissue="colon"))
+    C.emit_normal_celltype_liability(summary, "EPCAM", tmp_path)
+    svg = tmp_path / "figure_sc_normal_celltype_liability.svg"
+    assert svg.exists() and svg.stat().st_size > 0
+    assert svg.read_text().lstrip().startswith("<?xml") or "<svg" in svg.read_text()
+
+
+def test_emit_normal_celltype_liability_noop_when_empty(tmp_path):
+    C.emit_normal_celltype_liability(S._data_unavailable_class(), "EPCAM", tmp_path)
+    assert not (tmp_path / "figure_sc_normal_celltype_liability.svg").exists()
