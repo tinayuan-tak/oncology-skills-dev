@@ -178,6 +178,18 @@
         "caveats_summary": {
           "type": "string",
           "maxLength": 5000
+        },
+        "claim_vectors": {
+          "type": "object",
+          "description": "Per-sub-skill VERDICT-INERT signal decomposition + canonical headline, keyed by sub-skill short name. Carried from each sub-skill's _synthesis_facet by the target-profile fan-out; ABSENT for compose-dashboard packages. Additive — the synthesis block intentionally does NOT set additionalProperties:false (sub_verdicts / recommendation_gate ride as consumer-owned additional properties).",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "claim_vector": {"type": "object", "description": "The {axis: {signal, corroboration, evidence, conflict, informs, evidence_atom?}} projection (claim_vector_core)."},
+              "key_signals": {"type": ["object", "null"]},
+              "headline_block": {"$ref": "#/$defs/headline_block"}
+            }
+          }
         }
       }
     },
@@ -202,6 +214,56 @@
     }
   },
   "$defs": {
+    "headline_block": {
+      "type": "object",
+      "description": "The canonical per-skill HEADLINE block (verdict + confidence + top tension) produced by headline_core.build_headline — a VERDICT-INERT projection over the sub-skill's claim_vector / key_signals. Carries a deterministic one-sentence headline_text plus a renderer-agnostic `hero` plot_data payload (rendered by headline_hero to figure_headline_hero.{svg,png,json}). It never mints or lifts a verdict; the authoritative call remains the resolver gate verdict.",
+      "required": ["verdict", "confidence", "headline_text"],
+      "properties": {
+        "verdict": {
+          "type": "object",
+          "description": "The canonical, single-spelling verdict for this lens.",
+          "required": ["gate"],
+          "properties": {
+            "call": {"type": ["string", "null"], "description": "The verdict token (the sub-skill's vocabulary)."},
+            "phrase": {"type": "string", "description": "Human-readable phrase for the call."},
+            "gate": {"type": "string", "description": "The verdict gate name (e.g. 'presence')."},
+            "driving_rule_id": {"type": ["string", "null"]}
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "required": ["level"],
+          "properties": {
+            "level": {"enum": ["strong", "moderate", "weak", "insufficient"], "description": "Weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; or the CERTAINTY_MODEL sidecar level when the skill emits one."},
+            "basis": {"type": "string"},
+            "coverage": {
+              "type": "object",
+              "properties": {
+                "n_measured": {"type": "integer"},
+                "n_axes": {"type": "integer"},
+                "n_critical_measured": {"type": "integer"}
+              }
+            }
+          }
+        },
+        "top_tension": {
+          "type": ["object", "null"],
+          "description": "The single highest-severity tension (claim conflict / key-signals caveat / skill-specific), or null when none.",
+          "properties": {
+            "text": {"type": "string"},
+            "source": {"type": "string"},
+            "severity": {"type": "integer"}
+          }
+        },
+        "headline_text": {"type": "string", "description": "Deterministic one-sentence headline (NOT the LLM narration)."},
+        "hero": {"type": "object", "description": "Renderer-agnostic hero plot_data (verdict badge, confidence meter, per-axis signal×corroboration, tension marker)."},
+        "provenance": {
+          "type": "array",
+          "description": "Citations lifted from the claim_vector atoms: {axis, card_id, fields}.",
+          "items": {"type": "object"}
+        }
+      }
+    },
     "subtype_resolved": {
       "type": "object",
       "description": "Subtype-resolved evidence block (Option A). Carries, per requested molecular stratum, the per-stratum evidence_state / effect-size metric / subgroup_n / n-floor-met drawn from the subtype-grain cards' per_subgroup_metrics (dependency + mutation-frequency today), plus the cross-axis subtype convergence facet. Additive + independently schema-versioned (schema_version inside this block, distinct from the envelope's top-level schema_version). Verdict-inert: nothing here mints or lifts a nomination.",
