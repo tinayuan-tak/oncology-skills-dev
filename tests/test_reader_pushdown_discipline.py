@@ -75,13 +75,12 @@ _ALLOWLIST = {
     # already reads a materialised per-gene pushdown product; this download is only the last-resort
     # fallback when that product is unreachable — resilience, not a cold-start cost on the happy path.
     "depmap_paralog_aggregator/read.py::_ensure_paralog_cached": "FALLBACK behind depmap-paralog-buffering-per-gene-v1 pushdown primary (reader already migrated); 69MB ParalogGeneEffect.csv used only if the product is unreachable, and the buffering product's offline Ensembl-Compara ohnolog join can't be reproduced from the CSV anyway",
+    "signor_mechanism_network/read.py::_ensure_signor_source_cached": "FALLBACK behind the streamed signor-mechanism-network-per-gene-v1 pushdown primary (_read_from_derived_parquet); the SIGNOR source TXT is downloaded only for the inline compose-on-read used when the derived product is unreachable",
 }
 
 # --- pre-existing query-time whole-download readers, to CONVERT to streamed pushdown (burn-down) ---
 # Each is a real per-target/cohort reader that still downloads the whole product. Shrinks as converted.
 _BASELINE = {
-    "signor_mechanism_network/read.py::_try_load_derived_parquet_from_s3": "prefetch of signor-mechanism-network-per-gene-v1 which was REVERTED (no manifest/object) — needs re-materialising",
-    "signor_mechanism_network/read.py::_ensure_signor_source_cached": "SIGNOR source TXT compose-on-read — needs a parquet product",
 }
 
 _MARKER = "pushdown-discipline: exempt"

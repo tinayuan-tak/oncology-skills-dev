@@ -39,8 +39,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+import threading
+
 from .moa_ontology import classify_edge, ONTOLOGY_VERSION
-from methods.catalog_query.read import bucket_prefix_for
+from methods.catalog_query.read import bucket_prefix_for, bucket_key_for
 
 DEFAULT_AWS_PROFILE = "cbg"
 SIGNOR_SOURCE_MANIFEST_ID = "signor-jul2026"
@@ -48,36 +50,33 @@ SIGNOR_SOURCE_MANIFEST_ID = "signor-jul2026"
 S3_BUCKET, _SIGNOR_PREFIX = bucket_prefix_for(SIGNOR_SOURCE_MANIFEST_ID)
 SIGNOR_S3_KEY = f"{_SIGNOR_PREFIX}SIGNOR_Jul2026_release.txt"
 
+# The derived per-gene product (re-materialised 2026-08-22, direct-signor-jul2026 emit). Resolved
+# from the catalog manifest — the PRIMARY read streams it via pushdown; on any absence/failure the
+# reader falls back to the inline SIGNOR-TSV compose (read_target_summary Path 2).
 DERIVED_MANIFEST_ID = "signor-mechanism-network-per-gene-v1"
-# NOT resolver-migrated: this derived product's manifest is NOT yet in the data-catalog
-# (BLOCKED). Migrate to bucket_key_for(DERIVED_MANIFEST_ID) once the manifest lands.
-DERIVED_S3_KEY = (
-    "data-catalog/derived/signor-mechanism-network-per-gene-v1/"
-    "signor_mechanism_network.parquet"
-)
 
 # Human tax-id — SIGNOR includes some cross-species rows; filter to Homo sapiens
 HUMAN_TAX_ID = "9606"
 
 CACHE_DIR = Path.home() / ".cache" / "framework-signor"
 CACHE_TSV = CACHE_DIR / "SIGNOR_Jul2026_release.txt"
-CACHE_PARQUET = CACHE_DIR / "signor_mechanism_network.parquet"
 
 
 from methods.target_id_sidecar import s3_client as _boto3_client
 
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
-def _try_load_derived_parquet_from_s3() -> Optional[str]:
-    """Try to fetch the pre-computed derived parquet from S3. Returns local
-    cache path on success, None on failure.
-    """
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    try:
-        s3 = _boto3_client()
-        s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
-        return str(CACHE_PARQUET)
-    except Exception:  # absence-discipline: exempt -- S3 derived-parquet prefetch; failure → benign fallback to inline SIGNOR-TSV compute (read_target_summary Path 2), not a dead axis
-        return None
+
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (region us-east-1). Mirrors dge_deseq2._get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as pafs
+                _S3FS = pafs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
 def _ensure_signor_source_cached() -> Path:
@@ -300,52 +299,37 @@ _DERIVED_PARQUET_STATUS: Optional[bool] = None  # None = unchecked; False = conf
 
 
 def _read_from_derived_parquet(target: str) -> Optional[dict]:
-    """Try to satisfy the request from the pre-computed derived parquet.
-    Returns None if the parquet doesn't exist locally or on S3.
-
-    Runtime discipline: module-level negative cache
-    prevents re-trying the S3 download on every per-target read. Without
-    this, every warm-cache read cost ~500ms just to confirm the derived
-    parquet still doesn't exist.
-    """
+    """Satisfy the request from the derived per-gene product via STREAMED pushdown (pyarrow
+    S3FileSystem, filters on target_gene_symbol) — no whole-file download. Returns None when the
+    product is absent (→ caller falls back to the inline SIGNOR-TSV compose) or the target has no
+    edges. Module-level negative cache latches a CONFIRMED-absent product so we don't re-probe S3
+    every call; a transient failure does NOT latch (retries next call, still falling back this call)."""
     global _DERIVED_PARQUET_STATUS
     if _DERIVED_PARQUET_STATUS is False:
-        return None  # confirmed absent; skip S3 retry
-    if not CACHE_PARQUET.exists():
-        if _DERIVED_PARQUET_STATUS is None:
-            loaded = _try_load_derived_parquet_from_s3()
-            if loaded is None:
-                _DERIVED_PARQUET_STATUS = False
-                return None
-            _DERIVED_PARQUET_STATUS = True
-        else:
-            return None
-    else:
-        _DERIVED_PARQUET_STATUS = True
+        return None  # confirmed absent; skip S3 retry, use inline fallback
     try:
         import pyarrow.parquet as pq
-        table = pq.read_table(
-            CACHE_PARQUET,
-            filters=[("target_gene_symbol", "=", target)],
-        )
-        if table.num_rows == 0:
-            return None
-        edges = []
-        for i in range(table.num_rows):
-            edges.append({
-                col: table[col][i].as_py() for col in table.column_names
-            })
-        stripped = [
-            {k: v for k, v in e.items()
-             if k not in {"target_uniprot_ac", "target_gene_symbol"}}
-            for e in edges
-        ]
-        total = len(stripped)
-        unmapped = sum(1 for e in stripped if e.get("moa_class") == "unmapped")
-        # read from the derived product → stamp it as the source (honest per-path provenance)
-        return _aggregate_edges_to_summary(stripped, total, unmapped, data_source=DERIVED_MANIFEST_ID)
-    except Exception:  # absence-discipline: exempt -- derived-parquet read failure → benign fallback to inline SIGNOR-TSV compute (read_target_summary Path 2), not a dead axis
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+        table = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
+                              filters=[("target_gene_symbol", "=", target)])
+        _DERIVED_PARQUET_STATUS = True
+    except Exception as e:  # absence-discipline: exempt -- product-absent/transient → benign fallback to the inline SIGNOR-TSV compute (Path 2), never a dead axis
+        from methods.target_id_sidecar import is_definitively_absent
+        # A genuinely-absent product (no manifest yet / NoSuchKey / 404) latches so we stop probing;
+        # a transient/creds error does NOT latch (retry next call). Either way, fall back to inline.
+        if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+            _DERIVED_PARQUET_STATUS = False
         return None
+    if table.num_rows == 0:
+        return None
+    stripped = [
+        {k: v for k, v in row.items() if k not in {"target_uniprot_ac", "target_gene_symbol"}}
+        for row in table.to_pylist()
+    ]
+    total = len(stripped)
+    unmapped = sum(1 for e in stripped if e.get("moa_class") == "unmapped")
+    # read from the derived product → stamp it as the source (honest per-path provenance)
+    return _aggregate_edges_to_summary(stripped, total, unmapped, data_source=DERIVED_MANIFEST_ID)
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
