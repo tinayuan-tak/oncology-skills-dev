@@ -172,6 +172,170 @@ indications:
     iter1_status: deferred_iter1b  # See docs/design/idas-strata/cml.md for iter-1b prerequisites
     notes: "iter-1b deferred pending patient-cohort ingestion (cBioPortal CML, ICGC-CMLE, or multi-omics cohort survey)."
 
+  # ===== Coverage expansion 2026-08-21 (user-directed) — 12 additional first-class indications.
+  #   All lanes sourced from the analysis-methods canonical maps (INDICATION_TO_DEPMAP_LINEAGE /
+  #   _GDC_PROJECTS / _GTEX_TISSUE / _CPTAC_COHORT / _TCGA_STUDIES) so depmap_lineage passes the
+  #   cross-repo agreement guard; mesh_terms verified present in AACT browse_conditions.downcase_mesh_term.
+  #   cptac_cohort/adj_normal_manifest null where no product exists; depmap_oncotree_lineage omitted
+  #   (coarse depmap_lineage is the scoping key). Primary driver: broaden clinical-precedent (AACT)
+  #   beyond the iter-1 nine; these carry full TCGA/DepMap/GTEx lanes for on-demand full-axis use. =====
+  - canonical_code: BRCA
+    mesh_terms: ["breast neoplasms", "triple negative breast neoplasms", "inflammatory breast neoplasms"]
+    display_name: "Breast Cancer"
+    strategic_bucket: Breast
+    oncotree_code: BRCA
+    tcga_studies: [TCGA-BRCA]
+    gdc_project_ids: [TCGA-BRCA]
+    depmap_lineage: Breast
+    cptac_cohort: brca
+    gtex_normal_tissue: "Breast"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC brca cohort available."
+  - canonical_code: PRAD
+    mesh_terms: ["prostatic neoplasms", "prostatic neoplasms, castration-resistant"]
+    display_name: "Prostate Adenocarcinoma"
+    strategic_bucket: GU
+    oncotree_code: PRAD
+    tcga_studies: [TCGA-PRAD]
+    gdc_project_ids: [TCGA-PRAD]
+    depmap_lineage: Prostate
+    cptac_cohort: null
+    gtex_normal_tissue: "Prostate"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+  - canonical_code: OV
+    mesh_terms: ["ovarian neoplasms", "carcinoma, ovarian epithelial"]
+    display_name: "Ovarian Cancer"
+    strategic_bucket: GYN
+    oncotree_code: OV
+    tcga_studies: [TCGA-OV]
+    gdc_project_ids: [TCGA-OV]
+    depmap_lineage: Ovary/Fallopian Tube
+    cptac_cohort: ov
+    gtex_normal_tissue: "Ovary"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC ov cohort available."
+  - canonical_code: GBM
+    mesh_terms: ["glioblastoma"]
+    display_name: "Glioblastoma"
+    strategic_bucket: CNS
+    oncotree_code: GBM
+    tcga_studies: [TCGA-GBM]
+    gdc_project_ids: [TCGA-GBM]
+    depmap_lineage: CNS/Brain
+    cptac_cohort: gbm
+    gtex_normal_tissue: "Brain"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC gbm cohort available. mesh_terms glioblastoma-specific (contrast LGG)."
+  - canonical_code: LGG
+    mesh_terms: ["glioma", "oligodendroglioma", "astrocytoma"]
+    display_name: "Low-Grade Glioma"
+    strategic_bucket: CNS
+    oncotree_code: LGG
+    tcga_studies: [TCGA-LGG]
+    gdc_project_ids: [TCGA-LGG]
+    depmap_lineage: CNS/Brain
+    cptac_cohort: null
+    gtex_normal_tissue: "Brain"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). 'glioma' is the umbrella MeSH term (may include GBM-tagged trials)."
+  - canonical_code: SKCM
+    mesh_terms: ["melanoma", "melanoma, cutaneous malignant", "uveal melanoma"]
+    display_name: "Skin Cutaneous Melanoma"
+    strategic_bucket: Skin
+    oncotree_code: SKCM
+    tcga_studies: [TCGA-SKCM]
+    gdc_project_ids: [TCGA-SKCM]
+    depmap_lineage: Skin
+    cptac_cohort: null
+    gtex_normal_tissue: "Skin"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+  - canonical_code: BLCA
+    mesh_terms: ["urinary bladder neoplasms", "carcinoma, transitional cell"]
+    display_name: "Bladder Urothelial Carcinoma"
+    strategic_bucket: GU
+    oncotree_code: BLCA
+    tcga_studies: [TCGA-BLCA]
+    gdc_project_ids: [TCGA-BLCA]
+    depmap_lineage: Bladder/Urinary Tract
+    cptac_cohort: null
+    gtex_normal_tissue: "Bladder"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+  - canonical_code: KIRC
+    mesh_terms: ["carcinoma, renal cell", "kidney neoplasms"]
+    display_name: "Kidney Renal Clear Cell Carcinoma"
+    strategic_bucket: GU
+    oncotree_code: KIRC
+    tcga_studies: [TCGA-KIRC]
+    gdc_project_ids: [TCGA-KIRC]
+    depmap_lineage: Kidney
+    cptac_cohort: ccrcc
+    gtex_normal_tissue: "Kidney"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC ccrcc cohort available. 'kidney neoplasms' broadens beyond clear-cell (precedent recall)."
+  - canonical_code: LIHC
+    mesh_terms: ["carcinoma, hepatocellular", "liver neoplasms"]
+    display_name: "Hepatocellular Carcinoma"
+    strategic_bucket: GI-upper
+    oncotree_code: LIHC
+    tcga_studies: [TCGA-LIHC]
+    gdc_project_ids: [TCGA-LIHC]
+    depmap_lineage: Liver
+    cptac_cohort: null
+    gtex_normal_tissue: "Liver"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+  - canonical_code: CESC
+    mesh_terms: ["uterine cervical neoplasms"]
+    display_name: "Cervical Cancer"
+    strategic_bucket: GYN
+    oncotree_code: CESC
+    tcga_studies: [TCGA-CESC]
+    gdc_project_ids: [TCGA-CESC]
+    depmap_lineage: Cervix
+    cptac_cohort: null
+    gtex_normal_tissue: "Cervix Uteri"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+  - canonical_code: UCEC
+    mesh_terms: ["endometrial neoplasms", "uterine neoplasms"]
+    display_name: "Uterine Corpus Endometrial Carcinoma"
+    strategic_bucket: GYN
+    oncotree_code: UCEC
+    tcga_studies: [TCGA-UCEC]
+    gdc_project_ids: [TCGA-UCEC]
+    depmap_lineage: Uterus
+    cptac_cohort: ucec
+    gtex_normal_tissue: "Uterus"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC ucec cohort available."
+  - canonical_code: DLBC
+    mesh_terms: ["lymphoma, large b-cell, diffuse", "lymphoma, b-cell"]
+    display_name: "Diffuse Large B-Cell Lymphoma"
+    strategic_bucket: Heme
+    oncotree_code: DLBCL
+    tcga_studies: [TCGA-DLBC]
+    gdc_project_ids: [TCGA-DLBC]
+    depmap_lineage: Lymphoid
+    cptac_cohort: null
+    gtex_normal_tissue: "Whole Blood"
+    adj_normal_manifest: null
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). Heme convention: Whole Blood normal, no adj-normal/CPTAC."
+
 # Column-level notes:
 # - `gdc_project_ids` includes non-TCGA GDC-accessible projects (BeatAML,
 #   TARGET, etc.); crosswalk-consumers should filter by project prefix if
