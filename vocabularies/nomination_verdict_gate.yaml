@@ -288,7 +288,13 @@ veto_suppressors:
   # computational-only prediction is too weak to override a measured pooled negative.
   - suppresses: {sub_skill: dependency, verdict: non_dependent}
     when_present:
-      - {sub_skill: synthetic_lethal_partners, verdict: has_experimental_sl_partner}
+      # CARD-FIELD trigger (2026-08-21): the SL signal was consolidated 2026-08-20 into the
+      # `combination_vulnerability` sub-skill, which is GATELESS (verdict=None) — so the old
+      # `{sub_skill: synthetic_lethal_partners, verdict: has_experimental_sl_partner}` verdict-tuple
+      # trigger could never match a live sub-verdict in the composed profile (the SL rescue went
+      # DEAD). The load-bearing signal still exists as the `synthetic-lethal-partners` CARD field
+      # `sl_partner_class` (composed under combination_vulnerability), so trigger on it directly.
+      - {card_id: synthetic-lethal-partners, field: sl_partner_class, value: has_experimental_sl_partner}
     rationale: |
       An experimentally-supported curated SL partner (SynLethDB v3) means the pooled
       pan-cancer `non_dependent` read is not a trusted negative — the target may be a

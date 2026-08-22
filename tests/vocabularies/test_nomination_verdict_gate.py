@@ -164,6 +164,12 @@ def test_veto_suppressors_well_formed_and_conservative():
         assert s["suppresses"]["verdict"] == "non_dependent", (
             "context-escape must not suppress pan_essential_killer")
         assert s["when_present"] and s["rationale"].strip()
+        # Each when_present trigger is EITHER a verdict-tuple form ({sub_skill, verdict}) OR a
+        # CARD-FIELD form ({card_id, field, value} — 2026-08-21, for a signal on a card under a
+        # GATELESS sub-skill). No other shape is valid.
+        for w in s["when_present"]:
+            assert set(w) == {"sub_skill", "verdict"} or set(w) == {"card_id", "field", "value"}, (
+                f"veto-suppressor trigger must be a verdict-tuple or card-field trigger, got {set(w)}")
     # Two suppressor CLASSES (by design), distinguished by whether the trigger also
     # nominates:
     #  (1) rescue-and-nominate — the biomarker-stratified trigger both suppresses the
@@ -171,17 +177,23 @@ def test_veto_suppressors_well_formed_and_conservative():
     #  (2) rescue-to-insufficient — the SynLethDB curated-SL trigger suppresses the veto
     #      to `insufficient` but is ANNOTATION, not measurement, so it must NEVER be a
     #      positive_signal (a curated SL relationship does not nominate a target).
-    triggers = {(w["sub_skill"], w["verdict"])
-                for s in supps for w in s["when_present"]}
+    verdict_triggers = {(w["sub_skill"], w["verdict"])
+                        for s in supps for w in s["when_present"] if "verdict" in w}
+    cardfield_triggers = {(w["card_id"], w["field"], w["value"])
+                          for s in supps for w in s["when_present"] if "card_id" in w}
     pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
     # (1) the biomarker trigger IS a positive
-    assert ("genomic_alteration", "biomarker_stratified_dependency") in triggers
+    assert ("genomic_alteration", "biomarker_stratified_dependency") in verdict_triggers
     assert ("genomic_alteration", "biomarker_stratified_dependency") in pos
-    # (2) the SL-annotation trigger is a suppressor but MUST NOT be a positive (never nominates)
-    assert ("synthetic_lethal_partners", "has_experimental_sl_partner") in triggers
-    assert ("synthetic_lethal_partners", "has_experimental_sl_partner") not in pos, (
-        "curated SL is annotation, not measurement — it suppresses a veto but must "
-        "never nominate (no positive_signal entry)")
+    # (2) the SynLethDB curated-SL trigger is now a CARD-FIELD trigger (the synthetic_lethal_partners
+    #     short was consolidated 2026-08-20 into the GATELESS combination_vulnerability sub-skill, so
+    #     the old verdict-tuple form could never match; the signal lives on the card field). It remains
+    #     annotation-not-measurement, so it is (trivially) not a positive_signal.
+    assert ("synthetic-lethal-partners", "sl_partner_class", "has_experimental_sl_partner") in cardfield_triggers, (
+        "the SynLethDB curated-SL veto-suppressor trigger must be present as a card-field trigger")
+    assert ("synthetic_lethal_partners", "has_experimental_sl_partner") not in verdict_triggers, (
+        "the retired synthetic_lethal_partners verdict-tuple trigger must be gone (it can never match "
+        "a gateless sub-skill's verdict)")
 
 
 def test_modality_scoped_veto_suppression_biologics_only():
