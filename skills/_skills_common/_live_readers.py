@@ -926,7 +926,8 @@ def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional
     return mod.build_summary(target, indication)
 
 
-def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
+def _dispatch_cn_distribution(target: str, indication: str,
+                              plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route copy-number-distribution card (E3.b) to methods/depmap_cn_distribution.
 
     WES-primary + WGS-fallback for the CELL-LINE arm (copy_number_class — verdict-driving, pan-cancer;
@@ -939,7 +940,14 @@ def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     copy_number_class OR patient focal CN (see the REQUIRED note below). Each arm degrades independently.
     """
     cn_module = _import_method("depmap_cn_distribution")
-    out = dict(cn_module.read_cn_distribution(target=target, indication=indication))
+    # figure offline-seam: forward the per-card plot_data dir so read_cn_distribution persists
+    # plot_data_cn.parquet DURING resolution → the CN figure emitter renders OFFLINE instead of
+    # re-executing the live CN read. read_cn_distribution already accepts plot_data_out; this
+    # dispatcher was the missing link (read_live_summary only forwards to dispatchers that declare it).
+    _cn_kw = {"target": target, "indication": indication}
+    if plot_data_out is not None:
+        _cn_kw["plot_data_out"] = plot_data_out
+    out = dict(cn_module.read_cn_distribution(**_cn_kw))
     # patient_focal_cn_class is REQUIRED: it's the field the CN-consensus verdict rules
     # (cn-patient-focal-amplified/deleted-supportive) fire on — without it the rescue can't trigger.
     _PCN_KEYS = ("patient_copy_number_class", "patient_focal_cn_class",

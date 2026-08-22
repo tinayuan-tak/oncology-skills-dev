@@ -65,3 +65,16 @@ def test_resolve_cards_threads_plot_data_root(monkeypatch, tmp_path):
                             plot_data_root=tmp_path)
     assert captured["plot_data_root"] == tmp_path
     assert out[0]["card_id"] == "cellline-rna-distribution"
+
+
+def test_cn_distribution_dispatcher_declares_plot_data_out():
+    """Regression (2026-08-21 offline-seam follow-on): the bespoke copy-number-distribution dispatcher
+    must DECLARE plot_data_out so read_live_summary's signature-introspection forwards the per-card dir
+    → the CN figure emitter renders OFFLINE from the persisted plot_data_cn.parquet instead of
+    re-executing the live CN read. read_cn_distribution already accepts plot_data_out; this dispatcher
+    was the missing forward (it routed read_cn_distribution(target, indication) only)."""
+    import inspect
+    d = lr.CARD_DISPATCHERS["copy-number-distribution"]
+    params = inspect.signature(d).parameters
+    assert "plot_data_out" in params or any(p.kind == p.VAR_KEYWORD for p in params.values()), \
+        "copy-number-distribution dispatcher must forward plot_data_out for the offline figure seam"
