@@ -16,7 +16,8 @@ calibration) — this projection is the citable-atom surface for the cross-evide
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              build_atom)
 
 _IMMUNE_SIGNAL = {
     "immune_hot": "strong", "immune_intermediate": "moderate",
@@ -46,10 +47,8 @@ def _immune_atom(h, c):
     s = c.get(_C_IMM) or {}
     vals = {k: s[k] for k in ("immune_context_class", "median_cd8_fraction", "median_total_t_cell_fraction",
                               "n_samples", "tumor_studies") if s.get(k) is not None}
-    if not vals:
-        return None
-    return {"read": s.get("immune_context_class"), "values": vals,
-            "cite": {"card_id": _C_IMM, "fields": sorted(k for k in vals if k != "tumor_studies")}, "entity": _E_IMM}
+    return build_atom(card_id=_C_IMM, values=vals, read=s.get("immune_context_class"), entity=_E_IMM,
+                      exclude_fields=("tumor_studies",))
 
 
 IMMUNE_CONTEXT_CLAIM_SPEC = [

@@ -77,11 +77,11 @@ def _tdl_corr(h, c):
     return "moderate" if _TDL_SIGNAL.get((c.get(_C_TDL) or {}).get("tdl_class"), "unmeasured") != "unmeasured" else "unmeasured"
 
 
+from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+
+
 def _atom(card_id, summary, keys, entity, read):
-    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
-    if not vals:
-        return None
-    return {"read": read, "values": vals, "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
 
 
 def _modality_atom(h, c):

@@ -89,6 +89,35 @@ def corr(card, field, smap):
     return fn
 
 
+# ── the shared evidence-atom builder ───────────────────────────────────────────────────────────────
+def build_atom(*, card_id, values, read, entity, exclude_fields=()):
+    """The SINGLE canonical CITABLE evidence atom — one shared shape for every axis's atom_fn,
+    replacing the ~13 per-module hand-rolled `_atom`/`_patom`/`_mk_atom` builders (which had drifted
+    only in their `fields`-exclusion + entity handling → a drift risk with no structural guard).
+
+    Returns {read, values, cite:{card_id, fields}, entity}, or None when `values` is empty (an
+    absent-card axis stays byte-stable — no `evidence_atom` key). `values` insertion order is
+    PRESERVED (JSON key order is part of the byte output) and None values are dropped. `fields` is the
+    sorted value keys minus `exclude_fields` — the list-valued keys some axes omit from the citation
+    (combination's `partners`/`top_partners`/`sl_partner_symbols`, immune's `tumor_studies`)."""
+    vals = {k: v for k, v in values.items() if v is not None}
+    if not vals:
+        return None
+    excl = set(exclude_fields)
+    return {"read": read, "values": vals,
+            "cite": {"card_id": card_id, "fields": sorted(k for k in vals if k not in excl)},
+            "entity": entity}
+
+
+def build_summary_atom(*, card_id, summary, keys, read, entity, exclude_fields=()):
+    """Standard archetype: derive `values` from `summary` over `keys` (non-None, in `keys` order) then
+    delegate to build_atom. Reproduces the former per-module `_atom(card_id, summary, keys, entity,
+    read)` byte-for-byte (same comprehension, order, None-return)."""
+    return build_atom(card_id=card_id,
+                      values={k: summary[k] for k in keys if summary.get(k) is not None},
+                      read=read, entity=entity, exclude_fields=exclude_fields)
+
+
 # ── the spec + builders ──────────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class ClaimSpec:
@@ -182,5 +211,6 @@ def build_key_signals(claim_vector: dict, *, rank_keys: Sequence[str], support_f
     return {"headline": headline_fn(claim_vector, supports), "supports": supports, "caveat": caveat}
 
 
-__all__ = ["SIGNAL_ORD", "CORROBORATION_ORD", "ClaimSpec", "build_claim_vector", "build_key_signals",
+__all__ = ["SIGNAL_ORD", "CORROBORATION_ORD", "ClaimSpec", "build_atom", "build_summary_atom",
+           "build_claim_vector", "build_key_signals",
            "cards_by_id", "fmt", "sig_ge", "bump_corroboration", "cap_corroboration", "weakest", "corr"]

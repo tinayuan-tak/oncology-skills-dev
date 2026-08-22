@@ -19,7 +19,51 @@ if str(SKILLS) not in sys.path:
 from _skills_common.claim_vector_core import (  # noqa: E402
     SIGNAL_ORD, CORROBORATION_ORD, ClaimSpec, build_claim_vector, build_key_signals,
     bump_corroboration, cap_corroboration, weakest, sig_ge, cards_by_id,
+    build_atom, build_summary_atom,
 )
+
+
+# ── shared evidence-atom builder (Group D 2026-08-21 — the single build_atom all 13 axes delegate to) ──
+_ENTITY = {"measurement_type": "dependency_score", "grain": "target_indication"}
+
+
+def test_build_atom_shape_and_citation_integrity():
+    a = build_atom(card_id="crispr", values={"chronos": -1.2, "n": 300}, read="dependent", entity=_ENTITY)
+    assert a["read"] == "dependent" and a["values"] == {"chronos": -1.2, "n": 300}
+    assert a["entity"] == _ENTITY
+    # CITATION-INTEGRITY CONTRACT: the atom always cites its OWN source card_id (never a phantom), and
+    # fields are exactly the (sorted) value keys — so a consumer's cite.card_id resolves to a real card.
+    assert a["cite"] == {"card_id": "crispr", "fields": ["chronos", "n"]}
+
+
+def test_build_atom_drops_none_and_returns_none_when_empty():
+    # None values are dropped; an all-absent atom returns None so the axis stays byte-stable (no atom key)
+    assert build_atom(card_id="c", values={"a": 1, "b": None}, read="r", entity=_ENTITY)["values"] == {"a": 1}
+    assert build_atom(card_id="c", values={"a": None}, read="r", entity=_ENTITY) is None
+    assert build_atom(card_id="c", values={}, read="r", entity=_ENTITY) is None
+
+
+def test_build_atom_preserves_value_order_but_sorts_fields():
+    # values insertion order is preserved (JSON byte-order is part of the output); fields are sorted
+    a = build_atom(card_id="c", values={"z": 1, "a": 2}, read="r", entity=_ENTITY)
+    assert list(a["values"]) == ["z", "a"]           # order preserved
+    assert a["cite"]["fields"] == ["a", "z"]         # fields sorted
+
+
+def test_build_atom_exclude_fields_omits_list_valued_from_citation():
+    # the bespoke axes (combination/immune) drop list-valued keys from `fields` but KEEP them in `values`
+    a = build_atom(card_id="sl", values={"sl_class": "x", "partners": [1, 2, 3]}, read="x",
+                   entity=_ENTITY, exclude_fields=("partners",))
+    assert "partners" in a["values"]                 # still carried in values
+    assert a["cite"]["fields"] == ["sl_class"]        # but NOT a citation field
+
+
+def test_build_summary_atom_matches_the_legacy_standard_archetype():
+    # build_summary_atom reproduces the former per-module _atom(card_id, summary, keys, entity, read)
+    summary = {"k1": 5, "k2": None, "k3": "hi"}
+    a = build_summary_atom(card_id="c", summary=summary, keys=("k1", "k2", "k3"), read="r", entity=_ENTITY)
+    assert a == {"read": "r", "values": {"k1": 5, "k3": "hi"},
+                 "cite": {"card_id": "c", "fields": ["k1", "k3"]}, "entity": _ENTITY}
 
 
 # ── ordinal / gap≠absent invariants ───────────────────────────────────────────────────────────────

@@ -27,7 +27,8 @@ contract-uniformity with presence_claims but unused here.
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              bump_corroboration, cap_corroboration, sig_ge)
+                                              bump_corroboration, cap_corroboration, sig_ge,
+                                              build_summary_atom)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # CRISPR dependency_class: common_essential | common_essential_underpowered | strongly_selective |
@@ -187,11 +188,7 @@ def _chem_corroboration(h, c):
 # read the raw card summaries from `c` (cards_by_id); returns None when the source card is absent, so
 # the axis stays byte-stable (no evidence_atom key).
 def _atom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
-    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
-    if not vals:
-        return None
-    return {"read": read, "values": vals,
-            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
 
 
 def _dep_atom(h, c):

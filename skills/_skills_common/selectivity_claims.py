@@ -171,12 +171,11 @@ def _safe_corroboration(h, c):
 # separation + overlap, malignant fraction, normal-tissue breadth) rather than the bare class label.
 # Read from the SOURCE card summaries (cards_by_id) for correct per-card citation; verdict-inert;
 # returns None when the source card is absent (axis stays byte-stable — no evidence_atom key).
+from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+
+
 def _satom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
-    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
-    if not vals:
-        return None
-    return {"read": read, "values": vals,
-            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
 
 
 def _win_atom(h, c):

@@ -59,3 +59,18 @@ def test_conflict_forces_primary():
 
 def test_empty_claim_vectors_render_nothing():
     assert R._render_claim_vectors({}) == ""
+
+
+def test_primary_block_is_capped_at_scale():
+    """Group D (2026-08-21): the tier partition bounds WHAT FRACTION is PRIMARY, not the absolute count.
+    A target with more informative claims than _CV_PRIMARY_CAP renders only the cap-many + an elision
+    note — so a 13-axis all-informative fan-in can't blow the prompt."""
+    axes = {f"AX{i}": _claim("strong", {"effect_size": 0.5}) for i in range(_cap_over())}
+    txt = R._render_claim_vectors(_cvs(**axes))
+    prim = txt.split("SECONDARY (tier-only):")[0]
+    assert prim.count("[dependency.AX") <= R._CV_PRIMARY_CAP     # PRIMARY axis entries bounded by the cap
+    assert "elided for length" in txt                            # the honest elision note is shown
+
+
+def _cap_over():
+    return R._CV_PRIMARY_CAP + 11

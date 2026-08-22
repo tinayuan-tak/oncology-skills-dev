@@ -278,6 +278,13 @@ _CV_INFORMATIVE = {"strong", "moderate", "weak", "negative"}   # measured + dire
 # flat — the BRAF/SKCM case: tier `unmeasured` (non_dependent_underpowered) but bimodality + a nonzero
 # responder fraction reveal a hidden subpopulation. Salience must NOT gate on the tier alone.
 _CV_NOTABLE_KEYS = ("fraction", "bimodal", "variance", "effect", "selectivity", "kruskal", "responder")
+# Absolute PRIMARY cap (Group D, 2026-08-21): the tier partition bounds WHAT FRACTION renders full, but
+# not the absolute count — a strongly-positive 13-axis target where most axes are informative could dump
+# ~50-65 full-JSON atoms into the prompt. Cap the PRIMARY block at a deterministic top-N (assembly order:
+# sub_results axis order, then per-short headline lines) and record the elided count, so the panel stays
+# bounded at scale. SECONDARY is already one-line-per-claim (cheap) and stays uncapped. (The notable-key
+# match is intentionally a SUBSTRING test — `bimodal` must match `bimodality_coefficient`, the BRAF case.)
+_CV_PRIMARY_CAP = 30
 
 
 def _atom_is_notable(atom: dict) -> bool:
@@ -316,10 +323,17 @@ def _render_claim_vectors(cvs: dict) -> str:
         ks = (facet.get("key_signals") or {}).get("headline")
         if ks:
             prim.append(f"  [{short}] deterministic read: {ks}")
+    elided = 0
+    if len(prim) > _CV_PRIMARY_CAP:
+        elided = len(prim) - _CV_PRIMARY_CAP
+        prim = prim[:_CV_PRIMARY_CAP]      # deterministic top-N (assembly order), bound the prompt
     out = ("PANEL — claim-vector signal decomposition (SALIENCE-GATED for scale). PRIMARY claims carry "
            "their full citable atom VALUES — reason over them and cite the cite_card_id. SECONDARY "
            "claims are one-line tiers (uninformative/unremarkable for this target):\n")
     out += "PRIMARY:\n" + ("\n".join(prim) if prim else "  (none)") + "\n"
+    if elided:
+        out += (f"  … (+{elided} more PRIMARY claim(s) elided for length; the {_CV_PRIMARY_CAP} shown are "
+                "the highest-priority by assembly order — see the full nomination.json claim_vectors)\n")
     if sec:
         out += "SECONDARY (tier-only):\n" + "\n".join(sec) + "\n"
     return out + "\n"

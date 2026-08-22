@@ -40,16 +40,15 @@ CLAIM_INFORMS = {
 }
 
 
+from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+
+
 def _patom(card_id, summary, keys, entity, read):
     """Citable evidence atom for a presence claim: bind the load-bearing card VALUES to {card_id,
     fields} + entity keys. Presence builds its claims MANUALLY (not via ClaimSpec.atom_fn), so this is
     called inline in each _claim_*. Returns None when the source card is absent → the claim stays
     byte-stable (no evidence_atom key), matching the other axes' atom discipline."""
-    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
-    if not vals:
-        return None
-    return {"read": read, "values": vals,
-            "cite": {"card_id": card_id, "fields": sorted(vals)}, "entity": entity}
+    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
 
 
 # ── the four claims (each returns {signal, corroboration, evidence, conflict}) ───────────────────

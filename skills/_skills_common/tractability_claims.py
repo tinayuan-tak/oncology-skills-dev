@@ -54,12 +54,12 @@ def _corr_present(card, field, smap):
     return fn
 
 
+from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+
+
 def _atom(card_id, summary, keys, read):
-    vals = {k: summary[k] for k in keys if summary.get(k) is not None}
-    if not vals:
-        return None
-    return {"read": read, "values": vals, "cite": {"card_id": card_id, "fields": sorted(vals)},
-            "entity": {"measurement_type": "small_molecule_tractability", "grain": "target"}}
+    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read,
+                              entity={"measurement_type": "small_molecule_tractability", "grain": "target"})
 
 
 def _mk_atom(card, field, keys):
