@@ -1,199 +1,131 @@
 """collectri_tf_regulon — read CollecTri TF-target edges per target.
 
-Hybrid cache-then-compute pattern:
-  1. Try to load pre-computed derived parquet (per-target aggregated view)
-  2. If not found, load the full CollecTri CSV from S3 + filter to target-
-     involved edges + emit per-target summary
-  3. Cache result to local ~/.cache/framework-collectri/
+Streamed pushdown (2026-08-22 data-layer hardening): reads the derived per-gene product
+`collectri-tf-regulon-per-gene-v1` via a pyarrow S3FileSystem, pushing down the target_gene_symbol
+filter so only ONE gene's edges transit the wire — no whole-CSV download. The derived product is a
+pure RESHAPE of CollecTRI.csv (dual-emitted long rows keyed by target_gene_symbol); this reader owns
+the MoA classification (shared with SIGNOR via moa_ontology) and applies it on-read, then aggregates
+to the SIGNOR-compatible signaling-network-mechanism card shape.
 
 Signed TF-target edges → same MoA-classification path as SIGNOR (via
-methods/signor_mechanism_network/moa_ontology.py). CollecTri's weight
-column determines whether the edge is a `transcriptional activation`
-(+1) or `transcriptional repression` (-1) — mechanism strings that map
-to the ontology's `upstream_transcriptional_activator` +
-`upstream_transcriptional_repressor` (or downstream analogs).
+methods/signor_mechanism_network/moa_ontology.py). CollecTri's weight column determines whether the
+edge is a `transcriptional activation` (+1) or `transcriptional repression` (-1) — mechanism strings
+that map to the ontology's upstream/downstream transcriptional activator/repressor classes.
 
-Returns dict matching the SIGNOR read.py contract so consumers can union
-CollecTri + SIGNOR edges without shape mismatches.
+Returns dict matching the SIGNOR read.py contract so consumers can union CollecTri + SIGNOR edges
+without shape mismatches.
 
-License: CollecTri wrapper is GPL-3.0 (Müller-Dott 2023). Per-row data
-inherits license from the named `resources` column value; commercial-use
-consumers should filter by resources OR emit resources verbatim so
-governance can filter downstream. This reader emits `resources` per edge.
+License: CollecTri wrapper is GPL-3.0 (Müller-Dott 2023). Per-row data inherits license from the
+named `resources` column value; this reader emits `resources` per edge so governance can filter
+downstream.
 """
 from __future__ import annotations
 
-import os
+import sys
+import threading
 from pathlib import Path
 from typing import Optional
 
-# Reuse the shared MoA ontology from the SIGNOR method — cross-source
-# consistency. If we needed CollecTri-specific classes, we'd extend the
-# shared ontology (already done for `transcriptional activation` /
-# `transcriptional repression` entries).
-import sys
 _METHODS_ROOT = Path(__file__).resolve().parent.parent
 if str(_METHODS_ROOT.parent) not in sys.path:
     sys.path.insert(0, str(_METHODS_ROOT.parent))
 from methods.signor_mechanism_network.moa_ontology import classify_edge, ONTOLOGY_VERSION
-from methods.catalog_query.read import bucket_prefix_for
+from methods.catalog_query.read import bucket_key_for
 
-DEFAULT_AWS_PROFILE = "cbg"
-COLLECTRI_SOURCE_MANIFEST_ID = "collectri-snapshot-2026-06-30"
-# bucket + key resolved from the data-catalog manifest (single source of truth).
-S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(COLLECTRI_SOURCE_MANIFEST_ID)
-COLLECTRI_S3_KEY = f"{_SOURCE_PREFIX}CollecTRI.csv"
-
-CACHE_DIR = Path.home() / ".cache" / "framework-collectri"
-CACHE_CSV = CACHE_DIR / "CollecTRI.csv"
+DERIVED_MANIFEST_ID = "collectri-tf-regulon-per-gene-v1"
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+# ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-def _ensure_collectri_cached() -> Path:
-    """Download CollecTRI.csv from S3 to local cache. Idempotent."""
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_CSV.exists() and CACHE_CSV.stat().st_size > 0:
-        return CACHE_CSV
-    s3 = _boto3_client()
-    s3.download_file(S3_BUCKET, COLLECTRI_S3_KEY, str(CACHE_CSV))
-    return CACHE_CSV
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
+    Built once and shared (safe for concurrent reads — the parallel card-read pool relies on that).
+    Mirrors methods/dge_deseq2/read.py::_get_s3fs + methods/depmap_common/parquet.py."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as pafs
+                _S3FS = pafs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
-from functools import lru_cache
+def _weight_to_mechanism(weight: int) -> tuple[str, bool, bool, str]:
+    """Signed CollecTRI weight → (mechanism_string, is_stimulation, is_inhibition, raw_effect).
+    Mechanism strings match the extended MoA ontology entries (transcriptional activation/repression)."""
+    if weight > 0:
+        return "transcriptional activation", True, False, "up-regulates"
+    if weight < 0:
+        return "transcriptional repression", False, True, "down-regulates"
+    return "transcriptional regulation", False, False, "regulates"
 
 
-@lru_cache(maxsize=1)
-def _load_collectri_rows_indexed() -> tuple[list[dict], dict]:
-    """Parse CollecTri CSV ONCE and cache in-memory. Returns (all_rows,
-    entity_index) where entity_index[symbol] → list of row indexes that
-    involve that HGNC symbol (as either source TF or regulated target).
-
-    Runtime discipline (2026-07-10 perf fix, same pattern as SIGNOR):
-    per-target reads become O(k) where k = rows-involving-target.
-    """
-    import csv
-    path = _ensure_collectri_cached()
-    rows: list[dict] = []
-    entity_index: dict[str, list[int]] = {}
-    with path.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            idx = len(rows)
-            rows.append(row)
-            for col in ("source", "target"):
-                sym = row.get(col, "").strip()
-                if sym:
-                    entity_index.setdefault(sym, []).append(idx)
-    return rows, entity_index
-
-
-def _stream_collectri_rows():
-    """Legacy API-compat path. Delegates to cached parse — no more per-call
-    CSV re-reading.
-    """
-    rows, _ = _load_collectri_rows_indexed()
-    yield from rows
-
-
-def _iter_collectri_rows_for_target(target: str):
-    """O(k) iteration over CollecTri rows involving the target."""
-    rows, entity_index = _load_collectri_rows_indexed()
-    for idx in entity_index.get(target, []):
-        yield rows[idx]
+def _row_to_edge(row: dict) -> dict:
+    """Map ONE derived-product row (target_gene_symbol/partner_gene_symbol/direction/weight/…) to the
+    per-edge dict shape the SIGNOR contract uses. Direction is taken from the row (computed at derive
+    time); MoA classified here via the shared ontology."""
+    try:
+        weight = int(row.get("weight") or 0)
+    except (TypeError, ValueError):
+        weight = 0
+    mech_str, is_stim, is_inh, raw_effect = _weight_to_mechanism(weight)
+    direction = row.get("direction") or ""
+    cls = classify_edge(mech_str, direction)
+    if cls is None:
+        moa_class, modality_relevance = "unmapped", ()
+    else:
+        moa_class, modality_relevance = cls.moa_class, cls.modality_relevance
+    return {
+        "partner_uniprot_ac": "",   # CollecTri is symbol-only
+        "partner_gene_symbol": row.get("partner_gene_symbol") or "",
+        "direction": direction,
+        "raw_mechanism": mech_str,
+        "raw_effect": raw_effect,
+        "moa_class": moa_class,
+        "modality_relevance": list(modality_relevance),
+        "is_stimulation": is_stim,
+        "is_inhibition": is_inh,
+        "direct_flag": True,   # CollecTri edges are direct-transcriptional by definition
+        "references": row.get("references") or "",
+        "resources": row.get("resources") or "",
+        "tf_category": row.get("tf_category") or "",
+        "sign_decision": row.get("sign_decision") or "",
+    }, (cls is None)
 
 
-def _compute_edges_for_target(target: str) -> tuple[list[dict], int, int]:
-    """Filter CollecTri to edges where target appears as either the TF
-    (source) or the regulated gene (target). Classify each edge via MoA
-    ontology. Return (edges, total, unmapped).
-    """
+def _read_edges_from_derived(target: str, product_path=None) -> tuple[list[dict], int, int]:
+    """Streamed pushdown read of one target's edges from collectri-tf-regulon-per-gene-v1.
+
+    Returns (edges, total, unmapped). `product_path` (offline test seam): a local parquet bypasses S3.
+    Raises on a transient/creds/broken-env failure (NOT swallowed — the caller's boundary classifies a
+    genuine 404/absence into data_unavailable via is_definitively_absent)."""
+    import pyarrow.parquet as pq
+    if product_path is not None:
+        tbl = pq.read_table(str(product_path), filters=[("target_gene_symbol", "=", target)])
+    else:
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
+                            filters=[("target_gene_symbol", "=", target)])
     edges: list[dict] = []
-    unmapped = 0
-    total = 0
-
-    # Fast path (2026-07-10 perf fix): use pre-indexed target lookup.
-    for row in _iter_collectri_rows_for_target(target):
-        src = row.get("source", "").strip()  # TF (HGNC symbol)
-        tgt = row.get("target", "").strip()  # regulated gene (HGNC symbol)
-        if target not in (src, tgt):
-            continue
-
-        weight_str = row.get("weight", "0").strip()
-        try:
-            weight = int(weight_str) if weight_str else 0
-        except ValueError:
-            weight = 0
-
-        # Signed weight → mechanism string that matches the extended MoA
-        # ontology entries added 2026-07-10.
-        if weight > 0:
-            mech_str = "transcriptional activation"
-            is_stim, is_inh = True, False
-        elif weight < 0:
-            mech_str = "transcriptional repression"
-            is_stim, is_inh = False, True
-        else:
-            mech_str = "transcriptional regulation"
-            is_stim, is_inh = False, False
-
-        resources = row.get("resources", "").strip()
-        pmid = row.get("PMID", "").strip()
-        tf_category = row.get("TF.category", "").strip()
-        sign_decision = row.get("sign.decision", "").strip()
-
-        # Direction from target's perspective:
-        #   target == src → target is the TF; partner is downstream regulated gene
-        #   target == tgt → target is regulated; partner is the upstream TF
-        if target == src:
-            partner_symbol = tgt
-            direction = "downstream"
-        else:
-            partner_symbol = src
-            direction = "upstream"
-
-        cls = classify_edge(mech_str, direction)
+    total = unmapped = 0
+    for row in tbl.to_pylist():
+        edge, is_unmapped = _row_to_edge(row)
+        edges.append(edge)
         total += 1
-        if cls is None:
+        if is_unmapped:
             unmapped += 1
-            moa_class = "unmapped"
-            modality_relevance: tuple = ()
-        else:
-            moa_class = cls.moa_class
-            modality_relevance = cls.modality_relevance
-
-        edges.append({
-            "partner_uniprot_ac": "",   # CollecTri is symbol-only; leave AC empty
-            "partner_gene_symbol": partner_symbol,
-            "direction": direction,
-            "raw_mechanism": mech_str,
-            "raw_effect": (
-                "up-regulates" if weight > 0
-                else ("down-regulates" if weight < 0 else "regulates")
-            ),
-            "moa_class": moa_class,
-            "modality_relevance": list(modality_relevance),
-            "is_stimulation": is_stim,
-            "is_inhibition": is_inh,
-            "direct_flag": True,  # CollecTri edges are direct-transcriptional by definition
-            "references": pmid,
-            "resources": resources,
-            "tf_category": tf_category,
-            "sign_decision": sign_decision,
-        })
-
     return edges, total, unmapped
 
 
 def _aggregate_edges_to_summary(
     edges: list[dict], total: int, unmapped: int
 ) -> dict:
-    """Aggregate per-edge records → per-target summary matching the SIGNOR
-    read.py contract shape. Same keys, same categorical enum, so the
-    composed Phase-D card can union CollecTri + SIGNOR outputs without
-    reshape logic.
-    """
+    """Aggregate per-edge records → per-target summary matching the SIGNOR read.py contract shape.
+    Same keys, same categorical enum, so the composed Phase-D card can union CollecTri + SIGNOR
+    outputs without reshape logic."""
     upstream = [e for e in edges if e["direction"] == "upstream"]
     downstream = [e for e in edges if e["direction"] == "downstream"]
     n_up = len(upstream)
@@ -224,32 +156,29 @@ def _aggregate_edges_to_summary(
         "has_pd_marker": n_down >= 1,
         "moa_ontology_version": ONTOLOGY_VERSION,
         "moa_ontology_unmapped_fraction": unmapped_frac,
-        "_data_source": "collectri-tf-regulon-per-gene-v1",
-        "_data_source_upstream": COLLECTRI_SOURCE_MANIFEST_ID,
+        "_data_source": DERIVED_MANIFEST_ID,
     }
 
 
-def read_target_summary(target: str, indication: str = None) -> dict:
-    """Per-target CollecTri TF-regulon summary. Hybrid cache-then-compute.
+def read_target_summary(target: str, indication: str = None, product_path=None) -> dict:
+    """Per-target CollecTri TF-regulon summary via streamed pushdown.
 
     Args:
-        target: HGNC gene symbol (e.g., 'KRAS' or 'NFE2L2'). CollecTri
-            keys on HGNC symbol directly.
-        indication: unused (CollecTri is indication-agnostic); accepted
-            for dispatcher signature consistency across cards.
+        target: HGNC gene symbol (e.g., 'KRAS' or 'NFE2L2'). CollecTri keys on HGNC symbol directly.
+        indication: unused (CollecTri is indication-agnostic); accepted for dispatcher signature.
+        product_path: offline test seam — a local parquet path bypasses S3.
 
     Returns:
-        dict matching the SIGNOR-derived signaling-network-mechanism card
-        shape. Never raises on target-not-found — returns
-        network_class='data_unavailable'.
+        dict matching the SIGNOR-derived signaling-network-mechanism card shape. Never raises on
+        target-not-found — returns network_class='data_unavailable'.
     """
     try:
-        edges, total, unmapped = _compute_edges_for_target(target)
+        edges, total, unmapped = _read_edges_from_derived(target, product_path=product_path)
         return _aggregate_edges_to_summary(edges, total, unmapped)
     except Exception as e:
-        # Genuine product-absence (NoSuchKey/404 or FileNotFoundError) → honest data_unavailable. A
-        # transient/creds/broken-env error must NOT be masked as an empty regulon — re-raise it so the
-        # live-read seam surfaces _live_read_error instead of a silent dead axis.
+        # A GENUINE product-object absence (NoSuchKey/404 or FileNotFoundError) → honest
+        # data_unavailable. A transient/creds/broken-env error must NOT be masked as an empty regulon
+        # — re-raise so the live-read seam surfaces _live_read_error instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
@@ -265,5 +194,5 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             "has_pd_marker": False,
             "moa_ontology_version": ONTOLOGY_VERSION,
             "moa_ontology_unmapped_fraction": 0.0,
-            "_data_note": f"compute_failed: {type(e).__name__}: {e}",
+            "_data_note": f"read_failed: {type(e).__name__}: {e}",
         }

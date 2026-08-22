@@ -76,7 +76,6 @@ _ALLOWLIST = {
 # --- pre-existing query-time whole-download readers, to CONVERT to streamed pushdown (burn-down) ---
 # Each is a real per-target/cohort reader that still downloads the whole product. Shrinks as converted.
 _BASELINE = {
-    "collectri_tf_regulon/read.py::_ensure_collectri_cached": "CSV source (CollecTRI.csv) — needs a Layer-A parquet product before streaming helps",
     "depmap_paralog_aggregator/read.py::_ensure_paralog_cached": "CSV source (ParalogGeneEffect.csv) — needs parquet product first",
     "immune_context/read.py::_ensure_cached": "source-release CIBERSORT TSV, no pushdown key — needs a per-target derived product",
     "signor_mechanism_network/read.py::_try_load_derived_parquet_from_s3": "prefetch of signor-mechanism-network-per-gene-v1 which was REVERTED (no manifest/object) — needs re-materialising",
