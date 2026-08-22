@@ -7,7 +7,7 @@ description: |
   + GTEx normal-tissue breadth, mechanism-conditioned by alteration-role
   (mutant-selective GoF downgrade). Plus (data-utilization expansion 2026-08-21)
   DepMap pan-essentiality (broad-tox HOLD), HPA-IHC essential-tissue protein
-  (HOLD), and ClinGen recessive-only carrier-health reassurance. 10 cards;
+  (HOLD), ClinGen recessive-only reassurance, and OT drug-warning pharmacovigilance context. 11 cards;
   verdict via the shared declarative resolver (safety.resolver.yaml).
 
   Question this skill answers:
@@ -24,7 +24,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.10.0
+  version: 1.11.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -51,6 +51,7 @@ composition:
                                        # BROAD-TOX leg: dependency_class==common_essential fires
                                        # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_
                                        # concern HOLD. Same card the dependency skill vetoes; SAFETY reading.
+    - drug-warning-safety              # (2026-08-21) OT pharmacovigilance CONTEXT (verdict-inert): black-box/withdrawn history of target-engaging drugs
     - normal-tissue-liability          # data-util expansion 2026-08-21 — HPA-IHC essential-tissue PROTEIN
                                        # leg (the protein sibling of normal-tissue-liability-gtex, no longer
                                        # only on the surface axis): essential_tissue_flag==present fires
@@ -78,6 +79,7 @@ composition:
     - copy_number_alteration                   # copy-number-distribution — amplification guard (S1-1)
     - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
     - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
+    - drug_warning_safety                      # drug-warning-safety — OT pharmacovigilance context (verdict-inert, 2026-08-21)
   # rules_scope = the CARDS whose rules enter the safety resolver (convention: card-ids, matching
   # the sibling skills). 2026-08-14 review (S3): completed from 2 entries — it listed the
   # gnomad-lof-constraint card + the activating-driver-role-safety-context RULE-id (inconsistent),

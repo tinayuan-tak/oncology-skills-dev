@@ -35,8 +35,9 @@ _sf = _load(SAFETY_RUN, "sf_run_mutsel")
 # card_id _headline reads must be present; an empty summary is fine for the ones not under test.
 _ALL_SAFETY_CARD_IDS = ["gnomad-lof-constraint", "alteration-role", "gene-burden-safety",
                         "clingen-dosage", "clinvar-pathogenicity-safety", "mouse-ko-phenotype",
-                        # data-util expansion 2026-08-21 — _headline now also reads these two cards
-                        "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability"]
+                        # data-util expansion 2026-08-21 — _headline now also reads these cards
+                        "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
+                        "drug-warning-safety"]
 
 
 def _safety_cards(**summaries):

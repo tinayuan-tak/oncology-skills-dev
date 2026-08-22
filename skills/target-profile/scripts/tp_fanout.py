@@ -559,6 +559,7 @@ SUB_SKILL_CARDS = {
                                           # (Also in on-target-safety-liability/run.py CARDS.)
         "normal-tissue-liability-gtex",   # Q3 — paired with on-target-safety-liability CARDS (composer-consistency)
         "target-safety-prioritisation",   # OT engineered-score safety CONTEXT (verdict-inert)
+        "drug-warning-safety",            # (2026-08-21) OT pharmacovigilance CONTEXT (verdict-inert)
         "gene-burden-safety",             # OT rare-variant burden LoF-tolerance (verdict-moving; safety.resolver 1.3.0)
         "clingen-dosage",                 # ClinGen haploinsufficiency dosage-sensitivity (verdict-moving; safety.resolver 1.3.0)
         "mouse-ko-phenotype",             # mouse-KO normal-physiology (developmental-guardrailed; verdict-moving; safety.resolver 1.3.0)

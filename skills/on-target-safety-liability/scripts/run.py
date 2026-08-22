@@ -24,7 +24,10 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.10.0"  # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-08-21): compose drug-warning-safety (OT pharmacovigilance
+                          # CONTEXT) — VERDICT-INERT, closes the P5 drug_warning placeholder axis
+                          # (only colocalisation remains). Verdict byte-stable (no resolver rung).
+                          # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                           # (guarded by skills/tests/test_version_parity.py).
                           # 1.10.0 (2026-08-21): data-utilization expansion — compose pan-cancer-crispr-
                           # dependency-distribution (pan-essential broad-tox HOLD) + normal-tissue-liability
@@ -102,6 +105,11 @@ CARDS = [
                                       # card surface-modality-fit uses for its BiTE/TCE killer. This is
                                       # PROTEIN-level critical-organ liability; the GTEx card above is
                                       # RNA-breadth. No mutant-selective downgrade (full-KO hits WT).
+    "drug-warning-safety",            # (2026-08-21) — OT pharmacovigilance CONTEXT: do drugs that ENGAGE
+                                      # the target carry FDA black-box / withdrawn warnings (drug_warning ⋈
+                                      # drug_mechanism_of_action)? VERDICT-INERT (no resolver rung; like
+                                      # target-safety-prioritisation) — a confounded on-target signal that
+                                      # ORIENTS, never HOLDs. Closes the P5 drug_warning placeholder axis.
 ]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
@@ -124,7 +132,9 @@ PARTIAL_STATUS_NOTE = (
     "card, no longer only on the surface axis), and ClinGen recessive-only carrier-health REASSURANCE "
     "(tolerant_reduced_safety_risk, above the data-unavailable rung only). REMAINING GAPS keeping this "
     "`partial`: the readers must still fire in an emitted package / dashboard_spec; and the P5 "
-    "drug_warning + colocalisation OT legs are deferred (asset-level / study-locus-keyed)."
+    "drug_warning is now WIRED as VERDICT-INERT pharmacovigilance context (drug-warning-safety card, "
+    "2026-08-21); only the colocalisation OT leg remains deferred (study-locus-keyed; marginal on-target "
+    "signal for oncology)."
 )
 
 
@@ -296,6 +306,11 @@ def _headline(cards, fired, verdict_pair):
         "essential_tissue_flag":              get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
         "essential_tissues_flagged":          get_card_field(cards, "normal-tissue-liability", "essential_tissues_flagged"),
         "normal_tissue_breadth_class":        get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
+        # OT pharmacovigilance CONTEXT (verdict-inert): do drugs engaging the target carry black-box /
+        # withdrawn warnings? Orients the reader; no resolver rung reads these.
+        "drug_warning_class":                 get_card_field(cards, "drug-warning-safety", "drug_warning_class"),
+        "drug_warning_has_black_box":         get_card_field(cards, "drug-warning-safety", "has_black_box"),
+        "drug_warning_toxicity_classes":      get_card_field(cards, "drug-warning-safety", "toxicity_classes"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (
@@ -338,6 +353,7 @@ _SYNTHESIS_FACET_KEYS = (
     "constraint_class", "burden_safety_class", "dosage_sensitivity_class",
     "clinvar_pathogenic_class", "mouse_ko_phenotype_class",
     "dependency_class", "pan_essential_score", "essential_tissue_flag", "normal_tissue_breadth_class",
+    "drug_warning_class", "drug_warning_has_black_box", "drug_warning_toxicity_classes",
     "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
     "claim_vector", "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
