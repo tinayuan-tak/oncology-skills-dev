@@ -56,14 +56,14 @@ that changes the measured biology.
  SKILLS  (this repo — one biological question each; retrieval-only, Claude-invocable)
         │  compose
         ▼
- COMPOSITION  target-profile (narrative synthesis) · compose-dashboard (evidence package)
+ COMPOSITION  target-profile (narrative synthesis + evidence package)
 ```
 
 ---
 
 ## Prerequisites — these skills are not self-contained
 
-A compute/compose skill run (`compose-dashboard`, `target-profile`, and the question skills like
+A compute/compose skill run (`target-profile` and the question skills like
 `tumor-presence`) reaches into the **three sibling repos on the filesystem** and reads data from
 **S3**. Installing this repo alone is not enough. To run them you need:
 
@@ -204,8 +204,8 @@ Productization (Phase D / D1): standalone subskills can emit the same `evidence_
 | Skill | Ver | Role |
 |---|---|---|
 | [`target-profile`](skills/target-profile/) | 1.1.0 | Fans out (in-process) to the 13 wired question skills, collects each sub-verdict, then runs Tier-3 structured LLM synthesis (Bedrock, tool-choice-forced) for `executive_summary` + `tension_analysis` + `recommendation`. Emits `target_profile.md` + `nomination.json` + provenance. Deterministic sub-verdicts and LLM narrative live in **distinct schema slots** — the audit spine is invariant even if narrative drifts. |
-| [`compose-dashboard`](skills/compose-dashboard/) | — | Consumes a `dashboard_spec` (from `target-contracts`) + invocation context (target, indication, subgroup, data_mode, release_pin) and produces `evidence_package.json` (+ `run_plan.yaml`, `dashboard.md`, `INDEX.md`) in the `data-products` repo; the validation summary is embedded in `evidence_package.governance` (there is no separate `lockfile.yaml` / `validation_report.json`). All three phases (compose → execute → synthesize) are implemented. |
-| [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). Invoked automatically by `compose-dashboard`. |
+| `compose-dashboard` | — | **RETIRED 2026-08-20 (#654).** The iter-1 `dashboard_spec`-driven orchestrator was deleted; its engine (live readers, figure emitters, `envelope.assemble_evidence_package`) rehomed to `_skills_common`, and `target-profile --emit evidence-package` now produces the deterministic `evidence_package.json`. |
+| [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). (Formerly auto-invoked by the retired `compose-dashboard`.) |
 | [`query-target-evidence`](skills/query-target-evidence/) | 2.0.0 | **Retrieval-only.** Reads a stored `evidence.json` from `core-artifacts/`, validates + checks staleness, returns. If an artifact is missing it names the batch job that produces it — it never triggers compute. |
 
 ### Developer & utility skills
@@ -247,7 +247,8 @@ changes downstream:
 | [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods) | **Method modules** — the actual compute | Skills invoke method CLIs for tier-1 evidence |
 | [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog) | Versioned source + derived-product **manifests** (GDC release + UUID + pipeline-version pins) | Indirectly, via `analysis-methods`; provenance flows through catalog manifest IDs |
 
-`compose-dashboard` also writes into a `data-products` repo (the emitted evidence packages).
+`target-profile --emit evidence-package` writes the emitted evidence packages (the retired
+`compose-dashboard` formerly wrote them into a `data-products` repo).
 
 See [CLAUDE.md](CLAUDE.md) for the cross-session coordination ritual and branch discipline —
 because multiple parallel sessions edit these repos, claim your workstream in

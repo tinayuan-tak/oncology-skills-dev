@@ -138,7 +138,7 @@ children first, or pass `--retarget-children` to move them onto the base.
 - Trunk is `v2-architecture`, never `main`.
 - A resolver / verdict-contract change fans out into golden snapshots + synthetic
   fired-sets + stub fixtures across multiple skill dirs, so run the FULL skills suite
-  (`skills/_skills_common/`, `skills/compose-dashboard/`, `skills/target-profile/`,
+  (`skills/_skills_common/`, `skills/target-profile/`,
   the changed `skills/<skill>/`, and the cross-skill guards in `skills/tests/`) — a
   `-k` subset silently misses the fan-out. Regenerate the golden via
   `skills/_skills_common/tests/regenerate_resolver_golden.py` (manually append any NEW
@@ -146,7 +146,9 @@ children first, or pass `--retarget-children` to move them onto the base.
 - Stale skills PR branches share no merge-base with the rewritten `v2-architecture`
   trunk, so reland via `gh pr diff <n> > /tmp/pr.patch` then `git apply --3way`
   (NOT a rebase), and push with `git push --force-with-lease`.
-- `--synthesize` needs system python + `BEDROCK_AWS_PROFILE=cmp-dev`; compose-dashboard
-  live mode needs `AWS_PROFILE=cbg` for the onc-compbio bucket.
+- `--synthesize` needs system python + `BEDROCK_AWS_PROFILE=cmp-dev`. (The `compose-dashboard`
+  orchestrator was RETIRED 2026-08-20, #654 — its engine rehomed to `_skills_common`; disregard any
+  lingering reference to it. A target-profile `--ground` / Bedrock run needs `AWS_PROFILE=cbg` for the
+  onc-compbio bucket.)
 - After a SageMaker restart, `gh` (`~/.local/bin/gh`) and `pixi` (`~/.pixi/bin`) fall
   off PATH — re-export both before running any gate.
