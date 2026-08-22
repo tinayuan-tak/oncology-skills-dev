@@ -684,7 +684,8 @@ def _skipped_synthesis_output() -> dict:
 
 def _run_sub_skills(target: str, indication: str,
                     subtypes: Optional[list[str]] = None,
-                    profile_timers: bool = False) -> dict:
+                    profile_timers: bool = False,
+                    plot_data_root: Optional[Path] = None) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
       - `skill_dir`
@@ -716,7 +717,13 @@ def _run_sub_skills(target: str, indication: str,
         that sub-skill's own cards — no cross-sub-skill state (verified collect-then-synthesize),
         so this is safe to run concurrently. Returns (short, result-dict)."""
         _t0 = time.perf_counter() if profile_timers else 0.0
-        cards = resolve_cards(SUB_SKILL_CARDS[skill_dir], target, indication)
+        # Figure Stage 3 (offline seam): when plot_data_root is set (a figures-emitting run), each
+        # method persists its plot_data under <plot_data_root>/cards/<card_id>/ DURING resolution, so the
+        # figure emitters render OFFLINE from it instead of re-executing a second live read. VERDICT-INERT
+        # — persistence is a side artifact; the returned card summaries (hence the verdict spine) are
+        # byte-identical to a plot_data_root=None run. None (verdict-only / --no-figures) => no persistence.
+        cards = resolve_cards(SUB_SKILL_CARDS[skill_dir], target, indication,
+                              plot_data_root=plot_data_root)
         if profile_timers:
             print(f"[perf] read  {short:26s} {time.perf_counter() - _t0:6.1f}s "
                   f"({len(SUB_SKILL_CARDS[skill_dir])} cards)", file=sys.stderr)
@@ -806,7 +813,8 @@ def _run_sub_skills(target: str, indication: str,
         subgroup_context = {"resolved_strata_ids": list(subtypes),
                             "catalog_status": "resolved_active"}
         sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication,
-                                  subgroup_context=subgroup_context)
+                                  subgroup_context=subgroup_context,
+                                  plot_data_root=plot_data_root)
         sub_fired: list[dict] = []
         for axis in axes:
             sub_fired.extend(fired_rules(sub_cards, axis=axis,

@@ -197,3 +197,42 @@ def test_synthesis_prompt_builder_tolerates_none_verdict_gateless_short():
     assert "no rule-fired verdict" in prompt          # the None-verdict rendering branch
     # descriptive card evidence still reaches the integrator prompt
     assert "protein-domains-class" in prompt
+
+
+# ---------------------------------------------------------------------------
+# Figure Stage 3 (offline-seam activation, 2026-08-21): the fan-out must FORWARD
+# plot_data_root to resolve_cards so figure emitters render offline (from persisted
+# plot_data) instead of re-executing a second live read.
+# ---------------------------------------------------------------------------
+
+def _install_capturing_fakes(monkeypatch, captured):
+    monkeypatch.setattr(tp_fanout, "_prewarm_sub_skill_imports", lambda: None)
+
+    def _cap_resolve(cards, target, indication, **kw):
+        captured.append(kw.get("plot_data_root", "__absent__"))
+        return list(_FAKE_CARDS)
+    monkeypatch.setattr(tp_fanout, "resolve_cards", _cap_resolve)
+    monkeypatch.setattr(tp_fanout, "fired_rules",
+                        lambda cards, axis, card_id_filter, **kw: [])
+    monkeypatch.setattr(tp_fanout, "_load_sub_skill_verdict_fn",
+                        lambda sd: (lambda fired: (f"v::{sd}", "drv")))
+
+
+def test_fanout_forwards_plot_data_root_to_resolve_cards(monkeypatch):
+    from pathlib import Path
+    captured: list = []
+    _install_capturing_fakes(monkeypatch, captured)
+    root = Path("/tmp/tp-figs")
+    tp._run_sub_skills("KRAS", "COADREAD", plot_data_root=root)
+    # one resolve_cards call per sub-skill, each given the SAME plot_data_root (the offline-seam wiring)
+    assert captured, "expected at least one resolve_cards call"
+    assert all(pdr == root for pdr in captured), (
+        f"plot_data_root not forwarded uniformly: {set(map(str, captured))}")
+
+
+def test_fanout_defaults_plot_data_root_none_byte_stable(monkeypatch):
+    """Default (verdict-only / --no-figures) forwards plot_data_root=None → no persistence, byte-stable."""
+    captured: list = []
+    _install_capturing_fakes(monkeypatch, captured)
+    tp._run_sub_skills("KRAS", "COADREAD")
+    assert captured and all(pdr is None for pdr in captured)

@@ -238,9 +238,21 @@ def main() -> int:
     print(f"[target-profile] Running {len(SUB_SKILLS)} sub-skills for "
           f"{args.target} in {args.indication}...", file=sys.stderr)
     subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else None
+    # Figure Stage 3 (offline seam activation): on a figures-emitting run, persist each card's plot_data
+    # DURING resolution into figures/cards/<card_id>/ so the figure emitters render OFFLINE from it
+    # instead of re-executing a SECOND live method read (the pre-2026-08-21 behavior: target-profile
+    # never passed plot_data_root, so every distribution emitter fell to its live-re-execution fallback).
+    # Gated on figures being emitted — under --no-figures / --verdict-only / --emit evidence-package
+    # (all set args.no_figures) plot_data_root stays None and the run is byte-identical. VERDICT-INERT:
+    # persistence is a side artifact of resolution; card summaries + the verdict spine are unchanged.
+    plot_data_root = None
+    if not args.no_figures:
+        plot_data_root = args.out / "figures"
+        plot_data_root.mkdir(parents=True, exist_ok=True)
     _fanout_t0 = time.perf_counter() if args.profile_timers else 0.0
     sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes,
-                                  profile_timers=args.profile_timers)
+                                  profile_timers=args.profile_timers,
+                                  plot_data_root=plot_data_root)
     if args.profile_timers:
         print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===",
               file=sys.stderr)
