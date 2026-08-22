@@ -34,7 +34,7 @@ indications:
     depmap_oncotree_lineage: Colorectal_Adenocarcinoma
     cptac_cohort: COAD
     gtex_normal_tissue: Colon
-    adj_normal_manifest: coadread-adj-normal-dge-v1
+    adj_normal_manifest: coadread-dge-df06320   # FIX: was coadread-adj-normal-dge-v1 (nonexistent); df06320 is the real TCGA matched-adjacent DESeq2 product
     iter1_status: live
     notes: "Design anchored in .claude/plans/you-are-a-skilled-drifting-pixel.md ~1360-1700"
 
@@ -189,7 +189,7 @@ indications:
     depmap_lineage: Breast
     cptac_cohort: brca
     gtex_normal_tissue: "Breast"
-    adj_normal_manifest: null
+    adj_normal_manifest: brca-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). CPTAC brca cohort available."
   - canonical_code: PRAD
@@ -202,7 +202,7 @@ indications:
     depmap_lineage: Prostate
     cptac_cohort: null
     gtex_normal_tissue: "Prostate"
-    adj_normal_manifest: null
+    adj_normal_manifest: prad-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: OV
@@ -215,7 +215,7 @@ indications:
     depmap_lineage: Ovary/Fallopian Tube
     cptac_cohort: ov
     gtex_normal_tissue: "Ovary"
-    adj_normal_manifest: null
+    adj_normal_manifest: null   # no TCGA adjacent-normal (n=0); GTEx cell C used
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). CPTAC ov cohort available."
   - canonical_code: GBM
@@ -228,7 +228,7 @@ indications:
     depmap_lineage: CNS/Brain
     cptac_cohort: gbm
     gtex_normal_tissue: "Brain"
-    adj_normal_manifest: null
+    adj_normal_manifest: null   # adjacent underpowered (n=5 < card floor 8); GTEx cell C used
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). CPTAC gbm cohort available. mesh_terms glioblastoma-specific (contrast LGG)."
   - canonical_code: LGG
@@ -241,7 +241,7 @@ indications:
     depmap_lineage: CNS/Brain
     cptac_cohort: null
     gtex_normal_tissue: "Brain"
-    adj_normal_manifest: null
+    adj_normal_manifest: null   # no TCGA adjacent-normal (n=0); GTEx cell C used
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). 'glioma' is the umbrella MeSH term (may include GBM-tagged trials)."
   - canonical_code: SKCM
@@ -254,7 +254,7 @@ indications:
     depmap_lineage: Skin
     cptac_cohort: null
     gtex_normal_tissue: "Skin"
-    adj_normal_manifest: null
+    adj_normal_manifest: null   # no TCGA adjacent-normal (n<=1); GTEx cell C used
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: BLCA
@@ -267,7 +267,7 @@ indications:
     depmap_lineage: Bladder/Urinary Tract
     cptac_cohort: null
     gtex_normal_tissue: "Bladder"
-    adj_normal_manifest: null
+    adj_normal_manifest: blca-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: KIRC
@@ -280,7 +280,7 @@ indications:
     depmap_lineage: Kidney
     cptac_cohort: ccrcc
     gtex_normal_tissue: "Kidney"
-    adj_normal_manifest: null
+    adj_normal_manifest: kirc-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). CPTAC ccrcc cohort available. 'kidney neoplasms' broadens beyond clear-cell (precedent recall)."
   - canonical_code: LIHC
@@ -293,7 +293,7 @@ indications:
     depmap_lineage: Liver
     cptac_cohort: null
     gtex_normal_tissue: "Liver"
-    adj_normal_manifest: null
+    adj_normal_manifest: lihc-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: CESC
@@ -306,7 +306,7 @@ indications:
     depmap_lineage: Cervix
     cptac_cohort: null
     gtex_normal_tissue: "Cervix Uteri"
-    adj_normal_manifest: null
+    adj_normal_manifest: null   # adjacent underpowered (n=3 < card floor 8); GTEx cell C used
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: UCEC
@@ -319,7 +319,7 @@ indications:
     depmap_lineage: Uterus
     cptac_cohort: ucec
     gtex_normal_tissue: "Uterus"
-    adj_normal_manifest: null
+    adj_normal_manifest: ucec-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). CPTAC ucec cohort available."
   - canonical_code: DLBC
@@ -332,7 +332,7 @@ indications:
     depmap_lineage: Lymphoid
     cptac_cohort: null
     gtex_normal_tissue: "Whole Blood"
-    adj_normal_manifest: null
+    adj_normal_manifest: null   # heme — no adjacent-normal concept; no DGE product
     iter1_status: live   # coverage expansion 2026-08-21
     notes: "Added 2026-08-21 (coverage expansion). Heme convention: Whole Blood normal, no adj-normal/CPTAC."
 
