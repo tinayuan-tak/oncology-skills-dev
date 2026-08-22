@@ -519,6 +519,9 @@ skill_objectives:
       - {q: "Prognostic association — does survival differ ACROSS the indication's molecular subtypes?", answered_by: [subtype-survival-association], arms: {by_subtype: built}}
       - {q: "Stemness / aggressiveness context?", answered_by: [stemness-context]}
       - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage]}
+      # Clinical-trial precedent (2026-08-21): the objective's "precedent" arm, now BUILT via
+      # public-domain AACT (clinical-precedent card, generic-dispatched). Verdict-inert render facet.
+      - {q: "Clinical-trial precedent — has a drug that ENGAGES the target been trialed in this indication (highest stage / approved agents / notable failures)?", answered_by: [clinical-precedent]}
   - skill: target-intrinsic
     objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
     primary_axis: null
