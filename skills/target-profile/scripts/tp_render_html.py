@@ -1156,6 +1156,32 @@ def _grounded_block_html(short: str, grounded_record: Optional[dict]) -> list[st
     return out
 
 
+def _headline_hero_html(short: str, sub_results: dict, target: str, indication: str) -> list[str]:
+    """Render the SHARED canonical headline HERO (verdict + confidence + top-tension + per-axis
+    signal×corroboration) atop a subskill's section — the SAME `render_headline_hero_svg` the per-skill
+    dashboards render, so the composed dashboard no longer reimplements a parallel header. Reads the
+    `headline_block.hero` payload the fan-out stashes at sub_results[short]['synthesis_facet']
+    ['headline_block'] (produced by every fleet subskill via _skills_common.headline_core, and carried
+    into the evidence_package — previously produced-but-never-rendered here). VERDICT-INERT projection.
+    Fail-open: [] when a subskill exposes no headline_block (older/un-migrated) or the hero render fails —
+    the section still renders its cards. Unifies all 13 subskills onto the one hero component."""
+    sr = (sub_results or {}).get(short) or {}
+    facet = sr.get("synthesis_facet")
+    hb = facet.get("headline_block") if isinstance(facet, dict) else None
+    hero = hb.get("hero") if isinstance(hb, dict) else None
+    if not isinstance(hero, dict):
+        return []
+    try:
+        from _skills_common.headline_hero import render_headline_hero_svg
+        svg = render_headline_hero_svg(hero, target, indication)
+    except Exception:  # noqa: BLE001 — a headline hero must never break the section
+        return []
+    return ["<div class=summary-graphic style='margin:6px 0 2px'>"
+            "<p class=h style='margin:0 0 4px'>Headline "
+            "<span class=n>— canonical verdict · confidence · top-tension (shared across the fleet; "
+            "verdict-inert projection)</span></p>" + svg + "</div>"]
+
+
 def _subskill_summary_svg_html(short: str, sub_results: dict, presence_facet: Optional[dict],
                                target: str, indication: str) -> list[str]:
     """Per-subskill high-level SUMMARY GRAPHIC. Two levels, presence idiom:
@@ -1392,7 +1418,9 @@ def _render_target_profile_html(
     composite_svg_path: Optional[Path] = None,
     catalogue_rows: Optional[list[dict]] = None,
     recommendation_gate: Optional[dict] = None,
-    show_deciding_axis: bool = False,
+    show_deciding_axis: bool = True,   # 2026-08-21: SHOWN by default (md↔html parity — the .md always
+                                       # renders the deciding-axis section; the HTML used to hide it,
+                                       # a silent divergence). Still suppressible via =False.
     card_figures: Optional[dict] = None,
     figures_dir: Optional[Path] = None,
     presence_only: bool = False,
@@ -1653,11 +1681,15 @@ def _render_target_profile_html(
     # place the summary sections (Evidence summary + Modality-fit matrix) ABOVE them.
     bands_html: list[str] = []
     for short, label, sec_id in _sections:
-        # per-subskill SUMMARY GRAPHIC (card-board) at the top of the section, then the grounded block
+        # SHARED canonical HEADLINE HERO at the very top of every subskill section (the unified
+        # verdict+confidence+top-tension component all per-skill dashboards use), then the bespoke
+        # per-subskill SUMMARY GRAPHIC (presence card-board etc.), then the grounded block.
+        hero_html = _safe_panel(_headline_hero_html, short, sub_results, target, indication,
+                                _what=f"hero[{short}]")
         summary_html = _safe_panel(_subskill_summary_svg_html, short, sub_results, presence_facet,
                                    target, indication, _what=f"summary[{short}]")
-        grounded_html = summary_html + _safe_panel(_grounded_block_html, short, grounded_by_axis.get(short),
-                                                   _what=f"grounded[{short}]")
+        grounded_html = hero_html + summary_html + _safe_panel(
+            _grounded_block_html, short, grounded_by_axis.get(short), _what=f"grounded[{short}]")
         gate_html, n_g = _render_gate_section_html(
             "", label, [short], sub_results, scorecard_by_short,
             card_figures, figures_dir, indication=indication, modality_note=None,
@@ -1734,7 +1766,7 @@ def _render_target_profile_html(
         out.append("</table></section>")
         return out
 
-    # --- Deciding axis (deterministic router) — closure; HIDDEN by default (show_deciding_axis).
+    # --- Deciding axis (deterministic router) — closure; SHOWN by default (md↔html parity; suppressible).
     def _deciding_html() -> list[str]:
         if not (deciding_axis and show_deciding_axis):
             return []

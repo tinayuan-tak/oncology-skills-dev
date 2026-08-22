@@ -517,3 +517,63 @@ def test_target_intrinsic_and_combinatorial_get_own_sections():
     assert "vulnerability (relational" in h
     assert "id=s-skill-target-intrinsic" in h
     assert "Target-intrinsic dossier" in h
+
+
+# ===========================================================================
+# Group-C (2026-08-21): shared headline-hero unification (#4) + deciding-axis
+# md<->html parity (#7). The composed dashboard now renders the SAME canonical
+# headline hero the per-skill dashboards use, and no longer hides the deciding axis.
+# ===========================================================================
+
+_HERO_FACET = {"headline_block": {
+    "hero": {"kind": "headline_hero",
+             "verdict": {"call": "lineage_selective", "phrase": "Lineage-selective dependency",
+                         "gate": "dependency", "polarity": "positive"},
+             "confidence": {"level": "moderate", "coverage": "partial"},
+             "tension": {"text": "CRISPR/RNAi partially discordant"},
+             "axes": [{"key": "DEP", "label": "dependency", "signal": "moderate",
+                       "corroboration": "single_source", "conflict": False}]},
+    "verdict": {"phrase": "Lineage-selective dependency"},
+    "confidence": {"level": "moderate"}}}
+
+_DECIDING = {"basis": "gate_fired", "routing": "the dependency gate is load-bearing here",
+             "deciding_axis": {"short": "dependency"}}
+
+
+def test_headline_hero_unit_renders_from_headline_block():
+    """_headline_hero_html reads sub_results[short].synthesis_facet.headline_block.hero and renders the
+    shared hero SVG — the produce-but-don't-render gap fix (headline_block was carried into the envelope
+    but never rendered on the composed dashboard)."""
+    sr = {"dependency": {"skill_dir": "functional-requirement", "cards": [],
+                         "synthesis_facet": _HERO_FACET}}
+    out = "".join(tp._render_target_profile_html.__globals__["_headline_hero_html"](
+        "dependency", sr, "KRAS", "COAD"))
+    assert "<svg" in out and "Headline" in out
+    assert "Lineage-selective dependency" in out          # the shared hero's verdict phrase
+    # fail-open: a subskill with no headline_block renders no hero (not a crash)
+    assert tp._render_target_profile_html.__globals__["_headline_hero_html"](
+        "safety", {"safety": {"cards": []}}, "KRAS", "COAD") == []
+
+
+def test_composed_dashboard_renders_shared_hero_for_subskill():
+    """The composed dashboard section for a subskill carrying a headline_block shows the SHARED hero
+    (all 13 subskills unified onto one hero component, not a parallel bespoke header)."""
+    sr = _sr()
+    sr["dependency"]["synthesis_facet"] = _HERO_FACET
+    h = _render(sr)
+    assert "Lineage-selective dependency" in h            # the shared hero reached the composed page
+    assert "canonical verdict · confidence · top-tension" in h
+
+
+def test_deciding_axis_shown_in_html_by_default_md_parity():
+    """md<->html parity (#7): the .md always renders a Deciding-axis section; the HTML now does too
+    (show_deciding_axis defaults True). Previously the HTML hid it — a silent divergence."""
+    h = _render(_sr(), deciding_axis=_DECIDING)
+    assert "Deciding axis" in h and "s-deciding" in h
+    assert "the dependency gate is load-bearing here" in h
+
+
+def test_deciding_axis_still_suppressible():
+    """The toggle remains: show_deciding_axis=False suppresses the section (a caller can still hide it)."""
+    h = _render(_sr(), deciding_axis=_DECIDING, show_deciding_axis=False)
+    assert "s-deciding" not in h

@@ -235,17 +235,17 @@ def test_redundant_subverdicts_section_removed():
     assert "id=s-subverdicts" not in h
 
 
-def test_deciding_axis_hidden_by_default_but_toggleable():
-    """The deciding-axis section is HIDDEN by default (its router logic can over-claim on a thin
-    single-dataset gate — a known backlog fix), yet the data is still passed + the section renders
-    when explicitly enabled. Guards the default + the toggle."""
+def test_deciding_axis_shown_by_default_but_suppressible():
+    """md↔html parity (2026-08-21, #7): the deciding-axis section is now SHOWN by default (the .md
+    always renders it; the HTML used to hide it — a silent divergence). The toggle is retained as a
+    SUPPRESSOR (show_deciding_axis=False). Guards the new default + the suppress path."""
     sr = _sr()
     common = dict(deciding_axis=_DA, scorecard=tp._gate_scorecard(sr, _DA))
-    hidden = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {}, **common)
-    shown = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {},
-                                           show_deciding_axis=True, **common)
-    assert "id=s-deciding" not in hidden          # default: not rendered
-    assert "id=s-deciding" in shown               # toggle re-enables (for post-logic-fix)
+    shown = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {}, **common)
+    suppressed = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {},
+                                                show_deciding_axis=False, **common)
+    assert "id=s-deciding" in shown               # default: rendered (parity with the .md)
+    assert "id=s-deciding" not in suppressed      # explicit suppression still works
 
 
 def test_html_wellformed_parses():
