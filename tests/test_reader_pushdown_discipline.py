@@ -71,13 +71,15 @@ _ALLOWLIST = {
     "structure_features_static/read.py::_ensure_derived_cached": "1.5MB dual-index structure-features; symbol|uniprot_ac lookup, whole-index build",
     "structure_features_static/read.py::_ensure_ligand_cached": "403KB dual-index ligandability; symbol|uniprot_id lookup, whole-index build",
     "surface_antigen_density_ladder/read.py::_ensure_corpus_cached": "181-record curated density corpus — tiny single-shot",
+    # (7) graceful-degradation FALLBACK behind a streamed-pushdown PRIMARY. The reader's primary path
+    # already reads a materialised per-gene pushdown product; this download is only the last-resort
+    # fallback when that product is unreachable — resilience, not a cold-start cost on the happy path.
+    "depmap_paralog_aggregator/read.py::_ensure_paralog_cached": "FALLBACK behind depmap-paralog-buffering-per-gene-v1 pushdown primary (reader already migrated); 69MB ParalogGeneEffect.csv used only if the product is unreachable, and the buffering product's offline Ensembl-Compara ohnolog join can't be reproduced from the CSV anyway",
 }
 
 # --- pre-existing query-time whole-download readers, to CONVERT to streamed pushdown (burn-down) ---
 # Each is a real per-target/cohort reader that still downloads the whole product. Shrinks as converted.
 _BASELINE = {
-    "depmap_paralog_aggregator/read.py::_ensure_paralog_cached": "CSV source (ParalogGeneEffect.csv) — needs parquet product first",
-    "immune_context/read.py::_ensure_cached": "source-release CIBERSORT TSV, no pushdown key — needs a per-target derived product",
     "signor_mechanism_network/read.py::_try_load_derived_parquet_from_s3": "prefetch of signor-mechanism-network-per-gene-v1 which was REVERTED (no manifest/object) — needs re-materialising",
     "signor_mechanism_network/read.py::_ensure_signor_source_cached": "SIGNOR source TXT compose-on-read — needs a parquet product",
 }

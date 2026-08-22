@@ -86,21 +86,23 @@ def _cibersort_cd8_by_barcode(indication: str):
     CIBERSORT frame. Keyed on the CASE-level barcode (first 3 barcode fields, e.g. TCGA-OR-A5JG) so it
     joins to recount3 submitter_id (which is case-level). None if unreadable."""
     from . import read as _ic
-    df = _ic._cibersort_frame()
-    if df is None:
-        return None
     studies = _ic.INDICATION_TO_TCGA_STUDIES.get(str(indication).upper().strip())
     if not studies:
         return None
-    sub = df[df["CancerType"].isin(studies)].copy()
+    # Streamed pushdown of just this indication's study rows (2026-08-22): replaces the whole-frame
+    # load + in-memory .isin filter with _read_samples_for_studies (pancanatlas-cibersort-lm22-per-
+    # sample-v1). Columns are the derived product's: sample_id + T.cells.CD8 (LM22 names verbatim).
+    sub = _ic._read_samples_for_studies(studies)
+    if sub is None:
+        return None
     if sub.empty:
         return {}
-    tcols = [c for c in _classify.T_CELL_COLUMNS if c in sub.columns]  # noqa: F841 (kept for parity)
-    # SampleID like TCGA.OR.A5JG.01A... → case barcode TCGA-OR-A5JG (dots→dashes, first 3 fields)
+    sub = sub.copy()
+    # sample_id like TCGA.OR.A5JG.01A... → case barcode TCGA-OR-A5JG (dots→dashes, first 3 fields)
     def _case(sid: str) -> str:
         parts = str(sid).replace("-", ".").split(".")
         return "-".join(parts[:3]).upper()
-    sub["case"] = sub["SampleID"].map(_case)
+    sub["case"] = sub["sample_id"].map(_case)
     # a case can have multiple samples; take the max CD8 (tumor-dominant) per case
     return sub.groupby("case")["T.cells.CD8"].max().to_dict()
 

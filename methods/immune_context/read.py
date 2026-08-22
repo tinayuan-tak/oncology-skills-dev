@@ -1,28 +1,27 @@
 """immune_context.read — S3 boundary + assembler for the per-indication immune-context signal.
 
-Reads the CIBERSORT LM22 per-sample leukocyte-composition table from gdc-pancanatlas-immune-2018
-(Thorsson 2018), filters to the indication's TCGA study/studies (CancerType column — already TCGA
-study codes, so no crosswalk), and reduces to the immune-context summary. Cache-once-per-machine
-(the table is ~11k rows; download once, filter in memory).
+Streamed pushdown (2026-08-22 data-layer hardening): reads the derived per-sample product
+`pancanatlas-cibersort-lm22-per-sample-v1` via a pyarrow S3FileSystem, pushing down the indication's
+TCGA study code(s) on `cancer_type` so only those samples transit the wire — no whole-TSV download.
+The product carries the CIBERSORT LM22 fractions under their ORIGINAL column names, so the pooled
+`summarize_immune_context` reduction runs UNCHANGED on the streamed slice.
 
-Credential discipline: AWS_PROFILE=cbg. Manifest ID → S3 prefix via catalog_query.
+Reads the CIBERSORT LM22 per-sample leukocyte-composition table (Thorsson 2018), filters to the
+indication's TCGA study/studies (cancer_type — already TCGA study codes, no crosswalk), and reduces
+to the immune-context summary (median CD8 T-cell fraction across POOLED samples → hot/intermediate/cold).
+
+Credential discipline: AWS_PROFILE=cbg. Manifest ID → bucket/key via catalog_query.
 Reuses the canonical dge_deseq2 INDICATION_TO_TCGA_STUDIES map (no new indication map).
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import threading
 from typing import Optional
 
-from methods.catalog_query.read import bucket_prefix_for
+from methods.catalog_query.read import bucket_key_for
 from . import classify as _classify
 
-DEFAULT_AWS_PROFILE = "cbg"
-MANIFEST_ID = "gdc-pancanatlas-immune-2018"
-CIBERSORT_FILE = "TCGA.Kallisto.fullIDs.cibersort.relative.tsv"
-
-CACHE_DIR = Path.home() / ".cache" / "framework-immune-context"
-CACHE_TSV = CACHE_DIR / CIBERSORT_FILE
+DERIVED_MANIFEST_ID = "pancanatlas-cibersort-lm22-per-sample-v1"
 
 try:
     from methods.dge_deseq2.read import INDICATION_TO_TCGA_STUDIES as _DGE_MAP
@@ -33,63 +32,54 @@ except Exception:  # noqa: BLE001
 # even when their constituent studies (LUAD/LUSC) exist. Layer those umbrellas ON TOP (never override
 # an existing key) so a first-class framework indication like NSCLC resolves rather than silently
 # returning data_unavailable — the indication-vocabulary-fragmentation trap. Constituent studies must
-# be present in the CIBERSORT CancerType vocabulary.
+# be present in the CIBERSORT cancer_type vocabulary.
 _UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"]}
 INDICATION_TO_TCGA_STUDIES = {**_UMBRELLA_SUPPLEMENT, **_DGE_MAP}  # _DGE_MAP wins on any shared key
 
-_STATUS: Optional[bool] = None
+
+# ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-def _ensure_cached() -> Optional[Path]:
-    global _STATUS
-    if _STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_TSV.exists() and CACHE_TSV.stat().st_size > 0:
-        _STATUS = True
-        return CACHE_TSV
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
+    Built once, shared across threads (the parallel card-read pool relies on that). Mirrors
+    methods/dge_deseq2/read.py::_get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as pafs
+                _S3FS = pafs.S3FileSystem(region="us-east-1")
+    return _S3FS
+
+
+def _read_samples_for_studies(studies, product_path=None):
+    """Streamed pushdown read of the CIBERSORT rows for the given TCGA study code(s). Returns a
+    pandas DataFrame (LM22 fractions under original column names). `product_path` (offline test seam):
+    a local parquet bypasses S3. Returns None on a GENUINE product-object absence (404); RAISES on a
+    transient/creds/broken-env failure (never masked as a false immune-cold)."""
+    import pyarrow.parquet as pq
+    flt = [("cancer_type", "in", list(studies))]
     try:
-        import boto3
-        bucket, prefix = bucket_prefix_for(MANIFEST_ID)
-        boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3").download_file(
-            bucket, f"{prefix}{CIBERSORT_FILE}", str(CACHE_TSV))
-        _STATUS = True
-        return CACHE_TSV
+        if product_path is not None:
+            tbl = pq.read_table(str(product_path), filters=flt)
+        else:
+            bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+            tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=flt)
     except Exception as e:  # noqa: BLE001
-        resp = getattr(e, "response", None)
-        code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-        if code in ("404", "NoSuchKey") or e.__class__.__name__ in ("NoSuchKey", "404"):
-            _STATUS = False   # definitive-absent latches; transient (403/creds) retries next call
-        print(f"[immune_context] CIBERSORT read failed ({type(e).__name__}: {e})", file=sys.stderr)
-        return None
+        from methods.target_id_sidecar import is_definitively_absent
+        if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+            return None   # genuine no-object → honest data_unavailable at the caller
+        raise             # transient/creds → propagate (live-read seam records the real cause)
+    return tbl.to_pandas()
 
 
-_CIBERSORT_FRAME_CACHE = None   # holds the loaded DataFrame ONLY after a successful read
-
-
-def _cibersort_frame():
-    """The full CIBERSORT table (cached in-process). None if unreadable.
-
-    Caches ONLY a successful load — never memoizes a None. A prior @lru_cache(maxsize=1) here
-    memoized the None returned on a TRANSIENT failure, so a single creds/network blip on the first
-    call poisoned the whole process (every later call short-circuited to data_unavailable even though
-    _ensure_cached itself would have retried). Manual caching keeps the successful-read fast-path
-    while letting a transient failure retry on the next call."""
-    global _CIBERSORT_FRAME_CACHE
-    if _CIBERSORT_FRAME_CACHE is not None:
-        return _CIBERSORT_FRAME_CACHE
-    path = _ensure_cached()
-    if path is None:
-        return None
-    import pandas as pd
-    _CIBERSORT_FRAME_CACHE = pd.read_csv(path, sep="\t")
-    return _CIBERSORT_FRAME_CACHE
-
-
-def read_immune_context(indication: str) -> dict:
+def read_immune_context(indication: str, product_path=None) -> dict:
     """Per-indication immune-context summary (T-cell infiltration → immune-hot/cold class).
 
-    target-INDEPENDENT (tier: indication). data_unavailable when the CIBERSORT table is unreadable
+    target-INDEPENDENT (tier: indication). data_unavailable when the CIBERSORT product is unreadable
     or the indication has no TCGA study mapping (honest gap, never a false 'cold')."""
     ind = str(indication).upper().strip()
     studies = INDICATION_TO_TCGA_STUDIES.get(ind)
@@ -97,13 +87,12 @@ def read_immune_context(indication: str) -> dict:
         return {**_classify.summarize_immune_context([]),
                 "indication": ind, "tumor_studies": None,
                 "_data_note": f"indication {ind} has no TCGA study mapping (immune context is TCGA-based)"}
-    df = _cibersort_frame()
+    df = _read_samples_for_studies(studies, product_path=product_path)
     if df is None:
         return {**_classify.summarize_immune_context([]),
                 "indication": ind, "tumor_studies": studies,
-                "_data_note": "CIBERSORT table unreadable (gdc-pancanatlas-immune-2018)"}
-    sub = df[df["CancerType"].isin(studies)]
-    out = _classify.summarize_immune_context(sub)
+                "_data_note": "CIBERSORT product unreadable (pancanatlas-cibersort-lm22-per-sample-v1)"}
+    out = _classify.summarize_immune_context(df)
     out["indication"] = ind
     out["tumor_studies"] = studies
     return out
