@@ -1210,6 +1210,23 @@ measurement_types:
       # data (constraint, KO, expression), not a direct measurement of a single fact.
       - {kind: dataset, source: opentargets-26-06, evidence_tier: inferred}
 
+  drug_warning_safety:
+    # (2026-08-21) — OT 26.06 pharmacovigilance (drug_warning ⋈ drug_mechanism_of_action) as safety-
+    # ORIENTING CONTEXT. Verdict-inert (no resolver reference, no warning); NOT modality-relevant (no
+    # modality_relevance key — safety is axis-1, and this card has no modality-axis rule, so a
+    # modality_relevance key would trip the P4 Tier-3 enforcement). Closes the P5 drug_warning
+    # placeholder axis. CONFOUNDED on-target signal (off-target/class-effect possible) → orientation
+    # layer, not a verdict-moving fact; the authoritative safety reads are gnomad_lof_constraint + the
+    # P5 human-genetics types.
+    claim: "Have drugs that ENGAGE the target carried FDA black-box warnings or been withdrawn (pharmacovigilance orienting context)?"
+    entity_grains: [target]
+    cards: [drug-warning-safety]
+    providers:
+      # inferred: an engineered chembl-join of two OT 26.06 entities (drug_warning ⋈
+      # drug_mechanism_of_action), not a direct on-target measurement. Dataset provider (mirrors
+      # target_safety_prioritisation) — the join is a method detail, not a cross-measurement-type edge.
+      - {kind: dataset, source: opentargets-26-06, evidence_tier: inferred}
+
   genomic_event_model_match:
     claim: "Which DepMap models carry the SAME functional genomic event (biallelic/monoallelic state) as the indication's tumors for target, and which of those genotype-matched models are dependent (positive screen lines)?"
     # M11 — the CANONICAL P3 patient↔model join, on GENOMIC EVENT (functional_gene_state), unblocked by

@@ -1,0 +1,69 @@
+# Card — pharmacovigilance (drug-warning) safety CONTEXT
+#
+# Closes the P5 `drug_warning` placeholder axis. Joins OT 26.06 drug_warning (FDA black-box /
+# withdrawn) to drug_mechanism_of_action (chembl -> target ENSG) so a target inherits the warning
+# history of the drugs that ENGAGE it.
+#
+# DELIBERATELY VERDICT-INERT (byte-stable): no warning_predicates, no resolver reference — mirrors
+# target-safety-prioritisation. A drug warning is a CONFOUNDED on-target signal (off-target /
+# class-effect / formulation toxicity possible), so it ORIENTS the reader about the target's
+# pharmacovigilance history but never drives the safety verdict. INFERRED tier (engineered join,
+# not a direct on-target measurement). The authoritative verdict-moving safety reads are the
+# dedicated cards (gnomad-lof-constraint + the P5 human-genetics legs).
+
+card_id: drug-warning-safety
+version: 1.0.0
+question: "Have drugs that ENGAGE {target.symbol} carried FDA black-box warnings or been withdrawn, and for what toxicity classes (pharmacovigilance safety context)?"
+
+tier: target   # scope-invariant: drug-warning history is a property of the target's pharmacology, indication- and subgroup-agnostic. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: opentargets-26-06
+
+methods:
+  - call: opentargets-drug-warning
+    module: opentargets_drug_warning        # generic-dispatch wiring (no bespoke _dispatch_* needed);
+    entrypoint: read_drug_warning           # read_live_summary -> _generic_dispatch calls fn(target=, indication=)
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - drug_warning_class                    # PRIMARY categorical
+    - has_black_box                         # bool — any engaging drug carries an FDA Black Box Warning
+    - has_withdrawn                         # bool — any engaging drug was withdrawn
+    - n_targeted_drugs                      # int — OT MoA drugs engaging the target
+    - n_targeted_warned_drugs               # int — engaging drugs carrying any warning
+    - toxicity_classes                      # list — distinct OT toxicityClass labels across the warnings
+    - warning_types                         # list — distinct warningType labels (black box / withdrawn / ...)
+    - ensembl_gene_id
+    - evidence_tier                         # 'inferred' (engineered join, not a direct on-target measurement)
+    - method_version
+
+  summary_fields_vocabulary:
+    drug_warning_class:
+      - withdrawn_drug            # >=1 engaging drug WITHDRAWN (strongest pharmacovigilance flag)
+      - black_box_warned          # >=1 engaging drug carries an FDA Black Box Warning
+      - other_warning             # engaging drug(s) warned, neither withdrawn nor black-box
+      - no_warning                # engaging drug(s) exist but none warned (measured-negative)
+      - no_targeted_drug          # no OT MoA drug engages the target (coverage gap — NOT safety evidence)
+      - insufficient              # target unresolvable to ENSG
+
+  # NO figure: tables-only (consistent with the other safety-axis context cards).
+
+# NO warning_predicates — verdict-inert context (mirrors target-safety-prioritisation).
+
+caveats:
+  - |
+    Pharmacovigilance CONTEXT, not an on-target verdict. A drug warning is CONFOUNDED: a black-box
+    warning or withdrawal can reflect OFF-target / class-effect / formulation toxicity, and a drug
+    engages several targets. So drug_warning_class ORIENTS the reader but never fires a safety HOLD.
+    INFERRED tier. no_targeted_drug / absence is a coverage gap, never evidence of safety.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `drug_warning_safety` claim (pharmacovigilance context).
+# Provider: opentargets-26-06 drug_warning ⋈ drug_mechanism_of_action (INFERRED — engineered join).
+measurement_type: drug_warning_safety
+entity_grains: [target]
+schema_version: 1
