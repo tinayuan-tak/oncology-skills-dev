@@ -9,107 +9,101 @@ GENIE panels contributing to the pooled cohort. Genes outside the panel-
 intersect gene set get per-source (TCGA MC3 only) Q-values with
 `pooled_eligible: False` marked per row.
 
-Iter-1 wiring approach:
-  - Reads derived parquet at
+Wiring approach (data-layer hardening 2026-08-22 — streamed pushdown):
+  - STREAMS the target's rows out of the derived parquet at
     s3://onc-compbio/data-catalog/derived/pancohort-cooccurrence-fisher-v1/
-  - Falls back to `data_unavailable` gracefully when derived product not on S3.
+    via a pyarrow S3FileSystem with predicate pushdown on the manifest
+    primary_filter_column (`target_gene_symbol`, the product's sort key) — only
+    the target's row-groups transit the wire; NO whole-file download.
+  - Emits `data_unavailable` gracefully only when the product object is
+    DEFINITIVELY absent (NoSuchKey/404); transient/creds/broken-env failures
+    surface a cause-accurate breadcrumb (absence discipline).
 
-Runtime discipline: @lru_cache + module-level negative cache.
+Runtime discipline: process-wide S3FileSystem singleton + per-target read cache
+(+ a definitive-absence latch), so repeated targets don't re-hit S3.
 """
 from __future__ import annotations
 
-import os
-from functools import lru_cache
-from pathlib import Path
+import threading
 from typing import Optional
 
 
-DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "pancohort-cooccurrence-fisher-v1"
-DERIVED_S3_KEY = (
-    "data-catalog/derived/pancohort-cooccurrence-fisher-v1/"
-    "cooccurrence_fisher.parquet"
-)
 
-CACHE_DIR = Path.home() / ".cache" / "framework-cooccurrence-fisher"
-CACHE_PARQUET = CACHE_DIR / "cooccurrence_fisher.parquet"
+# Pushdown key: the derived manifest's query_optimization.primary_filter_column, which is also its
+# sort column. The product is SORTED by target_gene_symbol, so a per-target equality filter lets
+# pyarrow skip non-matching row-groups — only the target's row-groups stream over the wire.
+_PRIMARY_FILTER_COLUMN = "target_gene_symbol"
 
+# Process-wide latch: True = product present, False = product DEFINITIVELY absent (NoSuchKey/404 —
+# short-circuits every later target in the process), None = undetermined / transient failure (retry).
 _DERIVED_STATUS: Optional[bool] = None
 
+# Per-target streamed-read cache, keyed UPPER(target). Only SUCCESSFUL reads (incl. an empty list)
+# are cached; a transient/creds/broken-env failure RAISES without caching so a later call retries —
+# an @lru_cache over the raw read would memoize that failure into a permanent data_unavailable
+# (mirrors methods/combo_drug_anchor).
+_ROWS_CACHE: dict = {}
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-def _ensure_derived_cached() -> Optional[Path]:
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (region pinned to us-east-1, the onc-compbio
+    bucket, to skip the region-probe round-trip). Constructing one costs ~0.4s and this reader can
+    fire for several targets per run (differentiation-landscape / target-profile fan-out), so build
+    it ONCE. Double-checked locking so concurrent first-callers build a single instance. Mirrors
+    the sibling dge_deseq2._get_s3fs / depmap_common.parquet._get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
+
+
+def _read_target_rows(sym: str) -> Optional[list]:
+    """STREAMED pyarrow pushdown of ONE target's co-occurrence rows — replaces the former whole-file
+    `download_file` + local `pd.read_parquet`. Pushes the manifest primary_filter_column
+    (target_gene_symbol == sym) AND the original bh_q_value <= 0.5 predicate, so only the target's
+    row-groups stream over the wire (no download). Returns a list-of-dict records — identical
+    shape/dtypes to the former `df.iloc[...].to_dict(orient="records")` (same pyarrow->pandas path) —
+    or None when the product object is DEFINITIVELY absent (NoSuchKey/404). RAISES on transient /
+    creds / broken-env so the public boundary surfaces the real cause instead of a silent dead axis
+    (absence discipline; mirrors methods/combo_drug_anchor + target_id_sidecar.is_definitively_absent).
+    Successful reads (incl. an empty list) are cached per target."""
     global _DERIVED_STATUS
     if _DERIVED_STATUS is False:
         return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
-        _DERIVED_STATUS = True
-        return CACHE_PARQUET
-    if _DERIVED_STATUS is None:
-        try:
-            s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
-            _DERIVED_STATUS = True
-            return CACHE_PARQUET
-        except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 /
-            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
-            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
-            # False on the definitive case — that safely short-circuits every
-            # later call in the process. For a transient error, LEAVE
-            # _DERIVED_STATUS = None so a subsequent call retries instead of
-            # poisoning the whole process with a false data_unavailable.
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _DERIVED_STATUS = False
-            return None
-    return None
-
-
-@lru_cache(maxsize=1)
-def _load_indexed():
-    """Load Fisher parquet with column-iter indexing + lazy materialization.
-
-    Mirrors the kinome-atlas PR #7 perf pattern:
-      - pd.read_parquet with predicate pushdown (bh_q_value <= 0.5)
-      - column-array iteration (df.col.values) to build indices — NOT iterrows
-      - lazy per-target row materialization at read_target_summary time
-      - @lru_cache(maxsize=1) means load+index once per Python process
-
-    Returns (df, index_by_target):
-      df — pandas DataFrame with predicate-pushed rows
-      index_by_target — dict[gene_symbol_upper -> list[row_index_in_df]]
-    """
-    path = _ensure_derived_cached()
-    if path is None:
-        import pandas as pd
-        return pd.DataFrame(), {}
+    if sym in _ROWS_CACHE:
+        return _ROWS_CACHE[sym]
     try:
-        import pandas as pd
-        df = pd.read_parquet(
-            path,
-            filters=[('bh_q_value', '<=', 0.5)],
+        from methods.catalog_query.read import bucket_key_for
+        import pyarrow.parquet as pq
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=_get_s3fs(),
+            filters=[(_PRIMARY_FILTER_COLUMN, "=", sym), ("bh_q_value", "<=", 0.5)],
         )
-    except Exception:
-        import pandas as pd
-        return pd.DataFrame(), {}
-    if df.empty:
-        return df, {}
-    # Column-array iteration (5x faster than iterrows for this size)
-    target_col = df['target_gene_symbol'].values
-    idx: dict[str, list[int]] = {}
-    for i in range(len(df)):
-        t = target_col[i]
-        if t:
-            idx.setdefault(str(t).strip().upper(), []).append(i)
-    return df, idx
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Only a GENUINE no-object (NoSuchKey/404 or pyarrow FileNotFoundError) is absence -> latch
+        # _DERIVED_STATUS False (short-circuits later targets) and return None. A transient/creds/
+        # broken-env failure is NOT absence -> re-raise (neither cached nor latched, so a later call
+        # retries) and let the public boundary record the real cause.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _DERIVED_STATUS = False
+            return None
+        raise
+    _DERIVED_STATUS = True
+    # to_pandas().to_dict(orient="records") reproduces the exact records the former
+    # pd.read_parquet(...).iloc[...].to_dict(orient="records") emitted (same dtypes).
+    rows = tbl.to_pandas().to_dict(orient="records")
+    _ROWS_CACHE[sym] = rows
+    return rows
 
 
 def _classify_cooccurrence(rows: list[dict]) -> str:
@@ -154,20 +148,17 @@ def _classify_cooccurrence(rows: list[dict]) -> str:
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
+    sym = target.upper().strip()
     try:
-        df, idx = _load_indexed()
+        # Streamed per-target pushdown. None = product definitively absent (NoSuchKey/404);
+        # RAISES on transient/creds/broken-env, caught below with a cause-accurate breadcrumb.
+        rows = _read_target_rows(sym)
     except Exception as e:
         return _empty(f"cooccurrence_load_failed: {type(e).__name__}: {e}")
-    if df is None or df.empty or not idx:
+    if rows is None:
         return _empty("cooccurrence_data_unavailable")
-
-    sym = target.upper().strip()
-    row_indices = idx.get(sym, [])
-    if not row_indices:
+    if not rows:
         return _empty("target_not_in_cooccurrence_scan")
-
-    # Lazy: materialize only this target's rows to dicts
-    rows = df.iloc[row_indices].to_dict(orient="records")
 
     # Partition rows into per-source vs pooled
     per_source = [r for r in rows if str(r.get("source", "")).lower() != "pooled"]

@@ -6,11 +6,16 @@ The figure is a by-tissue tumor-vs-normal distribution: for one gene, a boxplot 
 stores five-number summaries (not per-sample values), the boxplot is drawn from PRECOMPUTED stats
 via matplotlib ax.bxp / plotly's precomputed-box fields — no per-sample scan on the render path.
 
-Read discipline mirrors the CPTAC reader: cache the (small, 68 MB) product locally, then
-predicate-pushdown by gene. Definitive-vs-transient S3 latch so a blip doesn't poison the process.
+Read discipline (2026-08-22 data-layer hardening — parquet-storage-standard): the 68 MB quantile
+product is STREAMED per-gene directly from S3 via a pyarrow S3FileSystem with predicate pushdown on
+the sort key (ensembl_gene_id) — HTTP range requests fetch only the few matching row-groups, NO
+whole-file download. Mirrors the sibling tcga_gtex_expression_distribution reader's _get_s3fs +
+streamed-read pattern. Definitive-vs-transient absence discipline so a transient blip is re-raised
+(honest _live_read_error) instead of masked as a dead axis.
 """
 from __future__ import annotations
 import os
+import threading
 
 from functools import lru_cache
 from pathlib import Path
@@ -49,44 +54,31 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
             _SYMBOL_TO_ENSEMBL_MAP = {}
     ids = _SYMBOL_TO_ENSEMBL_MAP.get(symbol.upper().strip())
     return ids or None
-CACHE_DIR = Path.home() / ".cache" / "framework-tpm-quantiles"
-CACHE_PARQUET = CACHE_DIR / "tcga_gtex_tpm_tissue_quantiles.parquet"
-
-_STATUS: Optional[bool] = None
 
 # Tumor = deep navy, Normal = muted blue (matches the CPTAC protein cards' tumor/normal identity).
 _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-def _ensure_cached() -> Optional[Path]:
-    global _STATUS
-    if _STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
-        _STATUS = True
-        return CACHE_PARQUET
-    if _STATUS is None:
-        try:
-            _boto3_client().download_file(S3_BUCKET, S3_KEY, str(CACHE_PARQUET))
-            _STATUS = True
-            return CACHE_PARQUET
-        except Exception as e:  # noqa: BLE001
-            # 403/AccessDenied is TRANSIENT (expired STS creds / IAM propagation), not a missing
-            # object — only 404/NoSuchKey latches definitive-absent so a transient blip retries
-            # instead of poisoning every later read to data_unavailable for the process lifetime.
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _STATUS = False
-            return None
-    return None
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton. Constructing one costs ~0.4s (region probe +
+    client init) and read_pan_cancer_by_tissue fires several times per card render (the three figure
+    emitters share it), so we build it ONCE. pyarrow's S3FileSystem is safe to share across threads
+    for reads (the parallel card-read path since skills PR #515); double-checked locking so
+    concurrent first-callers build a single instance. Region pinned to us-east-1 (the onc-compbio
+    bucket) to skip the region-probe round-trip. Mirrors the sibling
+    tcga_gtex_expression_distribution reader's _get_s3fs."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as fs
+                _S3FS = fs.S3FileSystem(region="us-east-1")
+    return _S3FS
 
 
 @lru_cache(maxsize=64)
@@ -99,33 +91,37 @@ def read_pan_cancer_by_tissue(target: str):
     is treated read-only downstream (filtered/copied by _ordered_rows, never mutated in place).
     Note: pandas DataFrames are mutable — do NOT mutate the returned frame in place.
 
-    Predicate-pushdown read (filter gene_symbol == target) on the (ensembl_gene_id, source,
-    group)-sorted quantile product. Returns a DataFrame with columns (gene_symbol,
-    ensembl_gene_id, source, group, n, min, q1, median, q3, max, mean); empty when the target is
-    absent / product unavailable."""
-    path = _ensure_cached()
+    Streamed predicate-pushdown read (filter on ensembl_gene_id, the sort key; gene_symbol
+    fallback when the Ensembl id-map is unavailable) directly from S3 via a pyarrow S3FileSystem —
+    HTTP range requests fetch only the few matching row-groups, NO whole-file download. Returns a
+    DataFrame with columns (gene_symbol, ensembl_gene_id, source, group, n, min, q1, median, q3,
+    max, mean); empty when the target is absent / product unavailable."""
+    import pandas as pd
     cols = ["gene_symbol", "ensembl_gene_id", "source", "group",
             "n", "min", "q1", "median", "q3", "max", "mean"]
-    if path is None:
-        import pandas as pd
-        return pd.DataFrame(columns=cols)
     try:
         import pyarrow.parquet as pq
         ensembl_ids = _symbol_to_ensembl_ids(target)
         if ensembl_ids:
             filters = [("ensembl_gene_id", "in", ensembl_ids)]
         else:
+            # fallback: gene_symbol (no row-group pruning on this sort key, but correct)
             filters = [("gene_symbol", "==", target.upper().strip())]
-        tbl = pq.read_table(str(path), filters=filters)
+        tbl = pq.read_table(
+            f"{S3_BUCKET}/{S3_KEY}",
+            filesystem=_get_s3fs(),
+            filters=filters,
+            columns=cols,
+        )
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
-        # Local cached-parquet read (S3 already latched definitive-vs-transient in _ensure_cached).
-        # Corrupt cache / broken env (missing pyarrow) must surface — re-raise; only genuine
-        # object-absence → empty distribution.
+        # Streamed S3 read: swallow ONLY a genuine object-absence (NoSuchKey/404 or pyarrow
+        # FileNotFoundError) as an honest empty distribution. A transient/creds/broken-env failure
+        # must NOT be masked as "gene absent" — re-raise so the live-read seam surfaces the real
+        # cause (_live_read_error) instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
-        import pandas as pd
         return pd.DataFrame(columns=cols)
 
 

@@ -256,14 +256,13 @@ def find_violations() -> list[str]:
 # Deferred fix — blocked on an ACTIVE registry collision, not merely un-prioritised. When the
 # `derive-cooccurrence-fisher-pancohort-v1-1` workstream lands/goes stale, convert this handler
 # to the is_definitively_absent discipline and move/remove the entry.
-_DEFERRED_ALLOWLIST: dict[str, str] = {
-    "cooccurrence_fisher_pancohort/read.py::_load_indexed":
-        "RD9 DEFERRED by PR #354: active registry collision with "
-        "derive-cooccurrence-fisher-pancohort-v1-1 (do-not-touch). `_load_indexed` returns "
-        "`pd.DataFrame(), {}` on a broad except over a cached-parquet read; fix alongside the "
-        "collision owner. (NB: sibling `_ensure_derived_cached` also latches 403/AccessDenied as "
-        "definitive — the RD8 variant — but is not caught by this return-empty lint.)",
-}
+# cooccurrence_fisher_pancohort/read.py::_load_indexed — CONVERTED (2026-08-22, data-layer
+# hardening). `_load_indexed` (broad `except Exception: return pd.DataFrame(), {}` over a
+# cached-parquet read) was retired: the reader now streams one target's rows via
+# `_read_target_rows` (pyarrow S3FileSystem pushdown on target_gene_symbol) and applies the
+# is_definitively_absent discipline — swallow only NoSuchKey/404, re-raise transient/creds. No
+# masking handler remains, so the deferred allowlist entry is removed.
+_DEFERRED_ALLOWLIST: dict[str, str] = {}
 
 # Pre-existing debt discovered when this lint was introduced (2026-08-15). OUT OF SCOPE for
 # PR #354, which curated ~13 verdict-bearing readers. Recorded so CI is green and the debt is

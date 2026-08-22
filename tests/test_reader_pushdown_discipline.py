@@ -62,25 +62,25 @@ _ALLOWLIST = {
     "tcga_gtex_expression_distribution/read.py::_ensure_sidecar_cached": "small UUID<->barcode sidecar (subtyping bridge)",
     # (5) whole-file products that need full extraction (zip / non-columnar) — no pushdown possible.
     "hpa_normal_tissue_liability/cli.py::_ensure_hpa_cached": "HPA zip archive — needs full extract, not columnar",
+    # (6) small DUAL-INDEX readers — load a small (<~2MB) per-protein product ONCE and build an
+    # in-memory index keyed by BOTH gene_symbol AND uniprot accession, serving unbounded per-target
+    # lookups. Callers pass HGNC SYMBOLS but the product's sort/filter key is the UniProt AC, so a
+    # per-target pushdown cannot preserve the symbol-lookup path; the whole-file dual-index build is
+    # required and the download is already cheap. (Reclassified from _BASELINE in burn-down Wave 1.)
+    "surfaceome_family_fusion/read.py::_ensure_derived_cached": "449KB dual-index (gene_symbol|uniprot_ac); callers pass symbols, sort key is uniprot_ac",
+    "structure_features_static/read.py::_ensure_derived_cached": "1.5MB dual-index structure-features; symbol|uniprot_ac lookup, whole-index build",
+    "structure_features_static/read.py::_ensure_ligand_cached": "403KB dual-index ligandability; symbol|uniprot_id lookup, whole-index build",
+    "surface_antigen_density_ladder/read.py::_ensure_corpus_cached": "181-record curated density corpus — tiny single-shot",
 }
 
 # --- pre-existing query-time whole-download readers, to CONVERT to streamed pushdown (burn-down) ---
 # Each is a real per-target/cohort reader that still downloads the whole product. Shrinks as converted.
 _BASELINE = {
-    "collectri_tf_regulon/read.py::_ensure_collectri_cached": "CSV substrate — needs a Layer-A parquet product before streaming helps",
-    "cooccurrence_fisher_pancohort/read.py::_ensure_derived_cached": "DEFERRED — blocked on registry collision derive-cooccurrence-fisher-pancohort-v1-1",
-    "cptac_protein_deg/read.py::_ensure_derived_cached": "PARTIAL — #473 streamed the per-sample read (l.397) but the cohort read via _ensure_derived_cached (l.191) still downloads",
-    "depmap_paralog_aggregator/read.py::_ensure_paralog_cached": "CSV paralog gene-effect — needs parquet product first",
-    "immune_context/read.py::_ensure_cached": "source-release manifest has no pushdown key — needs a per-target derived product",
-    "signor_mechanism_network/read.py::_try_load_derived_parquet_from_s3": "network product — convert to pushdown",
-    "signor_mechanism_network/read.py::_ensure_signor_source_cached": "SIGNOR TSV — needs parquet product",
-    "structure_features_static/read.py::_ensure_derived_cached": "structure product — convert to uniprot_ac pushdown",
-    "structure_features_static/read.py::_ensure_ligand_cached": "ligandability product — convert to pushdown",
-    "surface_antigen_density_ladder/read.py::_ensure_corpus_cached": "curated corpus — assess pushdown vs small-file",
-    "surfaceome_family_fusion/read.py::_ensure_derived_cached": "convert to uniprot_ac pushdown",
-    "tcga_fusion_consensus/read.py::_ensure_derived_cached": "convert to gene_symbol pushdown",
-    "tcga_fusion_consensus/read.py::_ensure_coverage_cached": "coverage table — assess pushdown",
-    "tcga_gtex_tpm_quantiles/read.py::_ensure_cached": "convert to gene pushdown",
+    "collectri_tf_regulon/read.py::_ensure_collectri_cached": "CSV source (CollecTRI.csv) — needs a Layer-A parquet product before streaming helps",
+    "depmap_paralog_aggregator/read.py::_ensure_paralog_cached": "CSV source (ParalogGeneEffect.csv) — needs parquet product first",
+    "immune_context/read.py::_ensure_cached": "source-release CIBERSORT TSV, no pushdown key — needs a per-target derived product",
+    "signor_mechanism_network/read.py::_try_load_derived_parquet_from_s3": "prefetch of signor-mechanism-network-per-gene-v1 which was REVERTED (no manifest/object) — needs re-materialising",
+    "signor_mechanism_network/read.py::_ensure_signor_source_cached": "SIGNOR source TXT compose-on-read — needs a parquet product",
 }
 
 _MARKER = "pushdown-discipline: exempt"

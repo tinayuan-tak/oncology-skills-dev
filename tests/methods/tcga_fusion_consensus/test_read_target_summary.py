@@ -40,6 +40,12 @@ def _row(sample, gene, tissue, caller_count, partners_tf=(), n_tf=0, n_gao=0, n_
 def _patch(monkeypatch, rows):
     df = pd.DataFrame(rows)
     monkeypatch.setattr(r, "_load_consensus", lambda: df)
+    # Isolate the coverage sibling from S3 too (default: unavailable → freq=None). Since the
+    # 2026-08-22 streamed-read conversion the coverage read PROPAGATES a creds/transient S3 error
+    # (absence discipline) instead of the old broad-except→None; without this default patch any
+    # summary test that passes an indication would reach live S3. Frequency tests override this
+    # via _patch_coverage below.
+    monkeypatch.setattr(r, "_load_coverage", lambda: pd.DataFrame())
 
 
 def test_recurrent_partner_is_driver(monkeypatch):

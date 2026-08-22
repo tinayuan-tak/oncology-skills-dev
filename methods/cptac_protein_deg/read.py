@@ -92,9 +92,6 @@ DERIVED_MANIFEST_ID = "cptac-protein-tumor-vs-normal-per-cohort-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
 S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 
-CACHE_DIR = Path.home() / ".cache" / "framework-cptac"
-CACHE_PARQUET = CACHE_DIR / "cptac_protein_deg.parquet"
-
 # Per-SAMPLE product (cptac-protein-tumor-vs-normal-per-sample-v1): the per-aliquot
 # log-ratios the per-cohort summary threw away. Backs the true tumor-vs-normal
 # distribution boxplot + honest per-cohort statistics (Welch + Mann-Whitney). 127 MB,
@@ -113,9 +110,6 @@ INDICATION_TO_CPTAC = {
     "LUAD": "LUAD", "OV": "OV", "PAAD": "PDAC", "PDAC": "PDAC",
     "UCEC": "UCEC",
 }
-
-
-from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 import threading
@@ -142,39 +136,50 @@ def _get_s3fs():
     return _S3FS
 
 
-def _ensure_derived_cached() -> Optional[Path]:
+def _ensure_derived_cached() -> Optional[str]:
+    """Resolve the STREAMABLE remote source ("bucket/key") for the per-cohort derived product.
+
+    STREAMED read (2026-08-22 data-layer hardening): the old path did `s3.download_file(...)` of the
+    whole ~9 MB per-cohort parquet to a local ~/.cache file and then `pd.read_parquet(local)`. This
+    reader consumes the product in FULL — `_load_indexed` builds a process-wide (cohort, gene) index
+    AND `_allgene_effect_percentile` needs every gene's effect_size within a cohort — so there is no
+    single-target predicate to push down; but we STREAM the row-groups directly off S3 via a pyarrow
+    S3FileSystem (see `_load_indexed`'s `pd.read_parquet(..., filesystem=_get_s3fs())`) instead of the
+    local download + re-read (drops the disk round-trip; bucket/key stay resolved from the manifest).
+
+    Returns the remote "bucket/key" URI when the object is PRESENT; None when it is DEFINITIVELY absent
+    (a genuine 404 / NotFound -> honest data_unavailable, latched in `_DERIVED_STATUS` for the process).
+    A TRANSIENT / creds / broken-env error is NOT latched (leaves `_DERIVED_STATUS` None so a later
+    call retries) and PROPAGATES — never masked as a false data_unavailable (absence discipline; the
+    stream read in `_load_indexed` must NOT swallow, so absence is classified here at the source probe).
+    """
     global _DERIVED_STATUS
     if _DERIVED_STATUS is False:
         return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
-        _DERIVED_STATUS = True
-        return CACHE_PARQUET
-    if _DERIVED_STATUS is None:
-        try:
-            s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
-            _DERIVED_STATUS = True
-            return CACHE_PARQUET
-        except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 / NoSuchKey) from a
-            # TRANSIENT failure (expired STS creds, IAM propagation delay, network blip, throttling).
-            # Only latch _DERIVED_STATUS = False on the definitive (absent-object) case — that safely
-            # short-circuits every later call. For a transient error LEAVE _DERIVED_STATUS = None so a
-            # later call retries instead of poisoning the whole process with a false data_unavailable.
-            #
-            # 403/AccessDenied is TRANSIENT, not definitive: expired session creds are the common
-            # cause and surface as AccessDenied — latching False there degraded every subsequent read
-            # to data_unavailable for the process lifetime even though re-auth would recover. Only a
-            # true missing-object 404/NoSuchKey latches.
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _DERIVED_STATUS = False
+    uri = f"{S3_BUCKET}/{DERIVED_S3_KEY}"
+    if _DERIVED_STATUS is True:
+        return uri
+    # First call: probe existence so a genuinely-missing object latches data_unavailable exactly as
+    # the old download_file 404 path did. get_file_info returns a NotFound FileInfo (no raise) for a
+    # missing key; only creds/transient failures raise here.
+    import pyarrow.fs as pafs
+    try:
+        info = _get_s3fs().get_file_info(uri)
+    except Exception as e:  # noqa: BLE001
+        # Absence discipline: latch False ONLY on a DEFINITIVE no-object (NoSuchKey/NoSuchBucket/404);
+        # a TRANSIENT / creds / broken-env error (ExpiredToken, AccessDenied, throttling, missing
+        # botocore) leaves _DERIVED_STATUS None (later call retries) and PROPAGATES as an honest
+        # _live_read_error, never a silent data_unavailable for the process lifetime.
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e):
+            _DERIVED_STATUS = False
             return None
-    return None
+        raise
+    if info.type == pafs.FileType.NotFound:
+        _DERIVED_STATUS = False
+        return None
+    _DERIVED_STATUS = True
+    return uri
 
 
 @lru_cache(maxsize=1)
@@ -194,14 +199,16 @@ def _load_indexed():
         return pd.DataFrame(), {}, {}
 
     import pandas as pd
-    # `path` is the LOCAL cache that _ensure_derived_cached already fetched — the S3 absence
-    # (404/NoSuchKey) is latched THERE, returning path=None above (honest data_unavailable). A
-    # failure to read a PRESENT local file is broken-env (missing pyarrow) or a corrupt/partial
-    # cache — NOT data absence — so it must PROPAGATE (surfaces as an honest _live_read_error at
-    # the compose-dashboard live-read seam), never be masked as an empty frame. @lru_cache does
-    # not memoize an exception, so a raise here also avoids the poison-on-failure the old
-    # return-empty caused (a cached empty result would have dead-axed the process for its lifetime).
-    df = pd.read_parquet(path)
+    # `path` is the remote "bucket/key" URI that _ensure_derived_cached resolved + existence-probed —
+    # the S3 absence (404/NotFound) is latched THERE, returning path=None above (honest
+    # data_unavailable). Here we STREAM the row-groups off S3 via the pyarrow S3FileSystem singleton
+    # (no whole-file download to disk). A failure to read a PRESENT object is broken-env (missing
+    # pyarrow), a corrupt product, or a transient/creds error — NOT data absence — so it must
+    # PROPAGATE (surfaces as an honest _live_read_error at the compose-dashboard live-read seam),
+    # never be masked as an empty frame. @lru_cache does not memoize an exception, so a raise here
+    # also avoids the poison-on-failure the old return-empty caused (a cached empty result would have
+    # dead-axed the process for its lifetime).
+    df = pd.read_parquet(path, filesystem=_get_s3fs())
 
     if df.empty:
         return df, {}, {}

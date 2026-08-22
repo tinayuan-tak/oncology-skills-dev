@@ -1,7 +1,9 @@
-"""Regression (burndown P3, PR #361): tcga_fusion_consensus._load_consensus / _load_coverage read a
-LOCAL cached parquet (S3 is already latched definitive-vs-transient in _ensure_*_cached). A corrupt
-cache / broken env (missing pyarrow) must PROPAGATE, not be masked as an empty frame; a GENUINE
-absence (S3 404 latched upstream -> path=None) still yields empty, unchanged.
+"""Regression (burndown P3, PR #361; updated for the 2026-08-22 streamed-read conversion):
+tcga_fusion_consensus._load_consensus / _load_coverage now STREAM the derived parquet over a pyarrow
+S3FileSystem (methods/tcga_fusion_consensus/read.py:_stream_parquet) instead of download_file +
+pd.read_parquet(local). The absence discipline is unchanged in SPIRIT: a corrupt-parquet / broken-env
+(missing pyarrow) / transient / creds error must PROPAGATE, not be masked as an empty frame; a GENUINE
+absence (pyarrow FileNotFoundError / NoSuchKey) still yields an empty frame + latches the status flag.
 """
 from __future__ import annotations
 
@@ -18,15 +20,18 @@ from methods.tcga_fusion_consensus import read as fus  # noqa: E402
 
 
 def _boom(*a, **k):
-    raise RuntimeError("corrupt cache / missing pyarrow")
+    raise RuntimeError("corrupt parquet / missing pyarrow / broken env")
 
 
-def test_load_consensus_corrupt_cache_reraises(monkeypatch, tmp_path):
+def _absent(*a, **k):
+    # pyarrow surfaces a missing S3 object as FileNotFoundError -> definitive absence.
+    raise FileNotFoundError("s3 object does not exist")
+
+
+def test_load_consensus_corrupt_or_transient_reraises(monkeypatch):
     fus._load_consensus.cache_clear()
-    fake = tmp_path / "consensus.parquet"
-    fake.write_bytes(b"not-a-real-parquet")
-    monkeypatch.setattr(fus, "_ensure_derived_cached", lambda: fake)
-    monkeypatch.setattr(fus.pd, "read_parquet", _boom)
+    monkeypatch.setattr(fus, "_DERIVED_STATUS", None)      # clear any latched-absence from a prior test
+    monkeypatch.setattr(fus, "_stream_parquet", _boom)
     with pytest.raises(RuntimeError):
         fus._load_consensus()
     fus._load_consensus.cache_clear()
@@ -34,18 +39,24 @@ def test_load_consensus_corrupt_cache_reraises(monkeypatch, tmp_path):
 
 def test_load_consensus_genuine_absence_returns_empty(monkeypatch):
     fus._load_consensus.cache_clear()
-    # S3 404/NoSuchKey latched in _ensure_derived_cached -> path=None (unchanged genuine-absence).
-    monkeypatch.setattr(fus, "_ensure_derived_cached", lambda: None)
+    monkeypatch.setattr(fus, "_DERIVED_STATUS", None)
+    monkeypatch.setattr(fus, "_stream_parquet", _absent)   # NoSuchKey/404 -> pyarrow FileNotFoundError
     assert fus._load_consensus().empty
     fus._load_consensus.cache_clear()
 
 
-def test_load_coverage_corrupt_cache_reraises(monkeypatch, tmp_path):
+def test_load_coverage_corrupt_or_transient_reraises(monkeypatch):
     fus._load_coverage.cache_clear()
-    fake = tmp_path / "coverage.parquet"
-    fake.write_bytes(b"not-a-real-parquet")
-    monkeypatch.setattr(fus, "_ensure_coverage_cached", lambda: fake)
-    monkeypatch.setattr(fus.pd, "read_parquet", _boom)
+    monkeypatch.setattr(fus, "_COVERAGE_STATUS", None)
+    monkeypatch.setattr(fus, "_stream_parquet", _boom)
     with pytest.raises(RuntimeError):
         fus._load_coverage()
+    fus._load_coverage.cache_clear()
+
+
+def test_load_coverage_genuine_absence_returns_empty(monkeypatch):
+    fus._load_coverage.cache_clear()
+    monkeypatch.setattr(fus, "_COVERAGE_STATUS", None)
+    monkeypatch.setattr(fus, "_stream_parquet", _absent)
+    assert fus._load_coverage().empty
     fus._load_coverage.cache_clear()

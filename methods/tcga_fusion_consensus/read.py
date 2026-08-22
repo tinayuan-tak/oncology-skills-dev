@@ -53,8 +53,6 @@ DERIVED_MANIFEST_ID = "tcga-fusion-consensus-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth) —
 # was a hand-typed literal parallel to DERIVED_MANIFEST_ID that could silently drift.
 S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
-CACHE_DIR = Path.home() / ".cache" / "framework-fusion-consensus"
-CACHE_PARQUET = CACHE_DIR / "fusion_consensus_per_sample_gene.parquet"
 _DERIVED_STATUS: Optional[bool] = None
 
 # Recurrence threshold: a fusion is a RECURRENT driver in an indication when it recurs across samples.
@@ -70,95 +68,94 @@ _RECURRENT_MIN_SAMPLES = 3
 _DEFAULT_MIN_CALLERS = 2
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client
+# ---------- streamed S3 read (pyarrow S3FileSystem; NO whole-file download) ----------
+# 2026-08-22 data-layer hardening (parquet-storage-standard): the derived consensus payload + its
+# sample_coverage sibling are STREAMED over a process-wide pyarrow S3FileSystem
+# (pq.read_table over `bucket/key`), replacing the prior boto3 download_file-to-local-cache.
+# Both _load_consensus and _load_coverage are ALL-ROWS seams — read_target_summary AND the
+# subgroup-stratified panorama in stratified.py each filter the WHOLE frame by their own
+# gene/tissue/stratum predicates and reuse it process-wide — so this streams the whole table
+# (no filters= pushdown on gene_symbol, which the manifest flags as a low-selectivity secondary
+# sort key anyway). The ~1 MB payload / ~0.12 MB coverage transit ONCE per process via the
+# lru_cache seam. Mirrors methods/dge_deseq2/read.py:_get_s3fs +
+# methods/depmap_common/parquet.py:_stream_table.
+import threading
+
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 
-def _ensure_derived_cached() -> Optional[Path]:
-    global _DERIVED_STATUS
-    if _DERIVED_STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
-        _DERIVED_STATUS = True
-        return CACHE_PARQUET
-    if _DERIVED_STATUS is None:
-        try:
-            _boto3_client().download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
-            _DERIVED_STATUS = True
-            return CACHE_PARQUET
-        except Exception as e:  # noqa: BLE001
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
-            if definitive:
-                _DERIVED_STATUS = False
-            return None
-    return None
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
+    Constructing one costs a region-probe + client init, so build it ONCE and share it — pyarrow's
+    S3FileSystem is safe for concurrent reads (the parallel card-read pool relies on that)."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as pafs
+                _S3FS = pafs.S3FileSystem(region="us-east-1")
+    return _S3FS
+
+
+def _stream_parquet(bucket: str, key: str):
+    """Streamed whole-table read of a remote parquet -> pandas (same DataFrame pd.read_parquet
+    produced from the downloaded copy — both go through pyarrow's read_table(...).to_pandas()).
+    Errors PROPAGATE: a missing object surfaces as pyarrow FileNotFoundError (definitive absence);
+    a transient/creds/broken-env error propagates so the caller's absence latch re-raises the real
+    cause. No whole-file download."""
+    import pyarrow.parquet as pq
+    return pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs()).to_pandas()
 
 
 @lru_cache(maxsize=1)
 def _load_consensus():
-    path = _ensure_derived_cached()
-    if path is None:
+    """Whole tcga-fusion-consensus-v1 payload as a DataFrame (streamed once, cached process-wide).
+    Genuine object-absence (NoSuchKey / 404 / pyarrow FileNotFoundError) latches _DERIVED_STATUS
+    and yields an empty frame (honest data_unavailable); a corrupt-parquet / broken-env / transient
+    / creds error PROPAGATES (never masked as empty), per the reader-absence-discipline guard."""
+    global _DERIVED_STATUS
+    if _DERIVED_STATUS is False:
         return pd.DataFrame()
     try:
-        return pd.read_parquet(path)
+        df = _stream_parquet(S3_BUCKET, DERIVED_S3_KEY)
     except Exception as e:  # noqa: BLE001
-        # Local cached-parquet parse (S3 already latched definitive-vs-transient in
-        # _ensure_derived_cached). Corrupt cache / broken env must surface — re-raise; genuine
-        # object-absence → empty.
         from methods.target_id_sidecar import is_definitively_absent
-        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
-            raise
-        return pd.DataFrame()
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _DERIVED_STATUS = False
+            return pd.DataFrame()
+        raise
+    _DERIVED_STATUS = True
+    return df
 
 
 # sample_coverage.parquet is a SIBLING of the payload at the SAME S3 prefix (not a separate
 # manifest) — the assayed-sample denominator (columns: sample_key, tissue, caller). Basename-swap
-# the payload key, cache alongside, degrade to None so a missing companion just keeps freq=None.
+# the payload key; STREAM it (no download) and degrade to empty on genuine absence so a missing
+# companion just keeps freq=None. Small (~0.12 MB) but streamed for consistency with the payload
+# seam and to drop the boto3 download_file — read_table over the shared S3FileSystem, no local cache.
 _COVERAGE_KEY = DERIVED_S3_KEY.rsplit("/", 1)[0] + "/sample_coverage.parquet"
-CACHE_COVERAGE = CACHE_DIR / "sample_coverage.parquet"
 _COVERAGE_STATUS: Optional[bool] = None
-
-
-def _ensure_coverage_cached() -> Optional[Path]:
-    global _COVERAGE_STATUS
-    if _COVERAGE_STATUS is False:
-        return None
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if CACHE_COVERAGE.exists() and CACHE_COVERAGE.stat().st_size > 0:
-        _COVERAGE_STATUS = True
-        return CACHE_COVERAGE
-    if _COVERAGE_STATUS is None:
-        try:
-            _boto3_client().download_file(S3_BUCKET, _COVERAGE_KEY, str(CACHE_COVERAGE))
-            _COVERAGE_STATUS = True
-            return CACHE_COVERAGE
-        except Exception as e:  # noqa: BLE001
-            resp = getattr(e, "response", None)
-            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            if code in ("404", "NoSuchKey") or e.__class__.__name__ in ("NoSuchKey", "404"):
-                _COVERAGE_STATUS = False
-            return None
-    return None
 
 
 @lru_cache(maxsize=1)
 def _load_coverage():
-    path = _ensure_coverage_cached()
-    if path is None:
+    """Whole sample_coverage sibling as a DataFrame (streamed once, cached). Absence discipline
+    mirrors _load_consensus: genuine object-absence -> empty (freq stays None); corrupt / broken-env
+    / transient / creds error PROPAGATES."""
+    global _COVERAGE_STATUS
+    if _COVERAGE_STATUS is False:
         return pd.DataFrame()
     try:
-        return pd.read_parquet(path)
+        df = _stream_parquet(S3_BUCKET, _COVERAGE_KEY)
     except Exception as e:  # noqa: BLE001
-        # Local cached-parquet parse (S3 already latched definitive-vs-transient in
-        # _ensure_coverage_cached). Corrupt cache / broken env must surface — re-raise; genuine
-        # object-absence → empty.
         from methods.target_id_sidecar import is_definitively_absent
-        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
-            raise
-        return pd.DataFrame()
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _COVERAGE_STATUS = False
+            return pd.DataFrame()
+        raise
+    _COVERAGE_STATUS = True
+    return df
 
 
 def _n_assayed_in_tissue(indication: Optional[str]) -> Optional[int]:
