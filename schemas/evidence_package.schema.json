@@ -185,7 +185,16 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "claim_vector": {"type": "object", "description": "The {axis: {signal, corroboration, evidence, conflict, informs, evidence_atom?}} projection (claim_vector_core)."},
+              "claim_vector": {
+                "type": "object",
+                "description": "The {axis: {signal, corroboration, evidence, conflict, informs, evidence_atom?}} projection (claim_vector_core), plus a `_disclaimer` string. Each axis object stays open (signal/corroboration/... ride freely); the ONLY structural pin is that a present `evidence_atom` must be a well-formed citable atom (see $defs.evidence_atom) — the citation-integrity guard.",
+                "additionalProperties": {
+                  "oneOf": [
+                    {"type": "string"},
+                    {"type": "object", "properties": {"evidence_atom": {"$ref": "#/$defs/evidence_atom"}}}
+                  ]
+                }
+              },
               "key_signals": {"type": ["object", "null"]},
               "headline_block": {"$ref": "#/$defs/headline_block"}
             }
@@ -214,6 +223,24 @@
     }
   },
   "$defs": {
+    "evidence_atom": {
+      "type": "object",
+      "description": "A CITABLE evidence atom on a claim_vector axis (produced by the shared claim_vector_core.build_atom): the load-bearing numeric VALUES bound to their source {card_id, fields}. Structural guard for CITATION INTEGRITY — an atom must carry a `cite.card_id` (a string that resolves to a composed card), so a downstream reasoner can never cite a phantom source. additionalProperties stays open (read/entity ride along).",
+      "required": ["values", "cite"],
+      "properties": {
+        "read": {"description": "Human-readable one-token read of the atom (often the class label)."},
+        "values": {"type": "object", "description": "The load-bearing values (numeric/label), verbatim from the source card summary."},
+        "cite": {
+          "type": "object",
+          "required": ["card_id"],
+          "properties": {
+            "card_id": {"type": "string", "description": "The source card_id — MUST resolve to a composed card in this package (citation-integrity)."},
+            "fields": {"type": "array", "items": {"type": "string"}, "description": "The sorted value keys that are citable fields (list-valued keys are omitted here but kept in `values`)."}
+          }
+        },
+        "entity": {"type": "object", "description": "Measurement-type / grain identity of the source."}
+      }
+    },
     "headline_block": {
       "type": "object",
       "description": "The canonical per-skill HEADLINE block (verdict + confidence + top tension) produced by headline_core.build_headline — a VERDICT-INERT projection over the sub-skill's claim_vector / key_signals. Carries a deterministic one-sentence headline_text plus a renderer-agnostic `hero` plot_data payload (rendered by headline_hero to figure_headline_hero.{svg,png,json}). It never mints or lifts a verdict; the authoritative call remains the resolver gate verdict.",
