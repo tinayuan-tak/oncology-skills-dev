@@ -1,6 +1,6 @@
 """RNA / copy-number / presence / selectivity / survival figure emitters.
 
-Part of the compose-dashboard figure-emitter package (Stage-4 split of the monolith).
+Part of the _skills_common figure-emitter package (rehomed off the retired compose-dashboard, #654) (Stage-4 split of the monolith).
 """
 
 from __future__ import annotations

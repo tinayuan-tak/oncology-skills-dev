@@ -133,6 +133,6 @@ def emit_figures_for_card(
         ]
     except Exception as e:
         import sys as _sys
-        print(f"[compose-dashboard:figures] emit failed for {card_id}: {type(e).__name__}: {e}",
+        print(f"[figures] emit failed for {card_id}: {type(e).__name__}: {e}",
               file=_sys.stderr)
         return []

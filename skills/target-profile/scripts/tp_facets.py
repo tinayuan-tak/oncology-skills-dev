@@ -1340,8 +1340,9 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
         "arms": arms,
         "confidence": confidence,
         "derivation": deriv,
-        "note": ("VERDICT-INERT selection-basis profile (Phase 0: annotation only, no routing). "
-                 "Orthogonal to biology_axis; `unknown` != `none`. cis_feature=biomarker handle, "
+        "note": ("VERDICT-INERT selection-basis profile: it ROUTES narrative emphasis (render lead-order "
+                 "+ a synthesis emphasis-governance block) but never changes the verdict / recommendation / "
+                 "gate (all clamped deterministically). Orthogonal to biology_axis; `unknown` != `none`. cis_feature=biomarker handle, "
                  "abundance=expression/density cutoff, dependency_relational=partner/context handle, "
                  "mixed=both (e.g. HER2 amplification is BOTH the cis handle AND the abundance readout)."),
     }

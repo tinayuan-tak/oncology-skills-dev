@@ -1,5 +1,5 @@
 """Hermetic tests for _actionability_mode_facet — the verdict-inert cis_feature vs abundance vs
-dependency_relational selection-basis profile (annotation only, no routing).
+dependency_relational selection-basis profile (routes narrative emphasis; never changes the verdict).
 
 Panel-based (avoids single-example overfit): clean-cis, clean-abundance, mixed (HER2-like), and the
 relational cases the binary breaks on (TP53 LoF must NOT read cis). Also pins the honesty invariants:

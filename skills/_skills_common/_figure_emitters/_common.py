@@ -1,4 +1,4 @@
-"""Shared helpers + constants for the compose-dashboard figure-emitter package.
+"""Shared helpers + constants for the _skills_common figure-emitter package (rehomed off the retired compose-dashboard, #654).
 
 Extracted from the former ~1363-line `_figure_emitters.py` monolith (figure-consolidation
 Stage 4). The emitter functions now live in tier modules (_dependency / _expression /
@@ -50,7 +50,7 @@ def _plotly_from(module, fn_name: str, *args) -> list[dict]:
         specs = fn(*args) or []
     except Exception as e:  # noqa: BLE001
         import sys as _sys
-        print(f"[compose-dashboard:figures] plotly spec emission skipped "
+        print(f"[figures] plotly spec emission skipped "
               f"({getattr(module, '__name__', module)}.{fn_name}): {type(e).__name__}: {e}",
               file=_sys.stderr)
         return []

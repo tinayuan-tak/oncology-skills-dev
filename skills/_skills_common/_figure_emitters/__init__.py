@@ -1,4 +1,4 @@
-"""compose-dashboard figure-emission registry (package form).
+"""_skills_common figure-emission registry (package form).
 
 Stage-4 split of the former `_figure_emitters.py` monolith into a package. The public surface is
 unchanged: `import _figure_emitters` / `from _figure_emitters import emit_figures_for_card` keep

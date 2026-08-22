@@ -404,10 +404,10 @@ def _prettify_field(key: str) -> str:
 
 
 def _plotly_bundle() -> Optional[str]:
-    """The plotly.js source, for INLINING into the self-contained report (no CDN, no external src).
-    ~4.6 MB — the deliberate weight of the dynamic dashboard. Cached; None if plotly is absent (the
-    report then degrades to static SVG/table). NOTE: an inlined-plotly report is too large for the
-    VS Code Simple Browser to render — download + open in a real browser to review it."""
+    """The plotly.js source via plotly.offline.get_plotlyjs — used now only as an AVAILABILITY probe
+    (is plotly importable this run?) by _plotly_script_tag; the interactive report loads plotly.js from
+    the CDN, NOT inline (see _plotly_script_tag — the ~4.6 MB inline bundle exceeded the VS Code Simple
+    Browser's ~4.5 MB inline-<script> cap). Cached; None if plotly is absent (report degrades to static)."""
     global _PLOTLY_JS_CACHE
     try:
         return _PLOTLY_JS_CACHE
@@ -1439,13 +1439,13 @@ def _render_target_profile_html(
     AI-generated ones.
 
     DYNAMIC vs STATIC: when a run produced per-card interactive figures (`card_figures` +
-    `figures_dir`), their Plotly specs are EMBEDDED inline (plotly.js inlined once, a small vanilla-JS
-    bootstrap draws them) — the dashboard reads like the GI team's interactive charts while staying a
-    single archivable file with zero external deps. When no figure was produced (the default / a
-    data-blocked run / plotly absent), the report degrades to the STATIC card tables — same file, no
-    JS. The renderer only EMBEDS the method-drawn spec; it never re-plots (honesty spine intact).
-    NOTE: an inlined-plotly report is ~4.6 MB and won't render in the VS Code Simple Browser —
-    download + open in a real browser to review."""
+    `figures_dir`), their Plotly specs are EMBEDDED inline and a small vanilla-JS bootstrap draws them;
+    plotly.js itself loads from the CDN (a few hundred KB of HTML — NOT the ~4.6 MB inline bundle, which
+    exceeded the VS Code Simple Browser's ~4.5 MB inline-<script> cap and made dashboards look 'broken').
+    So the interactive report needs network for the plotly.js CDN fetch; the specs + data are inline.
+    When no figure was produced (the default / a data-blocked run / plotly absent), the report degrades
+    to the STATIC card tables — a fully self-contained, zero-external-dep, no-JS file. The renderer only
+    EMBEDS the method-drawn spec; it never re-plots (honesty spine intact)."""
     def _val(field, default="—"):
         raw = llm_output.get(field)
         return raw.get("value", default) if isinstance(raw, dict) else (raw if raw is not None else default)

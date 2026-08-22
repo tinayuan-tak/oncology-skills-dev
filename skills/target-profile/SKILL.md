@@ -127,13 +127,15 @@ composition:
   tractability-small-molecule, surface-modality-fit, immune-context,
   on-target-safety-liability, target-intrinsic, cis-feature-coherence,
   combination-and-vulnerability.
-  - `combination-and-vulnerability`, `target-intrinsic`, and `cis-feature-coherence` are **gateless**
-    (absent from the resolver-gate map): they surface in `sub_verdicts` + the LLM synthesis but do
-    NOT drive the recommendation spine, which stays byte-stable. `cis-feature-coherence` emits a
-    resolver verdict (unlike `target-intrinsic`) but its `cis_coherence` axis is a dedicated
-    self-contained axis kept out of `_SHORT_TO_GATE` — graduation to a positive_signal/contradiction
-    gate is a later calibrated stage. `target-intrinsic` is
-    additionally **descriptive** (`verdict=None`) — indication-independent target biology.
+  - **Five** shorts are **gateless** (absent from the kill/hold gate map `_SHORT_TO_GATE`):
+    `expression` (tumor-presence), `immune-context`, `target-intrinsic`, `cis-feature-coherence`, and
+    `combination-and-vulnerability`. They surface in `sub_verdicts` + the LLM synthesis but do NOT drive
+    the deterministic KILL/HOLD recommendation spine, which stays byte-stable. Nuances: `target-intrinsic`
+    and `combination-and-vulnerability` are additionally **descriptive** (`verdict=None`). `cis-feature-coherence`
+    emits a resolver verdict and has since **graduated** (2026-08-20) into the positive tier — its
+    `coherent_cis_driver` is a `positive_signal` and `expressed_cis_coupled_inert` a `positive_contradiction`,
+    so it can raise the confidence FLOOR and name the deciding axis — but it stays out of `_SHORT_TO_GATE`,
+    so it still never forces a nominate/hold/veto.
 - Collects each sub-verdict + fired rules + card summaries.
 - Invokes Bedrock (Opus by default via env `ANTHROPIC_MODEL`) with a
   structured tool_use forcing the LLM to emit:
