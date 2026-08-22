@@ -25,7 +25,7 @@ description: |
   artifactual mutual-exclusivity signals for panel-absent genes.
 
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -40,10 +40,9 @@ composition:
     - pathway-node-leverage               # WS3 (2026-08-17): COMPARATIVE node-leverage (is target the best NODE to hit, or dominated?); soft/verdict-inert differentiation context — its rules emit axis_fit signals + fired_rule_ids for the cross-evidence hypothesis agent; feeds NO resolver (verdict byte-stable)
     - alteration-clinical-association       # Q11-alteration (2026-08-20): OS by target MUTATION status; verdict-inert prognostic render facet (alteration arm of the differentiation prognostic question)
     - subtype-survival-association          # Q2-subtype (2026-08-20): OS ACROSS molecular subtypes (target-independent patient-selection context); verdict-inert
-    # clinical-precedent + patent-landscape intentionally NOT listed here. clinical-precedent is now
-    # WIRED (AACT, 2026-08-21) + produced in the composed dashboards — adding it to THIS focused
-    # skill's cards_used is an optional follow-up; patent-landscape stays unwired (PatBase licensing).
-    # See NOTE below. (Trimmed 2026-08-05 to match run.py.)
+    - clinical-precedent                    # (2026-08-21) AACT clinical-trial precedent (highest stage / active trials / approved agents / notable failures for a target-engaging drug); ADDITIVE, VERDICT-INERT translational-maturity render facet
+    # patent-landscape intentionally NOT listed — stays unwired (PatBase-equivalent licensing
+    # unresolved). See NOTE below.
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
   # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent's card is now WIRED
   # (public-domain AACT) but is NOT YET in THIS skill's cards_used (optional follow-up) — kept as a
@@ -56,7 +55,7 @@ composition:
     - stemness_context                    # stemness-context (Malta 2018 mRNAsi; verdict-inert)
     - expression_clinical_association     # expression-clinical-association (Q11; verdict-inert render facet)
     - precog_prognostic_association       # precog-prognostic-association (PRECOG pan-cancer meta-Z; verdict-inert)
-    - clinical_precedent                  # card now WIRED (public-domain AACT, 2026-08-21); NOT YET in this skill's cards_used (optional follow-up)
+    - clinical_precedent                  # clinical-precedent card (WIRED public-domain AACT); now COMPOSED in this skill (cards_used) as a verdict-inert render facet
     - pathway_node_leverage               # WS3 (2026-08-17): pathway-node-leverage card (comparative; verdict-inert soft differentiation context)
     - alteration_clinical_association     # alteration-clinical-association (Q11-alteration; verdict-inert prognostic render facet)
     - subtype_survival_association        # subtype-survival-association (Q2-subtype; verdict-inert)
@@ -69,10 +68,10 @@ composition:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
   status: partial
-  # NOTE: clinical-precedent + patent-landscape are intentionally NOT in cards_used above.
-  # clinical-precedent is now WIRED (public-domain AACT) + produced in the composed dashboards;
-  # adding it to THIS focused skill is an optional follow-up. patent-landscape stays unwired
-  # (PatBase-equivalent licensing unresolved), so it never reaches dispatch.
+  # NOTE: clinical-precedent is now WIRED (public-domain AACT) and COMPOSED in this skill's cards_used
+  # (2026-08-21, v1.5.0) as a verdict-inert render facet — it reaches dispatch via the generic
+  # dispatcher (the card's module/entrypoint). patent-landscape stays unwired (PatBase-equivalent
+  # licensing unresolved), so it is the only card still absent from cards_used.
   # (A previous `on_dependency_status: skip_section` block was removed here
   # because run.py never passed it — the skip is by omission, not by that
   # mechanism. Wiring on_dependency_status is a separate feature decision.)
@@ -92,10 +91,9 @@ Given a target + indication:
 
 ## What this skill does NOT do (yet)
 
-- **Clinical-precedent feed:** now WIRED via public-domain AACT (no Cortellis/IQVIA
-  license needed) and produced in the composed dashboards. Adding it to THIS focused
-  skill's runtime card set is a follow-up — it is not yet in this skill's cards_used.
 - **Patent landscape:** PatBase-equivalent licensing pending. Not in the card set.
+  (Clinical-precedent is now DONE — WIRED via public-domain AACT and composed here as a
+  verdict-inert render facet, v1.5.0.)
 - **Paralog buffering** (re-homed): functional-requirement skill consumes
   this — paralog buffering is a Phase C-adjacent dependency-hardening
   signal, not a Phase E differentiation signal (reviewer content flag).
@@ -132,7 +130,7 @@ are always available for panel-ineligible genes.
 
 ## Iter-2 roadmap
 
-1. clinical-precedent card DONE (2026-08-21, public-domain AACT); optional: add to this skill's cards_used.
+1. clinical-precedent DONE (2026-08-21, public-domain AACT) — card wired + composed in this skill (v1.5.0).
 2. PatBase or equivalent → patent-landscape card wiring.
 3. Method upgrade: DISCOVER (Canisius 2016) or SELECT (Mina 2020)
    alongside Fisher — cited in the card's caveats as principled successors.

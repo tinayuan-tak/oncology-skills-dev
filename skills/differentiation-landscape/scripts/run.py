@@ -25,7 +25,10 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-21): + canonical HEADLINE block (verdict + confidence + top
+SKILL_VERSION = "1.5.0"   # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
+                          #        ADDITIVE/VERDICT-INERT render facet (translational-maturity lens);
+                          #        differentiation verdict byte-stable (no resolver rung on clinical_*).
+                          # 1.4.0 (2026-08-21): + canonical HEADLINE block (verdict + confidence + top
                           #        tension) + shared headline hero (figure_headline_hero.{svg,png,json}).
                           #        A verdict-INERT projection over the DESCRIPTIVE claim_vector /
                           #        key_signals — differentiation_verdict spine byte-stable (frozen by
@@ -62,6 +65,12 @@ CARDS = [
                                          # molecular subtypes? Target-independent patient-selection context.
                                          # ADDITIVE, VERDICT-INERT (subtype-* rules feed NO resolver;
                                          # differentiation verdict byte-stable). reads subtype_survival_association_class.
+    "clinical-precedent",                # (2026-08-21): AACT clinical-trial precedent for (target, indication) —
+                                         # highest stage / active trials / approved agents / notable failures for a
+                                         # drug that ENGAGES the target. WIRED via public-domain AACT (was the
+                                         # licensing-blocked placeholder this skill's status note flagged). ADDITIVE,
+                                         # VERDICT-INERT (no resolver rung; differentiation verdict byte-stable) —
+                                         # the translational-maturity render facet. reads highest_clinical_stage +.
 ]
 
 QUESTION = ("What genes co-occur with or are mutually exclusive to "
@@ -197,6 +206,14 @@ def _headline(cards, fired, verdict_pair):
                                                  "node_leverage_class"),
         "node_leverage_evidence_scope":     get_card_field(cards, "pathway-node-leverage",
                                                  "evidence_scope"),
+        # AACT clinical-trial precedent (render facet; verdict-inert — no resolver rung). The
+        # translational-maturity lens: highest stage reached by a drug ENGAGING the target in this
+        # indication, active-trial count, approved agents, and notable (terminated) failures.
+        # (highest_clinical_stage is the primary categorical — the card emits no separate _class field):
+        "highest_clinical_stage":           get_card_field(cards, "clinical-precedent", "highest_clinical_stage"),
+        "n_active_trials":                  get_card_field(cards, "clinical-precedent", "n_active_trials"),
+        "approved_agents":                  get_card_field(cards, "clinical-precedent", "approved_agents"),
+        "notable_failures":                 get_card_field(cards, "clinical-precedent", "notable_failures"),
     }
     # verdict-INERT claim-vector projection (7th concrete) — COMUT/SURVIVAL/PROGNOSIS/NODE decomposition
     # + citable atoms the composed fan-out lifts to the cross-evidence agent.
@@ -219,6 +236,7 @@ def _headline(cards, fired, verdict_pair):
 _SYNTHESIS_FACET_KEYS = (
     "differentiation_verdict", "driving_rule_id", "cooccurrence_class",
     "survival_association_class", "precog_prognostic_class", "node_leverage_class",
+    "highest_clinical_stage", "n_active_trials", "approved_agents", "notable_failures",
     "claim_vector", "key_signals",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",

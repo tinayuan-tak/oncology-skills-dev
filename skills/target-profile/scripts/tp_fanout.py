@@ -445,6 +445,9 @@ SUB_SKILL_CARDS = {
     ],
     "differentiation-landscape": [
         "co-mutation-and-mutual-exclusivity",
+        "clinical-precedent",                # (2026-08-21) AACT trial precedent — in differentiation-landscape
+                                             # CARDS; composed here so the fanout does not silently drop it.
+                                             # VERDICT-INERT render facet (no resolver rung; nomination byte-stable).
         "expression-clinical-association",   # Q11 (2026-07-23) — expression→survival prognostic context;
                                              # render facet, paired with differentiation-landscape CARDS.
         "stemness-context",                  # 2026-08-11 Malta 2018 mRNAsi
