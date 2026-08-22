@@ -44,7 +44,8 @@ SURFACE = {"adc", "bite_tce", "tce", "antibody"}
 AXIS_TO_DIM = {"safety": "safety", "dependency": "biological", "selectivity": "safety",
                "surface_modality": "druggability", "tractability_sm": "druggability",
                "mechanism": "biological", "genomic_alteration": "biological",
-               "synthetic_lethal_partners": "biological", "combinatorial_dependency": "biological",
+               # synthetic_lethal_partners / combinatorial_dependency REMOVED 2026-08-21 (consolidated
+               # into the gateless combination_vulnerability short; their ground_axis axes were dropped).
                "expression": "biological", "differentiation": "translational",
                "clinical": "clinical", "commercial": "commercial"}   # translational + clinical/commercial = engine-blind
 def _mod(m: str) -> str:

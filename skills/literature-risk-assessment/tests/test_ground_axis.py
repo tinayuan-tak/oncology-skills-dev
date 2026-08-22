@@ -121,13 +121,19 @@ def test_deterministic_block_selects_axis_cards():
 
 
 def test_all_indication_conditioned_subskill_axes_configured():
-    # ROLLOUT 2026-08-18: every indication-conditioned target-profile SUB_SKILLS short now has a
-    # grounded axis (target_intrinsic intentionally excluded — gateless + indication-independent).
+    # The 9 grounded engine axes (verdict-anchored). CONSOLIDATION CLEANUP 2026-08-21: the former
+    # synthetic_lethal_partners / combinatorial_dependency axes were REMOVED — those shorts consolidated
+    # 2026-08-20 into the gateless combination_vulnerability sub-skill (verdict=None), so their verdict_key
+    # no longer resolves. This test now DOUBLES AS THE ANTI-DRIFT GUARD: it pins the real covered set AND
+    # asserts the orphaned keys stay gone (re-adding one fails here).
     expected = {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
-                "mechanism", "genomic_alteration", "differentiation", "synthetic_lethal_partners",
-                "combinatorial_dependency", "expression"}
+                "mechanism", "genomic_alteration", "differentiation", "expression"}
     assert expected <= set(ga.AXIS_CONFIG)
-    assert "target_intrinsic" not in ga.AXIS_CONFIG        # deliberately deferred
+    # NOT grounded — deliberately (see module docstring): gateless / not-yet-wired / consolidated-away.
+    for absent in ("target_intrinsic", "combination_vulnerability", "immune_context", "cis_coherence",
+                   "synthetic_lethal_partners", "combinatorial_dependency"):
+        assert absent not in ga.AXIS_CONFIG, (
+            f"{absent!r} must not be a grounded axis (consolidation orphan or deliberately un-grounded)")
     # each newly-rolled-out axis anchors to a real sub-verdict (not a pseudo-card) with complete framing
     for ax in (expected - {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"}):
         cfg = ga.AXIS_CONFIG[ax]
@@ -175,11 +181,11 @@ def test_axis_query_disease_scoping():
     # target-LEVEL axis (safety) → NO disease clause (gnomAD/tox is indication-independent)
     q_saf = ga._axis_query("KRAS", "colorectal cancer", "safety")
     assert "colorectal cancer" not in q_saf and "toxicity" in q_saf
-    # the six former 'biological'-collision axes now produce DISTINCT queries
+    # the former 'biological'-collision axes now produce DISTINCT queries (synthetic_lethal_partners /
+    # combinatorial_dependency removed 2026-08-21 with the consolidation cleanup)
     qs = {ax: ga._axis_query("FOO", "lung cancer", ax) for ax in
-          ("dependency", "mechanism", "genomic_alteration", "synthetic_lethal_partners",
-           "combinatorial_dependency", "expression")}
-    assert len(set(qs.values())) == 6        # all distinct, not one shared 'biological' query
+          ("dependency", "mechanism", "genomic_alteration", "expression")}
+    assert len(set(qs.values())) == 4        # all distinct, not one shared 'biological' query
 
 
 def test_axis_query_unknown_axis_is_target_only():

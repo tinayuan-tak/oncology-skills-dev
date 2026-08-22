@@ -27,16 +27,25 @@ import tp_grounding as tg  # noqa: E402
 
 
 # =============================== resolve_axes ===============================
-def test_resolve_axes_default_and_engine_are_the_five_engine_axes():
-    assert tg.resolve_axes(None) == list(tg.ENGINE_AXES)
-    assert tg.resolve_axes("engine") == list(tg.ENGINE_AXES)
-    assert tg.resolve_axes("") == list(tg.ENGINE_AXES)
-    assert len(tg.ENGINE_AXES) == 5
+def test_resolve_axes_default_and_engine_cover_all_configured_engine_axes():
+    """FIX (2026-08-21, finding #5): engine axes are DERIVED from the live ground_axis.AXIS_CONFIG
+    (every verdict-anchored entry), so the default `--ground` covers ALL engine axes — not just the
+    original 5. Previously this hard-coded 5 and silently excluded the 4 rolled-out axes."""
+    engine, _pseudo = tg._split_configured_axes()
+    assert tg.resolve_axes(None) == engine
+    assert tg.resolve_axes("engine") == engine
+    assert tg.resolve_axes("") == engine
+    # the 5 originals + the 4 rolled-out engine axes are all reachable by the default now
+    assert {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
+            "mechanism", "genomic_alteration", "differentiation", "expression"} <= set(engine)
+    # consolidation orphans must NOT be engine axes (removed with the 2026-08-21 cleanup)
+    assert "synthetic_lethal_partners" not in engine and "combinatorial_dependency" not in engine
 
 
 def test_resolve_axes_all_adds_pseudo_cards():
+    engine, pseudo = tg._split_configured_axes()
     axes = tg.resolve_axes("all")
-    assert axes == list(tg.ENGINE_AXES) + list(tg.PSEUDO_AXES)
+    assert axes == list(engine) + list(pseudo)
     assert "clinical" in axes and "commercial" in axes
 
 

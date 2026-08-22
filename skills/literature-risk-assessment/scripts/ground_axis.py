@@ -13,12 +13,15 @@ The contract is AXIS-PARAMETERIZED (AXIS_CONFIG): the STRUCTURE is identical acr
 findings + corroborations + a contradicts flag + confab-containment); only the finding NOUN + the KINDS
 to look for differ. Every axis is ESCALATE-ONLY in the same sense — a finding WEAKENS that axis's
 positive case (raises a concern the narrow deterministic verdict may miss), never lowers one.
-Axes now cover ALL of target-profile's indication-conditioned subskills (verdict_key == the SUB_SKILLS
-short): the 5 original engine axes (safety, dependency, selectivity, surface_modality, tractability_sm)
-+ 6 rolled out 2026-08-18 (mechanism, genomic_alteration, differentiation, synthetic_lethal_partners,
-combinatorial_dependency, expression[=tumor-presence]) + 2 engine-blind pseudo-cards (clinical,
-commercial). Add an axis by extending AXIS_CONFIG. (target_intrinsic is intentionally NOT grounded here:
-it is gateless + indication-INDEPENDENT, so the escalate-the-indication-case frame does not apply.)
+Grounded axes cover 9 of target-profile's 13 fan-out subskills (verdict_key == the SUB_SKILLS short):
+the 5 original engine axes (safety, dependency, selectivity, surface_modality, tractability_sm) + 4
+rolled out 2026-08-18 (mechanism, genomic_alteration, differentiation, expression[=tumor-presence]) + 2
+engine-blind pseudo-cards (clinical, commercial). Add an axis by extending AXIS_CONFIG.
+NOT grounded (deliberately, 2026-08-21): `target_intrinsic` (gateless + indication-INDEPENDENT, so the
+escalate-the-indication-case frame does not apply); `combination_vulnerability` (gateless, verdict=None
+— no scalar anchor; the retired `synthetic_lethal_partners`/`combinatorial_dependency` axes were removed
+when those shorts consolidated into it 2026-08-20); and `immune_context` / `cis_coherence` (not yet
+wired — no AXIS_CONFIG entry). Grounding one of these is a future, separately-scoped call.
 
 Output = the `grounded` block of a substrate record consumed by both the risk roll-up and the hypothesis:
   { axis, deterministic:{verdict, driving_rule_id, cards:{id:call}},
@@ -112,20 +115,14 @@ AXIS_CONFIG = {
         "kinds": ("a CO-MUTATION that predicts RESISTANCE or poor response, a mutual-exclusivity that "
                   "NARROWS the addressable population, a PROGNOSTIC association OPPOSITE to the "
                   "therapeutic hypothesis, or the lack of a differentiating patient-selection biomarker")},
-    "synthetic_lethal_partners": {
-        "verdict_key": "synthetic_lethal_partners", "pubmed_category": "biological",
-        "cards": ["synthetic-lethal-partners", "partner-conditional-dependency"],
-        "finding_noun": "SYNTHETIC-LETHAL-WEAKENING finding",
-        "kinds": ("FAILURE of the synthetic-lethal interaction to validate IN VIVO or across models, "
-                  "GENOTYPE/context-dependence of the SL, ADAPTIVE RESISTANCE that bypasses it, or the "
-                  "SL partner not being pharmacologically ACTIONABLE")},
-    "combinatorial_dependency": {
-        "verdict_key": "combinatorial_dependency", "pubmed_category": "biological",
-        "cards": ["combinatorial-dependency"],
-        "finding_noun": "COMBINATION-WEAKENING finding",
-        "kinds": ("a combination that is ADDITIVE-not-SYNERGISTIC, combination TOXICITY that closes the "
-                  "window, RESISTANCE emerging to the combination, or the co-dependency NOT HOLDING "
-                  "across genetic backgrounds")},
+    # NOTE (2026-08-21 consolidation cleanup): the former `synthetic_lethal_partners` and
+    # `combinatorial_dependency` axes were REMOVED. Those shorts were consolidated 2026-08-20 into the
+    # GATELESS `combination_vulnerability` sub-skill (verdict=None — a ranked partner table + relational
+    # claim_vector, no scalar sub-verdict), so their `verdict_key` no longer resolves in the evidence
+    # package (deterministic_block would silently read verdict=None). combination_vulnerability is NOT
+    # groundable as an engine axis (no anchor verdict); grounding it is a future call. Likewise the
+    # `immune_context` and `cis_coherence` fan-out members are not (yet) grounded here — see the module
+    # docstring for the authoritative covered set.
     "expression": {
         "verdict_key": "expression", "pubmed_category": "biological",
         "cards": ["tumor-rna-distribution", "tumor-protein-abundance-cptac", "cellline-rna-distribution",
@@ -251,8 +248,6 @@ AXIS_PUBMED_TERMS = {
     "mechanism": ("signaling OR pathway OR mechanism OR phosphorylation OR downstream effector", True),
     "genomic_alteration": ("mutation OR amplification OR deletion OR fusion OR oncogenic driver", True),
     "differentiation": ("co-mutation OR mutual exclusivity OR prognosis OR molecular subtype OR patient stratification", True),
-    "synthetic_lethal_partners": ("synthetic lethal OR synthetic lethality OR co-dependency OR paralog buffering", True),
-    "combinatorial_dependency": ("combination therapy OR co-targeting OR dual inhibition OR combinatorial dependency", True),
     "expression": ("expression OR overexpression OR RNA-seq OR protein abundance OR immunohistochemistry", True),
     "clinical": ("clinical trial OR patient OR phase I OR phase II OR discontinued", True),
     "commercial": ("therapeutic OR drug development OR competitive landscape OR approved", True),

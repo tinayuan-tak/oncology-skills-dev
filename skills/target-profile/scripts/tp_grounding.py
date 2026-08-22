@@ -31,41 +31,63 @@ from tp_common import SKILLS_DIR
 
 # The ENGINE axes anchor to a target-profile sub-verdict (their grounded findings escalate a real
 # deterministic axis). The PSEUDO axes are engine-blind (clinical/commercial) — literature-only, no
-# sub-verdict to anchor to; included only via the explicit `all`. Kept in step with ground_axis's
-# AXIS_CONFIG (a bad axis is validated against the live config in resolve_axes → never silently dropped).
+# sub-verdict to anchor to; included only via the explicit `all`.
+#
+# These tuples are the OFFLINE FALLBACK only. The LIVE source of truth is ground_axis.AXIS_CONFIG
+# (engine = a verdict-anchored entry [verdict_key set]; pseudo = engine-blind [verdict_key None]).
+# _split_configured_axes() derives the split from it so `--ground` / `--ground all` stay in lockstep
+# with the configured axes. (2026-08-21: this tuple used to hard-code 5, so `--ground`/`--ground all`
+# silently EXCLUDED the 4 rolled-out engine axes [mechanism, genomic_alteration, differentiation,
+# expression] — they were reachable only by an explicit comma-list. Deriving fixes that drift.)
 ENGINE_AXES = ("safety", "dependency", "selectivity", "surface_modality", "tractability_sm")
 PSEUDO_AXES = ("clinical", "commercial")
 
 
-def _configured_axes() -> set:
-    """The axes ground_axis actually supports this build (source of truth = AXIS_CONFIG). Imported
-    lazily so a bad import degrades gracefully and offline tests need not touch the sibling skill."""
+def _split_configured_axes() -> tuple[list, list]:
+    """(engine_axes, pseudo_axes) from the LIVE ground_axis.AXIS_CONFIG, preserving config order.
+    engine = a real verdict-anchored axis (`verdict_key` set); pseudo = engine-blind (`verdict_key`
+    None). Imported lazily (module import is cheap + offline-safe; the heavy PubMed/Bedrock deps load
+    only when ground_axis() is CALLED). Falls back to the static tuples when the import fails, so an
+    offline caller still resolves the known set."""
     try:
-        ga = _import_ground_axis()
-        return set(ga.AXIS_CONFIG)
+        cfg = _import_ground_axis().AXIS_CONFIG
+        engine = [k for k, c in cfg.items() if c.get("verdict_key")]
+        pseudo = [k for k, c in cfg.items() if not c.get("verdict_key")]
+        if engine:
+            return engine, pseudo
     except Exception:  # noqa: BLE001 — fall back to the known engine+pseudo set
-        return set(ENGINE_AXES) | set(PSEUDO_AXES)
+        pass
+    return list(ENGINE_AXES), list(PSEUDO_AXES)
+
+
+def _configured_axes() -> set:
+    """The axes ground_axis actually supports this build (source of truth = AXIS_CONFIG)."""
+    engine, pseudo = _split_configured_axes()
+    return set(engine) | set(pseudo)
 
 
 def resolve_axes(spec: Optional[str]) -> list:
     """Resolve the --ground value to an ordered, validated axis list.
-      - None / '' / 'engine' → the 5 engine axes (anchor to sub-verdicts; the sensible default).
+      - None / '' / 'engine' → ALL engine axes (every verdict-anchored AXIS_CONFIG entry; the default).
       - 'all'               → engine + the clinical/commercial pseudo-cards.
       - 'a,b,c'             → exactly those, validated against ground_axis.AXIS_CONFIG (unknown → error,
                               so a typo is caught loudly, never silently skipped).
-    Deterministic order (engine-then-pseudo, then requested order) so the produced record set is stable."""
+    Engine + pseudo are DERIVED from the live AXIS_CONFIG (see _split_configured_axes), so a newly-added
+    engine axis is picked up by the default `engine`/`all` for free. Deterministic order (engine-then-
+    pseudo, in AXIS_CONFIG order, then requested order) so the produced record set is stable."""
     s = (spec or "engine").strip().lower()
+    engine, pseudo = _split_configured_axes()
     if s in ("engine", ""):
-        return list(ENGINE_AXES)
+        return list(engine)
     if s == "all":
-        return list(ENGINE_AXES) + list(PSEUDO_AXES)
+        return list(engine) + list(pseudo)
     requested = [a.strip() for a in s.split(",") if a.strip()]
-    configured = _configured_axes()
+    configured = set(engine) | set(pseudo)
     unknown = [a for a in requested if a not in configured]
     if unknown:
         raise ValueError(f"--ground: unknown axis/axes {unknown}; configured: {sorted(configured)}")
     # preserve engine-then-pseudo-then-other ordering for stability
-    order = list(ENGINE_AXES) + list(PSEUDO_AXES)
+    order = list(engine) + list(pseudo)
     return sorted(dict.fromkeys(requested), key=lambda a: (order.index(a) if a in order else 99, a))
 
 

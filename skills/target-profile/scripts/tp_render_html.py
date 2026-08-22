@@ -64,9 +64,12 @@ _SUBSKILL_ORDER = [
 # A subskill NOT in this set renders an honest "not yet grounded" note; one IN it but without a
 # record this run renders nothing. Parity with AXIS_CONFIG is drift-guarded by
 # test_groundable_axes_parity_with_axis_config (tests/test_hypothesis_synthesis_render.py).
+# The 9 verdict-anchored (groundable) engine axes. synthetic_lethal_partners / combinatorial_dependency
+# were REMOVED 2026-08-21 (consolidated into the gateless combination_vulnerability short; their
+# ground_axis.AXIS_CONFIG entries were dropped). Parity with AXIS_CONFIG is drift-guarded by
+# test_groundable_axes_parity_with_axis_config.
 _GROUNDABLE_AXES = {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
-                    "mechanism", "genomic_alteration", "differentiation",
-                    "synthetic_lethal_partners", "combinatorial_dependency", "expression"}
+                    "mechanism", "genomic_alteration", "differentiation", "expression"}
 
 
 def _subskill_anchor(short: str) -> str:

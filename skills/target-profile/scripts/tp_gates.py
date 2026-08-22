@@ -265,6 +265,31 @@ def _load_veto_suppressors(
         return [], [], "fallback"
 
 
+def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
+    """Return a provenance label if the veto-suppressor `when_present` trigger `w` is satisfied,
+    else None. Two trigger forms:
+      - VERDICT-tuple  {sub_skill, verdict}      → matched against the live sub-verdict `present` set.
+      - CARD-FIELD     {card_id, field, value}   → matched against a composed card's summary field
+        (2026-08-21). Lets a suppressor key on a signal carried by a card under a GATELESS sub-skill
+        (verdict=None) — e.g. synthetic-lethal-partners.sl_partner_class after the SL short was
+        consolidated into combination_vulnerability. A local card scan (NOT tp_facets._find_card_summary)
+        avoids a tp_gates→tp_facets import cycle (tp_facets already imports tp_gates).
+    Defensive: an unrecognized/garbled trigger shape returns None (never matches, never raises)."""
+    if not isinstance(w, dict):
+        return None
+    if "card_id" in w:
+        cid, field, value = w.get("card_id"), w.get("field"), w.get("value")
+        for r in sub_results.values():
+            for c in (r.get("cards") or []):
+                if isinstance(c, dict) and c.get("card_id") == cid:
+                    if (c.get("summary") or {}).get(field) == value:
+                        return f"{cid}.{field}={value}"
+        return None
+    if "sub_skill" in w and "verdict" in w:
+        return f"{w['sub_skill']}:{w['verdict']}" if (w["sub_skill"], w["verdict"]) in present else None
+    return None
+
+
 def _suppressed_gate_hits(
     hits: list[dict],
     sub_results: dict,
@@ -302,16 +327,20 @@ def _suppressed_gate_hits(
     for h in hits:
         key = (h["short"], h["verdict"])
         suppressed_by = None
-        # (A) context-escape
+        # (A) context-escape. A `when_present` trigger is EITHER a verdict-tuple form
+        # ({sub_skill, verdict} — matched against the live sub-verdict set) OR a CARD-FIELD form
+        # ({card_id, field, value} — matched against a composed card's summary field). The latter
+        # (2026-08-21) lets a suppressor key on a signal that lives on a card under a GATELESS
+        # sub-skill (verdict=None), e.g. the SL rescue after synthetic_lethal_partners consolidated
+        # into combination_vulnerability. _trigger_label returns the match label or None.
         for s in ctx_supps:
             sup = s.get("suppresses", {})
             if (sup.get("sub_skill"), sup.get("verdict")) != key:
                 continue
-            trigger = next((w for w in s.get("when_present", [])
-                            if (w["sub_skill"], w["verdict"]) in present), None)
-            if trigger:
-                suppressed_by = {"kind": "context_escape",
-                                 "trigger": f"{trigger['sub_skill']}:{trigger['verdict']}"}
+            label = next((lbl for w in s.get("when_present", [])
+                          if (lbl := _trigger_label(w, present, sub_results))), None)
+            if label:
+                suppressed_by = {"kind": "context_escape", "trigger": label}
                 break
         # (B) modality-scoped
         if suppressed_by is None and modality:
@@ -763,4 +792,5 @@ __all__ = [
     '_run_coverage_for_short',
     '_sub_result_has_signal',
     '_suppressed_gate_hits',
+    '_trigger_label',
 ]

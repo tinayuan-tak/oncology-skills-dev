@@ -488,3 +488,85 @@ def test_modality_scope_does_not_suppress_without_declared_modality():
     subs = _sub("dependency", "non_dependent", "non-dependent-killer")
     forced, _h, sup = tp._gate_recommendation(subs, modality=None)
     assert forced == "veto" and sup == []
+
+
+# ===========================================================================
+# Card-field veto-suppressor trigger (2026-08-21) — the SL rescue after the
+# synthetic_lethal_partners short consolidated into the GATELESS
+# combination_vulnerability sub-skill (verdict=None). The old verdict-tuple trigger
+# could never match; the signal now lives on the synthetic-lethal-partners CARD field.
+# ===========================================================================
+
+
+def _sub_with_card(short, verdict, card_id, summary):
+    """A sub-result carrying a composed card (for card-field suppressor triggers)."""
+    return {short: {"verdict": (verdict if verdict else None),
+                    "cards": [{"card_id": card_id, "summary": summary}]}}
+
+
+def test_sl_card_field_suppresses_pooled_non_dependent():
+    """SMARCA2←SMARCA4 pattern: pooled dependency reads non_dependent (would veto), but the
+    synthetic-lethal-partners card — composed under the GATELESS combination_vulnerability
+    sub-skill — carries sl_partner_class=has_experimental_sl_partner → the veto is SUPPRESSED
+    via the CARD-FIELD context-escape trigger. Guards the consolidation orphan: the old
+    {sub_skill: synthetic_lethal_partners, verdict: ...} trigger silently went dead when the
+    short was retired 2026-08-20."""
+    subs = _merge(
+        _sub("dependency", "non_dependent", "non-dependent-killer"),
+        _sub_with_card("combination_vulnerability", None, "synthetic-lethal-partners",
+                       {"sl_partner_class": "has_experimental_sl_partner"}),
+    )
+    forced, hits, sup = tp._gate_recommendation(subs)
+    assert forced is None, "an experimental SL partner (card field) must suppress the pooled veto"
+    assert hits == []
+    assert len(sup) == 1 and sup[0]["verdict"] == "non_dependent"
+    assert sup[0]["suppressed_by"]["kind"] == "context_escape"
+    assert sup[0]["suppressed_by"]["trigger"] == (
+        "synthetic-lethal-partners.sl_partner_class=has_experimental_sl_partner")
+
+
+def test_sl_computational_partner_does_not_suppress():
+    """ONLY the experimental tier rescues — a computational-only prediction is too weak to
+    override a measured pooled negative (vocab: has_experimental_sl_partner only)."""
+    subs = _merge(
+        _sub("dependency", "non_dependent", "non-dependent-killer"),
+        _sub_with_card("combination_vulnerability", None, "synthetic-lethal-partners",
+                       {"sl_partner_class": "has_computational_sl_partner"}),
+    )
+    forced, _h, sup = tp._gate_recommendation(subs)
+    assert forced == "veto" and sup == []
+
+
+def test_sl_card_field_does_not_suppress_pan_essential():
+    """Card-field escape rescues the DILUTION artifact (non_dependent) only — a
+    pan_essential_killer is a distinct failure an SL partner cannot rescue."""
+    subs = _merge(
+        _sub("dependency", "pan_essential_killer", "pan-essential-killer"),
+        _sub_with_card("combination_vulnerability", None, "synthetic-lethal-partners",
+                       {"sl_partner_class": "has_experimental_sl_partner"}),
+    )
+    forced, _h, sup = tp._gate_recommendation(subs)
+    assert forced == "veto" and sup == []
+
+
+def test_veto_suppressor_triggers_reference_live_shorts_or_composed_cards():
+    """CONSOLIDATION-ORPHAN GUARD: every veto_suppressor `when_present` trigger must reference
+    EITHER a live fan-out short (verdict-tuple form) OR a card composed in some SUB_SKILL_CARDS
+    entry (card-field form). A retired short / dropped card silently disables a suppressor — this
+    is exactly how the SL rescue went dead when synthetic_lethal_partners was consolidated. This
+    guard fails loudly the next time a consolidation orphans a trigger."""
+    supps, _msvs, src = tp._load_veto_suppressors()
+    assert src == "vocab", "guard needs the real sibling-contracts vocab"
+    live_shorts = {sh for _sd, sh in tp.SUB_SKILLS} | {tp.SUBTYPE_SHORT}
+    composed_cards = ({cid for cards in tp.SUB_SKILL_CARDS.values() for cid in cards}
+                      | set(tp.SUBTYPE_CARDS))
+    for s in supps:
+        for w in s["when_present"]:
+            if "verdict" in w:
+                assert w["sub_skill"] in live_shorts, (
+                    f"veto-suppressor verdict-trigger sub_skill {w['sub_skill']!r} is not a live "
+                    f"fan-out short (consolidation orphan — the suppressor can never fire)")
+            else:
+                assert w["card_id"] in composed_cards, (
+                    f"veto-suppressor card-field trigger card_id {w['card_id']!r} is not composed "
+                    f"in any SUB_SKILL_CARDS entry (the suppressor can never fire)")
