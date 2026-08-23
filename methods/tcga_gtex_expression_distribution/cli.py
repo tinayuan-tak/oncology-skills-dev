@@ -80,14 +80,16 @@ def build_summary(target: str, indication: str, plot_data_out=None) -> dict:
     return summary
 
 
-def build_subtype_panorama(target: str, indication: str) -> dict:
+def build_subtype_panorama(target: str, indication: str, plot_data_out=None) -> dict:
     """The target_subtype-grain panorama for the tumor-rna-distribution-by-subtype card.
 
     Returns the FULL per-stratum landscape as `per_subgroup_metrics` (the framework's panorama
     record field) plus the cross-stratum rollup scalars — the shape the subtype card declares.
     This is where the complete 11-stratum table lives (its own prompt char-budget), distinct from
-    the pooled card's compact rollup. data_unavailable-safe (no shard → empty panorama)."""
-    land = _read.read_tumor_expression_subtype_landscape(target, indication)
+    the pooled card's compact rollup. data_unavailable-safe (no shard → empty panorama).
+    plot_data_out (figure offline seam): forwarded so plot_data_subtype.parquet (the per-stratum
+    per-sample values behind the panel) persists during resolution → the subtype figure renders offline."""
+    land = _read.read_tumor_expression_subtype_landscape(target, indication, plot_data_out=plot_data_out)
     return {
         "target": target, "indication": indication,
         "subtype_axis_available": land.get("subtype_axis_available", False),
