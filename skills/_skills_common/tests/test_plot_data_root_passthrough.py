@@ -78,6 +78,7 @@ import pytest
     "tumor-rna-distribution",              # tcga_gtex_expression_distribution.cli.build_summary
     "tumor-vs-normal-percentile-crossing", # .cli.build_selectivity_crossing_summary
     "normal-tissue-liability-gtex",        # .cli.build_normal_liability_summary
+    "tumor-rna-distribution-by-subtype",   # .cli.build_subtype_panorama -> read_tumor_expression_subtype_landscape
 ])
 def test_bespoke_dispatchers_forward_plot_data_out(card_id):
     """Offline-seam activation guard (2026-08-21 follow-on): each bespoke dispatcher whose method read

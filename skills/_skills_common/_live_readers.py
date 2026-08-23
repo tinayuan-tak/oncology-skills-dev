@@ -651,7 +651,8 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str,
     return out
 
 
-def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str) -> Optional[dict]:
+def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str,
+                                                    plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route tumor-rna-distribution-by-subtype card (target_subtype grain) to
     methods/tcga_gtex_expression_distribution/cli.py::build_subtype_panorama.
 
@@ -661,7 +662,7 @@ def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str
     compute-all-spotlight-one), so it takes the scalar (target, indication) signature and lives in
     CARD_DISPATCHERS. No shard for the indication -> subtype_axis_available:false (honest)."""
     mod = _import_method("tcga_gtex_expression_distribution.cli")
-    return mod.build_subtype_panorama(target, indication)
+    return mod.build_subtype_panorama(target, indication, plot_data_out=plot_data_out)
 
 
 # Indication → DepMap-side (ModelID-keyed) assignment shard for the cell-line subtype panorama.
