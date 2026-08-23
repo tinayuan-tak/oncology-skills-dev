@@ -67,6 +67,31 @@ def test_resolve_cards_threads_plot_data_root(monkeypatch, tmp_path):
     assert out[0]["card_id"] == "cellline-rna-distribution"
 
 
+import pytest
+
+
+@pytest.mark.parametrize("card_id", [
+    "copy-number-distribution",            # read_cn_distribution
+    "recommended-models",                  # patient_model_expression_correspondence.cli.build_summary
+    "cellline-rna-protein-concordance",    # depmap_rna_protein_concordance.cli.build_summary
+    "rna-protein-concordance-tumor",       # depmap_rna_protein_concordance.cli.build_tumor_summary
+    "tumor-rna-distribution",              # tcga_gtex_expression_distribution.cli.build_summary
+    "tumor-vs-normal-percentile-crossing", # .cli.build_selectivity_crossing_summary
+    "normal-tissue-liability-gtex",        # .cli.build_normal_liability_summary
+])
+def test_bespoke_dispatchers_forward_plot_data_out(card_id):
+    """Offline-seam activation guard (2026-08-21 follow-on): each bespoke dispatcher whose method read
+    layer persists plot_data must DECLARE plot_data_out, so read_live_summary's signature-introspection
+    forwards the per-card dir → the figure emitter renders OFFLINE instead of re-executing the live read.
+    (The method cli.build_* entrypoints + read fns already thread/persist it; this pins the dispatcher
+    forward — the link read_live_summary gates on.)"""
+    import inspect
+    d = lr.CARD_DISPATCHERS[card_id]
+    params = inspect.signature(d).parameters
+    assert "plot_data_out" in params or any(p.kind == p.VAR_KEYWORD for p in params.values()), \
+        f"{card_id} dispatcher must forward plot_data_out for the offline figure seam"
+
+
 def test_cn_distribution_dispatcher_declares_plot_data_out():
     """Regression (2026-08-21 offline-seam follow-on): the bespoke copy-number-distribution dispatcher
     must DECLARE plot_data_out so read_live_summary's signature-introspection forwards the per-card dir

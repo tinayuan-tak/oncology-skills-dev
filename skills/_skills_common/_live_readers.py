@@ -618,7 +618,8 @@ def _dispatch_expression_distribution(target: str, indication: str,
     return out
 
 
-def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Optional[dict]:
+def _dispatch_tumor_expression_distribution(target: str, indication: str,
+                                            plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route tumor-rna-distribution card (Q1) to
     methods/tcga_gtex_expression_distribution/cli.py::build_summary.
 
@@ -633,7 +634,7 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Opt
     complement to the model-arm isoform facet on cellline-rna-distribution. Verdict-inert; degrades
     to data_unavailable on any failure without breaking the primary distribution read."""
     mod = _import_method("tcga_gtex_expression_distribution.cli")
-    out = dict(mod.build_summary(target, indication))
+    out = dict(mod.build_summary(target, indication, plot_data_out=plot_data_out))
     try:
         ss_mod = _import_method("tcga_spliceseq_psi")
         ss = ss_mod.spliceseq_summary_for_gene(target, indication)
@@ -763,14 +764,15 @@ def _dispatch_pathway_stratified_surface(target: str, indication: str) -> Option
     return mod.read_pathway_stratified_surface(target, indication=indication)
 
 
-def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> Optional[dict]:
+def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str,
+                                                  plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route tumor-vs-normal-percentile-crossing card (Q2, Gate B) to
     methods/tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_summary.
 
     Per-sample fraction-of-tumors-above-matched-normal-p95/p99 + distribution overlap. Indication-
     scoped (the tumor arm is per-indication; the normal arm is the matched GTEx tissue)."""
     mod = _import_method("tcga_gtex_expression_distribution.cli")
-    return mod.build_selectivity_crossing_summary(target, indication)
+    return mod.build_selectivity_crossing_summary(target, indication, plot_data_out=plot_data_out)
 
 
 def _dispatch_selectivity_crossing_subtype(target: str, indication: str) -> Optional[dict]:
@@ -801,7 +803,8 @@ def _dispatch_selectivity_by_subgroup(target: str, indication: str, subgroups=No
     return mod.read_stratified_tumor_vs_normal_selectivity(target, indication)
 
 
-def _dispatch_normal_tissue_liability_gtex(target: str, indication: str) -> Optional[dict]:
+def _dispatch_normal_tissue_liability_gtex(target: str, indication: str,
+                                           plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route normal-tissue-liability-gtex card (Q3, Safety + surface-modality-fit) to
     methods/tcga_gtex_expression_distribution/cli.py::build_normal_liability_summary.
 
@@ -809,37 +812,40 @@ def _dispatch_normal_tissue_liability_gtex(target: str, indication: str) -> Opti
     is accepted for the CARD_DISPATCHERS contract but NOT consumed (normal expression is a target
     property, indication-independent)."""
     mod = _import_method("tcga_gtex_expression_distribution.cli")
-    return mod.build_normal_liability_summary(target, indication)
+    return mod.build_normal_liability_summary(target, indication, plot_data_out=plot_data_out)
 
 
-def _dispatch_recommended_models(target: str, indication: str) -> Optional[dict]:
+def _dispatch_recommended_models(target: str, indication: str,
+                                 plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route recommended-models card (Q4, patient↔model expression correspondence) to
     methods/patient_model_expression_correspondence/cli.py::build_summary.
 
     Ranks DepMap models by TARGET-expression fit to the patient tumor TARGET distribution + screen
     role from Chronos. Indication-scoped (patient distribution + lineage are per-indication)."""
     mod = _import_method("patient_model_expression_correspondence.cli")
-    return mod.build_summary(target, indication)
+    return mod.build_summary(target, indication, plot_data_out=plot_data_out)
 
 
-def _dispatch_rna_protein_concordance(target: str, indication: str) -> Optional[dict]:
+def _dispatch_rna_protein_concordance(target: str, indication: str,
+                                      plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route cellline-rna-protein-concordance card (Q5) to
     methods/depmap_rna_protein_concordance/cli.py::build_summary.
 
     Per-ModelID DepMap RNA vs Gygi MS protein correlation → rna_as_biomarker. Target-grain
     (concordance is a per-ModelID target property); indication accepted for the contract, NOT consumed."""
     mod = _import_method("depmap_rna_protein_concordance.cli")
-    return mod.build_summary(target, indication)
+    return mod.build_summary(target, indication, plot_data_out=plot_data_out)
 
 
-def _dispatch_rna_protein_concordance_tumor(target: str, indication: str) -> Optional[dict]:
+def _dispatch_rna_protein_concordance_tumor(target: str, indication: str,
+                                            plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route rna-protein-concordance-tumor card (Q5 tumor arm) to
     methods/depmap_rna_protein_concordance/cli.py::build_tumor_summary.
 
     Per-tumor CPTAC RNA vs protein correlation for the indication's CPTAC cohort → rna_as_biomarker
     (tumor). Indication-scoped (cohort-specific — the tumor-grain sibling of the cell-line card)."""
     mod = _import_method("depmap_rna_protein_concordance.cli")
-    return mod.build_tumor_summary(target, indication)
+    return mod.build_tumor_summary(target, indication, plot_data_out=plot_data_out)
 
 
 def _dispatch_sc_surface_concordance(target: str, indication: str) -> Optional[dict]:
