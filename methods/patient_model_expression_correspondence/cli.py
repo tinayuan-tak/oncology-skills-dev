@@ -20,9 +20,12 @@ _ROLE_COLORS = {
 }
 
 
-def build_summary(target: str, indication: str, release_pin: str = "26q1") -> dict:
-    """Q4 summary — the recommended_models table + rollup scalars."""
-    summary = _read.read_recommended_models(target, indication, release_pin=release_pin)
+def build_summary(target: str, indication: str, release_pin: str = "26q1",
+                  plot_data_out=None) -> dict:
+    """Q4 summary — the recommended_models table + rollup scalars. plot_data_out (figure offline seam):
+    forwarded to the read fn so plot_data_recommended_models.parquet persists during resolution."""
+    summary = _read.read_recommended_models(target, indication, release_pin=release_pin,
+                                            plot_data_out=plot_data_out)
     summary["method_version"] = METHOD_VERSION
     return summary
 

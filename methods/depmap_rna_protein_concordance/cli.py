@@ -12,18 +12,22 @@ DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagema
 _FILL, _LINE = "#1f4e79", "#0a2540"
 
 
-def build_summary(target: str, indication: str = None, release_pin: str = "26q1") -> dict:
+def build_summary(target: str, indication: str = None, release_pin: str = "26q1",
+                  plot_data_out=None) -> dict:
     """Q5 summary. indication accepted for the CARD_DISPATCHERS contract but NOT consumed
-    (RNA↔protein concordance is a per-ModelID target property, indication-independent)."""
-    summary = _read.read_rna_protein_concordance(target, release_pin=release_pin)
+    (RNA↔protein concordance is a per-ModelID target property, indication-independent).
+    plot_data_out (figure offline seam): forwarded so plot_data_rna_protein.parquet persists."""
+    summary = _read.read_rna_protein_concordance(target, release_pin=release_pin,
+                                                 plot_data_out=plot_data_out)
     summary["method_version"] = METHOD_VERSION
     return summary
 
 
-def build_tumor_summary(target: str, indication: str) -> dict:
+def build_tumor_summary(target: str, indication: str, plot_data_out=None) -> dict:
     """Q5 TUMOR arm — CPTAC matched tumor RNA↔protein concordance for target in the indication's
-    CPTAC cohort. Indication-scoped (cohort-specific). Distinct from the cell-line arm."""
-    summary = _read.read_tumor_rna_protein_concordance(target, indication)
+    CPTAC cohort. Indication-scoped (cohort-specific). Distinct from the cell-line arm.
+    plot_data_out (figure offline seam): forwarded so plot_data_rna_protein_tumor.parquet persists."""
+    summary = _read.read_tumor_rna_protein_concordance(target, indication, plot_data_out=plot_data_out)
     summary["method_version"] = METHOD_VERSION
     return summary
 

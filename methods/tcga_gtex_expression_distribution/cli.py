@@ -43,9 +43,10 @@ def _log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
-def build_summary(target: str, indication: str) -> dict:
-    """Q1 tumor distribution + the Q2 fraction-above-normal-p95/p99 overlay (matched GTEx normal)."""
-    summary = _read.read_tumor_expression_distribution(target, indication)
+def build_summary(target: str, indication: str, plot_data_out=None) -> dict:
+    """Q1 tumor distribution + the Q2 fraction-above-normal-p95/p99 overlay (matched GTEx normal).
+    plot_data_out (figure offline seam): forwarded so plot_data_expression_distribution.parquet persists."""
+    summary = _read.read_tumor_expression_distribution(target, indication, plot_data_out=plot_data_out)
     tumor = _read.read_tumor_samples(target, indication)
     normal, tissue = _read.read_normal_samples(target, indication)
     summary["matched_normal_tissue"] = tissue
@@ -118,11 +119,12 @@ def build_subtype_panorama(target: str, indication: str) -> dict:
     }
 
 
-def build_selectivity_crossing_summary(target: str, indication: str) -> dict:
+def build_selectivity_crossing_summary(target: str, indication: str, plot_data_out=None) -> dict:
     """Q2 (Gate B) — per-sample tumor-vs-normal percentile-crossing selectivity. Thin wrapper over
-    read_tumor_vs_normal_percentile_crossing so the compose-dashboard dispatcher has a stable
-    build_* entry point (mirrors build_summary)."""
-    summary = _read.read_tumor_vs_normal_percentile_crossing(target, indication)
+    read_tumor_vs_normal_percentile_crossing so the dispatcher has a stable build_* entry point
+    (mirrors build_summary). plot_data_out (figure offline seam): forwarded so the per-sample
+    plot_data persists during resolution."""
+    summary = _read.read_tumor_vs_normal_percentile_crossing(target, indication, plot_data_out=plot_data_out)
     summary["method_version"] = METHOD_VERSION
     return summary
 
@@ -185,11 +187,12 @@ def build_selectivity_crossing_subtype_panorama(target: str, indication: str) ->
     }
 
 
-def build_normal_liability_summary(target: str, indication: str = None) -> dict:
+def build_normal_liability_summary(target: str, indication: str = None, plot_data_out=None) -> dict:
     """Q3 (Safety / Surface-modality-fit) — target-grain normal-tissue liability over the GTEx
     atlas. indication is accepted for the CARD_DISPATCHERS contract but NOT consumed (target-grain).
-    Thin wrapper over read_normal_tissue_liability."""
-    summary = _read.read_normal_tissue_liability(target)
+    Thin wrapper over read_normal_tissue_liability. plot_data_out (figure offline seam): forwarded so
+    plot_data_normal_tissue_atlas.parquet persists during resolution."""
+    summary = _read.read_normal_tissue_liability(target, plot_data_out=plot_data_out)
     summary["method_version"] = METHOD_VERSION
     return summary
 
@@ -207,7 +210,9 @@ def emit_plot_data(target: str, indication: str, out_dir: Path, *, presampled=No
         normal, tissue = _read.read_normal_samples(target, indication)
     rows = ([{"group": "tumor", "source": "TCGA", "log2_tpm": v} for v in tumor]
             + [{"group": "normal", "source": f"GTEx:{tissue}", "log2_tpm": v} for v in normal])
-    out = Path(out_dir) / "plot_data_expression_distribution.parquet"
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)   # per-card dir (plot_data_root/cards/<id>) may not exist yet
+    out = out_dir / "plot_data_expression_distribution.parquet"
     pd.DataFrame(rows, columns=["group", "source", "log2_tpm"]).to_parquet(out, index=False)
     return out
 
