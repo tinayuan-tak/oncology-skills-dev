@@ -41,7 +41,7 @@ methods:
 outputs:
   summary_fields:
     - normal_tissue_breadth_class                 # PRIMARY categorical (from Protein tissue distribution)
-    - essential_tissue_flag                       # present | absent — scalar the essential-tissue rule matches (list→scalar at emit time)
+    - essential_tissue_flag                       # present | unknown | absent — scalar the essential-tissue rule matches (list→scalar at emit time)
     - hpa_tissue_distribution                     # raw HPA value (Detected in all/many/some/single | Not detected)
     - hpa_tissue_specificity                      # raw HPA value (Tissue enriched/enhanced/Group enriched/Low/Not detected)
     - n_essential_tissues_with_expression         # count of essential tissues in the specific-intensity list
@@ -59,8 +59,9 @@ outputs:
       - not_detected_in_normal                    # Not detected — neoantigen-like, lowest liability
       - data_unavailable                          # gene absent from HPA / no IHC call
     essential_tissue_flag:
-      - present                                   # >=1 essential normal tissue in the specific-intensity list
-      - absent
+      - present                                   # essential organ ENRICHED, OR "Detected in all" (all tissues incl. essentials expressed) — fires the essential-bite TCE killer
+      - unknown                                   # no distribution call (gene absent from HPA), OR "Detected in many" with no essential enrichment — a data gap, NOT reassurance (2026-08-24)
+      - absent                                    # MEASURED narrow distribution, essentials genuinely not expressed — a true measured-negative
 
   figure: normal_tissue_expression_heatmap
   plot_data: per_tissue_intensity_long_format
