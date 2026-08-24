@@ -12,13 +12,25 @@ ClinicalData JSONs under s3://onc-compbio/data-catalog/sources/hcmi/cmdc-dr45-0/
 METHOD (aggregate_model_availability): walk the 805 case JSONs, read each
 ClinicalData."GDC Clinical Data Entities"[0].{primary_site, disease_type} (GDC vocabulary) + the
 SubjectData.submitter_id model id, apply a (primary_site, disease_type) -> framework-indication
-crosswalk for the TSS-mapped core set (COADREAD / PAAD / NSCLC / GC — the same 4 the clonality product
-covers), and count distinct models per indication. model_availability_class thresholds:
+crosswalk, and count distinct models per indication. model_availability_class thresholds:
 deep_model_coverage (>=50) / moderate_model_coverage (15-49) / sparse_model_coverage (<15).
 
-VALIDATION (2026-08-14): 376 / 805 models map to the 4 core indications — COADREAD 209 (deep),
-PAAD 115 (deep), NSCLC 27 (moderate), GC 25 (moderate) — consistent with HCMI's documented
-GI/colorectal-heavy composition.
+CROSSWALK (crosswalk_indication) — BROADENED 2026-08-24. The original v1 mapped only the 4 GI/lung core
+indications (COADREAD / PAAD / NSCLC / GC — 376/805 models). It now additionally maps 8 unambiguous
+single-histology categories from HCMI's 22 disease types, using the DGE pan-tissue framework indication
+vocabulary: ESCA (esophageal adeno), BRCA (breast carcinoma), SKCM (cutaneous melanoma), OV (epithelial
+ovarian), BLCA (urothelial), UCEC (uterine-corpus carcinoma), HNSC (head & neck squamous), THCA (thyroid
+adeno). The conservative discipline is preserved — a rule fires ONLY when (primary_site, disease_type)
+is unambiguous for one indication. Categories DELIBERATELY LEFT UNMAPPED: Brain/Gliomas (grade-
+indeterminate GBM-vs-LGG), Liver 'Adenomas and Adenocarcinomas' (intrahepatic cholangiocarcinoma, not
+hepatocellular/LIHC), Kidney 'Adenomas and Adenocarcinomas' (RCC subtype KIRC/KIRP/KICH unresolvable from
+disease_type), biliary tract / gallbladder (no CHOL code), small intestine (no SBA code), uterus-NOS
+(corpus-vs-cervix ambiguous), adrenal neuroepitheliomatous, and all sarcomas / lymphomas / leukemias.
+
+VALIDATION (2026-08-24 re-run): 631 / 805 models map to 12 indications — COADREAD 209 (deep),
+PAAD 115 (deep), ESCA 96 (deep), BRCA 69 (deep), SKCM 44 (moderate), NSCLC 27 (moderate), GC 25
+(moderate), OV 16 (moderate), BLCA 11 (sparse), UCEC 10 (sparse), HNSC 8 (sparse), THCA 1 (sparse).
+COADREAD remains deepest, consistent with HCMI's documented GI/colorectal-heavy composition.
 
 ROLE: VERDICT-INERT translational facet on first wiring; drives NO resolver rung.
 """
@@ -88,24 +100,62 @@ def _model_id_from_barcode(barcode: "Optional[str]") -> "Optional[str]":
         return None
     return "-".join(parts[:4])
 
-# (primary_site, disease_type) -> framework indication crosswalk (TSS-mapped core set).
-# Keyed on lowercased substring matches against the GDC clinical vocabulary; deliberately conservative
-# (adenocarcinoma histologies only) so a mis-histology model is left unmapped rather than mis-assigned.
+# (primary_site, disease_type) -> framework indication crosswalk.
+# Keyed on lowercased substring matches against the GDC clinical vocabulary; deliberately conservative —
+# a rule fires ONLY when (primary_site, disease_type) is UNAMBIGUOUS for one framework indication, so a
+# mis-histology / grade-indeterminate / subtype-unresolvable model is left UNMAPPED (return None) rather
+# than mis-assigned. Framework indication codes are the DGE pan-tissue vocabulary (same codes as
+# methods/dge_deseq2), EXCEPT the pre-existing 'GC' (gastric) tag kept verbatim for byte-stability.
+#
+# BROADENED 2026-08-24 (crosswalk-broaden): the original v1 mapped only the 4 GI/lung core indications
+# (COADREAD / PAAD / NSCLC / GC — 376/805 models). It now additionally maps 8 well-defined single-histology
+# categories from HCMI's 22 disease types (ESCA/BRCA/SKCM/OV/BLCA/UCEC/HNSC/THCA), lifting coverage while
+# preserving the conservative discipline. See the per-rule comments + the module docstring for the
+# categories DELIBERATELY LEFT UNMAPPED (Brain/Gliomas grade-indeterminate; Liver adeno = intrahepatic
+# cholangio not HCC; Kidney adeno = RCC-subtype-unresolvable; biliary/gallbladder = no CHOL code; small
+# intestine; uterus-NOS; sarcomas/lymphomas/leukemias; colon non-adenocarcinoma).
 _MODEL_AVAILABILITY_CLASS_THRESHOLDS = {"deep": 50, "moderate": 15}  # else sparse
 
 
 def crosswalk_indication(primary_site: "Optional[str]", disease_type: "Optional[str]") -> "Optional[str]":
-    """(primary_site, disease_type) -> framework indication code, or None if unmapped."""
+    """(primary_site, disease_type) -> framework indication code, or None if unmapped.
+
+    Conservative: each rule requires an UNAMBIGUOUS (site, histology) pair for exactly one indication;
+    genuinely ambiguous / mixed / grade-indeterminate / subtype-unresolvable histologies return None.
+    """
     ps = (primary_site or "").lower()
     dt = (disease_type or "").lower()
+    # ── core set (pre-existing v1, unchanged) ───────────────────────────────────────────────────────
     if any(x in ps for x in ("colon", "rectum", "rectosigmoid")) and "adenom" in dt:
-        return "COADREAD"
+        return "COADREAD"  # colon/rectum adenocarcinoma (non-adenocarcinoma colon histologies left unmapped)
     if "pancreas" in ps and ("ductal" in dt or "adenom" in dt):
-        return "PAAD"
+        return "PAAD"      # pancreatic ductal / adenocarcinoma (PDAC)
     if ("bronchus" in ps or "lung" in ps) and any(x in dt for x in ("adenom", "squamous", "epithelial")):
-        return "NSCLC"
+        return "NSCLC"     # lung adeno / squamous / epithelial-NOS carcinoma (non-small-cell)
     if "stomach" in ps and "adenom" in dt:
-        return "GC"
+        return "GC"        # gastric adenocarcinoma (pre-existing 'GC' tag kept verbatim, not 'STAD')
+    # ── broadened set (2026-08-24): each an unambiguous single-histology category ────────────────────
+    if "esophagus" in ps and "adenom" in dt:
+        return "ESCA"      # esophageal adenocarcinoma (epithelial-NOS esophagus left unmapped)
+    if "breast" in ps and ("ductal" in dt or "lobular" in dt or "epithelial" in dt):
+        return "BRCA"      # invasive ductal/lobular + metaplastic/epithelial breast carcinoma (site is
+                           #   unambiguous for BRCA across epithelial subtypes)
+    if "skin" in ps and "melanom" in dt:
+        return "SKCM"      # cutaneous melanoma ONLY (skin SCC / lymphoma / sarcoma and uveal 'Eye and
+                           #   adnexa' melanoma are NOT skin-cutaneous-melanoma -> left unmapped)
+    if "ovary" in ps and "stromal" not in dt and any(x in dt for x in ("serous", "cystic", "mucinous", "adenom")):
+        return "OV"        # epithelial ovarian carcinoma (serous/cystic/mucinous/adeno); sex-cord
+                           #   'Complex Mixed and Stromal Neoplasms' excluded (distinct non-epithelial biology)
+    if "bladder" in ps and ("transitional" in dt or "urothelial" in dt):
+        return "BLCA"      # urothelial / transitional-cell carcinoma (bladder adeno-variant + NOS left unmapped)
+    if "corpus uteri" in ps and any(x in dt for x in ("adenom", "serous", "cystic", "mucinous")):
+        return "UCEC"      # endometrioid + serous uterine-corpus carcinoma; 'Uterus, NOS' site (ambiguous
+                           #   corpus-vs-cervix) and myomatous/stromal (leiomyo/carcinosarcoma) left unmapped
+    if any(s in ps for s in ("mouth", "tongue", "larynx", "pharynx", "lip", "tonsil", "palate", "gum")) and "squamous" in dt:
+        return "HNSC"      # head & neck squamous cell carcinoma (oral cavity / tongue / larynx / pharynx);
+                           #   sinonasal 'Nasal cavity and middle ear' + ill-defined sites left unmapped
+    if "thyroid" in ps and "adenom" in dt:
+        return "THCA"      # thyroid papillary/follicular adenocarcinoma (thyroid SCC left unmapped)
     return None
 
 
@@ -271,6 +321,16 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
     Answers "for target X in indication Y, do HCMI patient-derived models carry a (COARSE, any functional
     coding) alteration in X?". Returns (rows, meta). rows are sorted by (gene_symbol, indication) and
     carry an indication='ALL' rollup per gene. meta captures cohort + join provenance for the manifest.
+
+    RECURRENT-HOTSPOT COLUMN (#2, 2026-08-24): n_models_with_recurrent_hotspot = distinct models (within
+    the gene x indication cell) whose alteration in the gene shares an HGVSp_Short protein change seen in
+    >=2 DISTINCT models for that gene across the FULL HCMI cohort (all MAF-bearing models, mapped or not).
+    This is a SELF-CONTAINED recurrence signal (no external hotspot source) that lets a consumer tell an
+    "any-functional-coding" match from a match at a cohort-recurrent position (a weak driver-hotspot cue).
+
+    CROSSWALK: reuses crosswalk_indication verbatim, which was BROADENED 2026-08-24 from the 4 GI/lung core
+    indications to 12 (adds ESCA/BRCA/SKCM/OV/BLCA/UCEC/HNSC/THCA), so the per-indication denominators and
+    the set of covered indications grow correspondingly.
     """
     import boto3
     os.environ.setdefault("AWS_PROFILE", "cbg")
@@ -278,8 +338,15 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
     s3 = boto3.client("s3")
     maf_keys = _list_maf_keys(s3)
 
-    # (gene, indication) -> {"models": set(model_id), "classes": Counter, "hgvsp": set}
-    agg: dict = defaultdict(lambda: {"models": set(), "classes": Counter(), "hgvsp": set()})
+    # (gene, indication) -> {"models": set(model_id), "classes": Counter, "hgvsp": set(sample),
+    #                         "model_hgvsps": {model_id -> set(HGVSp_Short)} for the recurrent-hotspot column}
+    agg: dict = defaultdict(lambda: {"models": set(), "classes": Counter(), "hgvsp": set(),
+                                     "model_hgvsps": defaultdict(set)})
+    # Self-contained hotspot recurrence (#2): (gene, HGVSp_Short) -> set(model_id) tallied over the FULL
+    # HCMI cohort (ALL MAF-bearing models, mapped OR unmapped), so recurrence has a robust cohort-wide
+    # denominator and does NOT depend on the indication crosswalk. An HGVSp is "recurrent" for a gene iff
+    # it is seen in >=2 DISTINCT models cohort-wide (no external hotspot source).
+    gene_hgvsp_models: dict = defaultdict(set)
     n_unreadable_mafs = 0
     mafs_mapped = set()      # distinct model ids (with a MAF) that map to a core indication
     mafs_unmapped_models = set()
@@ -290,6 +357,8 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
                 n_unreadable_mafs += 1
                 continue
             for mid, gene, vc, hgvsp in res:
+                if hgvsp:
+                    gene_hgvsp_models[(gene, hgvsp)].add(mid)   # cohort-wide recurrence tally (all models)
                 ind = model_to_indication.get(mid)
                 if ind is None:
                     mafs_unmapped_models.add(mid)
@@ -299,22 +368,34 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
                     cell = agg[(gene, scope)]
                     cell["models"].add(mid)
                     cell["classes"][vc] += 1
-                    if hgvsp and len(cell["hgvsp"]) < 5:
-                        cell["hgvsp"].add(hgvsp)
+                    if hgvsp:
+                        cell["model_hgvsps"][mid].add(hgvsp)
+                        if len(cell["hgvsp"]) < 5:
+                            cell["hgvsp"].add(hgvsp)
     if n_unreadable_mafs:
         print(f"WARNING: {n_unreadable_mafs}/{len(maf_keys)} HCMI MAFs unreadable/unparseable and SKIPPED "
               f"— n_models_with_alteration may undercount. Re-run to confirm stability.", file=sys.stderr)
+
+    # recurrent HGVSp set per gene (>=2 distinct models cohort-wide)
+    recurrent_by_gene: dict = defaultdict(set)
+    for (gene, hgvsp), mids in gene_hgvsp_models.items():
+        if len(mids) >= 2:
+            recurrent_by_gene[gene].add(hgvsp)
 
     denom_all = sum(denom.values())
     rows = []
     for (gene, scope), cell in agg.items():
         n_alt = len(cell["models"])
         n_denom = denom_all if scope == ROLL else denom.get(scope, 0)
+        rec = recurrent_by_gene.get(gene, frozenset())
+        # distinct models (in this gene x indication cell) carrying >=1 recurrent-hotspot HGVSp
+        n_recurrent = sum(1 for _mid, hgs in cell["model_hgvsps"].items() if hgs & rec)
         rows.append({
             "gene_symbol": gene,
             "indication": scope,
             "n_models_in_indication": int(n_denom),
             "n_models_with_alteration": int(n_alt),
+            "n_models_with_recurrent_hotspot": int(n_recurrent),
             "variant_classes_present": "; ".join(sorted(cell["classes"])),
             "hgvsp_examples": "; ".join(sorted(x for x in cell["hgvsp"] if x)),
             "genotype_matched_class": genotype_matched_class(n_alt),

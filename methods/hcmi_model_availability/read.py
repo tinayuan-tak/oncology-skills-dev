@@ -32,6 +32,7 @@ _UNAVAILABLE = {
 _GENOTYPE_NONE = {
     "genotype_matched_class": "none",
     "n_models_with_alteration": 0,
+    "n_models_with_recurrent_hotspot": 0,
     "n_models_in_indication": 0,
     "variant_classes_present": None,
     "hgvsp_examples": None,
@@ -115,11 +116,15 @@ def read_genotype_matched_model(target: "Optional[str]" = None, indication: "Opt
     if hit.empty:
         return dict(_GENOTYPE_NONE,
                     _missing_reason=f"no HCMI model with a functional alteration in {target} mapped to "
-                                    f"{ind} (or {ind} not in the HCMI 4-core crosswalk)")
+                                    f"{ind} (or {ind} not in the HCMI indication crosswalk)")
     row = hit.iloc[0]
     return {
         "genotype_matched_class": row["genotype_matched_class"],
         "n_models_with_alteration": int(row["n_models_with_alteration"]),
+        # distinct models carrying a cohort-recurrent (>=2 models) HGVSp_Short in the gene; 0 if the
+        # column is absent (pre-broaden product) so an older parquet still reads gracefully.
+        "n_models_with_recurrent_hotspot": int(row["n_models_with_recurrent_hotspot"])
+        if "n_models_with_recurrent_hotspot" in row else 0,
         "n_models_in_indication": int(row["n_models_in_indication"]),
         "variant_classes_present": row["variant_classes_present"],
         "hgvsp_examples": row["hgvsp_examples"],

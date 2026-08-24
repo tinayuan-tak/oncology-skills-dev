@@ -20,6 +20,7 @@ from methods.hcmi_model_availability.cli import (
 
 # ── crosswalk unit tests (the (primary_site, disease_type) -> indication judgment) ──────────────────
 @pytest.mark.parametrize("ps,dt,expected", [
+    # ── core set (pre-existing v1) ──────────────────────────────────────────────────────────────────
     ("Colon", "Adenomas and Adenocarcinomas", "COADREAD"),
     ("Rectum", "Adenomas and Adenocarcinomas", "COADREAD"),
     ("Rectosigmoid junction", "Adenomas and Adenocarcinomas", "COADREAD"),
@@ -28,10 +29,31 @@ from methods.hcmi_model_availability.cli import (
     ("Bronchus and lung", "Adenomas and Adenocarcinomas", "NSCLC"),
     ("Bronchus and lung", "Squamous Cell Neoplasms", "NSCLC"),
     ("Stomach", "Adenomas and Adenocarcinomas", "GC"),
-    # unmapped histologies / sites -> None (conservative: never mis-assign)
-    ("Breast", "Ductal and Lobular Neoplasms", None),
-    ("Skin", "Nevi and Melanomas", None),
-    ("Colon", "Cystic, Mucinous and Serous Neoplasms", None),  # non-adenocarcinoma colon histology
+    # ── broadened set (2026-08-24): unambiguous single-histology categories now MAPPED ──────────────
+    ("Esophagus", "Adenomas and Adenocarcinomas", "ESCA"),
+    ("Breast", "Ductal and Lobular Neoplasms", "BRCA"),          # was None pre-broaden
+    ("Breast", "Complex Epithelial Neoplasms", "BRCA"),
+    ("Skin", "Nevi and Melanomas", "SKCM"),                      # was None pre-broaden
+    ("Ovary", "Cystic, Mucinous and Serous Neoplasms", "OV"),
+    ("Ovary", "Adenomas and Adenocarcinomas", "OV"),
+    ("Bladder", "Transitional Cell Papillomas and Carcinomas", "BLCA"),
+    ("Corpus uteri", "Adenomas and Adenocarcinomas", "UCEC"),
+    ("Corpus uteri", "Cystic, Mucinous and Serous Neoplasms", "UCEC"),
+    ("Other and unspecified parts of mouth", "Squamous Cell Neoplasms", "HNSC"),
+    ("Larynx", "Squamous Cell Neoplasms", "HNSC"),
+    ("Thyroid gland", "Adenomas and Adenocarcinomas", "THCA"),
+    # ── DELIBERATELY LEFT UNMAPPED -> None (conservative: never mis-assign) ──────────────────────────
+    ("Brain", "Gliomas", None),                                  # grade-indeterminate: GBM vs LGG
+    ("Liver and intrahepatic bile ducts", "Adenomas and Adenocarcinomas", None),  # cholangio, not LIHC
+    ("Kidney", "Adenomas and Adenocarcinomas", None),            # RCC subtype KIRC/KIRP/KICH unresolvable
+    ("Other and unspecified parts of biliary tract", "Adenomas and Adenocarcinomas", None),  # no CHOL code
+    ("Small intestine", "Adenomas and Adenocarcinomas", None),   # no SBA code; not COADREAD
+    ("Ovary", "Complex Mixed and Stromal Neoplasms", None),      # sex-cord stromal, non-epithelial
+    ("Skin", "Squamous Cell Neoplasms", None),                   # cutaneous SCC, not melanoma
+    ("Eye and adnexa", "Nevi and Melanomas", None),              # uveal melanoma, not cutaneous SKCM
+    ("Uterus, NOS", "Adenomas and Adenocarcinomas", None),       # corpus-vs-cervix ambiguous site
+    ("Colon", "Cystic, Mucinous and Serous Neoplasms", None),    # non-adenocarcinoma colon histology
+    ("Thyroid gland", "Squamous Cell Neoplasms", None),          # thyroid SCC, not adeno
     (None, None, None),
 ])
 def test_crosswalk_maps_core_indications_and_rejects_unmapped(ps, dt, expected):
@@ -97,6 +119,11 @@ def test_hcmi_gi_heavy_composition_biology_gate():
     assert by["COADREAD"]["model_availability_class"] == "deep_model_coverage"
     # COADREAD is the deepest-covered (GI-heavy cohort)
     assert by["COADREAD"]["n_patient_derived_models"] == max(r["n_patient_derived_models"] for r in rows)
+    # broadened crosswalk (2026-08-24): a newly-mapped indication (breast BRCA + skin melanoma SKCM) now
+    # appears — the crosswalk is no longer the 4-core GI/lung set.
+    assert "BRCA" in by and by["BRCA"]["n_patient_derived_models"] > 0
+    assert "SKCM" in by and by["SKCM"]["n_patient_derived_models"] > 0
+    assert len(by) >= 8, "broadened crosswalk should map well beyond the original 4 core indications"
 
 
 # ── generic-dispatch contract (2026-08-14): compose-dashboard calls fn(target=, indication=) ──────────
@@ -152,15 +179,18 @@ def genotype_product(tmp_path):
     p = tmp_path / "hcmi_genotype_matched_model.parquet"
     pd.DataFrame([
         {"gene_symbol": "KRAS", "indication": "PAAD", "n_models_in_indication": 115,
-         "n_models_with_alteration": 71, "variant_classes_present": "Missense_Mutation",
+         "n_models_with_alteration": 71, "n_models_with_recurrent_hotspot": 68,
+         "variant_classes_present": "Missense_Mutation",
          "hgvsp_examples": "p.G12D; p.G12V", "genotype_matched_class": "matched_deep",
          "source": "HCMI-CMDC-DR45"},
         {"gene_symbol": "KRAS", "indication": "GC", "n_models_in_indication": 25,
-         "n_models_with_alteration": 2, "variant_classes_present": "Missense_Mutation",
+         "n_models_with_alteration": 2, "n_models_with_recurrent_hotspot": 2,
+         "variant_classes_present": "Missense_Mutation",
          "hgvsp_examples": "p.G12D; p.A146V", "genotype_matched_class": "matched_sparse",
          "source": "HCMI-CMDC-DR45"},
-        {"gene_symbol": "KRAS", "indication": "ALL", "n_models_in_indication": 376,
-         "n_models_with_alteration": 129, "variant_classes_present": "Missense_Mutation",
+        {"gene_symbol": "KRAS", "indication": "ALL", "n_models_in_indication": 631,
+         "n_models_with_alteration": 129, "n_models_with_recurrent_hotspot": 121,
+         "variant_classes_present": "Missense_Mutation",
          "hgvsp_examples": "p.G12D", "genotype_matched_class": "matched_deep",
          "source": "HCMI-CMDC-DR45"},
     ]).to_parquet(p)
@@ -171,6 +201,7 @@ def test_genotype_read_deep_hit(genotype_product):
     r = read_genotype_matched_model(target="KRAS", indication="PAAD", product_path=genotype_product)
     assert r["genotype_matched_class"] == "matched_deep"
     assert r["n_models_with_alteration"] == 71
+    assert r["n_models_with_recurrent_hotspot"] == 68  # cohort-recurrent-hotspot column (#2)
     assert r["n_models_in_indication"] == 115
 
 
@@ -182,8 +213,9 @@ def test_genotype_read_sparse_hit(genotype_product):
 
 def test_genotype_read_defaults_indication_to_ALL_rollup(genotype_product):
     r = read_genotype_matched_model(target="KRAS", product_path=genotype_product)
-    assert r["n_models_in_indication"] == 376
+    assert r["n_models_in_indication"] == 631
     assert r["n_models_with_alteration"] == 129
+    assert r["n_models_with_recurrent_hotspot"] == 121
 
 
 def test_genotype_read_absent_gene_is_honest_none(genotype_product):
@@ -221,6 +253,11 @@ def test_genotype_kras_is_matched_deep_in_pancreatic_and_colorectal():
     # denominators reuse v1's per-indication distinct-model counts verbatim
     assert by[("KRAS", "PAAD")]["n_models_in_indication"] == 115
     assert meta["n_maf_files"] == 923 and meta["n_cases_walked"] == 805
+    # recurrent-hotspot column (#2): KRAS is dominated by canonical G12/G13/Q61 hotspots, so almost every
+    # altered PAAD model carries a cohort-recurrent HGVSp -> the recurrent count is a large fraction of
+    # (and never exceeds) the altered count.
+    kp = by[("KRAS", "PAAD")]
+    assert 0 < kp["n_models_with_recurrent_hotspot"] <= kp["n_models_with_alteration"]
 
 
 def test_genotype_dispatch_contract_accepts_target_and_indication(genotype_product):
