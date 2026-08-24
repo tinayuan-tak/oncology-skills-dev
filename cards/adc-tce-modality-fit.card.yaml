@@ -54,6 +54,7 @@ outputs:
     - isoform_selective_suppressed                # bool — TRUE if letter grades were suppressed (in-context isoform)
     - isoform_selective_offcontext                # bool — 2026-08-14: gene HAS a curated dominant alt isoform but NOT in this indication → fit_class NOT suppressed, caveat only
     - isoform_mechanism_caveat                    # str|null — 2026-08-14 mechanism-aware: in-context isoform whose mechanism does NOT ablate the ectodomain epitope (ectodomain_intact / neoepitope / resistance_acquired / ...) → fit_class NOT suppressed, mechanism surfaced
+    - isoform_epitope_caveat                      # str|null — 2026-08-24 v1.3.0 dominance-gate: in-context + ectodomain-ABLATING but the alt isoform is a MINORITY species (p95HER2) → fit_class STANDS favorable + this high-severity caveat surfaces the subpopulation epitope loss (confirm isoform-resolved expression)
     - method_version
 
     # ============= LENS-CONDITIONAL: modality (ARCH A2) =============
