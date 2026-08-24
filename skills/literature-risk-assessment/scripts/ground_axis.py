@@ -158,6 +158,13 @@ SEVERITY_HIGH = "high"                    # a `severity == SEVERITY_HIGH` findin
 # 1500 — closer to a full structured abstract while staying well within the input budget for ~8 items.
 ABSTRACT_CHARS = 1500
 
+# Retrieval widening (2026-08-24, entity-collision + starvation fix). ground_axis now unions an
+# ENTITY-normalized PubTator lane (avoids the gene-symbol/keyword collision — e.g. ME3 the gene vs
+# "me3" trimethylation) with the keyword E-utilities lane, and soft-broadens EITHER lane when its
+# tight axis-scoped query starves (< RETRIEVAL_FLOOR hits, measured on less-studied targets).
+RETRIEVAL_FLOOR = 3               # below this a lane is "starved" -> retry with the broad query
+MAX_RETRIEVED = 16                # cap the unioned abstract set fed to the model (entity lane first)
+
 SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
           "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
           "invent one.")
@@ -254,13 +261,56 @@ AXIS_PUBMED_TERMS = {
 }
 
 
-def _axis_query(target: str, disease_terms: str, axis: str) -> str:
+def _axis_query(target: str, disease_terms: str, axis: str, *, broad: bool = False) -> str:
     """PURE: build the TARGETED PubMed query for an axis — (gene) [AND (disease)] AND (axis terms).
-    Disease is AND-ed only for indication-conditioned axes (AXIS_PUBMED_TERMS[axis][1])."""
+    Disease is AND-ed only for indication-conditioned axes (AXIS_PUBMED_TERMS[axis][1]).
+    `broad=True` drops the axis-term conjunction (the soft-fallback used when the tight query
+    starves — measured: the tight conjunction returns 0 PMIDs on less-studied targets, e.g.
+    STAG1 safety), keeping only (gene) [AND (disease)]."""
     terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
     if disease_scoped and disease_terms:
-        return f"({target}) AND ({disease_terms}) AND ({terms})"
-    return f"({target}) AND ({terms})"
+        return f"({target}) AND ({disease_terms})" + ("" if broad else f" AND ({terms})")
+    return f"({target})" + ("" if broad else f" AND ({terms})")
+
+
+def _dedup(pmids) -> list:
+    """PURE: order-preserving de-duplication (entity-lane hits kept ahead of keyword-lane)."""
+    seen, out = set(), []
+    for p in pmids:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def _retrieve_pmids(target: str, disease_terms: str, axis: str, *, per_cat: int,
+                    mindate: str, maxdate: str) -> list:
+    """Union of two lanes with per-lane soft-broaden fallback; entity lane first.
+
+    Entity lane (PubTator, entity-normalized) is best-effort — if PubTator is unreachable it
+    contributes nothing and the keyword lane alone reproduces the prior behavior. Kept thin +
+    side-effecting here; the query construction / dedup / cap logic is pure and unit-tested.
+    """
+    import pubmed_search as ps
+    import entity_search as es
+    terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
+
+    # -- entity lane: resolve symbol -> @GENE_<entrez>, search tight, soft-broaden if starved
+    gene_clause = es.resolve_gene_entity(target) or f"({target})"
+    pt = es.pubtator_pmids(es.entity_axis_query(gene_clause, disease_terms, terms,
+                           disease_scoped=disease_scoped, broad=False), retmax=per_cat)
+    if len(pt) < RETRIEVAL_FLOOR:
+        pt = _dedup(pt + es.pubtator_pmids(es.entity_axis_query(gene_clause, disease_terms, terms,
+                    disease_scoped=disease_scoped, broad=True), retmax=per_cat))
+
+    # -- keyword lane: E-utilities tight, soft-broaden if starved (drops the axis-term conjunction)
+    kw = ps._esearch(_axis_query(target, disease_terms, axis), retmax=per_cat,
+                     timeout_s=30.0, mindate=mindate, maxdate=maxdate)
+    if len(kw) < RETRIEVAL_FLOOR:
+        kw = _dedup(kw + ps._esearch(_axis_query(target, disease_terms, axis, broad=True),
+                    retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate))
+
+    return _dedup(list(pt) + list(kw))[:MAX_RETRIEVED]
 
 
 def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "safety",
@@ -275,20 +325,22 @@ def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "saf
     cfg = AXIS_CONFIG[axis]
     pkg = json.loads(Path(pkg_path).read_text())
     det = deterministic_block(pkg, axis)
-    # TARGETED single-query retrieval (follow-up #3): one axis-specific query instead of the
-    # all-category sweep (no wasted queries, on-axis abstracts). disease_terms = the DISEASE_TERMS
-    # expansion when known, else the raw indication (read-only — no global DISEASE_TERMS mutation).
+    # ENTITY-normalized + keyword retrieval with soft-broaden (2026-08-24). Replaces the single
+    # keyword query, which (a) mis-retrieved on gene-symbol/keyword collisions (ME3 the gene vs
+    # "me3" trimethylation) and (b) starved on less-studied targets. disease_terms = the
+    # DISEASE_TERMS expansion when known, else the raw indication (read-only).
     key = indication.strip().lower()
     disease_terms = ps.DISEASE_TERMS.get(key, indication)
-    query = _axis_query(target, disease_terms, axis)
-    pmids = ps._esearch(query, retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate)
+    pmids = _retrieve_pmids(target, disease_terms, axis, per_cat=per_cat,
+                            mindate=mindate, maxdate=maxdate)
     abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
     retrieved = {a.pmid for a in abstracts}
     out = synthesize_structured(SYSTEM, _prompt(target, indication, axis, det["verdict"], abstracts,
                                                 abstract_chars=abstract_chars),
                                 "axis_findings", TOOL_SCHEMA)
     grounded = build_grounded_block(det, out, retrieved,
-                                    corpus_pin={"mindate": mindate, "maxdate": maxdate},
+                                    corpus_pin={"mindate": mindate, "maxdate": maxdate,
+                                                "retrieval": "entity_pubtator+keyword_eutils"},
                                     n_retrieved=len(abstracts))
     return {"axis": axis, "deterministic": det, "grounded": grounded}
 

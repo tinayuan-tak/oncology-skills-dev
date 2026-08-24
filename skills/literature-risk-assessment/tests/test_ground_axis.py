@@ -191,3 +191,26 @@ def test_axis_query_disease_scoping():
 def test_axis_query_unknown_axis_is_target_only():
     q = ga._axis_query("FOO", "lung cancer", "not_an_axis")
     assert q == "(FOO) AND ()" or "FOO" in q      # defensive: no crash, gene present
+
+
+# ===================== entity + soft-broaden retrieval widening (2026-08-24) =====================
+def test_axis_query_broad_drops_axis_terms():
+    # disease-scoped axis: broad keeps (gene) AND (disease) but DROPS the axis-term conjunction
+    tight = ga._axis_query("STAG1", "bladder cancer", "dependency")
+    broad = ga._axis_query("STAG1", "bladder cancer", "dependency", broad=True)
+    assert "dependency" in tight.lower() and "dependency" not in broad.lower()
+    assert broad == "(STAG1) AND (bladder cancer)"
+    # target-level axis (safety, not disease-scoped): broad collapses to just the gene
+    assert ga._axis_query("STAG1", "bladder cancer", "safety", broad=True) == "(STAG1)"
+    # the tight safety query is exactly what starved in practice (measured: 0 PMIDs for STAG1)
+    assert "toxicity" in ga._axis_query("STAG1", "bladder cancer", "safety")
+
+
+def test_dedup_is_order_preserving():
+    # entity-lane hits must stay ahead of keyword-lane hits, first occurrence wins
+    assert ga._dedup(["3", "1", "3", "2", "1"]) == ["3", "1", "2"]
+    assert ga._dedup([]) == []
+
+
+def test_retrieval_widening_constants():
+    assert ga.RETRIEVAL_FLOOR >= 1 and ga.MAX_RETRIEVED >= ga.RETRIEVAL_FLOOR
