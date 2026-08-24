@@ -304,7 +304,12 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
                             recommendation_gate: dict, confidence_tier: dict,
                             deciding_axis: dict, validation_summary: dict,
                             subtypes: Optional[list] = None,
-                            subtype_facet: Optional[dict] = None) -> Path:
+                            subtype_facet: Optional[dict] = None,
+                            certainty_by_axis: Optional[dict] = None,
+                            cross_gate_shared_evidence: Optional[dict] = None,
+                            fragility: Optional[dict] = None,
+                            competitor_crossref: Optional[dict] = None,
+                            modality: Optional[str] = None) -> Path:
     """Assemble + write evidence_package.json around target-profile's composed verdict.
 
     Reuses the shared normalizers (`_envelope_card_present`, `_availability_state_for`) and writer
@@ -366,6 +371,21 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
             "driving_rule_id": v[1] if v else None,
             "fired_rule_ids": [f["rule_id"] for f in (r.get("fired") or [])],
         }
+        # Modality×safety seam: stamp the per-modality safety verdict onto the safety entry so the
+        # cross-evidence integrator can refine its hold-grade safety cap per its OWN --modality (the
+        # scalar `verdict` conflates all channels). Recomputed from the safety fired rules exactly as
+        # tp_gates does for the exists_safe_modality suppression (single source of truth =
+        # modality_safety.safety_verdict_by_modality). Best-effort + VERDICT-INERT: on any failure the
+        # key is simply absent, so the envelope stays byte-stable for a target without a safety axis.
+        if short == "safety":
+            try:
+                from _skills_common.modality_safety import safety_verdict_by_modality
+                sub_verdicts[short]["safety_verdict_by_modality"] = safety_verdict_by_modality(
+                    r.get("fired") or [])
+            except Exception as e:  # noqa: BLE001 — never break emit on a vocabulary read
+                print(f"[target-profile] --emit evidence-package: safety_verdict_by_modality stamp "
+                      f"failed ({type(e).__name__}); the per-modality safety block will be absent.",
+                      file=sys.stderr)
         if blk is not None:
             gate_blocks[short] = blk
 
@@ -402,6 +422,25 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         # verdict-INERT claim-vector signal facets — the SIGNAL decomposition + citable
         # evidence atoms per sub-skill, for downstream cross-evidence reasoning (not just the label).
         "claim_vectors": _claim_vectors_from_sub_results(sub_results),
+        # verdict-INERT DECISION FACETS — the reader-facing facet layer that previously reached only
+        # nomination.json (certainty, cross-gate correlation, flip-fragility + acquisition backlog,
+        # competitor cross-ref). Carried here so the cross-evidence-hypothesis integrator (which consumes
+        # THIS artifact, not nomination.json) can reason over per-axis certainty, prefer the spine's own
+        # correlated-evidence grouping over its re-derivation, and surface contested/backlog/competitor
+        # signals. NEVER moves the recommendation spine (sub_verdicts / recommendation_gate). All members
+        # default-empty so a run that computed none stays BYTE-STABLE.
+        "decision_facets": {
+            "certainty_by_axis": certainty_by_axis or {},
+            "cross_gate_shared_evidence": cross_gate_shared_evidence or {},
+            "fragility": fragility or {},
+            "competitor_crossref": competitor_crossref or {},
+            # The modality this package was COMPOSED under (None for a modality-agnostic run). The
+            # recommendation_gate.hard_gates (esp. the exists_safe_modality safety suppression) are
+            # frozen under THIS modality, so the cross-evidence integrator must compare it to its own
+            # --modality and surface a mismatch rather than trusting a ceiling built for another channel.
+            # (Homed here, not context, so the shared assemble_evidence_package envelope stays untouched.)
+            "composed_modality": modality,
+        },
     }
 
     # subgroup_spec: STOP hardcoding null (subtype-first-class-evidence, Option A). Record the

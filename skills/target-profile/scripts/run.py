@@ -562,6 +562,12 @@ def main() -> int:
             # subtype-first-class-evidence (Option A): populate context.subgroup_spec + the
             # subtype_resolved block ONLY when the run is subtype-scoped (byte-stable default).
             subtypes=subtypes, subtype_facet=subtype_facet,
+            # verdict-INERT decision facets (previously nomination.json-only) into synthesis.decision_facets
+            # + the composed modality into context, so the cross-evidence integrator can consume them.
+            certainty_by_axis=certainty_by_axis,
+            cross_gate_shared_evidence=cross_gate_shared_evidence,
+            fragility=fragility, competitor_crossref=competitor_crossref,
+            modality=args.modality,
         )
 
     # AUTO-GROUND (fanout-integration): PRODUCE the per-axis grounded substrate in one pass over the

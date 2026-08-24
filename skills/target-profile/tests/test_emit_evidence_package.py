@@ -315,6 +315,87 @@ def test_no_killer_recommendation_is_coherent_not_insufficient(tmp_path, monkeyp
         f"headline still mislabels a no-killer positive as 'insufficient': {headline!r}")
 
 
+# ── DECISION FACETS + modality×safety seam (2026-08-24, cross-evidence alignment) ─────────────────
+
+def _build_ep_with_facets(tmp_path, monkeypatch, *, facets, modality, extra_subs=None):
+    """Drive _write_evidence_package with the new verdict-inert decision facets + composed modality
+    (+ optional extra sub_results, e.g. a `safety` short) so the cross-evidence integrator's input
+    contract is exercised end-to-end through the real emitter."""
+    monkeypatch.setattr(tp_evidence_package, "resolve_cards",
+                        lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)])
+    sub_results = {
+        "dependency": _sub("pan-cancer-crispr-dependency-distribution", "dep-01", "dependency",
+                           ("selective_dependency", "dep-01")),
+    }
+    sub_results.update(extra_subs or {})
+    args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)
+    ep_path = tp._write_evidence_package(
+        args=args, sub_results=sub_results, gate_action="nominate",
+        recommendation_gate={"fired": True, "forced_recommendation": "nominate"},
+        confidence_tier={"tier": "high"},
+        deciding_axis={"basis": "gate_fired",
+                       "deciding_axis": {"short": "dependency", "gate": "dependency"}, "routing": "x"},
+        validation_summary={"n_cards_attempted": 1, "n_cards_passed": 1,
+                            "n_cards_passed_with_warnings": 0, "n_cards_failed": 0,
+                            "n_cards_excluded_by_applies_when": 0},
+        modality=modality, **facets)
+    return json.loads(Path(ep_path).read_text())
+
+
+def test_decision_facets_default_empty_and_byte_stable(tmp_path, monkeypatch):
+    """The DEFAULT (no facets passed) run carries an all-empty decision_facets block and
+    context.composed_modality=None — the byte-stable contract for a run that computed no facets."""
+    ep = _build_ep(tmp_path, monkeypatch)
+    df = ep["synthesis"]["decision_facets"]
+    assert df == {"certainty_by_axis": {}, "cross_gate_shared_evidence": {},
+                  "fragility": {}, "competitor_crossref": {}, "composed_modality": None}
+
+
+def test_decision_facets_carried_into_synthesis(tmp_path, monkeypatch):
+    """The four verdict-inert facets (previously nomination.json-only) reach synthesis.decision_facets,
+    and the composed modality reaches context — the cross-evidence integrator's new read surface."""
+    facets = {
+        "certainty_by_axis": {"dependency": {"strength": "strong_positive",
+                                             "certainty": {"level": "high", "coverage": "high",
+                                                           "corroboration": "high", "unknown_mass": 0.0}}},
+        "cross_gate_shared_evidence": {"shared_input_cards": {"copy-number-distribution":
+                                                              ["safety", "genomic_alteration"]},
+                                       "correlated_gate_pairs": [["safety", "genomic_alteration"]]},
+        "fragility": {"contested": False, "acquisition_backlog": [
+            {"axis": "immune_context", "gate": None, "coverage": "low", "action": "acquire",
+             "missing_cards": [{"card_id": "immune-context", "availability_state": "not_wired"}]}]},
+        "competitor_crossref": {"competition_density": "crowded", "modality_validated": True},
+    }
+    ep = _build_ep_with_facets(tmp_path, monkeypatch, facets=facets, modality="adc")
+    df = ep["synthesis"]["decision_facets"]
+    assert df["certainty_by_axis"]["dependency"]["certainty"]["level"] == "high"
+    assert df["cross_gate_shared_evidence"]["correlated_gate_pairs"] == [["safety", "genomic_alteration"]]
+    assert df["fragility"]["acquisition_backlog"][0]["axis"] == "immune_context"
+    assert df["competitor_crossref"]["competition_density"] == "crowded"
+    assert df["composed_modality"] == "adc"
+    # still schema-valid with the new blocks present
+    schema = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
+    errors = [e.message for e in Draft202012Validator(schema).iter_errors(ep)]
+    assert errors == [], f"evidence_package with decision_facets failed schema validation: {errors}"
+
+
+def test_safety_verdict_by_modality_stamped_on_safety_short(tmp_path, monkeypatch):
+    """A `safety` short gets its per-modality safety verdict stamped onto its sub_verdicts entry so the
+    integrator can refine its hold-grade cap per --modality. Recomputed from the safety fired rules via
+    the shared modality_safety transform (single source of truth with tp_gates)."""
+    safety_sub = _sub("gnomad-lof-constraint", "gnomad-lof-intolerant", "safety",
+                      ("human_genetics_safety_concern", "gnomad-lof-intolerant"))
+    ep = _build_ep_with_facets(tmp_path, monkeypatch, facets={}, modality=None,
+                               extra_subs={"safety": safety_sub})
+    svbm = ep["synthesis"]["sub_verdicts"]["safety"].get("safety_verdict_by_modality")
+    assert isinstance(svbm, dict) and svbm, "expected a per-modality safety verdict on the safety short"
+    # every channel carries an action + wt_engagement (the modality_safety contract shape)
+    for channel, rec in svbm.items():
+        assert "action" in rec and "wt_engagement" in rec, (channel, rec)
+    # a non-safety short must NOT carry the block (it is safety-specific)
+    assert "safety_verdict_by_modality" not in ep["synthesis"]["sub_verdicts"]["dependency"]
+
+
 def test_failed_identity_fails_schema_validation_loudly(tmp_path, monkeypatch):
     """When target-identity fails to resolve, assemble emits hgnc_id=-1 (schema requires
     >= 1) ON PURPOSE as a validation tripwire. The emitter must now VALIDATE and fail LOUD (SystemExit)
