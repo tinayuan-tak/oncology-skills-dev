@@ -56,6 +56,17 @@ PRECOMPUTE_TARGETS = [
         "notes": "cell-line rows × gene columns; first col unnamed row-index (ModelID)",
     },
     {
+        # Sanger-inclusive combined Chronos (Project Score) — the cross-consortium comparator to
+        # CRISPRGeneEffect (Broad Achilles) above. Identical shape (cell-line rows × gene cols, first
+        # col unnamed ModelID); lets cross_consortium_dependency read one gene's column by projection
+        # instead of downloading the 685 MB CSV. Consumed by cross-consortium-dependency.
+        "source_key": f"{DEPMAP_SOURCE_PREFIX_CRISPR}/ScreenGeneEffect.csv",
+        "output_name": "ScreenGeneEffect.parquet",
+        "orientation": "wide",
+        "index_col_name": None,  # unnamed row-index in CSV
+        "notes": "cell-line rows × gene columns; first col unnamed row-index (ModelID); Sanger-inclusive combined Chronos (Project Score)",
+    },
+    {
         "source_key": f"{DEPMAP_SOURCE_PREFIX_CRISPR}/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv",
         "output_name": "OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet",
         "orientation": "wide_with_metadata",
@@ -147,16 +158,24 @@ def _convert_wide_matrix(body: bytes, index_col_name: Optional[str]) -> "pyarrow
     if df.columns[0] == "Unnamed: 0":
         # Peek at first value to distinguish ModelID (ACH-XXXXXX) vs ModelConditionID (MC-XXX)
         sample_val = str(df.iloc[0, 0]) if len(df) > 0 else ""
-        if sample_val.startswith("ACH-"):
+        if sample_val.startswith("ACH-") or sample_val.startswith("SC-"):
+            # ACH- = Broad model id (CRISPRGeneEffect); SC-... = Sanger screen/sample id
+            # (ScreenGeneEffect). Both are the per-line row key → the "ModelID" column that
+            # get_matrix_column_by_model_id projects (it returns None if "ModelID" is absent).
             df.rename(columns={"Unnamed: 0": "ModelID"}, inplace=True)
         elif sample_val.startswith("MC-"):
             df.rename(columns={"Unnamed: 0": "ModelConditionID"}, inplace=True)
         else:
             # Unknown; leave as-is but strip the pandas artifact
             df.rename(columns={"Unnamed: 0": "row_id"}, inplace=True)
-    # Cast all NON-STRING columns to float32. Metadata columns (strings) preserved.
+    # Cast NUMERIC columns to float32 (Chronos/DEMETER2/TPM/CN precision is far below float32
+    # quantization; saves ~50% memory + size). Use a dtype-KIND check rather than `!= object` so a
+    # string identifier column read under pandas' pyarrow string backend (dtype 'string[pyarrow]',
+    # NOT object) is still recognized as metadata and preserved — the prior `!= object` test tried to
+    # float-cast such an id column (e.g. the Sanger 'SC-002730.CD02' ModelID) and raised.
+    import pandas.api.types as _ptypes
     for c in df.columns:
-        if df[c].dtype != object:
+        if _ptypes.is_numeric_dtype(df[c]):
             df[c] = df[c].astype("float32")
     return pa.Table.from_pandas(df, preserve_index=False)
 
