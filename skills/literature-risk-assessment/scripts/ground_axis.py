@@ -163,7 +163,7 @@ ABSTRACT_CHARS = 1500
 # "me3" trimethylation) with the keyword E-utilities lane, and soft-broadens EITHER lane when its
 # tight axis-scoped query starves (< RETRIEVAL_FLOOR hits, measured on less-studied targets).
 RETRIEVAL_FLOOR = 3               # below this a lane is "starved" -> retry with the broad query
-MAX_RETRIEVED = 16                # cap the unioned abstract set fed to the model (entity lane first)
+MAX_RETRIEVED = 18                # cap the unioned abstract set fed to the model (lanes interleaved)
 
 SYSTEM = ("You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
           "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
@@ -283,13 +283,41 @@ def _dedup(pmids) -> list:
     return out
 
 
-def _retrieve_pmids(target: str, disease_terms: str, axis: str, *, per_cat: int,
-                    mindate: str, maxdate: str) -> list:
-    """Union of two lanes with per-lane soft-broaden fallback; entity lane first.
+def _interleave(*lanes) -> list:
+    """PURE: round-robin merge of ranked lane lists, then de-dup. Round-robin (not concat) so every
+    lane is represented within MAX_RETRIEVED even when an earlier lane is long — the reproducible OT
+    floor is never crowded out by the live lanes (and vice-versa)."""
+    out = []
+    for i in range(max((len(l) for l in lanes), default=0)):
+        for lane in lanes:
+            if i < len(lane):
+                out.append(lane[i])
+    return _dedup(out)
 
-    Entity lane (PubTator, entity-normalized) is best-effort — if PubTator is unreachable it
-    contributes nothing and the keyword lane alone reproduces the prior behavior. Kept thin +
-    side-effecting here; the query construction / dedup / cap logic is pure and unit-tested.
+
+def _ot_floor_pmids(target: str, indication: str, per_cat: int) -> list:
+    """OT reproducible-floor lane (best-effort): the pinned, offline, entity-normalized literature
+    floor (analysis-methods opentargets_literature_floor over the derived
+    opentargets-literature-per-target-v1). Never-empty and collision-free where the live keyword lane
+    starves/mis-retrieves; if analysis-methods is unavailable it contributes nothing (live lanes stand).
+    `indication` is the framework OncoTree code (scopes the europepmc sub-lane when the crosswalk has
+    an efo_ids lane; target-level otherwise)."""
+    try:
+        from methods.opentargets_literature_floor.read import read_literature_floor
+        return list(read_literature_floor(target, indication, top_n=per_cat).get("pmids", []) or [])
+    except Exception:  # noqa: BLE001 — best-effort; missing method/product must not break grounding
+        return []
+
+
+def _retrieve_pmids(target: str, disease_terms: str, axis: str, *, per_cat: int,
+                    mindate: str, maxdate: str, indication: str = "") -> list:
+    """Round-robin union of THREE lanes; each live lane soft-broadens when its tight query starves.
+
+    - entity lane   : PubTator, entity-normalized (fixes the gene-symbol/keyword collision)
+    - OT-floor lane : pinned/offline reproducible floor (never-empty; rescues thin targets)
+    - keyword lane  : the legacy E-utilities query
+    All three are best-effort: PubTator down / analysis-methods absent -> that lane contributes nothing
+    and the remaining lanes still ground. Query/dedup/interleave logic is pure and unit-tested.
     """
     import pubmed_search as ps
     import entity_search as es
@@ -303,6 +331,9 @@ def _retrieve_pmids(target: str, disease_terms: str, axis: str, *, per_cat: int,
         pt = _dedup(pt + es.pubtator_pmids(es.entity_axis_query(gene_clause, disease_terms, terms,
                     disease_scoped=disease_scoped, broad=True), retmax=per_cat))
 
+    # -- OT reproducible-floor lane (offline, entity-normalized; pinned OT release)
+    ot = _ot_floor_pmids(target, indication, per_cat)
+
     # -- keyword lane: E-utilities tight, soft-broaden if starved (drops the axis-term conjunction)
     kw = ps._esearch(_axis_query(target, disease_terms, axis), retmax=per_cat,
                      timeout_s=30.0, mindate=mindate, maxdate=maxdate)
@@ -310,7 +341,7 @@ def _retrieve_pmids(target: str, disease_terms: str, axis: str, *, per_cat: int,
         kw = _dedup(kw + ps._esearch(_axis_query(target, disease_terms, axis, broad=True),
                     retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate))
 
-    return _dedup(list(pt) + list(kw))[:MAX_RETRIEVED]
+    return _interleave(list(pt), list(ot), list(kw))[:MAX_RETRIEVED]
 
 
 def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "safety",
@@ -332,7 +363,7 @@ def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "saf
     key = indication.strip().lower()
     disease_terms = ps.DISEASE_TERMS.get(key, indication)
     pmids = _retrieve_pmids(target, disease_terms, axis, per_cat=per_cat,
-                            mindate=mindate, maxdate=maxdate)
+                            mindate=mindate, maxdate=maxdate, indication=indication)
     abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
     retrieved = {a.pmid for a in abstracts}
     out = synthesize_structured(SYSTEM, _prompt(target, indication, axis, det["verdict"], abstracts,
@@ -340,7 +371,7 @@ def ground_axis(target: str, indication: str, pkg_path: str, *, axis: str = "saf
                                 "axis_findings", TOOL_SCHEMA)
     grounded = build_grounded_block(det, out, retrieved,
                                     corpus_pin={"mindate": mindate, "maxdate": maxdate,
-                                                "retrieval": "entity_pubtator+keyword_eutils"},
+                                                "retrieval": "entity_pubtator+ot_literature_floor+keyword_eutils"},
                                     n_retrieved=len(abstracts))
     return {"axis": axis, "deterministic": det, "grounded": grounded}
 

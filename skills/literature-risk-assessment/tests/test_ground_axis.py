@@ -214,3 +214,18 @@ def test_dedup_is_order_preserving():
 
 def test_retrieval_widening_constants():
     assert ga.RETRIEVAL_FLOOR >= 1 and ga.MAX_RETRIEVED >= ga.RETRIEVAL_FLOOR
+
+
+def test_interleave_round_robin_and_dedup():
+    # round-robin across the three lanes (entity, OT-floor, keyword), first occurrence wins on dedup
+    entity = ["e1", "e2", "e3"]
+    ot = ["o1", "e2"]          # e2 overlaps entity -> deduped, keeps entity position
+    kw = ["k1"]
+    assert ga._interleave(entity, ot, kw) == ["e1", "o1", "k1", "e2", "e3"]
+    # a missing/empty lane (e.g. PubTator down or no OT floor) is simply skipped
+    assert ga._interleave([], ["o1", "o2"], []) == ["o1", "o2"]
+    assert ga._interleave([], [], []) == []
+    # round-robin guarantees every non-empty lane is represented early (not crowded out by a long lane)
+    long_entity = [f"e{i}" for i in range(10)]
+    merged = ga._interleave(long_entity, ["o1"], ["k1"])
+    assert merged.index("o1") <= 2 and merged.index("k1") <= 2
