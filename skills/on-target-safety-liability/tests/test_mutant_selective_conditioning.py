@@ -46,14 +46,17 @@ def _safety_cards(**summaries):
     return [{"card_id": cid, "summary": summaries.get(cid, {})} for cid in _ALL_SAFETY_CARD_IDS]
 
 
-def test_both_fired_downgrades_to_mechanism_mismatch():
-    # The mutant-selective GoF downgrade now requires BOTH activating-driver-role AND
-    # oncogene-role co-signals (so a TSG carrying a spurious intOGen 'activating' label is NOT
-    # downgraded — the SMARCA2 fix). Both must fire for the mechanism-mismatch downgrade.
-    v = _sf._verdict([{"rule_id": "highly-constrained-safety-warning"},
-                      {"rule_id": "activating-driver-role-safety-context"},
-                      {"rule_id": "oncogene-role-safety-context"}])
-    assert v == ("wt_constraint_mechanism_mismatch", "highly-constrained-safety-warning")
+def test_gof_driver_resolves_raw_concern_and_vector_conditional():
+    # RETIRED 2026-08-24: the resolver no longer downgrades a GoF driver to a mechanism-mismatch scalar.
+    # It emits the RAW WT-loss concern; the modality-conditional downgrade moved to the per-modality
+    # verdict — small_molecule=conditional (allele-selective escape) for a point-mutation GoF driver.
+    fired = [{"rule_id": "highly-constrained-safety-warning"},
+             {"rule_id": "activating-driver-role-safety-context"},
+             {"rule_id": "oncogene-role-safety-context"}]
+    assert _sf._verdict(fired) == ("highly_constrained_safety_concern", "highly-constrained-safety-warning")
+    vbm = _sf.safety_verdict_by_modality(fired)
+    assert vbm["small_molecule"]["action"] == "conditional"   # eligible, not disqualified
+    assert vbm["degrader"]["action"] == "hold"
 
 
 def test_constraint_alone_is_unchanged_concern():
@@ -67,18 +70,21 @@ def test_activating_role_alone_is_insufficient():
     assert v == ("insufficient", None)
 
 
-def test_headline_surfaces_conditioning_note_on_downgrade():
+def test_headline_surfaces_per_modality_verdict_for_gof_driver():
+    # RETIRED 2026-08-24: no more scalar mismatch downgrade + conditioning note. The headline now surfaces
+    # the per-modality safety verdict, which carries the modality-conditioning (small_molecule=conditional).
     cards = _safety_cards(
         **{"gnomad-lof-constraint": {"constraint_class": "highly_constrained", "pli_score": 0.99, "loeuf_score": 0.2},
            "alteration-role": {"functional_direction": "activating"}})
     fired = [{"rule_id": "highly-constrained-safety-warning"},
-             {"rule_id": "activating-driver-role-safety-context"}]
-    h = _sf._headline(cards, fired, ("wt_constraint_mechanism_mismatch", "highly-constrained-safety-warning"))
-    assert h["safety_verdict"] == "wt_constraint_mechanism_mismatch"
-    assert h["alteration_functional_direction"] == "activating"
-    assert h["mechanism_conditioning_note"] is not None
-    assert "MUTANT-SELECTIVELY" in h["mechanism_conditioning_note"]
-    assert "WILD-TYPE" in h["mechanism_conditioning_note"]
+             {"rule_id": "activating-driver-role-safety-context"},
+             {"rule_id": "oncogene-role-safety-context"}]
+    h = _sf._headline(cards, fired, ("highly_constrained_safety_concern", "highly-constrained-safety-warning"))
+    assert h["safety_verdict"] == "highly_constrained_safety_concern"
+    assert h["mechanism_conditioning_note"] is None            # scalar downgrade retired
+    vbm = h["safety_verdict_by_modality"]
+    assert vbm["small_molecule"]["action"] == "conditional"
+    assert vbm["adc"]["action"] == "not_applicable"
 
 
 def test_headline_no_note_when_not_downgraded():
@@ -93,21 +99,24 @@ def test_headline_no_note_when_not_downgraded():
 
 # --- PR-4c: rarely-altered oncogene keeps the WT-loss HOLD (MCL1) ---
 
-def test_rarely_altered_oncogene_keeps_hold_not_downgraded():
-    """MCL1-shape: the mutant-selective GoF downgrade must NOT fire for an amplification/role-only
-    oncogene that is functional_state_class==rarely_altered (drugged pan-inhibition, WT concern
-    stands). The GROUP-0b guard keeps highly_constrained_safety_concern instead of downgrading."""
-    v = _sf._verdict([{"rule_id": "highly-constrained-safety-warning"},
-                      {"rule_id": "activating-driver-role-safety-context"},
-                      {"rule_id": "oncogene-role-safety-context"},
-                      {"rule_id": "functional-gene-state-rarely-altered-neutral"}])
-    assert v == ("highly_constrained_safety_concern", "functional-gene-state-rarely-altered-neutral")
+def test_rarely_altered_oncogene_not_rescued_by_vector():
+    """MCL1-shape: an amplification/role-only oncogene (functional_state_class==rarely_altered) has NO
+    selectable point mutation → NOT allele-selective-eligible. The resolver emits the raw concern (as it
+    now does for every GoF driver); the DISQUALIFIER keeps small_molecule=hold so exists-safe-modality
+    does NOT clear it (replaces the retired GROUP-0b resolver guard, same intent, at the per-modality layer)."""
+    fired = [{"rule_id": "highly-constrained-safety-warning"},
+             {"rule_id": "activating-driver-role-safety-context"},
+             {"rule_id": "oncogene-role-safety-context"},
+             {"rule_id": "functional-gene-state-rarely-altered-neutral"}]
+    assert _sf._verdict(fired)[0] == "highly_constrained_safety_concern"
+    assert _sf.safety_verdict_by_modality(fired)["small_molecule"]["action"] == "hold"  # disqualified
 
 
-def test_human_genetics_downgrade_also_blocked_when_rarely_altered():
-    """The rarely-altered guard covers the human-genetics WT-loss warnings too (not just gnomAD)."""
-    v = _sf._verdict([{"rule_id": "gene-burden-lof-safety-warning"},
-                      {"rule_id": "activating-driver-role-safety-context"},
-                      {"rule_id": "oncogene-role-safety-context"},
-                      {"rule_id": "functional-gene-state-rarely-altered-neutral"}])
-    assert v == ("human_genetics_safety_concern", "functional-gene-state-rarely-altered-neutral")
+def test_human_genetics_rarely_altered_not_rescued_by_vector():
+    """The disqualifier covers the human-genetics WT-loss warnings too (not just gnomAD)."""
+    fired = [{"rule_id": "gene-burden-lof-safety-warning"},
+             {"rule_id": "activating-driver-role-safety-context"},
+             {"rule_id": "oncogene-role-safety-context"},
+             {"rule_id": "functional-gene-state-rarely-altered-neutral"}]
+    assert _sf._verdict(fired)[0] == "human_genetics_safety_concern"
+    assert _sf.safety_verdict_by_modality(fired)["small_molecule"]["action"] == "hold"  # disqualified

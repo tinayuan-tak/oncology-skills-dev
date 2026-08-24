@@ -120,8 +120,12 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 
 
 # ── the four curated fixtures (pair_id, target, indication, expected_verdict) ─────────────────────
-BRAF = ("braf_coadread", "BRAF", "COADREAD", "wt_constraint_mechanism_mismatch")
-EGFR = ("egfr_coadread", "EGFR", "COADREAD", "wt_human_genetics_mechanism_mismatch")
+# RETIRED 2026-08-24: the scalar mutant-selective downgrade is gone — the resolver now emits the RAW
+# WT-loss concern for a GoF driver; the modality-conditional downgrade moved to the per-modality safety
+# verdict + tp_gates exists-safe-modality. So BRAF/EGFR now resolve to the raw concern (and are re-rescued
+# at the gate via small_molecule=conditional — see test_gof_driver_rescued_by_per_modality_verdict).
+BRAF = ("braf_coadread", "BRAF", "COADREAD", "highly_constrained_safety_concern")
+EGFR = ("egfr_coadread", "EGFR", "COADREAD", "human_genetics_safety_concern")
 TP53 = ("tp53_coadread", "TP53", "COADREAD", "highly_constrained_safety_concern")
 VHL  = ("vhl_coadread",  "VHL",  "COADREAD", "human_genetics_safety_concern")
 # (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven. Unlike the
@@ -167,23 +171,27 @@ def test_verdict_matches_expected(pair_id, target, indication, expected):
 
 @pytest.mark.parametrize("pair_id,target,indication,expected", DOWNGRADE,
                          ids=[p[1].lower() for p in DOWNGRADE])
-def test_gof_driver_gets_mutant_selective_downgrade(pair_id, target, indication, expected):
-    """CROWN-JEWEL GUARD (silent downgrade-death → false safety HOLD): a GoF activating driver with a
-    WT-loss warning must resolve to a *_mechanism_mismatch downgrade, driven by the alteration-role
-    activating context. If alteration-role's functional_direction reader drifts, the downgrade dies and
-    the target reads as a raw safety concern (a false nomination HOLD) — this test goes red."""
+def test_gof_driver_rescued_by_per_modality_verdict(pair_id, target, indication, expected):
+    """CROWN-JEWEL GUARD (post role-proxy retirement, 2026-08-24). A point-mutation GoF activating driver
+    with a WT-loss warning now resolves to the RAW safety concern at the scalar (the scalar downgrade was
+    retired) — and the allele-selective escape lives in the PER-MODALITY verdict: small_molecule=conditional
+    (a mutant-selective agent spares WT), which tp_gates exists-safe-modality consumes to clear the hold.
+    If the eligibility wiring drifts, small_molecule reads 'hold' and the raw concern becomes a false
+    nomination HOLD — this test goes red (the same failure the old downgrade guarded, one layer over)."""
     d = _decision(pair_id, target, indication)
     h = d.get("headline") or {}
-    assert h.get("safety_verdict") in _MISMATCH, (
-        f"{target} resolved {h.get('safety_verdict')!r}, not a mutant-selective downgrade — the "
-        f"activating-driver-role-safety-context rule stopped firing (alteration-role reader drift → "
-        f"a GoF driver would nominate as a full WT-loss safety liability).")
+    assert h.get("safety_verdict") in _CONCERNS, (
+        f"{target} resolved {h.get('safety_verdict')!r}, expected the raw WT-loss concern post-retirement.")
     assert h.get("alteration_functional_direction") == "activating", (
         f"{target} alteration_functional_direction={h.get('alteration_functional_direction')!r}, "
-        f"expected 'activating' — the fixture no longer exercises the downgrade; re-curate/refreeze.")
-    assert h.get("mechanism_conditioning_note"), (
-        f"{target} resolved a *_mechanism_mismatch downgrade but carries no mechanism_conditioning_note "
-        f"(the Guard-A note-parity contract).")
+        f"expected 'activating' — the fixture no longer exercises the GoF path; re-curate/refreeze.")
+    vbm = h.get("safety_verdict_by_modality") or {}
+    assert vbm.get("small_molecule", {}).get("action") == "conditional", (
+        f"{target} (point-mutation GoF) small_molecule={vbm.get('small_molecule')!r}, expected 'conditional' "
+        f"— the allele-selective escape; without it exists-safe-modality can't clear the raw concern → "
+        f"false nomination HOLD.")
+    assert vbm.get("degrader", {}).get("action") == "hold", (
+        f"{target} degrader={vbm.get('degrader')!r}, expected 'hold' — a degrader depletes WT.")
 
 
 @pytest.mark.parametrize("pair_id,target,indication,expected", CONCERN,
@@ -222,14 +230,20 @@ def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
     assert v not in _MISMATCH, (
         f"ERBB2 was mutant-selectively DOWNGRADED to {v!r} despite being amplification-driven — the "
         f"S1-1 amplification guard is not firing (the leak this test exists to catch).")
-    # It IS an activating oncogene (that's the point — activating+oncogene+amplified → held, not downgraded).
+    # It IS an activating oncogene (that's the point — activating+oncogene+amplified → held, not rescued).
     assert h.get("alteration_functional_direction") == "activating", (
         f"ERBB2 alteration_functional_direction={h.get('alteration_functional_direction')!r}, expected "
-        f"'activating' — the fixture no longer exercises the amplification-guard-over-downgrade path.")
-    assert h.get("driving_rule_id") == "copy-number-amplified-oncogene-safety-context", (
-        f"ERBB2 hold driving_rule_id={h.get('driving_rule_id')!r}, expected the amplification guard rule "
-        f"(the GROUP-0 rung that kept the hold).")
-    # A HOLD, not a downgrade → no mechanism-conditioning note.
+        f"'activating' — the fixture no longer exercises the amplification path.")
+    # POST-RETIREMENT (2026-08-24): the GROUP-0 amplification guard rung is gone; the amplification logic now
+    # lives in the per-modality verdict via the allele-selective DISQUALIFIER (copy-number-amplified /
+    # rarely-altered). ERBB2 is amplification-driven → NO selectable point mutation → small_molecule=hold
+    # (NOT conditional), so exists-safe-modality does NOT rescue it and the WT-loss HOLD correctly stands.
+    vbm = h.get("safety_verdict_by_modality") or {}
+    assert vbm.get("small_molecule", {}).get("action") == "hold", (
+        f"ERBB2 (amplification-driven) small_molecule={vbm.get('small_molecule')!r}, expected 'hold' — a "
+        f"'conditional' (allele-selective escape) would let exists-safe-modality FALSELY clear the hold "
+        f"(the S1-1 amplification-guard regression, now guarded at the per-modality layer).")
+    # A raw HOLD, not a downgrade → no mechanism-conditioning note.
     assert h.get("mechanism_conditioning_note") is None
 
 

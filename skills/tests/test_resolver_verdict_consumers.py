@@ -70,8 +70,12 @@ def test_dependency_verdicts_are_exhaustively_classified():
 def test_safety_mechanism_mismatch_set_matches_resolver():
     saf = _load_skill_run("on-target-safety-liability")
     by_name = {v for v in _SAF if "mechanism_mismatch" in v}
-    assert by_name, "expected at least one *_mechanism_mismatch verdict in safety.resolver.yaml"
-    assert set(saf._MECHANISM_MISMATCH_VERDICTS) == by_name, (
-        f"_MECHANISM_MISMATCH_VERDICTS {set(saf._MECHANISM_MISMATCH_VERDICTS)} != the resolver's "
-        f"*_mechanism_mismatch verdicts {by_name}. A mutant-selective downgrade verdict would "
-        f"silently lose its mechanism-conditioning note (incl. the conditionality caveat).")
+    # RETIRED 2026-08-24 (VERDICT_REPRESENTATION.md Layer-2b/3): the role-proxy scalar mutant-selective
+    # downgrade was removed from safety.resolver.yaml — the resolver emits the raw WT-loss concern and
+    # the modality-conditional downgrade moved to tp_gates exists-safe-modality. Guard now asserts the
+    # resolver emits ZERO *_mechanism_mismatch verdicts and the consumer set is correspondingly empty.
+    assert not by_name, (
+        f"expected ZERO *_mechanism_mismatch verdicts post-retirement, found {by_name} — a scalar "
+        f"role-proxy downgrade has crept back; modality-conditionality belongs in the per-modality verdict.")
+    assert set(saf._MECHANISM_MISMATCH_VERDICTS) == by_name == set(), (
+        f"_MECHANISM_MISMATCH_VERDICTS {set(saf._MECHANISM_MISMATCH_VERDICTS)} must be empty post-retirement.")

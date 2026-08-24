@@ -160,10 +160,11 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 # `_mechanism_mismatch`; the Guard-A test (skills/tests/test_resolver_verdict_consumers.py) asserts
 # this set == the resolver's *_mechanism_mismatch verdicts, so a new downgrade verdict can't
 # silently lose its note (the wt_human_genetics_mechanism_mismatch bug).
-_MECHANISM_MISMATCH_VERDICTS = frozenset({
-    "wt_constraint_mechanism_mismatch",
-    "wt_human_genetics_mechanism_mismatch",
-})
+# RETIRED 2026-08-24 (VERDICT_REPRESENTATION.md Layer-2b/3): the resolver no longer emits a scalar
+# mutant-selective downgrade — the modality-conditional downgrade moved to the per-modality safety
+# verdict (safety_verdict_by_modality) + tp_gates exists-safe-modality logic. Empty set; Guard-A
+# (test_resolver_verdict_consumers) now asserts the resolver emits ZERO *_mechanism_mismatch verdicts.
+_MECHANISM_MISMATCH_VERDICTS = frozenset()
 
 
 # ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
@@ -188,9 +189,8 @@ _SAFETY_VERDICT_PHRASE = {
     "human_genetics_safety_concern":         "Human-genetics safety concern",
     "pan_essential_broad_tox_concern":       "Pan-essential — broad-tox safety concern",
     "normal_tissue_protein_safety_concern":  "Essential-tissue protein — safety concern",
-    # mutant-selective DOWNGRADES — the WT-loss concern is nullified for an allele-selective agent
-    "wt_constraint_mechanism_mismatch":      "WT-constraint concern downgraded (mutant-selective)",
-    "wt_human_genetics_mechanism_mismatch":  "Human-genetics concern downgraded (mutant-selective)",
+    # (mutant-selective downgrade RETIRED 2026-08-24 — modality-conditionality now in the per-modality
+    #  safety verdict + tp_gates exists-safe-modality; the resolver emits the raw concern, no mismatch token)
     # tolerant / reduced-risk
     "tolerant_reduced_safety_risk":          "LoF-tolerant — reduced safety risk",
     # equivocal mid-band + gaps
@@ -207,7 +207,7 @@ _SAFETY_CONCERN_VERDICTS = frozenset({
 })
 _SAFETY_REASSURING_VERDICTS = frozenset({
     "tolerant_reduced_safety_risk",
-    "wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch",
+    # (mutant-selective mismatch downgrades RETIRED 2026-08-24 — see _MECHANISM_MISMATCH_VERDICTS)
 })
 
 

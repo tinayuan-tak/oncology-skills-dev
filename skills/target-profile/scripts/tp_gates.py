@@ -22,6 +22,25 @@ if _SCRIPTS_DIR not in sys.path:
 
 from tp_common import _CONTRACTS_REPO
 
+# Skills root on path for the shared per-modality safety transform (VERDICT_REPRESENTATION.md L2b/3).
+_SKILLS_ROOT = str(Path(__file__).resolve().parents[2])
+if _SKILLS_ROOT not in sys.path:
+    sys.path.insert(0, _SKILLS_ROOT)
+from _skills_common.modality_safety import safety_verdict_by_modality
+
+# The WT-loss / full-KO safety concerns the resolver now emits RAW (the role-proxy scalar downgrade
+# was retired 2026-08-24). exists-safe-modality re-applies the modality-conditional downgrade at the
+# gate: a concern is cleared when the per-modality safety verdict shows an admissible safe channel.
+_SAFETY_WT_LOSS_CONCERNS = frozenset({
+    "highly_constrained_safety_concern", "human_genetics_safety_concern",
+    "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",
+})
+# Only an allele-selective escape (small_molecule=conditional) clears a fired WT-loss concern — matching
+# the retired resolver downgrade's GoF-only scope (behavior-preserving). 'no_concern'/'not_applicable'/
+# 'supportive' never legitimately co-occur with a fired concern; excluding them also stops a minimal/empty
+# fired list from spuriously clearing a real hold (fail-closed).
+_SAFETY_SAFE_ACTIONS = frozenset({"conditional"})
+
 
 
 
@@ -365,6 +384,22 @@ def _suppressed_gate_hits(
                 if modality in set(m.get("when_modality_in", [])):
                     suppressed_by = {"kind": "modality_scoped", "modality": modality}
                     break
+        # (B2) EXISTS-SAFE-MODALITY (safety WT-loss concern). The resolver emits the raw WT-loss concern;
+        # the modality-conditional downgrade lives here. Compute the per-modality safety verdict from the
+        # safety sub-skill's fired rules. Suppress the hold when a safe channel is admissible:
+        #   --modality specified → THAT channel's action must be safe (a degrader run keeps the hold);
+        #   enumerate-all        → ANY applicable channel safe (an allele-selective SM exists) clears it.
+        # Non-GoF constrained targets (all channels hold) are NOT cleared → the hold correctly stands.
+        if suppressed_by is None and h["short"] == "safety" and h["verdict"] in _SAFETY_WT_LOSS_CONCERNS:
+            _sfired = (sub_results.get("safety") or {}).get("fired") or []
+            _vbm = safety_verdict_by_modality(_sfired, str(contracts_repo) if contracts_repo else None)
+            if modality:
+                _safe = _vbm.get(modality, {}).get("action") in _SAFETY_SAFE_ACTIONS
+                _chans = [modality] if _safe else []
+            else:
+                _chans = sorted(ch for ch, c in _vbm.items() if c["action"] in _SAFETY_SAFE_ACTIONS)
+            if _chans:
+                suppressed_by = {"kind": "exists_safe_modality", "safe_channels": _chans}
         if suppressed_by:
             suppressions.append({**h, "suppressed_by": suppressed_by, "policy_source": src})
             continue

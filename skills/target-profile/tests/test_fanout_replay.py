@@ -142,17 +142,18 @@ def test_genomic_fdr_path_and_safety_downgrade_fire_in_the_fanout():
     """CROWN-JEWEL (genomic + safety in the composed path): for KRAS the fan-out must
       - resolve genomic_alteration to biomarker_stratified_dependency (the family-wise-FDR
         preprocess path — preprocess_cards_for_gate runs in _one_sub_skill before firing), and
-      - resolve safety to wt_constraint_mechanism_mismatch (the mutant-selective downgrade — proving
-        alteration-role reaches the safety gate in the fan-out; the 2026-07-24 SUB_SKILL_CARDS bugfix).
+      - resolve safety to the RAW highly_constrained_safety_concern (the scalar mutant-selective downgrade
+        was RETIRED 2026-08-24 — the modality-conditional downgrade moved to the per-modality safety verdict
+        + tp_gates exists-safe-modality; that alteration-role reaches the gate is now guarded by
+        test_safety_replay.test_gof_driver_rescued_by_per_modality_verdict + test_exists_safe_modality).
     A reader/scoping drift on either path changes these in the composed profile with no other offline guard."""
     v = _fan_out(*KRAS)
     assert v["genomic_alteration"] == "biomarker_stratified_dependency", (
         f"fan-out genomic_alteration={v['genomic_alteration']!r} for KRAS, expected "
         f"biomarker_stratified_dependency (the G1 FDR-preprocessed fan-out path).")
-    assert v["safety"] == "wt_constraint_mechanism_mismatch", (
-        f"fan-out safety={v['safety']!r} for KRAS, expected wt_constraint_mechanism_mismatch — the "
-        f"mutant-selective downgrade stopped firing in the fan-out (alteration-role not reaching the "
-        f"safety gate — the 2026-07-24 fan-out bugfix regressed).")
+    assert v["safety"] == "highly_constrained_safety_concern", (
+        f"fan-out safety={v['safety']!r} for KRAS, expected the raw highly_constrained_safety_concern "
+        f"(post role-proxy retirement; the modality-conditional downgrade is now at the gate).")
 
 
 def test_unfrozen_sub_skills_degrade_to_insufficient():
