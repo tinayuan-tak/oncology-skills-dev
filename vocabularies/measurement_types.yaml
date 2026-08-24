@@ -1138,6 +1138,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: literature-snapshot, evidence_tier: inferred}   # iter-1b literature-mining surface (placeholder-ish)
 
+  competitor_landscape:
+    # WIRED 2026-08-24 — the competitive-positioning lens. From the pinned Open Targets mirror
+    # (opentargets-26-06 drugAndClinicalCandidates), per (target, indication): who else has a drug
+    # against this target, at what MODALITY (ADC/TCE/mAb/SM/degrader — inferred in the method), and
+    # at what clinical stage (approved / active-clinical / early / none). ADDITIVE / verdict-inert
+    # (composes into differentiation-landscape alongside clinical-precedent, feeds no resolver rung);
+    # the cross-ref vs the framework's own modality-fit/biomarker verdicts is a synthesis-layer step.
+    claim: "Who else is developing a drug against this target, at what modality, and how far did they get (competitor field)?"
+    entity_grains: [target_indication]
+    cards: [competitor-landscape]
+    providers:
+      - {kind: dataset, source: opentargets-26-06, evidence_tier: measured}
+
   functional_blockade_rationale:
     claim: "Does binding the target produce a functional consequence (receptor antagonism / ligand sequestration / dimerization blockade) supporting a naked-antibody blockade rationale?"
     entity_grains: [target_indication]

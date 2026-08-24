@@ -10,7 +10,12 @@
 # See IDAS_SUBTYPE_PIPELINE.md master design + parent plan
 # .claude/plans/deep-foraging-thompson.md Phase 1.
 
-version: 1.1.0   # 1.1.0 (2026-08-21): + mesh_terms lane per indication — the OncoTree/canonical ->
+version: 1.2.0   # 1.2.0 (2026-08-24): + efo_ids lane per indication — OncoTree/canonical -> Open
+                 # Targets EFO/MONDO disease ids, the filter the competitor-landscape card uses to
+                 # scope Open Targets drugAndClinicalCandidates rows to an indication. Ids grounded
+                 # in the OT 26.06 disease vocabulary, intersected with the competitor product's
+                 # disease_id universe. Additive; all prior fields unchanged.
+                 # 1.1.0 (2026-08-21): + mesh_terms lane per indication — the OncoTree/canonical ->
                  # MeSH (ClinicalTrials.gov browse_conditions.downcase_mesh_term) crosswalk that lets a
                  # method filter the AACT trial-precedent product to an indication. Curated from the
                  # AACT 2026-07 condition vocabulary. Additive; all prior fields unchanged.
@@ -25,6 +30,7 @@ indications:
   # ===== GI-lower (standalone bucket) =====
   - canonical_code: COADREAD
     mesh_terms: ["colorectal neoplasms", "colonic neoplasms", "rectal neoplasms"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0002032, MONDO_0002169, MONDO_0002271, MONDO_0005008, MONDO_0005575, MONDO_0024331, MONDO_0044937]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Colorectal Cancer (CRC)"
     strategic_bucket: GI-lower
     oncotree_code: COADREAD
@@ -41,6 +47,7 @@ indications:
   # ===== Thoracic bucket =====
   - canonical_code: NSCLC
     mesh_terms: ["carcinoma, non-small-cell lung", "adenocarcinoma of lung", "lung neoplasms"]   # AACT MeSH (lung neoplasms = NSCLC-dominant parent)
+    efo_ids: [EFO_0005288, MONDO_0005061, MONDO_0005097, MONDO_0005233]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Non-Small Cell Lung Cancer"
     strategic_bucket: Thoracic
     oncotree_code: NSCLC
@@ -59,6 +66,7 @@ indications:
 
   - canonical_code: SCLC
     mesh_terms: ["small cell lung carcinoma", "carcinoma, small cell"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0008433]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Small Cell Lung Cancer"
     strategic_bucket: Thoracic
     oncotree_code: SCLC
@@ -77,6 +85,7 @@ indications:
 
   - canonical_code: HNSC
     mesh_terms: ["head and neck neoplasms", "squamous cell carcinoma of head and neck"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0005627, MONDO_0010150]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Head & Neck Cancer"
     strategic_bucket: Thoracic
     oncotree_code: HNSC
@@ -93,6 +102,7 @@ indications:
   # ===== GI-upper bucket =====
   - canonical_code: STAD
     mesh_terms: ["stomach neoplasms"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0001056, MONDO_0004950, MONDO_0005036]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Gastric Cancer"
     strategic_bucket: GI-upper
     oncotree_code: STAD
@@ -111,6 +121,7 @@ indications:
 
   - canonical_code: ESCA
     mesh_terms: ["esophageal neoplasms", "adenocarcinoma of esophagus", "esophageal squamous cell carcinoma"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0005028, MONDO_0005580, MONDO_0007576, MONDO_0019086]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Esophageal Cancer"
     strategic_bucket: GI-upper
     oncotree_code: ESCA  # (contains both ESCC and EAC — histology stratum distinguishes)
@@ -129,6 +140,7 @@ indications:
 
   - canonical_code: PAAD
     mesh_terms: ["carcinoma, pancreatic ductal", "pancreatic neoplasms"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0005184, MONDO_0005192, MONDO_0006047, MONDO_0009831]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Pancreatic Ductal Adenocarcinoma (PDAC)"
     strategic_bucket: GI-upper
     oncotree_code: PAAD
@@ -144,6 +156,7 @@ indications:
   # ===== Heme bucket =====
   - canonical_code: AML
     mesh_terms: ["leukemia, myeloid, acute"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0018874]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Acute Myeloid Leukemia"
     strategic_bucket: Heme
     oncotree_code: AML
@@ -159,6 +172,7 @@ indications:
 
   - canonical_code: CML
     mesh_terms: ["leukemia, myelogenous, chronic, bcr-abl positive", "leukemia, myeloid, chronic-phase"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0011996]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Chronic Myeloid Leukemia"
     strategic_bucket: Heme
     oncotree_code: CML
@@ -181,6 +195,7 @@ indications:
   #   beyond the iter-1 nine; these carry full TCGA/DepMap/GTEx lanes for on-demand full-axis use. =====
   - canonical_code: BRCA
     mesh_terms: ["breast neoplasms", "triple negative breast neoplasms", "inflammatory breast neoplasms"]
+    efo_ids: [MONDO_0004989, MONDO_0005494, MONDO_0007254]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Breast Cancer"
     strategic_bucket: Breast
     oncotree_code: BRCA
@@ -194,6 +209,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion). CPTAC brca cohort available."
   - canonical_code: PRAD
     mesh_terms: ["prostatic neoplasms", "prostatic neoplasms, castration-resistant"]
+    efo_ids: [MONDO_0005082, MONDO_0005159, MONDO_0008315]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Prostate Adenocarcinoma"
     strategic_bucket: GU
     oncotree_code: PRAD
@@ -207,6 +223,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: OV
     mesh_terms: ["ovarian neoplasms", "carcinoma, ovarian epithelial"]
+    efo_ids: [EFO_1001958, MONDO_0005140, MONDO_0005211, MONDO_0008170]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Ovarian Cancer"
     strategic_bucket: GYN
     oncotree_code: OV
@@ -220,6 +237,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion). CPTAC ov cohort available."
   - canonical_code: GBM
     mesh_terms: ["glioblastoma"]
+    efo_ids: [MONDO_0018177]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Glioblastoma"
     strategic_bucket: CNS
     oncotree_code: GBM
@@ -233,6 +251,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion). CPTAC gbm cohort available. mesh_terms glioblastoma-specific (contrast LGG)."
   - canonical_code: LGG
     mesh_terms: ["glioma", "oligodendroglioma", "astrocytoma"]
+    efo_ids: [MONDO_0016695, MONDO_0019781, MONDO_0021637]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Low-Grade Glioma"
     strategic_bucket: CNS
     oncotree_code: LGG
@@ -246,6 +265,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion). 'glioma' is the umbrella MeSH term (may include GBM-tagged trials)."
   - canonical_code: SKCM
     mesh_terms: ["melanoma", "melanoma, cutaneous malignant", "uveal melanoma"]
+    efo_ids: [MONDO_0005012, MONDO_0005105]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Skin Cutaneous Melanoma"
     strategic_bucket: Skin
     oncotree_code: SKCM
@@ -259,6 +279,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: BLCA
     mesh_terms: ["urinary bladder neoplasms", "carcinoma, transitional cell"]
+    efo_ids: [MONDO_0004986, MONDO_0005611, MONDO_0006474, MONDO_0040679]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Bladder Urothelial Carcinoma"
     strategic_bucket: GU
     oncotree_code: BLCA
@@ -272,6 +293,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: KIRC
     mesh_terms: ["carcinoma, renal cell", "kidney neoplasms"]
+    efo_ids: [MONDO_0002367, MONDO_0005005, MONDO_0005086, MONDO_0005549]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Kidney Renal Clear Cell Carcinoma"
     strategic_bucket: GU
     oncotree_code: KIRC
@@ -285,6 +307,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion). CPTAC ccrcc cohort available. 'kidney neoplasms' broadens beyond clear-cell (precedent recall)."
   - canonical_code: LIHC
     mesh_terms: ["carcinoma, hepatocellular", "liver neoplasms"]
+    efo_ids: [MONDO_0002691, MONDO_0007256]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Hepatocellular Carcinoma"
     strategic_bucket: GI-upper
     oncotree_code: LIHC
@@ -298,6 +321,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: CESC
     mesh_terms: ["uterine cervical neoplasms"]
+    efo_ids: [MONDO_0002974, MONDO_0005131]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Cervical Cancer"
     strategic_bucket: GYN
     oncotree_code: CESC
@@ -311,6 +335,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion)."
   - canonical_code: UCEC
     mesh_terms: ["endometrial neoplasms", "uterine neoplasms"]
+    efo_ids: [MONDO_0002447, MONDO_0002715, MONDO_0005461, MONDO_0006003, MONDO_0011962]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Uterine Corpus Endometrial Carcinoma"
     strategic_bucket: GYN
     oncotree_code: UCEC
@@ -324,6 +349,7 @@ indications:
     notes: "Added 2026-08-21 (coverage expansion). CPTAC ucec cohort available."
   - canonical_code: DLBC
     mesh_terms: ["lymphoma, large b-cell, diffuse", "lymphoma, b-cell"]
+    efo_ids: [MONDO_0018905]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Diffuse Large B-Cell Lymphoma"
     strategic_bucket: Heme
     oncotree_code: DLBCL

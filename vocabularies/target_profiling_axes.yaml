@@ -523,6 +523,11 @@ skill_objectives:
       # Clinical-trial precedent (2026-08-21): the objective's "precedent" arm, now BUILT via
       # public-domain AACT (clinical-precedent card, generic-dispatched). Verdict-inert render facet.
       - {q: "Clinical-trial precedent — has a drug that ENGAGES the target been trialed in this indication (highest stage / approved agents / notable failures)?", answered_by: [clinical-precedent]}
+      # Competitor landscape (2026-08-24): the objective's "competitive positioning" arm, BUILT via the
+      # pinned Open Targets mirror (competitor-landscape card). WHO ELSE is developing a drug against
+      # the target, at what MODALITY + clinical stage. Verdict-inert render facet; the cross-ref vs the
+      # framework's own modality-fit is computed at the target-profile fan-out (competitor_crossref).
+      - {q: "Competitor landscape — who else is developing a drug against the target, at what modality and clinical stage (crowded vs white-space)?", answered_by: [competitor-landscape]}
   - skill: target-intrinsic
     objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
     primary_axis: null

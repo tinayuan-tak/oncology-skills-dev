@@ -1,0 +1,84 @@
+# Card — COMPETITOR LANDSCAPE (WIRED 2026-08-24, Open Targets)
+# The framework's competitive-positioning lens: for {target} in {indication}, WHO ELSE is developing
+# a drug against this target, at what MODALITY (ADC / TCE / mAb / small-molecule / degrader / ...),
+# and how far did they get (approved / active-clinical / early / none)?
+#
+# WIRED to the pinned Open Targets mirror (opentargets-26-06, CC0) via the
+# opentargets_competitor_landscape method, which reads the derived
+# opentargets-target-competitor-drugs-per-gene-v1 rollup (== the GraphQL Target.drugAndClinicalCandidates
+# field, composed from clinical_target x clinical_indication x drug_molecule x drug_mechanism_of_action
+# x drug_warning), maps the OncoTree indication -> EFO/MONDO ids via indication_crosswalk.efo_ids, and
+# CLASSIFIES each competitor drug's therapeutic modality from drugType + mechanism-of-action + the union
+# of engaged targets (a CD3/effector-engaging antibody = TCE; 'Antibody drug conjugate' = ADC).
+#
+# ADDITIVE / VERDICT-INERT (like clinical-precedent): this card reports the raw competitor field; it
+# feeds NO resolver rung and does not move the differentiation verdict. The value-add cross-reference
+# (crowded-vs-whitespace, validated-vs-contrarian modality, differentiation hooks) — which compares
+# this competitor field against the framework's OWN modality-fit + biomarker verdicts — is computed at
+# the composed target-profile synthesis layer, since a single card cannot consume sibling sub-verdicts.
+
+card_id: competitor-landscape
+version: 1.0.0
+status: wired
+question: "Who is developing a drug against {target.symbol} {context.modality if specified else 'across modalities'} in {indication.label}, at what modality and clinical stage?"
+
+applies_when: []                                # always applies; degrades to no_known_competitor / insufficient off-scope
+
+required_inputs:
+  - product_id: opentargets-target-competitor-drugs-per-gene-v1
+
+methods:
+  - call: opentargets-competitor-landscape
+    module: opentargets_competitor_landscape   # generic-dispatch wiring (no bespoke _dispatch_* needed);
+    entrypoint: read_competitor_landscape       # read_live_summary -> _generic_dispatch calls fn(target=, indication=)
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      modality: "{context.modality}"
+
+outputs:
+  summary_fields:
+    - competitor_class
+    - highest_clinical_stage
+    - approved_agents
+    - late_stage_non_approved_agents
+    - withdrawn_agents
+    - modalities_in_development
+    - modality_landscape
+    - n_competitor_programs
+    - indication_scope
+  summary_fields_vocabulary:
+    competitor_class:
+      - approved_competitor
+      - active_clinical_competitor
+      - early_or_preclinical_competitor
+      - no_known_competitor
+      - insufficient
+    indication_scope:
+      - indication
+      - target_level
+  figure: competitor_landscape_table
+  plot_data: per_program_competitor_state
+
+interpretation_hints:
+  - if: "competitor_class == 'approved_competitor'"
+    call: "crowded — an approved competitor already exists"
+  - if: "competitor_class == 'active_clinical_competitor'"
+    call: "contested — active clinical-stage competitor programs"
+  - if: "competitor_class == 'early_or_preclinical_competitor'"
+    call: "emerging — only early / preclinical competitor programs"
+  - if: "competitor_class == 'no_known_competitor'"
+    call: "white space — no drug in the Open Targets clinical-candidate field"
+  - if: "competitor_class == 'insufficient' || competitor_class == null"
+    call: "insufficient — target not resolvable"
+
+caveats:
+  - "Competitor field = Open Targets drugAndClinicalCandidates (ChEMBL clinical candidates + approved drugs), pinned to release 26.06 (as_of). It does NOT cover undisclosed / preclinical-only / patent-stage assets — no_known_competitor means 'none in the OT clinical field', not 'undrugged'."
+  - "Therapeutic modality (ADC/TCE/mAb/SM/...) is INFERRED in the method from drugType + mechanism-of-action + engaged-target set (a CD3-engaging antibody = TCE); OT's own drugType is coarser."
+  - "Indication scope needs an efo_ids lane in indication_crosswalk.yaml; an off-crosswalk indication degrades to the TARGET-LEVEL competitor field (indication_scope=target_level), still useful but not indication-precise. late_stage_non_approved_agents are CANDIDATE failures (reached >=PHASE_2, never approved), not asserted failures; only marketed-then-withdrawn drugs are flagged withdrawn."
+  - "Open Targets Platform is CC0 1.0 (public domain). This is a competitive-CONTEXT lens; it is verdict-inert (feeds no nomination gate)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `competitor_landscape` claim.
+measurement_type: competitor_landscape
+entity_grains: [target_indication]
+schema_version: 1
