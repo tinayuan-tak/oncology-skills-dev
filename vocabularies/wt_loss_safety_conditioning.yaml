@@ -1,0 +1,53 @@
+# wt_loss_safety_conditioning.yaml
+# Layer-1 of docs/design/VERDICT_REPRESENTATION.md — the per-signal modality-relevance
+# the WT-loss / full-knockout safety concern conditions on.
+#
+# WHY THIS EXISTS
+# ---------------
+# A set of safety rules paint the intracellular channels {small_molecule, degrader} UNIFORMLY
+# (e.g. highly-constrained-safety-warning => {small_molecule: opposing, degrader: opposing}).
+# That is wrong: a WT-loss-of-function safety liability applies to an agent ONLY insofar as the
+# agent depletes/fully-inhibits WILD-TYPE protein. An allele/mutant-selective small molecule
+# (G12C covalent, mutant-selective glue) SPARES WT and nullifies the concern; a degrader / RNA /
+# pan-inhibitor ENGAGES WT and the concern stands. The interpretation_rules schema is
+# unevaluatedProperties:false, so this conditioning is recorded here (a curated sidecar, like
+# internalizing_antigen_targets.yaml / degrader_precedent_targets.yaml) rather than as a rule field.
+#
+# HOW LAYER-2 CONSUMES IT (composition; not yet wired)
+# ----------------------------------------------------
+# For each modality channel a listed rule fires on, cross the rule's concern against the channel's
+# wt_engagement (from modality.enum.yaml):
+#   engages_wt     -> concern APPLIES  (signal stands: opposing/killer)
+#   conditional    -> concern applies to WT-engaging agents; surface a caveat that an
+#                     allele-selective agent spares WT (agent-level, resolved at program time)
+#   not_applicable -> concern does NOT apply (drop the signal for that channel)
+# protective_rules invert: an LoF-population-protective signal means full-KO (engages_wt) is
+# SUPPORTIVE (safety-de-risking), most informative for engages_wt modalities.
+#
+# This REPLACES the GoF-role-proxy heuristic in safety.resolver.yaml (the 6 rungs emitting
+# wt_constraint_mechanism_mismatch / wt_human_genetics_mechanism_mismatch), which fakes
+# allele-selectivity from alteration-role instead of from the actual modality.
+
+vocab_id: wt_loss_safety_conditioning
+version: 1.0.0
+conditioning_property: wt_engagement    # defined in modality.enum.yaml
+
+# WT-loss / full-KO liabilities: opposing for engages_wt agents; nullified by allele-selectivity.
+concern_rules:
+  - highly-constrained-safety-warning              # gnomAD LoF-constraint (highly_constrained)
+  - gene-burden-lof-safety-warning                 # OT gene-burden LoF risk phenotype
+  - clingen-dominant-loss-safety-warning           # ClinGen autosomal-dominant haploinsufficiency
+  - mouse-ko-lethal-safety-warning                 # mouse adult-KO lethal (inferred)
+  - clinvar-germline-pathogenic-safety-warning     # ClinVar germline pathogenic
+  - pan-essential-broad-tox-safety-warning         # DepMap common-essential broad normal-tissue tox
+  - pan-essential-killer                           # pan-essential CRISPR (broad tox for full inhibition/degradation)
+  - rnai-pan-essential-killer                      # pan-essential RNAi (orthogonal broad tox)
+  - normal-tissue-protein-liability-safety-warning # HPA-IHC essential-tissue protein (on-target-off-tumor for full-KO)
+
+# INVERTED: LoF is population-protective => full knockout is safety-DE-RISKING (supportive),
+# most informative for engages_wt modalities (degrader / RNA / pan-inhibitor).
+protective_rules:
+  - gene-burden-protective-favorable
+
+# NOTE (curation discipline): every rule_id above must exist in interpretation-rules/*.rules.yaml.
+# tests/vocabularies/test_wt_loss_safety_conditioning.py asserts this (guards against rule renames).
