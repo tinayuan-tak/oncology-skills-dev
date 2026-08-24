@@ -114,10 +114,8 @@
           "description": "Cohort / assay power behind the finding."
         },
         "corroboration": {
-          "oneOf": [
-            {"enum": ["single", "corroborated", "contradicted", "unmeasured"]}
-          ],
-          "description": "Independent, VERDICT-DISJOINT corroboration (corroborator card must not be in the axis's verdict-precedence set — disjointness invariant). 'unmeasured' where no disjoint corroborator exists yet (safety/tractability/differentiation)."
+          "enum": ["low", "medium", "high", "unmeasured"],
+          "description": "Ordinal strength of independent, VERDICT-DISJOINT corroboration (corroborator card must not be in the axis's verdict-precedence set — disjointness invariant), matching the SHIPPED CERTAINTY_MODEL.md certainty emitted by every _strength_certainty hook: high = corroborated, low = contradicted/thin, 'unmeasured' where no disjoint corroborator exists yet (safety/tractability/differentiation)."
         },
         "unknown_mass": {
           "type": "number",

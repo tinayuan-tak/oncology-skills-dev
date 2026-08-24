@@ -20,9 +20,9 @@ modality_scope:
   small_molecule: favorable
   biologics: favorable
 certainty:
-  level: high                         # == min(coverage=high, corroboration_rung=high)
+  level: high                         # <= min(coverage=high, corroboration=high)  (downgrade-only)
   coverage: high
-  corroboration: corroborated
+  corroboration: high                 # ordinal CERTAINTY_MODEL vocabulary (high = corroborated)
   unknown_mass: 0.0
   strength: multi_class_driver
 provenance:

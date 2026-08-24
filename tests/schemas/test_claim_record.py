@@ -94,19 +94,28 @@ def test_no_resolver_axis_is_unchecked_not_error():
     assert "expression" in r.unchecked_axes
 
 
-# ---------- invariant D: certainty.level == min(coverage, corroboration) ----------
+# ---------- invariant D: certainty.level <= ordinal min(coverage, corroboration), DOWNGRADE-ONLY ----------
 
-def test_unmeasured_corroboration_level_equals_coverage():
+def test_unmeasured_corroboration_level_bounded_by_coverage():
     rec = _load("claim_record.safety.example.yaml")           # coverage=medium, corrob=unmeasured
     bad = copy.deepcopy(rec)
-    bad["certainty"]["level"] = "high"                        # != coverage (medium)
+    bad["certainty"]["level"] = "high"                        # high > coverage (medium) — over-claim
     r = _run_one(bad)
     assert not r.ok and any("CERTAINTY_LEVEL" in e for e in r.errors)
 
 
-def test_corroborated_level_is_ordinal_min():
-    rec = _load("claim_record.genomic_alteration.example.yaml")  # high/high/corroborated => high
+def test_level_may_not_exceed_ordinal_min():
+    rec = _load("claim_record.genomic_alteration.example.yaml")  # high/high/high => high
     bad = copy.deepcopy(rec)
     bad["certainty"]["coverage"] = "low"                        # min(low, high) = low, but level says high
     r = _run_one(bad)
     assert not r.ok and any("CERTAINTY_LEVEL" in e for e in r.errors)
+
+
+def test_downgrade_below_min_is_allowed():
+    # a skill may legitimately downgrade level BELOW the min (e.g. 'low' on a none-verdict) — not an error
+    rec = _load("claim_record.genomic_alteration.example.yaml")  # coverage=high, corrob=high
+    ok = copy.deepcopy(rec)
+    ok["certainty"]["level"] = "low"                             # downgrade — allowed
+    r = _run_one(ok)
+    assert r.ok, f"a downgrade below the ordinal min must be allowed, got: {r.errors}"

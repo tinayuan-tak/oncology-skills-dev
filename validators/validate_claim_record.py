@@ -104,23 +104,22 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
                 f"{where}: UNKNOWN_STATE — finding.state={state!r} is not a verdict resolver "
                 f"`{axis}` emits (emits: {sorted(verdicts)}).")
 
-    # D. certainty.level == ordinal min(coverage, corroboration); unmeasured => level == coverage.
+    # D. certainty.level must not EXCEED the ordinal min(coverage, corroboration) — DOWNGRADE-ONLY.
+    # corroboration is the ordinal {low,medium,high,unmeasured} the shipped CERTAINTY_MODEL hooks emit;
+    # 'unmeasured' drops out (level bounded by coverage alone). A skill may legitimately downgrade level
+    # BELOW the min (e.g. forcing 'low' on a none/absent verdict), so the invariant is `<=`, not `==`:
+    # it catches the real error (claiming MORE certainty than the weakest measured component warrants)
+    # without false-failing a valid downgrade.
     cert = rec.get("certainty", {})
     level, coverage, corrob = cert.get("level"), cert.get("coverage"), cert.get("corroboration")
-    if corrob == "unmeasured":
-        if level != coverage:
+    measured = [x for x in (coverage, corrob) if x in _CERT_ORD]   # 'unmeasured' excluded
+    if level in _CERT_ORD and measured:
+        ceiling = min(measured, key=lambda x: _CERT_ORD[x])
+        if _CERT_ORD[level] > _CERT_ORD[ceiling]:
             report.add_error(
-                f"{where}: CERTAINTY_LEVEL — corroboration is 'unmeasured' so level must equal "
-                f"coverage ({coverage!r}), got level={level!r}.")
-    elif corrob in ("single", "corroborated", "contradicted"):
-        # map corroboration to a coverage-comparable rung: single/contradicted degrade, corroborated affirms.
-        corrob_rung = "high" if corrob == "corroborated" else "low"
-        expect = min(coverage, corrob_rung, key=lambda x: _CERT_ORD[x])
-        if level != expect:
-            report.add_error(
-                f"{where}: CERTAINTY_LEVEL — level must be min(coverage={coverage!r}, "
-                f"corroboration_rung={corrob_rung!r})={expect!r} for corroboration={corrob!r}, "
-                f"got {level!r}.")
+                f"{where}: CERTAINTY_LEVEL — level={level!r} EXCEEDS min(coverage={coverage!r}, "
+                f"corroboration={corrob!r})={ceiling!r} (certainty is downgrade-only; a strong level "
+                f"cannot outrank its weakest measured component).")
 
 
 def validate_record(rec: dict, where: str, schema: dict, validator_cls,
