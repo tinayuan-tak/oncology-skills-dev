@@ -484,6 +484,97 @@ _PROTEIN_ABSENCE_RIDS = frozenset({
 PRESENT_RNA_ONLY_PROTEIN_ABSENT = "present_rna_only_protein_absent"
 
 
+# ── (strength, certainty) SIDECAR — 5th certainty axis, first NO-RESOLVER gate (CERTAINTY_MODEL.md).
+#    ADDITIVE + verdict-INERT. corroboration = the VERDICT-DISJOINT RNA<->protein paired-tumor agreement
+#    (rna-protein-concordance-tumor.rna_as_biomarker) — a within-entity cross-MODALITY check that fires no
+#    presence ladder rung. Reviewed per-axis design (4-agent panel).
+_PRES_ORD = {"low": 0, "medium": 1, "high": 2}
+_CERTAINTY_CORROBORATION_CARDS = frozenset({"rna-protein-concordance-tumor"})
+_PRES_STRONG_POS = {"strongly_upregulated_in_tumor", "tumor_broadly_expressed", "broadly_high_expression",
+                    "protein_strongly_upregulated", "protein_broadly_high", "broadly_tumor_elevated",
+                    "sc_malignant_detected"}
+_PRES_MOD_POS = {"modestly_upregulated_in_tumor", "tumor_moderately_expressed", "lineage_restricted",
+                 "protein_modestly_upregulated", "protein_lineage_restricted", "multi_tumor_elevated"}
+_PRES_WEAK_POS = {"broadly_moderate_expression", "protein_broadly_moderate", "tumor_sparsely_expressed",
+                  "single_tumor_elevated", "not_tumor_elevated", "sc_microenvironment_dominant",
+                  "sc_broadly_low", "present_rna_only_protein_absent"}
+_PRES_NEG = {"modestly_downregulated_in_tumor", "protein_modestly_downregulated",
+             "strongly_downregulated_in_tumor", "protein_strongly_downregulated",
+             "broadly_low_expression", "protein_broadly_low"}
+_PRES_NONE = {"not_informative", "data_unavailable", None}
+_PRES_DECISION_CARDS = ("cellline-rna-distribution", "tumor-rna-vs-adjacent", "tumor-rna-distribution",
+                        "tumor-protein-abundance-cptac", "cellline-protein-abundance",
+                        "tumor-elevation-breadth", "tumor-scrna-celltype-expression")
+# (representative card per measurement layer, for modality-breadth)
+_PRES_LAYERS = (("cellline-rna-distribution", "tumor-rna-distribution", "tumor-rna-vs-adjacent"),
+                ("tumor-protein-abundance-cptac", "cellline-protein-abundance"),
+                ("tumor-scrna-celltype-expression",))
+
+
+def _presence_strength(v) -> str:
+    if v in _PRES_STRONG_POS:
+        return "strong_positive"
+    if v in _PRES_MOD_POS:
+        return "moderate_positive"
+    if v in _PRES_WEAK_POS:
+        return "weak_positive"
+    if v in _PRES_NEG:
+        return "negative"
+    return "none"
+
+
+def _pres_corroboration(rna_as_biomarker) -> str:
+    c = str(rna_as_biomarker or "")
+    if c == "adequate_proxy":
+        return "high"
+    if c == "partial_proxy":
+        return "medium"
+    if c == "poor_proxy":
+        return "low"
+    return "unmeasured"     # insufficient_paired_tumors / data_unavailable → ignorance (unknown_mass)
+
+
+def _pres_coverage(cards) -> str:
+    """Weakest-link of driving-modality POWER (best sample-n across the RNA/cell/sc layers) and modality
+    BREADTH (# of the 3 measurement layers with a present card). high = well-powered AND >=2 layers."""
+    ns = [_safe_card_field(cards, "tumor-rna-distribution", "n_tumor_samples"),
+          _safe_card_field(cards, "cellline-rna-distribution", "n_cell_lines_evaluated"),
+          _safe_card_field(cards, "tumor-scrna-celltype-expression", "malignant_n_cells")]
+    best = max([n for n in ns if isinstance(n, (int, float))], default=0)
+    present = {c["card_id"] for c in (cards or [])}
+    breadth = sum(1 for layer in _PRES_LAYERS if any(cid in present for cid in layer))
+    if best >= 100 and breadth >= 2:
+        return "high"
+    if best >= 5:
+        return "medium"
+    return "low"
+
+
+def _pres_unknown_mass(cards) -> float:
+    present = {c["card_id"] for c in (cards or [])}
+    blind = sum(1 for cid in _PRES_DECISION_CARDS if cid not in present)
+    return round(blind / len(_PRES_DECISION_CARDS), 4)
+
+
+def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement/selectivity/genomic/surface."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    rna_bm = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
+    coverage = _pres_coverage(cards)
+    corroboration = _pres_corroboration(rna_bm)
+    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
+    level = min(components, key=lambda c: _PRES_ORD[c]) if components else "low"
+    if v in _PRES_NONE:
+        level = "low"
+    return {
+        "strength": _presence_strength(v),
+        "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
+                      "unknown_mass": _pres_unknown_mass(cards)},
+        "provenance": {"rna_as_biomarker": rna_bm},
+        "_model_ref": "CERTAINTY_MODEL.md#tumor_presence",
+    }
+
+
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """COLLAPSED presence verdict across ALL modalities — the audit spine the target-profile consumer +
     risk table read as `verdict`. Resolved INLINE (not via a *.resolver.yaml) by design; see CONTRACT.md
