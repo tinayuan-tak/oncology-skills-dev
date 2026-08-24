@@ -53,6 +53,12 @@ corroboration_by_gate:
                                      # confirmed_high / confirmed(>=3 lines)->high; confirmed(1-2)->medium;
                                      # not_surface(measured-negative)->low; data_unavailable->unmeasured.
 
+  tumor_presence:
+    - rna-protein-concordance-tumor  # paired-tumor RNA<->protein agreement (rna_as_biomarker). Verdict-
+                                     # INERT for presence: fires NO presence ladder rung (its rules serve
+                                     # the surface/tractability gates). A within-entity cross-MODALITY
+                                     # corroboration (weaker than dependency's independent-replication;
+                                     # adequate_proxy->high, partial->medium, poor->low, else unmeasured).
 # ── verdict_precedence_augment (2026-08-24, validator-hardening follow-up) ────────────────────────
 # Cards that drive a gate's verdict OUTSIDE its resolver `resolve:` ladder, which the disjointness
 # validator's resolver-scan cannot see. Two uses, both unioned into verdict_precedence_cards:
@@ -68,3 +74,11 @@ verdict_precedence_augment:
   selectivity:
     - modality-therapeutic-window     # (a) Python normal-breadth veto (therapeutic-window arm)
     - sc-normal-celltype-expression   # (a) Python normal-breadth veto (sc-normal critical-organ arm)
+  tumor_presence:                   # (b) NO-RESOLVER inline-verdict skill — its FULL verdict-precedence
+    - cellline-rna-distribution     #     (the 7 verdict-bearing presence cards; the ladder is in-skill,
+    - tumor-rna-vs-adjacent         #     _VERDICT_RANK collapse, not a resolvers/*.yaml).
+    - tumor-rna-distribution
+    - tumor-protein-abundance-cptac
+    - cellline-protein-abundance
+    - tumor-elevation-breadth
+    - tumor-scrna-celltype-expression
