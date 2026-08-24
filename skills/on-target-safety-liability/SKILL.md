@@ -47,6 +47,12 @@ composition:
                                        # downgrade — patient_focal_cn_class (GISTIC) fires
                                        # copy-number-amplified-oncogene-safety-context; the resolver's
                                        # GROUP-0 guard keeps the HOLD for amp-driven oncogenes (ERBB2/MDM2).
+    - functional-gene-state            # PR-4c (2026-08-24): RARELY-ALTERED guard — functional_state_class
+                                       # ==rarely_altered fires functional-gene-state-rarely-altered-neutral;
+                                       # the resolver's GROUP-0b guard keeps the WT-loss HOLD for an
+                                       # amplification/role-only oncogene with no recurrent activating
+                                       # mutation (MCL1, pan-inhibited), so GROUP-1 mutant-selective
+                                       # downgrade does NOT misfire.
     - pan-cancer-crispr-dependency-distribution  # data-util expansion 2026-08-21 — DepMap pan-essentiality
                                        # BROAD-TOX leg: dependency_class==common_essential fires
                                        # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_
@@ -77,6 +83,7 @@ composition:
     - dosage_sensitivity_safety                # clingen-dosage
     - human_genetic_safety                     # gene-burden-safety
     - copy_number_alteration                   # copy-number-distribution — amplification guard (S1-1)
+    - functional_gene_state                    # functional-gene-state — rarely-altered guard (PR-4c, GROUP-0b)
     - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
     - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
     - drug_warning_safety                      # drug-warning-safety — OT pharmacovigilance context (verdict-inert, 2026-08-21)
@@ -95,6 +102,7 @@ composition:
     - clinvar-pathogenicity-safety     # clinvar-germline-pathogenic-safety-warning
     - alteration-role                  # activating-driver-role-safety-context → mutant-selective downgrade (2026-07-23)
     - copy-number-distribution         # copy-number-amplified-oncogene-safety-context → GROUP-0 amplification guard (S1-1, 2026-08-17)
+    - functional-gene-state            # functional-gene-state-rarely-altered-neutral → GROUP-0b rarely-altered guard (PR-4c, 2026-08-24)
     - pan-cancer-crispr-dependency-distribution  # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_concern (data-util expansion 2026-08-21)
     - normal-tissue-liability          # normal-tissue-protein-liability-safety-warning → normal_tissue_protein_safety_concern (data-util expansion 2026-08-21)
     # NOTE: clingen-dosage (above) ALSO fires clingen-recessive-only-safety-favorable →

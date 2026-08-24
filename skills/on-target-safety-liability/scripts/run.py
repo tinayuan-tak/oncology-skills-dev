@@ -90,6 +90,13 @@ CARDS = [
                                       # guard KEEPS the on-target-safety HOLD
                                       # for an amplification-driven oncogene (ERBB2/MDM2) — the drug
                                       # hits WT protein, so the mutant-selective-sparing logic fails.
+    "functional-gene-state",          # (PR-4c 2026-08-24) — RARELY-ALTERED guard, the mutation-state
+                                      # analogue of the amplification guard above. functional_state_
+                                      # class==rarely_altered fires functional-gene-state-rarely-altered-
+                                      # neutral; the safety resolver's GROUP-0b guard KEEPS the WT-loss
+                                      # HOLD for an amplification/role-only oncogene with no recurrent
+                                      # activating mutation (MCL1) — drugged by PAN-inhibition, so the
+                                      # mutant-selective-sparing (GROUP-1) downgrade must NOT fire.
     "pan-cancer-crispr-dependency-distribution",  # (data-util expansion 2026-08-21) — DepMap pan-
                                       # essentiality as a BROAD-TOX safety signal. dependency_class==
                                       # common_essential fires pan-essential-broad-tox-safety-warning

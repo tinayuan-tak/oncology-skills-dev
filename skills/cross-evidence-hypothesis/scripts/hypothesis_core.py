@@ -103,7 +103,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "normal-tissue-liability-gtex", "target-safety-prioritisation", "drug-warning-safety",
         # data-util expansion 2026-08-21 — added to SUB_SKILL_CARDS[on-target-safety-liability]
         # (pan-essential broad-tox + HPA-IHC essential-tissue protein HOLD legs); mirror must carry them.
-        "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability"}),
+        "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
+        # PR-4c 2026-08-24 — rarely-altered guard (GROUP-0b); mirror must carry it.
+        "functional-gene-state"}),
     "selectivity": frozenset({
         "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
         "surface-abundance-density", "tumor-vs-normal-percentile-crossing",

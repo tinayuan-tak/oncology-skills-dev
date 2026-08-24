@@ -571,6 +571,11 @@ SUB_SKILL_CARDS = {
                                           # guard could never fire in the composed profile and an amplification-
                                           # driven oncogene (ERBB2/MDM2) would still be wrongly DOWNGRADED off its
                                           # on-target-safety HOLD. (Also in on-target-safety-liability/run.py CARDS.)
+        "functional-gene-state",          # (PR-4c 2026-08-24) — REQUIRED for the RARELY-ALTERED guard to fire IN
+                                          # COMPOSITION. safety.resolver GROUP-0b keys on functional-gene-state-
+                                          # rarely-altered-neutral; without this line an amplification/role-only
+                                          # oncogene (MCL1) would still be wrongly downgraded off its cardiotox
+                                          # HOLD. (Also in on-target-safety-liability/run.py CARDS.)
         "pan-cancer-crispr-dependency-distribution",  # (data-util expansion 2026-08-21) — REQUIRED for the
                                           # pan-essential broad-tox HOLD (pan-essential-broad-tox-safety-warning →
                                           # pan_essential_broad_tox_concern) to fire IN COMPOSITION. Also composed

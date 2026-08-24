@@ -37,7 +37,8 @@ _ALL_SAFETY_CARD_IDS = ["gnomad-lof-constraint", "alteration-role", "gene-burden
                         "clingen-dosage", "clinvar-pathogenicity-safety", "mouse-ko-phenotype",
                         # data-util expansion 2026-08-21 — _headline now also reads these cards
                         "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
-                        "drug-warning-safety"]
+                        "drug-warning-safety",
+                        "functional-gene-state"]   # PR-4c — rarely-altered guard card
 
 
 def _safety_cards(**summaries):
@@ -88,3 +89,25 @@ def test_headline_no_note_when_not_downgraded():
                       ("highly_constrained_safety_concern", "highly-constrained-safety-warning"))
     assert h["mechanism_conditioning_note"] is None
     assert h["alteration_functional_direction"] == "loss_of_function"
+
+
+# --- PR-4c: rarely-altered oncogene keeps the WT-loss HOLD (MCL1) ---
+
+def test_rarely_altered_oncogene_keeps_hold_not_downgraded():
+    """MCL1-shape: the mutant-selective GoF downgrade must NOT fire for an amplification/role-only
+    oncogene that is functional_state_class==rarely_altered (drugged pan-inhibition, WT concern
+    stands). The GROUP-0b guard keeps highly_constrained_safety_concern instead of downgrading."""
+    v = _sf._verdict([{"rule_id": "highly-constrained-safety-warning"},
+                      {"rule_id": "activating-driver-role-safety-context"},
+                      {"rule_id": "oncogene-role-safety-context"},
+                      {"rule_id": "functional-gene-state-rarely-altered-neutral"}])
+    assert v == ("highly_constrained_safety_concern", "functional-gene-state-rarely-altered-neutral")
+
+
+def test_human_genetics_downgrade_also_blocked_when_rarely_altered():
+    """The rarely-altered guard covers the human-genetics WT-loss warnings too (not just gnomAD)."""
+    v = _sf._verdict([{"rule_id": "gene-burden-lof-safety-warning"},
+                      {"rule_id": "activating-driver-role-safety-context"},
+                      {"rule_id": "oncogene-role-safety-context"},
+                      {"rule_id": "functional-gene-state-rarely-altered-neutral"}])
+    assert v == ("human_genetics_safety_concern", "functional-gene-state-rarely-altered-neutral")
