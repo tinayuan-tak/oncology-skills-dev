@@ -131,11 +131,12 @@ def test_coemission_is_reachable_subset(gate):
 
 
 def test_tractability_full_rule_set_is_frozen():
-    """REGRESSION for the D5 motivation: tractability_small_molecule (16 rule_ids) previously could not
-    freeze its full rule set (a core-16 subset + a SEPARATE live 2**18 oracle, because the full power
-    set was 127 MB > GitHub's 100 MB). The co-emission table freezes ALL of it in-file. Assert its
-    table equals the full co-emission enumeration over all 16 rule_ids (not a truncated subset)."""
+    """REGRESSION for the D5 motivation: tractability_small_molecule previously could not freeze its
+    full rule set (a core subset + a SEPARATE live 2**n oracle, because the full power set was 127 MB >
+    GitHub's 100 MB). The co-emission table freezes ALL of it in-file. Assert its table equals the full
+    co-emission enumeration over all its rule_ids (not a truncated subset). Count is 18 as of WS-E
+    (2026-08-24): the 16 core rungs + the 2 ChEMBL-phase clinical-precedent rungs."""
     gate = "tractability_small_molecule"
     assert gate in _GOLDEN
-    assert len(_GOLDEN[gate]["rule_ids"]) == 16
+    assert len(_GOLDEN[gate]["rule_ids"]) == 18
     assert len(_GOLDEN[gate]["table"]) == len(_coemission_fired_sets(gate)) > 2000

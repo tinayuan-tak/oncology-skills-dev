@@ -27,6 +27,8 @@ RULE_IDS = [
     "e7-crispr-confirmed-supportive-sm",
     "prism-clinically-active-supportive-sm",
     "known-drug-approved-antineoplastic-sm-supportive",   # E-known-drug: approved -> chemically_active
+    "measured-chembl-approved-sm-supportive",             # WS-E: ChEMBL phase>=4 -> chemically_active
+    "measured-chembl-clinical-precedent-sm-supportive",   # WS-E: ChEMBL phase 1-3 -> clinical_precedent_only (authoritative)
     "prism-clinical-precedent-only-weak-supportive-sm",   # T1.2: clinical annotation, no measured activity
     "prism-tool-compound-only-weak-supportive-sm",
     "prism-weakly-active-weak-supportive-sm",
@@ -42,12 +44,13 @@ RULE_IDS = [
     "ligandability-disordered-sm-opposing",
     "prism-no-compounds-found-neutral",
 ]
-# NOTE (T3.1, 2026-08-09): this ORACLE list enumerates the FULL 18-rung resolver LIVE (2^18 in-memory,
-# not stored) — it is the equivalence proof over the complete rule set. The COMMITTED golden snapshot
-# (resolver_golden_snapshots.json) intentionally freezes only the core 16 rule_ids: a full 2^18 stored
-# table is 127 MB (exceeds GitHub's 100 MB limit), and the 2 additive measured-potency rungs only ever
-# RESCUE fall-through combos (they can't change a combo among the frozen 16). So the golden guards the
-# core logic byte-for-byte + this oracle guards resolver==if-chain over all 18 rungs. Belt and braces.
+# NOTE (WS-E, 2026-08-24): this ORACLE list enumerates the FULL 20-rung resolver LIVE (2^20 in-memory,
+# not stored) — the equivalence proof over the complete rule set. The COMMITTED golden snapshot
+# (resolver_golden_snapshots.json) uses CO-EMISSION enumeration (card-reachable fired-sets only, not
+# 2^n), so it can hold all resolver-referenced rungs cheaply. The 2 WS-E ChEMBL-phase rungs were added
+# to both here and the golden; the 2 additive measured-potency rungs (T3.1) remain oracle-only (they
+# only RESCUE fall-through combos). So the golden guards the core logic + this oracle guards
+# resolver==if-chain over all 20 rungs. Belt and braces.
 
 
 def _load():

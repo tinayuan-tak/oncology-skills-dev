@@ -194,6 +194,15 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     # missed). Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
     if "known-drug-approved-antineoplastic-sm-supportive" in fired_by_id:
         return "chemically_active", "known-drug-approved-antineoplastic-sm-supportive"
+    # WS-E (2026-08-24): ChEMBL max_clinical_phase >= 4 (approved) -> chemically_active (a third
+    # independent path corroborating the PRISM/DGIdb approved rungs). Byte-in-sync with the resolver.
+    if "measured-chembl-approved-sm-supportive" in fired_by_id:
+        return "chemically_active", "measured-chembl-approved-sm-supportive"
+    # WS-E (2026-08-24): ChEMBL phase 1-3 -> clinical_precedent_only, AUTHORITATIVE over the PRISM
+    # `Prioritized`-flag proxy below (placed ABOVE it so the real-phase rule is the driving_rule when
+    # both fire; same verdict). Byte-in-sync with the resolver.
+    if "measured-chembl-clinical-precedent-sm-supportive" in fired_by_id:
+        return "clinical_precedent_only", "measured-chembl-clinical-precedent-sm-supportive"
     # T1.2 (2026-08-09): clinical annotation WITHOUT measured PRISM activity -> clinical_precedent_only
     # (weaker than measured chemically_active, above tool_compound_only).
     if "prism-clinical-precedent-only-weak-supportive-sm" in fired_by_id:
