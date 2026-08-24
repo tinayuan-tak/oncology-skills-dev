@@ -36,7 +36,16 @@ METHOD_VERSION = "0.1.0"
 # Classification thresholds — mirror depmap_cn_dependency / depmap_mutation_dependency exactly,
 # EXCEPT the rung that fires the rescue keys on MODERATE (see module docstring / card).
 STRONG_EFFECT_DELTA = -0.5      # partner-deficient median Chronos - neutral <= -0.5 → strongly dependent
-MODERATE_EFFECT_DELTA = -0.2    # the RESCUE-FIRING threshold (WRN×MSI = -0.41 clears strong; SL floor is here)
+MODERATE_EFFECT_DELTA = -0.2    # median-delta path to MODERATE (WRN×MSI = -0.41 clears strong)
+# EFFECT-SIZE path to MODERATE (2026-08-24). The median-delta floors above were mirrored from the
+# oncogene mutant-vs-WT stratified paths, where addiction produces large Chronos deltas. Synthetic-
+# lethal / collateral-lethality effects (MTAP→PRMT5, SMARCA4→SMARCA2) are REAL but modest in raw
+# median-delta because the deficient stratum sits above the pan-essential floor — so a hugely-
+# significant SL (PRMT5×MTAP q=2.6e-11, rank-biserial 0.33) was discarded for missing -0.2 by 0.011.
+# Rank-biserial is the distribution-shape-normalized, cross-context-comparable magnitude (already
+# computed), so a forward-significant contrast ALSO grades to MODERATE when its effect size clears
+# this floor. Additive — only ADMITS more; the oncogene paths (their own classifier) are untouched.
+MODERATE_EFFECT_RB = 0.3        # rank-biserial ≥ 0.30 (conventional "moderate") + forward-significant → moderate
 STRATIFICATION_ALPHA = 0.05
 MIN_PARTNER_DEFICIENT_CELLS = 5     # mirror min_mutant
 MIN_NEUTRAL_CELLS = 30              # mirror min_wildtype
@@ -125,6 +134,7 @@ def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_
                                    strong_effect_delta: float = STRONG_EFFECT_DELTA,
                                    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
                                    stratification_alpha: float = STRATIFICATION_ALPHA,
+                                   moderate_effect_rb: float = MODERATE_EFFECT_RB,
                                    min_deficient: int = MIN_PARTNER_DEFICIENT_CELLS,
                                    min_neutral: int = MIN_NEUTRAL_CELLS) -> dict:
     """Compute the partner-conditional-dependency summary_fields.
@@ -143,6 +153,7 @@ def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_
     q = res.get("p_value")               # single test → q == p (no multi-tier BH)
     q_reverse = res.get("p_value_reverse")
     delta = res.get("delta_mut_vs_wt")
+    effect_size = res.get("effect_size")  # rank-biserial magnitude (forward direction within the q<alpha branch)
 
     def _classify() -> str:
         if res.get("_insufficient_data"):
@@ -153,7 +164,9 @@ def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_
         if q is not None and q < stratification_alpha:
             if delta <= strong_effect_delta:
                 return "partner_conditional_strongly_dependent"
-            if delta <= moderate_effect_delta:
+            # MODERATE via EITHER the median-delta floor OR a moderate rank-biserial effect size — the
+            # latter recovers real-but-modest-delta SL (collateral lethality) the -0.2 floor discards.
+            if delta <= moderate_effect_delta or (effect_size is not None and effect_size >= moderate_effect_rb):
                 return "partner_conditional_moderately_dependent"
         # REVERSE second-pass: neutral lines more dependent (verdict-inert, mirrors A1a).
         if (q_reverse is not None and q_reverse < stratification_alpha

@@ -112,3 +112,41 @@ def test_partner_map_loads_anchor():
     # PARP1 (honest-negative) + SMARCA2 (paralog) also present
     assert "PARP1" in pm and "SMARCA2" in pm
     assert any(e["deficiency_type"] == "lof_mutation" for e in pm["PARP1"])
+
+
+def test_effect_size_path_recovers_modest_delta_sl():
+    """The PRMT5×MTAP / SMARCA2×SMARCA4 shape: a REAL synthetic-lethal contrast whose median-delta is
+    modest (misses the -0.2 floor) but whose rank-biserial effect size is moderate (>=0.30) and the
+    forward test is significant. The effect-size path must RECOVER it as moderately_dependent — the
+    2026-08-24 fix (the -0.2 floor was mis-borrowed from the oncogene mutant-vs-WT regime)."""
+    from methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
+    # Deterministic, partially-overlapping blocks: deficient shifted MORE dependent (lower Chronos),
+    # median delta ~-0.16 (ABOVE the -0.2 floor) but clear stochastic dominance → moderate effect size.
+    n_def, n_neu = 184, 485
+    deficient = [-0.50 + 0.32 * (k / (n_def - 1)) for k in range(n_def)]   # -0.50 .. -0.18
+    neutral = [-0.34 + 0.32 * (k / (n_neu - 1)) for k in range(n_neu)]     # -0.34 .. -0.02
+    chronos, dv = _panel(deficient, neutral)
+    s = compute_partner_stratification(chronos, dv)
+    # Preconditions: we are genuinely testing the effect-size path (delta misses the median floor).
+    assert s["delta_chronos_deficient_vs_neutral"] > MODERATE_EFFECT_DELTA, s
+    assert s["partner_stratification_effect_size"] >= MODERATE_EFFECT_RB, s
+    assert s["partner_stratification_mannwhitney_q"] < 0.05, s
+    # ... and it now grades to MODERATE via effect size.
+    assert s["partner_stratification_class"] == "partner_conditional_moderately_dependent", s
+
+
+def test_effect_size_path_does_not_over_admit_low_effect():
+    """Guard: a modest-delta contrast with LOW effect size (high overlap) stays not_partner_stratified —
+    the effect-size path admits only genuinely-separated SL, not near-floor noise (the PARP1×BRCA1
+    boundary: rank-biserial ~0.28 < 0.30 stays out)."""
+    from methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
+    import random
+    rng = random.Random(7)
+    # Wide, heavily-overlapping distributions with a small median shift → low rank-biserial.
+    deficient = [-0.25 + rng.uniform(-0.6, 0.6) for _ in range(184)]
+    neutral = [-0.18 + rng.uniform(-0.6, 0.6) for _ in range(485)]
+    chronos, dv = _panel(deficient, neutral)
+    s = compute_partner_stratification(chronos, dv)
+    assert s["partner_stratification_effect_size"] < MODERATE_EFFECT_RB, s
+    assert s["partner_stratification_class"] not in (
+        "partner_conditional_strongly_dependent", "partner_conditional_moderately_dependent"), s
