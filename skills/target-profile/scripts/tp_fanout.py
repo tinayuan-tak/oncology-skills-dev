@@ -100,6 +100,22 @@ def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
     return getattr(module, "_strength_certainty", None) if module is not None else None
 
 
+def _load_sub_skill_claim_record_fn(skill_dir_name: str) -> Any:
+    """Return a sub-skill's OPTIONAL `_claim_record(cards, fired, verdict_pair) -> dict`, or None.
+
+    M1 of the factored-record migration (target-contracts VERDICT_REPRESENTATION_MIGRATION.md): the
+    uniform opt-in a sub-skill uses to hand the composed layer its factored claim record SHADOW
+    (schemas/claim_record.schema.json) — a verdict-inert typed record keyed by sub-skill short.
+    Mirrors `_load_sub_skill_certainty_fn` exactly; a sub-skill without the hook pays no cost.
+    CONSUMED BY NOTHING at M1 — the record never enters `fired`, the resolver, or the nomination
+    sub_verdicts; it is surfaced beside the verdict spine for the M2 render-equivalence proof."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    return getattr(module, "_claim_record", None) if module is not None else None
+
+
 def _prewarm_sub_skill_imports() -> None:
     """Perf byte-stability guard: single-threaded, BEFORE the thread pool, trigger every
     import the concurrent workers would otherwise race on — the compose-dashboard dispatcher (via
@@ -796,6 +812,16 @@ def _run_sub_skills(target: str, indication: str,
                 strength_certainty = _cert_fn(cards, fired, verdict_pair)
             except Exception:  # noqa: BLE001 — a sidecar must never break the fan-out
                 strength_certainty = None
+        # OPTIONAL factored claim-record SHADOW (M1). Same best-effort + VERDICT-INERT discipline as
+        # strength_certainty: a sub-skill exposing _claim_record hands the composed layer its factored
+        # record; absence / failure → None. Consumed by nothing (surfaced for M2 render-equivalence).
+        _cr_fn = _load_sub_skill_claim_record_fn(skill_dir)
+        claim_record_shadow = None
+        if _cr_fn is not None:
+            try:
+                claim_record_shadow = _cr_fn(cards, fired, verdict_pair)
+            except Exception:  # noqa: BLE001 — a shadow must never break the fan-out
+                claim_record_shadow = None
         return short, {
             "skill_dir": skill_dir,
             "cards": cards,
@@ -807,6 +833,9 @@ def _run_sub_skills(target: str, indication: str,
             # Per-axis (strength, certainty) sidecar (None except functional-requirement). ADDITIVE /
             # verdict-inert — see _load_sub_skill_certainty_fn. Assembled by tp_facets._certainty_by_axis.
             "strength_certainty": strength_certainty,
+            # Factored claim-record SHADOW (M1). ADDITIVE / verdict-inert / consumed-by-nothing — see
+            # _load_sub_skill_claim_record_fn. Assembled by tp_facets._claim_record_shadow_by_axis.
+            "claim_record_shadow": claim_record_shadow,
             # the SAME sub-verdict, carried in the shared CompositionResult type (the
             # foundation the later --emit evidence-package stage consumes). ADDITIVE — wraps the
             # already-decided verdict_pair (post-resolver logic preserved); verdict/fired/cards and

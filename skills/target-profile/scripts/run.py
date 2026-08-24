@@ -60,6 +60,7 @@ from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
+    _claim_record_shadow_by_axis,
     _deciding_axis, _dependency_facet,
     _cross_gate_shared_evidence,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
@@ -407,6 +408,11 @@ def main() -> int:
     # (functional-requirement `dependency` is the reference axis).
     certainty_by_axis = _certainty_by_axis(sub_results)
 
+    # Factored claim-record SHADOW roll-up (M1; VERDICT_REPRESENTATION_MIGRATION.md). {short: record}
+    # for every axis that exposes _claim_record. CONSUMED BY NOTHING — surfaced beside the verdict
+    # spine for the M2 render-equivalence proof, NEVER in sub_verdicts / the recommendation spine.
+    claim_record_shadow = _claim_record_shadow_by_axis(sub_results)
+
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
     # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
@@ -748,6 +754,9 @@ def main() -> int:
         # verdict-INERT reliability projection (coverage + verdict-disjoint corroboration +
         # coverage-gap unknown_mass) for the reader/panel; NOT in sub_verdicts, never moves the gate.
         "certainty_by_axis": certainty_by_axis,
+        # M1 factored claim-record shadow, keyed by sub-skill short. ADDITIVE / verdict-inert /
+        # consumed-by-nothing — the substrate for the M2 render-equivalence proof. {} until axes opt in.
+        "claim_record_shadow": claim_record_shadow,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.

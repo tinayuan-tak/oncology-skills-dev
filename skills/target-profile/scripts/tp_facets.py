@@ -592,6 +592,22 @@ def _certainty_by_axis(sub_results: dict) -> dict:
     return out
 
 
+# --- FACTORED CLAIM-RECORD SHADOW assembly (M1; VERDICT_REPRESENTATION_MIGRATION.md) ------------
+# Each verdict-bearing sub-skill MAY expose `_claim_record`; the fan-out captures it as
+# sub_results[short]['claim_record_shadow'] (None for skills without the hook). This thin reader
+# assembles the present ones into a {short: <factored record>} block surfaced beside the verdict
+# spine. CONSUMED BY NOTHING — the shadow exists so the M2 render-equivalence proof
+# (rho(record) == legacy token) has records to compare; it NEVER enters `sub_verdicts` / the
+# recommendation spine. Returns {} until an axis opts in (genomic + selectivity are the first).
+def _claim_record_shadow_by_axis(sub_results: dict) -> dict:
+    out = {}
+    for short, r in (sub_results or {}).items():
+        rec = (r or {}).get("claim_record_shadow")
+        if isinstance(rec, dict) and rec:
+            out[short] = rec
+    return out
+
+
 # --- MODALITY-CONJUNCTION facet (cross-lens; the composed layer's job) --------------------------
 # The modality nomination presence deliberately CANNOT mint (it is modality-blind). This is where
 # it is completed: the presence CLAIM VECTOR (A abundance / C malignant-intrinsic / homogeneity)

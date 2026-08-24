@@ -20,6 +20,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import card_summary, resolve_cards
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.synthesis_selectivity import synthesize_selectivity
 from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
 from _skills_common.selectivity_question_table import selectivity_question_table
@@ -340,6 +341,61 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
         "provenance": {"cells_ran": cells_ran, "n_tumor": n_tumor, "rna_protein_tvn_concordance": concordance},
         "_model_ref": "CERTAINTY_MODEL.md#selectivity",
     }
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the selectivity per-axis builder. VERDICT-INERT: surfaced by the
+#    fan-out into decision.claim_record_shadow.selectivity, consumed by NOTHING. Maps the selectivity
+#    verdict (post normal-breadth veto) onto the factored record, carrying the REAL magnitude
+#    (max_abs_log2fc — the tumor-vs-normal window is a genuine continuous measure). Mirrors
+#    _strength_certainty. NOTE: state may be a Python-veto verdict outside the resolver enum
+#    (selective_but_broadly_normal / selective_with_normal_liability) — fine at M1 (the record schema
+#    checks a token pattern, not the per-axis enum; contracts invariant C's augmented set is an M3 item).
+_SEL_STRENGTH_TO_LEVEL = {
+    "strong_positive": "strong", "moderate_positive": "moderate",
+    "weak_positive": "weak", "negative": "moderate", "none": "none",
+}
+_SEL_OPEN_WORLD = {"data_unavailable", None}
+_SEL_MEASURED_INCONCLUSIVE = {"discordant_across_comparators", "not_informative", "insufficient"}
+
+
+def _sel_availability(v) -> str:
+    if v in _SEL_OPEN_WORLD:
+        return "not_wired"                       # open-world → assembler forces unknown/neutral
+    if v in _SEL_MEASURED_INCONCLUSIVE:
+        return "insufficient"                    # measured but underpowered / inconclusive
+    if v in _SEL_NEG:
+        return "measured_negative"               # measured non-selective / broad-normal (veto KILL)
+    return "measured_positive"
+
+
+def _sel_direction(v) -> str:
+    if v in _SEL_STRONG_POS or v in _SEL_MOD_POS or v in _SEL_WEAK_POS:
+        return "supports"
+    if v in _SEL_NEG:
+        return "opposes"
+    return "neutral"
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors _strength_certainty's call shape."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    sc = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)
+    level = _SEL_STRENGTH_TO_LEVEL.get(_selectivity_strength(v), "none")
+    # carry the continuous tumor-vs-normal window as the magnitude value when we made a real call
+    magnitude = {"level": level}
+    max_log2fc = (card_summary(cards, "tumor-vs-normal-selectivity") or {}).get("max_abs_log2fc")
+    if level != "none" and isinstance(max_log2fc, (int, float)):
+        magnitude = {"level": level, "value": float(max_log2fc), "scale": "log2fc"}
+    return assemble_claim_record(
+        axis="selectivity",
+        state=(v or "insufficient"),
+        direction=_sel_direction(v),
+        availability=_sel_availability(v),
+        magnitude=magnitude,
+        certainty=sc["certainty"],
+        fired=fired,
+        cards=cards,
+    )
 
 
 def _headline(cards, fired, verdict_pair):
