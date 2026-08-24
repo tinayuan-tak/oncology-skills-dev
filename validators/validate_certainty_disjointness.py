@@ -72,21 +72,35 @@ def validate(contracts_root: Path) -> list[str]:
         return [f"manifest missing: {manifest_path}"]
     manifest = _load_yaml(manifest_path)
     by_gate = manifest.get("corroboration_by_gate", {}) or {}
+    # Cards that drive a gate's verdict OUTSIDE its resolver ladder: (a) Python-applied vetoes
+    # (selectivity normal-breadth), (b) the FULL precedence set for no-resolver inline-verdict skills.
+    # Unioned into verdict_precedence_cards so the disjointness check sees them (closes the resolver-only
+    # blind spot). See vocabularies/certainty_corroboration.yaml::verdict_precedence_augment.
+    augment = manifest.get("verdict_precedence_augment", {}) or {}
 
     rule_cards = _rule_id_to_cards(rules_dir)
 
     for gate, corrob_cards in by_gate.items():
         corrob = set(corrob_cards or [])
+        aug = set(augment.get(gate, []) or [])
         resolver_path = resolvers_dir / f"{gate}.resolver.yaml"
         if not resolver_path.exists():
-            errors.append(f"[{gate}] corroboration_by_gate names a gate with no resolver at {resolver_path}")
-            continue
-        spec = _load_yaml(resolver_path)
-        rids = _resolver_rule_ids(spec)
-        # Map the gate's verdict-precedence rule_ids → their emitting cards.
-        verdict_cards: set[str] = set()
-        for rid in rids:
-            verdict_cards |= rule_cards.get(rid, set())
+            # No-resolver (inline-verdict) skill: the manifest MUST declare its verdict-precedence set
+            # via verdict_precedence_augment (else we cannot check disjointness → refuse silently-passing).
+            if not aug:
+                errors.append(
+                    f"[{gate}] no resolver at {resolver_path} AND no verdict_precedence_augment[{gate}] — "
+                    f"an inline-verdict (no-resolver) gate MUST declare its verdict-precedence cards under "
+                    f"verdict_precedence_augment so disjointness is checkable.")
+                continue
+            verdict_cards = set(aug)
+        else:
+            spec = _load_yaml(resolver_path)
+            rids = _resolver_rule_ids(spec)
+            # Map the gate's verdict-precedence rule_ids → their emitting cards, + the Python-veto augment.
+            verdict_cards = set(aug)
+            for rid in rids:
+                verdict_cards |= rule_cards.get(rid, set())
 
         overlap = corrob & verdict_cards
         if overlap:

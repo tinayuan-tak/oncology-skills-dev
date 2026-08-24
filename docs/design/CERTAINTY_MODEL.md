@@ -92,8 +92,8 @@ raises `unknown_mass` — never a fabricated `medium`).
 | **selectivity** | max_abs_log2fc (A/C cells) | cells_ran (# comparators) | cells_supporting / cells_ran; purity-confound (verdict-disjoint) |
 | **tumor-presence / expression** | median TPM percentile, fraction_expressed | n samples | RNA↔protein concordance (`rna-protein-concordance*` — verdict-inert) |
 | **safety** | LoF-constraint magnitude (LOEUF), # human-genetics legs | gnomAD data present vs indeterminate | # of independent human-genetics legs *agreeing* beyond the one that set the verdict |
-| **tractability_sm** | pocket ligandability, PRISM activity | PDB/AlphaFold structure coverage | PRISM↔CRISPR concordance (if not the verdict driver) |
-| **surface_modality** | density level, topology favorability | density_evidence_level (A–E) | topology × family agreement; internalization measured? |
+| **tractability_sm** | pocket ligandability, PRISM activity | PDB/AlphaFold structure coverage | **unmeasured** — no verdict-disjoint source (PRISM↔CRISPR concordance card DRIVES the e7 verdict; ~~corrected 2026-08-24, was "PRISM↔CRISPR concordance"~~) |
+| **surface_modality** | density level, topology favorability | density_evidence_level (A–E) | **protein-surface-evidence** (CSPA wet-lab surfaceome MS — independent surface-residency line, verdict-inert; ~~corrected 2026-08-24, was "topology × family agreement" which is INTERNAL to the fit_class verdict~~) |
 | **mechanism** | MoA-class specificity | SIGNOR edge count | source breadth (SIGNOR/CollecTRI/Reactome agreement) |
 | **differentiation** | co-mutation / ME effect (q-value) | cohort n | `pooled_eligible` (panel-intersect) |
 

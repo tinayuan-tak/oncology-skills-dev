@@ -52,3 +52,19 @@ corroboration_by_gate:
                                      # fire NO surface_modality.resolver rung (0 refs, verified). class map:
                                      # confirmed_high / confirmed(>=3 lines)->high; confirmed(1-2)->medium;
                                      # not_surface(measured-negative)->low; data_unavailable->unmeasured.
+
+# ── verdict_precedence_augment (2026-08-24, validator-hardening follow-up) ────────────────────────
+# Cards that drive a gate's verdict OUTSIDE its resolver `resolve:` ladder, which the disjointness
+# validator's resolver-scan cannot see. Two uses, both unioned into verdict_precedence_cards:
+#   (a) PYTHON-APPLIED vetoes — selectivity's normal-breadth veto (apply_normal_breadth_veto in
+#       _skills_common/selectivity_veto.py) downgrades to selective_but_broadly_normal using
+#       modality-therapeutic-window + sc-normal-celltype-expression, but those rungs live in Python,
+#       not selectivity.resolver.yaml → the scan misses them → a corroborator naming them would
+#       FALSELY pass. Declaring them here closes that blind spot.
+#   (b) NO-RESOLVER (inline-verdict, path-B) skills — a gate whose verdict is computed in-skill with
+#       NO resolvers/<gate>.resolver.yaml (e.g. tumor_presence) declares its FULL verdict-precedence
+#       card set here; the validator uses it in lieu of a resolver scan (instead of erroring).
+verdict_precedence_augment:
+  selectivity:
+    - modality-therapeutic-window     # (a) Python normal-breadth veto (therapeutic-window arm)
+    - sc-normal-celltype-expression   # (a) Python normal-breadth veto (sc-normal critical-organ arm)
