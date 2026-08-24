@@ -30,7 +30,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
-    make_decision_json, write_package,
+    make_decision_json, write_package, card_summary,
 )
 from _skills_common.resolver import resolve_or_raise
 # The family-wise FDR across the stratified-dependency classes is single-sourced in
@@ -639,6 +639,95 @@ _SYNTHESIS_FACET_KEYS = (
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )
+
+
+# ── (strength, certainty) SIDECAR — 3rd certainty axis (CERTAINTY_MODEL.md). ADDITIVE + verdict-INERT:
+#    computed beside the genomic verdict; never alters it. corroboration = the VERDICT-DISJOINT CIViC
+#    per-variant oncogenicity (variant-level-interpretation.civic_variant_class — an independent curated
+#    source confirming the driver claim; fires no resolver rung). Reviewed per-axis design (4-agent panel).
+_GA_ORD = {"low": 0, "medium": 1, "high": 2}
+_CERTAINTY_CORROBORATION_CARDS = frozenset({"variant-level-interpretation"})
+_GA_STRONG_POS = {"biomarker_stratified_dependency", "multi_class_driver", "multi_class_lof_driver"}
+_GA_MOD_POS = {"moderate_biomarker_dependency", "confirmed_driver", "confirmed_lof_driver",
+               "drug_response_biomarker", "recurrent_amplification_driver", "recurrent_deletion_driver",
+               "recurrent_fusion_driver", "recurrent_snv_driver"}
+_GA_WEAK_POS = {"lof_dominant_pattern", "missense_dominant_pattern"}
+_GA_NEG = {"passenger_pattern"}
+_GA_NEUTRAL = {"mixed_pattern"}
+_GA_NONE = {"insufficient", "data_unavailable", None}
+_GA_DECISION_CARDS = ("mutation-type-counts", "mutation-stratified-dependency", "mutation-hotspot-frequency",
+                      "copy-number-distribution", "copy-number-stratified-dependency",
+                      "amp-expr-stratified-dependency", "fusion-stratified-dependency",
+                      "fusion-rearrangement-landscape", "mutation-drug-response", "alteration-role")
+# cards carrying a driving-class sample-count, tried in order (dependency-stratified n first, then the
+# mutation spectrum / CN landscape n) — coverage = the driving class's power.
+_GA_COVERAGE_N_CARDS = (("mutation-stratified-dependency", "n_cell_lines_evaluated"),
+                        ("copy-number-stratified-dependency", "n_cell_lines_evaluated"),
+                        ("fusion-stratified-dependency", "n_cell_lines_evaluated"),
+                        ("amp-expr-stratified-dependency", "n_cell_lines_evaluated"),
+                        ("mutation-type-counts", "mut_n_cell_lines_total"),
+                        ("copy-number-distribution", "cn_n_cell_lines_evaluated"))
+
+
+def _genomic_strength(v) -> str:
+    if v in _GA_STRONG_POS:
+        return "strong_positive"
+    if v in _GA_MOD_POS:
+        return "moderate_positive"
+    if v in _GA_WEAK_POS:
+        return "weak_positive"
+    if v in _GA_NEG:
+        return "negative"
+    if v in _GA_NEUTRAL:
+        return "neutral"
+    return "none"
+
+
+def _ga_coverage(cards) -> str:
+    for cid, field in _GA_COVERAGE_N_CARDS:
+        n = (card_summary(cards, cid) or {}).get(field)
+        if isinstance(n, (int, float)):
+            return "high" if n >= 20 else ("medium" if n >= 5 else "low")
+    return "low"
+
+
+def _ga_corroboration(civic_class) -> str:
+    c = str(civic_class or "")
+    if c == "oncogenic":
+        return "high"
+    if c == "likely_oncogenic":
+        return "medium"
+    if c in {"vus", "benign", "likely_benign"}:   # set literal (NOT a 3-tuple) — avoids the composer
+        return "low"                              # card-read scanner misreading a value tuple as a card_id
+    return "unmeasured"     # gene uncurated in CIViC → ignorance, carried in unknown_mass
+
+
+def _ga_unknown_mass(cards) -> float:
+    blind = 0
+    for cid in _GA_DECISION_CARDS:
+        s = card_summary(cards, cid)
+        if not s or s.get("_missing"):
+            blind += 1
+    return round(blind / len(_GA_DECISION_CARDS), 4)
+
+
+def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement/selectivity. Standalone."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    civic = (card_summary(cards, "variant-level-interpretation") or {}).get("civic_variant_class")
+    coverage = _ga_coverage(cards)
+    corroboration = _ga_corroboration(civic)
+    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
+    level = min(components, key=lambda c: _GA_ORD[c]) if components else "low"
+    if v in _GA_NONE:
+        level = "low"
+    return {
+        "strength": _genomic_strength(v),
+        "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
+                      "unknown_mass": _ga_unknown_mass(cards)},
+        "provenance": {"civic_variant_class": civic},
+        "_model_ref": "CERTAINTY_MODEL.md#genomic_alteration",
+    }
 
 
 def _synthesis_facet(cards, fired, verdict_pair):
