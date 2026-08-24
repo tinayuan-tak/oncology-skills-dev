@@ -83,6 +83,40 @@ from _skills_common.envelope import build_governance
 
 
 
+# Canonical modality tokens (target-contracts vocabularies/modality.enum.yaml) + natural-language
+# aliases. The gate veto-suppression + positive-tier + modality_lens all key on the canonical set, so
+# an un-normalized token silently matches nothing. Keep in sync with the enum if new modalities land.
+_CANONICAL_MODALITIES = frozenset({
+    "small_molecule", "degrader", "adc", "bite_tce", "antibody", "bispecific_non_tce", "cell_therapy",
+})
+_MODALITY_ALIASES = {
+    "sm": "small_molecule", "small-molecule": "small_molecule", "inhibitor": "small_molecule",
+    "protac": "degrader", "glue": "degrader", "molecular_glue": "degrader", "molecular-glue": "degrader",
+    "bite": "bite_tce", "tce": "bite_tce", "t-cell-engager": "bite_tce", "tcell_engager": "bite_tce",
+    "bispecific": "bite_tce", "bispecific_tce": "bite_tce",
+    "mab": "antibody", "monoclonal": "antibody", "naked_antibody": "antibody",
+    "car-t": "cell_therapy", "cart": "cell_therapy", "car_t": "cell_therapy", "cart_cell": "cell_therapy",
+}
+
+
+def _normalize_modality(raw: str) -> Optional[str]:
+    """Map a user --modality token to a canonical modality.enum.yaml value.
+
+    Lower/strip, accept a canonical value as-is, else resolve a known alias. An UNRECOGNIZED token
+    warns to stderr and returns None (dropped) — so a typo/near-miss is never a silent no-op that
+    reads as an applied lens. Verdict-inert: modality only reshapes the lens, never the spine.
+    """
+    key = (raw or "").strip().lower().replace(" ", "_")
+    if key in _CANONICAL_MODALITIES:
+        return key
+    if key in _MODALITY_ALIASES:
+        return _MODALITY_ALIASES[key]
+    print(f"[target-profile] WARN: --modality {raw!r} is not a recognized modality "
+          f"(canonical: {sorted(_CANONICAL_MODALITIES)}); ignoring the modality lens.",
+          file=sys.stderr)
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -95,7 +129,11 @@ def main() -> int:
                          "that is NOT a dependency holds the nomination. Omit for "
                          "a whole-cohort profile (backward-compatible default).")
     ap.add_argument("--modality", default=None,
-                    help="OPTIONAL post-hoc modality lens.")
+                    help="OPTIONAL post-hoc modality lens. Canonical values (modality.enum.yaml): "
+                         "small_molecule, degrader, adc, bite_tce, antibody, bispecific_non_tce, "
+                         "cell_therapy. Common aliases are normalized (e.g. bite/tce/bispecific -> "
+                         "bite_tce, protac/glue -> degrader, car-t -> cell_therapy); an UNKNOWN token "
+                         "warns and is ignored (never a silent no-op).")
     ap.add_argument("--release-pin", default=None,
                     help="OPTIONAL data release_pin to STAMP into governance/provenance for "
                          "reproducibility (parity with compose-dashboard). Pass-through only: "
@@ -180,6 +218,13 @@ def main() -> int:
                          "flag changes ONLY what the LLM narration sees, so an A/B run can measure "
                          "the block's effect on the prose. Not for production use.")
     args = ap.parse_args()
+
+    # Normalize --modality to a canonical modality.enum.yaml token. The gate's veto-suppression +
+    # positive-tier keys on the canonical set {adc, bite_tce, antibody, ...}; a natural token like
+    # "bite" previously flowed through raw and silently matched nothing (a NO-OP that looked applied).
+    # Alias the common natural forms; an UNRECOGNIZED token WARNS and is dropped (never silent).
+    if args.modality:
+        args.modality = _normalize_modality(args.modality)
 
     # --verdict-only is the umbrella fast mode: skip BOTH the LLM synthesis tail and figure/panel
     # rendering. Both are verdict-inert, so the deterministic spine is unaffected.
