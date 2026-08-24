@@ -33,6 +33,7 @@ from _skills_common import (
     make_decision_json, write_package, card_summary,
 )
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 # The family-wise FDR across the stratified-dependency classes is single-sourced in
 # _skills_common.card_preprocessors so all three resolution paths apply it identically:
 # this skill's main(), the target-profile fan-out, and compose-dashboard's gate spine.
@@ -730,6 +731,59 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     }
 
 
+# ── FACTORED-RECORD SHADOW (M1) — the genomic per-axis builder. VERDICT-INERT: emitted into
+#    decision.json.claim_record_shadow and consumed by NOTHING (goldens untouched). Maps the
+#    genomic_alteration verdict token onto the factored record's axis-specific coordinates; the
+#    shared assembler owns shape + the open-world invariant + provenance. Mirrors _strength_certainty.
+_GA_ROLE = {  # driver-role from the verdict (LoF-family verdicts carry loss-of-function role)
+    "confirmed_lof_driver": "LoF", "multi_class_lof_driver": "LoF", "lof_dominant_pattern": "LoF",
+}
+# strength label -> ordinal magnitude level (informational; the finding.magnitude coordinate)
+_GA_STRENGTH_TO_LEVEL = {
+    "strong_positive": "strong", "moderate_positive": "moderate",
+    "weak_positive": "weak", "negative": "moderate", "neutral": "weak", "none": "none",
+}
+
+
+def _ga_availability(v) -> str:
+    """Map the genomic verdict to the availability TYPE. `data_unavailable` = open-world ignorance;
+    `insufficient` = measured-but-underpowered; a passenger call is a measured NEGATIVE; a driver
+    call is a measured POSITIVE."""
+    if v == "data_unavailable" or v is None:
+        return "not_wired"           # open-world → assembler forces state=unknown/direction=neutral
+    if v == "insufficient":
+        return "insufficient"
+    if v in _GA_NEG:
+        return "measured_negative"
+    return "measured_positive"
+
+
+def _ga_direction(v) -> str:
+    if v in _GA_STRONG_POS or v in _GA_MOD_POS or v in _GA_WEAK_POS:
+        return "supports"
+    if v in _GA_NEG:
+        return "opposes"
+    return "neutral"
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors _strength_certainty's call shape."""
+    v, driving = (verdict_pair if verdict_pair else (_verdict(fired) if fired is not None else (None, None)))
+    strength = _genomic_strength(v)
+    sc = _strength_certainty(cards, fired=fired, verdict_pair=(v, driving))
+    return assemble_claim_record(
+        axis="genomic_alteration",
+        state=(v or "insufficient"),
+        direction=_ga_direction(v),
+        availability=_ga_availability(v),
+        magnitude={"level": _GA_STRENGTH_TO_LEVEL.get(strength, "none")},
+        mechanism={"role": _GA_ROLE.get(v, "unknown")},
+        certainty=sc["certainty"],
+        fired=fired,
+        cards=cards,
+    )
+
+
 def _synthesis_facet(cards, fired, verdict_pair):
     """Compact, VERDICT-INERT genomic-alteration facet for the composed synthesis prompt. Reconstructs
     the headline from the fan-out-resolved (verdict, driving_rule) via _build_headline (fdr provenance
@@ -836,6 +890,16 @@ def main() -> int:
         card_outputs=emitted_cards, fired=fired,
         headline=headline, modality_lenses=lenses,
     )
+
+    # FACTORED-RECORD SHADOW (M1) — additive, verdict-INERT: emit the factored claim record beside
+    # the legacy verdict spine, consumed by NOTHING. best-effort so a builder fault never breaks the
+    # run (the decision.json verdict is already composed above). Whole-cohort cards drive the verdict,
+    # so the shadow's provenance mirrors the whole-cohort `fired`/`cards` (not the subtype panorama).
+    try:
+        decision["claim_record_shadow"] = {"genomic_alteration": _claim_record(
+            cards, fired=fired, verdict_pair=(verdict, driving_rule))}
+    except Exception as e:  # noqa: BLE001 — shadow is non-authoritative; never break the spine
+        decision["claim_record_shadow"] = {"_shadow_error": f"{type(e).__name__}: {e}"}
 
     # OPT-IN LLM synthesis. This skill hand-rolls main() (it does not use run_wired_skill), so it
     # narrates through the genomic-alteration lens here. Attached as a sibling key AFTER the
