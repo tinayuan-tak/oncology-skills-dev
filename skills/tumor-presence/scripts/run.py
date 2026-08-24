@@ -44,6 +44,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.synthesis import synthesize_presence
 from _skills_common import get_card_field, resolve_cards
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
                                             presence_key_signals)
@@ -573,6 +574,50 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
         "provenance": {"rna_as_biomarker": rna_bm},
         "_model_ref": "CERTAINTY_MODEL.md#tumor_presence",
     }
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the TUMOR-PRESENCE per-axis builder. The FIRST no-resolver axis in
+#    the shadow: presence_verdict is computed inline (no resolver enum), so at M1 the record schema
+#    validates only the token PATTERN — the contracts invariant-C augmented verdict set for no-resolver
+#    axes is an M3 item (mirrors the disjointness validator's verdict_precedence_augment). presence is
+#    modality-BLIND (the composer conjoins it with surface/selectivity for a modality call), so no
+#    modality_scope. VERDICT-INERT: surfaced by the fan-out into decision.claim_record_shadow.tumor_presence.
+_PRES_STRENGTH_TO_LEVEL = {"strong_positive": "strong", "moderate_positive": "moderate",
+                           "weak_positive": "weak", "negative": "moderate", "none": "none"}
+
+
+def _pres_availability(v) -> str:
+    if v == "data_unavailable" or v is None:
+        return "not_wired"                       # open-world → assembler forces unknown/neutral
+    if v == "not_informative":
+        return "insufficient"                    # measured but uninformative
+    if v in _PRES_NEG:
+        return "measured_negative"               # measured DOWN / low expression
+    return "measured_positive"                   # present / elevated in tumor
+
+
+def _pres_direction(v) -> str:
+    if v in _PRES_STRONG_POS or v in _PRES_MOD_POS or v in _PRES_WEAK_POS:
+        return "supports"
+    if v in _PRES_NEG:
+        return "opposes"
+    return "neutral"
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    sc = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)
+    return assemble_claim_record(
+        axis="tumor_presence",
+        state=(v or "not_informative"),
+        direction=_pres_direction(v),
+        availability=_pres_availability(v),
+        magnitude={"level": _PRES_STRENGTH_TO_LEVEL.get(_presence_strength(v), "none")},
+        certainty=sc["certainty"],
+        fired=fired,
+        cards=cards,
+    )
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
