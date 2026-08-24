@@ -223,3 +223,30 @@ def test_short_to_gate_maps_to_real_resolvers():
     for short, gate in run._SHORT_TO_GATE.items():
         rids = resolver_referenced_rule_ids(gate, contracts_repo=contracts)
         assert rids, f"_SHORT_TO_GATE[{short!r}] -> {gate!r} has no resolver-referenced rules"
+
+
+def test_acquisition_backlog_lists_blind_axis_with_missing_cards(tmp_path):
+    """Ignorance≠negation: a BLIND decision axis becomes an ACQUIRE task naming the missing cards +
+    their availability_state (the 'go measure X' backlog the composed layer otherwise drops)."""
+    c = _fixture_contracts(tmp_path)
+    sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))  # evidenced
+    sr["safety"] = {"skill_dir": "safety",
+                    "cards": [{"card_id": "gnomad-lof-constraint", "_missing": True,
+                               "availability_state": "data_blocked"}],
+                    "fired": [], "verdict": None}   # blind
+    f = run._fragility_facet(sr, contracts_repo=c)
+    ab = {a["axis"]: a for a in f["acquisition_backlog"]}
+    assert "safety" in ab, "blind decision axis must surface as an ACQUIRE task"
+    assert ab["safety"]["action"] == "acquire"
+    assert ab["safety"]["missing_cards"][0]["card_id"] == "gnomad-lof-constraint"
+    assert ab["safety"]["missing_cards"][0]["availability_state"] == "data_blocked"
+    assert "dependency" not in ab, "an evidenced axis is not an ignorance/acquire task"
+
+
+def test_measured_negative_kill_is_not_an_acquire_task(tmp_path):
+    """A fired KILL verdict (measured negative) must NOT appear in the acquisition backlog — it is a
+    real veto (KILL), not ignorance (ACQUIRE). This is the ignorance-vs-negation action split."""
+    c = _fixture_contracts(tmp_path)
+    sr = _sr(safety=(["safety-killer"], ("highly_constrained_safety_concern", "safety-killer")))
+    f = run._fragility_facet(sr, contracts_repo=c)
+    assert "safety" not in {a["axis"] for a in f["acquisition_backlog"]}

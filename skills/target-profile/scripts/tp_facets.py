@@ -890,6 +890,12 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     fragilities: list[float] = []           # worst-case CALL fragility (any decision-role change)
     rec_fragilities: list[float] = []       # worst-case RECOMMENDATION fragility (kill-boundary crossing)
     blind_decision_axes: list[str] = []
+    # ACQUISITION BACKLOG (VERDICT_REPRESENTATION.md — ignorance≠negation). A decision-relevant axis
+    # that is BLIND this run is held by IGNORANCE (a coverage gap), NOT by a measured negative — the two
+    # license opposite next actions: ACQUIRE the data vs KILL the target. Measured-negative KILLs are the
+    # gate's veto/hold hits (surfaced there); this list is the "go measure X" backlog the composed layer
+    # otherwise drops. Verdict-INERT (fragility facet); names the missing cards + their availability_state.
+    acquisition_backlog: list[dict] = []
     for short in sorted(decision_shorts):
         r = sub_results.get(short)
         if r is None:
@@ -905,6 +911,17 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
             per_axis[short] = {"gate": gate, "flip_applicable": bool(gate), "has_signal": False,
                                "coverage": coverage, "fragility": None, "reason": "blind"}
             blind_decision_axes.append(short)
+            # ACQUIRE task: name the missing cards + WHY (availability_state, if the composer set it —
+            # not_wired / data_blocked / read_error / insufficient). is_coverage_gap distinguishes a
+            # never-looked gap (acquire wiring/data) from a measured 'we looked, absent' insufficient.
+            missing = [{"card_id": c.get("card_id"),
+                        "availability_state": c.get("availability_state") or "unknown"}
+                       for c in (r.get("cards") or []) if c.get("_missing")]
+            acquisition_backlog.append({
+                "axis": short, "gate": gate, "coverage": coverage,
+                "action": "acquire",   # held by IGNORANCE → go measure; never a KILL
+                "missing_cards": missing,
+            })
             continue
 
         if gate is None:
@@ -972,6 +989,7 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
         "contested": contested,
         "decision_relevant_axes": sorted(decision_shorts),
         "blind_decision_axes": blind_decision_axes,
+        "acquisition_backlog": acquisition_backlog,
         "per_axis": per_axis,
         "_basis": "target_index = worst-case DECISION-flip (any role change: how solid is each axis's "
                   "call). recommendation_fragility_index = worst-case KILL-boundary-crossing flip (how "
