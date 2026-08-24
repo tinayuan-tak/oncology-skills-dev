@@ -44,3 +44,11 @@ corroboration_by_gate:
                                      # verified). oncogenic->high, likely_oncogenic->medium, vus/benign->low,
                                      # data_unavailable->unmeasured. NOT mutation-hotspot-frequency (MC3<->GENIE
                                      # cross-source recurrence) — that DRIVES recurrent_snv_driver (violation).
+  surface_modality:
+    - protein-surface-evidence       # CSPA wet-lab cell-surface mass-spec (Bausch-Fluck 2015) — an
+                                     # INDEPENDENT surfaceome line confirming surface RESIDENCY, orthogonal to
+                                     # adc-tce-modality-fit's topology+family fit_class. Verdict-INERT: its
+                                     # rules (protein-surface-confirmed-supportive / protein-not-surface-opposing)
+                                     # fire NO surface_modality.resolver rung (0 refs, verified). class map:
+                                     # confirmed_high / confirmed(>=3 lines)->high; confirmed(1-2)->medium;
+                                     # not_surface(measured-negative)->low; data_unavailable->unmeasured.
