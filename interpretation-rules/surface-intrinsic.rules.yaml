@@ -1286,6 +1286,75 @@ rules:
       normal-atlas coverage for the driving tissue rather than reading it as selectivity.
 
   # ============================================================================
+  # I'''' — BULK tumor-vs-normal AND-gate pair-selectivity (bispecific NECESSITY signal, 2026-08-24)
+  # ============================================================================
+  # Keyed on best_and_call_class (surface-bulk-pair-selectivity card): the rule-matchable companion to
+  # the free-text best_and_call. This card was the ONE biologics card with no rules — its bispecific
+  # AND-gate necessity signal reached only the LLM narrative (druggability audit). These rules give it
+  # a STRUCTURED, auditable signal. NECESSITY not sufficiency: bulk co-expression in a SAMPLE is
+  # necessary but not sufficient for same-CELL avidity (that is surface-colocalization-avidity) — so the
+  # supportive signal is a bispecific CANDIDATE-GENERATION cue, secondary importance, NOT a monospecific
+  # positive. ADDITIVE signal-only: in NO resolver rung → surface_modality verdict BYTE-STABLE; enriches
+  # the bispecific signal set + confidence. no_selective_pair / data_unavailable fire NO rule (abstain).
+  # ============================================================================
+
+  - rule_id: bulk-pair-and-selective-supportive
+    when:
+      card_id: surface-bulk-pair-selectivity
+      field: best_and_call_class
+      equals: selective_and_pair
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      bite_tce: secondary
+      adc: secondary
+      antibody: secondary
+    rationale: |
+      A clinical-seed AND-gate partner makes the target tumor-selective at the BULK tumor-vs-normal
+      grain AND stays clean on non-essential normal (best_and_call_class=selective_and_pair). A
+      candidate-generation NECESSITY cue for a logic-gated bispecific (dual-ADC / AND-gate TCE) —
+      secondary importance because same-cell avidity (surface-colocalization-avidity) is the SUFFICIENCY
+      confirmation this bulk-sample signal cannot provide. Additive; does not move the modality verdict.
+
+  - rule_id: bulk-pair-and-broad-tissue-liability-opposing
+    when:
+      card_id: surface-bulk-pair-selectivity
+      field: best_and_call_class
+      equals: selective_but_broad_tissue_liability
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      bite_tce: secondary
+      adc: secondary
+      antibody: secondary
+    rationale: |
+      The best AND-gate pair is selective vs ESSENTIAL normal but fires broadly in NON-essential normal
+      tissue (Theme-1 broad-tissue liability). Opposing (secondary) — a broad normal footprint erodes the
+      logic-gate's therapeutic window even when essential organs are spared. Additive; verdict-inert.
+
+  - rule_id: bulk-pair-and-not-selective-opposing
+    when:
+      card_id: surface-bulk-pair-selectivity
+      field: best_and_call_class
+      equals: not_selective
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      bite_tce: secondary
+      adc: secondary
+      antibody: secondary
+    rationale: |
+      The best available AND-gate pair also co-fires in an ESSENTIAL normal tissue — the logic gate does
+      not open a tumor-selective window. Opposing (secondary). Additive; verdict-inert. (no_selective_pair
+      = co-expression too rare in tumor, and data_unavailable, fire NO rule — coverage gaps, not negatives.)
+
+  # ============================================================================
   # I''' — sc NORMAL SURFACE-PROTEIN safety card (single-cell off-tumor floor)
   # sc_surface_normal_class = whether the target's SURFACE protein is displayed on normal immune cell
   # types (CITE-seq). The surface off-tumor floor bulk GTEx/HPA misses: a CD antigen on resting T cells

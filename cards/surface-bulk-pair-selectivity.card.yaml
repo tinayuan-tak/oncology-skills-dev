@@ -44,12 +44,21 @@ outputs:
     - best_and_partner                     # most tumor-selective AND-gate partner
     - best_and_selectivity                 # tumor_fraction / max-essential-normal-fraction for that pair
     - best_and_call                        # human-readable AND-gate call (incl. broad-tissue-liability flag)
+    - best_and_call_class                  # rule-matchable categorical companion to best_and_call (2026-08-24)
     - best_and_max_essential_normal_tissue # the essential normal tissue that most limits the AND pair
     - best_not_partner                     # best NOT-gate veto partner (target present, veto absent)
     - best_not_selectivity
     - best_or_partner                      # best OR-gate (heterogeneity backstop) partner
     - best_or_selectivity
     - n_partners_scanned                   # clinical-seed partners scored for this target×indication
+
+  summary_fields_vocabulary:
+    best_and_call_class:                   # rule-matchable companion to the free-text best_and_call (2026-08-24)
+      - selective_and_pair                 # AND-gate tumor-selective AND clean on non-essential normal too
+      - selective_but_broad_tissue_liability  # tumor-selective vs ESSENTIAL normal, but fires broadly in NON-essential normal (Theme-1)
+      - not_selective                      # AND-gate also fires in essential normal tissue
+      - no_selective_pair                  # co-expression too rare in tumor (< coverage floor) — low value
+      - data_unavailable                   # no tumor samples / no scored AND pair (not scanned)
 
 
 caveats:
