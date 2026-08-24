@@ -2438,6 +2438,39 @@ rules:
       sub-potent affinity) — a starting point that needs optimization. Weak-supportive: real measured
       chemical matter, but thin. SM-scoped.
 
+  # WS-E (2026-08-24 druggability audit): REAL ChEMBL clinical phase drives the clinical-precedent tier.
+  # Previously the SM clinical_precedent_only verdict ran off a coarse PRISM `Prioritized`-flag proxy
+  # (highest_clinical_phase); the measured-potency card carried the real ChEMBL max_clinical_phase but
+  # DISPLAY-only. These two rules key on the new chembl_clinical_phase_class categorical. SM-scoped
+  # (clinical phase of a chemical program says nothing about degrader/E3 feasibility). preclinical_or_none
+  # / data_unavailable fire NO rule (abstain).
+  - rule_id: measured-chembl-approved-sm-supportive
+    when:
+      card_id: measured-potency-tractability
+      field: chembl_clinical_phase_class
+      equals: approved
+    signals:
+      small_molecule: supportive
+    rationale: |
+      A drug that reached APPROVAL (ChEMBL max_clinical_phase >= 4) is catalogued against this target —
+      the strongest retrospective clinical chemical evidence. Maps to chemically_active (SAME tier as the
+      PRISM cell-panel / DGIdb approved-drug rungs; a third independent path from the real ChEMBL phase
+      that rescues a target those two missed). SM-scoped.
+
+  - rule_id: measured-chembl-clinical-precedent-sm-supportive
+    when:
+      card_id: measured-potency-tractability
+      field: chembl_clinical_phase_class
+      equals: clinical
+    signals:
+      small_molecule: supportive
+    rationale: |
+      A compound in ACTIVE clinical development (ChEMBL max_clinical_phase 1-3, not yet approved) is
+      catalogued against this target — REAL clinical precedent. Maps to clinical_precedent_only (weaker
+      than a measured/approved chemically_active, stronger than a bare tool compound). This is the
+      AUTHORITATIVE real-phase source for the clinical-precedent tier, replacing the coarse PRISM
+      `Prioritized`-flag proxy as the cited reason. SM-scoped.
+
   # ============================================================================
   # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================

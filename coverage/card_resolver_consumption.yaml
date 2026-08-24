@@ -187,6 +187,8 @@ detail:
     resolvers:
     - tractability_small_molecule
     rules:
+    - measured-chembl-approved-sm-supportive
+    - measured-chembl-clinical-precedent-sm-supportive
     - measured-potent-ligand-sm-supportive
     - measured-weak-ligand-sm-supportive
   modality-therapeutic-window:

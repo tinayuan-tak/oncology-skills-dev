@@ -44,7 +44,8 @@ outputs:
     - best_measured_potency_neglog_m     # float — max potency across sources (-log10 M; >=6 == <=1 uM)
     - chembl_best_pchembl                # float — ChEMBL max pchembl_value
     - chembl_n_potent_ligands            # int — ChEMBL potent (<=1 uM) ligand count (the series depth)
-    - chembl_max_clinical_phase          # float — ChEMBL max clinical phase (4=approved) [DISPLAY; see caveat]
+    - chembl_max_clinical_phase          # float — ChEMBL max clinical phase (4=approved) [raw; see chembl_clinical_phase_class]
+    - chembl_clinical_phase_class        # rule-matchable categorical from the real ChEMBL phase (WS-E 2026-08-24)
     - bindingdb_best_p_affinity          # float — BindingDB max -log10(M) affinity
     - bindingdb_n_potent_ligands         # int — BindingDB sub-micromolar binder count
     - measured_potency_context           # string — human-readable rationale (audit / LLM)
@@ -56,6 +57,11 @@ outputs:
       - weak_measured_ligand             # measured activity but not a series (a potent hit or two, or sub-potent)
       - no_measured_activity             # in a source, no measured potency value
       - data_unavailable                 # absent from BOTH products (coverage gap, NOT 'no chemical matter')
+    chembl_clinical_phase_class:         # WS-E (2026-08-24): rule-matchable real ChEMBL clinical phase
+      - approved                         # max_clinical_phase >= 4 — an approved drug hits the target (-> chemically_active)
+      - clinical                         # 1-3 — a compound in active clinical development (-> clinical_precedent_only, authoritative)
+      - preclinical_or_none              # < 1 (incl. Early-Phase-1 0.5) or no phase value on the ChEMBL row
+      - data_unavailable                 # no ChEMBL row for the target
 
 warning_predicates:
   - warning_id: measured_potency_data_unavailable
@@ -75,10 +81,11 @@ caveats:
     a chemotype depth signal — not one reported binder. n_potent_ligands is the discriminating field;
     best_pchembl alone is display context.
   - |
-    chembl_max_clinical_phase is DISPLAY-only here and does NOT drive this card's class — clinical
-    precedent is the DGIdb known-drug leg's job (approved_drug_tractable). This card's contribution is
-    the DISTINCT, measured-POTENCY dimension; keeping clinical-phase out of its verdict avoids
-    double-counting the approved-drug signal already carried by the known-drug-tractability card.
+    chembl_clinical_phase_class (WS-E, 2026-08-24) is the rule-matchable companion to the raw
+    chembl_max_clinical_phase and DOES drive SM rungs: approved -> chemically_active (corroborates the
+    PRISM/DGIdb approved rungs); clinical (phase 1-3) -> clinical_precedent_only, the AUTHORITATIVE
+    real-phase source ranked above the coarse PRISM `Prioritized` proxy it replaces. The PRIMARY class
+    stays the distinct measured-POTENCY dimension; the phase class is an orthogonal clinical-precedent leg.
   - |
     Absence is a COVERAGE GAP, never 'undruggable' (measured-vs-null discipline). data_unavailable means
     the gene is in neither bioactivity source. LICENSE: ChEMBL is CC-BY-SA-3.0 (share-alike); this leg
