@@ -59,6 +59,34 @@ resolve:
     when_all_fired: [pan-essential-broad-tox-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, copy-number-amplified-oncogene-safety-context]
     driving_rule: copy-number-amplified-oncogene-safety-context
 
+  # ── GROUP 0b: RARELY-ALTERED oncogene guard (2026-08-24, PR-4c). The GROUP-1 mutant-selective
+  #    downgrades below assume an activating GoF driver drugged MUTANT-SELECTIVELY (KRAS-G12C, EGFR-
+  #    ex19del, IDH1-R132) — those spare the WT protein, so the WT-loss concern is downgraded. But an
+  #    oncogene that is `functional_state_class == rarely_altered` (mostly WILD-TYPE across tumors,
+  #    an amplification/role-only oncogene with NO recurrent activating point mutation — MCL1) is
+  #    drugged by PAN-inhibition against its WT protein, so the WT-loss concern STANDS. Same logic as
+  #    the GROUP-0 amplification guard; must precede GROUP-1 (first-match-wins). Reuses the existing
+  #    functional-gene-state-rarely-altered-neutral rule (no new rule); a NEGATIVE guard, so mutant-
+  #    selective drivers (sporadic_biallelic, not rarely_altered) never match it and keep GROUP-1.
+  - verdict: highly_constrained_safety_concern
+    when_all_fired: [highly-constrained-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, functional-gene-state-rarely-altered-neutral]
+    driving_rule: functional-gene-state-rarely-altered-neutral
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [gene-burden-lof-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, functional-gene-state-rarely-altered-neutral]
+    driving_rule: functional-gene-state-rarely-altered-neutral
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [clingen-dominant-loss-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, functional-gene-state-rarely-altered-neutral]
+    driving_rule: functional-gene-state-rarely-altered-neutral
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [mouse-ko-lethal-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, functional-gene-state-rarely-altered-neutral]
+    driving_rule: functional-gene-state-rarely-altered-neutral
+  - verdict: human_genetics_safety_concern
+    when_all_fired: [clinvar-germline-pathogenic-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, functional-gene-state-rarely-altered-neutral]
+    driving_rule: functional-gene-state-rarely-altered-neutral
+  - verdict: pan_essential_broad_tox_concern
+    when_all_fired: [pan-essential-broad-tox-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context, functional-gene-state-rarely-altered-neutral]
+    driving_rule: functional-gene-state-rarely-altered-neutral
+
   # ── GROUP 1: mutant-selective DOWNGRADES (when_all_fired — most specific, must precede the raw
   #    concerns). A GoF driver drugged mutant-selectively spares the WT protein that EVERY WT-loss
   #    safety signal (gnomAD constraint, rare-variant burden, ClinGen dominant-loss, mouse adult-KO)

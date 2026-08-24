@@ -18,6 +18,7 @@ resolver_consumed_cards:
 - crispr-rnai-dependency-concordance
 - dependency-lineage-selectivity
 - expression-dependency-correlation
+- functional-gene-state
 - fusion-rearrangement-landscape
 - fusion-stratified-dependency
 - gene-burden-safety
@@ -146,6 +147,11 @@ detail:
     rules:
     - cis-expr-dependency-absent-neutral
     - cis-expr-dependency-coupled-supportive
+  functional-gene-state:
+    resolvers:
+    - safety
+    rules:
+    - functional-gene-state-rarely-altered-neutral
   fusion-rearrangement-landscape:
     resolvers:
     - genomic_alteration
