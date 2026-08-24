@@ -88,7 +88,7 @@ def read_target_bulk_pair_selectivity(target: str, indication: str = None) -> di
 def _empty(target, indication, note) -> dict:
     return {
         "target": target, "indication": indication, "n_partners_scanned": 0,
-        "best_and_partner": None, "best_and_selectivity": None,
+        "best_and_partner": None, "best_and_selectivity": None, "best_and_call_class": "data_unavailable",
         "best_not_partner": None, "best_not_selectivity": None,
         "best_or_partner": None, "best_or_selectivity": None,
         "_data_source": DERIVED_MANIFEST_ID, "_data_note": note, "_avidity_caveat": AVIDITY_CAVEAT,

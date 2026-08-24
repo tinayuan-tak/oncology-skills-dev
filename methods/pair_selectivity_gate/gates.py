@@ -115,6 +115,31 @@ def reduce_gate(gate: str, tumor_frac_by_study: dict, normal_frac_by_tissue: dic
     }
 
 
+def classify_and_selectivity(tumor_frac: Optional[float], max_ess_frac: float,
+                             max_any_frac: float, selectivity: Optional[float]) -> str:
+    """Categorical companion to the free-text AND-gate `call` (2026-08-24 druggability audit).
+
+    best_and_call is a human-readable string, so the categorical-only rules engine could not key on
+    it — the bispecific-necessity signal reached only the LLM narrative. This distils the SAME AND-gate
+    logic in `_call` into a rule-matchable class (mirrors the {tumor, essential, any}-fraction cuts):
+      selective_and_pair                     tumor-selective AND clean on non-essential normal too
+      selective_but_broad_tissue_liability   tumor-selective vs ESSENTIAL normal, but fires broadly in
+                                             NON-essential normal (THEME-1 broad-tissue liability)
+      not_selective                          AND-gate also fires in essential normal tissue
+      no_selective_pair                      co-expression too rare in tumor (< coverage floor) — low value
+      data_unavailable                       no tumor samples / no scored AND pair
+    """
+    if tumor_frac is None or selectivity is None:
+        return "data_unavailable"
+    if tumor_frac < AND_GATE_MIN_COFRACTION:
+        return "no_selective_pair"
+    if max_ess_frac >= AND_GATE_MIN_COFRACTION:
+        return "not_selective"
+    if max_any_frac >= AND_GATE_MIN_COFRACTION:
+        return "selective_but_broad_tissue_liability"
+    return "selective_and_pair"
+
+
 def _call(gate: str, tumor_frac: Optional[float], max_ess_frac: float,
           max_any_frac: float, selectivity: Optional[float]) -> str:
     if tumor_frac is None:

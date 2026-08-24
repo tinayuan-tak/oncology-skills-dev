@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .gates import _positive_fraction_by_group, reduce_gate, _GATES
+from .gates import _positive_fraction_by_group, reduce_gate, _GATES, classify_and_selectivity
 
 
 def _tumor_studies_for(indication: str, indication_to_studies: dict) -> list:
@@ -96,6 +96,13 @@ def best_partner_rollup(rows: list, target: str, indication: str) -> dict:
         out[f"best_{key}_tumor_study"] = top["tumor_study"]
         out[f"best_{key}_max_essential_normal_tissue"] = top["max_essential_normal_tissue"]
         out[f"best_{key}_call"] = top["call"]
+        if gate == "AND":
+            # Rule-matchable categorical companion to the free-text best_and_call (2026-08-24 audit) —
+            # lets surface-intrinsic rules fire the bispecific-necessity signal instead of it reaching
+            # only the LLM narrative. Derived from the winning AND row's structured fractions.
+            out["best_and_call_class"] = classify_and_selectivity(
+                top["tumor_fraction"], top["max_essential_normal_fraction"],
+                top["max_any_normal_fraction"], top["selectivity"])
     return out
 
 

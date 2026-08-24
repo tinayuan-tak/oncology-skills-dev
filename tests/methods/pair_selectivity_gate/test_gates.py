@@ -14,7 +14,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.pair_selectivity_gate.gates import (  # noqa: E402
-    _positive_fraction_by_group, reduce_gate,
+    _positive_fraction_by_group, reduce_gate, classify_and_selectivity,
     GATE_POSITIVE_THRESHOLD_TPM, AND_GATE_MIN_COFRACTION, AVIDITY_CAVEAT,
 )
 
@@ -117,3 +117,18 @@ def test_or_gate_keeps_raw_selectivity_no_coverage_gate():
 
 def test_avidity_caveat_is_nonempty_and_names_same_cell():
     assert "same-CELL" in AVIDITY_CAVEAT and "avidity" in AVIDITY_CAVEAT
+
+
+def test_classify_and_selectivity_categorical_2026_08_24():
+    # rule-matchable companion to the free-text AND call; mirrors _call's {tumor,essential,any} cuts.
+    T = AND_GATE_MIN_COFRACTION
+    # tumor-selective, clean on essential AND non-essential normal
+    assert classify_and_selectivity(0.80, 0.05, 0.05, 16.0) == "selective_and_pair"
+    # tumor-selective vs essential, but fires broadly in NON-essential normal (Theme-1)
+    assert classify_and_selectivity(0.80, 0.05, T + 0.10, 16.0) == "selective_but_broad_tissue_liability"
+    # AND-gate also fires in essential normal → not selective
+    assert classify_and_selectivity(0.80, T + 0.10, 0.90, 2.0) == "not_selective"
+    # co-expression too rare in tumor (below coverage floor) → low value
+    assert classify_and_selectivity(T - 0.10, 0.01, 0.01, 0.0) == "no_selective_pair"
+    # no tumor samples / no selectivity → data_unavailable
+    assert classify_and_selectivity(None, 0.0, 0.0, None) == "data_unavailable"
