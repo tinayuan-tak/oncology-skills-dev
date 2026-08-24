@@ -12,6 +12,17 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from methods.catalog_query.read import s3_uri_for
+
+# Precomputed per-indication HRD-scar product (tcga-hrd-scar-per-indication-v1): materializes exactly
+# what hrd_score_for_indication computes, so the reader can read ONE indication's row (~kB) instead of
+# streaming + parsing the full ~253 MB PanCanAtlas ABSOLUTE segtabs on every call (the dominant cost of
+# the genomic-instability-state card's HRD arm). Resolved lazily (not a module-level constant) so import
+# never breaks before the manifest is registered.
+_HRD_PRODUCT_ID = "tcga-hrd-scar-per-indication-v1"
+_HRD_PRODUCT_FIELDS = ("hrd_class", "hrd_high_fraction", "n_hrd_high", "median_hrd_score",
+                       "p75_hrd_score", "n_samples", "hrd_context", "method_version", "_data_source")
+
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 PANCAN_PREFIX = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"
@@ -206,11 +217,67 @@ def _load_absolute_segtabs():
         raise                       # broken-env / transient / creds → honest _live_read_error
 
 
+def _hrd_from_product(indication: str):
+    """Read ONE indication's HRD summary from the precomputed product (per-indication pushdown, ~kB).
+
+    Returns the summary dict (SAME shape/values _hrd_score_for_indication_live produces — the product
+    materialized that fn's output) or None when the product is UNREACHABLE (manifest not registered →
+    s3_uri_for raises; object absent → FileNotFoundError/404) OR the indication is not in the product
+    (→ live fallback covers indications added after the last build). A transient/creds error re-raises."""
+    try:
+        uri = s3_uri_for(_HRD_PRODUCT_ID)
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- LOCAL catalog manifest lookup, not an S3 read; a raise means the derived manifest is not registered → fall back to the live segtabs computation
+        return None
+    try:
+        import numpy as np
+        import pandas as pd
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+        path = uri.replace("s3://", "", 1)
+        df = pq.read_table(path, filesystem=fs.S3FileSystem(),
+                           filters=[("indication", "=", str(indication or "").upper().strip())]).to_pandas()
+        if df.empty:
+            return None   # indication not in the product → live fallback
+        row = df.iloc[0]
+
+        def _num(v, cast):
+            return None if pd.isna(v) else cast(v)
+        # Reconstruct the EXACT python types _hrd_score_for_indication_live returns (parquet round-trips
+        # numpy types) so the emitted card summary is byte-identical to the live path.
+        return {
+            "hrd_class": None if pd.isna(row["hrd_class"]) else str(row["hrd_class"]),
+            "hrd_high_fraction": _num(row["hrd_high_fraction"], float),
+            "n_hrd_high": int(row["n_hrd_high"]),
+            "median_hrd_score": _num(row["median_hrd_score"], float),
+            "p75_hrd_score": _num(row["p75_hrd_score"], float),
+            "n_samples": int(row["n_samples"]),
+            "hrd_context": None if pd.isna(row["hrd_context"]) else str(row["hrd_context"]),
+            "method_version": str(row["method_version"]),
+            "_data_source": None if pd.isna(row["_data_source"]) else str(row["_data_source"]),
+        }
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
+        return None   # product object genuinely absent → live segtabs fallback
+
+
 def hrd_score_for_indication(indication: str) -> dict:
     """Per-indication homologous-recombination-deficiency (HRD) genomic-scar summary — a scar
-    score (HRD-LOH + LST + ntAI). Cohort-level, target-independent. NOTE: this function is
-    implemented but NOT wired into any card (deferred); the card currently surfaces only the
-    SBS3 signature proxy.
+    score (HRD-LOH + LST + ntAI). Cohort-level, target-independent.
+
+    Prefers the precomputed per-indication product (tcga-hrd-scar-per-indication-v1; ~kB pushdown);
+    falls back to the live ~253 MB ABSOLUTE-segtabs computation when the product is unreachable or the
+    indication is absent from it. Byte-identical either way (the product materialized this fn's output)."""
+    prod = _hrd_from_product(indication)
+    if prod is not None:
+        return prod
+    return _hrd_score_for_indication_live(indication)
+
+
+def _hrd_score_for_indication_live(indication: str) -> dict:
+    """LIVE HRD computation from the PanCanAtlas ABSOLUTE allele-specific segtabs (the fallback + the
+    substrate the product is built from). NOTE: prior to the product, this was hrd_score_for_indication.
 
     Computes the three-component HRD score per sample from the PanCanAtlas ABSOLUTE allele-specific
     segments (see hrd.py), scopes to the indication's TCGA project(s) via the same barcode→cancer-type
@@ -675,9 +742,11 @@ def prewarm(indication: Optional[str] = None) -> None:
     patient-side label source (CRC + STAD). Best-effort throughout (see _safe_prewarm). Verdict-inert."""
     from concurrent.futures import ThreadPoolExecutor
 
+    # NOTE: _load_absolute_segtabs (the ~253 MB HRD substrate) is intentionally NOT prewarmed — HRD now
+    # reads the per-indication product (_hrd_from_product), so warming the segtabs would download 253 MB
+    # for nothing. It is loaded ONLY on the live fallback (product unreachable), which warms it itself.
     argless = (_load_sample_cancer_types, _load_seg_scores, _load_absolute,
-               _load_absolute_segtabs, _load_model_msi_by_lineage,
-               _load_model_signatures_by_lineage)
+               _load_model_msi_by_lineage, _load_model_signatures_by_lineage)
     ind = str(indication or "").upper().strip()
     src = MSI_LABEL_SOURCE.get(ind)   # (key, column) for CRC/STAD; None otherwise → no MSI read
 

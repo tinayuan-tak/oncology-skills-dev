@@ -131,6 +131,9 @@ def test_x_chromosome_excluded():
 # ---------------- cohort roll-up (S3 mocked) ----------------
 
 def _mock_segtabs(monkeypatch, seg_rows, cancer_map):
+    # Force the LIVE segtabs computation: hrd_score_for_indication tries the per-indication product
+    # first, so stub it absent (else this offline test would attempt a real S3 read of the product).
+    monkeypatch.setattr(r, "_hrd_from_product", lambda *a, **k: None)
     r._load_absolute_segtabs.cache_clear()
     r._load_sample_cancer_types.cache_clear()
     monkeypatch.setattr(r, "_load_absolute_segtabs", lambda: pd.DataFrame(seg_rows))
@@ -164,6 +167,7 @@ def test_indication_unavailable_no_mapping(monkeypatch):
 
 
 def test_indication_unavailable_empty_segtabs(monkeypatch):
+    monkeypatch.setattr(r, "_hrd_from_product", lambda *a, **k: None)   # force live path (see _mock_segtabs)
     r._load_absolute_segtabs.cache_clear()
     r._load_sample_cancer_types.cache_clear()
     monkeypatch.setattr(r, "_load_absolute_segtabs", lambda: pd.DataFrame())
