@@ -134,6 +134,41 @@ its rendered output lives in `health/framework_health.html`.
 
 ---
 
+## Regenerating & publishing the framework dashboard
+
+The **unified framework dashboard** (`validators/architecture_dashboard/`) folds two views into one
+self-contained HTML: *what's wired* (architecture — the `skill → cards → datasets · methods · rules →
+verdict` graph) and *what's live* (health, computed in-process via `framework_health`). It is the
+shareable artifact for collaborators. `validators/output_registry/publish_dashboard.py` regenerates it
+fresh and publishes to both S3 (with a time-boxed presigned link) and a dated GitHub release.
+
+Two `make` targets wrap the flow (both read the three sibling repos — `target-contracts`,
+`claude-oncology-skills`, `data-catalog` — fresh, so keep them checked out and current):
+
+```bash
+make dashboard-dry                       # assemble + stamp, NO S3 / gh writes (sanity check)
+make dashboard AWS_PROFILE=cbg           # full regenerate → S3 + presigned URL + dated gh release
+```
+
+`make dashboard` requires **`AWS_PROFILE=cbg`** for S3 (see the team's S3 access notes) and **`gh` on
+`PATH`, authenticated** for the release. It:
+
+1. regenerates the output-registry `catalog.json` (reads `s3://onc-compbio/skill-runs/`),
+2. computes fresh `framework_health`,
+3. builds `framework_dashboard.{html,json}`,
+4. uploads to `s3://onc-compbio/framework-dashboard/` — a live copy plus a `history/<date>/` snapshot
+   and a diffable `manifest.json` (SHAs + tallies),
+5. prints a **presigned URL** (default 7-day expiry; override with `--presign-days N`), and
+6. cuts a `dashboard-<date>` GitHub release with the HTML as an asset — the durable, no-expiry copy for
+   anyone with repo access.
+
+Useful flags (pass through the underlying module, e.g. `python3 -m validators.output_registry.publish_dashboard …`):
+`--dry-run`, `--skip-s3`, `--skip-gh`, `--presign-days`, `--generated-at` (ISO stamp for a reproducible
+manifest — `make` supplies `STAMP` automatically). The `onc-compbio` bucket blocks all public access, so
+the presigned URL — not a static-website link — is how the live view is shared.
+
+---
+
 ## Conventions
 
 - **Never rename or delete a card/rule ID in place.** Downstream skills reference IDs by string.
