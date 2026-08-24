@@ -14,7 +14,22 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.measured_potency_tractability.read import (  # noqa: E402
-    classify_measured_bioactivity, measured_potency_for_gene, POTENT_PCHEMBL, POTENT_SERIES_MIN)
+    classify_measured_bioactivity, measured_potency_for_gene, POTENT_PCHEMBL, POTENT_SERIES_MIN,
+    classify_chembl_clinical_phase)
+
+
+def test_chembl_clinical_phase_class_2026_08_24():
+    assert classify_chembl_clinical_phase({"max_clinical_phase": 4}) == "approved"
+    assert classify_chembl_clinical_phase({"max_clinical_phase": 4.0}) == "approved"
+    assert classify_chembl_clinical_phase({"max_clinical_phase": 2}) == "clinical"
+    assert classify_chembl_clinical_phase({"max_clinical_phase": 1}) == "clinical"
+    assert classify_chembl_clinical_phase({"max_clinical_phase": 0.5}) == "preclinical_or_none"  # Early Phase 1 — conservative
+    assert classify_chembl_clinical_phase({"max_clinical_phase": 0}) == "preclinical_or_none"
+    assert classify_chembl_clinical_phase({"max_clinical_phase": None}) == "preclinical_or_none"  # row exists, no phase
+    assert classify_chembl_clinical_phase(None) == "data_unavailable"                             # no ChEMBL row
+    # surfaced in the summary dict
+    g = measured_potency_for_gene("EGFR", chembl_row={"max_clinical_phase": 4}, bdb_row=None)
+    assert g["chembl_clinical_phase_class"] == "approved"
 
 
 def test_absent_from_both_is_data_unavailable():

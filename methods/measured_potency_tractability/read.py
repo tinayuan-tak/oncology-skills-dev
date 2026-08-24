@@ -31,7 +31,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"   # 2026-08-24: + chembl_clinical_phase_class (rule-matchable real-phase categorical)
 CHEMBL_MANIFEST_ID = "chembl-bioactivity-per-protein-v1"
 BINDINGDB_MANIFEST_ID = "bindingdb-affinity-per-protein-v1"
 POTENT_PCHEMBL = 6.0   # -log10(M); pchembl/p_affinity >= 6 == <= 1 uM (the per-activity potent bar)
@@ -152,6 +152,30 @@ def classify_measured_bioactivity(chembl_row: Optional[dict], bdb_row: Optional[
     return "no_measured_activity"
 
 
+def classify_chembl_clinical_phase(chembl_row: Optional[dict]) -> str:
+    """Rule-matchable categorical from ChEMBL max_clinical_phase (2026-08-24 druggability audit).
+
+    chembl_max_clinical_phase was pulled but DISPLAY-only; the SM clinical-precedent tier instead ran
+    off a coarse PRISM `Prioritized`-flag proxy (highest_clinical_phase). This distils the REAL ChEMBL
+    phase into a class the SM resolver can key on (authoritative over the PRISM proxy):
+      approved            max_phase >= 4  — an approved drug hits this target (chemically_active tier)
+      clinical            1 <= max_phase < 4 — a phase 1-3 compound (real clinical precedent)
+      preclinical_or_none chembl row exists but phase < 1 / absent (incl. Early-Phase-1 0.5, conservatively)
+      data_unavailable    no ChEMBL row for the target
+    """
+    if chembl_row is None:
+        return "data_unavailable"
+    try:
+        ph = float(chembl_row.get("max_clinical_phase"))
+    except (TypeError, ValueError):
+        return "preclinical_or_none"
+    if ph >= 4:
+        return "approved"
+    if ph >= 1:
+        return "clinical"
+    return "preclinical_or_none"
+
+
 def measured_potency_for_gene(target: str,
                               chembl_row: Optional[dict] = None, bdb_row: Optional[dict] = None,
                               chembl_payload=None, chembl_sidecar=None,
@@ -173,6 +197,7 @@ def measured_potency_for_gene(target: str,
         "chembl_best_pchembl": best_pchembl,
         "chembl_n_potent_ligands": (chembl_row or {}).get("n_potent_ligands"),
         "chembl_max_clinical_phase": (chembl_row or {}).get("max_clinical_phase"),
+        "chembl_clinical_phase_class": classify_chembl_clinical_phase(chembl_row),   # rule-matchable (2026-08-24)
         "bindingdb_best_p_affinity": best_p_aff,
         "bindingdb_n_potent_ligands": (bdb_row or {}).get("n_potent_ligands"),
         "measured_potency_context": _context(target, klass, best_measured),
