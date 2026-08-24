@@ -12,6 +12,7 @@ Developer-Dev SSO role lacks GetObject on onc-compbio (see sc_tumor_expression_c
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import boto3
@@ -139,22 +140,33 @@ def read_gene_celltype_rows(target: str, tissues: list[str]) -> Optional[pd.Data
         session_token=creds.token,
     )
 
-    dfs = []
-    found_any_product = False
-    for tissue in tissues:
-        key = _s3_key(tissue)
-        if key is None:
-            continue
-        found_any_product = True
-        filters = [("gene_symbol", "==", str(target).strip())]
+    # The per-tissue reads are INDEPENDENT single-gene pushdowns against SEPARATE parquet shards
+    # (origin tissue + the always-on safety-essential organs — 9 for COADREAD). Reading them in a
+    # serial loop paid the sum of the shards' S3 latencies (~3.0s cold on CEACAM5/COADREAD) and made
+    # this the tumor-selectivity / tumor-presence critical-path card. Fan the pushdowns out over a
+    # bounded ThreadPoolExecutor so the wall collapses toward the SLOWEST single shard (~0.8s,
+    # byte-identical rows): pyarrow.parquet.read_table over one shared S3FileSystem is thread-safe,
+    # and the reads' I/O releases the GIL. The single-shared s3fs above is built ONCE and reused
+    # across workers, so the SSO-credential resolution is not repeated per tissue.
+    keyed = [(tissue, _s3_key(tissue)) for tissue in tissues]
+    keyed = [(tissue, key) for tissue, key in keyed if key is not None]
+    if not keyed:
+        return None  # no Tier-1 product exists for ANY requested tissue
+    filters = [("gene_symbol", "==", str(target).strip())]
+
+    def _read_one(key: str) -> Optional[pd.DataFrame]:
         try:
             tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
                                 filters=filters, columns=_PARQUET_COLS)
-            dfs.append(tbl.to_pandas())
+            return tbl.to_pandas()
         except FileNotFoundError:
-            pass   # product not yet on S3 for this tissue — treat as coverage gap
-    if not found_any_product:
-        return None
+            return None   # product not yet on S3 for this tissue — treat as coverage gap
+
+    # Preserve the original tissue ORDER in the concat (executor.map yields in submission order),
+    # so the assembled frame is identical to the former serial loop, not completion-order-dependent.
+    with ThreadPoolExecutor(max_workers=len(keyed)) as pool:
+        results = pool.map(_read_one, [key for _tissue, key in keyed])
+    dfs = [df for df in results if df is not None]
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
