@@ -29,3 +29,10 @@ corroboration_by_gate:
                                     # Verdict-INERT (fires no dependency.resolver rung). CRISPR<->RNAi
                                     # concordance — which RESOLVES the dependency verdict — is deliberately
                                     # NOT a certainty corroboration source here (CERTAINTY_MODEL §2).
+  selectivity:
+    - tumor-protein-abundance-cptac  # CPTAC TMT-MS PROTEIN tumor-vs-normal — an INDEPENDENT assay
+                                     # (protein vs RNA) on INDEPENDENT cohorts (CPTAC vs recount3 TCGA/GTEx).
+                                     # Verdict-INERT for selectivity: fires no selectivity.resolver rung AND
+                                     # no normal-breadth veto clamp; consumed via the derived
+                                     # rna_protein_tvn_concordance read. NOT tumor-vs-normal-percentile-crossing
+                                     # (that re-stats the SAME recount3 RNA the verdict uses = pseudo-replication).
