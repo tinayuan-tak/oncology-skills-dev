@@ -1838,14 +1838,19 @@ rules:
       equals: own_omics_driven
     signals:
       small_molecule: supportive
-      degrader: supportive
     rationale: |
       Dependency is biomarker-anchored: a target-own omic feature (expression,
       copy number, or mutation status) dominates a RandomForest model with
       out-of-fold R² ≥ 0.5. This is the canonical patient-selection signal —
       the standard omics axes carry enough information to predict who responds.
-      Supports both small-molecule and degrader programs by giving the
-      development plan a defensible biomarker hypothesis at IND entry.
+      It gives a small-molecule development plan a defensible biomarker hypothesis
+      at IND entry. NOTE (2026-08-24, druggability audit): the `degrader: supportive`
+      signal was REMOVED — predictability of a DEPENDENCY (patient-selection biomarker)
+      says nothing about DEGRADABILITY (E3-substrate / ternary feasibility / degron
+      accessibility), so coupling it into the SM skill's degrader lens over-stated the
+      degrader rationale. The degrader lens should rest on degradation-feasibility, not a
+      dependency-predictability biomarker. The biomarker hypothesis remains program-level
+      context surfaced elsewhere; it is not degrader-SPECIFIC evidence.
 
   - rule_id: predictability-context-determined-neutral
     when:
