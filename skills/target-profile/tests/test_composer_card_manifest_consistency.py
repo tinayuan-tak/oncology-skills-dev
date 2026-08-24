@@ -377,7 +377,13 @@ def test_facet_subskills_compose_all_headline_card_reads():
         # cards HOME'd under other subskills — the facet reads only its 2 composed claim-axis cards).
         facet_src = _synthesis_facet_body(src)
         scan_src = src if "_headline(" in facet_src else facet_src
-        missing = _facet_headline_card_reads(scan_src) - set(ssc[skill_dir])
+        # Intersect with the REAL card universe before flagging: _facet_headline_card_reads' tuple regex
+        # (field, card_id, field) also matches a plain VALUE tuple ("vus","benign","likely_benign"),
+        # misreading "benign" as a card_id. A candidate that is not a card any sub-skill composes is a
+        # regex false-positive, not a genuine uncomposed read — drop it. (A genuinely-uncomposed REAL card
+        # read is still in all_composed → still flagged, preserving this guard's detection power.)
+        all_composed = {c for cards in ssc.values() for c in cards}
+        missing = (_facet_headline_card_reads(scan_src) & all_composed) - set(ssc[skill_dir])
         if missing:
             violations[skill_dir] = sorted(missing)
     assert not violations, (
