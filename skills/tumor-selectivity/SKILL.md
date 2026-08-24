@@ -206,16 +206,18 @@ in the underlying summary).
 ## Performance (cold single runs)
 
 The eleven card reads are independent and run concurrently (shared `_skills_common.resolve_cards`),
-so cold wall-clock is bounded by the slowest single read — the TCGA/GTEx aggregate
-`tumor-vs-normal-selectivity` reader — not the sum of all ten. A cold run is ~6s by default.
+so cold wall-clock is bounded by the slowest single read — not the sum of all eleven.
 
-For the fastest cold single run, set `SKILLS_READ_POOL=process`: the reads then run in a **forked
-process pool** that bypasses the GIL on the readers' pandas-assembly CPU (~15% faster end-to-end,
-~6.5s → ~5.4s measured on CEACAM5/COADREAD). It is safe to leave on — any fork/pickling failure
-degrades transparently to the thread pool, and the output is byte-identical across both paths.
-Two optional env knobs (both with sensible defaults):
+A standalone run defaults to a **forked process pool** (set at the `run_wired_skill` entrypoint),
+which bypasses the GIL on the readers' pandas-assembly CPU — the fastest cold path. Combined with the
+data-catalog index disk cache (which skips the ~442-manifest cold parse in the provenance step), a
+cold CEACAM5/COADREAD run is **~4s**; the thread pool is ~5s. The fork is safe — it engages only from
+a single-threaded main thread (a multithreaded host or the composed target-profile fan-out
+transparently stays on threads), any fork/pickling failure degrades to the thread pool, and the
+output is byte-identical across both paths. Two optional env knobs (both with sensible defaults):
 
-- `SKILLS_READ_POOL=process` — forked-process reads (default `thread`).
+- `SKILLS_READ_POOL=thread` — force the thread pool (escape hatch; the standalone-run default is
+  `process`).
 - `SKILLS_READ_WORKERS=N` — max concurrent readers (default `8`; `1` forces the sequential path).
 
 ## How Claude invokes this skill
@@ -227,10 +229,10 @@ When called as `/tumor-selectivity`, Claude should:
    user's prompt. Ask if either is missing or ambiguous.
 2. Pick an `out` directory. Default: `/tmp/tumor-selectivity/{target}-{indication}`
    unless the user specifies one.
-3. Run (add `--synthesize` for the optional LLM narration). `SKILLS_READ_POOL=process`
-   selects the fastest cold-run read path (see the Performance note below):
+3. Run (add `--synthesize` for the optional LLM narration). The run defaults to the fastest
+   (forked process pool) read path; no read-pool env var is needed (see the Performance note below):
    ```
-   export AWS_PROFILE=cbg SKILLS_READ_POOL=process && \
+   export AWS_PROFILE=cbg && \
    python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/tumor-selectivity/scripts/run.py \
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
