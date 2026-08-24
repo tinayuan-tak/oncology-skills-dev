@@ -29,7 +29,8 @@ from typing import Optional
 from methods.catalog_query.read import bucket_prefix_for
 from methods.normal_tissue_safety_common import HPA_ESSENTIAL_TISSUES
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"   # 2026-08-24: essential_tissue_flag trichotomy (present/unknown/absent) —
+                           # fix broad-gene killer under-firing + `absent` data-gap overloading
 
 SOURCE_MANIFEST_ID = "hpa-v25-1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
@@ -146,7 +147,7 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
     if row is None:
         return {
             "normal_tissue_breadth_class": "data_unavailable",
-            "essential_tissue_flag": "absent",
+            "essential_tissue_flag": "unknown",   # gene absent from HPA → no data (NOT a measured `absent`)
             "hpa_tissue_distribution": None,
             "hpa_tissue_specificity": None,
             "n_essential_tissues_with_expression": 0,
@@ -166,9 +167,31 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
     essential = sorted(names & ESSENTIAL_TISSUES)
     gi = sorted(names & GI_TISSUES)
 
+    # essential_tissue_flag trichotomy (2026-08-24 druggability audit). The flag previously derived
+    # ONLY from the tissue-ENRICHMENT list (HPA_INTENSITY_COL, ~51% coverage), so a broadly-expressed
+    # gene with an empty enrichment list read `absent` and the normal-tissue-essential-bite-killer
+    # silently under-fired — exactly for the broadest, riskiest antigens. Two corrections:
+    #   present : an essential organ is ENRICHED, OR `Detected in all` (every tissue, incl. all essential
+    #             organs, is expressed even when nothing is tissue-enriched). Fires the TCE-safety killer.
+    #   unknown : no distribution call (data_unavailable), OR `Detected in many` with no essential
+    #             enrichment — we CANNOT assert the essentials are spared, so it must not read as
+    #             reassurance (the prior `absent` overloading of a data gap).
+    #   absent  : a MEASURED narrow distribution (detected in some/single/not-detected) with no essential
+    #             expression — a genuine measured-negative.
+    dist_norm = (dist or "").strip().lower()
+    detected_in_all = dist_norm == "detected in all"
+    if essential or detected_in_all:
+        essential_flag = "present"
+    elif breadth == "data_unavailable" or dist_norm == "detected in many":
+        essential_flag = "unknown"
+    else:
+        essential_flag = "absent"
+
     flags = []
     if essential:
         flags.append("essential_tissue")
+    elif essential_flag == "present":            # present via broad `Detected in all` detection
+        flags.append("essential_from_broad_detection")
     if gi:
         flags.append("gi_tract")
     if breadth == "broad_normal_expression":
@@ -178,8 +201,8 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
         "normal_tissue_breadth_class": breadth,
         # Scalar categorical the essential-tissue rule matches with `equals` (the rules
         # engine is categorical-only — no list-membership predicate; so the list→scalar
-        # reduction happens here at emit time).
-        "essential_tissue_flag": "present" if essential else "absent",
+        # reduction happens here at emit time). present | unknown | absent (see trichotomy above).
+        "essential_tissue_flag": essential_flag,
         "hpa_tissue_distribution": dist,
         "hpa_tissue_specificity": spec,
         "n_essential_tissues_with_expression": len(essential),

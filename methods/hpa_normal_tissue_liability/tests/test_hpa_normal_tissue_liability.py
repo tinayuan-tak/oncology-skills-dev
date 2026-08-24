@@ -66,12 +66,22 @@ def test_essential_tissue_flagged():
     assert s["essential_tissue_flag"] == "present"
 
 
-def test_essential_tissue_flag_absent_when_no_essential():
+def test_essential_tissue_flag_trichotomy_2026_08_24():
+    # MEASURED narrow distribution, no essential enrichment → genuine measured-negative `absent`.
     s = hc.compute_summary("X", _row("Detected in some", "skin: 3e5"))
     assert s["essential_tissue_flag"] == "absent"
-    # broad gene with empty specific list is also absent (breadth carries liability)
+    # `Detected in all` guarantees every essential organ is expressed even with an EMPTY enrichment
+    # list → `present` (fix: previously read `absent` and the essential-bite killer under-fired).
     s2 = hc.compute_summary("X", _row("Detected in all", None))
-    assert s2["essential_tissue_flag"] == "absent"
+    assert s2["essential_tissue_flag"] == "present"
+    assert "essential_from_broad_detection" in s2["safety_tissue_flags"]
+    # `Detected in many` with no essential enrichment → we can't assert the essentials are spared →
+    # `unknown` (a data gap, NOT reassurance).
+    s3 = hc.compute_summary("X", _row("Detected in many", None))
+    assert s3["essential_tissue_flag"] == "unknown"
+    # gene absent from HPA → `unknown`, distinct from a measured `absent`.
+    s4 = hc.compute_summary("X", None)
+    assert s4["essential_tissue_flag"] == "unknown"
 
 
 def test_gi_flag_separate_from_essential():
@@ -81,12 +91,14 @@ def test_gi_flag_separate_from_essential():
 
 
 def test_broad_gene_empty_specific_list_still_broad():
-    """The documented gotcha: a 'Detected in all' gene may have an EMPTY specific-
-    tissue list (nothing is tissue-specific). essential=0 is NOT reassurance — the
-    breadth class carries the liability, and the 'broad' flag fires."""
+    """The documented gotcha: a 'Detected in all' gene may have an EMPTY specific-tissue
+    ENRICHMENT list. The enrichment count stays 0, but (2026-08-24 fix) the essential_tissue_flag
+    now reads `present` from the broad distribution — the breadth carries the liability into the
+    verdict, not just into a narrative flag."""
     s = hc.compute_summary("X", _row("Detected in all", None))
     assert s["normal_tissue_breadth_class"] == "broad_normal_expression"
-    assert s["n_essential_tissues_with_expression"] == 0
+    assert s["n_essential_tissues_with_expression"] == 0     # enrichment count (unchanged)
+    assert s["essential_tissue_flag"] == "present"           # but the flag now fires (fix)
     assert "broad" in s["safety_tissue_flags"]
 
 
