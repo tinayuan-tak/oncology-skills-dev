@@ -40,6 +40,7 @@ from _skills_common import get_card_field
 from _skills_common.tractability_claims import small_molecule_claim_vector, small_molecule_key_signals
 from _skills_common.tractability_sm_question_table import tractability_sm_question_table
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
@@ -92,6 +93,79 @@ def _tractability_verdict_polarity(v) -> str:
     if v in _TRACTABILITY_NEGATIVE:
         return "negative"
     return "neutral"
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the TRACTABILITY (small-molecule) per-axis builder. This axis is
+#    SM-SPECIFIC, so modality_scope.small_molecule is the meaningful coordinate (favorable when
+#    druggable, unfavorable when intractable; biologics='na' — tractability_sm does not speak to
+#    biologics). tractability has NO verdict-disjoint corroborator (rated `unmeasured`), so certainty is
+#    a minimal coverage-only object. VERDICT-INERT: surfaced by the fan-out into
+#    decision.claim_record_shadow.tractability_small_molecule, consumed by NOTHING.
+_TRACT_STRONG = {"well_covered", "chemically_confirmed_genetic", "measured_potent_ligand"}
+_TRACT_MOD = {"chemically_active", "structurally_ligandable", "clinical_precedent_only"}
+_TRACT_WEAK = {"tool_compound_only", "weakly_active"}
+
+
+def _tract_availability(v) -> str:
+    if v is None:
+        return "not_wired"                       # open-world → assembler forces unknown/neutral
+    if v == "insufficient":
+        return "insufficient"                    # the coverage gap (measured underpowered)
+    if v in _TRACTABILITY_NEGATIVE:
+        return "measured_negative"               # measured intractable / unhit / discordant
+    return "measured_positive"
+
+
+def _tract_direction(v) -> str:
+    if v in _TRACTABILITY_POSITIVE:
+        return "supports"
+    if v in _TRACTABILITY_NEGATIVE:
+        return "opposes"
+    return "neutral"
+
+
+def _tract_level(v) -> str:
+    if v in _TRACT_STRONG:
+        return "strong"
+    if v in _TRACT_MOD or v in _TRACTABILITY_NEGATIVE:
+        return "moderate"
+    if v in _TRACT_WEAK:
+        return "weak"
+    return "none"
+
+
+def _tract_modality_scope(v) -> dict | None:
+    if v in _TRACTABILITY_POSITIVE:
+        return {"small_molecule": "favorable", "biologics": "na"}
+    if v in _TRACTABILITY_NEGATIVE:
+        return {"small_molecule": "unfavorable", "biologics": "na"}
+    return None                                  # insufficient / open-world → no SM call
+
+
+def _tract_certainty(v) -> dict:
+    """Minimal coverage-only certainty — tractability has no verdict-disjoint corroborator
+    (CERTAINTY_MODEL: `unmeasured`). level == coverage; unknown_mass reflects open-world/underpowered."""
+    if v is None:
+        return {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 1.0}
+    if v == "insufficient":
+        return {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 0.5}
+    return {"level": "medium", "coverage": "medium", "corroboration": "unmeasured", "unknown_mass": 0.0}
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_snapshot(fired)[0] if fired is not None else None)
+    return assemble_claim_record(
+        axis="tractability_small_molecule",
+        state=(v or "insufficient"),
+        direction=_tract_direction(v),
+        availability=_tract_availability(v),
+        magnitude={"level": _tract_level(v)},
+        modality_scope=_tract_modality_scope(v),
+        certainty=_tract_certainty(v),
+        fired=fired,
+        cards=cards,
+    )
 
 
 def _tractability_tension_extra(headline: dict):
