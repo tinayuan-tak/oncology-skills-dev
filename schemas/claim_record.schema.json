@@ -158,6 +158,11 @@
           "type": "object",
           "additionalProperties": {"type": "string"},
           "description": "Optional — version stamps (resolver semver, catalog snapshot, etc.)."
+        },
+        "legacy_verdict": {
+          "type": "string",
+          "description": "M2 render-equivalence anchor: the exact legacy verdict TOKEN this record renders back to (rho(record)). For a measured finding it equals finding.state (the token survives as a field — the strangler-fig invariant); for an OPEN-WORLD record (finding.state='unknown', ignorance != negation) it preserves the specific no-data token (e.g. 'data_unavailable') that the factored finding deliberately discards, so rho(record) == the pre-migration decision.json verdict byte-for-byte. Validator guard: when finding.state != 'unknown', legacy_verdict (if present) MUST equal finding.state.",
+          "pattern": "^[a-z][a-z0-9_]*$"
         }
       }
     }

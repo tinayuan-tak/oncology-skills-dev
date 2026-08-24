@@ -30,3 +30,4 @@ provenance:
   cards: [variant-level-interpretation, copy-number-alteration, alteration-role]
   source_product_ids: [mc3-mutation-frequency-per-gene-v1]
   versions: {resolver: 1.4.0}
+  legacy_verdict: multi_class_driver     # measured finding: renders to its own state (identity)

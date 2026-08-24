@@ -22,3 +22,6 @@ certainty:
 provenance:
   fired_rule_ids: []
   cards: []
+  legacy_verdict: data_unavailable     # OPEN-WORLD: state is 'unknown', but the exact discarded
+                                       # no-data token is preserved so rho(record) reproduces the
+                                       # byte-exact legacy decision.json verdict.

@@ -94,6 +94,16 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
             f"{where}: BARE_NUMBER — magnitude.value={mag.get('value')!r} is set but "
             f"magnitude.scale is null (a measured value must name its unit/scale).")
 
+    # E. M2 render-equivalence anchor: a MEASURED finding renders to its own state (the token survives
+    #    as a field), so provenance.legacy_verdict — when present — must equal a non-'unknown' state.
+    #    For an open-world 'unknown' state, legacy_verdict legitimately DIFFERS (it preserves the
+    #    discarded no-data token so rho(record) still reproduces the byte-exact legacy verdict).
+    legacy = (rec.get("provenance") or {}).get("legacy_verdict")
+    if legacy is not None and state != _UNKNOWN_STATE and legacy != state:
+        report.add_error(
+            f"{where}: LEGACY_VERDICT — finding.state={state!r} is measured (not 'unknown') so "
+            f"provenance.legacy_verdict must equal it, got {legacy!r} (render-equivalence would break).")
+
     # C. finding.state membership in the axis resolver's emitted verdict set.
     if state != _UNKNOWN_STATE:
         verdicts = emitted.get(axis)

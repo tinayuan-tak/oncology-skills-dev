@@ -89,6 +89,7 @@ def test_no_resolver_axis_is_unchecked_not_error():
     probe = copy.deepcopy(rec)
     probe["axis"] = "expression"                     # a no-resolver inline axis
     probe["finding"]["state"] = "anything_goes_here"
+    probe["provenance"]["legacy_verdict"] = "anything_goes_here"  # keep invariant E satisfied
     r = _run_one(probe)
     assert r.ok, "a no-resolver axis must be UNCHECKED (warning), not an error"
     assert "expression" in r.unchecked_axes
@@ -110,6 +111,23 @@ def test_level_may_not_exceed_ordinal_min():
     bad["certainty"]["coverage"] = "low"                        # min(low, high) = low, but level says high
     r = _run_one(bad)
     assert not r.ok and any("CERTAINTY_LEVEL" in e for e in r.errors)
+
+
+# ---------- invariant E: provenance.legacy_verdict is the M2 render-equivalence anchor ----------
+
+def test_measured_state_must_match_legacy_verdict():
+    rec = _load("claim_record.genomic_alteration.example.yaml")   # measured; legacy==state
+    assert _run_one(rec).ok
+    bad = copy.deepcopy(rec)
+    bad["provenance"]["legacy_verdict"] = "some_other_token"      # measured state must equal legacy
+    r = _run_one(bad)
+    assert not r.ok and any("LEGACY_VERDICT" in e for e in r.errors)
+
+
+def test_open_world_legacy_verdict_may_differ_from_unknown():
+    rec = _load("claim_record.selectivity.open_world.example.yaml")  # state='unknown', legacy='data_unavailable'
+    r = _run_one(rec)
+    assert r.ok, f"open-world legacy_verdict may differ from 'unknown': {r.errors}"
 
 
 def test_downgrade_below_min_is_allowed():
