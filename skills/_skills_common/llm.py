@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional
@@ -153,6 +154,11 @@ def _stamp_llm_provenance(
     """
     stamped: dict = {}
     for k, v in payload.items():
+        if k.startswith("_"):
+            # Framework-added meta (e.g. _malformed_fields from salvage) — never LLM content;
+            # pass through untagged so it isn't mistaken for a synthesized field.
+            stamped[k] = v
+            continue
         if isinstance(v, dict):
             stamped[k] = {
                 **v,
@@ -173,6 +179,77 @@ def _stamp_llm_provenance(
     return stamped
 
 
+# Signatures of the harness/XML tool-call dialect leaking INTO a tool_input field value.
+# When the model lapses out of native JSON tool-use into the `<parameter name="...">` XML
+# convention, the SDK captures the first array/string parameter's value as a raw string that
+# swallows every subsequent parameter — so a value carrying any of these markers is malformed
+# (observed 2026-08-24: `top_arguments_for` == '\n<parameter name="top_arguments_against">...',
+# and `top_arguments_against` dropped to None, in 12/25 target-profile runs).
+_LEAKED_TOOLCALL_MARKERS = (
+    "<parameter name=", "</parameter>", "<function", "</function", "antml:",
+)
+
+
+def _leaks_toolcall_markup(s: str) -> bool:
+    return any(m in s for m in _LEAKED_TOOLCALL_MARKERS)
+
+
+def _tool_input_defects(payload: dict, tool_schema: dict) -> list[str]:
+    """Return the names of tool_input fields that violate the declared schema.
+
+    Catches the malformed-tool-use failure mode (a model that lapsed into the XML
+    `<parameter>` dialect): a field the schema declares an `array` that arrived as a
+    non-list, a `string` field carrying leaked tool-call markup, a missing required
+    field, or ANY string value (at any depth) carrying leaked markup. VALIDATION-ONLY —
+    never mutates payload. The caller decides whether to retry or salvage.
+    """
+    props = tool_schema.get("properties", {}) or {}
+    required = tool_schema.get("required", []) or []
+    defects: list[str] = []
+
+    for name in required:
+        if name not in payload or payload.get(name) is None:
+            defects.append(name)
+
+    for name, spec in props.items():
+        if name not in payload or payload.get(name) is None:
+            continue
+        val = payload[name]
+        declared = spec.get("type")
+        if declared == "array" and not isinstance(val, list):
+            defects.append(name)
+        elif declared == "string" and (not isinstance(val, str) or _leaks_toolcall_markup(val)):
+            defects.append(name)
+        elif isinstance(val, str) and _leaks_toolcall_markup(val):
+            defects.append(name)
+        elif isinstance(val, list) and any(
+            isinstance(x, str) and _leaks_toolcall_markup(x) for x in val
+        ):
+            defects.append(name)
+
+    # Dedup, preserve first-seen order.
+    seen: dict[str, None] = {}
+    for d in defects:
+        seen.setdefault(d, None)
+    return list(seen)
+
+
+def _salvage_tool_input(payload: dict, tool_schema: dict, defects: list[str]) -> dict:
+    """Coerce malformed fields to schema-valid EMPTIES and record the loss visibly.
+
+    Last resort after retries are exhausted: an `array` defect becomes `[]`, a `string`
+    defect becomes `""`, anything else becomes None. The dropped fields are recorded on
+    `_malformed_fields` so the loss is AUDITABLE (never a silent garbage string in the
+    package). Mirrors the framework's fail-visible ethos.
+    """
+    props = tool_schema.get("properties", {}) or {}
+    for name in defects:
+        declared = (props.get(name) or {}).get("type")
+        payload[name] = [] if declared == "array" else ("" if declared == "string" else None)
+    payload["_malformed_fields"] = list(defects)
+    return payload
+
+
 def synthesize_structured(
     system_prompt: str,
     user_prompt: str,
@@ -181,6 +258,7 @@ def synthesize_structured(
     model_id: Optional[str] = None,
     max_tokens: int = 8192,
     temperature: Optional[float] = None,
+    max_retries: int = 2,
 ) -> dict:
     """Invoke Bedrock with forced structured tool-use, return the parsed
     tool_input dict stamped with provenance metadata.
@@ -252,21 +330,42 @@ def synthesize_structured(
         )
         if temperature is not None:
             create_kwargs["temperature"] = temperature
-        response = client.messages.create(**create_kwargs)
 
-    tool_use_block = None
-    for block in response.content:
-        if getattr(block, "type", None) == "tool_use":
-            tool_use_block = block
-            break
-    if tool_use_block is None:
-        raise RuntimeError(
-            f"LLM did not use the tool {tool_name!r} as instructed. "
-            f"stop_reason={response.stop_reason}"
-        )
+        # Call + validate, retrying on a malformed tool_input. The model intermittently lapses
+        # out of native JSON tool-use into the XML `<parameter>` dialect (observed clean in
+        # 13/25 runs, malformed in 12/25); since it is nondeterministic, a re-call usually
+        # yields a clean object. On persistent malformation we SALVAGE (coerce defective fields
+        # to schema-valid empties + record `_malformed_fields`) rather than ship leaked markup.
+        payload: Optional[dict] = None
+        defects: list[str] = []
+        for attempt in range(max_retries + 1):
+            response = client.messages.create(**create_kwargs)
+            tool_use_block = None
+            for block in response.content:
+                if getattr(block, "type", None) == "tool_use":
+                    tool_use_block = block
+                    break
+            if tool_use_block is None:
+                raise RuntimeError(
+                    f"LLM did not use the tool {tool_name!r} as instructed. "
+                    f"stop_reason={response.stop_reason}"
+                )
+            payload = dict(tool_use_block.input)
+            defects = _tool_input_defects(payload, tool_schema)
+            if not defects:
+                break
+            print(
+                f"[llm.synthesize_structured] tool {tool_name!r} returned malformed field(s) "
+                f"{defects} (attempt {attempt + 1}/{max_retries + 1}"
+                + ("; retrying)" if attempt < max_retries else "; salvaging)"),
+                file=sys.stderr,
+            )
+
+    if defects:
+        payload = _salvage_tool_input(payload, tool_schema, defects)
 
     return _stamp_llm_provenance(
-        payload=dict(tool_use_block.input),
+        payload=payload,
         model_id=model,
         prompt_hash=prompt_hash,
     )
