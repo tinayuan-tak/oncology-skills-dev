@@ -59,3 +59,14 @@ def test_protective_only_derisks_engages_wt():
 
 def test_deterministic():
     assert safety_verdict_by_modality(KRAS_FIRED) == safety_verdict_by_modality(KRAS_FIRED)
+
+
+# A highly-constrained NON-GoF target (TSG / housekeeping): a WT-loss concern fires but NO
+# allele-selective-eligibility rule -> a pan small-molecule inhibitor engages WT -> hold, NOT conditional.
+NONGOF_CONSTRAINED_FIRED = [{"rule_id": "highly-constrained-safety-warning"}]
+
+
+def test_nongof_constrained_small_molecule_holds():
+    v = safety_verdict_by_modality(NONGOF_CONSTRAINED_FIRED)
+    assert v["small_molecule"]["action"] == "hold", v["small_molecule"]  # no allele-selective escape
+    assert v["degrader"]["action"] == "hold", v["degrader"]

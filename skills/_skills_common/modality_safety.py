@@ -46,6 +46,7 @@ def _load(contracts_root: str | None):
     wt_engagement = {v["value"]: v.get("wt_engagement") for v in mod["values"]}
     return (frozenset(cond.get("concern_rules") or []),
             frozenset(cond.get("protective_rules") or []),
+            frozenset(cond.get("allele_selective_eligibility_rules") or []),
             wt_engagement)
 
 
@@ -59,10 +60,11 @@ def safety_verdict_by_modality(fired, contracts_root: str | None = None) -> dict
       not_applicable — WT-loss is not this modality's operative safety axis
       no_concern   — no WT-loss concern or protective signal fired
     """
-    concern_rules, protective_rules, wt_engagement = _load(contracts_root)
+    concern_rules, protective_rules, eligibility_rules, wt_engagement = _load(contracts_root)
     fired_ids = {f.get("rule_id") for f in fired}
     concern_hits = sorted(fired_ids & concern_rules)
     protective_hits = sorted(fired_ids & protective_rules)
+    allele_selective_eligible = bool(fired_ids & eligibility_rules)
 
     out = {}
     for channel, eng in wt_engagement.items():
@@ -71,7 +73,12 @@ def safety_verdict_by_modality(fired, contracts_root: str | None = None) -> dict
             action = "not_applicable"
         elif concern_hits:
             driving = concern_hits
-            action = "hold" if eng == "engages_wt" else "conditional"  # conditional == small_molecule
+            if eng == "engages_wt":
+                action = "hold"                       # degrader / RNA deplete total WT protein
+            else:  # eng == "conditional" (small_molecule): allele-selectivity is AGENT-level
+                # conditional escape ONLY if the target admits a mutant-selective agent (GoF/activating
+                # role fired); else a pan small-molecule inhibitor ENGAGES WT and the concern stands.
+                action = "conditional" if allele_selective_eligible else "hold"
         elif protective_hits and eng == "engages_wt":
             driving = protective_hits
             action = "supportive"
