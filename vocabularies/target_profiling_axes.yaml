@@ -505,7 +505,7 @@ skill_objectives:
       - {q: "Germline pathogenicity (ClinVar)?", answered_by: [clinvar-pathogenicity-safety]}
       - {q: "Normal-tissue expression breadth (RNA atlas + essential-tissue protein)?", answered_by: [normal-tissue-liability-gtex, normal-tissue-liability]}   # normal-tissue-liability = HPA-IHC essential-tissue PROTEIN liability (data-util 2026-08-21)
       - {q: "Broadly pan-essential (non-selective tox liability)?", answered_by: [pan-cancer-crispr-dependency-distribution]}   # DepMap common-essential broad-tox safety signal (data-util 2026-08-21)
-      - {q: "Mechanism downgrade (GoF mutant-selective / amplification)?", answered_by: [alteration-role, copy-number-distribution]}
+      - {q: "Mechanism downgrade (GoF mutant-selective / amplification)?", answered_by: [alteration-role, copy-number-distribution, functional-gene-state]}   # functional-gene-state = rarely-altered guard (PR-4c 2026-08-24): a rarely_altered oncogene KEEPS the WT-loss hold (MCL1)
       - {q: "Engineered safety prior?", answered_by: [target-safety-prioritisation]}
       - {q: "Pharmacovigilance precedent — do drugs engaging the target carry black-box / withdrawn warnings?", answered_by: [drug-warning-safety]}   # OT drug_warning context (verdict-inert, 2026-08-21)
   - skill: differentiation-landscape
