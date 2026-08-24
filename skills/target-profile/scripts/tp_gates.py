@@ -239,11 +239,20 @@ def _load_kill_capable_verdicts(
 _BIOLOGICS_MODALITIES = {"adc", "bite_tce", "antibody"}
 
 
+# Surface_modality fit_class verdicts that mean a surface therapeutic arm is VIABLE — the
+# co-condition that lets the biology-axis downgrade (branch C) fire (a surface antigen with NO viable
+# arm, neither_viable / shed_dominant_opposed, still vetoes). Keep in sync with the vocab block.
+_SURFACE_FAVORABLE_VERDICTS = frozenset({
+    "both_viable", "adc_preferred", "tce_preferred", "adc_preferred_tce_unsafe",
+    "surface_viable_density_caveated",
+})
+
+
 def _load_veto_suppressors(
     contracts_repo: Path | None = None,
-) -> tuple[list[dict], list[dict], str]:
-    """Load the two veto-suppression policies (v1.2.0) from the vocab. Returns
-    (context_escape_suppressors, modality_scoped_suppression, source).
+) -> tuple[list[dict], list[dict], list[dict], str]:
+    """Load the veto-suppression + downgrade policies from the vocab. Returns
+    (context_escape_suppressors, modality_scoped_suppression, biology_axis_downgrade, source).
 
     CONSERVATIVE FALLBACK (mirrors the never-permissive contract, inverted for a
     suppressor): on ANY failure this returns EMPTY lists — a missing/malformed
@@ -257,12 +266,13 @@ def _load_veto_suppressors(
         data = yaml.safe_load(path.read_text())
         ctx = data.get("veto_suppressors", []) or []
         msvs = data.get("modality_scoped_veto_suppression", []) or []
-        return ctx, msvs, "vocab"
+        bavd = data.get("biology_axis_scoped_veto_downgrade", []) or []
+        return ctx, msvs, bavd, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no suppression, veto stands)
         print(f"[target-profile] WARN: could not load veto suppressors "
               f"({type(e).__name__}: {e}); suppression DISABLED (full veto stands).",
               file=sys.stderr)
-        return [], [], "fallback"
+        return [], [], [], "fallback"
 
 
 def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
@@ -295,6 +305,7 @@ def _suppressed_gate_hits(
     sub_results: dict,
     modality: Optional[str],
     contracts_repo: Path | None = None,
+    biology_axis: Optional[str] = None,
 ) -> tuple[list[dict], list[dict]]:
     """Apply v1.2.0 veto suppression to the fired gate hits. Returns
     (surviving_hits, suppression_records). A hit is suppressed when EITHER:
@@ -311,9 +322,12 @@ def _suppressed_gate_hits(
     CONSERVATIVE: empty suppressor policy → nothing suppressed (full veto stands).
     Only `dependency` veto arms are ever suppressible (the vocab enforces this too).
     """
-    ctx_supps, msvs, src = _load_veto_suppressors(contracts_repo)
-    if not ctx_supps and not msvs:
+    ctx_supps, msvs, bavd, src = _load_veto_suppressors(contracts_repo)
+    if not ctx_supps and not msvs and not bavd:
         return hits, []
+    # The live surface_modality verdict, for the biology-axis downgrade (C) co-condition.
+    _surf = sub_results.get("surface_modality", {}).get("verdict")
+    surface_verdict = _surf[0] if isinstance(_surf, (list, tuple)) and _surf else None
 
     # Build the present-verdict set for suppressor matching. Defensive against a MALFORMED
     # verdict (a bare string, a dict): only a WELL-FORMED (verdict, ...) tuple can be a
@@ -353,6 +367,24 @@ def _suppressed_gate_hits(
                     break
         if suppressed_by:
             suppressions.append({**h, "suppressed_by": suppressed_by, "policy_source": src})
+            continue
+        # (C) biology-axis-scoped DOWNGRADE (not suppress): a surface-antigen target with a FAVORABLE
+        # surface fit has its dependency `non_dependent` VETO downgraded to `hold` — the veto contradicts
+        # the captured surface biology, but we stop short of fully clearing it absent an explicit
+        # --modality (branch B does that). The downgraded hit SURVIVES with action=hold.
+        downgrade = None
+        for d in bavd:
+            dn = d.get("downgrades", {})
+            if (dn.get("sub_skill"), dn.get("verdict")) != key:
+                continue
+            if (biology_axis in set(d.get("when_biology_axis_in", []))
+                    and surface_verdict in set(d.get("when_surface_verdict_in", []))):
+                downgrade = {"kind": "biology_axis_downgrade", "to_action": d.get("to_action", "hold"),
+                             "biology_axis": biology_axis, "surface_verdict": surface_verdict}
+                break
+        if downgrade:
+            survivors.append({**h, "action": downgrade["to_action"], "_downgraded_from": h["action"]})
+            suppressions.append({**h, "suppressed_by": downgrade, "policy_source": src})
         else:
             survivors.append(h)
     return survivors, suppressions
@@ -360,7 +392,7 @@ def _suppressed_gate_hits(
 
 def _gate_recommendation(
     sub_results: dict, contracts_repo: Path | None = None,
-    modality: Optional[str] = None,
+    modality: Optional[str] = None, biology_axis: Optional[str] = None,
 ) -> tuple[Optional[str], list[dict], list[dict]]:
     """Deterministically derive a forced overall_recommendation from sub-verdicts.
 
@@ -418,7 +450,8 @@ def _gate_recommendation(
                   f"forced least-permissive '{fc}' (never a silent pass).", file=sys.stderr)
     # v1.2.0: apply veto suppression (context-escape + modality-scoped) before
     # resolving the forced action. A suppressed veto does not force — but is recorded.
-    hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo)
+    hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo,
+                                               biology_axis=biology_axis)
     if not hits:
         return None, [], suppressions
     # .get(a, 0): an action outside {veto, hold} (a vocab typo or a new action a product owner adds —

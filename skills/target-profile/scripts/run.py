@@ -427,7 +427,7 @@ def main() -> int:
     # We clamp the wrapped {value, _source, ...} in place and record the override
     # in nomination.json + provenance so the gate is never silent.
     gate_action, gate_hits, gate_suppressions = _gate_recommendation(
-        sub_results, modality=args.modality)
+        sub_results, modality=args.modality, biology_axis=axis_info.get("biology_axis"))
     recommendation_gate = {"fired": bool(gate_action),
                            "suppressed_vetoes": gate_suppressions}
     if gate_suppressions:

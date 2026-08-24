@@ -555,7 +555,7 @@ def test_veto_suppressor_triggers_reference_live_shorts_or_composed_cards():
     entry (card-field form). A retired short / dropped card silently disables a suppressor — this
     is exactly how the SL rescue went dead when synthetic_lethal_partners was consolidated. This
     guard fails loudly the next time a consolidation orphans a trigger."""
-    supps, _msvs, src = tp._load_veto_suppressors()
+    supps, _msvs, _bavd, src = tp._load_veto_suppressors()
     assert src == "vocab", "guard needs the real sibling-contracts vocab"
     live_shorts = {sh for _sd, sh in tp.SUB_SKILLS} | {tp.SUBTYPE_SHORT}
     composed_cards = ({cid for cards in tp.SUB_SKILL_CARDS.values() for cid in cards}
@@ -570,3 +570,46 @@ def test_veto_suppressor_triggers_reference_live_shorts_or_composed_cards():
                 assert w["card_id"] in composed_cards, (
                     f"veto-suppressor card-field trigger card_id {w['card_id']!r} is not composed "
                     f"in any SUB_SKILL_CARDS entry (the suppressor can never fire)")
+
+
+# --- PR-4b: biology-axis-scoped dependency-veto DOWNGRADE (2026-08-24) ---
+
+def _surface_antigen_subs(surface_verdict="adc_preferred_tce_unsafe"):
+    """A DLL3-shaped fired set: pooled non_dependent (would veto) + a FAVORABLE surface fit."""
+    return _merge(
+        _sub("dependency", "non_dependent", "non-dependent-killer"),
+        _sub("surface_modality", surface_verdict, "adc-tce-fit"),
+    )
+
+
+def test_biology_axis_downgrades_surface_antigen_veto_to_hold():
+    """DLL3-class: surface_intrinsic axis + favorable surface fit → the dependency non_dependent VETO
+    is DOWNGRADED to hold (surfaces the target, doesn't force-decline it on an irrelevant criterion)."""
+    forced, hits, sup = tp._gate_recommendation(
+        _surface_antigen_subs(), biology_axis="surface_intrinsic")
+    assert forced == "hold", (forced, hits)
+    # the dependency hit survives as a hold (downgraded), recorded in suppressions.
+    dep_hit = next(h for h in hits if h["short"] == "dependency")
+    assert dep_hit["action"] == "hold" and dep_hit.get("_downgraded_from") == "veto"
+    assert any(s["suppressed_by"]["kind"] == "biology_axis_downgrade" for s in sup)
+
+
+def test_biology_axis_downgrade_requires_favorable_surface():
+    """Guard: a surface axis with NO viable arm (neither_viable) still VETOES — the favorable-surface
+    co-condition prevents rescuing surface-junk."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs("neither_viable"), biology_axis="surface_intrinsic")
+    assert forced == "veto"
+
+
+def test_biology_axis_downgrade_only_for_surface_axis():
+    """Guard: an intracellular target with the same fired set still VETOES (downgrade is surface-only)."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs(), biology_axis="intracellular_intrinsic")
+    assert forced == "veto"
+
+
+def test_biology_axis_downgrade_absent_axis_is_backward_compatible():
+    """No biology_axis (default None) → veto stands, exactly as before the downgrade existed."""
+    forced, _hits, _sup = tp._gate_recommendation(_surface_antigen_subs())
+    assert forced == "veto"
