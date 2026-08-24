@@ -1,0 +1,160 @@
+"""opentargets_literature_floor.read — the pinned, reproducible per-target literature FLOOR.
+
+Answers "what is the top pinned literature for {target} [in {indication}] that a grounded read can
+extract from OFFLINE, without a live query?" — the never-empty, entity-normalized floor under the
+skills grounded layer's live PubTator+E-utilities lanes. A source-bakeoff (2026-08-24) showed live
+keyword retrieval STARVES / mis-retrieves on less-studied and gene-symbol-colliding targets (e.g.
+ME3 the gene vs "me3" trimethylation → 9/10 wrong-entity papers → zero findings); this reader draws
+from Open Targets' entity-resolved text-mining instead, pinned to the release.
+
+## Composition (one pinned catalogued product + the indication crosswalk)
+
+  1. opentargets-literature-per-target-v1 : per-(ensembl_gene_id, source, pmid) top-50 PubMed PMIDs
+     from OT 26.06 evidence_europepmc (resourceScore + text-mined sentence + OT-native disease_id)
+     and literature_entity_lut (relevance + year). Derived over the pinned opentargets-26-06 mirror.
+  2. indication_crosswalk.yaml (target-contracts) efo_ids lane : canonical OncoTree indication ->
+     Open-Targets-native EFO/MONDO ids, used to scope the europepmc lane to the indication.
+
+  target -> symbol_to_ensembl -> pushdown-read (1) for that gene;
+  indication -> (2) -> efo_ids; scope the europepmc rows (disease_id in efo_ids) when a lane exists.
+
+## Honest coverage (measured-vs-null discipline)
+
+- ZERO finding/severity/relevance inference — this reader returns PMID POINTERS (+ the europepmc
+  text-mined sentence as a hint); the escalate-only extraction stays in the consuming skill's LLM
+  layer (mirrors the competitor product's `modality_class_inference: none`).
+- A gene with NO rows -> no_literature_floor (coverage gap or genuinely un-text-mined). Absence is
+  reported, never a silent fake.
+- No efo_ids lane for the indication -> the europepmc lane is NOT disease-scoped; both lanes fall
+  back to the TARGET-LEVEL floor with indication_scope: 'target_level' + a _note. (The crosswalk EFO
+  lane is currently unpopulated, so target-level is the normal path today.)
+
+data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Optional
+
+import yaml
+
+LITERATURE_MANIFEST = "opentargets-literature-per-target-v1"
+METHOD_VERSION = "0.1.0"
+DEFAULT_TOP_N = 10
+
+TARGET_CONTRACTS = Path(os.environ.get(
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+
+
+def _indication_efo_ids(indication: str) -> list[str]:
+    """canonical OncoTree indication code -> EFO/MONDO ids via indication_crosswalk.yaml `efo_ids`
+    lane (case-insensitive). Empty list when no lane exists (the normal path today)."""
+    path = TARGET_CONTRACTS / "vocabularies" / "indication_crosswalk.yaml"
+    if not path.exists():
+        return []
+    doc = yaml.safe_load(path.read_text()) or {}
+    ind = (indication or "").strip().upper()
+    for e in doc.get("indications", []):
+        if str(e.get("canonical_code", "")).upper() == ind:
+            return [str(t).strip() for t in (e.get("efo_ids") or [])]
+    return []
+
+
+def _read_target_rows(ensembl_gene_id: str) -> list:
+    """Pushdown-read the literature floor for one ENSG. Empty on genuine absence; re-raise env faults."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from methods.catalog_query.read import bucket_key_for
+        import pyarrow.parquet as pq
+        import pyarrow.fs as fs
+        bucket, key = bucket_key_for(LITERATURE_MANIFEST)
+        return pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
+                             filters=[("ensembl_gene_id", "=", ensembl_gene_id)]).to_pylist()
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return []
+        raise
+
+
+def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_N) -> dict:
+    """PURE aggregator (offline-testable): literature-floor rows for ONE gene -> per-source top-N
+    PMID pointers + the unioned PMID set. europepmc rows are scoped to the indication when efo_ids
+    is non-empty (disease_id in efo_ids); entity_lut is target-level by construction."""
+    efo_set = {str(x) for x in (efo_ids or [])}
+    scope = "indication" if efo_set else "target_level"
+
+    by_source: dict = {}
+    for r in rows:
+        src = r.get("source")
+        if src == "europepmc" and efo_set and r.get("disease_id") not in efo_set:
+            continue                                  # scope europepmc to the indication when we can
+        by_source.setdefault(src, []).append(r)
+
+    out_by_source: dict = {}
+    union: list = []
+    seen: set = set()
+    for src, srows in by_source.items():
+        srows = sorted(srows, key=lambda r: (int(r.get("rank_in_source") or 1_000_000),))[:top_n]
+        recs = [{"pmid": str(r.get("pmid")), "score": r.get("score"), "year": r.get("year"),
+                 "rank_in_source": r.get("rank_in_source"),
+                 "disease_id": r.get("disease_id"), "sentence": r.get("sentence")} for r in srows]
+        out_by_source[src] = recs
+        for rec in recs:                              # entity-first union order is caller's concern; here
+            if rec["pmid"] not in seen:               # we just dedup, preserving per-source rank order
+                seen.add(rec["pmid"])
+                union.append(rec["pmid"])
+
+    return {
+        "indication_scope": scope,
+        "n_pmids": len(union),
+        "pmids": union,
+        "sources_present": sorted(out_by_source.keys()),
+        "by_source": out_by_source,
+    }
+
+
+def read_literature_floor(target: str, indication: str, modality: Optional[str] = None,
+                          release_pin: Optional[str] = None, *, top_n: int = DEFAULT_TOP_N) -> dict:
+    """Pinned literature floor for a (target, indication). `modality`/`release_pin` accepted for
+    dispatch-signature parity; the product is pinned to its OT release."""
+    from methods.opentargets_common import symbol_to_ensembl
+    base = {"target": target, "indication": indication, "method_version": METHOD_VERSION,
+            "source": LITERATURE_MANIFEST, "as_of_opentargets_release": "26.06"}
+
+    ensg = symbol_to_ensembl(target)
+    if not ensg:
+        return {**base, "status": "insufficient", "n_pmids": 0, "pmids": [], "by_source": {},
+                "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)"}
+
+    rows = _read_target_rows(ensg)
+    if not rows:
+        return {**base, "ensembl_gene_id": ensg, "status": "no_literature_floor",
+                "indication_scope": "target_level", "n_pmids": 0, "pmids": [], "by_source": {},
+                "_note": f"{target} ({ensg}): no rows in {LITERATURE_MANIFEST} (un-text-mined or coverage gap)"}
+
+    efo_ids = _indication_efo_ids(indication)
+    agg = aggregate_literature(rows, efo_ids, top_n=top_n)
+    out = {**base, "ensembl_gene_id": ensg, "efo_ids": efo_ids, "status": "ok", **agg}
+    if not efo_ids:
+        out["_note"] = (f"no efo_ids lane for indication {indication!r} in indication_crosswalk.yaml — "
+                        f"reporting the TARGET-LEVEL literature floor (europepmc lane not disease-scoped)")
+    return out
+
+
+def _main(argv=None):
+    import argparse
+    import json
+    ap = argparse.ArgumentParser(description="Pinned per-target literature floor from Open Targets 26.06.")
+    ap.add_argument("--target", required=True)
+    ap.add_argument("--indication", required=True)
+    ap.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
+    args = ap.parse_args(argv)
+    print(json.dumps(read_literature_floor(args.target, args.indication, top_n=args.top_n),
+                     indent=2, default=str))
+
+
+if __name__ == "__main__":
+    _main()
