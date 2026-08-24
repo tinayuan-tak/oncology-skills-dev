@@ -201,6 +201,15 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
       - hrd_score_for_indication()          — PATIENT HRD genomic-SCAR (ABSOLUTE segtabs; remapped to hrd_scar_*)
     Each degrades to data_unavailable independently. DISPLAY facet, verdict-inert."""
     mod = _import_method("tcga_aneuploidy_burden")
+    # Warm the method's cached S3 loaders CONCURRENTLY before the six serial per-axis reads below (each
+    # over a disjoint PanCanAtlas/DepMap object) so their independent GETs+parses overlap instead of
+    # serialising. Latency-only + output byte-identical (the axis functions are unchanged). getattr-guarded
+    # so this is a no-op until the method's prewarm() lands (land-order-independent); best-effort — a
+    # prewarm hiccup must never break the card (the axis reads re-attempt cold with their own handling).
+    try:
+        getattr(mod, "prewarm", lambda *a, **k: None)(indication)
+    except Exception:  # noqa: BLE001 — prewarm is a pure latency optimization; never break the card
+        pass
     out = dict(mod.aneuploidy_burden_for_indication(indication))
 
     def _merge_axis(fn_name, keys, class_key):
