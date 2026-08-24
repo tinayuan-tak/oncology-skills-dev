@@ -184,6 +184,7 @@ VERDICT_ICONS = {
     "multi_class_driver": "🟢", "strong_tumor_selective": "🟢",
     "chemically_active": "🟢", "measured_potent_ligand": "🟢",
     # --- moderate / caveated ---
+    "confirmed_lof_driver": "🟡", "multi_class_lof_driver": "🟡",   # real TSG driver, not an inhibitor green-light
     "moderate_biomarker_dependency": "🟡", "modest_tumor_selective": "🟡",
     "field_effect_tumor_selective": "🟡", "partner_conditional_dependent": "🟡",
     "clinical_precedent_only": "🟡", "structurally_ligandable": "🟡",

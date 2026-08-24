@@ -50,6 +50,9 @@ VERDICT_COLORS = {
     "measured_potent_ligand":         "#4a7c9e",   # T3.1: potent (<=1 uM) measured chemotype series (modest-positive)
     "clinical_precedent_only":        "#c07a20",   # T1.2: clinical anchor annotated, NO measured activity (caution)
     "tool_compound_only":             "#c07a20",
+    # LoF/TSG drivers: a real driver alteration but NOT an inhibitor green-light — neutral/caution, not navy.
+    "confirmed_lof_driver":           "#c07a20",
+    "multi_class_lof_driver":         "#c07a20",
     "weakly_active":                  "#c07a20",
     "discordant_across_comparators":  "#c07a20",
     "discordant":                     "#c07a20",

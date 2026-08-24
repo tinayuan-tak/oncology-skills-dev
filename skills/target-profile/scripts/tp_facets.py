@@ -1135,7 +1135,8 @@ def _addressable_population_class(freq: "float | None") -> "str | None":
 # genomic verdicts whose actionability is TIED TO AN SNV/indel ALTERATION → population = its prevalence
 _SNV_SELECTION_VERDICTS = frozenset({
     "biomarker_stratified_dependency", "moderate_biomarker_dependency", "confirmed_driver",
-    "multi_class_driver", "missense_dominant_pattern", "lof_dominant_pattern", "drug_response_biomarker",
+    "multi_class_driver", "confirmed_lof_driver", "multi_class_lof_driver",
+    "missense_dominant_pattern", "lof_dominant_pattern", "drug_response_biomarker",
 })
 _CN_FUSION_SELECTION_VERDICTS = frozenset({
     "recurrent_amplification_driver", "recurrent_deletion_driver", "recurrent_fusion_driver",

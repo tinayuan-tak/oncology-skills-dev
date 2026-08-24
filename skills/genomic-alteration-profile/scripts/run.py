@@ -490,6 +490,10 @@ _GENOMIC_VERDICT_PHRASE = {
     # driver calls
     "multi_class_driver":              "Multi-class alteration driver",
     "confirmed_driver":                "Confirmed driver",
+    # LoF/tumor-suppressor drivers — a REAL driver alteration, but role-honest: not an
+    # inhibitor/degrader green-light (you cannot drug a lost function). Neutral polarity.
+    "multi_class_lof_driver":          "Multi-class loss-of-function (tumor-suppressor) driver",
+    "confirmed_lof_driver":            "Confirmed loss-of-function (tumor-suppressor) driver",
     "drug_response_biomarker":         "Drug-response biomarker",
     # recurrent landscape drivers
     "recurrent_amplification_driver":  "Recurrent amplification driver",

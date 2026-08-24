@@ -105,6 +105,8 @@ _VERDICT_LABEL = {
     "highly_constrained_safety_concern": "High on-target safety concern",
     "biomarker_stratified_dependency": "Biomarker-stratified dependency",
     "confirmed_driver": "Confirmed driver (annotation-corroborated)",
+    "confirmed_lof_driver": "Confirmed loss-of-function (tumor-suppressor) driver",
+    "multi_class_lof_driver": "Multi-class loss-of-function (tumor-suppressor) driver",
     "well_covered": "Well-covered by compounds",
     "well_characterized": "Well-characterized mechanism",
     "both_patterns_present": "Co-mutation + mutual-exclusivity present",
