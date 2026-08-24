@@ -25,7 +25,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field
+from _skills_common import get_card_field, card_summary
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
@@ -294,6 +294,86 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "surface_modality")
+
+# ── (strength, certainty) SIDECAR — 4th certainty axis (CERTAINTY_MODEL.md). ADDITIVE + verdict-INERT.
+#    corroboration = the VERDICT-DISJOINT CSPA wet-lab surfaceome MS (protein-surface-evidence) — an
+#    INDEPENDENT surface-residency line orthogonal to the topology+family fit_class. Reviewed (4-agent panel).
+_SM_ORD = {"low": 0, "medium": 1, "high": 2}
+_CERTAINTY_CORROBORATION_CARDS = frozenset({"protein-surface-evidence"})
+_SM_STRONG_POS = {"both_viable"}
+_SM_MOD_POS = {"adc_preferred", "tce_preferred", "surface_viable_density_caveated",
+               "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk"}
+_SM_WEAK_POS = {"shed_dominant_opposed"}
+_SM_NEG = {"neither_viable", "tce_unsafe_normal_liability", "tce_escape_risk"}
+_SM_NONE = {"modality_ambiguous", "isoform_dependent_undefined", "insufficient", "data_unavailable", None}
+_SM_DECISION_CARDS = ("adc-tce-modality-fit", "surface-abundance-density", "normal-tissue-liability",
+                      "sc-normal-celltype-expression", "modality-therapeutic-window",
+                      "tumor-scrna-celltype-expression", "shed-ectodomain-liability", "protein-surface-evidence")
+
+
+def _surface_strength(v) -> str:
+    if v in _SM_STRONG_POS:
+        return "strong_positive"
+    if v in _SM_MOD_POS:
+        return "moderate_positive"
+    if v in _SM_WEAK_POS:
+        return "weak_positive"
+    if v in _SM_NEG:
+        return "negative"
+    return "none"
+
+
+def _sm_coverage(density_class) -> str:
+    """Surface-antigen density power (surface-abundance-density.surface_density_class). high -> high;
+    moderate -> medium; low/very_low -> low; absent -> low (feeds unknown_mass)."""
+    c = str(density_class or "")
+    if c == "high":
+        return "high"
+    if c == "moderate":
+        return "medium"
+    return "low"
+
+
+def _sm_corroboration(confirmation_class, n_celllines) -> str:
+    """VERDICT-DISJOINT CSPA surfaceome confirmation. confirmed_high or confirmed w/ >=3 lines -> high;
+    confirmed 1-2 -> medium; not_surface (measured-negative, disagrees w/ a surface-favorable fit) -> low;
+    data_unavailable -> unmeasured (ignorance, carried in unknown_mass, not disagreement)."""
+    c = str(confirmation_class or "")
+    if c == "confirmed_high" or (c == "confirmed" and isinstance(n_celllines, (int, float)) and n_celllines >= 3):
+        return "high"
+    if c == "confirmed":
+        return "medium"
+    if c == "not_surface":
+        return "low"
+    return "unmeasured"
+
+
+def _sm_unknown_mass(cards) -> float:
+    blind = sum(1 for cid in _SM_DECISION_CARDS
+                if not card_summary(cards, cid) or (card_summary(cards, cid) or {}).get("_missing"))
+    return round(blind / len(_SM_DECISION_CARDS), 4)
+
+
+def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement/selectivity/genomic."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    density = (card_summary(cards, "surface-abundance-density") or {}).get("surface_density_class")
+    pse = card_summary(cards, "protein-surface-evidence") or {}
+    coverage = _sm_coverage(density)
+    corroboration = _sm_corroboration(pse.get("surface_confirmation_class"), pse.get("n_celllines_detected"))
+    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
+    level = min(components, key=lambda c: _SM_ORD[c]) if components else "low"
+    if v in _SM_NONE:
+        level = "low"
+    return {
+        "strength": _surface_strength(v),
+        "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
+                      "unknown_mass": _sm_unknown_mass(cards)},
+        "provenance": {"surface_density_class": density,
+                       "surface_confirmation_class": pse.get("surface_confirmation_class")},
+        "_model_ref": "CERTAINTY_MODEL.md#surface_modality",
+    }
+
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
