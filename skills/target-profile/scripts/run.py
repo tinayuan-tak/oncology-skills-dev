@@ -10,7 +10,8 @@ cis-feature-coherence, combination-and-vulnerability)
 rules, then invokes Bedrock (via _skills_common.llm) with a forced structured
 tool_use to produce executive_summary + tension_analysis + recommendation. The
 LLM's overall_recommendation is CLAMPED by the deterministic one-directional
-nomination gate. Emits target_profile.md + nomination.json + provenance.
+nomination gate. Emits target_profile.md + nomination.json + provenance, and a
+timestamped run.log (stdout+stderr tee) for development + provenance.
 
 Each sub-skill is scoped to its OWN SUB_SKILL_CARDS entry (card_id_filter), so a
 card must be in a sub-skill's entry to be seen by THAT sub-skill's verdict — a
@@ -21,12 +22,14 @@ dependency completeness guard in tests/ enforces this).
 from __future__ import annotations
 
 import argparse
+import atexit
 import concurrent.futures
 import importlib.util
 import json
 import os
 import re
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -115,6 +118,109 @@ def _normalize_modality(raw: str) -> Optional[str]:
           f"(canonical: {sorted(_CANONICAL_MODALITIES)}); ignoring the modality lens.",
           file=sys.stderr)
     return None
+
+
+# ---------------------------------------------------------------------------
+# Run log (development + provenance).
+#
+# A full run already narrates its backend to stderr via ~33 `[target-profile] …`
+# prints (fan-out, gate firing, Bedrock call, figure emission, WARNs) — but that
+# output is transient and untimestamped. `_install_run_log` TEES stdout+stderr to
+# `<out>/run.log`, stamping each complete line with a UTC timestamp + OUT/ERR tag,
+# so the same narration becomes a durable, greppable audit trail that travels with
+# the artifact tree (and is listed in provenance.yaml). Live terminal output is
+# preserved byte-for-byte — the tee only ADDS a file copy. Best-effort: a logging
+# failure never blocks a run. Verdict-inert: capturing output cannot change the spine.
+# ---------------------------------------------------------------------------
+_RUN_LOG_STATE: dict = {"file": None, "stdout": None, "stderr": None, "atexit": False}
+
+
+class _TeeStream:
+    """Wrap a text stream, mirroring writes to a shared log file with per-line stamps.
+
+    The original stream is written first (live terminal output unchanged); a copy of
+    each COMPLETE line is written to `logfile` prefixed with `<ISO8601Z> <tag> `. Partial
+    lines are buffered until their newline so a stamp never lands mid-line. A lock guards
+    the buffer because the sub-skill fan-out writes from worker threads.
+    """
+
+    def __init__(self, orig, logfile, tag: str, lock: threading.Lock):
+        self._orig = orig
+        self._log = logfile
+        self._tag = tag
+        self._lock = lock
+        self._buf = ""
+
+    def write(self, s: str) -> int:
+        n = self._orig.write(s)
+        with self._lock:
+            self._buf += s
+            while "\n" in self._buf:
+                line, self._buf = self._buf.split("\n", 1)
+                try:
+                    ts = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+                    self._log.write(f"{ts} {self._tag} {line}\n")
+                    self._log.flush()
+                except (ValueError, OSError):
+                    pass  # log file closed/failed — never disturb the real stream
+        return n
+
+    def flush(self) -> None:
+        self._orig.flush()
+        try:
+            self._log.flush()
+        except (ValueError, OSError):
+            pass
+
+    def __getattr__(self, name):
+        # Delegate isatty(), fileno(), encoding, … to the wrapped stream.
+        return getattr(self._orig, name)
+
+
+def _restore_run_log() -> None:
+    """Uninstall the tee and close the log file. Idempotent (safe to call twice)."""
+    st = _RUN_LOG_STATE
+    if st["stdout"] is not None:
+        sys.stdout = st["stdout"]
+        st["stdout"] = None
+    if st["stderr"] is not None:
+        sys.stderr = st["stderr"]
+        st["stderr"] = None
+    if st["file"] is not None:
+        try:
+            st["file"].flush()
+            st["file"].close()
+        except (ValueError, OSError):
+            pass
+        st["file"] = None
+
+
+def _install_run_log(out_dir: Path) -> None:
+    """Tee stdout+stderr to `<out_dir>/run.log` for the remainder of the run.
+
+    Idempotent across repeated in-process calls (a prior tee is torn down first), so a
+    harness that execs run.py and calls main() more than once never stacks tees.
+    """
+    _restore_run_log()  # tear down any tee left by a previous in-process run
+    try:
+        f = open(out_dir / "run.log", "w", encoding="utf-8")
+    except OSError as e:
+        print(f"[target-profile] WARN: could not open run.log ({e}); continuing without a run log.",
+              file=sys.stderr)
+        return
+    started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    f.write(f"# target-profile run log\n# skill_version: {SKILL_VERSION}\n"
+            f"# started_at: {started}\n# argv: {' '.join(sys.argv)}\n\n")
+    f.flush()
+    lock = threading.Lock()
+    _RUN_LOG_STATE["file"] = f
+    _RUN_LOG_STATE["stdout"] = sys.stdout
+    _RUN_LOG_STATE["stderr"] = sys.stderr
+    sys.stdout = _TeeStream(sys.stdout, f, "OUT", lock)
+    sys.stderr = _TeeStream(sys.stderr, f, "ERR", lock)
+    if not _RUN_LOG_STATE["atexit"]:
+        atexit.register(_restore_run_log)  # flush+close on interpreter exit (idempotent)
+        _RUN_LOG_STATE["atexit"] = True
 
 
 def main() -> int:
@@ -240,6 +346,12 @@ def main() -> int:
         args.no_figures = True
 
     args.out.mkdir(parents=True, exist_ok=True)
+
+    # Persist a timestamped run log alongside the artifacts (dev + provenance). Installed here — as
+    # soon as --out exists — so every subsequent print (WARNs, fan-out, gate, synthesis, figures) is
+    # captured. Torn down before each return via _restore_run_log (and atexit as a backstop).
+    _install_run_log(args.out)
+    print(f"[target-profile] run log → {args.out}/run.log", file=sys.stderr)
 
     # OPTIONAL literature context (display-only, never verdict-affecting): the target-level 6-dim
     # risk_assessment.json + per-axis grounded_<axis>.json records from literature-risk-assessment.
@@ -554,6 +666,7 @@ def main() -> int:
     if args.emit == "evidence-package":
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
         print(f"Recommendation: {gate_action or '(no gate fired)'}")
+        _restore_run_log()
         return 0
 
     # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
@@ -740,6 +853,7 @@ def main() -> int:
             "target_profile.md",
             "target_profile.html",
             "nomination.json",
+            "run.log",
         ] + ([] if args.no_figures else [
             "figures/target_profile_at_a_glance.png",
             "figures/target_profile_at_a_glance.svg",
@@ -758,6 +872,7 @@ def main() -> int:
         return raw.get("value") if isinstance(raw, dict) else raw
     print(f"Recommendation: {_unwrap(llm_output.get('overall_recommendation'))}")
     print(f"Confidence:     {_unwrap(llm_output.get('confidence'))}")
+    _restore_run_log()
     return 0
 
 

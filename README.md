@@ -335,6 +335,10 @@ clickable dashboard into `--out` in a single invocation:
 - `target_profile.html` — single-page dashboard (per-subskill sections, Plots|Evidence|Rules
   tabs, LLM exec-summary / tension / recommendation)
 - `figures/` — per-card SVG + composite PNG, and provenance
+- `run.log` — a timestamped tee of the run's stdout + stderr (fan-out, gate firing, Bedrock
+  call, figure emission, warnings). Always written; a durable backend trace for development
+  **and** provenance (listed in `provenance.yaml` artefacts). Live terminal output is
+  unchanged — the log is an added copy, each line stamped with a UTC timestamp + `OUT`/`ERR` tag.
 
 `--target`, `--indication`, and `--out` are **required**. The HTML is emitted by default;
 `--no-figures` (and the umbrella `--verdict-only`) is what *suppresses* it.
