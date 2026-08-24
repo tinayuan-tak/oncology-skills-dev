@@ -15,7 +15,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field
+from _skills_common import get_card_field, card_summary
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
 from _skills_common.safety_question_table import safety_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -262,6 +263,107 @@ def _emit_skill_figures(decision, figures_root):
     """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
     display-only, offline, best-effort (missing block → [], spine unaffected)."""
     return emit_headline_hero(decision, figures_root)
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the SAFETY per-axis builder, and the axis that best exercises the
+#    record's `modality_scope` coordinate (VERDICT_REPRESENTATION §8): a WT-loss safety concern is
+#    modality-CONDITIONAL, not a scalar. It opposes an engages-WT biologic (degrader/RNA), is only
+#    conditional for an allele-selective small molecule, and is n/a on surface modalities. The record
+#    carries that per-channel from safety_verdict_by_modality(fired) — the honest replacement for the
+#    retired GoF-role-proxy downgrade. VERDICT-INERT: surfaced by the fan-out into
+#    decision.claim_record_shadow.safety, consumed by NOTHING. Mirrors the other axes' _claim_record.
+_SAFETY_CONCERNS = frozenset({
+    "highly_constrained_safety_concern", "human_genetics_safety_concern",
+    "normal_tissue_protein_safety_concern", "pan_essential_broad_tox_concern",
+})
+_SAFETY_OPEN_WORLD = {"data_unavailable", None}
+# the verdict-driving concern instruments — coverage/unknown_mass are computed over these
+_SAFETY_DECISION_CARDS = ("gnomad-lof-constraint", "normal-tissue-liability-gtex",
+                          "clinvar-pathogenicity-safety", "mouse-ko-phenotype", "clingen-dosage",
+                          "gene-burden-safety", "pan-cancer-crispr-dependency-distribution",
+                          "normal-tissue-liability")
+# safety_verdict_by_modality action -> the record's modality_scope value
+_SAFETY_ACTION_TO_SCOPE = {"hold": "unfavorable", "conditional": "conditional",
+                           "supportive": "favorable", "no_concern": "favorable",
+                           "not_applicable": "na"}
+
+
+def _safety_availability(v) -> str:
+    if v in _SAFETY_OPEN_WORLD:
+        return "not_wired"                       # open-world → assembler forces unknown/neutral
+    if v == "insufficient":
+        return "insufficient"
+    if v == "tolerant_reduced_safety_risk":
+        return "measured_negative"               # measured, concern ABSENT (reassuring)
+    return "measured_positive"                   # a measured safety concern present
+
+
+def _safety_finding(v):
+    """(direction, magnitude.level) for the safety liability finding."""
+    if v in _SAFETY_CONCERNS:
+        return "opposes", "strong"
+    if v == "moderately_constrained_safety":
+        return "opposes", "moderate"
+    if v == "tolerant_reduced_safety_risk":
+        return "supports", "none"                # reduced risk supports nomination
+    return "neutral", "none"                     # insufficient / open-world
+
+
+def _safety_certainty(cards) -> dict:
+    """Coverage-only certainty (CERTAINTY_MODEL): safety has NO verdict-disjoint corroborator — every
+    independent constraint line already drives the verdict — so corroboration is `unmeasured` and
+    level == coverage. Coverage/unknown_mass over the concern instruments (_SAFETY_DECISION_CARDS)."""
+    present = sum(1 for cid in _SAFETY_DECISION_CARDS
+                  if (card_summary(cards, cid) and not card_summary(cards, cid).get("_missing")))
+    frac = present / len(_SAFETY_DECISION_CARDS)
+    coverage = "high" if frac >= 0.66 else ("medium" if frac >= 0.33 else "low")
+    return {"level": coverage, "coverage": coverage, "corroboration": "unmeasured",
+            "unknown_mass": round(1.0 - frac, 4)}
+
+
+def _safety_modality_scope(fired) -> dict | None:
+    """Map safety_verdict_by_modality's per-channel actions onto the record's modality_scope. The
+    2-channel base = small_molecule + biologics (the engages-WT biologic, rna/degrader — the modality
+    a WT-loss concern actually bears on); surface biologics (adc/bite_tce/antibody) + degrader carried
+    as _refinements where the vector reports them (na for a WT-loss concern)."""
+    vbm = safety_verdict_by_modality(fired) or {}
+
+    def scope(ch):
+        a = (vbm.get(ch) or {}).get("action")
+        return _SAFETY_ACTION_TO_SCOPE.get(a)
+
+    out: dict = {}
+    sm = scope("small_molecule")
+    if sm:
+        out["small_molecule"] = sm
+    bio = scope("rna") or scope("degrader")      # the engages-WT biologic represents the base
+    if bio:
+        out["biologics"] = bio
+    refinements = {}
+    for ch in ("adc", "bite_tce", "degrader", "antibody"):
+        s = scope(ch)
+        if s:
+            refinements[ch] = s
+    if refinements:
+        out["_refinements"] = refinements
+    return out or None
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    direction, level = _safety_finding(v)
+    return assemble_claim_record(
+        axis="safety",
+        state=(v or "insufficient"),
+        direction=direction,
+        availability=_safety_availability(v),
+        magnitude={"level": level},
+        modality_scope=_safety_modality_scope(fired or []),
+        certainty=_safety_certainty(cards),
+        fired=fired,
+        cards=cards,
+    )
 
 
 def _headline(cards, fired, verdict_pair):
