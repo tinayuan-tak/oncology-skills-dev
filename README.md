@@ -324,19 +324,79 @@ pixi run python skills/functional-requirement/scripts/run.py \
     --gene KRAS --indication COADREAD
 ```
 
-Run a full composed profile with LLM synthesis:
+### Full composed profile — skill outputs **and** clickable HTML (one command)
+
+`skills/target-profile/scripts/run.py` is the top-level entry point. A **full run**
+(no `--verdict-only` / `--no-figures`) writes the complete skill output tree **and** the
+clickable dashboard into `--out` in a single invocation:
+
+- `target_profile.md` — narrative report
+- `nomination.json` — deterministic sub-verdicts + LLM synthesis (auditable spine)
+- `target_profile.html` — single-page dashboard (per-subskill sections, Plots|Evidence|Rules
+  tabs, LLM exec-summary / tension / recommendation)
+- `figures/` — per-card SVG + composite PNG, and provenance
+
+`--target`, `--indication`, and `--out` are **required**. The HTML is emitted by default;
+`--no-figures` (and the umbrella `--verdict-only`) is what *suppresses* it.
 
 ```bash
-export AWS_PROFILE=cbg AWS_REGION=us-east-1   # Bedrock for synthesis
+export AWS_PROFILE=cbg BEDROCK_AWS_PROFILE=cmp-dev AWS_REGION=us-east-1
+export ANTHROPIC_MODEL=us.anthropic.claude-opus-4-8   # strip any [1m] alias suffix
 pixi run python skills/target-profile/scripts/run.py \
-    --gene MET --indication NSCLC
+    --target KRAS --indication COADREAD \
+    --subtypes MSI_H,MSS \
+    --out ~/dev/framework-runs/KRAS-COADREAD-target-profile
 ```
 
-Re-run the same profile as a fast, deterministic verdict-only pass (no Bedrock, no figures):
+- `AWS_PROFILE=cbg` = S3 data reads; `BEDROCK_AWS_PROFILE=cmp-dev` = the Bedrock LLM synthesis
+  (see [AWS configuration](#aws-configuration)). Without Bedrock creds the run crashes at the
+  synthesis tail — use `--no-synthesis` (or `--verdict-only`) to skip it.
+- `--subtypes` is **negative-selection only**: a measured, floor-cleared *non-dependent* subtype
+  downgrades to `hold`; if the target stays a dependency across all subtypes, `subtype_fit`
+  correctly emits no verdict and the subtype figures still render.
+- Write `--out` under `~/dev/…` or `~/scratch/` — `/tmp` is invisible in the SageMaker
+  JupyterLab file picker and wiped on restart.
+- Confirm synthesis is real (not degraded): in `nomination.json`,
+  `llm_synthesis.executive_summary._source == "llm_synthesized"`.
+
+> **Interpreter note.** The CI-tested `pixi` env ships the full data-card stack but **no
+> `anthropic`**, so a synthesis run under bare `pixi` fails at the Bedrock tail. Either add
+> `anthropic[bedrock]` to the pixi env, or run under an interpreter that has both the card
+> stack (`openpyxl`, `lifelines`, `pyreadr`, `gseapy`) **and** `anthropic[bedrock]` — a
+> mismatched env silently drops cards and can flip a sub-verdict.
+
+#### How the figures are produced
+
+On a full run, figures are generated in three stages, all written under `<out>/figures/`:
+
+1. **Offline data-persist (during fan-out).** As each sub-skill resolves, its card `plot_data`
+   is persisted into `figures/cards/<card_id>/`. The figure emitters later render from this
+   saved data instead of doing a **second** live S3 / method read — the "offline seam."
+2. **Composite "at-a-glance" panel.** `figures/target_profile_at_a_glance.png` (+ `.svg`
+   companion) — the slide-drop summary artifact. It also narrates the LLM recommendation, so a
+   `--verdict-only` run skips this panel specifically.
+3. **Per-card distribution figures.** Each card with a registered emitter renders as **SVG +
+   interactive `.plotly.json`** via the shared figure registry. Only ~34 cards have emitters;
+   a card without one simply produces no figure (expected, not an error).
+
+`target_profile.html` **inlines the composite SVG** and references the per-card figures in its
+Plots tabs; `target_profile.md` embeds the composite panel by relative path.
+
+Behaviors worth knowing:
+
+- **Figures are verdict-inert.** They never feed `nomination.json` or the sub-verdicts — a
+  separate presentation slot. So `--no-figures` (and the umbrella `--verdict-only`) yields a
+  **byte-identical** verdict spine; the HTML just degrades to the tested static, no-JS layout.
+- **Every figure step is best-effort.** A composite-render or HTML-render failure logs a
+  `WARN` and continues (the report degrades to no-image); figure rendering never blocks
+  emission of the verdict artifacts.
+
+Re-run the same profile as a fast, deterministic verdict-only pass (no Bedrock, no figures, no HTML):
 
 ```bash
 pixi run python skills/target-profile/scripts/run.py \
-    --gene MET --indication NSCLC --verdict-only
+    --target KRAS --indication COADREAD \
+    --out ~/scratch/kras-coadread-verdict-only --verdict-only
 ```
 
 The repo-root `pixi.toml` carries the env for the v2 skills + batch pipeline. The retained
