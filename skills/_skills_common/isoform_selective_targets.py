@@ -71,6 +71,20 @@ class IsoformWarning:
     oncotree_codes: tuple = ()       # indication-scope (vocab v1.1.0): OncoTree codes where the isoform dominates
     pan_applicable: bool = False     # entry's isoform axis is indication-agnostic (e.g. FGFR2 IIIb/IIIc pan-epithelial)
     modality_epitope_impact: str = ""  # mechanism (vocab v1.2.0): ectodomain_ablating | ectodomain_intact | neoepitope | resistance_acquired | ectodomain_isoform_specific | intracellular
+    alt_isoform_dominant: bool = False  # dominance (vocab v1.3.0): is the epitope-ablating alt isoform the DOMINANT species? Only then is the hard fit_class suppression honest (see suppresses_fit_class). ERBB2 p95HER2 is a MINORITY fragment → false.
+
+    def suppresses_fit_class(self, indication: Optional[str]) -> bool:
+        """Should the biologics fit_class be HARD-SUPPRESSED to isoform_dependent_undefined?
+
+        Requires ALL THREE: the isoform is clinically established IN THIS indication
+        (applies_in_indication), it ABLATES the ectodomain epitope (suppresses_adc_epitope), AND it is
+        the DOMINANT species (alt_isoform_dominant). A minority epitope-ablating fragment (p95HER2:
+        ~30% HER2+ gastric, ~10-15% breast) leaves the dominant full-length antigen targetable — the
+        gene-level fit STANDS with a high-severity caveat rather than being blanked to undefined (T-DXd
+        is approved in HER2+ gastric). v1.3.0 dominance gate; below-suppression entries route to caveat."""
+        return (self.applies_in_indication(indication)
+                and self.suppresses_adc_epitope()
+                and self.alt_isoform_dominant)
 
     def suppresses_adc_epitope(self) -> bool:
         """Does the dominant alt isoform ABLATE the extracellular antibody epitope? (2026-08-14 fix)
@@ -205,4 +219,5 @@ def check_target(target_symbol: str) -> Optional[IsoformWarning]:
         oncotree_codes=tuple(entry.get("oncotree_codes") or ()),
         pan_applicable=bool(entry.get("pan_applicable", False)),
         modality_epitope_impact=str(entry.get("modality_epitope_impact", "")),
+        alt_isoform_dominant=bool(entry.get("alt_isoform_dominant", False)),
     )

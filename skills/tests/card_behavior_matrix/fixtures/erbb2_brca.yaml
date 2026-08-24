@@ -1,7 +1,7 @@
 adc-tce-modality-fit:
   _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
   endocytosis_confidence: clinically_internalizing
-  fit_class: isoform_dependent_undefined
+  fit_class: both_viable
   fit_rationale: tm_count=1, ec_length=630, endo_motif_hc=unmeasured, n_ubiq=unmeasured
   gpi_surface_rescued: false
   is_adc_topology_favorable: true
@@ -9,7 +9,7 @@ adc-tce-modality-fit:
   is_tce_topology_favorable: true
   isoform_mechanism_caveat: null
   isoform_selective_offcontext: false
-  isoform_selective_suppressed: true
+  isoform_selective_suppressed: false
   structure_epitope_context:
     alphafold_confidence_class: moderate
     disordered_fraction: 0.2454

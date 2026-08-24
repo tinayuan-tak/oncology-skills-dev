@@ -311,6 +311,10 @@ def _headline(cards, fired, verdict_pair):
         # ectodomain epitope (METex14 intracellular / EGFRvIII neoepitope / CD19 acquired-resistance /
         # FGFR2 isoform-specific) — fit_class stands, mechanism surfaced. None when not applicable.
         "isoform_mechanism_caveat":       get_card_field(cards, "adc-tce-modality-fit", "isoform_mechanism_caveat"),
+        # Dominance caveat (v1.3.0, 2026-08-24): in-context, ectodomain-ABLATING, but the alt isoform is a
+        # MINORITY species (p95HER2) — fit_class STANDS favorable + this high-severity caveat surfaces the
+        # subpopulation epitope loss (confirm isoform-resolved expression before ADC nomination). None otherwise.
+        "isoform_epitope_caveat":         get_card_field(cards, "adc-tce-modality-fit", "isoform_epitope_caveat"),
         "topology_class":                 get_card_field(cards, "surface-topology-and-ptm", "topology_class"),
         "family_class":                   get_card_field(cards, "surfaceome-family-classification", "family_class"),
         "hotspot_pocket_adjacency_call":  get_card_field(cards, "structure-features-static",

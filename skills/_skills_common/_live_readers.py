@@ -1059,11 +1059,17 @@ def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional
             if not warning.applies_in_indication(indication):
                 out["isoform_selective_offcontext"] = True       # off-context: annotation only — fit_class preserved
                 out["isoform_selective_offcontext_indication"] = indication
-            elif warning.suppresses_adc_epitope():
-                # MECHANISM-AWARE (2026-08-14): in-context AND the isoform ABLATES the extracellular
-                # epitope (p95HER2) → suppress fit_class to isoform_dependent_undefined (the antibody
-                # target is genuinely lost).
+            elif warning.suppresses_fit_class(indication):
+                # DOMINANCE-AWARE (2026-08-24, v1.3.0): in-context AND ectodomain-ablating AND the alt
+                # isoform is the DOMINANT species → suppress fit_class to isoform_dependent_undefined
+                # (the antibody target is genuinely lost across the tumor).
                 out["isoform_selective_warning"] = True
+            elif warning.suppresses_adc_epitope():
+                # In-context, ectodomain-ablating, but the alt isoform is a MINORITY species (p95HER2 ~30%
+                # HER2+ gastric / ~10-15% breast). Full-length antigen dominates + is targetable (T-DXd
+                # approved) → keep the gene-level fit_class + a HIGH-SEVERITY isoform caveat (do NOT blank).
+                out["isoform_epitope_caveat"] = warning.modality_epitope_impact
+                out["isoform_epitope_caveat_severity"] = warning.warning_severity
             else:
                 # In-context but the mechanism does NOT ablate the surface epitope (METex14 intracellular,
                 # EGFRvIII neoepitope, CD19 acquired-resistance, FGFR2 isoform-specific) → keep fit_class,

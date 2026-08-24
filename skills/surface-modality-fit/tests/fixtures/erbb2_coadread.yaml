@@ -1,13 +1,15 @@
 adc-tce-modality-fit:
   _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
   endocytosis_confidence: clinically_internalizing
-  fit_class: isoform_dependent_undefined
+  fit_class: both_viable
   fit_rationale: tm_count=1, ec_length=630, endo_motif_hc=unmeasured, n_ubiq=unmeasured
   gpi_surface_rescued: false
   is_adc_topology_favorable: true
   is_gpi_anchored: false
   is_tce_topology_favorable: true
-  isoform_selective_suppressed: true
+  isoform_mechanism_caveat: null
+  isoform_selective_offcontext: true
+  isoform_selective_suppressed: false
   structure_epitope_context:
     alphafold_confidence_class: moderate
     disordered_fraction: 0.2454
@@ -157,11 +159,11 @@ mutation-stratified-surface:
   n_wt: null
   q_value: null
 normal-tissue-liability:
-  essential_tissue_flag: absent
+  essential_tissue_flag: unknown
   essential_tissues_flagged: []
   hpa_tissue_distribution: Detected in many
   hpa_tissue_specificity: Tissue enriched
-  method_version: 0.1.0
+  method_version: 0.2.0
   n_essential_tissues_with_expression: 0
   n_specific_tissues: 1
   normal_tissue_breadth_class: broad_normal_expression
@@ -214,31 +216,50 @@ rna-protein-concordance-tumor:
   n_paired_tumors: 96
   rna_as_biomarker: poor_proxy
   rna_protein_r: 0.3068
+  rna_protein_r_ci95_high: 0.4685
+  rna_protein_r_ci95_low: 0.1013
   rna_protein_spearman: 0.2958
+  rna_proxy_class_boundary_fragile: true
+  rna_proxy_classified_on: spearman
   substrate: cptac_tumor
   target: ERBB2
 sc-normal-celltype-expression:
   expressing_donor_fraction_max: 1.0
   indication: COADREAD
-  max_detection_cell_type: nephron tubule epithelial cell
-  max_detection_fraction: 0.7442178940961655
+  max_detection_cell_type: airway submucosal gland collecting duct epithelial cell
+  max_detection_fraction: 0.8530927835051546
   method_version: 0.1.0
-  n_cell_types_above_20pct: 57
-  n_reliable_cell_types: 251
+  n_cell_types_above_20pct: 98
+  n_reliable_cell_types: 471
   origin_tissues:
   - colon
+  per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
   safety_essential_flags:
     BEST4+ colonocyte: 0.4243421052631579
     BEST4+ enterocyte: 0.2782462057335582
+    L2/3-6 intratelencephalic projecting glutamatergic neuron: 0.055226824457593686
+    L3 intratelencephalic projecting glutamatergic neuron: 0.07710597826086957
+    L4/5 intratelencephalic projecting glutamatergic neuron: 0.0913633119200571
+    L5 extratelencephalic projecting glutamatergic cortical neuron: 0.07526881720430108
+    L6b glutamatergic cortical neuron: 0.061046511627906974
+    L6b glutamatergic neuron of the primary motor cortex: 0.05063291139240506
+    alveolar type 1 fibroblast cell: 0.07692307692307693
+    astrocyte: 0.09587649626562898
+    astrocyte of the cerebral cortex: 0.16147308781869688
     cardiac muscle cell: 0.16337017507756801
     cardiac neuron: 0.05263157894736842
+    central nervous system neuron: 0.0625
     colonocyte: 0.35443037974683544
+    corticothalamic-projecting glutamatergic cortical neuron: 0.05238095238095238
+    cycling pulmonary alveolar type 2 cell: 0.47265625
+    direct pathway medium spiny neuron: 0.13278495887191538
     early colonocyte: 0.6951219512195121
     enteric neuron: 0.16326530612244897
     enterocyte: 0.2813089993706734
     enterocyte of epithelium of large intestine: 0.3691292517006802
     fetal cardiomyocyte: 0.06358381502890173
     hepatocyte: 0.06278026905829596
+    indirect pathway medium spiny neuron: 0.09543668297377497
     interneuron: 0.14285714285714285
     kidney collecting duct alpha-intercalated cell: 0.3748569139194139
     kidney collecting duct cell: 0.4190503432494279
@@ -251,8 +272,15 @@ sc-normal-celltype-expression:
     kidney loop of Henle thick ascending limb epithelial cell: 0.3937007874015748
     kidney loop of Henle thin ascending limb epithelial cell: 0.4444444444444444
     kidney loop of Henle thin descending limb epithelial cell: 0.38414634146341464
+    mature astrocyte: 0.0625
+    medium spiny neuron: 0.08333333333333333
     midzonal region hepatocyte: 0.054093567251461985
+    near-projecting glutamatergic cortical neuron: 0.055900621118012424
     neuron: 0.08860759493670886
+    neuron of the forebrain: 0.11419215495018463
+    oligodendrocyte precursor cell: 0.16666666666666666
+    pulmonary alveolar type 1 cell: 0.31007751937984496
+    pulmonary alveolar type 2 cell: 0.1759776345145704
     ventricular cardiac muscle cell: 0.1111111111111111
   sc_normal_expression_class: HIGH_LIABILITY
   sc_normal_safety_essential_class: critical_organ_liability
@@ -262,6 +290,38 @@ sc-normal-celltype-expression:
   - liver
   - kidney
   - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+sc-surface-normal-safety:
+  compartment_scope: immune_pbmc
+  compartments_assessed:
+  - immune_pbmc
+  max_mean_clr: -0.7039
+  max_positive_fraction: 0.0711
+  max_surface_cell_type: CD4 Naive
+  method_version: 0.1.0
+  n_cell_types_assessed: 31
+  n_celltypes_surface_displaying: 0
+  sc_surface_normal_class: not_surface_detected_normal_immune
+  target: ERBB2
+sc-surface-rna-protein-concordance:
+  adt_proteins: CD340
+  compartment_scope: immune_pbmc
+  dataset_id: hao-2021-pbmc-3p
+  datasets:
+  - hao-2021-pbmc-3p
+  matched_via: cd_crosswalk
+  measurement_type: rna_protein_concordance
+  method_version: 0.1.0
+  n_cell_types: 31
+  n_cells: 161764
+  rna_as_biomarker: partial_proxy
+  rna_protein_r: 0.3561
+  rna_protein_spearman: 0.3421
+  substrate: cite_seq_surface
+  target: ERBB2
 shed-ectodomain-liability:
   hpa_secretome_location: null
   measured_shed_class: not_on_secreted_panel
@@ -370,14 +430,90 @@ structure-features-static:
   - 9T3S
   structural_ligandability_class: experimental_ligandable
 surface-abundance-density:
-  _tier2_estimate_error: 'ModuleNotFoundError: No module named ''percentile_null'''
+  _density_source: governed_ladder
+  _estimate_grade_d_class: high
   absolute_copies_per_cell: 46523.0
   absolute_density_class: high
   absolute_density_grade: B-
   absolute_measurement_semantics: fluorophore_equivalent_proxy
+  absolute_n_cell_line: 1
   absolute_n_measurements: 1
+  absolute_n_patient: 0
+  absolute_record_partition: native_cell_line
+  absolute_reported_unit: PE-equivalent molecules/cell
+  absolute_value_best: 46523.0
+  absolute_value_qualifier: median
+  density_evidence_level: B-
   density_floor_verdict: above_adc_high_payload_floor
-  surface_density_class: unmeasured
+  estimated_copies_per_cell_lower: 1488.9
+  estimated_copies_per_cell_median: 28587.2
+  estimated_copies_per_cell_upper: 548873.8
+  hpa_ihc_anchor_used: HPA broad_normal_expression (intestine)
+  hpa_ihc_intensity_class: medium
+  is_adc_high_payload_viable: true
+  is_tce_viable: true
+  method_version: 0.1.0
+  surface_density_class: high
+surface-bulk-pair-selectivity:
+  _avidity_caveat: "Bulk co-expression in a tumor SAMPLE is necessary but NOT sufficient\
+    \ for same-CELL co-expression, which is what an AND-gate bispecific requires (avidity).\
+    \ Two antigens can be high in a sample yet on different cells. This scan NOMINATES\
+    \ pairs to confirm; same-cell / co-localization confirmation needs single-cell\
+    \ (CELLxGENE Census same-cell coexpression) or spatial data \u2014 a documented\
+    \ gap."
+  _data_source: bispecific-bulk-pair-selectivity-per-indication-v1
+  best_and_call: "AND-gate tumor-selective (99% tumor vs 0% essential-normal, 99x);\
+    \ CAUTION non-essential normal fires 77% \u2014 broad-tissue liability"
+  best_and_call_class: selective_but_broad_tissue_liability
+  best_and_max_essential_normal_tissue: HEART
+  best_and_partner: CDH17
+  best_and_selectivity: 99.4
+  best_and_tumor_study: READ
+  best_not_call: 'NOT-gate: antigen present w/ veto absent in 86% of tumor; veto-arm
+    must mark a normal tissue to spare'
+  best_not_max_essential_normal_tissue: PANCREAS
+  best_not_partner: GPC3
+  best_not_selectivity: 2.59
+  best_not_tumor_study: READ
+  best_or_call: "OR-gate coverage 100% of tumor (heterogeneity backstop; OR is only\
+    \ as clean as its dirtiest arm \u2014 check normal breadth 100%)"
+  best_or_max_essential_normal_tissue: SPLEEN
+  best_or_partner: CD19
+  best_or_selectivity: 1.0
+  best_or_tumor_study: READ
+  indication: COADREAD
+  method_version: 0.1.0
+  n_partners_scanned: 51
+  target: ERBB2
+surface-colocalization-avidity:
+  _data_note: ERBB2 not in any nominated pair in sc-samecell-coexpr-crc-coadread-v1
+    (no avidity partner scanned)
+  _window:
+    _data_note: ERBB2 not in any nominated pair in sc-samecell-coexpr-crc-coadread-v1
+      (no avidity partner scanned)
+    best_partner: null
+    best_selectivity_margin: null
+    indication: COADREAD
+    n_partners_tested: 0
+    partners: []
+    target: ERBB2
+    window_verdict: data_unavailable
+  best_avidity_call: null
+  best_both_fraction_median: null
+  best_enrichment_median: null
+  best_partner: null
+  indication: COADREAD
+  method_version: 0.2.0
+  n_coordinated_partners: 0
+  n_partners_tested: 0
+  n_window_open: null
+  normal_liability_locus: null
+  partners: []
+  samecell_avidity_class: data_unavailable
+  selectivity_margin: null
+  target: ERBB2
+  window_best_partner: null
+  window_verdict: data_unavailable
 surface-topology-and-ptm:
   _ptm_coverage: data_unavailable
   ecd_engineerability_class: large_ecd
@@ -388,7 +524,9 @@ surface-topology-and-ptm:
   extracellular_residue_count: 630
   has_tm_beta: false
   isoform_selective_dominant_isoform: p95HER2 (611-CTF, 100/95 kDa)
-  isoform_selective_warning: true
+  isoform_selective_offcontext: true
+  isoform_selective_offcontext_indication: COADREAD
+  isoform_selective_warning: false
   method_version: read-0.1.0
   n_glycosylation_sites: null
   n_ubiquitination_sites: null
@@ -398,7 +536,20 @@ surface-topology-and-ptm:
   tmbed_model_version: 1.0.2
   topology_class: single_pass_type_1
   topology_summary: SP|TM-alpha|ECD-outside
-  vocabulary_version_isoform: 1.0.0
+  vocabulary_version_isoform: 1.3.0
+surfaceome-cohort-ranking:
+  _data_note: target_not_in_ranking_for_COADREAD
+  cells_supporting: null
+  cohort_rank_class: data_unavailable
+  indication: null
+  max_abs_log2fc: null
+  method_version: 0.1.0
+  ranking_score: null
+  rna_protein_concordance: no_protein
+  surface_protein_family: null
+  tissue_percentile_protein: null
+  tissue_percentile_rna: null
+  tissue_rank: null
 surfaceome-family-classification:
   _data_source: surfaceome-family-classification-per-uniprot-v1
   family_class: kinase_surface
@@ -418,21 +569,28 @@ surfaceome-family-classification:
   surface_protein_family: Kinase
   surfaceome_confidence_score: 1.0
 tumor-scrna-celltype-expression:
-  caf_abundance_log1p_cp10k: 0.06505
+  ambient_contamination_risk: low
+  caf_abundance_log1p_cp10k: 0.06575
   caf_compartment_available: true
-  caf_detection_fraction: 0.08333
+  caf_detection_fraction: 0.07895
   caf_vs_malignant_class: caf_low
   compartment_detection:
-    epithelial_normal: 0.1
-    immune: 0.00646
-    malignant: 0.41304
-    other: 0.03636
-    stromal: 0.08333
+    epithelial_normal: 0.08844
+    immune: 0.006455
+    malignant: 0.41624
+    other: 0.03021
+    stromal: 0.07895
+  entity_purity: entity_specific
+  fraction_donors_broadly_detecting: 0.330532
   indication: COADREAD
-  malignant_abundance_log1p_cp10k: 0.23413
+  inter_donor_consistency_class: variable
+  malignant_abundance_log1p_cp10k: 0.23526
+  malignant_annotation_method: curated
   malignant_compartment_available: true
-  malignant_detection_fraction: 0.41304
-  malignant_n_donors: 365
+  malignant_detection_donor_iqr: 0.27993
+  malignant_detection_fraction: 0.41624
+  malignant_n_cells: 509426
+  malignant_n_donors: 357
   method_version: 0.1.0
   n_compartments_measured: 5
   n_datasets: 46
@@ -440,36 +598,38 @@ tumor-scrna-celltype-expression:
   per_compartment:
   - compartment: malignant
     is_caf: false
-    median_abundance_log1p_cp10k: 0.23413
-    median_detection_fraction: 0.41304
-    n_cells_total: 509546
-    n_donors: 365
+    median_abundance_log1p_cp10k: 0.23526
+    median_detection_fraction: 0.41624
+    n_cells_total: 509426
+    n_donors: 357
   - compartment: stromal
     is_caf: true
-    median_abundance_log1p_cp10k: 0.06505
-    median_detection_fraction: 0.08333
-    n_cells_total: 136696
-    n_donors: 278
+    median_abundance_log1p_cp10k: 0.06575
+    median_detection_fraction: 0.07895
+    n_cells_total: 136512
+    n_donors: 265
   - compartment: immune
     is_caf: false
-    median_abundance_log1p_cp10k: 0.00673
-    median_detection_fraction: 0.00646
-    n_cells_total: 1105545
-    n_donors: 387
+    median_abundance_log1p_cp10k: 0.00671
+    median_detection_fraction: 0.006455
+    n_cells_total: 1105497
+    n_donors: 384
   - compartment: epithelial_normal
     is_caf: false
-    median_abundance_log1p_cp10k: 0.11401
-    median_detection_fraction: 0.1
-    n_cells_total: 2943
-    n_donors: 51
+    median_abundance_log1p_cp10k: 0.06375
+    median_detection_fraction: 0.08844
+    n_cells_total: 2674
+    n_donors: 31
   - compartment: other
     is_caf: false
-    median_abundance_log1p_cp10k: 0.05351
-    median_detection_fraction: 0.03636
-    n_cells_total: 14467
-    n_donors: 149
+    median_abundance_log1p_cp10k: 0.04386
+    median_detection_fraction: 0.03021
+    n_cells_total: 14071
+    n_donors: 122
   product_id: sc-pseudobulk-tumor-crc-coadread-v1
   sc_expression_class: malignant_subset_detected
+  tce_antigen_escape_class: escape_risk_high
   tce_homogeneity_class: moderately_homogeneous
   top_microenvironment_compartment: stromal
-  top_microenvironment_detection_fraction: 0.08333
+  top_microenvironment_detection_fraction: 0.07895
+  within_tumor_coverage_class: low

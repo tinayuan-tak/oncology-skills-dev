@@ -19,12 +19,35 @@ if str(SKILLS) not in sys.path:
 from _skills_common.isoform_selective_targets import IsoformWarning  # noqa: E402
 
 
-def _w(codes=(), pan=False, impact=""):
+def _w(codes=(), pan=False, impact="", dominant=False):
     return IsoformWarning(
         target_symbol="X", dominant_isoform="iso", variant_type="v", warning_severity="high",
         caveat="", warning_conditional_on=None, primary_source_doi="", primary_source_citation="",
-        vocabulary_version="1.2.0", oncotree_codes=tuple(codes), pan_applicable=pan,
-        modality_epitope_impact=impact)
+        vocabulary_version="1.3.0", oncotree_codes=tuple(codes), pan_applicable=pan,
+        modality_epitope_impact=impact, alt_isoform_dominant=dominant)
+
+
+# --- Stage 3 (v1.3.0): dominance gate — suppresses_fit_class requires the alt isoform to DOMINATE ---
+
+def test_minority_ablating_isoform_keeps_fit(  ):
+    """ERBB2/p95HER2 shape: in-context + ectodomain-ablating but MINORITY (alt_isoform_dominant=False)
+    → does NOT hard-suppress fit_class (keep favorable + caveat)."""
+    w = _w(codes=("BRCA", "STAD"), impact="ectodomain_ablating", dominant=False)
+    assert w.suppresses_adc_epitope() is True            # mechanism still ablates
+    assert w.suppresses_fit_class("STAD") is False        # but NOT dominant → fit stands
+    assert w.suppresses_fit_class("BRCA") is False
+
+
+def test_dominant_ablating_isoform_suppresses_fit():
+    """A hypothetical dominant epitope-ablating isoform → hard-suppress (all three conditions hold)."""
+    w = _w(codes=("STAD",), impact="ectodomain_ablating", dominant=True)
+    assert w.suppresses_fit_class("STAD") is True
+    assert w.suppresses_fit_class("LUAD") is False        # off-context → no suppress even if dominant
+
+
+def test_dominance_gate_off_context_never_suppresses():
+    w = _w(codes=("BRCA",), impact="ectodomain_ablating", dominant=True)
+    assert w.suppresses_fit_class("COADREAD") is False    # off-context wins regardless of dominance
 
 
 def test_in_context_indication_suppresses():

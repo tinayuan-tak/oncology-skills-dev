@@ -22,8 +22,10 @@ Three curated fixtures pin the base ladder AND both bite_tce KILLER rungs (via t
     flips back to both_viable (TCE falsely "safe") and this test goes red.
   - TACSTD2 / COADREAD — both_viable base, DOWNGRADED to adc_preferred_tce_unsafe by the HPA-IHC
     NORMAL-TISSUE-ESSENTIAL bite killer (a DIFFERENT killer card). Guards the second killer path.
-  - ERBB2 / COADREAD — isoform_dependent_undefined base fit_class rung; NO bite killer fires. Guards the
-    base ladder AND that the bite killers do NOT over-fire on a target without the normal-tissue liability.
+  - ERBB2 / COADREAD — both_viable base (v1.3.0 dominance gate: p95HER2 is a MINORITY isoform so the
+    gene-level HER2 fit is NO LONGER blanked to isoform_dependent_undefined — HER2 is the canonical ADC
+    antigen, T-DXd approved), DOWNGRADED to adc_preferred_tce_unsafe by the normal-tissue bite killer.
+    Guards the isoform dominance-gate fix AND the base→TCE-unsafe downgrade path.
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
 tumor-selectivity's replay.
@@ -108,7 +110,7 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 # ── the three curated fixtures (pair_id, target, indication, expected_verdict) ────────────────────
 CEACAM5 = ("ceacam5_coadread", "CEACAM5", "COADREAD", "adc_preferred_tce_unsafe")
 TACSTD2 = ("tacstd2_coadread", "TACSTD2", "COADREAD", "adc_preferred_tce_unsafe")
-ERBB2   = ("erbb2_coadread",   "ERBB2",   "COADREAD", "isoform_dependent_undefined")
+ERBB2   = ("erbb2_coadread",   "ERBB2",   "COADREAD", "adc_preferred_tce_unsafe")
 ALL = [CEACAM5, TACSTD2, ERBB2]
 KILLER = [CEACAM5, TACSTD2]
 
@@ -192,16 +194,17 @@ def test_replay_headline_block_populated_and_verdict_inert():
         f"expected the TCE-unsafe downgrade as top tension, got {tension!r}")
 
 
-def test_base_fit_rung_has_no_spurious_killer():
-    """ERBB2 resolves an isoform_dependent_undefined base fit_class rung with NO bite killer — guards that
-    the killers do NOT over-fire on a target lacking the normal-tissue liability, and that a base fit rung
-    resolves without a killer downgrade hijacking it."""
+def test_isoform_dominance_gate_keeps_base_fit():
+    """ERBB2 v1.3.0 dominance-gate guard: p95HER2 is a MINORITY epitope-ablating isoform, so the gene-level
+    HER2 base fit_class must STAY favorable (both_viable) — NOT blanked to isoform_dependent_undefined.
+    HER2 is the canonical internalizing ADC antigen (T-DXd approved in HER2+ gastric); blanking it was the
+    round-1 capture defect. The subsequent normal-tissue bite-killer downgrade (→ adc_preferred_tce_unsafe)
+    is legitimate and guarded by test_bite_killer_downgrades_tce; here we pin only that the BASE rung is
+    favorable and the isoform suppression no longer hijacks it."""
     d = _decision(*ERBB2[:3])
     h = d.get("headline") or {}
-    assert h.get("surface_modality_verdict") == "isoform_dependent_undefined", (
-        f"ERBB2 resolved {h.get('surface_modality_verdict')!r}, expected isoform_dependent_undefined.")
-    assert h.get("driving_rule_id") not in _BITE_KILLER_RULES, (
-        f"ERBB2 driving_rule_id={h.get('driving_rule_id')!r} is a bite killer — the killer over-fired "
-        f"on a base-rung target.")
-    assert h.get("surface_modality_verdict") not in _TCE_UNSAFE, (
-        "ERBB2 was downgraded to a TCE-unsafe verdict — killer over-fire.")
+    assert h.get("fit_class") == "both_viable", (
+        f"ERBB2 base fit_class={h.get('fit_class')!r}, expected both_viable (isoform dominance gate must "
+        f"NOT blank a minority-isoform target to isoform_dependent_undefined).")
+    assert h.get("surface_modality_verdict") != "isoform_dependent_undefined", (
+        "ERBB2 verdict is still isoform_dependent_undefined — the dominance gate did not take effect.")
