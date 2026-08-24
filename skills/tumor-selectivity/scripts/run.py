@@ -320,6 +320,12 @@ def _headline(cards, fired, verdict_pair):
         "sc_normal_safety_essential_class": sc_normal.get("sc_normal_safety_essential_class"),
         "sc_normal_max_detection_cell_type": sc_normal.get("max_detection_cell_type"),
         "sc_normal_max_detection_fraction": sc_normal.get("max_detection_fraction"),
+        # The FULL safety-essential-cell set {cell_type: median_det}, not just the argmax. The single
+        # max_detection_cell_type is a pooled detection argmax over all surveyed cell types, so for a
+        # broadly-expressed target the large brain shard (172 cell types) usually wins it — asserting one
+        # "decisive organ" hides co-flagged essential organs (e.g. erythroid/MEP for CD47). Surface the
+        # whole set so the narrative enumerates ALL flagged essential cell types. Verdict-inert.
+        "sc_normal_safety_essential_flags": sc_normal.get("safety_essential_flags"),
         "sc_normal_n_cell_types_above_20pct": sc_normal.get("n_cell_types_above_20pct"),
         # Single-cell (TUMOR side) facet (verdict-inert): resolves the purity confound at single-cell
         # resolution — is the selective bulk signal malignant-cell-intrinsic or stroma/CAF-driven?
@@ -385,7 +391,7 @@ _SYNTHESIS_FACET_KEYS = (
     # produced by _headline (single source of truth); absent ones project to None (verdict-inert).
     "question_table",
     "cells_supporting", "cells_ran", "max_abs_log2fc",
-    "therapeutic_window_class", "sc_normal_max_detection_cell_type",
+    "therapeutic_window_class", "sc_normal_max_detection_cell_type", "sc_normal_safety_essential_flags",
     "percentile_crossing_class", "fraction_tumor_above_normal_p95", "distribution_overlap_tumor_normal",
     "selectivity_allgene_percentile",
     "sc_tumor_expression_class", "sc_malignant_detection_fraction", "sc_caf_vs_malignant_class",

@@ -172,8 +172,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
          else (
          f"  ⚠ NORMAL-TISSUE LIABILITY (selectivity PRESERVED): axis-A {h.get('axis_a_selectivity_class')} "
          f"holds — {target} IS tumor-selective with a real tumor-vs-normal window — BUT it is also "
-         f"expressed in an essential cell type of a NON-origin critical organ "
-         f"({h.get('sc_normal_max_detection_cell_type')}); resolved {h.get('selectivity_class')} "
+         f"expressed in essential cell type(s) of NON-origin critical organ(s) "
+         f"(highest-detection: {h.get('sc_normal_max_detection_cell_type')}; ALL flagged essential "
+         f"cell types: {', '.join(sorted((h.get('sc_normal_safety_essential_flags') or {}).keys())) or 'none surveyed'}); "
+         f"resolved {h.get('selectivity_class')} "
          f"(driving_rule: {h.get('driving_rule_id')}). This is a SAFETY / therapeutic-index liability "
          f"(owned by on-target-safety-liability + modality-fit), NOT loss of selectivity — narrate the "
          f"named-organ liability; do NOT re-cast the selectivity call as a failure."
