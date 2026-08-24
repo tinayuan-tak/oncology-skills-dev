@@ -59,7 +59,8 @@ from tp_gates import (               # names main() calls directly
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _actionability_mode_facet,
-    _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _deciding_axis, _dependency_facet,
+    _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
+    _deciding_axis, _dependency_facet,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet,
 )
@@ -365,6 +366,14 @@ def main() -> int:
     # other facets: deterministic, additive, VERDICT-INERT (never touches overall_recommendation).
     modality_conjunction = _modality_conjunction_facet(sub_results)
 
+    # Competitor cross-reference facet (2026-08-24): the competitor-landscape VALUE-ADD. Cross-references
+    # the Open Targets competitor field (carried on the differentiation facet) against the framework's own
+    # surface-modality-fit verdict → competition density (crowded/white-space) + whether the framework's
+    # preferred modality is VALIDATED by clinical precedent or CONTRARIAN to it + differentiation hooks.
+    # DETERMINISTIC + strictly VERDICT-INERT: never touches the gate / recommendation / confidence — the
+    # framework surfaces positioning hooks, the TPP author writes the claim. None when no competitor signal.
+    competitor_crossref = _competitor_crossref_facet(sub_results)
+
     # Fragility facet (2026-08-12): verdict-inert flip-stability — the quantitative "how solid is this
     # call?" scalar. Worst-case single-rule flip-fragility over the decision-relevant axes (+ a
     # coverage floor for blind axes), computed by re-running the deterministic resolver over perturbed
@@ -425,6 +434,7 @@ def main() -> int:
             fragility=(None if args.ab_suppress_fragility_prompt else fragility),
             axis_info=axis_info,
             actionability_mode=actionability_mode,
+            competitor_crossref=competitor_crossref,
         )
         llm_output = synthesize_structured(
             system_prompt=_SYSTEM_PROMPT,
@@ -711,6 +721,11 @@ def main() -> int:
         # the per-axis certainty roll-up is certainty_by_axis. None when FR supplied no facet.
         "dependency_facet": dependency_facet,
         "modality_conjunction": modality_conjunction,
+        # Competitor cross-reference facet (2026-08-24): OT competitor field vs the framework's own
+        # surface-modality-fit verdict — competition density + modality validated/contrarian +
+        # differentiation hooks. A FACET (not a gate); never moves the recommendation. None when
+        # differentiation supplied no competitor signal.
+        "competitor_crossref": competitor_crossref,
         # Fragility facet (verdict-inert flip-stability): worst-case single-rule flip-fragility over the
         # decision-relevant axes + a `contested` flag (declarative threshold). A structural sensitivity
         # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or

@@ -25,7 +25,10 @@ from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.5.0"   # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
+SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
+                          #        as an ADDITIVE, verdict-inert render facet; namespaced competitor_* headline
+                          #        keys feed the target-profile deterministic modality cross-ref. Verdict byte-stable.
+                          # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
                           #        ADDITIVE/VERDICT-INERT render facet (translational-maturity lens);
                           #        differentiation verdict byte-stable (no resolver rung on clinical_*).
                           # 1.4.0 (2026-08-21): + canonical HEADLINE block (verdict + confidence + top
@@ -71,6 +74,14 @@ CARDS = [
                                          # licensing-blocked placeholder this skill's status note flagged). ADDITIVE,
                                          # VERDICT-INERT (no resolver rung; differentiation verdict byte-stable) —
                                          # the translational-maturity render facet. reads highest_clinical_stage +.
+    "competitor-landscape",              # (2026-08-24): Open Targets competitor field for (target, indication) —
+                                         # WHO ELSE is developing a drug against this target, at what MODALITY
+                                         # (ADC/TCE/mAb/SM/degrader) and clinical stage. WIRED via the pinned OT mirror
+                                         # (opentargets-target-competitor-drugs-per-gene-v1). ADDITIVE, VERDICT-INERT
+                                         # (no resolver rung; differentiation verdict byte-stable) — the competitive-
+                                         # positioning render facet. The value-add cross-ref vs the framework's own
+                                         # modality-fit/biomarker verdicts is computed at the target-profile fan-out.
+                                         # reads competitor_class + modality_landscape.
 ]
 
 QUESTION = ("What genes co-occur with or are mutually exclusive to "
@@ -214,6 +225,19 @@ def _headline(cards, fired, verdict_pair):
         "n_active_trials":                  get_card_field(cards, "clinical-precedent", "n_active_trials"),
         "approved_agents":                  get_card_field(cards, "clinical-precedent", "approved_agents"),
         "notable_failures":                 get_card_field(cards, "clinical-precedent", "notable_failures"),
+        # Open Targets competitor field (render facet; verdict-inert — no resolver rung). The
+        # competitive-positioning lens: who else has a drug against this target, at what MODALITY and
+        # stage. Namespaced 'competitor_*' to avoid colliding with the AACT clinical-precedent keys
+        # above. modality_landscape is the field the target-profile cross-ref keys on (competitor
+        # modality validated-vs-contrarian vs the framework's own surface-modality-fit verdict).
+        "competitor_class":                 get_card_field(cards, "competitor-landscape", "competitor_class"),
+        "competitor_highest_stage":         get_card_field(cards, "competitor-landscape", "highest_clinical_stage"),
+        "competitor_indication_scope":      get_card_field(cards, "competitor-landscape", "indication_scope"),
+        "n_competitor_programs":            get_card_field(cards, "competitor-landscape", "n_competitor_programs"),
+        "competitor_approved_agents":       get_card_field(cards, "competitor-landscape", "approved_agents"),
+        "competitor_late_stage_non_approved": get_card_field(cards, "competitor-landscape", "late_stage_non_approved_agents"),
+        "competitor_modalities_in_development": get_card_field(cards, "competitor-landscape", "modalities_in_development"),
+        "competitor_modality_landscape":    get_card_field(cards, "competitor-landscape", "modality_landscape"),
     }
     # verdict-INERT claim-vector projection (7th concrete) — COMUT/SURVIVAL/PROGNOSIS/NODE decomposition
     # + citable atoms the composed fan-out lifts to the cross-evidence agent.
@@ -237,6 +261,10 @@ _SYNTHESIS_FACET_KEYS = (
     "differentiation_verdict", "driving_rule_id", "cooccurrence_class",
     "survival_association_class", "precog_prognostic_class", "node_leverage_class",
     "highest_clinical_stage", "n_active_trials", "approved_agents", "notable_failures",
+    # Open Targets competitor field (verdict-inert) — the substrate for the target-profile cross-ref:
+    "competitor_class", "competitor_highest_stage", "competitor_indication_scope",
+    "n_competitor_programs", "competitor_approved_agents", "competitor_late_stage_non_approved",
+    "competitor_modalities_in_development", "competitor_modality_landscape",
     "claim_vector", "key_signals",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",

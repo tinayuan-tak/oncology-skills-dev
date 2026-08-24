@@ -25,7 +25,7 @@ description: |
   artifactual mutual-exclusivity signals for panel-absent genes.
 
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -41,6 +41,7 @@ composition:
     - alteration-clinical-association       # Q11-alteration (2026-08-20): OS by target MUTATION status; verdict-inert prognostic render facet (alteration arm of the differentiation prognostic question)
     - subtype-survival-association          # Q2-subtype (2026-08-20): OS ACROSS molecular subtypes (target-independent patient-selection context); verdict-inert
     - clinical-precedent                    # (2026-08-21) AACT clinical-trial precedent (highest stage / active trials / approved agents / notable failures for a target-engaging drug); ADDITIVE, VERDICT-INERT translational-maturity render facet
+    - competitor-landscape                  # (2026-08-24) Open Targets competitor field (who else is developing a drug against this target, at what MODALITY + clinical stage); ADDITIVE, VERDICT-INERT competitive-positioning render facet. The cross-ref vs the framework's own modality-fit/biomarker verdicts is a target-profile synthesis-layer step.
     # patent-landscape intentionally NOT listed — stays unwired (PatBase-equivalent licensing
     # unresolved). See NOTE below.
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
@@ -56,6 +57,7 @@ composition:
     - expression_clinical_association     # expression-clinical-association (Q11; verdict-inert render facet)
     - precog_prognostic_association       # precog-prognostic-association (PRECOG pan-cancer meta-Z; verdict-inert)
     - clinical_precedent                  # clinical-precedent card (WIRED public-domain AACT); now COMPOSED in this skill (cards_used) as a verdict-inert render facet
+    - competitor_landscape                # competitor-landscape card (WIRED Open Targets 26.06 drugAndClinicalCandidates); COMPOSED as a verdict-inert competitive-positioning render facet
     - pathway_node_leverage               # WS3 (2026-08-17): pathway-node-leverage card (comparative; verdict-inert soft differentiation context)
     - alteration_clinical_association     # alteration-clinical-association (Q11-alteration; verdict-inert prognostic render facet)
     - subtype_survival_association        # subtype-survival-association (Q2-subtype; verdict-inert)

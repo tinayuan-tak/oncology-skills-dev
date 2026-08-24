@@ -482,6 +482,100 @@ def _dependency_facet(sub_results: dict) -> Optional[dict]:
     return dep.get("synthesis_facet")
 
 
+# ── Competitor cross-reference facet (2026-08-24) ─────────────────────────────────────────────
+# The competitor-landscape VALUE-ADD: cross-reference the Open Targets competitor field (carried on
+# the differentiation facet as competitor_modality_landscape) against the framework's OWN
+# surface-modality-fit verdict — is the framework's preferred modality VALIDATED by clinical
+# precedent, or CONTRARIAN to it (an approved competitor validates a DIFFERENT modality)? And is the
+# indication CROWDED (an approved competitor) or WHITE SPACE (none)? DETERMINISTIC + VERDICT-INERT:
+# reads two already-computed sub-results, emits positioning hooks, and NEVER touches the gate /
+# recommendation / confidence. The framework surfaces the hooks; the TPP author writes the claim.
+# (This is the DLL3 archetype: framework says adc_preferred_tce_unsafe, but the APPROVED competitor is
+# a TCE and the ADC failed at PHASE_3 → modality_contrarian=True — an independent check on the surface
+# call, exactly the round-1 ADC/TCE arbitration-inversion this layer was built to surface.)
+_COMPETITOR_STAGE_ORD = {"PRECLINICAL": 1, "IND": 2, "EARLY_PHASE_1": 3, "PHASE_1": 4, "PHASE_1_2": 5,
+                         "PHASE_2": 6, "PHASE_2_3": 7, "PHASE_3": 8, "PREAPPROVAL": 9, "APPROVAL": 10}
+_COMPETITION_DENSITY = {"approved_competitor": "crowded", "active_clinical_competitor": "contested",
+                        "early_or_preclinical_competitor": "emerging", "no_known_competitor": "white_space"}
+
+
+def _framework_preferred_modalities(surface_verdict) -> set:
+    """Map a surface-modality-fit verdict token -> the biologics modality/ies the framework prefers.
+    Empty set = no clear surface preference (neither_viable / unsafe / isoform_undefined / ambiguous)."""
+    v = surface_verdict or ""
+    if v == "both_viable":
+        return {"ADC", "TCE"}
+    if v.startswith("adc_preferred"):   # adc_preferred / adc_preferred_tce_unsafe / adc_preferred_tce_escape_risk
+        return {"ADC"}
+    if v in ("tce_preferred", "tce_escape_risk"):
+        return {"TCE"}
+    return set()
+
+
+def _competitor_crossref_facet(sub_results: dict) -> Optional[dict]:
+    """DETERMINISTIC, VERDICT-INERT cross-ref of the OT competitor field vs the framework's own
+    surface-modality-fit verdict. Returns None when there is no competitor signal to cross-reference."""
+    facet = ((sub_results or {}).get("differentiation") or {}).get("synthesis_facet") or {}
+    comp_class = facet.get("competitor_class")
+    if not comp_class or comp_class == "insufficient":
+        return None
+    ml = facet.get("competitor_modality_landscape") or {}
+    density = _COMPETITION_DENSITY.get(comp_class, "unknown")
+    approved_modalities = sorted({m for m, s in ml.items() if (s or {}).get("approved")})
+
+    surface_verdict = ((sub_results.get("surface_modality") or {}).get("verdict") or [None])[0]
+    pref = _framework_preferred_modalities(surface_verdict)
+
+    positioning = {}
+    for mod in sorted(pref):
+        slot = ml.get(mod) or {}
+        if slot.get("approved"):
+            positioning[mod] = "validated_approved"
+        elif _COMPETITOR_STAGE_ORD.get(slot.get("max_clinical_stage") or "", 0) >= _COMPETITOR_STAGE_ORD["PHASE_2"]:
+            positioning[mod] = "attempted_not_approved"     # candidate failed / failing precedent
+        elif slot:
+            positioning[mod] = "in_development"
+        else:
+            positioning[mod] = "no_precedent"
+
+    hooks: list = []
+    contrarian = bool(pref) and bool(approved_modalities) and not (pref & set(approved_modalities))
+    if contrarian:
+        hooks.append(f"The framework's preferred surface modality {sorted(pref)} is NOT the approved clinical "
+                     f"modality here — the approved competitor(s) validate {approved_modalities}. The modality "
+                     f"preference is CONTRARIAN to clinical precedent; re-examine the surface-modality-fit call.")
+    for mod in sorted(pref):
+        if positioning.get(mod) == "attempted_not_approved":
+            st = (ml.get(mod) or {}).get("max_clinical_stage")
+            hooks.append(f"{mod}: a competitor reached {st} but was not approved (candidate failed precedent) — "
+                         f"de-risk before committing to {mod}.")
+    if density == "white_space":
+        hooks.append("No competitor in the Open Targets clinical field — potential white space (verify "
+                     "undisclosed / preclinical / patent-stage assets before claiming first-mover).")
+    if density == "crowded" and (pref & set(approved_modalities)):
+        hooks.append(f"Crowded at the framework's preferred modality {sorted(pref & set(approved_modalities))} "
+                     f"(an approved competitor exists) — differentiation must come from biomarker/subtype "
+                     f"selection, a next-gen format, or a distinct indication.")
+
+    return {
+        "competition_density": density,
+        "competitor_class": comp_class,
+        "competitor_indication_scope": facet.get("competitor_indication_scope"),
+        "n_competitor_programs": facet.get("n_competitor_programs"),
+        "competitor_approved_agents": facet.get("competitor_approved_agents"),
+        "competitor_late_stage_non_approved": facet.get("competitor_late_stage_non_approved"),
+        "competitor_modalities_approved": approved_modalities,
+        "surface_modality_verdict": surface_verdict,
+        "framework_preferred_modality": sorted(pref),
+        "modality_positioning": positioning,
+        "modality_contrarian": contrarian,
+        "differentiation_hooks": hooks,
+        "_facet_note": ("DETERMINISTIC competitor cross-ref (verdict-inert): the Open Targets competitor "
+                        "field vs the framework's own surface-modality-fit verdict. Surfaces positioning hooks "
+                        "(crowded/white-space, modality validated/contrarian); the TPP author writes the claim."),
+    }
+
+
 # --- PER-AXIS (strength, certainty) sidecar assembly (CERTAINTY_MODEL) ------------------------
 # Each verdict-bearing sub-skill MAY expose `_strength_certainty`; the fan-out captures it as
 # sub_results[short]['strength_certainty'] (None for skills without the hook). This thin reader
@@ -1383,6 +1477,8 @@ __all__ = [
     '_addressable_population_facet',
     '_biomarker_facet',
     '_presence_facet',
+    '_competitor_crossref_facet',
+    '_framework_preferred_modalities',
     '_modality_conjunction_facet',
     '_biomarker_quantitative',
     '_classify_biomarker_best_roles',

@@ -399,6 +399,7 @@ def _build_user_prompt(
     fragility: Optional[dict] = None,
     axis_info: Optional[dict] = None,
     actionability_mode: Optional[dict] = None,
+    competitor_crossref: Optional[dict] = None,
 ) -> str:
     """Compose the user-message text: biology-axis governance + sub-verdicts + per-axis
     how-solid (certainty) block + modality-scoped matrix slice + biomarker convergence facet +
@@ -443,6 +444,25 @@ def _build_user_prompt(
             lines.append(f"- **{short}** ({r['skill_dir']}): "
                          f"`{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
+    if competitor_crossref is not None:
+        cx = competitor_crossref
+        lines.append("### Competitor cross-reference facet (deterministic; a FACET, not a gate)")
+        lines.append("Open Targets competitor field vs the framework's OWN surface-modality-fit verdict. "
+                     "VERDICT-INERT — it never moves the recommendation; use it to frame COMPETITIVE "
+                     "POSITIONING and to sanity-check the framework's modality call against clinical precedent.")
+        lines.append(f"- competition density: `{cx.get('competition_density')}` "
+                     f"(competitor_class: {cx.get('competitor_class')}; "
+                     f"{cx.get('n_competitor_programs')} program(s); scope: {cx.get('competitor_indication_scope')})")
+        lines.append(f"- framework preferred surface modality: {cx.get('framework_preferred_modality')} "
+                     f"(surface-modality-fit verdict: `{cx.get('surface_modality_verdict')}`); "
+                     f"approved competitor modality/ies: {cx.get('competitor_modalities_approved')}")
+        if cx.get("modality_contrarian"):
+            lines.append("- ⚠ modality_contrarian=TRUE: the framework's preferred modality is NOT the "
+                         "approved clinical modality here — treat the surface-modality-fit call as CONTESTED "
+                         "by real-world precedent and weigh this in the recommendation narrative.")
+        for hook in (cx.get("differentiation_hooks") or []):
+            lines.append(f"  - hook: {hook}")
+        lines.append("")
     if fragility is not None:
         lines.extend(_render_certainty_block(fragility, sub_results))
     if ordinal_matrix is not None:

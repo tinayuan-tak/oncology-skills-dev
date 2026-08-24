@@ -1,3 +1,61 @@
+alteration-clinical-association:
+  alteration_survival_association_class: no_survival_association
+  alteration_type: somatic_mutation
+  endpoint: OS
+  indication: COADREAD
+  logrank_chi2: 0.024
+  logrank_p: 0.876
+  median_ostime_mutated_days: 685.0
+  median_ostime_wildtype_days: 638.0
+  method_version: 0.1.0
+  mutated_frequency: 0.4221
+  mutated_hazard_direction: -1
+  n_events: 117
+  n_mutated: 233
+  n_patients: 552
+  n_wildtype: 319
+  survival_source: pancanatlas_tcga_cdr
+  target: KRAS
+clinical-precedent:
+  approved_agents:
+  - adagrasib
+  - lonafarnib
+  - regorafenib
+  - selumetinib
+  - simvastatin
+  - sotorasib
+  clinical_precedent_class: trial_precedent_present
+  example_nct_ids:
+  - NCT07134205
+  - NCT04008511
+  - NCT07223567
+  - NCT02699073
+  - NCT01996969
+  - NCT06575725
+  - NCT02425683
+  - NCT02368886
+  - NCT02664077
+  - NCT06425133
+  highest_clinical_stage: approved
+  indication: COADREAD
+  mesh_terms:
+  - colorectal neoplasms
+  - colonic neoplasms
+  - rectal neoplasms
+  method_version: 0.1.0
+  modality_precedent: DRUG:23
+  n_active_trials: 33
+  n_agents_engaging_target: 12
+  n_trials: 170
+  notable_failures:
+  - adagrasib
+  - lonafarnib
+  - ly3499446
+  - mrtx1133
+  - regorafenib
+  resistance_mechanisms_reported: null
+  source: aact-oncology-trial-precedent-per-condition-intervention-v1 x dgidb-drug-target-directional-v1
+  target: KRAS
 co-mutation-and-mutual-exclusivity:
   _data_source: pancohort-cooccurrence-fisher-v1
   cooccurrence_class: both_patterns_present
@@ -110,6 +168,52 @@ co-mutation-and-mutual-exclusivity:
     partner_gene_symbol: IDH1
     pooled_eligible: true
     source: genie_v19
+competitor-landscape:
+  approved_agents: []
+  as_of_opentargets_release: '26.06'
+  competitor_class: active_clinical_competitor
+  efo_ids:
+  - MONDO_0002032
+  - MONDO_0002169
+  - MONDO_0002271
+  - MONDO_0005008
+  - MONDO_0005575
+  - MONDO_0024331
+  - MONDO_0044937
+  ensembl_gene_id: ENSG00000133703
+  example_programs:
+  - drug_name: ADAGRASIB
+    is_approved: false
+    max_clinical_stage: PHASE_3
+    mechanism_of_action: GTPase KRas inhibitor
+    modality: small_molecule
+  - drug_name: SOTORASIB
+    is_approved: false
+    max_clinical_stage: PHASE_3
+    mechanism_of_action: GTPase KRas inhibitor
+    modality: small_molecule
+  highest_clinical_stage: PHASE_3
+  indication: COADREAD
+  indication_scope: indication
+  late_stage_non_approved_agents:
+  - ADAGRASIB
+  - SOTORASIB
+  method_version: 0.1.0
+  modalities_in_development:
+  - small_molecule
+  modality_landscape:
+    small_molecule:
+      approved: false
+      example_agents:
+      - ADAGRASIB
+      - SOTORASIB
+      max_clinical_stage: PHASE_3
+      n_programs: 2
+  n_approved: 0
+  n_competitor_programs: 2
+  source: opentargets-target-competitor-drugs-per-gene-v1
+  target: KRAS
+  withdrawn_agents: []
 expression-clinical-association:
   endpoint: OS
   high_expr_hazard_direction: -1
@@ -127,6 +231,116 @@ expression-clinical-association:
   survival_association_class: expression_high_better_survival
   survival_source: pancanatlas_tcga_cdr
   target: KRAS
+pathway-node-leverage:
+  _caveats:
+  - 'SOFT context: no veto, never raises certainty'
+  - "complex (CORUM) lens is the robust one; pathway-lens node-set selection is a\
+    \ HEURISTIC (C2.CP-preferred, size-banded) over many-to-many gene<->set membership\
+    \ \u2014 judge the selected node_set NAME for relevance"
+  - "ppi lens (BioGRID physical interactors, top-N by publications) is REPORT-ONLY\
+    \ \u2014 surfaced for inspection but EXCLUDED from the headline (an interaction\
+    \ hairball under worst-across-lenses aggregation would inflate 'dominated'); fail-soft"
+  - "no directed acts-through check (SIGNOR/OmniPath) \u2014 DEFERRED, and not yet\
+    \ needed: this method makes a relative fitness-rank comparison, NOT a directional\
+    \ 'X acts through Y' claim, so there is no directional assertion to ground yet"
+  - "paralog/combinatorial correction: single_ko_leverage_understated flags when the\
+    \ target is paralog-BUFFERED (strong/partial, from the dual-KO buffering product)\
+    \ \u2014 its single-KO Chronos, hence its leverage verdict, UNDERSTATES its dependency;\
+    \ a buffered weak_and_uncontested/dominated call is a candidate false-negative\
+    \ masked by redundancy (assess dual-KO / combinatorial leverage). Additive, fail-soft.\
+    \ NOTE the paralog-MEDIATED-effector case (target whose PARALOG sits in the effector\
+    \ pathway, e.g. MARK2 via MARK3) is surfaced as this buffering flag, not as a\
+    \ node-set membership edge (which the pinned lenses cannot ground)"
+  _method_version: 0.1.0
+  evidence_scope: within_indication_lineage
+  lenses:
+    complex:
+    - dominant_competitors: []
+      n_members: 3
+      n_nodes: 3
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: KRAS-PPP1CC-SHOC2 complex
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    - dominant_competitors: []
+      n_members: 2
+      n_nodes: 2
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: KRAS-SOS1 complex
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    - dominant_competitors: []
+      n_members: 2
+      n_nodes: 2
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: KRAS-PDE6D complex
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    - dominant_competitors: []
+      n_members: 2
+      n_nodes: 2
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: GPR31-KRAS complex
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    - dominant_competitors: []
+      n_members: 2
+      n_nodes: 2
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: 'AGO2-KRAS complex '
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    - dominant_competitors: []
+      n_members: 2
+      n_nodes: 2
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: KRAS-RNF141 complex
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    pathway:
+    - dominant_competitors: []
+      n_members: 15
+      n_nodes: 14
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: KEGG_MEDICUS_REFERENCE_AREG_EGFR_RAS_ERK_SIGNALING_PATHWAY
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+    ppi:
+    - dominant_competitors: []
+      n_members: 26
+      n_nodes: 23
+      n_stronger: 0
+      n_stronger_tractable: 0
+      node_set: BioGRID physical interactors (top 25 by publications)
+      target_frac_dependent: 0.818
+      target_median_chronos: -1.177
+      target_tdl: Tclin
+      verdict: dominant_node
+  node_leverage_class: dominant_node
+  paralog_buffering_class: strong
+  single_ko_leverage_understated: true
+  strongest_buffering_paralog: NRAS
 precog-prognostic-association:
   _caveat: "meta-analytic across 166 heterogeneous datasets (platforms/cohorts vary);\
     \ UNADJUSTED univariate survival association, hypothesis-generating not a clinical\
@@ -160,3 +374,73 @@ stemness-context:
   - COAD
   - READ
   stemness_class: stem_high
+subtype-survival-association:
+  endpoint: OS
+  indication: COADREAD
+  logrank_chi2: 27.192
+  logrank_df: 13
+  logrank_p: 0.0117
+  method_version: 0.1.0
+  n_admissible_strata: 14
+  n_events: 319
+  n_patients: 1796
+  per_stratum:
+  - median_ostime_days: 672.0
+    n: 77
+    n_events: 18
+    stratum: CIMP_High
+  - median_ostime_days: 583.5
+    n: 100
+    n_events: 19
+    stratum: CIMP_Low
+  - median_ostime_days: 671.0
+    n: 298
+    n_events: 61
+    stratum: CIMP_Neg
+  - median_ostime_days: 640.5
+    n: 76
+    n_events: 17
+    stratum: CMS1
+  - median_ostime_days: 669.0
+    n: 219
+    n_events: 40
+    stratum: CMS2
+  - median_ostime_days: 669.0
+    n: 72
+    n_events: 13
+    stratum: CMS3
+  - median_ostime_days: 662.0
+    n: 143
+    n_events: 34
+    stratum: CMS4
+  - median_ostime_days: 760.5
+    n: 38
+    n_events: 10
+    stratum: MSI_H
+  - median_ostime_days: 654.0
+    n: 192
+    n_events: 30
+    stratum: MSS
+  - median_ostime_days: 690.0
+    n: 156
+    n_events: 20
+    stratum: left_sided
+  - median_ostime_days: 670.0
+    n: 109
+    n_events: 27
+    stratum: right_sided
+  - median_ostime_days: 608.5
+    n: 56
+    n_events: 2
+    stratum: stage_I
+  - median_ostime_days: 912.0
+    n: 102
+    n_events: 13
+    stratum: stage_II
+  - median_ostime_days: 768.0
+    n: 158
+    n_events: 15
+    stratum: stage_resectable
+  subgroup_assignments_manifest: tcga-subgroup-assignments-coadread-v1
+  subtype_survival_association_class: subtype_stratifies_survival
+  survival_source: pancanatlas_tcga_cdr
