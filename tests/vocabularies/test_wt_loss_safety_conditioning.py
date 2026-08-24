@@ -23,7 +23,9 @@ def _sidecar():
 def test_all_referenced_rule_ids_exist():
     known = _all_rule_ids()
     sc = _sidecar()
-    referenced = list(sc.get("concern_rules") or []) + list(sc.get("protective_rules") or [])
+    referenced = (list(sc.get("concern_rules") or [])
+                  + list(sc.get("protective_rules") or [])
+                  + list(sc.get("allele_selective_eligibility_rules") or []))
     missing = [r for r in referenced if r not in known]
     assert not missing, f"wt_loss_safety_conditioning references non-existent rule_ids: {missing}"
 

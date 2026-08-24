@@ -49,5 +49,18 @@ concern_rules:
 protective_rules:
   - gene-burden-protective-favorable
 
+# ALLELE-SELECTIVE ELIGIBILITY (2026-08-24): the WT-loss concern is nullified for a small_molecule
+# ONLY IF the target admits a mutant/allele-selective agent — i.e. it is an ACTIVATING GoF driver
+# with a selectable mutant (KRAS-G12C). Absent such eligibility (a TSG, a WT-overexpressed or
+# housekeeping target), a small-molecule inhibitor ENGAGES WT and the concern STANDS. Layer-2
+# composition uses this to set the small_molecule (wt_engagement=conditional) channel:
+#   eligibility rule fired  -> small_molecule = conditional (allele-selective agent spares WT)
+#   NOT fired               -> small_molecule = hold        (pan inhibitor engages WT)
+# These are the SAME role signals the retired safety.resolver.yaml downgrade rungs keyed on — now
+# used as eligibility for ONE channel, not as a blanket modality-agnostic downgrade.
+allele_selective_eligibility_rules:
+  - activating-driver-role-safety-context
+  - alteration-role-gof-driver-supportive
+
 # NOTE (curation discipline): every rule_id above must exist in interpretation-rules/*.rules.yaml.
 # tests/vocabularies/test_wt_loss_safety_conditioning.py asserts this (guards against rule renames).
