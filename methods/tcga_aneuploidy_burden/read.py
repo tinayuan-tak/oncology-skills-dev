@@ -643,3 +643,47 @@ def _unavailable(note: str) -> dict:
         "method_version": "0.1.0",
         "_data_note": note,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Concurrent cache prewarm (latency-only; output byte-identical)
+# ─────────────────────────────────────────────────────────────────────────────
+def _safe_prewarm(fn, *args) -> None:
+    """Call one lru_cache'd loader, swallowing errors. Best-effort ONLY: a broken-env / transient
+    failure here just leaves that loader cold, and the real per-axis read re-attempts it and applies
+    its OWN error handling (honest _live_read_error vs data_unavailable). Never let a prewarm failure
+    surface as this axis's result."""
+    try:
+        fn(*args)
+    except Exception:  # noqa: BLE001 — prewarm is a pure latency optimization
+        pass
+
+
+def prewarm(indication: Optional[str] = None) -> None:
+    """Populate the module's lru_cache'd S3 substrate loaders CONCURRENTLY.
+
+    The genomic-instability-state dispatcher calls six per-axis functions (aneuploidy burden, WGD, MSI,
+    model-MSI, model-signature, HRD) back-to-back; each reads its own DISJOINT PanCanAtlas / DepMap
+    object, and several share the barcode->cancer-type map. Running them serially serialises those large,
+    independent S3 GETs (the ABSOLUTE segtabs alone is 253 MB). This prewarm fires every cached loader
+    ONCE, in parallel, so the subsequent serial axis reads all hit warm caches — folding the card's wall
+    clock toward ~max(single read).
+
+    PURELY a latency optimization: every axis function is UNCHANGED and still computes its own result, so
+    the emitted summary is byte-identical to a cold run. Each loader is invoked exactly once here (no
+    double-compute of the same lru_cache key), and MSI is warmed only when the indication actually has a
+    patient-side label source (CRC + STAD). Best-effort throughout (see _safe_prewarm). Verdict-inert."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    argless = (_load_sample_cancer_types, _load_seg_scores, _load_absolute,
+               _load_absolute_segtabs, _load_model_msi_by_lineage,
+               _load_model_signatures_by_lineage)
+    ind = str(indication or "").upper().strip()
+    src = MSI_LABEL_SOURCE.get(ind)   # (key, column) for CRC/STAD; None otherwise → no MSI read
+
+    with ThreadPoolExecutor(max_workers=len(argless) + 1) as ex:
+        futs = [ex.submit(_safe_prewarm, fn) for fn in argless]
+        if src is not None:
+            futs.append(ex.submit(_safe_prewarm, _load_msi_labels, src[0], src[1]))
+        for f in futs:
+            f.result()
