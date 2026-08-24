@@ -173,6 +173,56 @@ def _emit_skill_figures(decision, figures_root):
     return emit_headline_hero(decision, figures_root)
 
 
+# ── (strength, certainty) SIDECAR — CERTAINTY_MODEL.md. ADDITIVE + verdict-INERT. Differentiation is a
+#    NON-GATING descriptive axis; certainty is coverage + unknown_mass only here — corroboration reads
+#    `unmeasured` because the only verdict-DISJOINT corroborator (TCGA<->GENIE per-source direction
+#    concordance) is NOT yet emitted as a summary field (it lives in the card's plot_data). Wiring it
+#    needs an analysis-methods field-emit + a field-granular disjointness validator (the corroborator
+#    shares the verdict card) — a data-ingest follow-on, not this additive slice. strength is a PATTERN
+#    magnitude (co-occurrence vs mutual-exclusivity is a pattern TYPE, not good/bad — informational).
+_DIFF_ORD = {"low": 0, "medium": 1, "high": 2}
+_DIFF_STRONG = {"strong_cooccurring", "strong_mutually_exclusive", "both_patterns_present"}
+_DIFF_MOD = {"has_cooccurring_driver", "modest_cooccurring", "modest_mutually_exclusive"}
+_DIFF_NONE = {"ns", "data_unavailable", "insufficient", None}
+
+
+def _diff_card_field(cards, field):
+    """None-safe read of the single differentiation verdict card (get_card_field raises on absent)."""
+    cid = "co-mutation-and-mutual-exclusivity"
+    return get_card_field(cards, cid, field) if cid in {c["card_id"] for c in (cards or [])} else None
+
+
+def _diff_strength(v) -> str:
+    if v in _DIFF_STRONG:
+        return "strong_pattern"           # informational: co-occurrence / mutual-exclusivity is a TYPE
+    if v in _DIFF_MOD:
+        return "moderate_pattern"
+    return "none"
+
+
+def _diff_coverage(n_pairs) -> str:
+    """Power of the pooled panel-intersect Fisher test (the pairs that actually drive the verdict)."""
+    if not isinstance(n_pairs, (int, float)):
+        return "low"
+    return "high" if n_pairs >= 50 else ("medium" if n_pairs >= 10 else "low")
+
+
+def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — coverage+unknown_mass only (corroboration unmeasured)."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    n_pairs = _diff_card_field(cards, "n_pairs_panel_intersect_eligible")
+    coverage = _diff_coverage(n_pairs)
+    level = "low" if v in _DIFF_NONE else coverage      # corroboration unmeasured → level = coverage
+    present = "co-mutation-and-mutual-exclusivity" in {c["card_id"] for c in (cards or [])}
+    return {
+        "strength": _diff_strength(v),
+        "certainty": {"level": level, "coverage": coverage, "corroboration": "unmeasured",
+                      "unknown_mass": 0.0 if present else 1.0},   # single verdict card (degenerate)
+        "provenance": {"n_pairs_panel_intersect_eligible": n_pairs},
+        "_model_ref": "CERTAINTY_MODEL.md#differentiation",
+    }
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
