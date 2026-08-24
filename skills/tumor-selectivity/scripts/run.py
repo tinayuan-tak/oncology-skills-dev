@@ -248,6 +248,100 @@ def _build_headline_block(headline: dict) -> dict:
                           verdict_polarity=_selectivity_verdict_polarity(v))
 
 
+# ── (strength, certainty) SIDECAR — 2nd axis after the dependency reference (CERTAINTY_MODEL.md).
+#    ADDITIVE + verdict-INERT: computed beside the selectivity verdict from the tvn card's numeric
+#    provenance + the VERDICT-DISJOINT CPTAC-protein corroboration; never alters selectivity_class,
+#    the veto, or the gate. Reviewed per-axis design (4-agent certainty panel 2026-08-24) — NOT a
+#    mechanical port (percentile-crossing was REJECTED as corroboration: it re-stats the SAME recount3
+#    RNA the verdict uses = pseudo-replication; the CPTAC protein card is an independent assay+cohort).
+_ORD = {"low": 0, "medium": 1, "high": 2}
+# The verdict-DISJOINT corroboration card this axis reads (cross-checked against
+# target-contracts vocabularies/certainty_corroboration.yaml by test_certainty_corroboration_matches_manifest,
+# so the manifest and the Python source cannot drift — the check the disjointness validator can't make).
+_CERTAINTY_CORROBORATION_CARDS = frozenset({"tumor-protein-abundance-cptac"})
+_SEL_STRONG_POS = {"strong_tumor_selective"}
+_SEL_MOD_POS = {"modest_tumor_selective"}
+_SEL_WEAK_POS = {"field_effect_tumor_selective", "selective_with_normal_liability"}
+_SEL_NEG = {"not_selective", "selective_but_broadly_normal"}          # measured negative / veto KILL
+_SEL_NONE = {"discordant_across_comparators", "not_informative", "insufficient", "data_unavailable", None}
+# decision-relevant (verdict-bearing) cards — the veto instruments are Python-applied, not resolver rungs,
+# but they ARE verdict-precedence, so unknown_mass counts them (CERTAINTY_MODEL: measured coverage-gap).
+_SEL_DECISION_CARDS = ("tumor-vs-normal-selectivity", "modality-therapeutic-window",
+                       "sc-normal-celltype-expression")
+
+
+def _selectivity_strength(v) -> str:
+    if v in _SEL_STRONG_POS:
+        return "strong_positive"
+    if v in _SEL_MOD_POS:
+        return "moderate_positive"
+    if v in _SEL_WEAK_POS:
+        return "weak_positive"
+    if v in _SEL_NEG:
+        return "negative"
+    return "none"
+
+
+def _sel_coverage(cells_ran, n_tumor) -> str:
+    """Comparator-breadth power: 3 cells (TCGA-adjacent raw + ComBat + GTEx) & n_tumor>=10 -> high;
+    2 -> medium; 1 -> low. cells_ran in {0,None} feeds unknown_mass, not a tier."""
+    if not isinstance(cells_ran, (int, float)) or cells_ran < 1:
+        return "low"
+    if cells_ran >= 3 and (not isinstance(n_tumor, (int, float)) or n_tumor >= 10):
+        return "high"
+    if cells_ran >= 2:
+        return "medium"
+    return "low"
+
+
+def _sel_corroboration(concordance) -> str:
+    """VERDICT-DISJOINT CPTAC-protein corroboration (independent assay+cohort). concordant -> high;
+    protein measured-but-not-significant -> medium; discordant -> low; protein unmeasured -> `unmeasured`
+    (drops out of the level min — absence is ignorance, carried in unknown_mass, not disagreement)."""
+    c = str(concordance or "")
+    if c == "rna_protein_concordant":
+        return "high"
+    if c == "protein_not_significant":
+        return "medium"
+    if c == "rna_protein_discordant":
+        return "low"
+    return "unmeasured"
+
+
+def _sel_unknown_mass(cards) -> float:
+    blind = 0
+    for cid in _SEL_DECISION_CARDS:
+        s = card_summary(cards, cid)
+        primary = (s or {}).get("selectivity_class") or (s or {}).get("therapeutic_window_class") \
+            or (s or {}).get("sc_normal_safety_essential_class")
+        if not s or (s.get("_missing")) or primary in ("data_unavailable", None):
+            blind += 1
+    return round(blind / len(_SEL_DECISION_CARDS), 4)
+
+
+def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement's. Standalone-callable."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    tvn = card_summary(cards, "tumor-vs-normal-selectivity") or {}
+    protein = card_summary(cards, "tumor-protein-abundance-cptac") or {}
+    concordance = _rna_protein_tvn_concordance(
+        tvn.get("dominant_direction"), protein.get("protein_effect_size"), protein.get("protein_bh_q_value"))
+    cells_ran, n_tumor = tvn.get("cells_ran"), tvn.get("n_tumor")
+    coverage = _sel_coverage(cells_ran, n_tumor)
+    corroboration = _sel_corroboration(concordance)
+    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
+    level = min(components, key=lambda c: _ORD[c]) if components else "low"
+    if v in _SEL_NONE:
+        level = "low"
+    return {
+        "strength": _selectivity_strength(v),
+        "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
+                      "unknown_mass": _sel_unknown_mass(cards)},
+        "provenance": {"cells_ran": cells_ran, "n_tumor": n_tumor, "rna_protein_tvn_concordance": concordance},
+        "_model_ref": "CERTAINTY_MODEL.md#selectivity",
+    }
+
+
 def _headline(cards, fired, verdict_pair):
     # Fetch each card summary once (card_summary scans the card list, so look up by id, not position —
     # robust to card order — and reuse the result rather than re-scanning per field).

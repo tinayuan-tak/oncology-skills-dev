@@ -293,3 +293,53 @@ def test_density_facet_unmeasured_when_no_anchor():
         {"absolute_copies_per_cell": None, "density_floor_verdict": "unmeasured"})
     assert h["selectivity_class"] == "modest_tumor_selective"
     assert h["density_floor_verdict"] == "unmeasured"
+
+
+# ── (strength, certainty) sidecar — CERTAINTY_MODEL 2nd axis ─────────────────────────────────────
+def _sel_cards(sel_class, cells_ran=3, n_tumor=50, direction="up", prot_eff=1.5, prot_q=0.01, protein=True):
+    c = [{"card_id": "tumor-vs-normal-selectivity",
+          "summary": {"selectivity_class": sel_class, "cells_ran": cells_ran, "n_tumor": n_tumor,
+                      "dominant_direction": direction}},
+         {"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": "adequate_window"}},
+         {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_safety_essential_class": "no_liability"}}]
+    if protein:
+        c.append({"card_id": "tumor-protein-abundance-cptac",
+                  "summary": {"protein_effect_size": prot_eff, "protein_bh_q_value": prot_q}})
+    return c
+
+
+def test_strength_certainty_strong_selective_concordant():
+    sc = ts._strength_certainty(_sel_cards("strong_tumor_selective"),
+                                verdict_pair=("strong_tumor_selective", "tvn-strong-selective-supportive"))
+    assert sc["strength"] == "strong_positive"
+    assert sc["certainty"]["coverage"] == "high"           # 3 cells, n_tumor>=10
+    assert sc["certainty"]["corroboration"] == "high"      # CPTAC protein concordant
+    assert sc["certainty"]["level"] == "high"
+    assert sc["certainty"]["unknown_mass"] == 0.0
+
+
+def test_strength_certainty_protein_unmeasured_drops_from_level():
+    # no CPTAC card -> corroboration unmeasured -> level = coverage (absence is ignorance, not disagreement)
+    sc = ts._strength_certainty(_sel_cards("modest_tumor_selective", cells_ran=2, protein=False),
+                                verdict_pair=("modest_tumor_selective", "tvn-modest-selective-supportive"))
+    assert sc["strength"] == "moderate_positive"
+    assert sc["certainty"]["corroboration"] == "unmeasured"
+    assert sc["certainty"]["level"] == sc["certainty"]["coverage"] == "medium"
+
+
+def test_strength_certainty_insufficient_forces_low():
+    sc = ts._strength_certainty(_sel_cards("data_unavailable", cells_ran=0, protein=False),
+                                verdict_pair=("insufficient", None))
+    assert sc["strength"] == "none"
+    assert sc["certainty"]["level"] == "low"
+
+
+def test_strength_certainty_corroborator_is_cptac_not_percentile_crossing():
+    # DISJOINTNESS in spirit: corroboration is driven by the CPTAC protein card, NOT by the same-RNA
+    # percentile-crossing card (pseudo-replication). Adding a percentile-crossing card must not change it.
+    base = _sel_cards("strong_tumor_selective", protein=False)
+    base.append({"card_id": "tumor-vs-normal-percentile-crossing",
+                 "summary": {"selectivity_class": "strong_tumor_selective",
+                             "fraction_tumor_above_normal_p95": 0.9}})
+    sc = ts._strength_certainty(base, verdict_pair=("strong_tumor_selective", "x"))
+    assert sc["certainty"]["corroboration"] == "unmeasured"   # no CPTAC -> unmeasured despite percentile card
