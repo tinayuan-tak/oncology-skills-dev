@@ -25,8 +25,11 @@
 #   - All new verdicts are NON-NOMINATING foreclosure/caveat refinements (like the existing
 #     neither_viable) → nomination_verdict_gate.yaml is UNCHANGED.
 gate: surface_modality
-version: 1.1.0   # 2026-08-09: safety/density/shed combination rungs (modality-fit review C1 + density-integrity)
-description: Biologics surface-modality fit precedence (from adc-tce-modality-fit fit_class + safety/density/shed liabilities).
+version: 1.2.0   # 2026-08-24: promote modality-therapeutic-window essential_tissue_liability (SAFETY) + the
+                # single-cell tce_antigen_escape_class escape_risk_high (EFFICACY, new adc_preferred_tce_escape_risk
+                # / tce_escape_risk verdicts) to verdict-movers (druggability audit). 1.1.0 (2026-08-09):
+                # safety/density/shed combination rungs (modality-fit review C1 + density-integrity).
+description: Biologics surface-modality fit precedence (from adc-tce-modality-fit fit_class + safety/density/shed liabilities + therapeutic-window safety + single-cell TCE antigen-escape efficacy).
 resolve:
   # (0) HARD ABSENCE — no protein-level surface substrate → both ADC + TCE dead. Highest precedence:
   #     an absent antigen forecloses every biologics mechanism regardless of topology favorability.
@@ -43,6 +46,26 @@ resolve:
   - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, sc-normal-high-liability-bite-killer], driving_rule: sc-normal-high-liability-bite-killer}
   - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, normal-tissue-essential-bite-killer], driving_rule: normal-tissue-essential-bite-killer}
   - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, sc-normal-high-liability-bite-killer], driving_rule: sc-normal-high-liability-bite-killer}
+
+  # (1b) TCE-UNSAFE ON THERAPEUTIC-WINDOW (SAFETY, bite_tce-only) — the modality-therapeutic-window
+  #      essential_tissue_liability signal (an essential normal organ exceeds the strict 1.0-TPM tier
+  #      even when the tumor window RATIO is large — the CEACAM5 ~558x-window-yet-lung-positive pattern).
+  #      Promoted to a verdict-mover 2026-08-24 (modality-fit audit): previously it fired into the
+  #      narrative only. Same SAFETY semantics as the normal-tissue killers — DROP the TCE arm, PRESERVE
+  #      ADC (moderate-tier bystander buffer tolerates essential expression; adc:neutral in the rule).
+  - {verdict: adc_preferred_tce_unsafe,    when_all_fired: [both-viable-supportive, modality-window-essential-liability-tce-opposing], driving_rule: modality-window-essential-liability-tce-opposing}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, modality-window-essential-liability-tce-opposing], driving_rule: modality-window-essential-liability-tce-opposing}
+
+  # (1c) TCE ANTIGEN-ESCAPE (EFFICACY, bite_tce-only) — within-tumor antigen-low escape reservoir from the
+  #      single-cell tce_antigen_escape_class (coverage x inter-donor consistency; escape_risk_high). This
+  #      is an EFFICACY foreclosure of the TCE arm (antigen-low malignant cells survive redirected killing),
+  #      DISTINCT from the normal-tissue/window SAFETY killers above — hence its OWN verdicts. Ranks BELOW
+  #      the safety rungs (a safety foreclosure is the more fundamental call when both fire) and ABOVE the
+  #      density/shed caveats (a TCE-arm drop is stronger than a viability-preserving caveat). ADC is
+  #      heterogeneity-tolerant (bystander payload), so ADC is preserved. Promoted 2026-08-24 (audit): the
+  #      superior escape model already shipped in the card's stats.py but fired into the narrative only.
+  - {verdict: adc_preferred_tce_escape_risk, when_all_fired: [both-viable-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing}
+  - {verdict: tce_escape_risk,               when_all_fired: [tce-preferred-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing}
 
   # (2) MEASURED LOW DENSITY — DOWNGRADE, NEVER VETO (CD19 trap). Grade-A/B below-TCE-floor only
   #     (density_floor_verdict is grade-gated at source). A topology-viable target whose MEASURED

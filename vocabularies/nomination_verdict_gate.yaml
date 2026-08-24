@@ -163,6 +163,11 @@ excluded_modality_scoped:
   #   surface adc_preferred_tce_unsafe      → TCE unsafe (normal liability); ADC still viable
   #                                            (also a modality-scoped POSITIVE for adc/antibody below)
   #   surface tce_unsafe_normal_liability   → TCE unsafe; other modalities unaffected
+  #   surface adc_preferred_tce_escape_risk → TCE EFFICACY risk (within-tumor antigen escape); ADC still
+  #                                            viable (bystander-tolerant) — new 2026-08-24, ADC-preserving
+  #                                            analog of adc_preferred_tce_unsafe but efficacy- not safety-driven
+  #   surface tce_escape_risk               → TCE efficacy risk; no ADC-favored arm (analog of
+  #                                            tce_unsafe_normal_liability) — new 2026-08-24
   #   surface shed_dominant_opposed         → shed antigen opposes surface-directed biologics; SM/degrader ok
   #   tractability_sm structurally_intractable → NO small-molecule pocket; a biologic/degrader may still work
   # Listing them here (not in `gates`) preserves the KRAS×COADREAD golden and the 2-veto set while
@@ -171,6 +176,10 @@ excluded_modality_scoped:
     verdict: adc_preferred_tce_unsafe
   - sub_skill: surface_modality
     verdict: tce_unsafe_normal_liability
+  - sub_skill: surface_modality
+    verdict: adc_preferred_tce_escape_risk
+  - sub_skill: surface_modality
+    verdict: tce_escape_risk
   - sub_skill: surface_modality
     verdict: shed_dominant_opposed
   - sub_skill: tractability_sm
@@ -232,6 +241,8 @@ kill_capable_verdicts:
     - {verdict: neither_viable,                   disposition: excluded_modality_scoped}
     - {verdict: adc_preferred_tce_unsafe,         disposition: excluded_modality_scoped}
     - {verdict: tce_unsafe_normal_liability,      disposition: excluded_modality_scoped}
+    - {verdict: adc_preferred_tce_escape_risk,    disposition: excluded_modality_scoped}   # efficacy: TCE antigen-escape, ADC-preserving (2026-08-24)
+    - {verdict: tce_escape_risk,                  disposition: excluded_modality_scoped}   # efficacy: TCE antigen-escape, no ADC arm (2026-08-24)
     - {verdict: shed_dominant_opposed,            disposition: excluded_modality_scoped}
   tractability_sm:
     - {verdict: structurally_intractable,         disposition: excluded_modality_scoped}
@@ -352,7 +363,7 @@ biology_axis_scoped_veto_downgrade:
   - downgrades: {sub_skill: dependency, verdict: non_dependent}
     to_action: hold
     when_biology_axis_in: [surface_intrinsic]
-    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, surface_viable_density_caveated]
+    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, surface_viable_density_caveated]
     rationale: |
       A curated surface antigen (biology_axis=surface_intrinsic) with a FAVORABLE surface_modality
       fit is engaged via antigen binding, so a pooled pan-cancer `non_dependent` is not a trusted
@@ -452,6 +463,9 @@ positive_signals:
 positive_signals_modality_scoped:
   - {sub_skill: surface_modality, verdict: both_viable,               weight: dominant,   when_modality_in: [adc, bite_tce, antibody]}
   - {sub_skill: surface_modality, verdict: adc_preferred_tce_unsafe,  weight: dominant,   when_modality_in: [adc, antibody]}
+  # ADC-preserving analog for the EFFICACY escape verdict (2026-08-24): TCE arm dropped for antigen escape,
+  # but ADC remains a favored, bystander-tolerant arm → positive weight for adc/antibody (mirrors above).
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_escape_risk, weight: dominant, when_modality_in: [adc, antibody]}
   # R1-casing (2026-08-15): the surface_modality resolver EMITS lowercase `tce_preferred`/`adc_preferred`
   # (surface_modality.resolver.yaml:61-63); the gate loader matches verdicts case-sensitively, so the
   # prior TitleCase `TCE_preferred`/`ADC_preferred` here never matched — these two positives were DEAD.

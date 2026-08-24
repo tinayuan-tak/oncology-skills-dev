@@ -24,6 +24,7 @@ resolver_consumed_cards:
 - gnomad-lof-constraint
 - known-drug-tractability
 - measured-potency-tractability
+- modality-therapeutic-window
 - mouse-ko-phenotype
 - mutation-drug-response
 - mutation-hotspot-frequency
@@ -42,6 +43,7 @@ resolver_consumed_cards:
 - structure-features-static
 - surface-abundance-density
 - synthetic-lethal-partners
+- tumor-scrna-celltype-expression
 - tumor-vs-normal-selectivity
 detail:
   adc-tce-modality-fit:
@@ -181,6 +183,11 @@ detail:
     rules:
     - measured-potent-ligand-sm-supportive
     - measured-weak-ligand-sm-supportive
+  modality-therapeutic-window:
+    resolvers:
+    - surface_modality
+    rules:
+    - modality-window-essential-liability-tce-opposing
   mouse-ko-phenotype:
     resolvers:
     - safety
@@ -311,6 +318,11 @@ detail:
     - sl-data-unavailable-insufficient
     - sl-experimental-partner-context-conditional
     - sl-no-partner-neutral
+  tumor-scrna-celltype-expression:
+    resolvers:
+    - surface_modality
+    rules:
+    - sc-antigen-escape-high-tce-opposing
   tumor-vs-normal-selectivity:
     resolvers:
     - selectivity
