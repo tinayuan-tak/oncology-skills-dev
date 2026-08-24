@@ -36,7 +36,7 @@
 #     provide the cleanest structured statement; the primary lit citation
 #     is the authoritative pointer for scientific defensibility.
 
-version: 1.2.0   # 2026-08-14: + modality_epitope_impact per entry → mechanism-aware suppression (only ectodomain_ablating blanks fit_class)
+version: 1.3.0   # 2026-08-24: + alt_isoform_dominant per entry → hard fit_class suppression requires the epitope-ablating alt isoform to be DOMINANT (ERBB2 p95HER2 is minority → keep favorable fit + caveat)
 # 1.1.0: + oncotree_codes / pan_applicable per entry → indication-scoped suppression
 snapshot_date: "2026-07-08"
 curator: ryan.abo@takeda.com
@@ -80,6 +80,13 @@ entries:
     # fit_class; other mechanisms keep the fit_class + a mechanism caveat (see consumer). p95HER2 is a
     # proteolytic cleavage that removes the N-terminal trastuzumab ectodomain → epitope genuinely lost.
     modality_epitope_impact: ectodomain_ablating
+    # alt_isoform_dominant (2026-08-24, v1.3.0 dominance gate): is the epitope-ablating alt isoform the
+    # DOMINANT/majority species, or a minority co-expressed fragment? The hard fit_class SUPPRESSION
+    # (→ isoform_dependent_undefined) is honest ONLY when the alt isoform dominates. p95HER2 is a
+    # MINORITY cleavage product (~30% of HER2+ gastric, ~10-15% HER2+ breast — see prevalence_note);
+    # full-length HER2 dominates and trastuzumab-deruxtecan (T-DXd) is APPROVED in HER2+ gastric — so the
+    # gene-level ADC fit STANDS with a high-severity isoform CAVEAT (not blanked to undefined). false here.
+    alt_isoform_dominant: false
     tumor_context:
       - indication: gastric_cancer
         prevalence_note: "Constitutively-active p95HER2 detected in ~30% of HER2+ gastric tumors; ADC epitope absent in the cleaved fragment"
