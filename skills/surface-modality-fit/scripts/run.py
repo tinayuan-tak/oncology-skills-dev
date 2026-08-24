@@ -27,6 +27,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, card_summary
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
 from _skills_common.surface_modality_question_table import surface_modality_question_table
@@ -373,6 +374,88 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
                        "surface_confirmation_class": pse.get("surface_confirmation_class")},
         "_model_ref": "CERTAINTY_MODEL.md#surface_modality",
     }
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the SURFACE per-axis builder. Here modality_scope is NATIVE: the
+#    surface verdict directly encodes which BIOLOGIC modality fits (adc_preferred / tce_preferred /
+#    both_viable / neither). small_molecule is `na` (surface fit does not speak to SM); the per-verdict
+#    ADC / TCE preference rides in _refinements. VERDICT-INERT: surfaced by the fan-out into
+#    decision.claim_record_shadow.surface_modality, consumed by NOTHING. Mirrors the other axes' hook.
+_SM_OPEN_WORLD = {"data_unavailable", None}
+_SM_INCONCLUSIVE = {"modality_ambiguous", "isoform_dependent_undefined", "insufficient"}
+_SM_STRENGTH_TO_LEVEL = {"strong_positive": "strong", "moderate_positive": "moderate",
+                         "weak_positive": "weak", "negative": "moderate", "none": "none"}
+
+
+def _sm_availability(v) -> str:
+    if v in _SM_OPEN_WORLD:
+        return "not_wired"                       # open-world → assembler forces unknown/neutral
+    if v in _SM_INCONCLUSIVE:
+        return "insufficient"
+    if v in _SM_NEG:
+        return "measured_negative"
+    return "measured_positive"
+
+
+def _sm_direction(v) -> str:
+    if v in _SM_STRONG_POS or v in _SM_MOD_POS or v in _SM_WEAK_POS:
+        return "supports"
+    if v in _SM_NEG:
+        return "opposes"
+    return "neutral"
+
+
+def _sm_modality_scope(v) -> dict | None:
+    """The verdict's native per-biologic-modality preference. small_molecule = na (out of scope for
+    surface fit); adc/bite_tce carried as _refinements; biologics base = best of the two."""
+    adc = bite = None
+    if v in ("adc_preferred", "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk"):
+        adc = "favorable"
+        bite = {"adc_preferred_tce_unsafe": "unfavorable",
+                "adc_preferred_tce_escape_risk": "conditional"}.get(v, "unfavorable")
+    elif v == "tce_preferred":
+        adc, bite = "favorable", "favorable"     # TCE preferred; ADC not excluded
+    elif v == "both_viable":
+        adc = bite = "favorable"
+    elif v == "surface_viable_density_caveated":
+        adc = bite = "conditional"
+    elif v == "tce_unsafe_normal_liability":
+        bite = "unfavorable"
+    elif v == "tce_escape_risk":
+        bite = "conditional"
+    elif v in ("neither_viable", "shed_dominant_opposed"):
+        adc = bite = "unfavorable"
+    else:
+        return None                              # ambiguous / insufficient / open-world → no call
+    vals = [x for x in (adc, bite) if x]
+    biologics = ("favorable" if "favorable" in vals
+                 else "conditional" if "conditional" in vals else "unfavorable")
+    scope: dict = {"small_molecule": "na", "biologics": biologics}
+    ref = {}
+    if adc:
+        ref["adc"] = adc
+    if bite:
+        ref["bite_tce"] = bite
+    if ref:
+        scope["_refinements"] = ref
+    return scope
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    sc = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)
+    return assemble_claim_record(
+        axis="surface_modality",
+        state=(v or "insufficient"),
+        direction=_sm_direction(v),
+        availability=_sm_availability(v),
+        magnitude={"level": _SM_STRENGTH_TO_LEVEL.get(_surface_strength(v), "none")},
+        modality_scope=_sm_modality_scope(v),
+        certainty=sc["certainty"],
+        fired=fired,
+        cards=cards,
+    )
 
 
 def _headline(cards, fired, verdict_pair):
