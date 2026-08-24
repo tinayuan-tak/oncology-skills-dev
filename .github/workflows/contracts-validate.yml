@@ -97,6 +97,14 @@ jobs:
       - name: Validate card→resolver consumption (verdict-role snapshot)
         run: python validators/validate_card_resolver_consumption.py
 
+      # M0 of the factored-record migration (docs/design/VERDICT_REPRESENTATION_MIGRATION.md):
+      # validate the factored claim-record schema + its four cross-field invariants against the
+      # hand-authored worked examples. ZERO runtime consumers yet — this proves the record is
+      # coherent before any skill emits it at M1 (shadow). Advisory-by-scope until M3, but gated
+      # now so the schema/example/validator triple can never drift silently.
+      - name: Validate factored claim records (schema + invariants)
+        run: python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
+
       # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
       # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
       # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test

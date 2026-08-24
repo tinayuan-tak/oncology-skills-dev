@@ -17,6 +17,7 @@ run "validate_resolvers"                 python validators/validate_resolvers.py
 run "validate_verdict_tokens"            python validators/validate_verdict_tokens.py --gate vocabularies/nomination_verdict_gate.yaml --resolvers resolvers/
 run "validate_certainty_disjointness"    python validators/validate_certainty_disjointness.py
 run "validate_card_resolver_consumption" python validators/validate_card_resolver_consumption.py
+run "validate_claim_record"              python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
 run "pytest tests/schemas"               python -m pytest tests/schemas/ -q
 run "pytest test_eval_ledger"            python -m pytest tests/validators/test_eval_ledger.py -q
 run "build_eval_ledger --self-check"     python validators/build_eval_ledger.py --self-check

@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onetakeda.oncology/schemas/claim_record.schema.json",
+  "title": "Factored claim record (per axis)",
+  "description": "M0 of the factored-record migration (docs/design/VERDICT_REPRESENTATION.md §3 + VERDICT_REPRESENTATION_MIGRATION.md). Replaces the single per-axis verdict TOKEN with a factored, typed record; the legacy token survives only as a pure rendering rho(record) so determinism + the ~300 golden tests are preserved. ZERO runtime consumers at M0 — this schema + validators/validate_claim_record.py + docs/design/examples/ prove the record is coherent BEFORE any skill emits it (the M1 shadow). The record factors the four concerns a single token conflates: WHAT (finding), WHY (mechanism), FOR-WHAT (modality_scope), HOW-SURE (certainty). Cross-field invariants (open-world availability => non-committal finding; magnitude value requires a scale; finding.state in the axis enum) are enforced by the validator, not by JSON Schema alone.",
+  "type": "object",
+  "required": ["axis", "finding", "certainty", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "axis": {
+      "type": "string",
+      "description": "The gate / sub-skill this record governs (matches a resolver `gate:` short, e.g. 'safety', 'genomic_alteration'). For v1, finding.state is validated against this axis's resolver emitted-verdict set.",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "finding": {
+      "type": "object",
+      "description": "WHAT the evidence says, factored from what-it-means-for-a-nomination (that is the gate's job, not the record's).",
+      "required": ["state", "direction", "magnitude", "availability"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string",
+          "description": "Closed per-axis finding token. For v1 this reuses the axis resolver's emitted verdict enum, PLUS the sentinel 'unknown' (mandatory when availability is open-world). Validator enforces membership.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "direction": {
+          "enum": ["supports", "opposes", "neutral"],
+          "description": "Valence toward a nomination. MUST be 'neutral' when availability is open-world (a not_wired record cannot carry a direction) — validator invariant."
+        },
+        "magnitude": {
+          "type": "object",
+          "description": "HOW MUCH — ordinal level binned to decision cutpoints, with the raw value + distance-to-cut retained (late, non-destructive discretization). certainty NEVER multiplies into magnitude (a strong inferred signal != a strong measured one) — they are orthogonal coordinates.",
+          "required": ["level"],
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "enum": ["none", "weak", "moderate", "strong"],
+              "description": "Ordinal magnitude bin."
+            },
+            "value": {
+              "type": ["number", "null"],
+              "description": "Raw measured value (e.g. log2fc, LOEUF, CERES). null when the finding is categorical / open-world. If non-null, `scale` MUST be non-null (validator invariant — no bare numbers)."
+            },
+            "scale": {
+              "type": ["string", "null"],
+              "description": "Unit / scale of `value` (e.g. 'log2fc', 'loeuf', 'ceres', 'copies_per_cell'). Required whenever `value` is non-null."
+            },
+            "distance_to_cut": {
+              "type": ["number", "null"],
+              "description": "Signed distance of `value` from the decision cutpoint that bins `level`. Preserves near-threshold information for the borderline bin."
+            }
+          }
+        },
+        "availability": {
+          "enum": [
+            "not_wired", "data_blocked", "read_error",
+            "insufficient",
+            "measured_negative", "measured_positive",
+            "out_of_scope"
+          ],
+          "description": "The absence/presence TYPE, the axis of the ignorance-vs-negation distinction. OPEN-WORLD ignorance {not_wired,data_blocked,read_error} => ACQUIRE (and forces finding.state='unknown', direction='neutral'). MEASURED-but-underpowered {insufficient} => HOLD-WEAK. CLOSED-WORLD {measured_negative,measured_positive} => KILL/PASS. Question malformed for this target {out_of_scope} => n/a. Mirrors vocabularies/availability_state.enum.yaml, extended with the measured_* and out_of_scope closed-world states."
+        }
+      }
+    },
+    "mechanism": {
+      "type": "object",
+      "description": "WHY / which mechanistic class. Optional — omit on axes where mechanism is not meaningful.",
+      "additionalProperties": false,
+      "properties": {
+        "classes": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true,
+          "description": "Set of MoA classes (set-union under the Fold). Drawn from the MoA ontology."
+        },
+        "role": {
+          "enum": ["GoF", "LoF", "DN", "mixed", "unknown"],
+          "description": "Driver role (gain/loss-of-function, dominant-negative, mixed, unknown)."
+        }
+      }
+    },
+    "modality_scope": {
+      "type": "object",
+      "description": "FOR WHAT modality the finding holds. 2-channel base (small_molecule vs biologics) per I5 (Phase-0b: SM-vs-biologics diverges 69%, ADC-vs-TCE only 8% — the sub-split is a refinement, not a default axis). _refinements carry per-channel divergence ONLY where a named discriminator fires (allele-selectivity, endocytosis, essential-normal-tissue, E3-substrate).",
+      "additionalProperties": false,
+      "properties": {
+        "small_molecule": {"enum": ["favorable", "unfavorable", "conditional", "na"]},
+        "biologics": {"enum": ["favorable", "unfavorable", "conditional", "na"]},
+        "_refinements": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional sub-channel divergence; each key present ONLY when a named discriminator justifies departing from its base channel.",
+          "properties": {
+            "adc": {"enum": ["favorable", "unfavorable", "conditional", "na"]},
+            "bite_tce": {"enum": ["favorable", "unfavorable", "conditional", "na"]},
+            "degrader": {"enum": ["favorable", "unfavorable", "conditional", "na"]},
+            "antibody": {"enum": ["favorable", "unfavorable", "conditional", "na"]}
+          }
+        }
+      }
+    },
+    "certainty": {
+      "type": "object",
+      "description": "HOW SURE — orthogonal to magnitude, downgrade-only. Adopted VERBATIM from the shipped CERTAINTY_MODEL.md {level, coverage, corroboration, unknown_mass} + strength, which 6 axes and validate_certainty_disjointness.py already speak. Its job is to COARSEN resolution (thin cohort => degrade to a coarser level, never a crisp pass).",
+      "required": ["level", "coverage", "corroboration", "unknown_mass"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "enum": ["low", "medium", "high"],
+          "description": "min(coverage, corroboration) per CERTAINTY_MODEL.md; when corroboration is unmeasured, level = coverage."
+        },
+        "coverage": {
+          "enum": ["low", "medium", "high"],
+          "description": "Cohort / assay power behind the finding."
+        },
+        "corroboration": {
+          "oneOf": [
+            {"enum": ["single", "corroborated", "contradicted", "unmeasured"]}
+          ],
+          "description": "Independent, VERDICT-DISJOINT corroboration (corroborator card must not be in the axis's verdict-precedence set — disjointness invariant). 'unmeasured' where no disjoint corroborator exists yet (safety/tractability/differentiation)."
+        },
+        "unknown_mass": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Fraction of decision-relevant cards that were blind / data_unavailable (open-world ignorance mass)."
+        },
+        "strength": {
+          "type": "string",
+          "description": "Optional per-axis strength label (informational magnitude rendering), e.g. 'strong_pattern'. Distinct from finding.magnitude.level.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Composition-INERT audit sidecar — never gates, always carried. The record's honesty ledger.",
+      "required": ["fired_rule_ids", "cards"],
+      "additionalProperties": false,
+      "properties": {
+        "fired_rule_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true,
+          "description": "Every rule_id in the fired set that produced this record. M1 cross-check: MUST equal the resolver's actual fired set for the axis."
+        },
+        "cards": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true,
+          "description": "Card IDs read to produce this record."
+        },
+        "source_product_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true,
+          "description": "Optional — derived/source manifest product_ids behind the cards."
+        },
+        "versions": {
+          "type": "object",
+          "additionalProperties": {"type": "string"},
+          "description": "Optional — version stamps (resolver semver, catalog snapshot, etc.)."
+        }
+      }
+    }
+  }
+}

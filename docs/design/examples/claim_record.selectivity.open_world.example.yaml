@@ -1,0 +1,24 @@
+# Factored claim record — WORKED EXAMPLE (selectivity, OPEN-WORLD ignorance).
+# Illustrative only; ZERO runtime consumers at M0.
+# Demonstrates invariant A (ignorance != negation): an open-world availability forces a
+# NON-COMMITTAL finding — state='unknown', direction='neutral', magnitude.level='none'. This is
+# the distinction 5/10 resolvers currently fold into `insufficient`: "we never looked" (ACQUIRE)
+# must not read as a soft-negative. unknown_mass=1.0 records that the axis is entirely blind.
+axis: selectivity
+finding:
+  state: unknown                      # MANDATORY sentinel under open-world availability
+  direction: neutral                  # MANDATORY under open-world (cannot carry a valence)
+  magnitude:
+    level: none
+    value: null
+    scale: null
+    distance_to_cut: null
+  availability: not_wired             # open-world => ACQUIRE action, NOT a negative finding
+certainty:
+  level: low
+  coverage: low
+  corroboration: unmeasured
+  unknown_mass: 1.0                    # fully blind on this axis
+provenance:
+  fired_rule_ids: []
+  cards: []
