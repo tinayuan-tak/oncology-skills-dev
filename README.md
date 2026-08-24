@@ -321,8 +321,16 @@ Run a focused question skill against live S3 (example — dependency call for KR
 ```bash
 export AWS_PROFILE=cbg
 pixi run python skills/functional-requirement/scripts/run.py \
-    --gene KRAS --indication COADREAD
+    --target KRAS --indication COADREAD \
+    --out ~/scratch/kras-coadread-dependency
 ```
+
+Every wired skill routes through the shared `run_wired_skill` dispatcher, which writes a
+timestamped **`<out>/run.log`** — a tee of the run's stdout + stderr (card resolution,
+dependency-status behavior, verdict, warnings) — alongside `decision.json`. Always on; a durable
+backend trace for development and provenance. Live terminal output is unchanged; each line is
+stamped with a UTC timestamp + `OUT`/`ERR` tag. `target-profile` writes the same `run.log` for its
+composed fan-out.
 
 ### Full composed profile — skill outputs **and** clickable HTML (one command)
 

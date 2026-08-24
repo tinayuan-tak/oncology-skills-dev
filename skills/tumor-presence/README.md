@@ -62,6 +62,10 @@ The run writes a data-package tree under `--out`:
 - **`tables/`** — per-card summary-stat CSVs.
 - **`figures/`** — per-card figures where a card emitter is wired.
 - **`provenance.yaml`** — the audit anchor (which code + data posture produced the run).
+- **`run.log`** — a timestamped tee of the run's stdout + stderr (card resolution, verdict,
+  warnings), written by the shared dispatcher. Always on; a durable backend trace for development
+  and provenance. Live terminal output is unchanged; each line carries a UTC timestamp + `OUT`/`ERR`
+  tag. Follow a run live with `tail -f <out>/run.log`.
 
 ## Running the tests (no AWS needed)
 

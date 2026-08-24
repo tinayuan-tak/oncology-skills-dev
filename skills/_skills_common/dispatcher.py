@@ -52,6 +52,7 @@ from . import (
     resolve_cards, fired_rules, modality_lens,
     make_decision_json, write_package,
 )
+from .run_log import install_run_log, restore_run_log
 
 
 # Types
@@ -510,6 +511,12 @@ def run_wired_skill(
                          "run is materially slower than the deterministic spine.")
     args = ap.parse_args(argv)
 
+    # Persist a timestamped run log alongside the artifacts (development + provenance). Installed as
+    # soon as --out is known so every subsequent print (card resolution, dependency-status behavior,
+    # verdict, figures, warnings) is captured. Best-effort + verdict-inert: teeing output cannot
+    # change the deterministic spine. Torn down before the final return (and via an atexit backstop).
+    install_run_log(args.out, header={"skill": skill_name, "skill_version": skill_version})
+
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
     # signature is unchanged; tier:target readers ignore it (see the --indication help above).
     _indication = args.indication if args.indication is not None else "PANCANCER"
@@ -806,4 +813,5 @@ def run_wired_skill(
 
     print()
     print(json.dumps(headline, indent=2, default=str))
+    restore_run_log()
     return 0

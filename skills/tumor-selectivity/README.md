@@ -85,6 +85,10 @@ The run writes a data-package tree under `--out`:
 - **`tables/`** — per-card summary-stat CSVs.
 - **`provenance.yaml`** — the audit anchor: skill version, `skills_repo_sha`, and every resolved
   data-product release digest.
+- **`run.log`** — a timestamped tee of the run's stdout + stderr (card resolution, veto firing,
+  verdict, warnings), written by the shared dispatcher. Always on; a durable backend trace for
+  development and provenance. Live terminal output is unchanged; each line carries a UTC timestamp +
+  `OUT`/`ERR` tag. Follow a run live with `tail -f <out>/run.log`.
 
 ## Running the tests (no AWS needed)
 
