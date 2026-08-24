@@ -24,6 +24,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, resolve_cards, _summary_is_unavailable
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.synthesis_dependency import synthesize_dependency
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
 from _skills_common.dependency_question_table import dependency_question_table
@@ -504,6 +505,54 @@ def _strength_certainty(cards, fired=None, verdict_pair=None):
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
     cross_consortium_class = get_card_field(cards, "cross-consortium-dependency", "cross_consortium_class")
     return _dependency_strength_certainty(cards, v, cross_consortium_class)
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the DEPENDENCY per-axis builder. VERDICT-INERT: surfaced by the
+#    fan-out into decision.claim_record_shadow.dependency, consumed by NOTHING. Maps the dependency
+#    verdict onto the record; reuses the reference _strength_certainty (guarded — it reads cards via
+#    get_card_field which raises on an absent card). Mirrors the other axes' hook. NOTE: pan_essential
+#    IS a genuine dependency (direction=supports, strong) — its non-selective TOXICITY downside is a
+#    SAFETY-axis concern, not this finding's valence (finding ⊥ interpretation).
+_DEP_OPEN_WORLD = {None}
+_DEP_STRENGTH_TO_LEVEL = {"strong_positive": "strong", "moderate_positive": "moderate",
+                          "broad_nonselective": "strong", "negative": "moderate", "none": "none"}
+
+
+def _dep_availability(v) -> str:
+    if v in _DEP_OPEN_WORLD:
+        return "not_wired"                       # no verdict at all → open-world
+    if v in ("insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential"):
+        return "insufficient"                    # measured but underpowered
+    if v in _DEP_NEG:
+        return "measured_negative"               # measured non-dependence / discordant
+    return "measured_positive"                   # a measured dependency (incl. pan_essential_killer)
+
+
+def _dep_direction(v) -> str:
+    if v in _DEP_STRONG_POS or v in _DEP_MOD_POS or v == "pan_essential_killer":
+        return "supports"                        # a genuine functional requirement
+    if v in _DEP_NEG:
+        return "opposes"
+    return "neutral"
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    try:
+        certainty = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)["certainty"]
+    except Exception:  # noqa: BLE001 — reference hook reads cards via get_card_field (raises if absent)
+        certainty = {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 1.0}
+    return assemble_claim_record(
+        axis="dependency",
+        state=(v or "insufficient"),
+        direction=_dep_direction(v),
+        availability=_dep_availability(v),
+        magnitude={"level": _DEP_STRENGTH_TO_LEVEL.get(_dependency_strength(v), "none")},
+        certainty=certainty,
+        fired=fired,
+        cards=cards,
+    )
 
 
 # ── Phase 3 (2026-08-19): DETERMINISTIC indication-lineage reduction — the SEL-honesty fix. ──────────
