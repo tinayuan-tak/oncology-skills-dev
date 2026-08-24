@@ -208,6 +208,25 @@ _SHORT_TO_GATE = {
     "safety": "safety",
 }
 
+
+def _gateless_absent_resolver(short: str, exc: RuntimeError) -> bool:
+    """Should the fan-out SWALLOW `exc` (→ verdict=None) instead of aborting the composed run?
+
+    True IFF `short` is a GATELESS axis (absent from _SHORT_TO_GATE, so it can NEVER move the
+    nomination spine) AND `exc` is resolve_or_raise's specific absent-contract RuntimeError.
+
+    Motivation: a GATELESS resolver-backed axis (cis_coherence, added 2026-08-20) crashed the WHOLE
+    target-profile run with exit 1 when the target-contracts checkout predated its resolver merge —
+    resolve_or_raise fired "resolver spec missing" and the fan-out re-raised it at fut.result(). Since
+    the axis is verdict-inert to the spine, an ABSENT contract must degrade to verdict=None (like
+    target-intrinsic / combination-vulnerability, which carry no resolver at all), not abort.
+
+    Guarded narrowly so it never masks a real defect: verdict-BEARING gates keep fail-loud, and only
+    the specific absent-contract message is swallowed — a genuine sub-skill fault carries a different
+    message and still propagates. Standalone skill runs (their own run.py) are unaffected."""
+    return short not in _SHORT_TO_GATE and "resolver spec missing" in str(exc)
+
+
 # Card set for each sub-skill (must match SKILL.md composition.cards_used).
 # RESTRUCTURED 2026-07-14 — keys track the SUB_SKILLS renames above.
 SUB_SKILL_CARDS = {
@@ -744,7 +763,12 @@ def _run_sub_skills(target: str, indication: str,
             fired.extend(fired_rules(cards, axis=axis,
                                      card_id_filter=SUB_SKILL_CARDS[skill_dir]))
         verdict_fn = _load_sub_skill_verdict_fn(skill_dir)
-        verdict_pair = verdict_fn(fired) if verdict_fn else None
+        try:
+            verdict_pair = verdict_fn(fired) if verdict_fn else None
+        except RuntimeError as exc:
+            if not _gateless_absent_resolver(short, exc):
+                raise
+            verdict_pair = None
         # OPTIONAL deterministic cross-modal reconciliation facet (2026-08-17). Best-effort +
         # VERDICT-INERT: a sub-skill that exposes _synthesis_facet hands the composed synthesis its
         # own reconciliation (e.g. tumor-presence's per-modality matrix); absence / failure → None,
@@ -849,6 +873,7 @@ __all__ = [
     '_FANOUT_MAX_WORKERS',
     '_SHORT_TO_GATE',
     '_SUBSKILL_FN_CACHE',
+    '_gateless_absent_resolver',
     '_load_sub_skill_verdict_fn',
     '_load_sub_skill_facet_fn',
     '_load_sub_skill_certainty_fn',
