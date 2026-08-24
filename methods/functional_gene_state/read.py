@@ -475,9 +475,44 @@ def _load_ccle_colname_to_model_id() -> dict:
         return {}
 
 
+# Precomputed gene-SORTED product (ccle-rrbs-promoter-methylation-per-gene-v1) that materializes the
+# per-(gene, model) call this reader computes, for a per-gene pushdown instead of the full-gzip stream.
+def _read_model_methylation_product(target: str):
+    """Gene-pushdown read of {ModelID: is_methylated} from ccle-rrbs-promoter-methylation-per-gene-v1.
+
+    Returns the dict (possibly empty = gene absent from the RRBS universe, exactly as the live path's
+    gene_rows-empty case) or None when the product is UNREACHABLE — either the manifest is not registered
+    in this catalog yet (s3_uri_for raises) or the object is genuinely absent (FileNotFoundError/404) —
+    so the caller falls back to the live gzip read. Byte-identical to that read (the product was built to
+    reproduce it exactly: MGMT/CDKN2A/MLH1/VHL/RB1/ERBB2/KRAS/TP53/BRCA1/APC verified). A transient/creds
+    error re-raises rather than masquerading as product-absence."""
+    try:
+        uri = s3_uri_for("ccle-rrbs-promoter-methylation-per-gene-v1")
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- LOCAL catalog manifest lookup, not an S3 read; a raise means the derived manifest is not registered in this catalog → fall back to the live gzip read
+        return None
+    try:
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+        path = uri.replace("s3://", "", 1)
+        s3 = fs.S3FileSystem()
+        df = pq.read_table(path, filesystem=s3,
+                           filters=[("gene_symbol", "==", target.upper())]).to_pandas()
+        return {str(r.model_id): bool(r.is_methylated) for r in df.itertuples(index=False)}
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
+        return None   # product object genuinely absent → live gzip fallback
+
+
 @lru_cache(maxsize=64)
 def _read_model_methylation(target: str) -> dict:
     """{ModelID: is_methylated (bool)} for `target` from CCLE RRBS TSS-1kb file.
+
+    Prefers the precomputed gene-pushdown product (ccle-rrbs-promoter-methylation-per-gene-v1; reads
+    only this gene's rows, ~kB over the wire); falls back to the live full-gzip stream + parse below when
+    the product is unreachable. The product reproduces the live computation exactly, so the returned dict
+    is byte-identical either way.
 
     Cached (matching the patient-arm sibling _read_patient_methylation): the CCLE RRBS object is a
     full-file download + parse, and read_model_states_per_model can be called more than once per
@@ -497,6 +532,12 @@ def _read_model_methylation(target: str) -> dict:
     """
     import gzip
     import pandas as pd
+
+    # Fast path: gene-pushdown from the precomputed product (falls through to the live stream below when
+    # unreachable / manifest not yet registered — land-order-independent, degrades gracefully).
+    prod = _read_model_methylation_product(target)
+    if prod is not None:
+        return prod
 
     gene_prefix = target.upper() + "_"
     col_to_model = _load_ccle_colname_to_model_id()

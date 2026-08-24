@@ -341,6 +341,9 @@ def test_ccle_colname_bridge_resolves_punctuated_names(monkeypatch):
 def test_read_model_methylation_maps_column_to_model_id(monkeypatch):
     """End-to-end: a punctuated-name cell line's RRBS column maps to its ModelID and thresholds
     correctly. Directly exercises the M1 fix (other tests monkeypatch _read_model_methylation whole)."""
+    # Force the LIVE gzip path: the precomputed-product fast path is tried first, so stub it absent
+    # (else this offline test would attempt a real S3 parquet read of the ccle-rrbs product).
+    monkeypatch.setattr(_fgs_read, "_read_model_methylation_product", lambda *a, **k: None)
     monkeypatch.setattr(_fgs_read, "_s3_read_bytes", _fake_s3_read_bytes)
     _fgs_read._load_ccle_colname_to_model_id.cache_clear()
     out = _fgs_read._read_model_methylation("TP53")
