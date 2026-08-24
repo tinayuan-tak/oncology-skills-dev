@@ -22,6 +22,7 @@ from _skills_common.differentiation_claims import differentiation_claim_vector, 
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
@@ -221,6 +222,40 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
         "provenance": {"n_pairs_panel_intersect_eligible": n_pairs},
         "_model_ref": "CERTAINTY_MODEL.md#differentiation",
     }
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the DIFFERENTIATION per-axis builder. Differentiation is a
+#    DESCRIPTIVE / non-gating axis: co-occurrence vs mutual-exclusivity is a pattern TYPE, not a
+#    good/bad valence, so finding.direction is ALWAYS neutral (the pattern informs, it does not push a
+#    nomination). VERDICT-INERT: surfaced by the fan-out into decision.claim_record_shadow.differentiation,
+#    consumed by NOTHING. Reuses _strength_certainty (coverage-only). Mirrors the other axes' hook.
+_DIFF_STRENGTH_TO_LEVEL = {"strong_pattern": "strong", "moderate_pattern": "moderate", "none": "none"}
+
+
+def _diff_availability(v) -> str:
+    if v == "data_unavailable" or v is None:
+        return "not_wired"                       # open-world → assembler forces unknown/neutral
+    if v == "insufficient":
+        return "insufficient"
+    if v == "ns":
+        return "measured_negative"               # measured, no significant pattern
+    return "measured_positive"                   # a pattern was detected
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    sc = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)
+    return assemble_claim_record(
+        axis="differentiation",
+        state=(v or "insufficient"),
+        direction="neutral",                     # descriptive pattern — never pushes a nomination
+        availability=_diff_availability(v),
+        magnitude={"level": _DIFF_STRENGTH_TO_LEVEL.get(_diff_strength(v), "none")},
+        certainty=sc["certainty"],
+        fired=fired,
+        cards=cards,
+    )
 
 
 def _headline(cards, fired, verdict_pair):
