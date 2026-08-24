@@ -18,7 +18,6 @@ resolver_consumed_cards:
 - crispr-rnai-dependency-concordance
 - dependency-lineage-selectivity
 - expression-dependency-correlation
-- functional-gene-state
 - fusion-rearrangement-landscape
 - fusion-stratified-dependency
 - gene-burden-safety
@@ -60,12 +59,9 @@ detail:
   alteration-role:
     resolvers:
     - genomic_alteration
-    - safety
     rules:
-    - activating-driver-role-safety-context
     - alteration-role-gof-driver-supportive
     - alteration-role-lof-driver-neutral
-    - oncogene-role-safety-context
   amp-expr-stratified-dependency:
     resolvers:
     - cis_coherence
@@ -112,14 +108,12 @@ detail:
   copy-number-distribution:
     resolvers:
     - genomic_alteration
-    - safety
     rules:
     - cn-data-unavailable-insufficient
     - cn-patient-focal-amplified-supportive
     - cn-patient-focal-deleted-supportive
     - cn-recurrently-amplified-supportive
     - cn-recurrently-deleted-supportive
-    - copy-number-amplified-oncogene-safety-context
   copy-number-stratified-dependency:
     resolvers:
     - genomic_alteration
@@ -147,11 +141,6 @@ detail:
     rules:
     - cis-expr-dependency-absent-neutral
     - cis-expr-dependency-coupled-supportive
-  functional-gene-state:
-    resolvers:
-    - safety
-    rules:
-    - functional-gene-state-rarely-altered-neutral
   fusion-rearrangement-landscape:
     resolvers:
     - genomic_alteration

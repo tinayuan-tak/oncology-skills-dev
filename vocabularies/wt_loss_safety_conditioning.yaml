@@ -62,5 +62,16 @@ allele_selective_eligibility_rules:
   - activating-driver-role-safety-context
   - alteration-role-gof-driver-supportive
 
+# DISQUALIFIERS: a GoF oncogene that is AMPLIFICATION-driven (ERBB2, MDM2, MYC) or role-only /
+# rarely-altered (MCL1) has NO selectable activating POINT mutation — a small molecule engages the
+# WILD-TYPE (amplified/role-only) protein, so there is NO allele-selective escape and the WT-loss
+# concern STANDS (small_molecule = hold, not conditional). Reuses the exact signals the retired
+# safety.resolver.yaml GROUP-0 (amplification) + GROUP-0b (rarely-altered) guards keyed on, so the
+# eligibility model preserves the S1-1 amplification-guard behavior. Composition: small_molecule is
+# conditional ONLY IF (eligibility rule fired) AND NOT (any disqualifier fired).
+allele_selective_disqualifier_rules:
+  - copy-number-amplified-oncogene-safety-context
+  - functional-gene-state-rarely-altered-neutral
+
 # NOTE (curation discipline): every rule_id above must exist in interpretation-rules/*.rules.yaml.
 # tests/vocabularies/test_wt_loss_safety_conditioning.py asserts this (guards against rule renames).
