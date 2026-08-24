@@ -244,22 +244,26 @@ it into the verdict.
 
 ## Status: partial
 
-Per-product / per-input state (reconciled 2026-08-06 against framework-health):
+Per-product / per-input state (reconciled 2026-08-24 against framework-health):
 - LANDED + reader-live: `surfaceome-family-classification` (S3), `topology-predictions`
   (surface-topology-and-ptm, S3), `surface-abundance-density` (method IS built — reads CPTAC
-  per-cohort + a 181-row calibrated antigen-density ladder; what's missing is a *derived* density
-  product, not the method), `rna-protein-concordance-tumor`, `copy-number-distribution` (additive
-  P4 antigen-density signal), `normal-tissue-liability`.
-- HARD GAP: `structure-features-static` — the method exists, but its derived product
-  `pdb-alphafold-structure-features-per-uniprot-v1` is NOT in the data-catalog (ingest-first). The
-  reader always degrades to `no_structure`. NOTE: structure is a PASSTHROUGH here — it does not feed
-  `fit_class` (see below).
+  per-cohort + a calibrated antigen-density ladder, live corpus ~28 antigens / ~202 DOI-cited rows;
+  what's missing is a *derived* density product, not the method), `rna-protein-concordance-tumor`,
+  `copy-number-distribution` (additive P4 antigen-density signal), `normal-tissue-liability`.
+- `structure-features-static` — LANDED (corrected 2026-08-24): its derived products
+  `pdb-alphafold-structure-features-per-uniprot-v1` and `structure-ligandability-per-protein-v1`
+  ARE in the data-catalog (materialized 2026-08-07), so the reader no longer degrades to
+  `no_structure` for a data reason. NOTE: structure is still a PASSTHROUGH here BY DESIGN — it does
+  not feed `fit_class` (see below); it is an SM/degrader pocket signal, not an ECD-epitope signal.
 
 How `fit_class` actually resolves today (the composed `adc-tce-modality-fit` card): it keys on
 TOPOLOGY + SURFACEOME-FAMILY only — density and structure are consumed but do NOT move the class.
-When upstream is thin the composed card emits `neither_viable` (an honest negative), NOT
-`data_unavailable`/`insufficient` — the `fit_class` field is never marked `_missing`, so a rule always
-fires and the resolver's `insufficient` default is effectively unreachable.
+When both topology AND family come back measured, `neither_viable` is an HONEST biological negative
+(not-surface or no transmembrane segment). When either upstream input is `data_unavailable`, the
+composed card now emits `fit_class="data_unavailable"` (corrected 2026-08-24 — this branch DOES
+exist, `_live_readers.py`), for which no `*-supportive`/`*-killer` rung fires, so the resolver
+correctly falls through to its `default: insufficient`. A genuine coverage gap is therefore NOT
+mislabeled `neither_viable`.
 
 ENDOCYTOSIS / ADC-REACHABILITY (B1, 2026-08-06 — was previously unreachable): the topology product
 carries NO endocytosis-motif data (the field is hardcoded null). Previously `endo_high_conf = ... or 0`

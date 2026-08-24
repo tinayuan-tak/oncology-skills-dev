@@ -1,8 +1,8 @@
 """Tests for the surface orthogonality scorer (enrichment E7, 2026-08-07).
 
 Pins the load-bearing design properties:
-  (1) PRESENCE-CLUSTER COLLAPSE — the 6 correlated presence cards count as ONE dimension,
-      not 6 (the whole reason this isn't a fired-rule count);
+  (1) PRESENCE-CLUSTER COLLAPSE — the 5 correlated presence cards count as ONE dimension,
+      not 5 (the whole reason this isn't a fired-rule count);
   (2) COVERAGE vs SUPPORT are separate — an abstaining (data_unavailable) dimension is a
       coverage gap, NEVER an opposing vote (honest-coverage doctrine);
   (3) SHED INVERSION — not_shed is SUPPORTIVE, clinically_shed/media_shed_high is OPPOSING;
@@ -43,10 +43,10 @@ def _card(cid, **summary):
 # ---- (1) presence-cluster collapse ---------------------------------------
 
 def test_presence_cluster_collapses_to_one_dimension():
-    """SIX presence cards all supportive → presence contributes exactly ONE supportive
-    dimension, not six. This is the core anti-double-count guarantee."""
+    """FIVE presence cards all supportive → presence contributes exactly ONE supportive
+    dimension, not five. This is the core anti-double-count guarantee."""
     cards = [
-        _card("protein-surface-evidence", surface_confirmation_class="cell_surface_confirmed"),
+        _card("protein-surface-evidence", surface_confirmation_class="confirmed_high"),
         _card("surface-topology-and-ptm", topology_class="single_pass_type_1", ecd_engineerability_class="large_ecd"),
         _card("surface-abundance-density", surface_density_class="high"),
         _card("surfaceome-family-classification", family_class="growth_factor_receptor"),
@@ -107,7 +107,7 @@ def test_shed_measured_high_is_opposing_even_if_annotation_absent():
 
 def test_four_supportive_dimensions_is_broadly_corroborated():
     cards = [
-        _card("protein-surface-evidence", surface_confirmation_class="cell_surface_confirmed"),  # D1
+        _card("protein-surface-evidence", surface_confirmation_class="confirmed_high"),  # D1
         _card("normal-tissue-liability", normal_tissue_breadth_class="restricted_normal_expression",
               essential_tissue_flag="absent"),                                                    # D2
         _card("shed-ectodomain-liability", shed_liability_class="not_shed_membrane_retained"),    # D3
@@ -140,7 +140,7 @@ def test_orthogonality_is_verdict_inert():
     """The facet is emitted in the headline; it must carry NO verdict-bearing key and the
     surface_modality resolver must never read the headline. Mirrors the biomarker-facet
     verdict-inert contract (no overall_recommendation / nominate)."""
-    cards = [_card("protein-surface-evidence", surface_confirmation_class="cell_surface_confirmed")]
+    cards = [_card("protein-surface-evidence", surface_confirmation_class="confirmed_high")]
     out = orth.score_orthogonality(cards)
     for forbidden in ("surface_modality_verdict", "verdict", "fit_class",
                       "overall_recommendation", "nominate", "driving_rule_id"):
@@ -156,7 +156,7 @@ def test_headline_orthogonality_does_not_change_verdict():
     smf = _load_run()
     meaningful = {
         "adc-tce-modality-fit": {"fit_class": "ADC_preferred"},
-        "protein-surface-evidence": {"surface_confirmation_class": "cell_surface_confirmed"},
+        "protein-surface-evidence": {"surface_confirmation_class": "confirmed_high"},
         "shed-ectodomain-liability": {"shed_liability_class": "clinically_shed"},
     }
     cards = [_card(cid, **meaningful.get(cid, {})) for cid in smf.CARDS]

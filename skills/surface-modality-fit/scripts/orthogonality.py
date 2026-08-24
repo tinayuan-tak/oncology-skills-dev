@@ -5,13 +5,15 @@ converge for this target?" A target supported by five orthogonal axes is a
 fundamentally stronger biologics call than one leaning entirely on a single axis —
 even at the SAME fit_class verdict. This makes that convergence explicit.
 
-WHY IT IS NOT A FIRED-RULE COUNT (the core design point): of the surface skill's 13
-cards, only ~5 measure INDEPENDENT things. Six of them — CSPA surface confirmation,
-topology, density, surfaceome-family, RNA↔protein concordance, copy-number amplification
-— are all facets of ONE question: "is the antigen actually present and bindable on the
-surface?" Counting fired rules would score presence 6x and pMHC 1x, badly overweighting
-a single correlated cluster. This scorer COLLAPSES each correlated cluster to ONE
-ternary line of evidence, then counts distinct dimensions.
+WHY IT IS NOT A FIRED-RULE COUNT (the core design point): of the surface skill's cards,
+only ~5 measure INDEPENDENT things. FIVE of them — CSPA surface confirmation, topology,
+density, surfaceome-family, and RNA↔protein concordance — are all facets of ONE question:
+"is the antigen actually present and bindable on the surface?" Counting fired rules would
+score presence 5x and pMHC 1x, badly overweighting a single correlated cluster. This
+scorer COLLAPSES each correlated cluster to ONE ternary line of evidence, then counts
+distinct dimensions. (copy-number-amplification is composed by the skill as an additive
+antigen-density facet but is NOT folded into D1 here — it is not read by _d1_presence;
+adding it as a sixth presence-cluster member is a deliberate future extension.)
 
 FIVE INDEPENDENT DIMENSIONS:
   D1 presence_accessibility  — is it there + bindable  (CSPA / topology / density / family / RNA-proxy)
@@ -79,7 +81,7 @@ def _d1_presence(cards) -> dict:
     fam = _get(cards, "surfaceome-family-classification", "family_class")
     rna = _get(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
     supportive = any([
-        surf_conf in {"cell_surface_confirmed", "confirmed_high", "confirmed_moderate"},
+        surf_conf in {"confirmed_high", "confirmed"},
         topo in {"single_pass_type_1", "single_pass_type_2", "single_pass_type_other", "gpi_anchored"},
         ecd in {"large_ecd", "moderate_ecd"},
         dens in {"high", "moderate"},
