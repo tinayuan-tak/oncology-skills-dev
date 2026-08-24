@@ -61,6 +61,7 @@ from tp_facets import (
     _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
     _deciding_axis, _dependency_facet,
+    _cross_gate_shared_evidence,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet,
 )
@@ -385,6 +386,10 @@ def main() -> int:
     # verdict hide a split across comparators / assays / molecular subtypes? Companion to fragility;
     # never touches the recommendation.
     heterogeneity = _heterogeneity_facet(sub_results, subtypes=subtypes)
+    # Cross-gate shared-evidence facet (verdict-inert): input cards driving >1 gate → those gate calls
+    # are correlated, not independent corroboration (the measured cross-gate redundancy). Surfaced so the
+    # roll-up/synthesis doesn't over-count co-firing correlated gates. Never moves the recommendation.
+    cross_gate_shared_evidence = _cross_gate_shared_evidence(sub_results)
     addressable_population = _addressable_population_facet(sub_results)
     # Actionability-mode facet (2026-08-19): VERDICT-INERT selection-basis profile — cis_feature vs
     # abundance vs dependency_relational (+ mixed / insufficient), the HANDLE by which the target is
@@ -734,6 +739,9 @@ def main() -> int:
         # Heterogeneity facet (verdict-inert): cross-context dispersion (comparator / modality /
         # subtype). A stratified-opportunity signal the pooled verdict hides; never moves the call.
         "heterogeneity": heterogeneity,
+        # Cross-gate shared-evidence (verdict-inert): which gate verdicts share an input card (correlated,
+        # not independent corroboration) — the measured cross-gate redundancy made visible for the roll-up.
+        "cross_gate_shared_evidence": cross_gate_shared_evidence,
         "addressable_population": addressable_population,
         "actionability_mode": actionability_mode,
         # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL), keyed by sub-skill short. A

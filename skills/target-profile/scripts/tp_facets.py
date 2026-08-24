@@ -966,6 +966,35 @@ def _subgroup_flip_view(sub_results: dict) -> dict:
     }
 
 
+def _cross_gate_shared_evidence(sub_results: dict) -> dict:
+    """VERDICT-INERT transparency facet (VERDICT_REPRESENTATION.md — de-dup cross-gate cards). An input
+    card that fires signal into >1 gate's verdict makes those gate calls CORRELATED, not independent
+    corroboration — a consumer/synthesis that counts N agreeing gates as N independent votes overstates
+    confidence (the measured cross-gate redundancy: the ~11 verdict gates carry only ~4 independent axes;
+    e.g. normal-tissue-liability drives safety+surface, crispr-dependency drives dependency+safety). This
+    surfaces the shared inputs so the roll-up can discount them. Never touches the verdict/gate/recommendation.
+    Computed from each sub-result's OWN fired rules (their card_id) — no re-read of the rules files."""
+    card_to_gates: dict = {}
+    for short, r in sub_results.items():
+        if not isinstance(r, dict):
+            continue
+        for f in (r.get("fired") or []):
+            cid = f.get("card_id") if isinstance(f, dict) else None
+            if cid:
+                card_to_gates.setdefault(cid, set()).add(short)
+    shared = {cid: sorted(gates) for cid, gates in card_to_gates.items() if len(gates) > 1}
+    # correlated gate pairs (the actionable read for the synthesis: don't double-count these)
+    correlated_gates = sorted({tuple(sorted((a, b)))
+                               for gates in shared.values() for a in gates for b in gates if a < b})
+    return {
+        "shared_input_cards": {c: shared[c] for c in sorted(shared)},
+        "correlated_gate_pairs": [list(p) for p in correlated_gates],
+        "_note": "Cards driving >1 gate's fired signal → those gate verdicts are CORRELATED (share "
+                 "evidence), NOT independent corroboration. Roll-ups / synthesis must not treat "
+                 "co-firing correlated gates as independent agreement.",
+    }
+
+
 def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
                      contracts_repo: Path | None = None, modality: str | None = None) -> dict:
     """Verdict-inert flip-stability facet (see section header). Emitted in nomination.json; never
