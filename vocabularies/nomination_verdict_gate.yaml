@@ -339,6 +339,28 @@ modality_scoped_veto_suppression:
       synapse), not via the antigen's genetic dependency. Both dependency veto arms
       are intracellular-modality-scoped and are suppressed for biologics modalities.
 
+# (C) Biology-axis-scoped DOWNGRADE (2026-08-24). The modality-scoped suppression (B) fires ONLY when a
+# modality is EXPLICITLY declared. But a curated SURFACE-antigen target (biology_axis=surface_intrinsic)
+# whose surface_modality independently returned a FAVORABLE fit is engaged via antigen binding, not
+# genetic dependency — so a pooled `dependency: non_dependent` veto CONTRADICTS the captured surface
+# biology even on a default (no --modality) run (DLL3/TACSTD2/FOLR1/NECTIN4/CD19 all veto'd this way).
+# Unlike (B) which SUPPRESSES the veto entirely, this DOWNGRADES it to `hold` — conservative: the target
+# surfaces (not force-declined) but is not fully green-lit absent an explicit modality query. The
+# favorable-surface co-condition BOUNDS false-positives: a surface target with no viable arm
+# (neither_viable / shed_dominant_opposed) still vetoes. Never touches pan_essential_killer.
+biology_axis_scoped_veto_downgrade:
+  - downgrades: {sub_skill: dependency, verdict: non_dependent}
+    to_action: hold
+    when_biology_axis_in: [surface_intrinsic]
+    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, surface_viable_density_caveated]
+    rationale: |
+      A curated surface antigen (biology_axis=surface_intrinsic) with a FAVORABLE surface_modality
+      fit is engaged via antigen binding, so a pooled pan-cancer `non_dependent` is not a trusted
+      reason to VETO — it is downgraded to `hold`, surfacing the target (with its real surface/safety
+      liabilities carried by the surface + safety axes) rather than force-declining it on an
+      irrelevant intracellular-dependency criterion. Fires without an explicit --modality; the
+      favorable-surface co-condition prevents rescuing surface-junk. Does NOT touch pan_essential_killer.
+
 # ============================================================================
 # POSITIVE TIER (2026-07-17) — deterministic confidence FLOOR, never an action.
 # ============================================================================
