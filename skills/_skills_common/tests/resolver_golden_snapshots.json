@@ -12117,8 +12117,10 @@
    "ihc-not-detected-killer",
    "isoform-dependent-modality-suppression",
    "modality-ambiguous-insufficient",
+   "modality-window-essential-liability-tce-opposing",
    "neither-viable-killer",
    "normal-tissue-essential-bite-killer",
+   "sc-antigen-escape-high-tce-opposing",
    "sc-normal-high-liability-bite-killer",
    "shed-ectodomain-clinical-opposing",
    "surface-density-below-tce-floor-measured-downgrade",
@@ -12137,7 +12139,167 @@
     "neither_viable",
     "ihc-not-detected-killer"
    ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
    "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "neither_viable",
     "ihc-not-detected-killer"
    ],
@@ -12169,6 +12331,38 @@
     "neither_viable",
     "ihc-not-detected-killer"
    ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "adc-preferred-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
    "adc-preferred-supportive,ihc-not-detected-killer,sc-normal-high-liability-bite-killer": [
     "neither_viable",
     "ihc-not-detected-killer"
@@ -12197,9 +12391,169 @@
     "neither_viable",
     "ihc-not-detected-killer"
    ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
    "adc-preferred-supportive,normal-tissue-essential-bite-killer": [
     "adc_preferred",
     "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
    ],
    "adc-preferred-supportive,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
     "adc_preferred",
@@ -12226,6 +12580,38 @@
     "surface-density-below-tce-floor-measured-downgrade"
    ],
    "adc-preferred-supportive,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred",
+    "adc-preferred-supportive"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "shed_dominant_opposed",
+    "shed-ectodomain-clinical-opposing"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "surface_viable_density_caveated",
+    "surface-density-below-tce-floor-measured-downgrade"
+   ],
+   "adc-preferred-supportive,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "surface_viable_density_caveated",
     "surface-density-below-tce-floor-measured-downgrade"
    ],
@@ -12265,7 +12651,167 @@
     "neither_viable",
     "ihc-not-detected-killer"
    ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
    "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "neither_viable",
     "ihc-not-detected-killer"
    ],
@@ -12297,6 +12843,38 @@
     "neither_viable",
     "ihc-not-detected-killer"
    ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "both-viable-supportive,ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
    "both-viable-supportive,ihc-not-detected-killer,sc-normal-high-liability-bite-killer": [
     "neither_viable",
     "ihc-not-detected-killer"
@@ -12325,7 +12903,167 @@
     "neither_viable",
     "ihc-not-detected-killer"
    ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "both-viable-supportive,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "modality-window-essential-liability-tce-opposing"
+   ],
    "both-viable-supportive,normal-tissue-essential-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "adc_preferred_tce_unsafe",
     "normal-tissue-essential-bite-killer"
    ],
@@ -12356,6 +13094,38 @@
    "both-viable-supportive,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
     "adc_preferred_tce_unsafe",
     "normal-tissue-essential-bite-killer"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing": [
+    "adc_preferred_tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_unsafe",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "adc_preferred_tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
+   ],
+   "both-viable-supportive,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "adc_preferred_tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
    ],
    "both-viable-supportive,sc-normal-high-liability-bite-killer": [
     "adc_preferred_tce_unsafe",
@@ -12393,7 +13163,167 @@
     "isoform_dependent_undefined",
     "isoform-dependent-modality-suppression"
    ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
    "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "isoform_dependent_undefined",
     "isoform-dependent-modality-suppression"
    ],
@@ -12422,6 +13352,38 @@
     "isoform-dependent-modality-suppression"
    ],
    "ihc-not-detected-killer,isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "ihc-not-detected-killer,isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "isoform_dependent_undefined",
     "isoform-dependent-modality-suppression"
    ],
@@ -12457,7 +13419,167 @@
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
    "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
@@ -12489,6 +13611,38 @@
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
    "ihc-not-detected-killer,modality-ambiguous-insufficient,sc-normal-high-liability-bite-killer": [
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
@@ -12517,11 +13671,427 @@
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,neither-viable-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,modality-window-essential-liability-tce-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
    "ihc-not-detected-killer,neither-viable-killer": [
     "neither_viable",
     "neither-viable-killer"
    ],
    "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "neither_viable",
     "neither-viable-killer"
    ],
@@ -12550,6 +14120,38 @@
     "neither-viable-killer"
    ],
    "ihc-not-detected-killer,neither-viable-killer,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "ihc-not-detected-killer,neither-viable-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "neither_viable",
     "neither-viable-killer"
    ],
@@ -12584,6 +14186,70 @@
    "ihc-not-detected-killer,normal-tissue-essential-bite-killer": [
     "insufficient",
     null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
    ],
    "ihc-not-detected-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
     "insufficient",
@@ -12642,6 +14308,70 @@
     "ihc-not-detected-killer"
    ],
    "ihc-not-detected-killer,normal-tissue-essential-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "neither_viable",
+    "ihc-not-detected-killer"
+   ],
+   "ihc-not-detected-killer,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
     "neither_viable",
     "ihc-not-detected-killer"
    ],
@@ -12709,7 +14439,167 @@
     "isoform_dependent_undefined",
     "isoform-dependent-modality-suppression"
    ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
    "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "isoform_dependent_undefined",
     "isoform-dependent-modality-suppression"
    ],
@@ -12738,6 +14628,38 @@
     "isoform-dependent-modality-suppression"
    ],
    "isoform-dependent-modality-suppression,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "isoform_dependent_undefined",
+    "isoform-dependent-modality-suppression"
+   ],
+   "isoform-dependent-modality-suppression,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "isoform_dependent_undefined",
     "isoform-dependent-modality-suppression"
    ],
@@ -12773,7 +14695,167 @@
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
    "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
@@ -12805,6 +14887,38 @@
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
+   "modality-ambiguous-insufficient,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "modality_ambiguous",
+    "modality-ambiguous-insufficient"
+   ],
    "modality-ambiguous-insufficient,sc-normal-high-liability-bite-killer": [
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
@@ -12833,11 +14947,427 @@
     "modality_ambiguous",
     "modality-ambiguous-insufficient"
    ],
+   "modality-window-essential-liability-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,neither-viable-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,normal-tissue-essential-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "modality-window-essential-liability-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
+   "modality-window-essential-liability-tce-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "modality-window-essential-liability-tce-opposing"
+   ],
    "neither-viable-killer": [
     "neither_viable",
     "neither-viable-killer"
    ],
    "neither-viable-killer,normal-tissue-essential-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "neither_viable",
     "neither-viable-killer"
    ],
@@ -12866,6 +15396,38 @@
     "neither-viable-killer"
    ],
    "neither-viable-killer,normal-tissue-essential-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "neither_viable",
+    "neither-viable-killer"
+   ],
+   "neither-viable-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
     "neither_viable",
     "neither-viable-killer"
    ],
@@ -12900,6 +15462,70 @@
    "normal-tissue-essential-bite-killer": [
     "insufficient",
     null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
+   ],
+   "normal-tissue-essential-bite-killer,sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "normal-tissue-essential-bite-killer"
    ],
    "normal-tissue-essential-bite-killer,sc-normal-high-liability-bite-killer": [
     "insufficient",
@@ -12960,6 +15586,70 @@
    "normal-tissue-essential-bite-killer,tce-preferred-supportive": [
     "tce_unsafe_normal_liability",
     "normal-tissue-essential-bite-killer"
+   ],
+   "sc-antigen-escape-high-tce-opposing": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "sc-antigen-escape-high-tce-opposing,sc-normal-high-liability-bite-killer,tce-preferred-supportive": [
+    "tce_unsafe_normal_liability",
+    "sc-normal-high-liability-bite-killer"
+   ],
+   "sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
+   ],
+   "sc-antigen-escape-high-tce-opposing,shed-ectodomain-clinical-opposing,tce-preferred-supportive": [
+    "tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
+   ],
+   "sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade": [
+    "insufficient",
+    null
+   ],
+   "sc-antigen-escape-high-tce-opposing,surface-density-below-tce-floor-measured-downgrade,tce-preferred-supportive": [
+    "tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
+   ],
+   "sc-antigen-escape-high-tce-opposing,tce-preferred-supportive": [
+    "tce_escape_risk",
+    "sc-antigen-escape-high-tce-opposing"
    ],
    "sc-normal-high-liability-bite-killer": [
     "insufficient",

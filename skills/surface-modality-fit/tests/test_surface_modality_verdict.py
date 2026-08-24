@@ -123,11 +123,35 @@ def test_dominant_shed_ectodomain_caveats_the_call():
     assert _vv("both-viable-supportive", "shed-ectodomain-clinical-opposing")[0] == "shed_dominant_opposed"
 
 
-def test_liability_precedence_absence_beats_safety_beats_density():
-    # protein-absence (both dead) outranks a TCE-safety downgrade outranks a density caveat (first-match).
+def test_therapeutic_window_essential_liability_drops_tce_preserves_adc_2026_08_24():
+    # SAFETY mover (promoted 2026-08-24): the modality-therapeutic-window essential_tissue_liability
+    # (CEACAM5 ~558x-window-yet-lung-positive pattern) now moves the verdict — same semantics as the
+    # normal-tissue killer: drop TCE, preserve ADC (moderate-tier bystander buffer).
+    assert _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+    assert _vv("tce-preferred-supportive", "modality-window-essential-liability-tce-opposing")[0] == "tce_unsafe_normal_liability"
+
+
+def test_tce_antigen_escape_is_an_efficacy_mover_distinct_from_safety_2026_08_24():
+    # EFFICACY mover (new 2026-08-24): within-tumor antigen escape (escape_risk_high) forecloses the TCE
+    # arm on EFFICACY (antigen-low escape reservoir), a DISTINCT verdict from the safety tce_unsafe rungs.
+    # ADC preserved (bystander-tolerant).
+    assert _vv("both-viable-supportive", "sc-antigen-escape-high-tce-opposing")[0] == "adc_preferred_tce_escape_risk"
+    assert _vv("tce-preferred-supportive", "sc-antigen-escape-high-tce-opposing")[0] == "tce_escape_risk"
+    # escape is a TCE concern only — an ADC_preferred target is unchanged by it.
+    assert _vv("adc-preferred-supportive", "sc-antigen-escape-high-tce-opposing")[0] == "adc_preferred"
+
+
+def test_liability_precedence_absence_beats_safety_beats_escape_beats_density():
+    # protein-absence (both dead) > TCE-safety downgrade > TCE-efficacy escape > density caveat (first-match).
     assert _vv("both-viable-supportive", "ihc-not-detected-killer", "shed-ectodomain-clinical-opposing")[0] == "neither_viable"
     assert _vv("both-viable-supportive", "normal-tissue-essential-bite-killer",
                "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_unsafe"
+    # safety (window-essential) outranks efficacy (escape) when both fire.
+    assert _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing",
+               "sc-antigen-escape-high-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+    # efficacy escape outranks the density caveat.
+    assert _vv("both-viable-supportive", "sc-antigen-escape-high-tce-opposing",
+               "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_escape_risk"
 
 
 def test_plain_fit_class_still_byte_stable_without_liabilities():
@@ -157,13 +181,19 @@ _NEWLY_REACHABLE_RULES = [
     # The secretome-proxy + measured-media shed variants remain signal-only (not promoted).
     "shed-ectodomain-secretome-proxy-opposing",
     "shed-ectodomain-measured-media-opposing",  # enrichment — measured Olink conditioned-media shed (media_shed_high)
-    # biologics-augment — within-tumor antigen-homogeneity (single-cell Census):
-    "sc-homogeneity-uniform-tce-supportive",  # homogeneous → TCE supportive
-    "sc-homogeneity-heterogeneous-tce-opposing",  # heterogeneous → TCE opposing (escape reservoir)
-    # biologics-augment window arc — modality therapeutic-window (tumor / max-essential-normal):
-    "modality-window-clean-supportive",       # clean_window → supportive
-    "modality-window-essential-liability-tce-opposing",  # essential liability → TCE opposing, ADC neutral
-    "modality-window-narrow-opposing",        # narrow_window → opposing
+    # biologics-augment — within-tumor antigen-ESCAPE (single-cell Census); REWIRED onto the superior
+    # tce_antigen_escape_class 2026-08-24 (was the lenient tce_homogeneity_class). NOTE: the escape-HIGH
+    # rule (sc-antigen-escape-high-tce-opposing) was PROMOTED to a resolver rung (→ adc_preferred_tce_escape_risk
+    # / tce_escape_risk) 2026-08-24 and is therefore NO LONGER signal-only — pinned by
+    # test_tce_antigen_escape_is_an_efficacy_mover_distinct_from_safety_2026_08_24 above. The escape-LOW
+    # supportive variant remains signal-only.
+    "sc-antigen-escape-low-tce-supportive",   # escape_risk_low → TCE supportive (signal-only)
+    # biologics-augment window arc — modality therapeutic-window (tumor / max-essential-normal). NOTE:
+    # the essential-liability rule was PROMOTED to a resolver rung (→ adc_preferred_tce_unsafe /
+    # tce_unsafe_normal_liability) 2026-08-24 and is NO LONGER signal-only — pinned by
+    # test_therapeutic_window_essential_liability_drops_tce_preserves_adc_2026_08_24 above.
+    "modality-window-clean-supportive",       # clean_window → supportive (signal-only)
+    "modality-window-narrow-opposing",        # narrow_window → opposing (signal-only)
     # enrichment — peptide-centric HLA presentation (bite_tce-only):
     "pmhc-restricted-presentation-tce-supportive",   # restricted → TCE supportive
     "pmhc-broadly-presented-normal-tce-opposing",    # broad normal presentation → TCE opposing

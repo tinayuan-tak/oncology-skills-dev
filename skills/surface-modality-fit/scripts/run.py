@@ -202,14 +202,16 @@ CARDS = [
                                         # approved biologics exist vs shed antigens) existed + were wired to the
                                         # surface_intrinsic axis but UNREACHABLE — no skill composed the card.
                                         # ADDITIVE signal-only (no resolver rung) → verdict byte-stable.
-    "tumor-scrna-celltype-expression",  # biologics-augment (2026-08-06): within-tumor antigen
-                                        # HOMOGENEITY via single-cell CELLxGENE Census (tce_homogeneity_class
-                                        # facet — fraction of MALIGNANT cells expressing the target). For a
-                                        # TCE, antigen heterogeneity is a program-killer (antigen-low cells
-                                        # escape redirected killing — no bystander payload). Its surface rules
-                                        # (sc-homogeneity-uniform-tce-supportive [important] + sc-homogeneity-
-                                        # heterogeneous-tce-opposing [important, ADC neutral — the ADC-vs-TCE
-                                        # discriminator]) fire on the tce_homogeneity_class categorical. The
+    "tumor-scrna-celltype-expression",  # biologics-augment (2026-08-06): within-tumor antigen ESCAPE
+                                        # risk via single-cell CELLxGENE Census (tce_antigen_escape_class
+                                        # facet — coverage x inter-donor consistency over malignant cells).
+                                        # For a TCE, antigen heterogeneity is an efficacy program-killer
+                                        # (antigen-low cells escape redirected killing — no bystander payload).
+                                        # REWIRED + VERDICT-MOVING 2026-08-24: its surface rules
+                                        # (sc-antigen-escape-low-tce-supportive [important] + sc-antigen-escape-
+                                        # high-tce-opposing [important, ADC neutral — the ADC-vs-TCE
+                                        # discriminator]) fire on tce_antigen_escape_class; escape_risk_high now
+                                        # moves the verdict (adc_preferred_tce_escape_risk / tce_escape_risk). The
                                         # card's PRIMARY sc_expression_class stays a presence-axis (Gate-A)
                                         # readout — this composes it for its BIOLOGICS-homogeneity facet only.
                                         # LIVE for COADREAD + NSCLC (Census per-cell malignant annotation);
@@ -349,11 +351,16 @@ def _headline(cards, fired, verdict_pair):
         "measured_shed_class":            get_card_field(cards, "shed-ectodomain-liability", "measured_shed_class"),
         "shed_media_mean_npx":            get_card_field(cards, "shed-ectodomain-liability", "media_mean_npx"),
         "shed_media_n_lines_detected":    get_card_field(cards, "shed-ectodomain-liability", "media_n_lines_detected"),
-        # Within-tumor antigen homogeneity (tumor-scrna-celltype-expression, single-cell Census).
-        # Its surface rules fire on tce_homogeneity_class (bite_tce/adc): homogeneous → TCE supportive
-        # (uniform, low escape); heterogeneous → TCE opposing (antigen-low escape reservoir), ADC
-        # neutral (bystander payload reaches antigen-low cells) — the ADC-vs-TCE discriminator.
-        # LIVE for COADREAD + NSCLC only; else data_unavailable. Additive; verdict byte-stable.
+        # Within-tumor antigen ESCAPE risk (tumor-scrna-celltype-expression, single-cell Census).
+        # REWIRED + VERDICT-MOVING 2026-08-24 (druggability audit): the surface rules now fire on the
+        # superior tce_antigen_escape_class (2-axis coverage x inter-donor consistency, supersedes the
+        # lenient detection-fraction-only tce_homogeneity_class). escape_risk_high fires
+        # sc-antigen-escape-high-tce-opposing which the surface_modality resolver now consumes as an
+        # EFFICACY foreclosure of the TCE arm (adc_preferred_tce_escape_risk / tce_escape_risk); ADC is
+        # preserved (bystander-tolerant). escape_risk_low fires the supportive rung. tce_homogeneity_class
+        # is still emitted (below) for back-compat + the orthogonality D4 facet. LIVE for COADREAD +
+        # NSCLC only; else data_unavailable (abstain).
+        "tce_antigen_escape_class":       get_card_field(cards, "tumor-scrna-celltype-expression", "tce_antigen_escape_class"),
         "tce_homogeneity_class":          get_card_field(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class"),
         "malignant_detection_fraction":   get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_fraction"),
         # Modality therapeutic window (tumor / max-essential-normal TPM, strict/TCE tier). Its rules
@@ -483,6 +490,7 @@ def _headline(cards, fired, verdict_pair):
 _SYNTHESIS_FACET_KEYS = (
     "surface_modality_verdict", "driving_rule_id", "fit_class", "topology_class",
     "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
+    "window_class", "tce_antigen_escape_class",   # verdict-moving TCE safety + efficacy facets (2026-08-24)
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",
