@@ -253,7 +253,7 @@ def _read_cards_threaded(card_ids, target, indication, subgroup_context, max_wor
 
 def _read_cards_process(card_ids, target, indication, subgroup_context, max_workers,
                         plot_data_root=None) -> list:
-    """OPT-IN (SKILLS_READ_POOL=process): read cards in FORKED worker processes to bypass the GIL.
+    """DEFAULT (SKILLS_READ_POOL unset or =process): read cards in FORKED worker processes to bypass the GIL.
     The reader CPU (pandas assembly, per-row dict builds) is GIL-bound, so a thread pool serializes it
     — profiling showed the cold parallel read is GIL-limited, and a fork pool did 12.8s -> 8.7s.
 
@@ -274,13 +274,17 @@ def _read_cards_process(card_ids, target, indication, subgroup_context, max_work
     Order preserved (Pool.map); results are the same fresh card_output dicts, pickled back."""
     import multiprocessing as mp
     import threading
-    # Fork-from-thread guard (see docstring): fork ONLY on the main thread. The composed
-    # target-profile fan-out calls resolve_cards from ThreadPoolExecutor WORKER threads, so this is
-    # false there and we transparently use the thread pool — never forking a live multithreaded
-    # process. (A standalone skill run is always on the main thread, so the fork pool engages as
-    # before; verified by test.) Checked on the thread identity, not active_count(), so a stray
-    # daemon thread in some environment cannot silently disable the fork pool for standalone runs.
-    if threading.current_thread() is not threading.main_thread():
+    # Fork-safety guard (see docstring): fork ONLY from the MAIN thread of a SINGLE-threaded process.
+    # Forking a multithreaded process risks a child deadlock (it inherits copies of locks held by
+    # threads that don't exist in it — CPython even emits a DeprecationWarning). Two ways that arises:
+    #   (a) OFF the main thread — the composed target-profile fans its sub-skills out over a
+    #       ThreadPoolExecutor, so resolve_cards runs on a worker thread there; and
+    #   (b) on the main thread but with OTHER live threads (a Jupyter kernel, an agent host, pytest).
+    # Since process is now the DEFAULT (not an opt-in flag whose caller accepted the risk), we require
+    # BOTH conditions and otherwise fall back to the thread pool (safe + still parallel). A standalone
+    # skill CLI run is single-threaded on main (verified), so the fork pool still engages and keeps the
+    # speedup; a multithreaded host silently and safely stays on threads.
+    if threading.current_thread() is not threading.main_thread() or threading.active_count() != 1:
         return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
                                     plot_data_root)
     try:
@@ -345,12 +349,18 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
 
     # PERF (2026-08-18): the per-card reads are INDEPENDENT, so run them concurrently instead of
     # summing their latencies. Two pool modes:
-    #   thread (default) — a bounded ThreadPoolExecutor. The reads' S3/pyarrow I/O releases the GIL,
-    #     so this already collapses the wall-clock toward the slowest read for I/O-bound cards.
     #   process (SKILLS_READ_POOL=process) — a FORKED process pool that ALSO parallelizes the readers'
-    #     GIL-bound CPU (pandas assembly), which a thread pool serializes; measured 12.8s -> 8.7s on
-    #     tumor-presence. Opt-in while it proves out (fork-safety + result-pickling); see
-    #     _read_cards_process. Any failure there degrades to the thread pool.
+    #     GIL-bound CPU (pandas assembly), which a thread pool serializes. Measured uniformly faster:
+    #     tumor-presence 12.8s->8.7s, tumor-selectivity ~5.3s->~3.9s — byte-identical output. Fork is
+    #     gated to the main thread of a SINGLE-threaded process (see _read_cards_process). Any fork/
+    #     pickling failure degrades to threads.
+    #   thread (LIBRARY DEFAULT) — a bounded ThreadPoolExecutor. The reads' S3/pyarrow I/O releases
+    #     the GIL so it still collapses wall-clock toward the slowest read for I/O-bound cards.
+    # The library default here is the CONSERVATIVE thread pool, so a direct/embedded resolve_cards
+    # caller (a notebook, an agent host, the composed target-profile fan-out — which calls resolve_cards
+    # from ThreadPoolExecutor WORKER threads) never forks unexpectedly. Standalone skill CLI runs opt
+    # INTO process at the run_wired_skill entrypoint (os.environ.setdefault), where the process is known
+    # single-threaded on main — that's where the S3->output runtime win lands.
     # Output is byte-identical across all three paths: order preserved, _resolve_one_card returns a
     # fresh dict per card. Sequential fallback for a single card or SKILLS_READ_WORKERS<=1 (kill-switch)
     # keeps the exact former code path.

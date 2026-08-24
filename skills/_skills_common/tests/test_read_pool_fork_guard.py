@@ -2,9 +2,10 @@
 
 Forking a MULTITHREADED process can deadlock (the child inherits copies of locks held by threads it
 does not have). The composed target-profile fans its sub-skills out over a ThreadPoolExecutor and each
-worker thread calls resolve_cards, so if SKILLS_READ_POOL=process were set globally those calls would
-fork from a worker thread. _read_cards_process guards against this: it forks only when running on the
-main thread, else transparently uses the thread pool. These tests pin BOTH arms of that guard without
+worker thread calls resolve_cards, and process is now the DEFAULT pool, so those calls would fork from
+a worker thread. _read_cards_process guards against this: it forks ONLY from the MAIN thread of a
+SINGLE-threaded process, else transparently uses the thread pool. These tests pin all THREE arms of
+that guard (single-threaded main forks; off-main falls back; multithreaded-main falls back) without
 actually forking (a fake process context stands in for the real fork pool)."""
 from __future__ import annotations
 
@@ -49,18 +50,20 @@ def _install_fakes(monkeypatch):
             [f"THREAD:{c}" for c in card_ids])
 
 
-def test_forks_on_main_thread(monkeypatch):
-    """On the main thread the fork pool engages (standalone skill run) — the documented
-    SKILLS_READ_POOL=process fast path must NOT be silently downgraded to threads."""
+def test_forks_on_single_threaded_main(monkeypatch):
+    """On the main thread of a SINGLE-threaded process (the standalone skill CLI run — now the DEFAULT
+    read pool) the fork pool engages and must NOT be silently downgraded to threads."""
     _install_fakes(monkeypatch)
+    monkeypatch.setattr(threading, "active_count", lambda: 1)  # pytest itself is multi-threaded
     out = skc._read_cards_process(["a", "b"], "TGT", "IND", None, 8)
-    assert out == ["PROC:a", "PROC:b"], "expected the fork pool on the main thread, got the thread fallback"
+    assert out == ["PROC:a", "PROC:b"], "expected the fork pool on a single-threaded main thread"
 
 
 def test_falls_back_to_threads_off_main_thread(monkeypatch):
     """Off the main thread (the target-profile fan-out case) the guard forbids forking a live
     multithreaded process and delegates to the thread pool."""
     _install_fakes(monkeypatch)
+    monkeypatch.setattr(threading, "active_count", lambda: 1)  # isolate the off-main-thread arm
     result = {}
 
     def _worker():
@@ -71,3 +74,13 @@ def test_falls_back_to_threads_off_main_thread(monkeypatch):
     t.join()
     assert result["out"] == ["THREAD:a", "THREAD:b"], (
         "off the main thread the fork pool must fall back to threads (fork-from-thread deadlock guard)")
+
+
+def test_falls_back_when_main_thread_is_multithreaded(monkeypatch):
+    """On the main thread but with OTHER live threads (a Jupyter kernel / agent host / pytest), forking
+    would fork a multithreaded process — the guard must fall back to threads (safe as a global DEFAULT)."""
+    _install_fakes(monkeypatch)
+    monkeypatch.setattr(threading, "active_count", lambda: 3)
+    out = skc._read_cards_process(["a", "b"], "TGT", "IND", None, 8)
+    assert out == ["THREAD:a", "THREAD:b"], (
+        "a multithreaded main thread must NOT fork — fall back to the thread pool")

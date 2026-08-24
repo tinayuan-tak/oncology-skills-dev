@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -450,6 +451,16 @@ def run_wired_skill(
     Returns:
         exit code (0 on success). Raises RuntimeError under a 'fail' dependency-status behavior.
     """
+    # PERF DEFAULT (2026-08-24): a standalone skill CLI run reaches its cards through resolve_cards on
+    # the MAIN thread of a single-threaded process, where the forked read pool is both safe and the
+    # fastest path (bypasses the GIL on the readers' pandas assembly — tumor-selectivity ~5.3s->~3.9s,
+    # tumor-presence ~11.5s->~8.7s, byte-identical output). Opt this entrypoint into `process` unless
+    # the caller/env already chose a pool. Scoped HERE, not in resolve_cards, so DIRECT/embedded
+    # resolve_cards callers (notebooks, agent hosts, the composed target-profile fan-out — which reads
+    # cards from ThreadPoolExecutor worker threads) keep the conservative thread default and never fork
+    # unexpectedly. _read_cards_process still forks ONLY from a single-threaded main thread and degrades
+    # to threads otherwise, so this is safe even here; escape hatch: SKILLS_READ_POOL=thread.
+    os.environ.setdefault("SKILLS_READ_POOL", "process")
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True, help="HGNC gene symbol")
     # --indication is OPTIONAL (2026-08-05): TARGET-INTRINSIC skills (e.g. target-intrinsic) fan out
