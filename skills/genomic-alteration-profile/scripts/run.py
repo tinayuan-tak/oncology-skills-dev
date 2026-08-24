@@ -748,6 +748,19 @@ def _synthesis_facet(cards, fired, verdict_pair):
 
 
 def main() -> int:
+    # PERF DEFAULT (2026-08-24): this skill HAND-ROLLS main() (it does not go through
+    # run_wired_skill), so it never received the process-read-pool default that dispatcher.py sets
+    # at the run_wired_skill entrypoint (see dispatcher.py: os.environ.setdefault("SKILLS_READ_POOL",
+    # "process")). A standalone genomic-alteration CLI run reaches its 22 cards through resolve_cards
+    # on the MAIN thread of a single-threaded process, where the forked read pool is both safe and the
+    # fastest path (bypasses the GIL on the readers' pandas assembly — warm ERBB2/BRCA ~52s->~28s,
+    # byte-identical output). Opt this entrypoint in unless the caller/env already chose a pool; scoped
+    # HERE (not in resolve_cards) so the composed target-profile fan-out — which reads cards from
+    # ThreadPoolExecutor worker threads — keeps the conservative thread default and never forks
+    # unexpectedly. _read_cards_process still forks ONLY from a single-threaded main thread and degrades
+    # to threads otherwise, so this is safe even here; escape hatch: SKILLS_READ_POOL=thread.
+    import os
+    os.environ.setdefault("SKILLS_READ_POOL", "process")
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
