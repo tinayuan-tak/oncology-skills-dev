@@ -513,11 +513,14 @@ _GENOMIC_VERDICT_PHRASE = {
 # The verdict tokens that are a POSITIVE alteration call (a driver / dependency / recurrent-landscape
 # rung). passenger_pattern is the measured NEGATIVE; mixed_pattern + insufficient (+ anything unknown)
 # are NEUTRAL. Sourced from the genomic_alteration resolver vocabulary so the polarity can't drift.
+# NOTE (2026-08-24, PR-2a residual): lof_dominant_pattern / missense_dominant_pattern are mutation-SHAPE
+# descriptors that fire ONLY when the alteration ROLE is unresolved (data_unavailable/passenger — a typed
+# GoF/LoF role routes to confirmed_driver/confirmed_lof_driver instead). A shape-without-a-confirmed-role
+# is NOT a positive driver call (it read oncogene-flavored 'positive' for CD47/TNKS), so they are NEUTRAL.
 _GENOMIC_POSITIVE_VERDICTS = frozenset({
     "biomarker_stratified_dependency", "moderate_biomarker_dependency", "multi_class_driver",
     "confirmed_driver", "drug_response_biomarker", "recurrent_amplification_driver",
     "recurrent_deletion_driver", "recurrent_fusion_driver", "recurrent_snv_driver",
-    "lof_dominant_pattern", "missense_dominant_pattern",
 })
 _GENOMIC_NEGATIVE_VERDICTS = frozenset({"passenger_pattern"})
 

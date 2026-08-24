@@ -42,8 +42,8 @@ VERDICT_COLORS = {
     "chemically_active":              "#4a7c9e",
     "lineage_restricted":             "#4a7c9e",
     "modestly_upregulated_in_tumor":  "#4a7c9e",
-    "lof_dominant_pattern":           "#4a7c9e",   # T1.1 rename (was recurrent_lof_driver)
-    "missense_dominant_pattern":      "#4a7c9e",   # T1.1 rename (was recurrent_missense_driver)
+    "lof_dominant_pattern":           "#c07a20",   # NEUTRAL: mutation-shape w/o a confirmed role (PR-2a residual 2026-08-24)
+    "missense_dominant_pattern":      "#c07a20",   # NEUTRAL: mutation-shape w/o a confirmed role (PR-2a residual 2026-08-24)
     "recurrent_fusion_driver":        "#4a7c9e",   # T1.3 (fusion-landscape recurrence driver)
 
     # Neutral / caution (ochre)
