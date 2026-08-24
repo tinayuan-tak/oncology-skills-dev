@@ -48,6 +48,11 @@ _RRBS_METH_THRESHOLD = 0.30
 # island-anchored promoter methylation call. 31.8M rows, 13,844 genes, 2,422 patients, 373 MB,
 # sorted by gene_symbol for pyarrow row-group predicate pushdown (reads ~14 kB per gene).
 _, HM450_PROMOTER_KEY = bucket_key_for("tcga-sesame-promoter-methylation-v1")
+# The gene-pushdown read uses the full s3:// URI via pyarrow.fs.S3FileSystem (true REMOTE row-group
+# pruning) — mirroring _read_two_hit_evidence below. (The prior read downloaded the whole 373 MB object
+# with _s3_read_bytes and only THEN applied the filter in-memory, so the "~14 kB per gene" claim held
+# for the parse but not the wire — a full-object download on every call.)
+HM450_PROMOTER_S3_URI = s3_uri_for("tcga-sesame-promoter-methylation-v1")
 
 # framework indication → TCGA project code(s) used in merged_sample_quality_annotations `cancer type`
 # (mirrors gdc_somatic_hotspot's INDICATION_TO_PROJECTS, minus the "TCGA-" prefix which this table omits).
@@ -549,23 +554,27 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
     _read_patient_arm via `ind_patients`. The parameter is included in the cache key for
     clarity and to reserve future per-indication scoping without cache invalidation.
     """
-    import pandas as pd
     try:
-        raw = _s3_read_bytes(HM450_PROMOTER_KEY)
-        # filters= pushes the predicate into pyarrow row-group statistics, reading only the
-        # matching row group (~14 kB) rather than the full 373 MB parquet.
-        # Requires the parquet to be sorted by gene_symbol (aggregate_sesame_promoter.py does this).
-        df = pd.read_parquet(io.BytesIO(raw),
-                             filters=[("gene_symbol", "==", target.upper())])
+        # True REMOTE pushdown (mirrors _read_two_hit_evidence): pyarrow.fs.S3FileSystem reads only the
+        # row-group(s) whose gene_symbol statistics match, over the wire (~14 kB), instead of downloading
+        # the full 373 MB object and filtering in-memory. Requires the parquet to be sorted by gene_symbol
+        # (aggregate_sesame_promoter.py does this). Byte-identical result: the same predicate + the same
+        # is_promoter_methylated-notna filter + the same {patient_barcode: bool} projection as before.
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+        path = HM450_PROMOTER_S3_URI.replace("s3://", "", 1)
+        s3 = fs.S3FileSystem()
+        df = pq.read_table(path, filesystem=s3,
+                           filters=[("gene_symbol", "==", target.upper())]).to_pandas()
         sub = df[df["is_promoter_methylated"].notna()]
         return {str(row.patient_barcode): bool(row.is_promoter_methylated)
                 for row in sub.itertuples(index=False)}
     except Exception as e:  # noqa: BLE001
-        # HM450 product genuinely absent (not yet landed → NoSuchKey/404) → honest {} so the
-        # patient arm degrades to genetic-only. A transient/creds/broken-env error must NOT be masked
-        # as "no methylation" (would silently drop epigenetic upgrades) — re-raise it.
+        # HM450 product genuinely absent (not yet landed → NoSuchKey/404 → FileNotFoundError) → honest {}
+        # so the patient arm degrades to genetic-only. A transient/creds/broken-env error must NOT be
+        # masked as "no methylation" (would silently drop epigenetic upgrades) — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
-        if not is_definitively_absent(e):
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return {}
 
@@ -743,8 +752,17 @@ def read_functional_gene_state(target: str, indication: str) -> dict:
     `functional_state_class` is a compact target-level headline derived from the patient arm
     (falls back to model when patient is unavailable)."""
     sym = target.upper().strip()
-    patient = _read_patient_arm(sym, indication)
-    model = _read_model_arm(sym)
+    # The patient (TCGA two-hit + HM450) and model (DepMap matrices + CCLE RRBS) arms read DISJOINT S3
+    # substrate and share no mutable state, so read them CONCURRENTLY. Both are I/O-bound (the wall clock
+    # is dominated by the S3 GETs, not the GIL-held pandas assembly), so two threads overlap the two arms'
+    # network waits — folding the card's wall clock from patient+model to ~max(patient, model). Result is
+    # byte-identical: each arm returns its own summary dict, assigned to the same names as the serial path.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_patient = ex.submit(_read_patient_arm, sym, indication)
+        f_model = ex.submit(_read_model_arm, sym)
+        patient = f_patient.result()
+        model = f_model.result()
 
     # headline: prefer the patient distribution; describe the dominant / biallelic picture.
     headline = _headline_class(patient, model)

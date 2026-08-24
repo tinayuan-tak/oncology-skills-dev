@@ -257,6 +257,23 @@ def read_hotspot_summary(
     if aggregate_path is None:
         aggregate_path = _resolve_aggregate_path(indication)
 
+    # The GENIE and MSK-CHORD-pooled recurrence comparators are INDEPENDENT cohorts/sources — they do
+    # not depend on the MC3 aggregate read below, and every return branch splats both. Kick them off
+    # CONCURRENTLY (and concurrently with the MC3 read on this thread): the GENIE panel-recurrence read
+    # is the single dominant cost in this card, so overlapping it with the MC3 pushdown + the pooled read
+    # folds the card's wall clock from MC3 + GENIE + pooled toward ~max(MC3, GENIE, pooled). All three
+    # reads are I/O-bound. `_recurrence_fields()` returns the SAME merged dict the two serial splats
+    # produced ({**genie, **pooled}: pooled keys win on collision, matching the prior literal order), so
+    # every emitted summary is byte-identical.
+    from concurrent.futures import ThreadPoolExecutor
+    _rec_ex = ThreadPoolExecutor(max_workers=2)
+    _f_genie = _rec_ex.submit(_genie_recurrence_fields, target, indication)
+    _f_pooled = _rec_ex.submit(_pooled_recurrence_fields, target, indication)
+    _rec_ex.shutdown(wait=False)   # no more tasks; the two submitted reads run to completion
+
+    def _recurrence_fields() -> dict:
+        return {**_f_genie.result(), **_f_pooled.result()}
+
     # Predicate pushdown on (indication, gene_symbol) — LOCAL-CACHE-FIRST then the registered
     # S3 product (tcga-mc3-hotspot-frequency-v1). None → neither local file nor S3 resolvable.
     table = _read_product_table(
@@ -274,9 +291,8 @@ def read_hotspot_summary(
             "driver_recurrence_context": None,
             # GENIE is a SEPARATE cohort/source — fetch it even when the MC3 aggregate is absent
             # (a gene missing from MC3 may still be mutated in GENIE's panel cohort; the comparators
-            # are independent). Graceful data_unavailable if GENIE also lacks it.
-            **_genie_recurrence_fields(target, indication),
-            **_pooled_recurrence_fields(target, indication),
+            # are independent). Graceful data_unavailable if GENIE also lacks it. (Prefetched concurrently.)
+            **_recurrence_fields(),
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
@@ -306,9 +322,8 @@ def read_hotspot_summary(
                 f"(TCGA-MC3 aggregate); target itself has zero mutations"
             ),
             # GENIE independent of MC3: a target with zero MC3 mutations may still be mutated in
-            # GENIE's panel cohort — the informative cross-source disagreement.
-            **_genie_recurrence_fields(target, indication),
-            **_pooled_recurrence_fields(target, indication),
+            # GENIE's panel cohort — the informative cross-source disagreement. (Prefetched concurrently.)
+            **_recurrence_fields(),
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
@@ -342,8 +357,8 @@ def read_hotspot_summary(
         # GENIE (higher-N, panel-coverage-correct) recurrence — the DISTINCT sibling comparator to the
         # MC3 driver_recurrence_* above (whole-exome breadth vs 40k-patient panel). Graceful-degrade:
         # data_unavailable when GENIE has no cohort/coverage for this (target, indication).
-        **_genie_recurrence_fields(target, indication),
-        **_pooled_recurrence_fields(target, indication),
+        # (GENIE + pooled prefetched concurrently with the MC3 read above.)
+        **_recurrence_fields(),
         "hotspot_frequencies": [
             {
                 "protein_change": r["hotspot_protein_change"],

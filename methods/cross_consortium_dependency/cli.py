@@ -63,8 +63,15 @@ def read_cross_consortium_dependency(target: str, indication: Optional[str] = No
     """
     if not target:
         return {"cross_consortium_class": "data_unavailable", "_note": "target required."}
-    broad = _consortium_frac(_BROAD, target)
-    sanger = _consortium_frac(_SANGER, target)
+    # Broad (Achilles) and Sanger (Project Score) gene-effect matrices are independent full-object reads;
+    # fetch them CONCURRENTLY so the two S3 downloads overlap (I/O-bound → real wall-clock win despite the
+    # GIL). Byte-identical: each side returns its own (frac_dependent, n_lines, median) or None.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_broad = ex.submit(_consortium_frac, _BROAD, target)
+        f_sanger = ex.submit(_consortium_frac, _SANGER, target)
+        broad = f_broad.result()
+        sanger = f_sanger.result()
     if broad is None and sanger is None:
         return {"cross_consortium_class": "data_unavailable", "target": target,
                 "_note": f"{target} in neither Broad nor Sanger gene-effect matrix."}
