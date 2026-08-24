@@ -12,8 +12,11 @@ registry) into an in-memory index and answers four kinds of question —
 Per the framework's layer-distinction discipline (mirrored verbatim from
 dge_deseq2/read.py): reading + filtering catalog YAML is *compute*, not
 *orchestration*. It belongs here in analysis-methods, not in skills/. This
-module makes NO orchestration decisions, performs NO network/S3 access, and
-NEVER writes — it is a pure function of the on-disk catalog.
+module makes NO orchestration decisions, performs NO network/S3 access, and NEVER mutates the
+catalog — it is a pure function of the on-disk catalog. Its one sanctioned write is an atomic,
+self-invalidating memoization of the BUILT INDEX to a temp cache dir (a derived artifact keyed by a
+signature over the catalog inputs — see load_catalog); that is an optimization, never a catalog
+mutation, and it fails open to a fresh build on any error.
 
 Consumers:
   - the catalog-query skill (claude-oncology-skills) via the cli.py subprocess
@@ -33,8 +36,11 @@ Companion (read, never written):
 
 from __future__ import annotations
 
+import hashlib
 import os
+import pickle
 import re
+import tempfile
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -691,6 +697,89 @@ def _load_indication_configs(root: Path) -> dict[str, dict]:
     return configs
 
 
+# --- disk-persisted CatalogIndex cache -------------------------------------------------------------
+# Building the index parses ALL ~442 manifest YAMLs (~0.85s cold). That parse dominates the ~1.1s
+# fixed post-read pipeline of EVERY skill run (envelope.py's governance block resolves the run's used
+# manifest_ids to their catalog HEAD / content-md5, which loads the whole catalog). The @lru_cache
+# below serves the in-process warm path, but each fresh process (a skill CLI run, or a forked
+# read-pool worker) pays the cold parse again. So we ALSO persist the built index to a pickle keyed by
+# a signature over every catalog input file's (path, size, mtime_ns): a matching cache unpickles in
+# ~0.02s instead of re-parsing 442 YAMLs. The cache is CORRECTNESS-SUBORDINATE — any signature miss
+# rebuilds, and any cache read/write error fails open to a fresh in-memory build.
+_CATALOG_INDEX_CACHE_VERSION = 1  # BUMP on any change to CatalogIndex/ManifestRecord shape or build logic
+
+
+def _catalog_input_files(root: Path, contracts_root: Path) -> list[Path]:
+    """Every on-disk file load_catalog reads, in stable sorted order. The disk-cache validity
+    signature is computed over these, so ANY add/remove/edit of a catalog input invalidates a stale
+    cached index. Mirrors the exact set the builder + _load_* helpers touch."""
+    files: list[Path] = []
+    for sub in ("sources", "derived"):
+        files += sorted((root / "manifests" / sub).glob("*.yaml"))
+    sgc = root / "subgroup-catalogs"
+    if sgc.exists():
+        files += sorted(sgc.rglob("*.yaml"))
+    ic = root / "indication-configs"
+    if ic.exists():
+        files += sorted(ic.glob("*.yaml"))
+    products = contracts_root / "vocabularies" / "products.yaml"
+    if products.exists():
+        files.append(products)
+    return files
+
+
+def _catalog_signature(root: Path, contracts_root: Path) -> str:
+    """A cheap, airtight validity fingerprint of the catalog inputs: version + roots + every input
+    file's (path, size, mtime_ns). ~450 stat() calls (~0.03s) — an add/remove/edit of any manifest,
+    subgroup-catalog, indication-config, or products.yaml changes the digest, so a stale index is
+    never served."""
+    h = hashlib.sha256()
+    h.update(f"v{_CATALOG_INDEX_CACHE_VERSION}\0{root}\0{contracts_root}\0".encode())
+    for p in _catalog_input_files(root, contracts_root):
+        try:
+            st = p.stat()
+            h.update(f"{p}\0{st.st_size}\0{st.st_mtime_ns}\0".encode())
+        except OSError:
+            h.update(f"{p}\0MISSING\0".encode())
+    return h.hexdigest()[:16]
+
+
+def _catalog_cache_dir() -> Path:
+    """Where persisted indices live. Override with CATALOG_INDEX_CACHE_DIR; defaults to a temp-dir
+    subfolder (per-user, cleared on reboot). NOT inside the data-catalog repo (would need gitignore +
+    the root may be read-only in CI)."""
+    override = os.environ.get("CATALOG_INDEX_CACHE_DIR")
+    return Path(override) if override else Path(tempfile.gettempdir()) / "onc_catalog_index"
+
+
+def _write_catalog_cache(cache_file: Path, idx: "CatalogIndex") -> None:
+    """Atomically persist the index (temp file + os.replace) so a concurrent reader never sees a
+    partial pickle, then prune this root's stale-signature pickles. Best-effort: any failure
+    (read-only fs, race, pickling issue) is swallowed — the caller already holds the fresh index."""
+    try:
+        d = cache_file.parent
+        d.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(d), prefix=".catalog-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as f:  # index-cache-write: derived memoization artifact, not a catalog file
+                pickle.dump(idx, f, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(tmp, cache_file)
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        # Prune older cached indices for THIS root (same prefix, different signature). The prefix is
+        # root-derived so we never delete a sibling checkout's / CI's valid cache.
+        prefix = cache_file.name.rsplit("-", 1)[0]  # "catalog-<roothash>"
+        for old in d.glob(f"{prefix}-*.pkl"):
+            if old.name != cache_file.name:
+                try:
+                    old.unlink()
+                except OSError:
+                    pass
+    except Exception:  # noqa: BLE001 — persistence is an optimization, never a correctness gate
+        pass
+
+
 @lru_cache(maxsize=4)
 def load_catalog(
     root: Path = DATA_CATALOG,
@@ -701,7 +790,40 @@ def load_catalog(
     Walks manifests/{sources,derived}/*.yaml, computes the reverse cited_by
     graph from derived_from + subgroup-catalog citations (the single source of
     truth, matching validate_catalog.py), and attaches the products consumer map.
+
+    PERF: the build parses ~442 manifest YAMLs (~0.85s cold). The @lru_cache above serves the
+    in-process warm path; ACROSS processes we serve a disk-persisted pickle keyed by
+    _catalog_signature (unpickles in ~0.02s). The persisted index is byte-equivalent to a fresh
+    build (guarded by test_index_disk_cache.py); any signature miss rebuilds, and any cache
+    read/write error fails open to a fresh build. Kill-switch: CATALOG_INDEX_CACHE=0.
     """
+    if os.environ.get("CATALOG_INDEX_CACHE") == "0":
+        return _build_catalog_index(root, contracts_root)
+    try:
+        sig = _catalog_signature(root, contracts_root)
+        root_hash = hashlib.sha256(f"{root}\0{contracts_root}".encode()).hexdigest()[:8]
+        cache_file = _catalog_cache_dir() / f"catalog-{root_hash}-{sig}.pkl"
+        if cache_file.exists():
+            try:
+                with cache_file.open("rb") as f:
+                    idx = pickle.load(f)
+                if isinstance(idx, CatalogIndex):
+                    return idx
+            except Exception:  # noqa: BLE001 — corrupt/incompatible pickle → rebuild
+                pass
+        idx = _build_catalog_index(root, contracts_root)
+        _write_catalog_cache(cache_file, idx)
+        return idx
+    except Exception:  # noqa: BLE001 — the disk cache must NEVER break catalog correctness
+        return _build_catalog_index(root, contracts_root)
+
+
+def _build_catalog_index(
+    root: Path = DATA_CATALOG,
+    contracts_root: Path = TARGET_CONTRACTS,
+) -> CatalogIndex:
+    """The uncached build: parse the catalog YAMLs into a CatalogIndex. Called by load_catalog on a
+    disk-cache miss (or when the cache is disabled)."""
     manifests: dict[str, ManifestRecord] = {}
     for sub in ("sources", "derived"):
         for path in sorted((root / "manifests" / sub).glob("*.yaml")):
