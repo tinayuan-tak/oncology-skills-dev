@@ -231,3 +231,19 @@ def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
         f"(the GROUP-0 rung that kept the hold).")
     # A HOLD, not a downgrade → no mechanism-conditioning note.
     assert h.get("mechanism_conditioning_note") is None
+
+
+@pytest.mark.parametrize("pair_id,target,indication,_exp", DOWNGRADE,
+                         ids=[p[1].lower() for p in DOWNGRADE])
+def test_per_modality_safety_verdict_emitted(pair_id, target, indication, _exp):
+    """Layer-2b wire-in: the additive per-modality safety verdict is emitted and, for a GoF driver
+    carrying WT-loss warnings, splits by wt_engagement — small_molecule=conditional (allele-selective
+    spares WT), degrader=hold (depletes WT), surface=not_applicable. Verdict-INERT: the scalar
+    safety_verdict is unchanged (asserted by test_gof_driver_gets_mutant_selective_downgrade)."""
+    d = _decision(pair_id, target, indication)
+    vbm = (d.get("headline") or {}).get("safety_verdict_by_modality")
+    assert vbm, f"safety_verdict_by_modality missing for {target}/{indication}"
+    assert vbm["small_molecule"]["action"] == "conditional", vbm["small_molecule"]
+    assert vbm["degrader"]["action"] == "hold", vbm["degrader"]
+    for ch in ("adc", "bite_tce", "antibody"):
+        assert vbm[ch]["action"] == "not_applicable", (ch, vbm[ch])

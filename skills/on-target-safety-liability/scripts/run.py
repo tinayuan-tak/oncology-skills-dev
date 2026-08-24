@@ -21,6 +21,7 @@ from _skills_common.safety_question_table import safety_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.modality_safety import safety_verdict_by_modality
 
 
 SKILL_NAME = "on-target-safety-liability"
@@ -332,6 +333,13 @@ def _headline(cards, fired, verdict_pair):
     # cross-evidence agent via _synthesis_facet. Never feeds the safety verdict.
     hl["claim_vector"] = safety_claim_vector(hl, cards)
     hl["key_signals"] = safety_key_signals(hl, cards)
+    # PER-MODALITY safety verdict (VERDICT_REPRESENTATION.md Layer-2b, ADDITIVE/verdict-INERT).
+    # Crosses the WT-loss safety concerns (wt_loss_safety_conditioning.yaml) against each modality's
+    # wt_engagement (modality.enum.yaml): engages_wt (degrader/RNA) -> hold; conditional (small_molecule)
+    # -> allele-selective agents spare WT; not_applicable (surface) -> dropped. The HONEST replacement
+    # for the scalar `safety_verdict`'s GoF-role-proxy downgrade. Does NOT feed the scalar or the gate
+    # yet (the gate-swap + retirement of the 6 role-proxy rungs is a separate calibration-verified change).
+    hl["safety_verdict_by_modality"] = safety_verdict_by_modality(fired)
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
