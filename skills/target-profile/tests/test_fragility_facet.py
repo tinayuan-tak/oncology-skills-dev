@@ -250,3 +250,45 @@ def test_measured_negative_kill_is_not_an_acquire_task(tmp_path):
     sr = _sr(safety=(["safety-killer"], ("highly_constrained_safety_concern", "safety-killer")))
     f = run._fragility_facet(sr, contracts_repo=c)
     assert "safety" not in {a["axis"] for a in f["acquisition_backlog"]}
+
+
+# ── M4 insufficient-split: the factored record's finding.availability drives a THIRD action class ──
+
+def test_measured_insufficient_is_a_strengthen_task_not_acquire(tmp_path):
+    """The record resolves the state the has_signal/blind logic could not: a MEASURED-but-underpowered
+    verdict (finding.availability=='insufficient') HAS signal (so it is not blind/acquire) yet is thin
+    → it lands in `underpowered_axes` with action 'strengthen', NOT in acquisition_backlog."""
+    c = _fixture_contracts(tmp_path)
+    sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))  # has signal
+    sr["dependency"]["claim_record_shadow"] = {"axis": "dependency",
+                                               "finding": {"availability": "insufficient"}}
+    f = run._fragility_facet(sr, contracts_repo=c)
+    up = {a["axis"]: a for a in f["underpowered_axes"]}
+    assert "dependency" in up, "a measured-underpowered axis must surface as a STRENGTHEN task"
+    assert up["dependency"]["action"] == "strengthen"
+    assert up["dependency"]["availability"] == "insufficient"
+    assert "dependency" not in {a["axis"] for a in f["acquisition_backlog"]}  # has signal → not acquire
+
+
+def test_acquire_entry_carries_record_availability(tmp_path):
+    """An open-world ACQUIRE entry is tagged with the record's axis-level absence TYPE (authoritative
+    over the per-missing-card availability_state)."""
+    c = _fixture_contracts(tmp_path)
+    sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))
+    sr["safety"] = {"skill_dir": "safety",
+                    "cards": [{"card_id": "gnomad-lof-constraint", "_missing": True,
+                               "availability_state": "data_blocked"}],
+                    "fired": [], "verdict": None,
+                    "claim_record_shadow": {"axis": "safety", "finding": {"availability": "not_wired"}}}
+    f = run._fragility_facet(sr, contracts_repo=c)
+    ab = {a["axis"]: a for a in f["acquisition_backlog"]}
+    assert ab["safety"]["availability"] == "not_wired"
+
+
+def test_no_underpowered_axes_without_a_record(tmp_path):
+    """Backward-compat: with no claim_record_shadow present (pre-M1 sub_results), underpowered_axes is
+    empty and acquisition_backlog is unchanged."""
+    c = _fixture_contracts(tmp_path)
+    sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))
+    f = run._fragility_facet(sr, contracts_repo=c)
+    assert f["underpowered_axes"] == []

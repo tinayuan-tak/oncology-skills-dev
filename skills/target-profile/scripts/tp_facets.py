@@ -1035,6 +1035,16 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     # gate's veto/hold hits (surfaced there); this list is the "go measure X" backlog the composed layer
     # otherwise drops. Verdict-INERT (fragility facet); names the missing cards + their availability_state.
     acquisition_backlog: list[dict] = []
+    # M4 insufficient-split (first factored-record CONSUMER): the record's finding.availability is the
+    # authoritative per-axis absence TYPE. It resolves a THIRD state the has_signal/blind logic could not
+    # express — a MEASURED-but-UNDERPOWERED verdict (availability=='insufficient'): the axis HAS signal
+    # (so it is not blind/acquire) yet the call is thin. That licenses a distinct action — STRENGTHEN
+    # (add cohort/power), not ACQUIRE (wire/get data) and not KILL (measured negative). Sourced from
+    # claim_record_shadow[short].finding.availability (the M1 shadow), verdict-INERT.
+    underpowered_axes: list[dict] = []
+
+    def _record_availability(res: dict):
+        return (((res or {}).get("claim_record_shadow") or {}).get("finding") or {}).get("availability")
     for short in sorted(decision_shorts):
         r = sub_results.get(short)
         if r is None:
@@ -1059,6 +1069,9 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
             acquisition_backlog.append({
                 "axis": short, "gate": gate, "coverage": coverage,
                 "action": "acquire",   # held by IGNORANCE → go measure; never a KILL
+                # M4: the record's axis-level absence TYPE (not_wired / data_blocked / read_error),
+                # authoritative over the per-missing-card availability_state above. None if no shadow.
+                "availability": _record_availability(r),
                 "missing_cards": missing,
             })
             continue
@@ -1117,6 +1130,17 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     target_index = round(max(fragilities), 4) if fragilities else None
     recommendation_fragility_index = round(max(rec_fragilities), 4) if rec_fragilities else None
 
+    # M4 insufficient-split pass: an axis whose factored record reports a MEASURED-but-underpowered
+    # verdict (finding.availability == 'insufficient') is neither blind (acquire) nor a measured
+    # negative (kill) — it is a thin call that licenses STRENGTHEN (add power). Sourced authoritatively
+    # from the record, independent of the flip/coverage machinery above. Verdict-INERT.
+    for short in sorted(decision_shorts):
+        if _record_availability(sub_results.get(short)) == "insufficient":
+            underpowered_axes.append({
+                "axis": short, "gate": _SHORT_TO_GATE.get(short),
+                "action": "strengthen", "availability": "insufficient",
+            })
+
     ct = _load_contested_threshold(contracts_repo)
     contested = None
     if ct is not None and recommendation_fragility_index is not None:
@@ -1129,6 +1153,7 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
         "decision_relevant_axes": sorted(decision_shorts),
         "blind_decision_axes": blind_decision_axes,
         "acquisition_backlog": acquisition_backlog,
+        "underpowered_axes": underpowered_axes,
         "per_axis": per_axis,
         "_basis": "target_index = worst-case DECISION-flip (any role change: how solid is each axis's "
                   "call). recommendation_fragility_index = worst-case KILL-boundary-crossing flip (how "
