@@ -51,6 +51,11 @@
           "driving_rule": {
             "type": "string",
             "description": "OPTIONAL explicit driving_rule_id for the rung (must be one of the rung's own rule_ids). Used mainly with when_all_fired to name WHICH of the conjoined rules is the provenance anchor. Defaults: when_fired → its rule; when_any_fired → first-fired; when_all_fired → last listed."
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPTIONAL explicit precedence (0 = highest), used only when the resolver's `evaluation` is `match_all_reduce` (the Fold — VERDICT_REPRESENTATION_FOLD.md). Makes precedence EXPLICIT DATA instead of positional: match-all-then-reduce evaluates every rung and returns the matching rung of MINIMUM priority, so rung ORDER no longer affects the result (R6 order-independence). Set priority = the rung's current ladder index to be byte-equivalent to first-match by construction. Ignored under the default `first_match` evaluation."
           }
         },
         "oneOf": [
@@ -64,6 +69,10 @@
       "type": "string",
       "description": "The verdict when NO rung matches (typically 'insufficient'). driving_rule_id is null for the default. Making the default EXPLICIT is what lets the exhaustiveness validator prove there is no silent fall-through.",
       "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "evaluation": {
+      "enum": ["first_match", "match_all_reduce"],
+      "description": "How the shared interpreter evaluates this ladder. `first_match` (DEFAULT when absent — back-compat): the earliest matching rung wins (implicit positional precedence). `match_all_reduce` (the Fold — VERDICT_REPRESENTATION_FOLD.md): evaluate ALL rungs, return the matching rung of minimum `priority` — precedence is EXPLICIT DATA and rung order is irrelevant (R6). A `match_all_reduce` resolver MUST give every rung a unique `priority`; set them to the ladder indices to remain byte-equivalent to first_match by construction."
     }
   }
 }
