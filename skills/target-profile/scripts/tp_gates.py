@@ -35,11 +35,16 @@ _SAFETY_WT_LOSS_CONCERNS = frozenset({
     "highly_constrained_safety_concern", "human_genetics_safety_concern",
     "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",
 })
-# Only an allele-selective escape (small_molecule=conditional) clears a fired WT-loss concern — matching
-# the retired resolver downgrade's GoF-only scope (behavior-preserving). 'no_concern'/'not_applicable'/
-# 'supportive' never legitimately co-occur with a fired concern; excluding them also stops a minimal/empty
-# fired list from spuriously clearing a real hold (fail-closed).
+# An allele-selective escape (small_molecule=conditional) UNCONDITIONALLY clears a fired WT-loss concern
+# — matching the retired resolver downgrade's GoF-only scope. 'no_concern'/'supportive' never legitimately
+# co-occur with a fired concern; excluding them also stops a minimal/empty fired list from spuriously
+# clearing a real hold (fail-closed). 'not_applicable' (biologics) is handled SEPARATELY in the
+# exists-safe-modality block (T2c) — it clears a WT-loss hold ONLY when the biologics arm is viable
+# (explicit biologics --modality or a favorable surface fit), never unconditionally.
 _SAFETY_SAFE_ACTIONS = frozenset({"conditional"})
+# Surface-directed biologics channels: WT-loss is not their operative safety axis (they report
+# safety action=not_applicable). Kept in sync with modality_safety.py's not_applicable engagement set.
+_BIOLOGICS_CHANNELS = frozenset({"adc", "bite_tce", "antibody"})
 
 
 
@@ -390,14 +395,32 @@ def _suppressed_gate_hits(
         #   --modality specified → THAT channel's action must be safe (a degrader run keeps the hold);
         #   enumerate-all        → ANY applicable channel safe (an allele-selective SM exists) clears it.
         # Non-GoF constrained targets (all channels hold) are NOT cleared → the hold correctly stands.
+        #
+        # T2c (2026-08-25): a BIOLOGICS channel (adc/bite_tce/antibody) reports action=not_applicable —
+        # WT-loss is not that modality's operative safety axis (an ADC/TCE does not deplete WT protein),
+        # so a WT-loss hold is irrelevant to it. But not_applicable alone must NOT clear: EVERY target
+        # (incl. a purely intracellular one with no surface arm) reports not_applicable on those
+        # unreachable channels, so treating it as safe unconditionally would GLOBALLY defeat the WT-loss
+        # hold. Gate it on the biologics arm being VIABLE — an explicitly-declared biologics --modality,
+        # or (enumerate-all) a FAVORABLE surface_modality fit. This is the amp-selective-ADC case
+        # (ERBB2): no allele-selective SM escape, but a viable ADC arm to which WT-loss does not apply.
         if suppressed_by is None and h["short"] == "safety" and h["verdict"] in _SAFETY_WT_LOSS_CONCERNS:
             _sfired = (sub_results.get("safety") or {}).get("fired") or []
             _vbm = safety_verdict_by_modality(_sfired, str(contracts_repo) if contracts_repo else None)
+            _surface_ok = surface_verdict in _SURFACE_FAVORABLE_VERDICTS
+
+            def _channel_is_safe(ch: str, action: Optional[str]) -> bool:
+                if action in _SAFETY_SAFE_ACTIONS:            # allele-selective SM escape (GoF)
+                    return True
+                if action == "not_applicable" and ch in _BIOLOGICS_CHANNELS:
+                    # WT-loss n/a to a biologic — clears only if that arm is genuinely viable.
+                    return (modality == ch) or (modality is None and _surface_ok)
+                return False
+
             if modality:
-                _safe = _vbm.get(modality, {}).get("action") in _SAFETY_SAFE_ACTIONS
-                _chans = [modality] if _safe else []
+                _chans = [modality] if _channel_is_safe(modality, _vbm.get(modality, {}).get("action")) else []
             else:
-                _chans = sorted(ch for ch, c in _vbm.items() if c["action"] in _SAFETY_SAFE_ACTIONS)
+                _chans = sorted(ch for ch, c in _vbm.items() if _channel_is_safe(ch, c.get("action")))
             if _chans:
                 suppressed_by = {"kind": "exists_safe_modality", "safe_channels": _chans}
         if suppressed_by:

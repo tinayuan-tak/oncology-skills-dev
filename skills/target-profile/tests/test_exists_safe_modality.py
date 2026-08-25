@@ -52,3 +52,57 @@ def test_degrader_scoped_run_keeps_hold():
 def test_sm_scoped_run_rescued():
     survives, _ = _survives(_GOF, modality="small_molecule")
     assert not survives, "small_molecule-scoped GoF driver is allele-selective-rescuable"
+
+
+# --- T2c (2026-08-25): biologics not_applicable clears a WT-loss hold iff the arm is VIABLE ---
+# ERBB2-shape: amplification-driven, NO allele-selective SM escape (_AMP → small_molecule=hold), so the
+# pre-T2c gate kept the WT-loss hold on every channel. But an ADC engages the amplified surface antigen
+# without depleting WT protein — WT-loss is not_applicable to it. The hold should clear WHEN the ADC arm
+# is viable (favorable surface fit or an explicit biologics --modality), and ONLY then.
+
+def _survives_surface(fired, surface_verdict, modality=None):
+    """exists-safe-modality with a surface_modality sub-verdict present (for the biologics-viability
+    co-condition)."""
+    subs = {"safety": {"fired": fired, "verdict": ("highly_constrained_safety_concern", "x")},
+            "surface_modality": {"verdict": (surface_verdict, "adc-tce-fit")}}
+    survivors, supp = tp_gates._suppressed_gate_hits(list(_HIT), subs, modality)
+    return any(h["short"] == "safety" for h in survivors), supp
+
+
+def test_amp_adc_cleared_when_surface_favorable_enumerate_all():
+    """ERBB2 amp-selective ADC: no SM escape, but a FAVORABLE surface fit → the WT-loss hold clears via
+    the viable ADC arm (not_applicable). This is the T2c fix."""
+    survives, supp = _survives_surface(_AMP, "adc_preferred_tce_unsafe")
+    assert not survives, "amp-driven target with a viable ADC arm should clear the WT-loss hold"
+    rec = next(s for s in supp if s.get("suppressed_by", {}).get("kind") == "exists_safe_modality")
+    assert "adc" in rec["suppressed_by"]["safe_channels"]
+
+
+def test_amp_not_cleared_when_surface_not_viable():
+    """Guard: amp-driven target with NO viable surface arm (neither_viable) → the WT-loss hold STANDS
+    (not_applicable does not clear an unusable channel)."""
+    survives, _ = _survives_surface(_AMP, "neither_viable")
+    assert survives, "no allele-selective escape AND no viable biologics arm → hold must stand"
+
+
+def test_amp_adc_cleared_when_modality_explicitly_adc():
+    """An explicit --modality adc clears the WT-loss hold even without a surface sub-verdict (the user is
+    asking about the ADC channel, to which WT-loss does not apply)."""
+    survivors, supp = tp_gates._suppressed_gate_hits(
+        list(_HIT), {"safety": {"fired": _AMP, "verdict": ("highly_constrained_safety_concern", "x")}},
+        "adc")
+    assert not any(h["short"] == "safety" for h in survivors)
+
+
+def test_amp_degrader_keeps_hold_even_with_favorable_surface():
+    """A degrader-scoped run keeps the WT-loss hold even when the surface arm is favorable — a degrader
+    depletes WT protein (action=hold), and not_applicable-clearance is biologics-only."""
+    survives, _ = _survives_surface(_AMP, "adc_preferred_tce_unsafe", modality="degrader")
+    assert survives, "degrader depletes WT → WT-loss hold must stand regardless of surface viability"
+
+
+def test_intracellular_not_cleared_by_biologics_without_viability():
+    """The over-clear guard: a non-GoF constrained target with NO surface sub-verdict (biologics arm not
+    viable) must NOT have its WT-loss hold cleared just because biologics report not_applicable."""
+    survives, _ = _survives(_NONGOF)  # no surface_modality present → biologics arm not viable
+    assert survives, "not_applicable must not clear a hold when the biologics arm is not viable"
