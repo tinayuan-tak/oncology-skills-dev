@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 SKILLS = Path(__file__).resolve().parents[2]
@@ -24,6 +25,23 @@ if str(SKILLS) not in sys.path:
 
 import _skills_common.measurement_types as MT  # noqa: E402
 from _skills_common.envelope import assemble_evidence_package  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _reset_measurement_types_cache():
+    """These tests repoint MEASUREMENT_TYPES_YAML at a hermetic fixture and clear the memoized
+    registry readers so the fixture (not the real registry) is used. `monkeypatch.setenv` reverts the
+    env var at teardown, but it CANNOT un-poison the lru_cache — so without an explicit teardown clear
+    the fixture (or the intentionally-missing-file registry) LEAKS into every later test in the
+    session. That silently broke the cross-evidence spine contract guard
+    (skills/tests/test_cross_evidence_spine_contract.py), which then saw `cards[].evidence_substrate`
+    vanish only when run AFTER this module. Clear on BOTH sides so each test — here and downstream —
+    re-reads the real registry."""
+    MT._load_registry.cache_clear()
+    MT._card_to_type_map.cache_clear()
+    yield
+    MT._load_registry.cache_clear()
+    MT._card_to_type_map.cache_clear()
 
 
 _FIXTURE_REGISTRY = {

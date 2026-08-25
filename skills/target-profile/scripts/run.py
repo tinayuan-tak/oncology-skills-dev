@@ -121,6 +121,36 @@ def _normalize_modality(raw: str) -> Optional[str]:
     return None
 
 
+# The AWS account that owns the onc-compbio derived-products bucket every sub-skill reads from
+# (the cbg profile → 557690623046). Overridable (comma-list) for other authorized accounts via env.
+_ONC_COMPBIO_ACCOUNT_IDS = frozenset(
+    a.strip() for a in os.environ.get("ONC_COMPBIO_ACCOUNT_IDS", "557690623046").split(",") if a.strip())
+
+
+def _preflight_data_access() -> "tuple[bool, str]":
+    """Best-effort probe that the ambient AWS identity can read the onc-compbio derived-products
+    bucket the fan-out depends on. Uses STS get_caller_identity (a permission-free call — no
+    s3:ListBucket needed, so it can't false-fail on a read-only role) and checks the resolved
+    ACCOUNT against the onc-compbio account set. This precisely catches the classic trap where
+    AWS_PROFILE defaults to a non-onc account (e.g. cmp-dev → 888307857004), under which every live
+    card read returns empty and the whole profile silently degrades to `insufficient` with exit 0.
+    Returns (ok, detail); an unresolvable identity (missing/expired creds) is also a fail. Never
+    raises."""
+    try:
+        import boto3
+        from botocore.config import Config
+        ident = boto3.client("sts", config=Config(connect_timeout=5, read_timeout=5,
+                                                   retries={"max_attempts": 2})).get_caller_identity()
+        acct = ident.get("Account")
+    except Exception as e:  # noqa: BLE001 — any resolution failure is a preflight fail, never a crash
+        return False, f"could not resolve AWS identity ({type(e).__name__}: {e})"
+    prof = os.environ.get("AWS_PROFILE", "<default-chain>")
+    if acct not in _ONC_COMPBIO_ACCOUNT_IDS:
+        return False, (f"AWS identity resolves to account {acct} (AWS_PROFILE={prof}), NOT an "
+                       f"onc-compbio account {sorted(_ONC_COMPBIO_ACCOUNT_IDS)}")
+    return True, f"account {acct} (AWS_PROFILE={prof})"
+
+
 # Run log (development + provenance): tee stdout+stderr to <out>/run.log. The tee lives in
 # _skills_common.run_log (shared with the focused skills' dispatcher); re-exported under the
 # original private names so the composer + its tests reach it as run._install_run_log / _restore_run_log.
@@ -230,6 +260,14 @@ def main() -> int:
                          "the deterministic recommendation/confidence spine is byte-identical; this "
                          "flag changes ONLY what the LLM narration sees, so an A/B run can measure "
                          "the block's effect on the prose. Not for production use.")
+    ap.add_argument("--allow-degraded-data", action="store_true",
+                    help="Escape hatch: SKIP the data-access preflight (STS account check for the "
+                         "onc-compbio derived-products account). By DEFAULT a run whose AWS identity "
+                         "is NOT the onc-compbio account aborts non-zero — because every live card "
+                         "read would silently come back empty (all-`insufficient` verdicts, exit 0), "
+                         "which would quietly invalidate an at-scale batch. Pass this ONLY for an "
+                         "intentional cache-only / offline run. (env TARGET_PROFILE_SKIP_PREFLIGHT=1 "
+                         "has the same effect.)")
     args = ap.parse_args()
 
     # Normalize --modality to a canonical modality.enum.yaml token. The gate's veto-suppression +
@@ -259,6 +297,29 @@ def main() -> int:
     # captured. Torn down before each return via _restore_run_log (and atexit as a backstop).
     _install_run_log(args.out, header={"skill": SKILL_NAME, "skill_version": SKILL_VERSION})
     print(f"[target-profile] run log → {args.out}/run.log", file=sys.stderr)
+
+    # DATA-ACCESS PREFLIGHT (2026-08-25): every sub-skill reads its evidence from the onc-compbio
+    # derived-products bucket. If the ambient AWS identity is the wrong account (the classic trap:
+    # AWS_PROFILE defaults to cmp-dev, not cbg), every live read returns empty and the profile
+    # silently degrades to all-`insufficient` verdicts — exit 0, no error. That would silently
+    # invalidate an at-scale pressure-test batch. Fail LOUD + non-zero here so a batch driver's
+    # per-row exit-code capture flags the row. Escape hatch: --allow-degraded-data or env
+    # TARGET_PROFILE_SKIP_PREFLIGHT=1 (intentional cache-only / offline run). Verdict-inert — on
+    # success it only logs; it never touches the fan-out or the spine.
+    if not (args.allow_degraded_data or os.environ.get("TARGET_PROFILE_SKIP_PREFLIGHT")):
+        _pf_ok, _pf_detail = _preflight_data_access()
+        if not _pf_ok:
+            print("\n" + "=" * 78 +
+                  "\n[target-profile] DATA-ACCESS PREFLIGHT FAILED — aborting (exit 3).\n"
+                  f"  {_pf_detail}\n"
+                  "  Every sub-skill reads derived products from the onc-compbio bucket; without\n"
+                  "  access, ALL verdicts silently degrade to `insufficient` (a hollow profile).\n"
+                  "  FIX:   export AWS_PROFILE=cbg   (then re-run)\n"
+                  "  Offline/cache-only run? pass --allow-degraded-data to skip this check.\n"
+                  + "=" * 78, file=sys.stderr)
+            _restore_run_log()
+            return 3
+        print(f"[target-profile] data-access preflight OK — {_pf_detail}", file=sys.stderr)
 
     # OPTIONAL literature context (display-only, never verdict-affecting): the target-level 6-dim
     # risk_assessment.json + per-axis grounded_<axis>.json records from literature-risk-assessment.
