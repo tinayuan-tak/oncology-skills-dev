@@ -10,7 +10,7 @@
 # defensible against biology + therapeutic-development practice.
 
 rules_id: intracellular-intrinsic
-version: 1.0.0
+version: 1.1.0
 axis: intracellular_intrinsic
 schema_version: 1
 
@@ -2666,6 +2666,36 @@ rules:
       INCLUDES FOLR1 (real kidney tubule) → correctly downgraded (real target + real off-origin organ
       liability; window/modality then arbitrate — NOT a rejection). MSLN reads origin_tissue_liability
       (pleural/lung) → correctly does NOT fire. Modality-lensed (systemic SM/degrader worst).
+
+  - rule_id: tvn-tphp-broad-abundant-normal-protein-veto
+    when:
+      card_id: normal-tissue-protein-abundance-tphp
+      field: tphp_normal_protein_liability_class
+      equals: broad_and_abundant
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+      adc: neutral
+      bite_tce: opposing
+    dominant: true
+    rationale: |
+      QUANTITATIVE NORMAL-PROTEIN abundance veto (normal-breadth liability arm 4, TPHP DIA-MS,
+      2026-08-25). Complements the RNA/atlas-window vetoes (bulk modality-therapeutic-window) and the
+      cell-type sc-normal arm with a MASS-SPEC PROTEIN read of normal-tissue breadth. tphp_normal_
+      protein_liability_class == broad_and_abundant means the target protein is ABUNDANT — at/above a
+      global per-tissue abundance floor (product p75) — across a BROAD count of adult normal tissues
+      (Floor-C), i.e. a genuine broad normal-protein presence, NOT mere DIA trace-level broad detection
+      (a broadly-DETECTED-but-low-abundance protein reads detected_not_abundant and does NOT fire; that
+      is the deliberate CEACAM5-style correction — abundance across breadth, never a single origin/
+      outlier tissue). This is a therapeutic-index concern for agents that engage the target wherever it
+      is present: SM / degrader / BiTE-TCE OPPOSING. ADC is NEUTRAL — the bystander/payload buffer plus
+      internalization requirement blunt a diffuse low-per-cell normal-protein footprint (the ADC arm is
+      arbitrated by surface density + internalization, not by this breadth read). The tumor-selectivity
+      verdict downgrades a selective axis-A call to selective_with_normal_liability when this fires — the
+      4th normal-breadth veto arm, selectivity-PRESERVING (a named-liability flag, not the housekeeping
+      KILL); precedence keeps the window/full-normal KILL above it when both fire. Applied by the
+      skills-side clamp (_skills_common/selectivity_veto.py); no resolver rung (a conjunction the
+      single-rung resolver cannot express) → classified `display` in rule_role_partition.
 
   # ============================================================================
   # Phase D — Signaling-network-mechanism card (added 2026-07-08)
