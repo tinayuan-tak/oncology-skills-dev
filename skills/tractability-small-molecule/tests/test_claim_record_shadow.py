@@ -71,3 +71,28 @@ def test_conforms_to_contract_schema_if_available():
         rec = tr._claim_record([], fired=[], verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{v} -> {[e.message for e in errs]}"
+
+
+# ── D1: degrader channel lifted onto modality_scope._refinements.degrader ────────────────────────
+def test_degrader_favorable_splits_from_intractable_sm(monkeypatch):
+    """The multi-modality story: SM-intractable but degrader-favorable (BRD4/STAT3) — the degrader
+    channel must reflect its OWN measured feasibility, not inherit the SM unfavorable call."""
+    monkeypatch.setattr(tr, "_degrader_snapshot", lambda fired: ("strong_degrader_rationale", "r"))
+    rec = tr._claim_record([], fired=[{"rule_id": "x"}], verdict_pair=("structurally_intractable", None))
+    assert rec["modality_scope"]["small_molecule"] == "unfavorable"
+    assert rec["modality_scope"]["_refinements"]["degrader"] == "favorable"
+
+
+def test_degrader_unviable_and_opposed_map(monkeypatch):
+    monkeypatch.setattr(tr, "_degrader_snapshot", lambda fired: ("degrader_unviable", "r"))
+    r1 = tr._claim_record([], fired=[{"rule_id": "x"}], verdict_pair=("structurally_ligandable", None))
+    assert r1["modality_scope"]["_refinements"]["degrader"] == "unfavorable"
+    monkeypatch.setattr(tr, "_degrader_snapshot", lambda fired: ("degrader_opposed", "r"))
+    r2 = tr._claim_record([], fired=[{"rule_id": "x"}], verdict_pair=("structurally_ligandable", None))
+    assert r2["modality_scope"]["_refinements"]["degrader"] == "conditional"
+
+
+def test_degrader_insufficient_omits_refinement(monkeypatch):
+    monkeypatch.setattr(tr, "_degrader_snapshot", lambda fired: ("insufficient", None))
+    rec = tr._claim_record([], fired=[{"rule_id": "x"}], verdict_pair=("structurally_ligandable", None))
+    assert "_refinements" not in (rec.get("modality_scope") or {})   # keeps SM-base fallback

@@ -134,12 +134,37 @@ def _tract_level(v) -> str:
     return "none"
 
 
-def _tract_modality_scope(v) -> dict | None:
+# degrader-feasibility class (_degrader_snapshot) -> the record's _refinements.degrader favorability.
+# The degrader channel is a MEASURED, degrader-channel-only fired-rule read (NOT the fabricating
+# alteration-class inference #2 rejected): a degrader models COMPLETE removal, so an SM-intractable
+# target can still be a degrader prospect (BRD4 scaffolding, STAT3 TF). Without this, the consumer's
+# degrader channel silently INHERITED the SM base favorability (_CHANNEL_BASE['degrader']=small_molecule)
+# -- parroting the SM call for a channel with its own evidence. insufficient -> omit (keep SM fallback).
+_DEGRADER_CLASS_TO_SCOPE = {
+    "strong_degrader_rationale": "favorable", "degrader_rationale": "favorable",
+    "degrader_opposed": "conditional",        # a degrader-opposing signal fired -- downgrade, not a kill
+    "degrader_unviable": "unfavorable",        # a degrader-killer fired (nothing to degrade)
+}
+
+
+def _tract_modality_scope(v, fired=None) -> dict | None:
+    scope = None
     if v in _TRACTABILITY_POSITIVE:
-        return {"small_molecule": "favorable", "biologics": "na"}
-    if v in _TRACTABILITY_NEGATIVE:
-        return {"small_molecule": "unfavorable", "biologics": "na"}
-    return None                                  # insufficient / open-world → no SM call
+        scope = {"small_molecule": "favorable", "biologics": "na"}
+    elif v in _TRACTABILITY_NEGATIVE:
+        scope = {"small_molecule": "unfavorable", "biologics": "na"}
+    # degrader channel: lift the measured _degrader_snapshot class onto _refinements.degrader so the
+    # per-modality view reflects the ACTUAL degrader-feasibility read, not SM inheritance.
+    if fired is not None:
+        try:
+            deg_class, _drv = _degrader_snapshot(fired)          # reads fired[].signals[degrader]
+        except Exception:  # noqa: BLE001 -- shadow must never crash the run (fired may lack signals)
+            deg_class = "insufficient"
+        deg = _DEGRADER_CLASS_TO_SCOPE.get(deg_class)
+        if deg is not None:
+            scope = dict(scope or {"small_molecule": "na", "biologics": "na"})
+            scope["_refinements"] = {"degrader": deg}
+    return scope                                 # None only when no SM call AND degrader insufficient
 
 
 def _tract_certainty(v) -> dict:
@@ -161,7 +186,7 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
         direction=_tract_direction(v),
         availability=_tract_availability(v),
         magnitude={"level": _tract_level(v)},
-        modality_scope=_tract_modality_scope(v),
+        modality_scope=_tract_modality_scope(v, fired=fired),
         certainty=_tract_certainty(v),
         fired=fired,
         cards=cards,
