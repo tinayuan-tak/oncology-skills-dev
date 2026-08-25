@@ -68,6 +68,7 @@ INDICATION_TO_PRODUCT = {
     "KIRC": "sc-pseudobulk-tumor-3ca-kidney-v1",       # 3CA Kidney — 5 studies / 125 donors / 74 malignant (pan-renal pooled)
     "OV": "sc-pseudobulk-tumor-3ca-ovarian-v1",        # 3CA Ovarian — 11 studies / 115 donors / 106 malignant (pan-gynecologic pooled)
     "STAD": "sc-pseudobulk-tumor-stad-golim-v1",       # Go/Lim gastric atlas (2026, data-catalog #425/#433) — 95 donors / malignant in 88; malignant=Epithelial∩Phenotype==GC (adenocarcinoma proxy, no inferCNV). CLDN18/EPCAM/MUC1/TACSTD2 malignant-enriched (CLDN18 1.23 vs 0.06). Fills the previously-excluded gastric gap (Census 'unknown' tumor label + no 3CA bucket).
+    "BRCA": "sc-pseudobulk-tumor-brca-wu-v1",          # Wu/Swarbrick breast atlas (GSE176078; Nat Genet 2021) — 26 primary tumours (11 ER+ / 5 HER2+ / 10 TNBC); malignant='Cancer Epithelial' author annotation (curated), 20/26 donors with malignant cells. ERBB2 malignant 0.28 / TACSTD2 0.76 / EPCAM 0.74. Fills the previously-empty breast tumour scRNA gap. (data-catalog sc-pseudobulk-tumor-brca-wu-v1)
 }
 
 # Per-product malignant-annotation PROVENANCE (review G11): HOW the malignant compartment was called,
@@ -89,6 +90,7 @@ _PRODUCT_ANNOTATION_METHOD = {
     "sc-pseudobulk-tumor-3ca-kidney-v1":   "infercnv",
     "sc-pseudobulk-tumor-3ca-ovarian-v1":  "infercnv",
     "sc-pseudobulk-tumor-stad-golim-v1":   "phenotype_proxy",
+    "sc-pseudobulk-tumor-brca-wu-v1":      "curated",         # Wu atlas ships an explicit author 'Cancer Epithelial' malignant label (verbatim), like CRC/LuCA — not inferCNV, not a phenotype heuristic.
     # sc-pseudobulk-donor-celltype-lusc-v1 (LUSC): malignant-call method not documented → unspecified.
 }
 # Indications whose malignant compartment is POOLED across a broader entity than the query (so the call

@@ -65,8 +65,9 @@ def test_pair_absent_from_cube_is_data_unavailable(monkeypatch):
 
 
 def test_indication_without_cube_is_data_unavailable(monkeypatch):
-    # BRCA has no entry in INDICATION_TO_SAMECELL_MANIFEST → data_unavailable before any read
-    r = SC.confirm_pair_samecell("EPCAM", "CEACAM5", "BRCA")
+    # SKCM has no entry in INDICATION_TO_SAMECELL_MANIFEST → data_unavailable before any read.
+    # (Was BRCA, but breast now has a landed same-cell cube — sc-samecell-coexpr-brca-wu-v1.)
+    r = SC.confirm_pair_samecell("EPCAM", "CEACAM5", "SKCM")
     assert r["samecell_avidity_call"] == "data_unavailable"
     assert "no same-cell coexpr cube" in r["_data_note"]
 

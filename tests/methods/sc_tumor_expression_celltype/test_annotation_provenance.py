@@ -39,6 +39,13 @@ def test_infercnv_multi_entity_pooled_kirc_ov():
         assert _prov(ind) == {"malignant_annotation_method": "infercnv", "entity_purity": "multi_entity_pooled"}
 
 
+def test_curated_entity_specific_brca():
+    # Wu/Swarbrick breast atlas (GSE176078): malignant = 'Cancer Epithelial' author annotation (verbatim),
+    # a native breast primary-tumour cube → curated + entity_specific (not pooled, not inferCNV/phenotype).
+    assert R.INDICATION_TO_PRODUCT["BRCA"] == "sc-pseudobulk-tumor-brca-wu-v1"
+    assert _prov("BRCA") == {"malignant_annotation_method": "curated", "entity_purity": "entity_specific"}
+
+
 def test_phenotype_proxy_stad():
     # the flagged case: gastric malignant = Epithelial∩GC phenotype, NO inferCNV → weaker provenance
     assert _prov("STAD")["malignant_annotation_method"] == "phenotype_proxy"
