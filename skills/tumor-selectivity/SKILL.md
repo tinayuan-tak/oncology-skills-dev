@@ -3,7 +3,7 @@ name: tumor-selectivity
 description: |
   Focused question skill: "How selectively is target X expressed in tumor
   vs normal for indication Y, and how robust is that call across
-  independent comparators — bulk, single-cell, and in-situ spatial?" Consumes ELEVEN
+  independent comparators — bulk, single-cell, and in-situ spatial?" Consumes TWELVE
   cards across three roles. VERDICT-DRIVING (4): tumor-vs-normal-selectivity (v3,
   four-cell sensitivity; the aggregate axis-A verdict) + the normal-breadth VETO
   instruments modality-therapeutic-window (2 arms) and sc-normal-celltype-expression
@@ -12,9 +12,10 @@ description: |
   (the KILL); the sc-normal critical-organ arm → selective_with_normal_liability (a selectivity-
   PRESERVING named-organ SAFETY flag — approved antigens DLL3/ERBB2/FOLR1 land here; severity owned
   by on-target-safety-liability + modality-fit). CORROBORATION (1):
-  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (6):
+  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (7):
   expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac
-  (RNA→protein tumor-vs-normal corroboration), and the tumor
+  (RNA→protein tumor-vs-normal corroboration), normal-tissue-protein-abundance-tphp
+  (quantitative normal-tissue PROTEIN comparator, TPHP DIA-MS), and the tumor
   SIDE at single-cell + in-situ spatial resolution (tumor-scrna-celltype-expression:
   malignant-cell-intrinsic vs stroma/CAF; spatial-region-rna-expression + spatial-tumor-
   normal-colocalization + spatial-surface-protein-abundance: in-situ tumour enrichment +
@@ -58,6 +59,11 @@ composition:
                                              # protein_effect_size + protein_bh_q_value (CPTAC per-cohort
                                              # TMT-MS). Derived rna_protein_tvn_concordance surfaces the
                                              # RNA-up/protein-flat false-positive (closes caveat #5).
+    - normal-tissue-protein-abundance-tphp   # QUANTITATIVE NORMAL-tissue PROTEIN comparator (verdict-inert):
+                                             # per-tissue DIA-MS protein abundance across 70 adult tissues + 4 fetal
+                                             # germ-layer groups (TPHP; Xu et al. Nature 2026). The normal-PROTEIN
+                                             # baseline the skill lacked (had GTEx-RNA + HPA-IHC categorical breadth).
+                                             # Additive facet; feeds no resolver rung / no clamp.
     - tumor-scrna-celltype-expression        # single-cell, tumor side (verdict-inert): malignant-cell-intrinsic
                                              # vs stroma/CAF — resolves the purity confound at single-cell
                                              # resolution, which expression-purity-confound only proxies via
@@ -86,6 +92,7 @@ composition:
     - expression_purity_confound             # expression-purity-confound (additive caveat)
     - surface_density                        # surface-abundance-density (additive)
     - tumor_protein_abundance                # tumor-protein-abundance-cptac (RNA→protein corroboration, additive)
+    - normal_tissue_protein_abundance        # normal-tissue-protein-abundance-tphp (quantitative normal-PROTEIN comparator, additive)
     - sc_tumor_celltype_expression           # tumor-scrna-celltype-expression (single-cell, additive)
     - spatial_region_rna                     # spatial-region-rna-expression (spatial RNA, additive)
     - spatial_colocalization                 # spatial-tumor-normal-colocalization (spatial, additive)
@@ -110,7 +117,7 @@ composition:
 
 ## What this skill does
 
-- Fetches ELEVEN cards for a single (target, indication) via the compose-dashboard
+- Fetches TWELVE cards for a single (target, indication) via the compose-dashboard
   live-reader dispatcher (reuses the exact same read path Macro uses — no drift):
   - `tumor-vs-normal-selectivity` (v3, four-cell sensitivity) — the aggregate axis-A verdict.
   - `tumor-vs-normal-percentile-crossing` — per-sample corroboration (fraction of
@@ -205,8 +212,8 @@ in the underlying summary).
 
 ## Performance (cold single runs)
 
-The eleven card reads are independent and run concurrently (shared `_skills_common.resolve_cards`),
-so cold wall-clock is bounded by the slowest single read — not the sum of all eleven.
+The twelve card reads are independent and run concurrently (shared `_skills_common.resolve_cards`),
+so cold wall-clock is bounded by the slowest single read — not the sum of all twelve.
 
 A standalone run defaults to a **forked process pool** (set at the `run_wired_skill` entrypoint),
 which bypasses the GIL on the readers' pandas-assembly CPU — the fastest cold path. Combined with the

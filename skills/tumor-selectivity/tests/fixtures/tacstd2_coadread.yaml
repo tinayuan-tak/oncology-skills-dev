@@ -30,6 +30,22 @@ modality-therapeutic-window:
   window_class: essential_tissue_liability
   window_ratio_essential: 0.11
   window_ratio_full_normal: 0.02
+normal-tissue-protein-abundance-tphp:
+  fetal_vs_adult_flag: adult_and_fetal
+  highest_abundance_tissue: tympanum
+  highest_abundance_tissue_class: adult_normal
+  max_detection_rate: 1.0
+  max_median_log2_abundance: 17.284395573737285
+  median_across_tissues_log2_abundance: 14.8693
+  method_version: 0.1.0
+  n_adult_tissues_detected: 55
+  n_adult_tissues_total: 70
+  n_fetal_groups_detected: 4
+  n_fetal_groups_total: 4
+  n_tissues_detected: 59
+  normal_protein_breadth_class: broad_normal_protein
+  per_tissue_abundance: __omitted_from_fixture__ (list, 59 items)
+  uniprot_ac: P09758
 sc-normal-celltype-expression:
   expressing_donor_fraction_max: 1.0
   indication: COADREAD

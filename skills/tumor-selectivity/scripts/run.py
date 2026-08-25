@@ -94,6 +94,15 @@ CARDS = [
                                              # selectivity — the RNA-up/protein-flat false-positive). Feeds
                                              # no resolver rung / no clamp; data_unavailable off the ~10
                                              # CPTAC cohorts (honest abstain).
+    "normal-tissue-protein-abundance-tphp",  # QUANTITATIVE NORMAL-tissue PROTEIN comparator (verdict-inert):
+                                             # per-tissue DIA-MS protein abundance across 70 adult tissues + 4
+                                             # fetal germ-layer groups (TPHP; Xu et al. Nature 2026). The normal-
+                                             # PROTEIN baseline the skill lacked — it had GTEx-RNA + HPA-IHC
+                                             # categorical breadth, but no quantitative normal protein. Surfaces
+                                             # normal_protein_breadth_class + highest-abundance normal tissue as an
+                                             # additive normal-comparator facet (a target RNA-restricted in normal
+                                             # tissue can still be broadly normal-PROTEIN-expressed). Feeds no
+                                             # resolver rung / no clamp; data_unavailable off the TPHP proteome.
     # ── SINGLE-CELL + IN-SITU SPATIAL (tumor side; verdict-inert) ──
     # The bulk four-cell DESeq2 axis-A signal cannot tell whether a "tumor_selective" call is
     # MALIGNANT-cell-intrinsic or driven by CAF/stromal/immune microenvironment content (the purity

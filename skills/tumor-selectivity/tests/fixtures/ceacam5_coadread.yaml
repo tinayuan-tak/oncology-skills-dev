@@ -30,6 +30,22 @@ modality-therapeutic-window:
   window_class: essential_tissue_liability
   window_ratio_essential: 557.83
   window_ratio_full_normal: 44.04
+normal-tissue-protein-abundance-tphp:
+  fetal_vs_adult_flag: adult_and_fetal
+  highest_abundance_tissue: iris
+  highest_abundance_tissue_class: adult_normal
+  max_detection_rate: 1.0
+  max_median_log2_abundance: 20.811783893313024
+  median_across_tissues_log2_abundance: 15.010384
+  method_version: 0.1.0
+  n_adult_tissues_detected: 63
+  n_adult_tissues_total: 70
+  n_fetal_groups_detected: 4
+  n_fetal_groups_total: 4
+  n_tissues_detected: 67
+  normal_protein_breadth_class: broad_normal_protein
+  per_tissue_abundance: __omitted_from_fixture__ (list, 67 items)
+  uniprot_ac: P06731
 sc-normal-celltype-expression:
   expressing_donor_fraction_max: 1.0
   indication: COADREAD

@@ -43,7 +43,7 @@ python3 skills/tumor-selectivity/scripts/run.py \
   --out /tmp/tumor-selectivity/CEACAM5-COADREAD
 ```
 
-A standalone run reads the eleven cards in a **forked process pool by default** (fastest cold run;
+A standalone run reads the twelve cards in a **forked process pool by default** (fastest cold run;
 safely degrades to threads on any failure, byte-identical output) — no env var needed. Set
 `SKILLS_READ_POOL=thread` to force the thread pool (the escape hatch). See SKILL.md § Performance.
 

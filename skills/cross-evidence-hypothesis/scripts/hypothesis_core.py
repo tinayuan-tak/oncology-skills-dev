@@ -111,6 +111,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
         "surface-abundance-density", "tumor-vs-normal-percentile-crossing",
         "tumor-vs-normal-selectivity",
+        # 2026-08-25 — the QUANTITATIVE normal-tissue PROTEIN comparator (TPHP DIA-MS) added to
+        # SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so this mirror must carry it too
+        # (test_dimension_cards_matches_spine). Verdict-inert in tumor-selectivity.
+        "normal-tissue-protein-abundance-tphp",
         # v1.9.0 tumor-side single-cell + spatial facets — added to SUB_SKILL_CARDS[tumor-selectivity]
         # (tp_fanout) so this mirror must carry them too (test_dimension_cards_matches_spine). Verdict-
         # inert in tumor-selectivity; here they let the integrator credit a sc/spatial-surfaced tension.

@@ -309,6 +309,11 @@ SUB_SKILL_CARDS = {
         "surface-abundance-density",             # composer-consistency: the absolute-density facet
                                                  # (verdict-inert; feeds no resolver rung). Surfaces Tier-1
                                                  # copies/cell + modality-floor standing in the composed profile.
+        "normal-tissue-protein-abundance-tphp",  # composer-consistency: the QUANTITATIVE normal-tissue PROTEIN
+                                                 # comparator (TPHP DIA-MS; verdict-inert, feeds no resolver rung).
+                                                 # Surfaces the normal-PROTEIN breadth/abundance facet in the
+                                                 # composed selectivity lens too. Multi-parity list #2 (SUB_SKILL_
+                                                 # CARDS) — mirrored in DIMENSION_CARDS[selectivity] (#3).
         # v1.9.0 (2026-08-17) SINGLE-CELL + SPATIAL — composer-consistency with the standalone CARDS.
         # All verdict-inert (feed no resolver rung); composed here so the malignant-vs-stroma + in-situ
         # spatial evidence also surfaces in the COMPOSED target-profile selectivity lens (not only
