@@ -48,32 +48,61 @@ def load_resolver(gate: str, contracts_repo: Path | None = None) -> Optional[dic
         return None
 
 
-def resolve_verdict(fired: list[dict], spec: dict) -> tuple[str, str | None]:
-    """Evaluate a resolver spec against a list of fired rules → (verdict, driving_rule_id).
-
-    `fired` is the flat list of {rule_id, ...} dicts (the shared fired_rules output). The
-    first matching rung wins (ordered precedence). driving_rule_id fidelity matches the
-    if-chains being replaced:
+def _rung_match(rung: dict, fired_ids: set) -> tuple[bool, str | None]:
+    """SINGLE source of rung-match semantics for BOTH evaluation modes (so first_match and
+    match_all_reduce cannot drift). Returns (matched, driving_rule_id):
       - when_fired      → that rule_id
       - when_any_fired  → the FIRST LISTED rule_id that fired (deterministic tie-break)
       - when_all_fired  → the explicit `driving_rule` if set, else the LAST listed rule_id
-    No rung matches → (spec['default'], None).
+    """
+    if "when_fired" in rung:
+        rid = rung["when_fired"]
+        return (rid in fired_ids, rung.get("driving_rule") or rid)
+    if "when_any_fired" in rung:
+        for rid in rung["when_any_fired"]:          # list order = precedence tie-break
+            if rid in fired_ids:
+                return True, (rung.get("driving_rule") or rid)
+        return False, None
+    if "when_all_fired" in rung:
+        rids = rung["when_all_fired"]
+        if all(rid in fired_ids for rid in rids):
+            return True, (rung.get("driving_rule") or rids[-1])
+        return False, None
+    return False, None
+
+
+def resolve_verdict(fired: list[dict], spec: dict) -> tuple[str, str | None]:
+    """Evaluate a resolver spec against a list of fired rules → (verdict, driving_rule_id).
+
+    `fired` is the flat list of {rule_id, ...} dicts (the shared fired_rules output). Two evaluation
+    modes (spec['evaluation'], default 'first_match'):
+
+      - first_match       (default / legacy): the FIRST matching rung in ladder order wins — the
+        implicit positional precedence the if-chains encoded.
+      - match_all_reduce  (the Fold — VERDICT_REPRESENTATION_FOLD.md): evaluate EVERY rung, then
+        return the matching rung of MINIMUM `priority`. Precedence is EXPLICIT DATA, so rung ORDER is
+        irrelevant (R6 order-independence). With priority = ladder index this is byte-equivalent to
+        first_match by construction (argmin(index) == first match).
+
+    No rung matches → (spec['default'], None). Both modes share `_rung_match`, so they cannot drift.
     """
     fired_ids = {r["rule_id"] for r in fired}
-    for rung in spec.get("resolve", []):
-        verdict = rung["verdict"]
-        if "when_fired" in rung:
-            rid = rung["when_fired"]
-            if rid in fired_ids:
-                return verdict, (rung.get("driving_rule") or rid)
-        elif "when_any_fired" in rung:
-            for rid in rung["when_any_fired"]:          # list order = precedence tie-break
-                if rid in fired_ids:
-                    return verdict, (rung.get("driving_rule") or rid)
-        elif "when_all_fired" in rung:
-            rids = rung["when_all_fired"]
-            if all(rid in fired_ids for rid in rids):
-                return verdict, (rung.get("driving_rule") or rids[-1])
+    rungs = spec.get("resolve", [])
+
+    if spec.get("evaluation") == "match_all_reduce":
+        best: tuple[int, str, str | None] | None = None    # (priority, verdict, driving_rule_id)
+        for i, rung in enumerate(rungs):
+            matched, drv = _rung_match(rung, fired_ids)
+            if matched:
+                pr = rung.get("priority", i)               # explicit priority, else ladder index
+                if best is None or pr < best[0]:           # min priority wins; < → first-seen breaks ties
+                    best = (pr, rung["verdict"], drv)
+        return (best[1], best[2]) if best is not None else (spec["default"], None)
+
+    for rung in rungs:                                     # first_match (default / legacy)
+        matched, drv = _rung_match(rung, fired_ids)
+        if matched:
+            return rung["verdict"], drv
     return spec["default"], None
 
 
