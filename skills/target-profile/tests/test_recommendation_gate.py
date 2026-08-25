@@ -555,7 +555,7 @@ def test_veto_suppressor_triggers_reference_live_shorts_or_composed_cards():
     entry (card-field form). A retired short / dropped card silently disables a suppressor — this
     is exactly how the SL rescue went dead when synthetic_lethal_partners was consolidated. This
     guard fails loudly the next time a consolidation orphans a trigger."""
-    supps, _msvs, _bavd, src = tp._load_veto_suppressors()
+    supps, _msvs, _bavd, _gdvd, src = tp._load_veto_suppressors()
     assert src == "vocab", "guard needs the real sibling-contracts vocab"
     live_shorts = {sh for _sd, sh in tp.SUB_SKILLS} | {tp.SUBTYPE_SHORT}
     composed_cards = ({cid for cards in tp.SUB_SKILL_CARDS.values() for cid in cards}
@@ -666,4 +666,68 @@ def test_intracellular_still_vetoes_even_with_unknown_admitted(tmp_path):
     forced, _hits, _sup = tp._gate_recommendation(
         _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path),
         biology_axis="intracellular_intrinsic")
+    assert forced == "veto"
+
+
+# --- Round-2 (2026-08-25): GoF-DRIVER-scoped dependency-veto downgrade (neomorphic GoF, e.g. IDH1) ---
+# The neomorphic/intracellular slice the surface downgrade can't reach: a confirmed GoF driver
+# (alteration-role GoF) with a pooled non_dependent read should HOLD, not VETO — whole-gene KO !=
+# mutant-selective inhibition. Keyed on the GENOMIC sub-verdict; synthetic vocab so it's independent of
+# the companion contracts block.
+
+def _vocab_with_gof(tmp_path):
+    voc = tmp_path / "vocabularies"; voc.mkdir()
+    (voc / "nomination_verdict_gate.yaml").write_text(
+        "gates:\n"
+        "  - {sub_skill: dependency, verdict: non_dependent, action: veto}\n"
+        "  - {sub_skill: dependency, verdict: pan_essential_killer, action: veto}\n"
+        "gof_driver_scoped_veto_downgrade:\n"
+        "  - downgrades: {sub_skill: dependency, verdict: non_dependent}\n"
+        "    to_action: hold\n"
+        "    when_genomic_verdict_in: [confirmed_driver, multi_class_driver]\n"
+    )
+    return tmp_path
+
+
+def _gof_subs(dep="non_dependent", genomic="confirmed_driver"):
+    return _merge(_sub("dependency", dep, "non-dependent-killer"),
+                  _sub("genomic_alteration", genomic, "alteration-role-gof-driver-supportive"))
+
+
+def test_gof_driver_downgrades_non_dependent_veto_to_hold(tmp_path):
+    """IDH1 R132 shape: non_dependent + confirmed_driver (GoF) → the veto is DOWNGRADED to hold."""
+    forced, hits, sup = tp._gate_recommendation(
+        _gof_subs(), contracts_repo=_vocab_with_gof(tmp_path))
+    assert forced == "hold", (forced, hits)
+    dep_hit = next(h for h in hits if h["short"] == "dependency")
+    assert dep_hit["action"] == "hold" and dep_hit.get("_downgraded_from") == "veto"
+    assert any(s["suppressed_by"]["kind"] == "gof_driver_downgrade" for s in sup)
+
+
+def test_multi_class_driver_also_downgrades(tmp_path):
+    forced, _h, _s = tp._gate_recommendation(
+        _gof_subs(genomic="multi_class_driver"), contracts_repo=_vocab_with_gof(tmp_path))
+    assert forced == "hold"
+
+
+def test_non_driver_genomic_still_vetoes(tmp_path):
+    """GLS/LUAD guard: non_dependent + a NON-driver genomic read (missense_dominant_pattern) still
+    VETOES — the downgrade is scoped to GoF-driver verdicts only."""
+    forced, _h, _s = tp._gate_recommendation(
+        _gof_subs(genomic="missense_dominant_pattern"), contracts_repo=_vocab_with_gof(tmp_path))
+    assert forced == "veto"
+
+
+def test_lof_driver_still_vetoes(tmp_path):
+    """TSG guard: a LoF driver (confirmed_lof_driver) is NOT a mutant-selective GoF target → veto stands."""
+    forced, _h, _s = tp._gate_recommendation(
+        _gof_subs(genomic="confirmed_lof_driver"), contracts_repo=_vocab_with_gof(tmp_path))
+    assert forced == "veto"
+
+
+def test_gof_downgrade_does_not_touch_pan_essential(tmp_path):
+    """MYC guard: pan_essential_killer + confirmed_driver still VETOES (the downgrade targets the
+    non_dependent verdict only, never the pan-essential killer)."""
+    forced, _h, _s = tp._gate_recommendation(
+        _gof_subs(dep="pan_essential_killer"), contracts_repo=_vocab_with_gof(tmp_path))
     assert forced == "veto"

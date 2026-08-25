@@ -274,9 +274,10 @@ _SURFACE_FAVORABLE_VERDICTS = frozenset({
 
 def _load_veto_suppressors(
     contracts_repo: Path | None = None,
-) -> tuple[list[dict], list[dict], list[dict], str]:
+) -> tuple[list[dict], list[dict], list[dict], list[dict], str]:
     """Load the veto-suppression + downgrade policies from the vocab. Returns
-    (context_escape_suppressors, modality_scoped_suppression, biology_axis_downgrade, source).
+    (context_escape_suppressors, modality_scoped_suppression, biology_axis_downgrade,
+    gof_driver_downgrade, source).
 
     CONSERVATIVE FALLBACK (mirrors the never-permissive contract, inverted for a
     suppressor): on ANY failure this returns EMPTY lists — a missing/malformed
@@ -291,12 +292,13 @@ def _load_veto_suppressors(
         ctx = data.get("veto_suppressors", []) or []
         msvs = data.get("modality_scoped_veto_suppression", []) or []
         bavd = data.get("biology_axis_scoped_veto_downgrade", []) or []
-        return ctx, msvs, bavd, "vocab"
+        gdvd = data.get("gof_driver_scoped_veto_downgrade", []) or []
+        return ctx, msvs, bavd, gdvd, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no suppression, veto stands)
         print(f"[target-profile] WARN: could not load veto suppressors "
               f"({type(e).__name__}: {e}); suppression DISABLED (full veto stands).",
               file=sys.stderr)
-        return [], [], [], "fallback"
+        return [], [], [], [], "fallback"
 
 
 def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
@@ -346,12 +348,15 @@ def _suppressed_gate_hits(
     CONSERVATIVE: empty suppressor policy → nothing suppressed (full veto stands).
     Only `dependency` veto arms are ever suppressible (the vocab enforces this too).
     """
-    ctx_supps, msvs, bavd, src = _load_veto_suppressors(contracts_repo)
-    if not ctx_supps and not msvs and not bavd:
+    ctx_supps, msvs, bavd, gdvd, src = _load_veto_suppressors(contracts_repo)
+    if not ctx_supps and not msvs and not bavd and not gdvd:
         return hits, []
     # The live surface_modality verdict, for the biology-axis downgrade (C) co-condition.
     _surf = sub_results.get("surface_modality", {}).get("verdict")
     surface_verdict = _surf[0] if isinstance(_surf, (list, tuple)) and _surf else None
+    # The live genomic_alteration verdict, for the GoF-driver downgrade (D) co-condition.
+    _gen = sub_results.get("genomic_alteration", {}).get("verdict")
+    genomic_verdict = _gen[0] if isinstance(_gen, (list, tuple)) and _gen else None
 
     # Build the present-verdict set for suppressor matching. Defensive against a MALFORMED
     # verdict (a bare string, a dict): only a WELL-FORMED (verdict, ...) tuple can be a
@@ -440,6 +445,21 @@ def _suppressed_gate_hits(
                 downgrade = {"kind": "biology_axis_downgrade", "to_action": d.get("to_action", "hold"),
                              "biology_axis": biology_axis, "surface_verdict": surface_verdict}
                 break
+        # (D) GoF-driver-scoped DOWNGRADE: a confirmed GoF/activating oncogenic driver (neomorphic-
+        # enzyme archetype IDH1 R132) with a pooled `non_dependent` read — whole-gene KO != mutant-
+        # selective inhibition, so the non-dependence is an irrelevant criterion. Downgrade the VETO to
+        # `hold` (the neomorphic/intracellular slice the surface downgrade in (C) cannot reach). Keyed on
+        # the GENOMIC sub-verdict; LoF drivers + non-driver reads are excluded by the vocab list, so a
+        # non-driver non_dependent (GLS) still vetoes. Only if (C) did not already downgrade this hit.
+        if downgrade is None:
+            for d in gdvd:
+                dn = d.get("downgrades", {})
+                if (dn.get("sub_skill"), dn.get("verdict")) != key:
+                    continue
+                if genomic_verdict in set(d.get("when_genomic_verdict_in", [])):
+                    downgrade = {"kind": "gof_driver_downgrade", "to_action": d.get("to_action", "hold"),
+                                 "genomic_verdict": genomic_verdict}
+                    break
         if downgrade:
             survivors.append({**h, "action": downgrade["to_action"], "_downgraded_from": h["action"]})
             suppressions.append({**h, "suppressed_by": downgrade, "policy_source": src})
