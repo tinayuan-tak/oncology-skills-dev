@@ -388,6 +388,31 @@ biology_axis_scoped_veto_downgrade:
       surface-junk. Downgrade is veto→hold (never nominate), so it cannot manufacture a false
       nomination. Does NOT touch pan_essential_killer.
 
+# GoF-DRIVER-SCOPED dependency-veto DOWNGRADE (2026-08-25, round-2 gap: neomorphic GoF, e.g. IDH1).
+# Symmetric to biology_axis_scoped_veto_downgrade but keyed on the GENOMIC sub-verdict instead of the
+# surface arm — it reaches the neomorphic / intracellular slice the surface downgrade cannot.
+gof_driver_scoped_veto_downgrade:
+  - downgrades: {sub_skill: dependency, verdict: non_dependent}
+    to_action: hold
+    when_genomic_verdict_in: [confirmed_driver, multi_class_driver]
+    rationale: |
+      A confirmed GoF / activating oncogenic driver (alteration-role GoF; the non-LoF `confirmed_driver`
+      and `multi_class_driver` genomic verdicts) engaged by a MUTANT-SELECTIVE mechanism — the archetype
+      is a neomorphic enzyme like IDH1 R132, where the drug (ivosidenib) inhibits the mutant's GAINED
+      activity, NOT a genetic dependency — is a legitimate target even when the pooled pan-cancer CRISPR
+      read is `non_dependent`: whole-gene KO is not the same event as mutant-selective inhibition, so the
+      pooled non-dependence is an IRRELEVANT criterion, not a disqualifier. Downgrade the non_dependent
+      VETO to `hold` (surface the target for the mutant-selective hypothesis) rather than force-decline it.
+
+      DISTINCT from the biomarker_stratified_dependency context-escape (veto_suppressors), which FULLY
+      suppresses the veto on a MEASURED stratified dependency line (KRAS/BRAF/ERBB2 → nominate-eligible):
+      a `confirmed_driver` WITHOUT a stratified-dependency line is weaker evidence, so it earns a HOLD,
+      never a nominate. CONSERVATIVE + spine-safe: veto→hold cannot manufacture a false nomination; LoF
+      drivers (`confirmed_lof_driver` / `multi_class_lof_driver` — TSGs) are EXCLUDED (a TSG is not a
+      mutant-selective GoF target); `missense_dominant_pattern` and other non-driver genomic reads are
+      EXCLUDED, so a non-driver non_dependent target (e.g. GLS/LUAD) still correctly VETOES. Does NOT
+      touch pan_essential_killer (MYC).
+
 # ============================================================================
 # POSITIVE TIER (2026-07-17) — deterministic confidence FLOOR, never an action.
 # ============================================================================
