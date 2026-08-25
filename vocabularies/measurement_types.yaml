@@ -262,6 +262,21 @@ measurement_types:
       # measurement, different grain, never averaged).
       - {kind: dataset, source: cptac-protein-tumor-vs-normal-per-cohort-v1, evidence_tier: measured}
 
+  tumor_vs_normal_protein_abundance:
+    # TUMOR-context tumor-vs-adjacent-normal PROTEIN differential (TPHP DIA-MS; 2026-08-25). A protein-
+    # level analogue of the tumor_vs_normal_selectivity RNA contrast AND a broader-cohort sibling of
+    # tumor_protein_abundance (CPTAC TMT, ~10 cohorts): TPHP DIA MaxLFQ adds 22 carcinoma cohorts, several
+    # with no CPTAC counterpart. Consumed as a VERDICT-INERT RNA→protein corroboration facet in
+    # tumor-selectivity (parallel to tumor-protein-abundance-cptac); no rule keys it. DISTINCT from
+    # normal_tissue_protein_abundance (the NORMAL-tissue TPHP baseline, sample_context=normal) — this is the
+    # TUMOR-vs-normal CONTRAST (sample_context=tumor). ENFORCE — declares modality_relevance (routing only).
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+    claim: "Does target's tumor-vs-adjacent-normal PROTEIN differential hold at the protein layer across the TPHP DIA-MS carcinoma cohorts (the RNA->protein corroboration of tumor-vs-normal selectivity)?"
+    entity_grains: [target_indication]
+    cards: [tumor-vs-normal-protein-abundance-tphp]
+    providers:
+      - {kind: dataset, source: tphp-tumor-vs-normal-protein-per-cohort-v1, evidence_tier: measured}
+
   phospho_pathway_activity:
     claim: "Is target phosphorylated (a pathway-activity proxy) in the indication's tumors, beyond its total abundance (CPTAC phospho)?"
     # Q8 — CPTAC phosphoproteomics. DISTINCT from tumor_protein_abundance (total protein presence):

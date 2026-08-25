@@ -1,0 +1,133 @@
+# Card — TUMOR-vs-NORMAL PROTEIN ABUNDANCE  (TPHP DIA-MS)  [VERDICT-INERT DISPLAY / CORROBORATION]
+#
+# The protein-layer RNA→PROTEIN corroboration facet for tumor-selectivity, PARALLEL to
+# tumor-protein-abundance-cptac. It asks whether a target's tumor-vs-normal signal holds at the
+# PROTEIN level — here from the TPHP body+cancer DIA-MS proteome (Xu et al., Nature 2026; open PRIDE
+# PXD063370), which adds 22 carcinoma cohorts (several with NO CPTAC counterpart: gallbladder,
+# laryngeal, GIST, testis, fallopian-tube, thymoma, ...) on one DIA MaxLFQ platform with matched
+# adjacent-normal. A protein-level analogue of the tumor-vs-normal-selectivity RNA contrast, and a
+# broader-cohort sibling of the CPTAC TMT-MS card.
+#
+# VERDICT-INERT: this card fires NO rule and NO veto clamp. tumor-selectivity consumes it exactly as
+# it consumes tumor-protein-abundance-cptac — via the DERIVED, spine-inert rna_protein_tvn_concordance
+# read (protein_effect_size + protein_bh_q_value vs the RNA dominant_direction at BH q<0.05). The
+# emitted field NAMES are CPTAC-ALIGNED so the run.py `_rna_protein_tvn_concordance` projection
+# consumes this card UNCHANGED. It is ABSENT from coverage/card_resolver_consumption.yaml.
+#
+# DISTINCT from normal-tissue-protein-abundance-tphp: that card is the NORMAL-tissue TPHP protein
+# baseline (sample_context=normal; its tphp_normal_protein_liability_class is verdict-BEARING via a
+# normal-breadth veto arm). THIS card is the TUMOR-vs-adjacent-normal CONTRAST (sample_context=tumor;
+# verdict-inert). Different product, different sample_context, different role.
+#
+# DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
+
+card_id: tumor-vs-normal-protein-abundance-tphp
+version: 1.0.0
+question: "Does {target.symbol}'s tumor-vs-adjacent-normal PROTEIN differential hold at the protein layer in {indication.label} (TPHP DIA-MS) — the RNA→protein corroboration of tumor-vs-normal selectivity?"
+
+tier: indication   # indication-scoped tumor-vs-normal protein contrast (per TPHP carcinoma cohort).
+
+# applies_when lists the OncoTree/TCGA indication codes the reader can resolve — the FULL key set of
+# methods/tphp_tumor_vs_normal_protein/read.py::INDICATION_TO_TPHP_COHORT (which maps codes to the 22
+# free-text TPHP carcinoma cohorts). An unmapped indication returns data_unavailable (honest abstain),
+# never a cross-cohort leak. (Today applies_when is a phase-1 admit-by-default stub, as on the CPTAC
+# sibling; listing the codes keeps the gate correct once real indication-gating is enforced.)
+applies_when:
+  - "context.indication in ['COAD', 'COADREAD', 'READ', 'STAD', 'ESCA', 'PAAD', 'PDAC', 'LIHC', 'HCC', 'GBC', 'GBAD', 'GIST', 'LUAD', 'LUSC', 'LSCC', 'NSCLC', 'KIRC', 'CCRCC', 'KIRP', 'KICH', 'RCC', 'GBM', 'CESC', 'UCEC', 'THYM', 'TGCT', 'DLBC', 'DLBCL']"
+
+required_inputs:
+  - product_id: tphp-tumor-vs-normal-protein-per-cohort-v1
+    indication: "{indication}"
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/tphp_tumor_vs_normal_protein/read.py::read_target_summary(target=,
+  # indication=). No bespoke dispatcher needed (mirrors normal-tissue-protein-abundance-tphp).
+  - call: tphp-tumor-vs-normal-protein
+    module: tphp_tumor_vs_normal_protein
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  # summary_fields match the reader's emitted dict EXACTLY (methods/tphp_tumor_vs_normal_protein/
+  # read.py::_row_to_summary). A reader RENAME breaks the tumor-selectivity replay drift guard (the
+  # freeze reads these keys), so keep the two in lockstep. Field NAMES are CPTAC-ALIGNED (protein_*)
+  # so the run.py _rna_protein_tvn_concordance projection consumes this card unchanged.
+  summary_fields:
+    - protein_expression_class                     # PRIMARY categorical — TPHP `effect` band
+    - protein_effect_size                          # float — median_log2_tumor - median_log2_normal (RAW log2)
+    - protein_median_log2_tumor                    # float — median log2 MaxLFQ over detected tumor samples
+    - protein_median_log2_normal                   # float — median log2 MaxLFQ over detected adjacent-normal
+    - protein_p_value                              # float — Welch two-sample t-test p-value
+    - protein_bh_q_value                           # float — BH-adjusted within cohort (CPTAC-aligned name)
+    - n_tumor_samples                              # int — detected tumor samples (>= 5)
+    - n_normal_samples                             # int — detected adjacent-normal samples (>= 3; filter on power)
+    - cohort                                       # the matched TPHP carcinoma cohort (free-text)
+    - tissue                                       # the matched adjacent-normal comparator tissue (tumor site)
+    - uniprot_ac                                   # UniProt accession of the protein group (DIA-NN Protein.Group)
+    - stat_test_used                               # constant — 'welch_unpaired_tumor_vs_adjacent_normal'
+    - method_version
+
+  summary_fields_vocabulary:
+    protein_expression_class:
+      - strong_up                                  # q<0.05, |log2fc|>=1.0, up in tumor
+      - modest_up                                  # q<0.05, 0.585<=log2fc<1.0, up in tumor
+      - unchanged                                  # not significant / |log2fc| below the modest threshold
+      - modest_down                                # q<0.05, -1.0<log2fc<=-0.585, down in tumor
+      - strong_down                                # q<0.05, log2fc<=-1.0, down in tumor
+      - data_unavailable                           # gene absent / unmapped indication / read fault — coverage gap, NOT a flat window
+    stat_test_used:
+      # Unpaired Welch two-sample t-test on the detected log2 MaxLFQ values, BH within cohort (the
+      # deposited pg_matrix + SDRF carry no stable per-patient pairing id, so this facet compares
+      # group medians — DIFFERENT estimator from the CPTAC MSstatsTMT limma-moderated t, by design).
+      - welch_unpaired_tumor_vs_adjacent_normal
+
+thresholds:
+  # effect thresholds baked into the derived product (parameters.effect_*_abs_log2fc / q_cutoff).
+  strong_up_abs_log2fc: 1.0
+  modest_up_abs_log2fc: 0.585
+  significance_q: 0.05
+
+warning_predicates:
+  - warning_id: low_normal_arm_count
+    if: "n_normal_samples < 5"
+    message: "The matched adjacent-normal arm has < 5 samples in this TPHP cohort — the tumor-vs-normal protein call is underpowered. Interpret protein_expression_class cautiously (the product retains n_normal down to 3)."
+  - warning_id: tphp_tvn_data_unavailable
+    if: "protein_expression_class == 'data_unavailable'"
+    message: "{target.symbol} has no TPHP tumor-vs-normal protein value for this cohort (target absent, or the indication has no TPHP carcinoma cohort) — protein corroboration UNKNOWN (coverage gap), not flat. The CPTAC card (tumor-protein-abundance-cptac) + the RNA selectivity cards remain authoritative."
+
+caveats:
+  - |
+    VERDICT-INERT corroboration facet. TPHP DIA-MS tumor-vs-adjacent-normal protein, complementing the
+    CPTAC TMT-MS card (tumor-protein-abundance-cptac) across 22 carcinoma cohorts, several outside CPTAC
+    coverage. Fires no rule / no veto; consumed via the derived rna_protein_tvn_concordance read, and is
+    absent from card_resolver_consumption.
+  - |
+    UNPAIRED group comparison: an unpaired Welch two-sample t-test on group medians (the deposited
+    pg_matrix + SDRF carry no stable per-patient pairing), BH within cohort. A DIFFERENT estimator from
+    the CPTAC MSstatsTMT limma-moderated t — a cross-card disagreement can reflect assay/estimator
+    (DIA MaxLFQ vs TMT; unpaired-Welch vs moderated-t), not only biology.
+  - |
+    Effect magnitudes rest on small adjacent-normal arms (n_normal 3-74); treat as a corroborating
+    facet, not a standalone DEG call, and gate on n_normal_samples. DIA MaxLFQ abundance is a
+    panel-relative log2 intensity, NOT absolute copies-per-cell (surface-abundance-density owns copies/cell).
+  - |
+    22 of 29 TPHP carcinoma cohorts are retained (7 dropped for insufficient matched-normal). Whole-cohort
+    BRCA / head&neck (HNSC) / ovarian are NOT resolvable here (breast is subtype-split; HNSC is ambiguous
+    across tongue+larynx; ovarian was dropped) → data_unavailable, and the CPTAC + RNA cards remain
+    authoritative for those.
+
+measurement: bulk_protein_ms
+sample_context: tumor         # patient tumor vs matched adjacent-normal (TPHP per-cohort) — the tumor arm.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_normal_protein_abundance` claim (the TUMOR-vs-
+# normal protein CONTRAST; DISTINCT from tumor_protein_abundance [CPTAC total-protein presence] and from
+# normal_tissue_protein_abundance [the TPHP NORMAL-tissue baseline, sample_context=normal]).
+measurement_type: tumor_vs_normal_protein_abundance
+# Advisory routing metadata only — this card is verdict-inert (fires no rule); mirrors the CPTAC sibling's
+# axes (protein presence is the SM/degrader read AND the antigen-presence prerequisite for biologics).
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1
