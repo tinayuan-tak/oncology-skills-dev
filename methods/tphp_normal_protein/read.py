@@ -6,11 +6,13 @@ transit the wire (mirrors methods/collectri_tf_regulon/read.py — the gene_symb
 precedent). The product stores DETECTED-only rows (a (gene, tissue) with n_detected==0 is not stored),
 so every row is a tissue where the protein was quantified in >=1 normal sample.
 
-This reader is VERDICT-INERT: it emits a normal-tissue-protein comparator summary that the
-tumor-selectivity skill DISPLAYS (no interpretation rule keys on any of these fields). It is the
-quantitative NORMAL-tissue PROTEIN baseline the skill lacked — GTEx gives normal RNA, HPA gives
-categorical IHC breadth; this gives DIA-MS protein abundance across 70 adult tissues + 4 fetal
-germ-layer groups.
+This reader emits a normal-tissue-protein comparator summary. Most fields are DISPLAYED by the
+tumor-selectivity skill; ONE field — tphp_normal_protein_liability_class — is VERDICT-BEARING: it is
+the abundance-gated (Floor-C) NORMAL-BREADTH liability instrument the tumor-selectivity skill uses to
+downgrade an axis-A-selective call to selective_with_normal_liability (via the skills-side
+selectivity_veto clamp; NO resolver rung). It is the quantitative NORMAL-tissue PROTEIN baseline the
+skill lacked — GTEx gives normal RNA, HPA gives categorical IHC breadth; this gives DIA-MS protein
+abundance across 70 adult tissues + 4 fetal germ-layer groups.
 
 Absence discipline (mirrors the collectri reader): a GENUINE product-object absence (NoSuchKey/404
 or FileNotFoundError) or a gene simply absent from the product → honest `data_unavailable`. A
@@ -43,6 +45,34 @@ MODERATE_ADULT_TISSUE_COUNT = 10     # >=~15% → moderate
 
 _FETAL_CLASS = "fetal"
 _ADULT_CLASS = "adult_normal"
+
+# ── ABUNDANCE-FLOOR (Floor-C) parameters for tphp_normal_protein_liability_class ─────────────────
+# The tumor-selectivity NORMAL-BREADTH liability instrument keys on tphp_normal_protein_liability_class,
+# a promotion of this (formerly verdict-inert) card to a verdict-bearing normal-protein liability read.
+# It is gated on ABUNDANCE, not DIA DETECTION. DIA-MS detects a protein broadly at TRACE levels, so
+# "detected in >=35 adult tissues" alone (normal_protein_breadth_class == broad_normal_protein) is NOT a
+# therapeutic-index liability — a broadly-DETECTED-but-low-abundance protein is not broadly present at a
+# level that costs a therapeutic window. Floor-C corrects this: broad_and_abundant requires a BROAD
+# COUNT of adult tissues that are EACH at/above a global per-tissue abundance floor.
+#
+# WHY A COUNT, NOT max_median_log2_abundance: a single origin/outlier tissue spiking high does NOT make
+# a protein broadly abundant. CEACAM5's per-tissue max is 20.8 (eye tissue — iris/sclera) but only ~30
+# of its 63 detected adult tissues clear the floor, so it reads detected_not_abundant (NOT a broad
+# liability) — the intended correction. True housekeeping / pan-tissue-abundant proteins (GAPDH/ACTB/
+# KRAS) clear the floor in ~all 70 tissues → broad_and_abundant. max_median_log2_abundance is retained
+# as a DISPLAY field only; it does NOT gate the class.
+#
+# ABUNDANCE_FLOOR_LOG2 DERIVATION (cached; tunable/recalibratable): the ABUNDANCE_FLOOR_PERCENTILE (p75)
+# of the per-(gene, adult-tissue) median_log2_abundance across the WHOLE product
+# (normal-tissue-protein-abundance-per-gene-v1: 482,704 adult rows over 13,009 genes) == 15.0759. This
+# is a global, product-derived floor (a defensible "typical-or-better" abundance level), cached here as
+# a frozen constant so the per-gene pushdown reader never scans the whole product on the critical path.
+# Recompute with compute_abundance_floor(product_path=, percentile=) on a product refresh / to
+# recalibrate the percentile.
+ABUNDANCE_FLOOR_PERCENTILE = 75          # tunable: global per-tissue percentile that defines "abundant"
+ABUNDANCE_FLOOR_LOG2 = 15.076            # cached p75 of per-(gene,adult-tissue) median_log2_abundance
+BROAD_ABUNDANT_TISSUE_COUNT = 35         # tunable: # adult tissues at/above the floor → broad_and_abundant
+                                         # (shares the ~50%-of-panel breadth bar with BROAD_ADULT_TISSUE_COUNT)
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
@@ -94,6 +124,61 @@ def _breadth_class(n_adult: int) -> str:
     return "not_detected_in_normal_protein"   # rows exist but none adult (fetal-only detection)
 
 
+def _liability_class(n_adult_detected: int, n_adult_above_floor: int) -> str:
+    """tphp_normal_protein_liability_class (Floor-C, abundance-gated NORMAL-breadth liability).
+
+    Args:
+        n_adult_detected: # distinct ADULT tissues the protein is DETECTED in (any quantified value).
+        n_adult_above_floor: # distinct ADULT tissues whose median_log2_abundance >= ABUNDANCE_FLOOR_LOG2.
+
+    Classes:
+      * broad_and_abundant     — abundant across a BROAD count of tissues (n_adult_above_floor >=
+                                 BROAD_ABUNDANT_TISSUE_COUNT). The therapeutic-index liability: a genuine
+                                 broad normal-protein presence (GAPDH/ACTB/KRAS pan-tissue archetype).
+      * detected_not_abundant  — broadly DETECTED (n_adult_detected >= BROAD_ADULT_TISSUE_COUNT) but NOT
+                                 broadly abundant. The DIA-detects-broadly-at-trace correction: a protein
+                                 seen in many tissues at low/trace levels, or abundant in only a few
+                                 origin/outlier tissues (CEACAM5), is NOT a broad liability.
+      * restricted             — narrow footprint (detected in < BROAD_ADULT_TISSUE_COUNT adult tissues).
+      * data_unavailable       — handled by the caller (gene absent / read fault).
+    """
+    if n_adult_above_floor >= BROAD_ABUNDANT_TISSUE_COUNT:
+        return "broad_and_abundant"
+    if n_adult_detected >= BROAD_ADULT_TISSUE_COUNT:
+        return "detected_not_abundant"
+    return "restricted"
+
+
+def compute_abundance_floor(product_path=None, percentile: int = ABUNDANCE_FLOOR_PERCENTILE) -> float:
+    """Recompute the global per-tissue abundance floor from the product's OWN distribution — the
+    `percentile` of the per-(gene, ADULT-tissue) median_log2_abundance across ALL proteins.
+
+    This is the DERIVATION behind the cached ABUNDANCE_FLOOR_LOG2 constant, exposed so the floor can be
+    recalibrated on a product refresh or a different percentile without a code archaeology dig. It reads
+    the WHOLE product (two columns), so it is NOT called on the per-gene read path — the reader uses the
+    frozen constant. `product_path` (offline seam): a local parquet bypasses S3.
+    """
+    import statistics
+    import pyarrow.parquet as pq
+    cols = ["tissue_class", "median_log2_abundance"]
+    if product_path is not None:
+        tbl = pq.read_table(str(product_path), columns=cols)
+    else:
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), columns=cols)
+    d = tbl.to_pydict()
+    vals = [v for tc, v in zip(d["tissue_class"], d["median_log2_abundance"])
+            if tc != _FETAL_CLASS and _is_num(v)]
+    if not vals:
+        raise ValueError("no adult-tissue abundance values in the product — cannot compute floor")
+    # statistics.quantiles(n=100) → 99 cut points; the p-th percentile is index p-1 (inclusive method).
+    if percentile <= 0:
+        return float(min(vals))
+    if percentile >= 100:
+        return float(max(vals))
+    return float(statistics.quantiles(vals, n=100, method="inclusive")[percentile - 1])
+
+
 def _fetal_vs_adult_flag(n_adult: int, n_fetal: int) -> str:
     if n_adult and n_fetal:
         return "adult_and_fetal"
@@ -111,6 +196,9 @@ def _empty_summary() -> dict:
     NEVER read as a favorable / narrow normal footprint)."""
     return {
         "normal_protein_breadth_class": "data_unavailable",
+        "tphp_normal_protein_liability_class": "data_unavailable",
+        "n_adult_tissues_above_abundance_floor": 0,
+        "abundance_floor_log2": ABUNDANCE_FLOOR_LOG2,
         "n_tissues_detected": 0,
         "n_adult_tissues_detected": 0,
         "n_fetal_groups_detected": 0,
@@ -170,11 +258,24 @@ def compute_summary(gene: str, rows: list[dict]) -> dict:
     n_adult = len(adult_tissues)
     n_fetal = len(fetal_tissues)
 
+    # ABUNDANCE FLOOR (Floor-C): # ADULT tissues whose median_log2_abundance is at/above the global
+    # per-tissue floor. Counts distinct adult tissues (a tissue is "abundant" if its median clears the
+    # floor), so it is robust to a single origin/outlier tissue spiking high (unlike a max).
+    adult_above_floor: set[str] = set()
+    for t in per_tissue:
+        if (t["tissue_class"] != _FETAL_CLASS and t["median_log2_abundance"] is not None
+                and t["median_log2_abundance"] >= ABUNDANCE_FLOOR_LOG2):
+            adult_above_floor.add(t["tissue"])
+    n_adult_above_floor = len(adult_above_floor)
+
     # uniprot_ac: 1:1 with the gene in this product (no ;-joined groups); take the first row's value.
     uniprot_ac = rows[0].get("uniprot_ac")
 
     return {
         "normal_protein_breadth_class": _breadth_class(n_adult),
+        "tphp_normal_protein_liability_class": _liability_class(n_adult, n_adult_above_floor),
+        "n_adult_tissues_above_abundance_floor": n_adult_above_floor,
+        "abundance_floor_log2": ABUNDANCE_FLOOR_LOG2,
         "n_tissues_detected": len(adult_tissues | fetal_tissues),
         "n_adult_tissues_detected": n_adult,
         "n_fetal_groups_detected": n_fetal,

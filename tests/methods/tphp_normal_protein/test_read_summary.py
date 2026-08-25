@@ -29,7 +29,9 @@ read = importlib.import_module("methods.tphp_normal_protein.read")
 # The fields the normal-tissue-protein-abundance-tphp card declares in outputs.summary_fields — the
 # reader MUST emit all of them (the drift guard). Kept explicit so a card/reader divergence fails HERE.
 _CARD_SUMMARY_FIELDS = {
-    "normal_protein_breadth_class", "n_tissues_detected", "n_adult_tissues_detected",
+    "normal_protein_breadth_class", "tphp_normal_protein_liability_class",
+    "n_adult_tissues_above_abundance_floor", "abundance_floor_log2",
+    "n_tissues_detected", "n_adult_tissues_detected",
     "n_fetal_groups_detected", "n_adult_tissues_total", "n_fetal_groups_total",
     "max_median_log2_abundance", "median_across_tissues_log2_abundance", "highest_abundance_tissue",
     "highest_abundance_tissue_class", "fetal_vs_adult_flag", "max_detection_rate", "uniprot_ac",
@@ -37,6 +39,7 @@ _CARD_SUMMARY_FIELDS = {
 }
 _BREADTH_VOCAB = {"broad_normal_protein", "moderate_normal_protein", "restricted_normal_protein",
                   "not_detected_in_normal_protein", "data_unavailable"}
+_LIABILITY_VOCAB = {"broad_and_abundant", "detected_not_abundant", "restricted", "data_unavailable"}
 _FETAL_VOCAB = {"adult_and_fetal", "adult_only", "fetal_only", "none", "data_unavailable"}
 
 _COLS = ["gene_symbol", "uniprot_ac", "tissue", "tissue_class", "median_log2_abundance",
@@ -71,6 +74,7 @@ def test_summary_shape_matches_card_and_aggregates(tmp_path):
     missing = _CARD_SUMMARY_FIELDS - set(out)
     assert not missing, f"reader is missing card-declared summary_fields: {sorted(missing)}"
     assert out["normal_protein_breadth_class"] in _BREADTH_VOCAB
+    assert out["tphp_normal_protein_liability_class"] in _LIABILITY_VOCAB
     assert out["fetal_vs_adult_flag"] in _FETAL_VOCAB
     # 13 adult tissues (12 + liver) → moderate (>=10, <35); 1 fetal group.
     assert out["n_adult_tissues_detected"] == 13
@@ -148,3 +152,68 @@ def test_transient_fault_is_reraised(monkeypatch):
     monkeypatch.setattr(read, "load_and_classify", _boom)
     with pytest.raises(RuntimeError):
         read.read_target_summary("EGFR")
+
+
+# ── tphp_normal_protein_liability_class (Floor-C abundance gate) ─────────────────────────────────
+# broad_and_abundant := (# adult tissues with median_log2_abundance >= ABUNDANCE_FLOOR_LOG2) >=
+# BROAD_ABUNDANT_TISSUE_COUNT. This is gated on ABUNDANCE-across-breadth, NOT DIA detection: the whole
+# point is that a broadly-DETECTED-but-not-broadly-abundant protein (CEACAM5 archetype: many tissues
+# detected, only a few — often a single origin/outlier tissue — abundant) does NOT read broad_and_abundant.
+_FLOOR = read.ABUNDANCE_FLOOR_LOG2
+_BROAD_ABUND = read.BROAD_ABUNDANT_TISSUE_COUNT
+
+
+def test_housekeeping_broad_and_abundant(tmp_path):
+    """A pan-tissue-abundant protein (GAPDH/KRAS archetype): detected in many adult tissues AND
+    ABUNDANT (>= floor) in >= BROAD_ABUNDANT_TISSUE_COUNT of them → broad_and_abundant (the veto fires)."""
+    rows = [_row("GAPDH", f"adult_{i:02d}", "adult_normal", _FLOOR + 3.0) for i in range(_BROAD_ABUND + 5)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("GAPDH", product_path=prod)
+    assert out["tphp_normal_protein_liability_class"] == "broad_and_abundant"
+    assert out["n_adult_tissues_above_abundance_floor"] == _BROAD_ABUND + 5
+    assert out["abundance_floor_log2"] == _FLOOR
+
+
+def test_broadly_detected_but_not_abundant_is_detected_not_abundant(tmp_path):
+    """CEACAM5 archetype: broadly DETECTED (>=35 adult tissues) but abundance clears the floor in only
+    a FEW (here 5 — e.g. its eye/origin tissues), the rest detected at trace/moderate BELOW the floor.
+    Must read detected_not_abundant, NOT broad_and_abundant — the DIA-detects-broadly-at-trace correction
+    and the reason CEACAM5 does not flip to the normal-liability veto."""
+    detected = 63
+    n_above = 5
+    rows = [_row("CEACAM5", f"adult_{i:02d}", "adult_normal",
+                 (_FLOOR + 4.0) if i < n_above else (_FLOOR - 1.0)) for i in range(detected)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("CEACAM5", product_path=prod)
+    assert out["n_adult_tissues_detected"] == detected
+    assert out["n_adult_tissues_above_abundance_floor"] == n_above
+    assert out["tphp_normal_protein_liability_class"] == "detected_not_abundant"
+    # sanity: a single high-abundance (origin/outlier) tissue does not make it broadly abundant
+    assert out["max_median_log2_abundance"] >= _FLOOR
+
+
+def test_narrow_footprint_is_restricted(tmp_path):
+    """Detected in < BROAD_ADULT_TISSUE_COUNT adult tissues → restricted (narrow footprint), even when
+    those few tissues are abundant (FOLR1 archetype)."""
+    rows = [_row("FOLR1", f"adult_{i:02d}", "adult_normal", _FLOOR + 2.0) for i in range(9)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("FOLR1", product_path=prod)
+    assert out["tphp_normal_protein_liability_class"] == "restricted"
+
+
+def test_liability_data_unavailable(tmp_path):
+    rows = [_row("EGFR", "liver", "adult_normal", 9.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("GHOSTGENE", product_path=prod)
+    assert out["tphp_normal_protein_liability_class"] == "data_unavailable"
+    assert out["n_adult_tissues_above_abundance_floor"] == 0
+
+
+def test_compute_abundance_floor_recalibration(tmp_path):
+    """compute_abundance_floor recomputes the global per-tissue percentile from the product's own
+    distribution (adult tissues only; fetal excluded). The p50 of 1..99 is 50."""
+    rows = ([_row("G", f"t{i:03d}", "adult_normal", float(v)) for i, v in enumerate(range(1, 100))]
+            + [_row("G", "fetal_x", "fetal", 999.0)])   # fetal ignored by the floor computation
+    prod = _write_product(tmp_path, rows)
+    assert read.compute_abundance_floor(product_path=prod, percentile=50) == pytest.approx(50.0, abs=1.0)
+    assert read.compute_abundance_floor(product_path=prod, percentile=75) == pytest.approx(75.0, abs=1.0)
