@@ -550,6 +550,8 @@ skill_objectives:
     role_note: "descriptive partial; not in the nomination fan-out."
     questions:
       - {q: "Are patient-derived (HCMI) models available to validate the target in this indication?", answered_by: [target-model-availability]}
+      - {q: "Do the available patient-derived (HCMI) models CARRY a functional coding alteration in this target — is there a genotype-matched model to validate the nomination? (display-only)", answered_by: [target-genotype-matched-model]}
+      - {q: "Does the target's drug-response signal reproduce IN VIVO — do treatments naming it produce tumour regression in PDX population trials (Novartis PDXE)? (display-only)", answered_by: [target-pdx-drug-response]}
   - skill: immune-context
     objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect), and what is the surrounding TME context — suppressive myeloid states, CAF/stroma, and the ICI-response association?"
     primary_axis: null

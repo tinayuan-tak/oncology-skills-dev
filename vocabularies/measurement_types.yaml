@@ -469,6 +469,36 @@ measurement_types:
     providers:
       - {kind: dataset, source: hcmi-model-availability-per-indication-v1, evidence_tier: measured}
 
+  genotype_matched_model:
+    claim: "For target X in indication Y, do available patient-derived (HCMI) models CARRY a functional coding alteration in X — is there a genotype-matched model to validate the nomination?"
+    # Translational bridge v2 (genotype-matched refinement, 2026-08-24): the target-DEPENDENT complement
+    # to model_availability (which is target-INDEPENDENT cohort coverage). Joins the HCMI-CMDC DR45 case
+    # ClinicalData JSONs (model -> indication) to the 923 WXS aliquot MAFs (the genotype) and counts, per
+    # (gene, indication), DISTINCT models carrying a functional coding alteration in the gene -> a
+    # genotype_matched_class {matched_deep >=5 / matched_sparse 1-4 / none 0}. DISPLAY facet — verdict-inert
+    # translational prior ("is there a model that carries THIS target's alteration to validate here?").
+    # Distinct claim from model_availability (that is the target-independent count; this is the per-target
+    # genotype match) -> a distinct type (Rule 2 concordance). Target+indication grain. No modality_relevance.
+    entity_grains: [target_indication]
+    cards: [target-genotype-matched-model]
+    providers:
+      - {kind: dataset, source: hcmi-genotype-matched-model-per-gene-v1, evidence_tier: measured}
+
+  pdx_drug_response:
+    claim: "Does the target's drug-response signal reproduce IN VIVO — do treatments naming the target produce tumour regression in PDX population trials (Novartis PDXE)?"
+    # In-vivo translational corroboration (2026-08-24): the in-vivo complement to the in-vitro cell-line
+    # drug-response rollups (GDSC / PRISM). PDXE (Gao et al. 2015 Nat Med) is the only large public
+    # genotype -> drug-response resource measured in vivo (PDX population trials); a target whose
+    # tractability signal reproduces in the PDX setting is far more translationally credible than a
+    # cell-line signal alone. Per-gene rollup (median/min BestAvgResponse + objective-responder fraction +
+    # most-active treatment) across all treatments naming the gene as a target and all models. DISPLAY
+    # facet — verdict-inert in-vivo tractability corroboration. Target-grain (no per-indication split in
+    # this rollup). Research-only source (Gao 2015 supplement). No modality_relevance: a biology-axis facet.
+    entity_grains: [target]
+    cards: [target-pdx-drug-response]
+    providers:
+      - {kind: dataset, source: pdxe-drug-response-per-gene-v1, evidence_tier: measured}
+
   mutational_signature_context:
     claim: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the indication's cohort, and which dominates?"
     # 2026-08-12: an INDICATION-level, target-INDEPENDENT PRE-INTEGRATED companion result — per-sample
