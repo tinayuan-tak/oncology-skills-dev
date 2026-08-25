@@ -578,6 +578,9 @@ def main() -> int:
             certainty_by_axis=certainty_by_axis,
             cross_gate_shared_evidence=cross_gate_shared_evidence,
             fragility=fragility, competitor_crossref=competitor_crossref,
+            # factored-record consumers (M4): per-modality favorability + over-precision audit, so the
+            # cross-evidence integrator sees per-MODALITY calls + magnitude fragility, not just the scalar.
+            modality_fit_by_channel=modality_fit_by_channel, magnitude_borderline=magnitude_borderline,
             modality=args.modality,
         )
 

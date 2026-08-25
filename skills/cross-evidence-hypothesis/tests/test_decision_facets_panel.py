@@ -80,6 +80,25 @@ def test_render_decision_facets_present():
     assert "correlated" in block and "safety" in block  # cross-gate correlation surfaced
 
 
+def test_render_surfaces_factored_record_consumers():
+    """M4: the per-modality call, over-precision audit, and the acquire-vs-strengthen split reach the
+    synthesis prompt (the distinctions the scalar verdict could not carry)."""
+    panel = {
+        "fragility_facet": {"contested": False,
+                            "acquisition_backlog": [{"axis": "surface_modality"}],
+                            "underpowered_axes": [{"axis": "selectivity", "action": "strengthen"}]},
+        "modality_fit_by_channel": {"small_molecule": {"fit": "conditional"},
+                                    "degrader": {"fit": "unfavorable"}, "adc": {"fit": "na"}},
+        "magnitude_borderline": [{"axis": "selectivity", "scale": "log2fc", "distance_to_cut": 0.1}],
+    }
+    block = R._render_decision_facets(panel)
+    assert "STRENGTHEN" in block and "selectivity" in block          # measured-thin split
+    assert "acquisition_backlog" in block and "surface_modality" in block
+    assert "modality_fit_by_channel" in block and "conditional" in block and "unfavorable" in block
+    assert "adc" not in block            # 'na' channels are dropped from the per-modality call
+    assert "magnitude_borderline" in block and "knife-edge" in block
+
+
 def test_render_decision_facets_empty_when_absent():
     assert R._render_decision_facets({"fragility_facet": {}, "competitor_crossref": {},
                                       "cross_gate_shared_evidence": {}}) == ""

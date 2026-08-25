@@ -416,13 +416,32 @@ def _render_decision_facets(panel: dict) -> str:
     frag = panel.get("fragility_facet") or {}
     comp = panel.get("competitor_crossref") or {}
     cgse = panel.get("cross_gate_shared_evidence") or {}
+    mfc = panel.get("modality_fit_by_channel") or {}
+    mbl = panel.get("magnitude_borderline") or []
     lines = []
     if frag:
         contested = frag.get("contested")
         backlog = [b.get("axis") for b in (frag.get("acquisition_backlog") or []) if isinstance(b, dict)]
+        # M4 factored-record split: BLIND axes → ACQUIRE (never-looked); measured-thin → STRENGTHEN
+        # (add power). Distinct next-actions the scalar 'insufficient' conflated.
+        strengthen = [u.get("axis") for u in (frag.get("underpowered_axes") or []) if isinstance(u, dict)]
         lines.append(f"  fragility: contested={contested}"
-                     + (f"; acquisition_backlog (BLIND axes to acquire, feed go_forth): {backlog}"
-                        if backlog else ""))
+                     + (f"; acquisition_backlog (BLIND axes to ACQUIRE, feed go_forth): {backlog}"
+                        if backlog else "")
+                     + (f"; underpowered_axes (measured-thin → STRENGTHEN, add cohort/power): {strengthen}"
+                        if strengthen else ""))
+    if mfc:
+        # per-MODALITY favorability (worst-case conjunction across axes): a target can be nominable via
+        # one modality and held via another. Reason per channel, not on a flattened scalar.
+        calls = {ch: v.get("fit") for ch, v in mfc.items() if isinstance(v, dict) and v.get("fit") != "na"}
+        if calls:
+            lines.append(f"  modality_fit_by_channel (per-modality call; NOT a single verdict): {calls}")
+    if mbl:
+        # knife-edge calls: a categorical verdict that hard-cut a near-threshold continuous value —
+        # treat these verdicts as magnitude-FRAGILE, not crisp.
+        bl = [{ "axis": b.get("axis"), "scale": b.get("scale"), "distance_to_cut": b.get("distance_to_cut")}
+              for b in mbl if isinstance(b, dict)]
+        lines.append(f"  magnitude_borderline (knife-edge on the cutpoint → treat as fragile): {bl}")
     if comp:
         lines.append(f"  competitor: {json.dumps(comp, default=str)}")
     if cgse.get("correlated_gate_pairs"):

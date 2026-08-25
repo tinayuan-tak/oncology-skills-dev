@@ -1050,6 +1050,9 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
         "cross_gate_shared_evidence": decision_facets.get("cross_gate_shared_evidence") or {},
         "fragility_facet": decision_facets.get("fragility") or {},
         "competitor_crossref": decision_facets.get("competitor_crossref") or {},
+        # factored-record consumers (M4): per-modality favorability + over-precision audit.
+        "modality_fit_by_channel": decision_facets.get("modality_fit_by_channel") or {},
+        "magnitude_borderline": decision_facets.get("magnitude_borderline") or [],
         # Stage 2a: per-short claim_vector (+ key_signals) with CITABLE evidence atoms, surfaced from
         # synthesis.claim_vectors — the SIGNAL decomposition the panel reasons over (not just the
         # verdict label). Each atom's cite.card_id is already in citation_surface.card_ids (the card is

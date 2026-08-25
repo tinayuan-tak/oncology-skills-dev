@@ -348,7 +348,9 @@ def test_decision_facets_default_empty_and_byte_stable(tmp_path, monkeypatch):
     ep = _build_ep(tmp_path, monkeypatch)
     df = ep["synthesis"]["decision_facets"]
     assert df == {"certainty_by_axis": {}, "cross_gate_shared_evidence": {},
-                  "fragility": {}, "competitor_crossref": {}, "composed_modality": None}
+                  "fragility": {}, "competitor_crossref": {},
+                  "modality_fit_by_channel": {}, "magnitude_borderline": [],
+                  "composed_modality": None}
 
 
 def test_decision_facets_carried_into_synthesis(tmp_path, monkeypatch):
@@ -365,6 +367,13 @@ def test_decision_facets_carried_into_synthesis(tmp_path, monkeypatch):
             {"axis": "immune_context", "gate": None, "coverage": "low", "action": "acquire",
              "missing_cards": [{"card_id": "immune-context", "availability_state": "not_wired"}]}]},
         "competitor_crossref": {"competition_density": "crowded", "modality_validated": True},
+        # M4 factored-record consumers
+        "modality_fit_by_channel": {"small_molecule": {"fit": "conditional", "limiting_axis": "safety",
+                                                       "by_axis": {"safety": "conditional"}},
+                                    "degrader": {"fit": "unfavorable", "limiting_axis": "safety",
+                                                 "by_axis": {"safety": "unfavorable"}}},
+        "magnitude_borderline": [{"axis": "selectivity", "level": "moderate", "value": 0.6,
+                                  "scale": "log2fc", "distance_to_cut": 0.1, "band": 0.25}],
     }
     ep = _build_ep_with_facets(tmp_path, monkeypatch, facets=facets, modality="adc")
     df = ep["synthesis"]["decision_facets"]
@@ -373,6 +382,10 @@ def test_decision_facets_carried_into_synthesis(tmp_path, monkeypatch):
     assert df["fragility"]["acquisition_backlog"][0]["axis"] == "immune_context"
     assert df["competitor_crossref"]["competition_density"] == "crowded"
     assert df["composed_modality"] == "adc"
+    # M4 consumers reach synthesis: per-modality call + over-precision audit
+    assert df["modality_fit_by_channel"]["small_molecule"]["fit"] == "conditional"
+    assert df["modality_fit_by_channel"]["degrader"]["fit"] == "unfavorable"
+    assert df["magnitude_borderline"][0]["axis"] == "selectivity"
     # still schema-valid with the new blocks present
     schema = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
     errors = [e.message for e in Draft202012Validator(schema).iter_errors(ep)]

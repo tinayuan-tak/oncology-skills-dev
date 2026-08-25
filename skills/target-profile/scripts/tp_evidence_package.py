@@ -309,6 +309,8 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
                             cross_gate_shared_evidence: Optional[dict] = None,
                             fragility: Optional[dict] = None,
                             competitor_crossref: Optional[dict] = None,
+                            modality_fit_by_channel: Optional[dict] = None,
+                            magnitude_borderline: Optional[list] = None,
                             modality: Optional[str] = None) -> Path:
     """Assemble + write evidence_package.json around target-profile's composed verdict.
 
@@ -434,6 +436,13 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
             "cross_gate_shared_evidence": cross_gate_shared_evidence or {},
             "fragility": fragility or {},
             "competitor_crossref": competitor_crossref or {},
+            # FACTORED-RECORD consumers (M4): per-modality favorability rolled up from each axis's
+            # record modality_scope (worst-case conjunction), and the over-precision/knife-edge audit
+            # from magnitude value+distance_to_cut. Carried so the cross-evidence integrator reasons over
+            # per-MODALITY calls + magnitude fragility, not just the scalar verdict. Verdict-INERT;
+            # default-empty → byte-stable for packages that computed none.
+            "modality_fit_by_channel": modality_fit_by_channel or {},
+            "magnitude_borderline": magnitude_borderline or [],
             # The modality this package was COMPOSED under (None for a modality-agnostic run). The
             # recommendation_gate.hard_gates (esp. the exists_safe_modality safety suppression) are
             # frozen under THIS modality, so the cross-evidence integrator must compare it to its own
