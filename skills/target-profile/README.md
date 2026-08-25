@@ -56,10 +56,12 @@ It then emits an **executive summary**, **tension analysis** (where sub-verdicts
 
 ## Install as a proper Claude skill
 
-The skills ship as a Claude Code **plugin** (`oncology-skills`) published through a local
-**marketplace** (`claude-oncology-skills`). Once installed, `target-profile` is available to Claude
-as the `/target-profile` skill — you describe the target in natural language and Claude runs it for
-you; you never touch the CLI.
+Install `target-profile` into your local Claude in one of two ways — a **personal-skill symlink**
+(just this skill; the convention this repo already uses) or the full **plugin bundle** (this skill +
+its 13 sub-skills + utilities). Either way it becomes the `/target-profile` skill: you describe the
+target in natural language and Claude runs it for you — you never touch the CLI. The skills also ship
+as a Claude Code plugin (`oncology-skills`) published through a local marketplace
+(`claude-oncology-skills`) for the bundle path.
 
 ### 1. Clone the four repos
 
@@ -81,9 +83,38 @@ pixi install                   # build the data-card runtime env
 > `TARGET_CONTRACTS_ROOT`, `ANALYSIS_METHODS_ROOT`, and `DATA_CATALOG_ROOT` — see
 > [Prerequisites](#prerequisites).
 
-### 2. Register the marketplace and install the plugin
+### 2. Make the skill visible to Claude
 
-In Claude Code, point the marketplace at your local clone (or the GitHub repo), then install:
+Pick **one** of these. Both make `target-profile` appear as a first-class skill that Claude
+auto-invokes (and that autocompletes as `/target-profile`); neither changes how a run executes —
+the skill still shells out to `scripts/run.py` against your local clone + AWS.
+
+Claude Code discovers skills from three places: **personal** (`~/.claude/skills/`), **project**
+(`.claude/skills/` in the cwd), and **installed plugins**. Confirm any of them worked with
+`/skills` (or check that `/target-profile` autocompletes).
+
+#### Method A — personal-skill symlink (simplest; the convention this repo already uses)
+
+Link the skill directory into your personal skills folder. A symlink is preferred over a copy so
+the skill tracks the repo as you `git pull` (and `scripts/run.py` resolves its own paths via
+`__file__`, so a symlink works unchanged):
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s ~/rnd-computational-biology-oncology-claude-oncology-skills/skills/target-profile \
+      ~/.claude/skills/target-profile
+```
+
+This installs **only** `target-profile`. It composes 13 sub-skills *in-process* (Python imports,
+not the Claude skill registry), so you do **not** need to symlink those for a run to work — but you
+may link any you also want to invoke standalone (e.g. `tumor-presence`, `functional-requirement`).
+For a project-scoped install instead, symlink into `<your-project>/.claude/skills/` rather than
+`~/.claude/skills/`.
+
+#### Method B — install the whole plugin bundle
+
+Registers `target-profile` **plus** its 13 sub-skills and the utility skills in one step, via the
+plugin marketplace:
 
 ```
 /plugin marketplace add ~/rnd-computational-biology-oncology-claude-oncology-skills
@@ -92,14 +123,14 @@ In Claude Code, point the marketplace at your local clone (or the GitHub repo), 
 
 - `oncology-skills` is the plugin name (`.claude-plugin/plugin.json`).
 - `claude-oncology-skills` is the marketplace name (`.claude-plugin/marketplace.json`).
-- Installing the plugin registers **all** bundled skills (target-profile + its 13 sub-skills + the
-  utility skills). Verify with `/plugin` → *Manage plugins*, or just check that `/target-profile`
-  autocompletes.
+- Verify with `/plugin` → *Manage plugins*.
 
 > **Local path vs GitHub.** Adding the marketplace from a local path is recommended for v2, because
 > a run needs the sibling repos on disk anyway and v2 lives on the `v2-architecture` branch. You can
 > instead `add oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills`, but that pulls
 > the default branch — keep your working clone on `v2-architecture`.
+
+> **Restart** Claude Code (or run `/skills`) after either method so the new skill is picked up.
 
 ### 3. Configure AWS + Bedrock once per shell/session
 
