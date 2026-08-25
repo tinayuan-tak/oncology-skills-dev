@@ -13,7 +13,7 @@
 # the analysis-methods classifier; the labels live in the cards).
 
 gate: dependency
-version: 1.2.0   # 1.2.0 (2026-08-08): RNAi-asymmetry fix — RNAi-alone can no longer fire pan_essential_killer
+version: 1.3.0   # 1.2.0 (2026-08-08): RNAi-asymmetry fix — RNAi-alone can no longer fire pan_essential_killer
                 #        (rung 2) or selective_dependent (rung 5). Both now require CRISPR (RNAi seed-effect
                 #        false-positive risk); honors the two RNAi rules' own "needs CRISPR cross-check"
                 #        rationales + the "CRISPR-beats-RNAi" invariant. VERDICT-MOVING → golden snapshot regenerated.
@@ -43,6 +43,7 @@ resolve:
   # RNAi-alone pan-essential now falls through (typically to broadly_dependent or insufficient), where
   # its seed-effect risk cannot mask a real selective dependency. See rnai-pan-essential-killer-with-
   # crispr below for the explicit both-agree corroboration path.
+    priority: 0
   - verdict: pan_essential_killer
     when_fired: pan-essential-killer
 
@@ -51,14 +52,17 @@ resolve:
   # non-dominant, exactly as its rule rationale requires. (CRISPR pan-essential already fires the rung
   # above; this catches CRISPR broadly-dependent + RNAi pan-essential — a consistent broad-essential
   # picture — without letting RNAi-alone kill.)
+    priority: 1
   - verdict: pan_essential_killer
     when_all_fired:
       - rnai-pan-essential-killer
       - broadly-dependent-neutral
 
+    priority: 2
   - verdict: concordant_dependent
     when_fired: concordant-dependent-supportive-dominant
 
+    priority: 3
   - verdict: lineage_selective
     when_fired: lineage-selective-supportive
 
@@ -69,9 +73,11 @@ resolve:
   # ONLY when CRISPR also reads a dependency signal (selective or broadly-dependent) — orthogonal-LOF
   # corroboration, never RNAi-alone. RNAi-selective-alone (CRISPR non-dependent / data-unavailable)
   # falls through rather than minting a selective call on the seed-effect-prone assay.
+    priority: 4
   - verdict: selective_dependent
     when_fired: strongly-selective-supportive
 
+    priority: 5
   - verdict: selective_dependent
     when_all_fired:
       - rnai-strongly-selective-supportive
@@ -96,20 +102,24 @@ resolve:
   # It can never CREATE a veto: PRISM absence is `no_compounds_found` → neutral, never a
   # killer (not-yet-drugged ≠ undruggable). Ranks BELOW the genetic positives — it
   # CONFIRMS a dependency, it is not a stronger call than a direct genetic dependency.
+    priority: 6
   - verdict: chemical_genetic_confirmed_dependent
     when_fired: e7-triangulated-target-engaged-supportive
 
+    priority: 7
   - verdict: discordant
     when_fired: concordance-discordant-warning
 
   # DepMap-power admissibility guard (bottom-rail): below-floor pooled negative
   # contradicted by a concentrated-dependent well-sampled lineage → escapes the veto.
+    priority: 8
   - verdict: insufficient_underpowered
     when_fired: non-dependent-underpowered-insufficient
 
   # Paralog-buffering veto-suppressor (COMPOUND): a pooled non-dependence AND a strong
   # paralog buffer → buffering artifact, escapes the veto. driving_rule names the buffer
   # rule as the provenance anchor (matches the if-chain's return).
+    priority: 9
   - verdict: non_dependent_paralog_buffered
     when_all_fired:
       - non-dependent-killer
@@ -126,26 +136,32 @@ resolve:
   # MODERATE tier IS the real signal (WRN×MSI = -0.41). driving_rule names the partner rule.
   # Also fires WITHOUT a pooled veto (a partner-conditional dependency is a positive relevance signal
   # in its own right); the when_fired rungs below the compound catch that case.
+    priority: 10
   - verdict: partner_conditional_dependent
     when_all_fired:
       - non-dependent-killer
       - partner-conditional-strongly-dependent-supportive
     driving_rule: partner-conditional-strongly-dependent-supportive
+    priority: 11
   - verdict: partner_conditional_dependent
     when_all_fired:
       - non-dependent-killer
       - partner-conditional-moderately-dependent-supportive
     driving_rule: partner-conditional-moderately-dependent-supportive
+    priority: 12
   - verdict: partner_conditional_dependent
     when_fired: partner-conditional-strongly-dependent-supportive
+    priority: 13
   - verdict: partner_conditional_dependent
     when_fired: partner-conditional-moderately-dependent-supportive
 
   # non_dependent → gate VETO. Only CRISPR non-dependence qualifies (RNAi-only
   # non-dependence is neutral, falls through to insufficient — false-negative-prone).
+    priority: 14
   - verdict: non_dependent
     when_fired: non-dependent-killer
 
+    priority: 15
   - verdict: broadly_dependent
     when_any_fired:
       - broadly-dependent-neutral
@@ -160,6 +176,7 @@ resolve:
   # provenance anchor. Placed at the BOTTOM (above default): it fires ONLY when no positive,
   # veto, admissibility-guard, or neutral rung above it matched — so it can never outrank a
   # real signal. when_any_fired order = deterministic tie-break; CRISPR (the backbone) first.
+    priority: 16
   - verdict: insufficient
     when_any_fired:
       - data-unavailable-insufficient                      # pan-cancer-crispr
@@ -170,4 +187,6 @@ resolve:
 
 # default fires ONLY when NOT EVEN a data-unavailable rule fired (i.e. no dependency card
 # produced any rule at all) → insufficient with null provenance, the honest "nothing ran" state.
+    priority: 17
 default: insufficient
+evaluation: match_all_reduce

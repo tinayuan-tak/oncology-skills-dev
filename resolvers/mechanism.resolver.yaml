@@ -6,17 +6,23 @@
 # OPPOSING warning. Network shape is the primary read; the PD marker is a secondary
 # annotation. This ordering is exactly why the visible precedence ladder matters.
 gate: mechanism
-version: 1.0.0
+version: 1.1.0
 description: Signaling-network mechanism precedence — network shape before PD-marker flag.
 resolve:
   - verdict: well_characterized
     when_fired: mechanism-well-characterized-supportive
+    priority: 0
   - verdict: partial
     when_fired: mechanism-partial-neutral
+    priority: 1
   - verdict: sparse
     when_fired: mechanism-sparse-warning
+    priority: 2
   - verdict: has_pd_marker
     when_fired: has-pd-marker-supportive
+    priority: 3
   - verdict: data_unavailable
     when_fired: mechanism-data-unavailable-insufficient
+    priority: 4
 default: insufficient
+evaluation: match_all_reduce

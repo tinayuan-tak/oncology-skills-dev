@@ -2,7 +2,7 @@
 # Declarative transcription of skills/on-target-safety-liability/scripts/run.py::_verdict.
 # Germline gnomAD LoF-constraint signal (highly_constrained → hold in the nomination gate).
 gate: safety
-version: 2.0.0   # 2.0.0 (2026-08-24): RETIRED the role-proxy mutant-selective downgrade (GROUP-0/0b guards +
+version: 2.1.0   # 2.0.0 (2026-08-24): RETIRED the role-proxy mutant-selective downgrade (GROUP-0/0b guards +
                  #   GROUP-1). The resolver no longer emits wt_constraint_mechanism_mismatch /
                  #   wt_human_genetics_mechanism_mismatch — it emits the HONEST raw WT-loss concern; the
                  #   modality-conditional downgrade moved to the per-modality safety verdict + tp_gates
@@ -50,8 +50,10 @@ resolve:
   #    protein). Placed just below the dominant gnomAD signal and above the P5 human-genetics HOLD +
   #    the soft gnomAD rungs. When one co-fires with a genuine downgrade context it is handled by the
   #    GROUP-0/1 rungs above (pan-essential) or stands (normal-tissue: no allele-selective escape).
+    priority: 0
   - verdict: pan_essential_broad_tox_concern
     when_fired: pan-essential-broad-tox-safety-warning
+    priority: 1
   - verdict: normal_tissue_protein_safety_concern
     when_fired: normal-tissue-protein-liability-safety-warning
 
@@ -69,14 +71,17 @@ resolve:
   #    BELOW highly_constrained gnomAD — a strong constraint call dominates). The GROUP-1 mutant-
   #    selective downgrades still precede it (top of file), unchanged. driving_rule attributes the
   #    strongest-tier warning present (gene_burden measured > ClinGen > ClinVar > mouse=inferred).
+    priority: 2
   - verdict: human_genetics_safety_concern
     when_any_fired: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
+    priority: 3
 
   # ── GROUP 2b: the SOFT gnomAD rungs — tolerant / moderately-constrained / indeterminate-or-unreadable.
   #    These are weaker than a real human-genetics WT-loss signal (GROUP 3), so they resolve AFTER it.
   #    A gene with NO human-genetics warning still lands here exactly as before (gnomAD rows unchanged).
   - verdict: tolerant_reduced_safety_risk
     when_fired: tolerant-safety-supportive
+    priority: 4
   - verdict: moderately_constrained_safety
     when_fired: moderately-constrained-safety-neutral
   # ClinGen recessive-only REASSURANCE (2026-08-21): carriers of a strictly-recessive disease gene are
@@ -84,8 +89,12 @@ resolve:
   # HOLD and below the tolerant/moderate gnomAD rungs, ABOVE data_unavailable — so it ONLY upgrades the
   # "gnomAD-silent/unreadable" population from "unknown" to "reduced risk", and can never override a
   # real constraint/burden/dominant-loss HOLD. Reuses tolerant_reduced_safety_risk (no new token).
+    priority: 5
   - verdict: tolerant_reduced_safety_risk
     when_fired: clingen-recessive-only-safety-favorable
+    priority: 6
   - verdict: data_unavailable
     when_fired: constraint-data-unavailable-insufficient
+    priority: 7
 default: insufficient
+evaluation: match_all_reduce

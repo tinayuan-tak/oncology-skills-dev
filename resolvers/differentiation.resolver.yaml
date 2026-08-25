@@ -4,23 +4,32 @@
 # skill (ns→insufficient rename bug); the explicit `ns` rung + explicit default are what
 # close that decision-layer collapse, now statically checkable by validate_resolvers.
 gate: differentiation
-version: 1.0.0
+version: 1.1.0
 description: Co-mutation / mutual-exclusivity precedence (most-informative first).
 resolve:
   - verdict: both_patterns_present
     when_fired: cooccurrence-both-patterns-supportive
+    priority: 0
   - verdict: strong_mutually_exclusive
     when_fired: strong-mutual-exclusivity-supportive
+    priority: 1
   - verdict: strong_cooccurring
     when_fired: cooccurrence-strong-supportive
+    priority: 2
   - verdict: has_cooccurring_driver
     when_fired: has-cooccurring-driver-supportive
+    priority: 3
   - verdict: modest_cooccurring
     when_fired: cooccurrence-modest-cooccurring-neutral
+    priority: 4
   - verdict: modest_mutually_exclusive
     when_fired: cooccurrence-modest-mutually-exclusive-neutral
+    priority: 5
   - verdict: ns
     when_fired: cooccurrence-ns-neutral
+    priority: 6
   - verdict: data_unavailable
     when_fired: cooccurrence-data-unavailable-insufficient
+    priority: 7
 default: insufficient
+evaluation: match_all_reduce

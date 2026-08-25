@@ -12,14 +12,14 @@
 #      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
 #   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
 gate: tractability_small_molecule
-version: 1.3.0   # T3.1: + measured_potent_ligand tier (ChEMBL/BindingDB measured potency) between chemical-activity and structural
+version: 1.4.0   # T3.1: + measured_potent_ligand tier (ChEMBL/BindingDB measured potency) between chemical-activity and structural
 description: Small-molecule druggability precedence (on-target chemical-genetic E7 > opposing off-target > retrospective chemical activity > MEASURED potency > structural E8 + druggable-category > unhit).
 resolve:
   # --- On-target chemical-genetic (retrospective, CONCORDANCE-confirmed) ---
   # These are ON-TARGET (the compound kill tracks the CRISPR/RNAi dependency), so an off-target
   # discordant read does NOT override them — they stay at the top.
-  - {verdict: well_covered,                 when_fired: e7-triangulated-target-engaged-supportive}
-  - {verdict: chemically_confirmed_genetic, when_fired: e7-crispr-confirmed-supportive-sm}
+  - {verdict: well_covered, when_fired: e7-triangulated-target-engaged-supportive, priority: 0}
+  - {verdict: chemically_confirmed_genetic, when_fired: e7-crispr-confirmed-supportive-sm, priority: 1}
   # --- Opposing off-target read (T1.1, 2026-08-09): MUST precede the retrospective chemical-ACTIVITY
   #     positives below. A compound active but OFF-target (its kill pattern does NOT track the genetic
   #     dependency) argues AGAINST tractability — so `discordant` demotes a would-be chemically_active
@@ -27,31 +27,31 @@ resolve:
   #     reach (annotated compounds force a positive prism_activity_class that outranked it), so the
   #     off-target control was dead. It also blocks `strong` nomination (positive_contradictions). It
   #     stays BELOW the on-target E7 rungs above (those already proved on-mechanism). ---
-  - {verdict: discordant,                   when_fired: e7-discordant-off-target-warning}
+  - {verdict: discordant, when_fired: e7-discordant-off-target-warning, priority: 2}
   # --- Retrospective chemical ACTIVITY (a compound was found; NOT concordance-checked here) ---
-  - {verdict: chemically_active,            when_fired: prism-clinically-active-supportive-sm}
+  - {verdict: chemically_active, when_fired: prism-clinically-active-supportive-sm, priority: 3}
   # E-known-drug (DGIdb pharmacology leg, 2026-08-07): an APPROVED drug catalogued against the target
   # is retrospective chemical evidence -> chemically_active (SAME verdict as PRISM clinically-active, so
   # it can only RESCUE a target PRISM missed, never change a combo that already returned it). Placed
   # right below the PRISM chemically_active rung (equal tier, drug-catalogue vs cell-line source).
-  - {verdict: chemically_active,            when_fired: known-drug-approved-antineoplastic-sm-supportive}
+  - {verdict: chemically_active, when_fired: known-drug-approved-antineoplastic-sm-supportive, priority: 4}
   # WS-E (2026-08-24 druggability audit): a target with a ChEMBL max_clinical_phase >= 4 (an APPROVED
   # drug) is retrospective chemical evidence -> chemically_active (SAME verdict as the PRISM/DGIdb rungs
   # above; a third independent path from the REAL ChEMBL phase, closes the gap where a phase-4 target
   # with no PRISM/DGIdb signal was missed). Equal tier, placed right below the DGIdb rung.
-  - {verdict: chemically_active,            when_fired: measured-chembl-approved-sm-supportive}
+  - {verdict: chemically_active, when_fired: measured-chembl-approved-sm-supportive, priority: 5}
   # WS-E (2026-08-24): a ChEMBL phase 1-3 compound is REAL clinical precedent -> clinical_precedent_only.
   # Placed ABOVE the PRISM proxy rung so the AUTHORITATIVE real-phase rule is the driving_rule when both
   # fire (same verdict; the PRISM `Prioritized`-flag proxy was the coarse stand-in this replaces as the
   # cited reason). NON-nominating + NON-contradiction (nomination_verdict_gate.yaml unchanged).
-  - {verdict: clinical_precedent_only,      when_fired: measured-chembl-clinical-precedent-sm-supportive}
+  - {verdict: clinical_precedent_only, when_fired: measured-chembl-clinical-precedent-sm-supportive, priority: 6}
   # T1.2 (2026-08-09): a phase_1+/approved compound ANNOTATED against the target but with NO measured
   # PRISM cell-panel activity -> clinical_precedent_only (honestly weaker than measured chemically_active,
   # stronger than a bare tool compound). Placed BELOW chemically_active, ABOVE tool_compound_only.
   # NON-nominating + NON-contradiction (nomination_verdict_gate.yaml unchanged).
-  - {verdict: clinical_precedent_only,      when_fired: prism-clinical-precedent-only-weak-supportive-sm}
-  - {verdict: tool_compound_only,           when_fired: prism-tool-compound-only-weak-supportive-sm}
-  - {verdict: weakly_active,                when_fired: prism-weakly-active-weak-supportive-sm}
+  - {verdict: clinical_precedent_only, when_fired: prism-clinical-precedent-only-weak-supportive-sm, priority: 7}
+  - {verdict: tool_compound_only, when_fired: prism-tool-compound-only-weak-supportive-sm, priority: 8}
+  - {verdict: weakly_active, when_fired: prism-weakly-active-weak-supportive-sm, priority: 9}
   # --- MEASURED POTENCY (T3.1, 2026-08-09): ChEMBL/BindingDB measured binding potency. A potent
   #     (<=1 uM) chemotype SERIES is a real, deep chemical start point with QUANTIFIED binding —
   #     stronger than a predicted pocket (below), but the retrospective chemical-activity/genetic
@@ -60,7 +60,7 @@ resolve:
   #     NON-nominating + NON-contradiction (nomination_verdict_gate.yaml unchanged — a distinct
   #     tractability signal, not a positive nominator). weak_measured_ligand maps to structurally_
   #     ligandable (a starting-point handle, same tier as a predicted pocket / druggable category). ---
-  - {verdict: measured_potent_ligand,       when_fired: measured-potent-ligand-sm-supportive}
+  - {verdict: measured_potent_ligand, when_fired: measured-potent-ligand-sm-supportive, priority: 10}
   # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
   # E8-lig (composite structure-ligandability-per-protein-v1, 2026-08-07): the LIVE structural
   # leg. A real experimental co-crystal is the STRONGEST forward handle → ranks at the top of the
@@ -69,20 +69,21 @@ resolve:
   # the SAME structurally_ligandable verdict, so the ADDITION cannot change any combo that already
   # returned structurally_ligandable — it only rescues combos that previously fell through to
   # chemically_unhit / insufficient (the whole point). Driving-rule id differs (records WHY).
-  - {verdict: structurally_ligandable,      when_fired: ligandability-experimental-sm-supportive}
-  - {verdict: structurally_ligandable,      when_fired: hotspot-in-druggable-pocket-sm-supportive-e8}
-  - {verdict: structurally_ligandable,      when_fired: structure-pocket-adjacent-sm-supportive}
-  - {verdict: structurally_ligandable,      when_fired: ligandability-predicted-sm-supportive}
+  - {verdict: structurally_ligandable, when_fired: ligandability-experimental-sm-supportive, priority: 11}
+  - {verdict: structurally_ligandable, when_fired: hotspot-in-druggable-pocket-sm-supportive-e8, priority: 12}
+  - {verdict: structurally_ligandable, when_fired: structure-pocket-adjacent-sm-supportive, priority: 13}
+  - {verdict: structurally_ligandable, when_fired: ligandability-predicted-sm-supportive, priority: 14}
   # E-known-drug (DGIdb): a druggable-CATEGORY membership (CLINICALLY ACTIONABLE / DRUGGABLE GENOME)
   # without an approved drug is a forward druggable-class prior — same tier as a predicted pocket.
-  - {verdict: structurally_ligandable,      when_fired: known-drug-druggable-category-sm-supportive}
+  - {verdict: structurally_ligandable, when_fired: known-drug-druggable-category-sm-supportive, priority: 15}
   # T3.1: weak measured activity (a potent hit or two, or sub-potent) is a starting-point handle —
   # same tier as a predicted pocket / druggable category (structurally_ligandable), below a potent
   # measured SERIES (measured_potent_ligand, above) and any retrospective chemical hit.
-  - {verdict: structurally_ligandable,      when_fired: measured-weak-ligand-sm-supportive}
-  - {verdict: structurally_intractable,     when_fired: structure-low-confidence-sm-opposing}
-  - {verdict: structurally_intractable,     when_fired: ligandability-disordered-sm-opposing}
-  - {verdict: chemically_unhit,             when_fired: prism-no-compounds-found-neutral}
+  - {verdict: structurally_ligandable, when_fired: measured-weak-ligand-sm-supportive, priority: 16}
+  - {verdict: structurally_intractable, when_fired: structure-low-confidence-sm-opposing, priority: 17}
+  - {verdict: structurally_intractable, when_fired: ligandability-disordered-sm-opposing, priority: 18}
+  - {verdict: chemically_unhit, when_fired: prism-no-compounds-found-neutral, priority: 19}
 # ligandability-no-evidence-sm-insufficient carries small_molecule:insufficient and maps to the
 # `default: insufficient` fallthrough — no explicit rung needed (a coverage gap, never a verdict).
 default: insufficient
+evaluation: match_all_reduce

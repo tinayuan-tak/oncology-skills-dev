@@ -3,15 +3,20 @@
 # has_experimental_sl_partner is the gate veto-suppressor trigger (SMARCA2<-SMARCA4);
 # computational-only is surfaced but does NOT suppress a veto. ANNOTATION, never nominates.
 gate: synthetic_lethal_partners
-version: 1.0.0
+version: 1.1.0
 description: Curated SL-partner annotation precedence (SynLethDB v3).
 resolve:
   - verdict: has_experimental_sl_partner
     when_fired: sl-experimental-partner-context-conditional
+    priority: 0
   - verdict: has_computational_sl_partner
     when_fired: sl-computational-partner-informational
+    priority: 1
   - verdict: no_curated_sl_partner
     when_fired: sl-no-partner-neutral
+    priority: 2
   - verdict: data_unavailable
     when_fired: sl-data-unavailable-insufficient
+    priority: 3
 default: insufficient
+evaluation: match_all_reduce

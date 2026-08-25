@@ -23,7 +23,7 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.5.0
+version: 1.6.0
 description: |
   Multi-class genomic-alteration verdict. A Chronos stratified-dependency (any alteration class) is
   the strongest signal and leads the ladder; copy-number and fusion landscape recurrence keep an
@@ -42,15 +42,15 @@ resolve:
   #    Every rung lists the gate LAST in when_all_fired and MUST keep driving_rule set explicitly, else the
   #    interpreter's rids[-1] fallback would name the scope gate (not the dependency rule) as the driver.
   #    STRONG tier (|delta| >= 0.5):
-  - {verdict: biomarker_stratified_dependency, when_all_fired: [mutant-strongly-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_all_fired: [cn-amplified-strongly-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_all_fired: [fusion-positive-strongly-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_all_fired: [amp-expr-strongly-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-strongly-dependent-supportive}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [mutant-strongly-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-strongly-dependent-supportive, priority: 0}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [cn-amplified-strongly-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-strongly-dependent-supportive, priority: 1}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [fusion-positive-strongly-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-strongly-dependent-supportive, priority: 2}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [amp-expr-strongly-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-strongly-dependent-supportive, priority: 3}
   #    MODERATE tier (|delta| 0.2-0.5):
-  - {verdict: moderate_biomarker_dependency,   when_all_fired: [mutant-moderately-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_all_fired: [cn-amplified-moderately-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_all_fired: [fusion-positive-moderately-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_all_fired: [amp-expr-moderately-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [mutant-moderately-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-moderately-dependent-supportive, priority: 4}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [cn-amplified-moderately-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-moderately-dependent-supportive, priority: 5}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [fusion-positive-moderately-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-moderately-dependent-supportive, priority: 6}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [amp-expr-moderately-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-moderately-dependent-supportive, priority: 7}
 
   # ── 2. multi_class_driver — a mutation-class driver AND a copy-number driver ─────────────────────
   #    Requires an alteration-role DRIVER co-signal (gof-supportive OR lof-neutral) so a passenger with
@@ -61,55 +61,55 @@ resolve:
   #    NOTE: multi_class rungs keyed on a mutant-*-dependent rule are intentionally absent — the
   #    stratified-dependency rungs above are a subset of their condition and always win first-match, so
   #    a mutation-DEPENDENCY + CN gene resolves to the biomarker verdict (the nomination-load-bearing one).
-  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 8}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 9}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 10}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 11}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 12}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 13}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 14}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 15}
   #    Patient-focal CN twins: a mutation-class driver + role that is patient-focal amplified/deleted
   #    (but cell-line-CN-neutral) also reads multi_class — a rescue, never a downgrade.
-  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 16}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 17}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 18}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 19}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 20}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 21}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 22}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 23}
 
   # ── 3. confirmed_driver — a single-class driver corroborated by a typed driver role ──────────────
   #    Below multi_class (a dually-altered driver surfaces multi_class first) but above the bare
   #    variant-class-pattern rungs (a role-confirmed driver outranks a mutation-spectrum shape).
-  - {verdict: confirmed_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: confirmed_lof_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive}
-  - {verdict: confirmed_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: confirmed_lof_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive}
-  - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-amplified-supportive}
-  - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-amplified-supportive}
-  - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-deleted-supportive}
-  - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-deleted-supportive}
-  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-amplified-supportive}
-  - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-amplified-supportive}
-  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive}
-  - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-deleted-supportive}
+  - {verdict: confirmed_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 24}
+  - {verdict: confirmed_lof_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 25}
+  - {verdict: confirmed_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 26}
+  - {verdict: confirmed_lof_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 27}
+  - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-amplified-supportive, priority: 28}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-amplified-supportive, priority: 29}
+  - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-deleted-supportive, priority: 30}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-deleted-supportive, priority: 31}
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-amplified-supportive, priority: 32}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-amplified-supportive, priority: 33}
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive, priority: 34}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-deleted-supportive, priority: 35}
 
   # ── 4. drug_response_biomarker — genotype-selective drug sensitivity ─────────────────────────────
   #    A distinct verdict, never conflated with biomarker_stratified_dependency (drug sensitivity is
   #    not CRISPR-KO dependency). Below the KO-dependency family (the more mechanism-anchored call) but
   #    above the bare variant-class-pattern rungs. Only the STRONG class drives a verdict; the moderate
   #    class stays a signal-only facet.
-  - {verdict: drug_response_biomarker, when_fired: mutation-drug-response-strongly-sensitive-supportive}
+  - {verdict: drug_response_biomarker, when_fired: mutation-drug-response-strongly-sensitive-supportive, priority: 36}
 
   # ── 5. Variant-class pattern (mutation-spectrum SHAPE, no dependency test) ───────────────────────
   #    Fires from mutation-type-counts variant-class dominance (>=70% missense / >=50% truncating among
   #    coding variants in >=5 cell lines). These measure the SHAPE of the spectrum, not patient
   #    recurrence — "recurrent" is reserved for signals that literally count sample recurrence (cn-
   #    recurrently-*, fusion-landscape). Below the dependency family, above the CN-landscape rungs.
-  - {verdict: lof_dominant_pattern,       when_fired: mut-lof-dominant-supportive}
-  - {verdict: missense_dominant_pattern,  when_fired: mut-missense-dominant-supportive}
+  - {verdict: lof_dominant_pattern, when_fired: mut-lof-dominant-supportive, priority: 37}
+  - {verdict: missense_dominant_pattern, when_fired: mut-missense-dominant-supportive, priority: 38}
 
   # ── 6. CN-only and fusion-landscape recurrent drivers (landscape recurrence, no dependency line) ──
   #    Cell-line CN before patient-focal CN (cell-line wins first-match when both fire); amplified
@@ -117,17 +117,17 @@ resolve:
   #    nominating positive_signals — they keep an amplification/deletion/fusion-driven oncogene with no
   #    DepMap dependency line (e.g. ERBB2/MYC amp, EWSR1-FLI1 / EML4-ALK fusion) from collapsing to
   #    passenger, mirroring how the copy-number reframe rescued amplification-driven targets.
-  - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
-  - {verdict: recurrent_deletion_driver,       when_fired: cn-recurrently-deleted-supportive}
-  - {verdict: recurrent_amplification_driver,  when_fired: cn-patient-focal-amplified-supportive}
-  - {verdict: recurrent_deletion_driver,       when_fired: cn-patient-focal-deleted-supportive}
-  - {verdict: recurrent_fusion_driver,         when_fired: fusion-landscape-recurrent-driver-supportive}
+  - {verdict: recurrent_amplification_driver, when_fired: cn-recurrently-amplified-supportive, priority: 39}
+  - {verdict: recurrent_deletion_driver, when_fired: cn-recurrently-deleted-supportive, priority: 40}
+  - {verdict: recurrent_amplification_driver, when_fired: cn-patient-focal-amplified-supportive, priority: 41}
+  - {verdict: recurrent_deletion_driver, when_fired: cn-patient-focal-deleted-supportive, priority: 42}
+  - {verdict: recurrent_fusion_driver, when_fired: fusion-landscape-recurrent-driver-supportive, priority: 43}
   #    SNV landscape recurrence (scope-coherence Phase 2): a top-1% pooled multi-cohort recurrent SNV
   #    driver with no KO-dependency, no variant-class dominance, and no CN/fusion landscape event. LAST
   #    in tier 6 so it fires only when no CN/fusion landscape driver did — a dually-altered gene keeps
   #    its existing recurrent_amplification/deletion/fusion verdict (byte-stable). The SNV analog of the
   #    recurrent focal-amp / recurrent-fusion rescues; makes patient recurrence verdict-relevant.
-  - {verdict: recurrent_snv_driver,            when_fired: snv-recurrence-top-driver-supportive}
+  - {verdict: recurrent_snv_driver, when_fired: snv-recurrence-top-driver-supportive, priority: 44}
 
   # ── 7. mixed / passenger fallback, with a double-data-gap guard ──────────────────────────────────
   #    passenger_pattern is a substantive "not a driver" call, but its trigger fires on a rarely-mutated
@@ -136,8 +136,9 @@ resolve:
   #    amplification reframe was built to kill. The engine has no negation predicate, so the guard is
   #    precedence: no-mutations + CN-unavailable resolves to insufficient (an honest coverage gap). A
   #    MEASURED-neutral CN + no mutations still reads passenger_pattern (an informative not-a-driver call).
-  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient}
-  - {verdict: mixed_pattern,      when_fired: mut-mixed-neutral}
-  - {verdict: passenger_pattern,  when_fired: mut-no-mutations-neutral}
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 45}
+  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 46}
+  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 47}
 
 default: insufficient
+evaluation: match_all_reduce
