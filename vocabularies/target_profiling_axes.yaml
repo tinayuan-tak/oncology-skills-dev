@@ -416,7 +416,7 @@ skill_objectives:
       # data must NOT be the sole contributor: patient per-sample tumour RNA is the most direct evidence
       # that the gene is expressed in actual cancer (2026-08-19 review). tumor-rna-distribution also
       # answers Q2 (this-indication-vs-others) — a card may serve multiple questions.
-      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, tumor-rna-distribution, tumor-protein-abundance-cptac]}
+      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, cellline-protein-abundance-procan, tumor-rna-distribution, tumor-protein-abundance-cptac]}
       - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
       - {q: "Elevated vs normals (adjacent + normal-tissue footprint)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability, sc-normal-celltype-expression]}
       - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype]}

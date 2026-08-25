@@ -1,0 +1,144 @@
+# Card E3b-ProCan — PROTEIN ABUNDANCE across the ProCan-DepMapSanger cell-line panel  (pure-data)
+#
+# The SECOND, ORTHOGONAL cell-line protein-abundance platform, sibling of cellline-protein-abundance
+# (Gygi TMT MS). Same claim (`cell_line_protein_abundance`), same distribution vocabulary, DIFFERENT
+# assay + panel:
+#   - cellline-protein-abundance:         DepMap Gygi TMT MS (~375 lines, DUA-gated, isobaric-labelled)
+#   - cellline-protein-abundance-procan:  ProCan-DepMapSanger DIA/SWATH MaxLFQ (949 lines, CC-BY-4.0,
+#                                         commercial-use-clean, label-free)
+# Cross-platform agreement is corroboration; disagreement is diagnostic (assay-sensitivity /
+# panel-composition differences), not noise. This card is VERDICT-INERT DISPLAY in tumor-presence:
+# it feeds NO interpretation rule and NO resolver rung (no rule keys card_id
+# cellline-protein-abundance-procan), so the presence verdict is byte-stable with or without it.
+#
+# Substrate: procan-cellline-protein-abundance-per-protein-v1 — a long/tidy, UniProt-pushdown
+# reshape of ProCan-DepMapSanger_protein_matrix_8498_averaged.txt (Goncalves et al. Cancer Cell 2022),
+# columns uniprot_base / uniprot_id / model_id(Sanger SIDM) / log_abundance (DIA-NN MaxLFQ,
+# sample-normalized, replicate-averaged, log-scale). The reader pyarrow-column-pushdowns one protein.
+#
+# DIA/SWATH MaxLFQ abundance is a normalized RELATIVE log intensity (protein-level), NOT an absolute
+# concentration. "Detected" = a non-null quantified value; abundance percentiles are panel-relative.
+
+card_id: cellline-protein-abundance-procan
+version: 1.0.0
+question: "Across the ProCan-DepMapSanger cell-line panel (DIA/SWATH MaxLFQ), what is the protein-abundance distribution of {target.symbol}?"
+
+tier: target   # cell-line protein abundance is a per-cell-line (SIDM) property; not indication-scoped. Per-lineage stratification is a v2 (no SIDM->OncotreeLineage crosswalk yet).
+
+applies_when:
+  - "context.data_sources.procan_proteomics_available == true"
+
+required_inputs:
+  # Consumed via the derived long/tidy pushdown product (parquet-storage-standard): the reader
+  # pyarrow-column-pushdowns one protein (filters=[("uniprot_base","=",accession)]) instead of
+  # downloading the ~94MB wide DIA matrix. Declaring the derived product keeps the resolve_cards
+  # provenance stamp equal to what is actually read.
+  - product_id: procan-cellline-protein-abundance-per-protein-v1
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/procan_protein_abundance/read.py::read_target_summary(target=,
+  # indication=). No bespoke dispatcher needed.
+  - call: procan-protein-abundance
+    module: procan_protein_abundance
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  # summary_fields are IDENTICAL to the Gygi sibling cellline-protein-abundance (this is a clean
+  # 2nd-platform pair): the reader REUSES the Gygi compute_summary + classifier, so the field NAMES
+  # (including the `*_log2_abundance_panel` labels) are shared for cross-platform parity even though
+  # ProCan's underlying scale is DIA MaxLFQ log-intensity (see caveats).
+  summary_fields:
+    - n_cell_lines_evaluated                      # cell lines with a quantified value for this protein
+    - n_cell_lines_in_panel                       # total lines in the ProCan panel (detection denominator = 949)
+    - fraction_detected                           # n_evaluated / n_in_panel — DIA detection is sparse; load-bearing
+    - median_log2_abundance_panel                 # panel median log-abundance (field name shared with the Gygi sibling)
+    - p25_log2_abundance_panel
+    - p75_log2_abundance_panel
+    - p5_log2_abundance_panel
+    - p95_log2_abundance_panel
+    - log2_abundance_iqr
+    - protein_expression_class                    # CATEGORICAL — same distribution vocab as the Gygi sibling
+    - protein_effect_size                         # panel median (relative abundance) — parity with the sibling field name
+    - n_lineages_evaluated                        # always 0 here: no SIDM->OncotreeLineage crosswalk yet
+    - per_lineage_stats                            # empty here (lineage stratification is a v2 — SIDM->ACH map)
+    - n_lineage_restricted_lineages
+    - method_version
+    # All-gene percentile null — computed ON-READ (ProCan ships no null sidecar): where
+    # median_log2_abundance_panel falls among ALL proteins' panel medians in the ProCan DIA matrix.
+    # One-directional display facet; never moves protein_expression_class / presence_verdict.
+    - allgene_percentile                          # float 0-100 (or null)
+    - allgene_percentile_class                    # categorical
+    - allgene_percentile_context                  # string — panel/metric the null was drawn from (audit)
+
+  summary_fields_vocabulary:
+    protein_expression_class:
+      - broadly_high                              # detected in >70% of panel AND high median abundance (panel-relative)
+      - broadly_moderate                          # detected in >70% but not high abundance
+      - lineage_restricted                        # detected in 10-70%; sub-broad band
+      - broadly_low                               # detected in <30% of panel (DIA-absent across most lines)
+      - data_unavailable                          # protein not in the ProCan panel / symbol unresolvable / couldn't read
+    allgene_percentile_class:
+      - top_1pct
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable
+
+thresholds:
+  # Detection-fraction bands (DIA is sparse — detection is a first-class signal, mirrors the Gygi sibling).
+  broadly_detected_fraction_threshold: 0.70
+  low_detection_fraction_threshold: 0.30
+  lineage_restricted_min_fraction: 0.10
+  lineage_restricted_max_fraction: 0.70
+  # High-abundance band on the DIA MaxLFQ log scale (panel-relative; the reader computes the
+  # panel-relative high cutoff from the on-read all-protein null).
+  high_abundance_percentile: 0.70
+  min_lineage_size: 5
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
+
+warning_predicates:
+  - warning_id: sparse_dia_detection
+    if: "fraction_detected < 0.30"
+    message: "{target.symbol} quantified in <30% of ProCan cell lines. Low DIA detection may reflect genuine low abundance OR DIA sensitivity limits (membrane/low-abundance under-sampled). Cross-reference the Gygi platform (cellline-protein-abundance) and RNA (cellline-rna-distribution)."
+  - warning_id: protein_absent_data_unavailable
+    if: "protein_expression_class == 'data_unavailable'"
+    message: "{target.symbol} not in the ProCan DIA matrix (not quantified in any line, or symbol did not resolve to a measured UniProt accession). A COVERAGE GAP, not evidence of protein absence. Consult the Gygi sibling."
+
+caveats:
+  - |
+    2nd, ORTHOGONAL platform: DIA/SWATH MaxLFQ (ProCan-DepMapSanger, label-free, 949 lines,
+    CC-BY-4.0) complementing the Gygi TMT MS (isobaric, ~375 lines, DUA-gated)
+    cellline-protein-abundance card. DIA and TMT under-sample different proteins: agreement
+    corroborates presence, disagreement is a real assay/panel signal, not noise.
+    Attribution: Goncalves E, et al. Cancer Cell 2022;40(8):835-849.e8.
+  - |
+    DIA MaxLFQ abundance is a normalized RELATIVE log intensity, not absolute copies-per-cell;
+    percentiles are panel-relative. Emitted field names retain the Gygi sibling's
+    `*_log2_abundance_panel` labels for cross-platform field parity, but ProCan values are on the DIA
+    MaxLFQ log scale (distinct from Gygi's harmonized log2-ratio) — compare only distribution CLASS
+    and panel-relative percentile across platforms, never raw values.
+  - |
+    Per-lineage stratification is UNAVAILABLE: the ProCan axis is Sanger SIDM ids with no
+    DepMap-ModelID/OncotreeLineage crosswalk yet, so per_lineage_stats is empty and
+    n_lineages_evaluated is 0 (SIDM->ACH map is a v2). Because per_lineage is empty, a middle-band
+    detection fraction falls to lineage_restricted via the sibling classifier's no-lineage fallback —
+    read protein_expression_class here as a coarse distribution band, not a lineage claim.
+  - |
+    protein_expression_class is descriptive. VERDICT-INERT display in tumor-presence (feeds no
+    interpretation rule, no resolver rung); therapeutic interpretation lives with the Gygi sibling's
+    intracellular-intrinsic protein_expression_class rules.
+
+measurement: bulk_protein_ms
+sample_context: cell_line     # ProCan-DepMapSanger cell lines (DIA/SWATH MaxLFQ)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — a 2nd-platform view of the `cell_line_protein_abundance` claim.
+measurement_type: cell_line_protein_abundance
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]     # target-grain only: no lineage crosswalk, so target_lineage is NOT emittable on this platform
+schema_version: 1
