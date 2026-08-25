@@ -1,0 +1,136 @@
+# Card — NORMAL-TISSUE PROTEIN ABUNDANCE  (TPHP DIA-MS)  [VERDICT-INERT DISPLAY]
+#
+# The quantitative NORMAL-tissue PROTEIN comparator the tumor-selectivity skill lacked. The skill
+# already carried normal-tissue RNA (GTEx/recount3) + categorical protein-IHC breadth (HPA), but no
+# quantitative normal-tissue PROTEIN baseline. This card adds it: per-tissue DIA mass-spec protein
+# abundance across the TPHP body proteome (Xu et al., Nature 2026; open PRIDE PXD063370), a proteome
+# spanning 70 adult tissues + 4 fetal germ-layer groups over 663 NORMAL samples.
+#
+# VERDICT-INERT DISPLAY in tumor-selectivity: it feeds NO interpretation rule and NO resolver rung
+# (no rule keys card_id normal-tissue-protein-abundance-tphp), so the selectivity verdict is
+# byte-stable with or without it. It is an additive normal-tissue-PROTEIN facet that complements the
+# GTEx-RNA + HPA-IHC normal comparators at PROTEIN resolution (a target RNA-restricted in normal
+# tissue but broadly PROTEIN-expressed reads differently — the layer this card surfaces).
+#
+# Substrate: normal-tissue-protein-abundance-per-gene-v1 — a long/tidy, gene_symbol-pushdown reshape
+# of the TPHP DIA-NN MaxLFQ protein-group matrix, per (gene_symbol, tissue, tissue_class): median
+# log2 MaxLFQ abundance + detection support (n_samples / n_detected / detection_rate). Detected-only
+# rows are stored (a (gene, tissue) with n_detected==0 is absent), so a row = a tissue where the
+# protein was quantified. The reader pyarrow-column-pushdowns one gene's per-tissue rows.
+#
+# DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
+
+card_id: normal-tissue-protein-abundance-tphp
+version: 1.0.0
+question: "Across the TPHP normal-tissue proteome (DIA MaxLFQ), how broad is {target.symbol}'s NORMAL-tissue protein footprint, and where is it highest — the quantitative normal-protein comparator for tumor-vs-normal selectivity?"
+
+tier: target   # a normal-tissue protein footprint is a property of the gene, not a tumor subgroup; never stratifies.
+
+applies_when:
+  - "context.data_sources.tphp_normal_proteome_available == true"
+
+required_inputs:
+  # Consumed via the derived long/tidy pushdown product (parquet-storage-standard): the reader
+  # pyarrow-column-pushdowns one gene (filters=[("gene_symbol","=",symbol)]) instead of parsing the
+  # ~11MB long matrix. Declaring the derived product keeps the resolve_cards provenance stamp equal
+  # to what is actually read.
+  - product_id: normal-tissue-protein-abundance-per-gene-v1
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/tphp_normal_protein/read.py::read_target_summary(target=,
+  # indication=). No bespoke dispatcher needed.
+  - call: tphp-normal-protein
+    module: tphp_normal_protein
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  # summary_fields match the reader's emitted dict EXACTLY (methods/tphp_normal_protein/read.py::
+  # compute_summary). A reader RENAME breaks the tumor-selectivity replay drift guard (freeze reads
+  # these field keys), so keep the two in lockstep.
+  summary_fields:
+    - normal_protein_breadth_class                # PRIMARY categorical — adult-tissue breadth band
+    - n_tissues_detected                          # distinct tissues (adult + fetal) with a quantified value
+    - n_adult_tissues_detected                    # distinct ADULT tissues detected (drives the breadth class)
+    - n_fetal_groups_detected                     # distinct FETAL germ-layer groups detected (0-4)
+    - n_adult_tissues_total                       # denominator (panel adult tissues, ~70) — informational
+    - n_fetal_groups_total                        # denominator (panel fetal germ-layer groups, 4)
+    - max_median_log2_abundance                   # highest per-tissue median log2 MaxLFQ abundance (panel-relative)
+    - median_across_tissues_log2_abundance        # median over the per-tissue medians (typical normal level)
+    - highest_abundance_tissue                    # the tissue carrying max_median_log2_abundance
+    - highest_abundance_tissue_class              # adult_normal | fetal — class of the highest-abundance tissue
+    - fetal_vs_adult_flag                         # categorical — adult/fetal detection pattern
+    - max_detection_rate                          # max per-tissue n_detected/n_samples (support gate)
+    - uniprot_ac                                  # UniProt accession of the protein group (1:1 with the gene)
+    - per_tissue_abundance                        # list of {tissue, tissue_class, median_log2_abundance, median_intensity, n_samples, n_detected, detection_rate}, abundance-sorted
+    - method_version
+
+  summary_fields_vocabulary:
+    normal_protein_breadth_class:
+      - broad_normal_protein                      # detected in >=35 adult tissues (>=~50% of the panel) — broad normal-protein footprint
+      - moderate_normal_protein                   # detected in 10-34 adult tissues
+      - restricted_normal_protein                 # detected in 1-9 adult tissues — narrow normal-protein footprint
+      - not_detected_in_normal_protein            # detected in 0 adult tissues (fetal-only detection)
+      - data_unavailable                          # gene absent from the TPHP product / couldn't read — a coverage gap, NOT a favorable window
+    fetal_vs_adult_flag:
+      - adult_and_fetal                           # detected in >=1 adult AND >=1 fetal group
+      - adult_only                                # detected in adult tissues only
+      - fetal_only                                # detected in fetal germ-layer groups only
+      - none                                      # no detected tissue (paired with data_unavailable rows)
+      - data_unavailable                          # gene absent / couldn't read
+
+thresholds:
+  # normal_protein_breadth_class bands on the ADULT-tissue detection count (absolute counts against
+  # the ~70-adult-tissue TPHP panel). Mirrored in methods/tphp_normal_protein/read.py.
+  broad_adult_tissue_count: 35                    # >=50% of adult tissues → broad_normal_protein
+  moderate_adult_tissue_count: 10                 # >=~15% → moderate_normal_protein
+
+warning_predicates:
+  - warning_id: broad_normal_protein_footprint
+    if: "normal_protein_breadth_class == 'broad_normal_protein'"
+    message: "{target.symbol} protein is detected broadly across normal tissues (TPHP DIA-MS, >=35 adult tissues) — a quantitative normal-protein footprint corroborating an on-target-off-tumor liability. The tumor-vs-normal PROTEIN window depends on the tumor-to-worst-normal differential."
+  - warning_id: tphp_normal_protein_data_unavailable
+    if: "normal_protein_breadth_class == 'data_unavailable'"
+    message: "{target.symbol} has no TPHP normal-tissue protein quantification (absent from the DIA-MS proteome) — normal-protein footprint UNKNOWN (coverage gap), not low. Do not read absence as a favorable window; consult the GTEx-RNA + HPA-IHC normal comparators."
+
+caveats:
+  - |
+    QUANTITATIVE normal-tissue PROTEIN comparator (TPHP DIA MaxLFQ mass-spec, 70 adult tissues +
+    4 fetal germ-layer groups, 663 normal samples; Xu et al., Nature 2026, open PRIDE PXD063370,
+    CC-BY-4.0). Complements the GTEx/recount3 normal-RNA breadth + the HPA-IHC categorical protein
+    breadth (normal-tissue-liability) at quantitative PROTEIN resolution — the layer where an
+    RNA-restricted target can still be broadly protein-expressed.
+  - |
+    DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell; compare
+    distribution + breadth CLASS and per-tissue relative levels, never treat max_median_log2_abundance
+    as a concentration. Absolute surface density lives in surface-abundance-density (copies/cell).
+  - |
+    Detected-only rows: a (gene, tissue) with n_detected==0 is NOT stored, so a gene absent from the
+    product reads data_unavailable (coverage gap), and small tissue groups (n_samples 1-2 for rare
+    organs) should be gated via max_detection_rate / per_tissue_abundance detection_rate before
+    trusting a single-tissue call.
+  - |
+    Fetal granularity is the 4 germ-layer groups (ectoderm/endoderm/mesoderm/umbilical cord) the
+    deposited SDRF exposes, NOT the paper's 22 fetal tissue types; adult subtype resolution is
+    likewise the organism-part grain. breadth is keyed on ADULT tissues (fetal is developmental
+    context surfaced via fetal_vs_adult_flag, not the safety-relevant adult footprint).
+  - |
+    VERDICT-INERT display in tumor-selectivity: feeds no interpretation rule and no resolver rung, so
+    the selectivity verdict is byte-stable with or without it. It is an additive normal-protein facet;
+    the tumor-vs-normal window verdict lives with tumor-vs-normal-selectivity + modality-therapeutic-window.
+
+measurement: bulk_protein_ms
+sample_context: normal        # the TPHP abundance is measured on NORMAL tissue — the normal comparator arm.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — a view of the `normal_tissue_protein_abundance` claim (the
+# quantitative normal-tissue-PROTEIN comparator; DISTINCT from normal_tissue_protein_breadth, which is
+# the HPA-IHC CATEGORICAL breadth safety read — different substrate, different grain of the answer).
+measurement_type: normal_tissue_protein_abundance
+# Advisory routing metadata (no behavioral reader; verdict-inert card, so no rule). Mirrors the sibling
+# normal-tissue-liability biologics-safety comparator: the normal-protein footprint informs biologics
+# on-target-off-tumor windows.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

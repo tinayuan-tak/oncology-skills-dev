@@ -1036,6 +1036,22 @@ measurement_types:
     providers:
       - {kind: dataset, source: hpa-v25-1, evidence_tier: measured}
 
+  normal_tissue_protein_abundance:
+    # QUANTITATIVE normal-tissue PROTEIN comparator (TPHP DIA-MS; 2026-08-25). DISTINCT from
+    # normal_tissue_protein_breadth (Rule 1 discriminator (b)): that is HPA-IHC CATEGORICAL breadth
+    # (pathologist-scored detection across ~16 tissues → safety); this is quantitative DIA MaxLFQ
+    # per-tissue protein ABUNDANCE across 70 adult tissues + 4 fetal germ-layer groups → the
+    # quantitative normal-PROTEIN comparator arm of the tumor-vs-normal SELECTIVITY question. Different
+    # substrate (TPHP DIA-MS vs HPA-IHC), different grain of the answer (abundance vs breadth categorical).
+    # ENFORCE — a card of this type declares modality_relevance (verdict-inert display card, informs the
+    # biologics on-target-off-tumor window; no rule keys it).
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "How broad is target's quantitative normal-tissue protein footprint (TPHP DIA-MS across adult + fetal tissues), and where is it highest — the normal-protein comparator for tumor-vs-normal selectivity?"
+    entity_grains: [target]
+    cards: [normal-tissue-protein-abundance-tphp]
+    providers:
+      - {kind: dataset, source: normal-tissue-protein-abundance-per-gene-v1, evidence_tier: measured}
+
   gnomad_lof_constraint:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.

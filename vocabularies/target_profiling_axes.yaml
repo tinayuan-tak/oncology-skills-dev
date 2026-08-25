@@ -428,7 +428,7 @@ skill_objectives:
     primary_axis: selectivity
     questions:
       - {q: "Selective vs adjacent normal (efficacy window)?", answered_by: [tumor-vs-normal-selectivity, tumor-protein-abundance-cptac]}
-      - {q: "Selective vs population normals / GTEx breadth (safety)?", answered_by: [modality-therapeutic-window]}
+      - {q: "Selective vs population normals / GTEx breadth (safety)?", answered_by: [modality-therapeutic-window, normal-tissue-protein-abundance-tphp]}
       - {q: "Does the window hold at single-cell normal resolution (critical-organ veto)?", answered_by: [sc-normal-celltype-expression]}
       - {q: "Malignant-cell vs stroma (purity confound)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
       - {q: "In-situ spatial tumour-vs-TME enrichment?", answered_by: [spatial-region-rna-expression, spatial-tumor-normal-colocalization, spatial-surface-protein-abundance]}
