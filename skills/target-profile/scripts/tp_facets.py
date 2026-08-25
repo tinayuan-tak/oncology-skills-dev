@@ -661,13 +661,45 @@ def _magnitude_borderline(sub_results: dict) -> list[dict]:
     return out
 
 
-def _modality_fit_by_channel(sub_results: dict) -> dict:
+# biology-axis APPLICABILITY MASK (coherence fix): a channel that is a CATEGORY ERROR for the target's
+# curated biology axis (a small molecule / degrader for a pure SURFACE antigen; an ADC / TCE / antibody
+# for a pure INTRACELLULAR target) is marked `not_applicable_by_axis` — distinct from the silent `na`
+# ("no axis spoke to it") — so the per-modality view offers only BIOLOGICALLY POSSIBLE channels, not
+# just individually-favorable ones. Driven directly by the curated `plausible_modalities` (self-
+# maintaining). GATED to fire ONLY for a curated, SINGLE-axis target: a `multi_axis` dual (EGFR = kinase
+# AND antigen; ERBB2, MET) keeps ALL channels live — the mask must never foreclose a legitimate dual
+# arm (biology_axis.py is a de-emphasis STEER, not an eraser). Uncurated/unknown → no mask.
+_NOT_APPLICABLE_BY_AXIS = "not_applicable_by_axis"
+_BIOLOGIC_CHANNELS = ("adc", "bite_tce", "antibody")
+
+
+def _channel_applicable_for_axis(channel: str, plausible: set) -> bool:
+    """Is `channel` biologically possible for a target whose axis admits `plausible` modalities?
+    biologics(base) is applicable iff any specific biologic channel is plausible."""
+    if channel == "biologics":
+        return any(c in plausible for c in _BIOLOGIC_CHANNELS)
+    return channel in plausible
+
+
+def _modality_fit_by_channel(sub_results: dict, axis_info: Optional[dict] = None) -> dict:
     """{channel: {fit, limiting_axis, by_axis}} — worst-case conjunction of every axis's record
     modality_scope. `fit` is the min (worst) favorability across the axes that speak to the channel;
-    'na' when no axis constrains it. limiting_axis names the axis that set the worst (the reason)."""
+    'na' when no axis constrains it; limiting_axis names the axis that set the worst.
+
+    biology-axis mask: when `axis_info` is a curated, single-axis target, a channel outside the axis's
+    `plausible_modalities` is overridden to 'not_applicable_by_axis' (a category error, not a call)."""
     shadow = _claim_record_shadow_by_axis(sub_results)
+    ax = axis_info or {}
+    plausible = set(ax.get("plausible_modalities") or [])
+    mask_active = bool(ax.get("curated")) and not ax.get("multi_axis") and bool(plausible)
+
     out: dict = {}
     for channel in ("small_molecule", "biologics", "degrader", "adc", "bite_tce", "antibody"):
+        # coherence mask FIRST — a category-error channel is not_applicable regardless of any axis's fit.
+        if mask_active and not _channel_applicable_for_axis(channel, plausible):
+            out[channel] = {"fit": _NOT_APPLICABLE_BY_AXIS, "limiting_axis": None, "by_axis": {},
+                            "masked_by_axis": ax.get("biology_axis")}
+            continue
         by_axis: dict = {}
         for short, rec in shadow.items():
             ms = (rec or {}).get("modality_scope")

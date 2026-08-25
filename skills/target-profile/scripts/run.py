@@ -413,24 +413,25 @@ def main() -> int:
     # spine for the M2 render-equivalence proof, NEVER in sub_verdicts / the recommendation spine.
     claim_record_shadow = _claim_record_shadow_by_axis(sub_results)
 
+    # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
+    # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
+    # deterministic verdict + gate recommendation are untouched.
+    from _skills_common.biology_axis import resolve_biology_axis
+    axis_info = resolve_biology_axis(args.target)
+
     # M4 modality-fit-by-channel: roll up the records' modality_scope into a PER-CHANNEL favorability
     # (worst-case conjunction) so the nomination can express per-modality calls — nominable as an
-    # allele-selective SM, hold as a degrader — instead of one scalar. VERDICT-INERT / consumed-by-nothing
-    # on the spine; a projection over the shadow for the reader + LLM synthesis.
-    modality_fit_by_channel = _modality_fit_by_channel(sub_results)
+    # allele-selective SM, hold as a degrader — instead of one scalar. VERDICT-INERT. The biology-axis
+    # applicability MASK marks category-error channels (SM for a pure surface antigen; ADC/TCE for a
+    # pure intracellular target) not_applicable_by_axis — skipped for multi_axis duals (EGFR/ERBB2/MET).
+    modality_fit_by_channel = _modality_fit_by_channel(sub_results, axis_info=axis_info)
 
     # M4 coarsen-magnitude: flag axes whose categorical call HARD-CUTS a continuous value that barely
     # cleared its cutpoint (knife-edge / over-precision). Read from the record's magnitude value +
     # distance_to_cut. VERDICT-INERT — a fragility signal for the reader, never the spine.
     magnitude_borderline = _magnitude_borderline(sub_results)
 
-    # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
-    # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
-    # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
-    # uncurated target resolves to axis=unknown and the block says "do not assume a modality
-    # class." SLOT-2 emphasis only; the deterministic verdict + gate recommendation are untouched.
-    from _skills_common.biology_axis import resolve_biology_axis
-    axis_info = resolve_biology_axis(args.target)
+    # (biology_axis resolved above — it also drives the modality-fit applicability mask.)
 
     # 2. LLM synthesis via Bedrock (structured tool_use) — SKIPPED under --no-synthesis/--verdict-only.
     # The deterministic spine (sub-verdicts, recommendation gate, positive tier, deciding axis,

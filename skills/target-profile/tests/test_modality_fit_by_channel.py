@@ -69,3 +69,49 @@ def test_empty_shadow_is_all_na():
     out = _modality_fit_by_channel({})
     assert set(out) == {"small_molecule", "biologics", "degrader", "adc", "bite_tce", "antibody"}
     assert all(v["fit"] == "na" for v in out.values())
+
+
+# ── biology-axis applicability MASK (the coherence fix) ──────────────────────────────────────────
+_SURFACE_AXIS = {"biology_axis": "surface_intrinsic", "curated": True, "multi_axis": False,
+                 "plausible_modalities": ["adc", "bite_tce", "antibody"]}
+_INTRA_AXIS = {"biology_axis": "intracellular_intrinsic", "curated": True, "multi_axis": False,
+               "plausible_modalities": ["small_molecule", "degrader"]}
+
+
+def test_surface_antigen_masks_small_molecule_as_category_error():
+    # tractability says SM favorable, but for a pure surface antigen SM is a CATEGORY ERROR, not a call.
+    sr = {"tractability_sm": _rec("tractability_small_molecule",
+                                  {"small_molecule": "favorable", "biologics": "na"}),
+          "surface_modality": _rec("surface_modality",
+                                   {"small_molecule": "na", "biologics": "favorable",
+                                    "_refinements": {"adc": "favorable"}})}
+    out = _modality_fit_by_channel(sr, axis_info=_SURFACE_AXIS)
+    assert out["small_molecule"]["fit"] == "not_applicable_by_axis"     # masked, not "favorable"
+    assert out["degrader"]["fit"] == "not_applicable_by_axis"
+    assert out["adc"]["fit"] == "favorable"                            # biologic channels stay live
+
+
+def test_intracellular_masks_surface_biologics():
+    sr = {"safety": _rec("safety", {"small_molecule": "conditional", "biologics": "unfavorable"})}
+    out = _modality_fit_by_channel(sr, axis_info=_INTRA_AXIS)
+    assert out["small_molecule"]["fit"] == "conditional"              # SM stays live for intracellular
+    assert out["adc"]["fit"] == "not_applicable_by_axis"
+    assert out["bite_tce"]["fit"] == "not_applicable_by_axis"
+    assert out["biologics"]["fit"] == "not_applicable_by_axis"        # base umbrella masked too
+
+
+def test_multi_axis_dual_keeps_all_channels_live():
+    # EGFR-like: intracellular kinase AND surface antigen → NEVER mask (the de-emphasis-not-erase rule).
+    dual = {**_SURFACE_AXIS, "multi_axis": True}
+    sr = {"tractability_sm": _rec("tractability_small_molecule",
+                                  {"small_molecule": "favorable", "biologics": "na"})}
+    out = _modality_fit_by_channel(sr, axis_info=dual)
+    assert out["small_molecule"]["fit"] == "favorable"               # NOT masked for a dual target
+
+
+def test_uncurated_axis_does_not_mask():
+    unknown = {"biology_axis": "unknown", "curated": False, "multi_axis": False, "plausible_modalities": []}
+    sr = {"tractability_sm": _rec("tractability_small_molecule",
+                                  {"small_molecule": "favorable", "biologics": "na"})}
+    out = _modality_fit_by_channel(sr, axis_info=unknown)
+    assert out["small_molecule"]["fit"] == "favorable"               # no curated axis → no mask
