@@ -255,12 +255,18 @@ CARDS = [
     "tumor-elevation-breadth",           # pan-cancer K-of-N tumor-elevation (target-grain)
     "tumor-scrna-celltype-expression",   # single-cell per-compartment tumor presence (sc_rna/tumor)
 
-    # ── DISPLAY-ONLY facets (5) — additive context, feed no ladder ────────────
+    # ── DISPLAY-ONLY facets (6) — additive context, feed no ladder ────────────
     "tumor-rna-distribution-by-subtype",     # per-molecular-subtype tumor RNA panorama
     "cellline-rna-distribution-by-subtype",  # cell-line RNA by DepMap driver subtype (COADREAD proof)
     "expression-purity-confound",            # tumor-intrinsic vs stromal/immune signal
     "cellline-rna-protein-concordance",      # is RNA an adequate protein proxy? (cell-line arm)
     "rna-protein-concordance-tumor",         # is RNA an adequate protein proxy? (patient-tumor CPTAC arm)
+    # cell-line protein 2nd platform: ProCan-DepMapSanger DIA/SWATH MaxLFQ (CC-BY, 949 lines) —
+    # orthogonal corroboration of the Gygi TMT cellline-protein-abundance card. DISPLAY-ONLY /
+    # verdict-inert: it fires NO interpretation rule, so it touches no protein ladder rung and the
+    # presence verdict is byte-stable with or without it (same bulk_protein_ms/cell_line bucket as Gygi,
+    # driven by Gygi's fired rules).
+    "cellline-protein-abundance-procan",
 
     # ── NORMAL-TISSUE SAFETY COMPARATORS (2) — verdict-inert window framing ────
     # The safety VERDICT is owned by on-target-safety-liability, NOT this skill.
@@ -280,6 +286,7 @@ CARD_CONTEXT = {
     "cellline-rna-distribution-by-subtype": ("bulk_rna", "cell_line"),
     "tumor-protein-abundance-cptac":        ("bulk_protein_ms", "tumor"),
     "cellline-protein-abundance":           ("bulk_protein_ms", "cell_line"),
+    "cellline-protein-abundance-procan":    ("bulk_protein_ms", "cell_line"),  # DISPLAY-ONLY 2nd platform (ProCan DIA); fires no rule → verdict-inert
     "tumor-elevation-breadth":              ("bulk_protein_ms", "tumor"),
     "expression-purity-confound":           ("bulk_rna", "tumor"),
     "cellline-rna-protein-concordance":     ("bulk_rna", "cell_line"),

@@ -5,7 +5,7 @@ description: |
   and how does it distribute across cancer cell lines vs. tumor samples, at RNA,
   protein, and single-cell level?"
 
-  Consumes 14 cards across three measurement layers (bulk RNA, bulk protein MS,
+  Consumes 15 cards across three measurement layers (bulk RNA, bulk protein MS,
   single-cell RNA), grouped by role:
 
     VERDICT-BEARING (7) — feed the rank-ordered presence ladders:
@@ -17,7 +17,10 @@ description: |
       - tumor-elevation-breadth          pan-cancer K-of-N tumor-elevation (target-grain)
       - tumor-scrna-celltype-expression  single-cell per-compartment tumor presence
 
-    DISPLAY-ONLY facets (5) — additive context, feed NO ladder (verdict byte-stable):
+    DISPLAY-ONLY facets (6) — additive context, feed NO ladder (verdict byte-stable):
+      - cellline-protein-abundance-procan   cell-line protein 2nd platform (ProCan-DepMapSanger
+                                            DIA/SWATH MaxLFQ, CC-BY, 949 lines) — orthogonal
+                                            corroboration of the Gygi TMT card; verdict-inert
       - tumor-rna-distribution-by-subtype   per-subtype panorama (per-indication strata: COADREAD
                                             molecular subtypes CMS/CIMP/MSI/sidedness/stage; LUAD & NSCLC
                                             driver-mutation strata EGFR/KRAS/ALK/HER2/BRAF; else
@@ -61,12 +64,13 @@ composition:
     - cellline-protein-abundance
     - tumor-elevation-breadth
     - tumor-rna-distribution
-    # DISPLAY-ONLY facets (5) — additive context, feed no ladder (verdict byte-stable)
+    # DISPLAY-ONLY facets (6) — additive context, feed no ladder (verdict byte-stable)
     - tumor-rna-distribution-by-subtype
     - cellline-rna-distribution-by-subtype
     - expression-purity-confound
     - cellline-rna-protein-concordance
     - rna-protein-concordance-tumor
+    - cellline-protein-abundance-procan   # cell-line protein 2nd platform (ProCan DIA/SWATH, CC-BY); DISPLAY-ONLY / verdict-inert — fires no rule, NOT in rules_scope
     # VERDICT-BEARING single-cell (sc_rna/tumor)
     - tumor-scrna-celltype-expression
     # NORMAL-TISSUE SAFETY COMPARATORS (2) — verdict-inert

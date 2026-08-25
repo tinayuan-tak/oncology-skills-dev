@@ -73,7 +73,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "clinical-precedent",   # (2026-08-21) added to SUB_SKILL_CARDS[differentiation-landscape]
         "competitor-landscape"}),   # (2026-08-24) Open Targets competitor field; added to SUB_SKILL_CARDS[differentiation-landscape]
     "expression": frozenset({
-        "cellline-protein-abundance", "cellline-rna-distribution", "cellline-rna-protein-concordance",
+        "cellline-protein-abundance", "cellline-protein-abundance-procan", "cellline-rna-distribution", "cellline-rna-protein-concordance",
         "expression-purity-confound", "tumor-elevation-breadth", "tumor-protein-abundance-cptac",
         "tumor-rna-distribution", "tumor-rna-distribution-by-subtype", "tumor-rna-vs-adjacent",
         "tumor-scrna-celltype-expression",

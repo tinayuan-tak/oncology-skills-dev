@@ -68,6 +68,27 @@ cellline-protein-abundance:
     n: 14
   protein_effect_size: -0.417446428676658
   protein_expression_class: broadly_moderate
+cellline-protein-abundance-procan:
+  allgene_percentile: 79.69283276450511
+  allgene_percentile_class: mid
+  allgene_percentile_context: procan-cellline-protein-abundance-per-protein-v1 panel-wide
+    metric=median_log_abundance source=procan_dia_swath
+  fraction_detected: 0.4879
+  log2_abundance_iqr: 1.4923538596813333
+  median_log2_abundance_panel: 4.3326138624278006
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 463
+  n_cell_lines_in_panel: 949
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 0
+  p25_log2_abundance_panel: 3.5277509130554745
+  p5_log2_abundance_panel: 2.078528243534382
+  p75_log2_abundance_panel: 5.020104772736808
+  p95_log2_abundance_panel: 5.905021825976996
+  per_lineage_stats: []
+  protein_abundance_source: procan_dia_swath
+  protein_effect_size: 4.3326138624278006
+  protein_expression_class: lineage_restricted
 cellline-rna-distribution:
   allgene_percentile: 52.54228591918945
   allgene_percentile_class: mid
@@ -465,16 +486,16 @@ tumor-protein-abundance-cptac:
   n_normal_samples: 100
   n_tumor_samples: 97
   protein_bh_q_value: 0.303219701368917
+  protein_effect_cohens_d: 0.1588
   protein_effect_size: 0.0647570698633509
+  protein_effect_size_se: null
+  protein_effect_standardized_class: negligible
+  protein_effect_standardized_method: pvalue_zscore_approx
+  protein_effect_standardized_t: 1.1141
   protein_expression_class: ns
   protein_median_log2_normal: -0.127199268351409
   protein_median_log2_tumor: -0.0352202843037901
   protein_p_value: 0.265245705336061
-  protein_effect_size_se: null
-  protein_effect_standardized_t: 1.1141
-  protein_effect_cohens_d: 0.1588
-  protein_effect_standardized_class: negligible
-  protein_effect_standardized_method: pvalue_zscore_approx
   stat_test_used: msstatstmt_limma_ebayes_moderated
 tumor-rna-distribution:
   allgene_percentile: 99.74150466918945

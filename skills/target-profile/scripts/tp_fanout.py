@@ -263,6 +263,12 @@ SUB_SKILL_CARDS = {
                                          # Added to tumor-presence/run.py CARDS in an earlier PR but never
                                          # to this composer map → dropped from the composed profile.
                                          # Restored so the dual RNA+protein presence reaches the LLM.
+        "cellline-protein-abundance-procan",  # ProCan-DepMapSanger DIA/SWATH — 2nd, orthogonal cell-line
+                                         # MS platform of the SAME cell_line_protein_abundance claim.
+                                         # DISPLAY-ONLY / verdict-inert (fires no rule); composed here so
+                                         # the ProCan corroboration reaches the composed profile alongside
+                                         # the Gygi sibling (composer-consistency guard: CARDS + this map
+                                         # in lockstep).
         "tumor-elevation-breadth",       # pan-cancer K-of-N breadth — same drift class:
                                          # added to tumor-presence CARDS but not this map, so it was
                                          # silently dropped from the composed profile. Restored.
