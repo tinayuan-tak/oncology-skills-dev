@@ -46,15 +46,32 @@ DEFAULT_TOP_N = 10
 TARGET_CONTRACTS = Path(os.environ.get(
     "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
+# Finer OncoTree/panel subtype codes -> the indication_crosswalk `canonical_code` that carries the
+# efo_ids lane. The framework often passes a fine OncoTree code (e.g. LUAD) while the crosswalk keys
+# on the parent grouping (NSCLC), so disease-scoping would silently fall back to target-level without
+# this normalization. Only 1:1 subtype->canonical aliases belong here (codes with no crosswalk entry,
+# e.g. MESO, correctly stay unaliased -> target-level).
+INDICATION_ALIAS = {
+    "LUAD": "NSCLC", "LUSC": "NSCLC",   # lung adeno / squamous -> NSCLC grouping
+    "DLBCL": "DLBC",                     # diffuse large B-cell lymphoma code spelling
+    "LAML": "AML",                       # acute myeloid leukemia code spelling
+}
+
+
+def _canonical_indication(indication: str) -> str:
+    """Normalize a framework indication code to the crosswalk canonical_code (via INDICATION_ALIAS)."""
+    ind = (indication or "").strip().upper()
+    return INDICATION_ALIAS.get(ind, ind)
+
 
 def _indication_efo_ids(indication: str) -> list[str]:
-    """canonical OncoTree indication code -> EFO/MONDO ids via indication_crosswalk.yaml `efo_ids`
-    lane (case-insensitive). Empty list when no lane exists (the normal path today)."""
+    """indication code -> EFO/MONDO ids via indication_crosswalk.yaml `efo_ids` lane (case-insensitive,
+    alias-normalized). Empty list when no lane/entry exists."""
     path = TARGET_CONTRACTS / "vocabularies" / "indication_crosswalk.yaml"
     if not path.exists():
         return []
     doc = yaml.safe_load(path.read_text()) or {}
-    ind = (indication or "").strip().upper()
+    ind = _canonical_indication(indication)
     for e in doc.get("indications", []):
         if str(e.get("canonical_code", "")).upper() == ind:
             return [str(t).strip() for t in (e.get("efo_ids") or [])]
@@ -86,12 +103,30 @@ def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_
     efo_set = {str(x) for x in (efo_ids or [])}
     scope = "indication" if efo_set else "target_level"
 
+    # europepmc is disease-scoped when we have efo_ids; entity_lut is target-level by construction.
+    # OVER-FILTER FALLBACK: the derived product keeps only the top-N europepmc rows/gene BY SCORE, so
+    # for some (gene, indication) pairs none of those top rows carry a matching disease_id and scoping
+    # would empty the lane. Rather than lose the reproducible europepmc signal entirely, fall back to
+    # the target-level europepmc rows (flagged europepmc_scope='target_level_fallback').
+    europepmc_all = [r for r in rows if r.get("source") == "europepmc"]
+    europepmc_scope = scope
+    if efo_set:
+        scoped = [r for r in europepmc_all if r.get("disease_id") in efo_set]
+        if scoped:
+            europepmc_rows = scoped
+        elif europepmc_all:
+            europepmc_rows, europepmc_scope = europepmc_all, "target_level_fallback"
+        else:
+            europepmc_rows = []
+    else:
+        europepmc_rows = europepmc_all
+
     by_source: dict = {}
+    for r in europepmc_rows:
+        by_source.setdefault("europepmc", []).append(r)
     for r in rows:
-        src = r.get("source")
-        if src == "europepmc" and efo_set and r.get("disease_id") not in efo_set:
-            continue                                  # scope europepmc to the indication when we can
-        by_source.setdefault(src, []).append(r)
+        if r.get("source") != "europepmc":
+            by_source.setdefault(r.get("source"), []).append(r)
 
     out_by_source: dict = {}
     union: list = []
@@ -109,6 +144,7 @@ def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_
 
     return {
         "indication_scope": scope,
+        "europepmc_scope": europepmc_scope,   # 'indication' | 'target_level' | 'target_level_fallback'
         "n_pmids": len(union),
         "pmids": union,
         "sources_present": sorted(out_by_source.keys()),
