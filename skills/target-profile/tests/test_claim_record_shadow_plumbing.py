@@ -28,9 +28,12 @@ def test_claim_record_loader_is_opt_in():
     for axis in ("genomic-alteration-profile", "tumor-selectivity"):
         _load_sub_skill_verdict_fn(axis)                 # warm the module cache
         assert callable(_load_sub_skill_claim_record_fn(axis)), f"{axis} should expose _claim_record"
-    # a sub-skill without the hook returns None (loader never fabricates one)
-    _load_sub_skill_verdict_fn("mechanism-and-pharmacology")
-    assert _load_sub_skill_claim_record_fn("mechanism-and-pharmacology") is None
+    # a sub-skill without the hook returns None (loader never fabricates one). Negative control =
+    # target-intrinsic, a DESCRIPTIVE gateless fan-out member (no _verdict, no gate) that will never
+    # be a verdict axis — every one of the 11 verdict axes now exposes _claim_record, so a former
+    # axis-control (mechanism) would misfire.
+    _load_sub_skill_verdict_fn("target-intrinsic")
+    assert _load_sub_skill_claim_record_fn("target-intrinsic") is None
 
 
 def test_loaded_hook_produces_a_schema_shaped_record():
