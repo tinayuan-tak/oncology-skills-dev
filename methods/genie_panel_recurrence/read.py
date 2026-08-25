@@ -153,10 +153,22 @@ def genie_recurrence_for_gene(target: str, indication: str, cutoffs: dict = None
                 "genie_driver_recurrence_percentile": None, "genie_mutation_frequency": None,
                 "n_covered": None, "n_mutated": None, "coverage_gap": None,
                 "genie_recurrence_context": f"no GENIE MAF for {indication}"}
+    # FAST PATH: when GENIE has NO cohort for this indication (unmapped CANCER_TYPE — e.g. BRCA — or no
+    # samples), n_cov is 0 for every gene, so this is the coverage-gap answer WITHOUT loading the large
+    # panel-coverage maps (~7 s). _indication_cohort is cheap (empty tuple for an unmapped indication; it
+    # never reads S3 for one). Byte-IDENTICAL to the n_cov==0 branch below (same dict, n_mutated from df).
+    raw_cohort = _indication_cohort(indication)
+    if not raw_cohort:
+        n_mut0 = int(df[df["gene_symbol"] == target]["sample_id"].nunique()) if len(df) else 0
+        return {"genie_driver_recurrence_class": "data_unavailable",
+                "genie_driver_recurrence_percentile": None, "genie_mutation_frequency": None,
+                "n_covered": 0, "n_mutated": n_mut0, "coverage_gap": True,
+                "genie_recurrence_context": (
+                    f"{target} on NO GENIE panel in {indication} (coverage gap — not a real 0%)")}
     sp = load_sample_panel_map()
     pg = load_panel_gene_sets()
     # n_cov over the FULL indication cohort (clinical), NOT the mutated-only MAF samples.
-    cohort = [s for s in _indication_cohort(indication) if s in sp]
+    cohort = [s for s in raw_cohort if s in sp]
     n_cov = sum(1 for s in cohort if target in pg.get(sp[s], frozenset()))
     n_mut = int(df[df["gene_symbol"] == target]["sample_id"].nunique())
 
