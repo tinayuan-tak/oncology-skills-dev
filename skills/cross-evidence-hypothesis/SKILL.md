@@ -27,7 +27,7 @@ description: |
   consumer: it does not modify target-profile or any sub-skill.
 
 metadata:
-  version: 0.3.0
+  version: 0.4.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -60,6 +60,9 @@ composition:
     - synthesis.confidence_tier                      # spine composed tier — integrator cross-checks (Phase 3)
     - synthesis.decision_facets.certainty_by_axis    # #744 — per-axis CERTAINTY_MODEL sidecar (Phase 3)
     - synthesis.decision_facets.composed_modality    # #744 — modality the package was composed under
+    - synthesis.decision_facets.cross_gate_shared_evidence  # spine cross-gate correlation (Phase 4)
+    - synthesis.decision_facets.fragility            # contested + acquisition_backlog → panel/go_forth (Phase 5)
+    - synthesis.decision_facets.competitor_crossref  # competition density → panel differentiation (Phase 5)
     - subtype_resolved.per_stratum                   # #464 — subtype-resolved reasoning + stratum tokens
     - cards[].evidence_substrate                     # #463 — correlated-evidence certainty discount (WS7 half)
 ---

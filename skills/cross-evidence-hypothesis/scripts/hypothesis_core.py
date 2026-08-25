@@ -988,12 +988,22 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
     allowed_pmids |= grounded["pmids"]
 
     ctx = pkg.get("context", {})
+    # verdict-INERT DECISION FACETS (synthesis.decision_facets, stamped by the spine — #744): the
+    # spine's authoritative cross-gate correlation + flip-fragility + competitor cross-ref. Surfaced for
+    # the panel + the evidence_independence record; NEVER touches the deterministic ceiling.
+    decision_facets = (syn.get("decision_facets") or {})
     return {
         "pkg": pkg, "conviction": conviction, "risk": risk, "context": ctx,
         "dossier": dossier, "subtype": subtype, "substrate": substrate_ind,
         "grounded_substrate": grounded, "grounded_substrate_present": grounded["present"],
         "dossier_present": dossier_present, "risk_present": risk_present,
         "modality": modality,
+        # the spine's authoritative cross-gate shared-evidence view (which gate verdicts share an input
+        # card = correlated, not independent corroboration), the flip-fragility facet, and the competitor
+        # cross-ref — all verdict-inert (P4/P5).
+        "cross_gate_shared_evidence": decision_facets.get("cross_gate_shared_evidence") or {},
+        "fragility_facet": decision_facets.get("fragility") or {},
+        "competitor_crossref": decision_facets.get("competitor_crossref") or {},
         # Stage 2a: per-short claim_vector (+ key_signals) with CITABLE evidence atoms, surfaced from
         # synthesis.claim_vectors — the SIGNAL decomposition the panel reasons over (not just the
         # verdict label). Each atom's cite.card_id is already in citation_surface.card_ids (the card is

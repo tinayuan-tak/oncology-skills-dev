@@ -50,7 +50,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hypothesis_core as hc  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.3.0"   # 0.2.0→0.3.0: consume the spine's decision_facets layer — modality×safety
+SKILL_VERSION = "0.4.0"   # 0.3.0→0.4.0: consume the remaining decision_facets — cross_gate_shared_evidence
+                          # (surfaced in evidence_independence, additive) + fragility/competitor into the
+                          # LLM panel (P4/P5).
+                          # 0.2.0→0.3.0: consume the spine's decision_facets layer — modality×safety
                           # seam (per-modality safety cap refinement + composed-modality mismatch) +
                           # per-axis CERTAINTY_MODEL certainty + confidence_tier cross-check.
                           # 0.1.0→0.2.0: DRIFT-GUARD (pinned prompt_template_hash + model_id
@@ -380,6 +383,7 @@ def _panel_block(panel: dict, objective: str) -> str:
     # (bimodality, responder fraction, control-position, …) to {card_id, fields} + entity keys. Reason
     # over the atom VALUES, not just the verdict label; the atom's card_id is already a citable token.
     cv_block = _render_claim_vectors(panel.get("claim_vectors") or {})
+    facets_block = _render_decision_facets(panel)
     return (
         f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
         f"TARGET: {tgt}\nINDICATION: {ind}\nSCOPED SUBTYPE: {scoped_subtype}\n\n"
@@ -389,9 +393,42 @@ def _panel_block(panel: dict, objective: str) -> str:
         f"PANEL — per-card interpretation (card_id -> call; cite these card_ids):\n"
         f"{json.dumps(panel['cards_brief'], indent=1, default=str)}\n\n"
         f"{cv_block}"
+        f"{facets_block}"
         f"{grounded_block}"
         f"GROUNDED literature risk reads:\n{json.dumps(panel['risk'], indent=1, default=str)}\n\n"), \
         tgt, ind, scoped_subtype
+
+
+def _render_decision_facets(panel: dict) -> str:
+    """P5 — surface the spine's verdict-INERT decision facets the panel should reason over:
+      - fragility.contested + acquisition_backlog: how solid the call is + which BLIND axes are worth
+        acquiring (feeds go_forth — the acquisition backlog IS the ranked next-experiment queue);
+      - competitor_crossref: competition density + modality validated/contrarian (feeds
+        therapeutic_hypothesis differentiation);
+      - cross_gate_shared_evidence: which gate verdicts share an input card = CORRELATED, not
+        independent corroboration (the panel must not treat two gates resting on one card as two
+        independent votes).
+    All verdict-inert: they inform the narrative, never the deterministic ceiling. Compact; emitted only
+    when present (byte-stable for older packages)."""
+    frag = panel.get("fragility_facet") or {}
+    comp = panel.get("competitor_crossref") or {}
+    cgse = panel.get("cross_gate_shared_evidence") or {}
+    lines = []
+    if frag:
+        contested = frag.get("contested")
+        backlog = [b.get("axis") for b in (frag.get("acquisition_backlog") or []) if isinstance(b, dict)]
+        lines.append(f"  fragility: contested={contested}"
+                     + (f"; acquisition_backlog (BLIND axes to acquire, feed go_forth): {backlog}"
+                        if backlog else ""))
+    if comp:
+        lines.append(f"  competitor: {json.dumps(comp, default=str)}")
+    if cgse.get("correlated_gate_pairs"):
+        lines.append("  cross-gate shared evidence (these gate PAIRS share an input card → correlated, "
+                     f"NOT independent corroboration): {cgse['correlated_gate_pairs']}")
+    if not lines:
+        return ""
+    return ("PANEL — decision facets (verdict-INERT context; reason over these but they do NOT change "
+            "any deterministic verdict):\n" + "\n".join(lines) + "\n\n")
 
 
 def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug target",
@@ -637,6 +674,11 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "n_independent_units": substrate["n_independent_units"],
             "n_distinct_substrates": substrate["n_distinct_substrates"],
             "n_untagged_cards": substrate["n_untagged_cards"],
+            # P4 — the spine's AUTHORITATIVE cross-gate correlation view (which gate verdicts share an
+            # input card). Surfaced additively for the reader + panel; the substrate-unit discount above
+            # stays the certainty basis (a deliberate conservative choice — the two views are different
+            # grains: card-substrate clustering vs gate-level card sharing). Empty for older packages.
+            "cross_gate_shared_evidence": panel.get("cross_gate_shared_evidence") or {},
         },
         "subtype_resolved": {
             "present": panel["subtype"]["present"],
