@@ -31,7 +31,7 @@ _MIN_COVERED = 20  # pooled n_cov floor to rank a gene (mirrors the GENIE per-co
 # instead of rebuilding the pooled null LIVE — which loads the MSK-CHORD + GENIE panel-coverage maps
 # and scans every cohort's MAF (~8-10s, the dominant cost of the mutation-hotspot-frequency card's
 # pooled arm). Resolved lazily so import never breaks before the manifest is registered.
-_POOLED_PRODUCT_ID = "pooled-snv-recurrence-per-gene-v1"
+_POOLED_PRODUCT_ID = "pooled-snv-recurrence-v1"
 
 
 # ── pure pooling core (unit-testable, no I/O) ─────────────────────────────────────────────────────
