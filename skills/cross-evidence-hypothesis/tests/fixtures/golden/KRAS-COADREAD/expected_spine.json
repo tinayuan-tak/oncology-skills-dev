@@ -21,7 +21,7 @@
   "cap_reasons": [
     "degraded inputs: ['dossier', 'risk']"
   ],
-  "limiting_dimension": null,
+  "limiting_dimension": "expression",
   "data_gaps": [],
   "correlated_evidence_discounted": false,
   "correlated_groups": {},

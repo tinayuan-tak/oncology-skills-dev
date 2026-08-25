@@ -27,7 +27,7 @@ description: |
   consumer: it does not modify target-profile or any sub-skill.
 
 metadata:
-  version: 0.2.0
+  version: 0.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -54,7 +54,12 @@ composition:
   # visible in review; a target-contracts CI contract test (§10) is a deferred hardening item.
   reads_spine_fields:
     - synthesis.sub_verdicts.*.verdict
+    - synthesis.sub_verdicts.safety.safety_verdict_by_modality  # #744 — modality×safety seam (Phase 2)
     - synthesis.recommendation_gate.hard_gates       # #462 — fail-closed gate-complete ceiling
+    - synthesis.claim_vectors                        # per-short SIGNAL decomposition + citable atoms
+    - synthesis.confidence_tier                      # spine composed tier — integrator cross-checks (Phase 3)
+    - synthesis.decision_facets.certainty_by_axis    # #744 — per-axis CERTAINTY_MODEL sidecar (Phase 3)
+    - synthesis.decision_facets.composed_modality    # #744 — modality the package was composed under
     - subtype_resolved.per_stratum                   # #464 — subtype-resolved reasoning + stratum tokens
     - cards[].evidence_substrate                     # #463 — correlated-evidence certainty discount (WS7 half)
 ---

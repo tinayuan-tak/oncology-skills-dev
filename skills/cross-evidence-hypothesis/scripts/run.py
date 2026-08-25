@@ -50,7 +50,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hypothesis_core as hc  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.2.0"   # 0.1.0→0.2.0: DRIFT-GUARD (pinned prompt_template_hash + model_id
+SKILL_VERSION = "0.3.0"   # 0.2.0→0.3.0: consume the spine's decision_facets layer — modality×safety
+                          # seam (per-modality safety cap refinement + composed-modality mismatch) +
+                          # per-axis CERTAINTY_MODEL certainty + confidence_tier cross-check.
+                          # 0.1.0→0.2.0: DRIFT-GUARD (pinned prompt_template_hash + model_id
                           # + offline golden-set drift-CI) and the intra-package COHERENCE step
                           # (adversarial-survival root-cause fix). Deferred: content-addressed
                           # provenance manifest; curated truth-set eval.
@@ -434,6 +437,16 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     hyp_out = synth(HYP_SYSTEM, hyp_user, "hypothesis", HYPOTHESIS_SCHEMA, max_tokens=6000)
     out = {**hyp_out, "edges": edges, "tensions": tensions, "evidence_paths": paths}
 
+    # --- composed-modality seam: the package's hard_gates (esp. the exists_safe_modality safety
+    # suppression) were FROZEN under the modality the target-profile run was composed with. If the
+    # integrator resolves a DIFFERENT modality, the ceiling it clamps against reflects the wrong channel.
+    # Detect + surface the mismatch (never silently trusts a cross-channel ceiling). None on either side
+    # (a modality-agnostic compose or run) is NOT a mismatch. ---
+    composed_modality = ((panel["pkg"].get("synthesis") or {}).get("decision_facets")
+                         or {}).get("composed_modality")
+    modality_mismatch = bool(composed_modality and modality_resolved
+                             and composed_modality != modality_resolved)
+
     # --- deterministic FAIL-CLOSED GATE-COMPLETE clamp (the ceiling; the model never overrides) ---
     gate = hc.gate_ceiling(panel["pkg"], modality=modality_resolved)
     proposed = hc._scalar(out.get("proposed_verdict"))
@@ -458,7 +471,11 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     oos = hc.out_of_scope_dims(modality_resolved)
     in_scope = [d for d in conviction if d not in oos]
     gaps = hc.data_gaps({d: conviction[d] for d in in_scope})
-    base_certainty, limiting = hc.weakest_link_certainty(conviction, in_scope)
+    # Per-axis certainty: consume the spine's CERTAINTY_MODEL sidecar (synthesis.decision_facets.
+    # certainty_by_axis) as the weakest-link base for axes that opted in, so the integrator AGREES with
+    # the spine rather than re-deriving; axes without a sidecar fall back to the binary proxy.
+    certainty_by_axis = hc.parse_certainty_by_axis(panel["pkg"])
+    base_certainty, limiting = hc.weakest_link_certainty(conviction, in_scope, certainty_by_axis)
 
     degraded_inputs = []
     if not panel["dossier_present"]:
@@ -467,6 +484,15 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         degraded_inputs.append("risk")
     substrate = panel["substrate"]
     cert = hc.discounted_certainty(base_certainty, substrate["n_independent_units"], degraded_inputs)
+    # confidence_tier CROSS-CHECK (quick win; no emit-side dependency): the spine emits its OWN
+    # composed confidence tier. When the integrator's discounted certainty DIVERGES from it, record the
+    # divergence (informational — the integrator's certainty is weakest-link + independence-discounted, a
+    # deliberately more conservative read; never silently overrides the spine's tier).
+    spine_tier = ((panel["pkg"].get("synthesis") or {}).get("confidence_tier") or {}).get("tier")
+    if spine_tier and str(spine_tier).lower() != cert["final"]:
+        cert["cap_reasons"] = list(cert["cap_reasons"]) + [
+            f"diverges from spine confidence_tier '{spine_tier}' (integrator certainty is weakest-link + "
+            "independence-discounted)"]
 
     # absence-discipline WITH TEETH: a SUPPORTING clause may not cite a gap-line sub-verdict.
     gapset = set(gaps)
@@ -525,6 +551,23 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         tensions = tensions + grounded_discordance_tensions
         out["tensions"] = tensions
 
+    # --- COMPOSED-MODALITY MISMATCH surfacing: the package's ceiling was frozen under a DIFFERENT
+    # modality than this run resolved, so hard_gates (esp. the exists_safe_modality safety suppression)
+    # may not apply to this channel. Surface a deterministic tension so the mismatch is explicit for a
+    # reviewer; the safe move is to recompose the package under this modality. ---
+    if modality_mismatch:
+        tensions = tensions + [{
+            "statement": (f"the evidence package was COMPOSED under modality "
+                          f"'{composed_modality}' but this hypothesis resolves modality "
+                          f"'{modality_resolved}'. The deterministic ceiling (hard_gates, incl. the "
+                          "per-modality safety suppression) was frozen for the composed modality and "
+                          "may not hold for this channel — recompose the target-profile package under "
+                          f"'{modality_resolved}' to trust the ceiling."),
+            "citations": ["synthesis.recommendation_gate.hard_gates",
+                          "synthesis.decision_facets.composed_modality"],
+            "source": "integrator_modality_mismatch"}]
+        out["tensions"] = tensions
+
     # --- minimum-inputs gate: enough non-gap in-scope decision lines to reason over? ---
     n_supporting = sum(1 for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
     minimum_inputs_met = n_supporting >= 2
@@ -569,6 +612,10 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "active_vetoes": gate["active_vetoes"], "blind_gates": gate["blind_gates"],
             "opposing_gates": gate["opposing"], "modality_excluded_gates": gate["excluded"],
             "gate_clamp_tension": gate_tension, "reason": hc._uv(out.get("proposed_verdict_reason")),
+            # MODALITY×SAFETY: the per-modality safety action for this channel + whether it cleared the
+            # blanket hold-grade cap (== the spine's exists_safe_modality suppression, mirrored).
+            "safety_modality_action": gate.get("safety_modality_action"),
+            "safety_modality_cleared": gate.get("safety_modality_cleared", False),
         },
         "defensibility": {
             "clause_traceability": traceability, "untraceable_citations": untraceable,
@@ -603,6 +650,9 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "grounded_substrate_present": panel.get("grounded_substrate_present", False),
             "degraded_inputs": degraded_inputs, "minimum_inputs_met": minimum_inputs_met,
             "n_supporting_in_scope_lines": n_supporting,
+            # composed-modality seam: the modality the package was composed under + whether it mismatches
+            # this run's resolved modality (the ceiling was frozen for the composed channel).
+            "composed_modality": composed_modality, "modality_mismatch": modality_mismatch,
         },
         # --- GROUNDED SUBSTRATE: the per-axis literature findings the hypothesis reasoned over,
         # the count of grounded PMIDs folded into the citation surface, and the engine↔literature

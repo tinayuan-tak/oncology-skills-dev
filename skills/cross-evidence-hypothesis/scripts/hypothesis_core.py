@@ -294,6 +294,39 @@ def _sv_verdict(sv, key):
     return (v.get("verdict") if isinstance(v, dict) else v) if v is not None else None
 
 
+# --- MODALITY×SAFETY seam (consumes sub_verdicts.safety.safety_verdict_by_modality, stamped by the
+# spine's tp_evidence_package). The per-modality safety verdict {channel: {action, wt_engagement,
+# driving_rules}} lets the integrator refine its hold-grade safety cap PER ITS OWN --modality instead of
+# imposing one blanket cap off the scalar `safety` verdict. `conditional` is the ONLY action that clears a
+# fired WT-loss concern for a channel — an EXACT MIRROR of the spine's tp_gates._SAFETY_SAFE_ACTIONS
+# (only an allele-selective escape clears; supportive/no_concern/not_applicable never legitimately
+# co-occur with a fired concern, so excluding them is fail-closed). Kept in lock-step so the integrator is
+# NEVER more permissive than the spine's own exists_safe_modality suppression.
+_SAFETY_MODALITY_SAFE_ACTIONS = frozenset({"conditional"})
+
+
+def safety_verdict_by_modality(sv: dict) -> Optional[dict]:
+    """The per-modality safety verdict block stamped on the safety sub_verdict entry, or None (older
+    package / no safety axis). `sv` is synthesis.sub_verdicts."""
+    entry = sv.get("safety")
+    if isinstance(entry, dict):
+        block = entry.get("safety_verdict_by_modality")
+        return block if isinstance(block, dict) and block else None
+    return None
+
+
+def safety_action_for_modality(sv: dict, modality: Optional[str]) -> Optional[str]:
+    """The per-modality safety `action` for this modality channel, or None when unavailable (no block,
+    no modality, or the channel is absent from the block)."""
+    if not modality:
+        return None
+    block = safety_verdict_by_modality(sv)
+    if not block:
+        return None
+    rec = block.get(modality)
+    return rec.get("action") if isinstance(rec, dict) else None
+
+
 # Mechanism-conditioning of the dependency veto. Removed the dependency veto
 # for SURFACE biologics (modality-scoped). This handles the ORTHOGONAL mutant-selective case, at ANY
 # modality: a `dependency:non_dependent` reading does NOT disqualify a MUTANT-SELECTIVE / GoF driver —
@@ -338,13 +371,19 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
         return {"ceiling": "declined", "reason": "package has no parseable synthesis.sub_verdicts "
                 "(schema-invalid) — fail-closed", "fail_closed": True, "hard_gates_present": False,
                 "active_vetoes": [], "blind_gates": [], "opposing": [], "excluded": [],
-                "safety_verdict": None}
+                "safety_verdict": None, "safety_modality_action": None,
+                "safety_modality_cleared": False}
     sv = syn["sub_verdicts"]
     safety = _sv_verdict(sv, "safety")
     rg = syn.get("recommendation_gate") or {}
     hard_gates = rg.get("hard_gates")
     oos = out_of_scope_dims(modality) if modality else set()   # dims out-of-scope for this modality
     mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY      # mechanism-conditions the dependency veto
+    # MODALITY×SAFETY: the per-modality safety action for THIS channel. When it clears (== conditional,
+    # the spine's sole safe action), the blanket hold-grade safety cap below is modality-cleared — a
+    # scalar `safety` hold no longer caps a channel the spine's own exists_safe_modality would suppress.
+    safety_action = safety_action_for_modality(sv, modality)
+    safety_modality_cleared = safety_action in _SAFETY_MODALITY_SAFE_ACTIONS
 
     signals: list[tuple[int, str]] = []   # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
@@ -419,7 +458,11 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
 
     # safety hold-grade (both paths) — a hold, not a kill. SAFETY IS NEVER A VETO (mirrors the spine's
     # safety→hold policy): both SAFETY_HOLD and the former SAFETY_KILL tokens cap at advanceable_flagged.
-    if safety in SAFETY_HOLD or safety in SAFETY_KILL:
+    # MODALITY-CLEARED: if the per-modality safety action for this channel clears the WT-loss concern
+    # (== conditional / allele-selective escape, the spine's exists_safe_modality logic), the blanket
+    # scalar cap does NOT apply — the integrator would otherwise re-impose a hold the spine suppressed for
+    # this exact channel. Fail-closed: no block / a non-clearing action keeps the cap.
+    if (safety in SAFETY_HOLD or safety in SAFETY_KILL) and not safety_modality_cleared:
         signals.append((VERDICT_RANK["advanceable_flagged"], f"safety hold-grade ({safety})"))
 
     if not signals:
@@ -432,7 +475,9 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             and not active_vetoes,
             "hard_gates_present": hard_gates_present,
             "active_vetoes": active_vetoes, "blind_gates": blind_gates,
-            "opposing": opposing, "excluded": excluded, "safety_verdict": safety}
+            "opposing": opposing, "excluded": excluded, "safety_verdict": safety,
+            "safety_modality_action": safety_action,
+            "safety_modality_cleared": safety_modality_cleared}
 
 
 def clamp(proposed: Optional[str], ceiling: str) -> tuple:
@@ -522,14 +567,45 @@ def _dim_certainty(verdict) -> str:
     return "low" if verdict in GAP_VERDICTS else "moderate"
 
 
-def weakest_link_certainty(conviction: dict, in_scope: list) -> tuple:
-    """Overall certainty bounded by the weakest decision-relevant line (never emits `high` from
-    weakest-link alone — breadth/independence can only LOWER it via the discount)."""
+# spine CERTAINTY_MODEL levels are {low, medium, high}; the integrator's rank uses {low, moderate, high}.
+# Normalize the spine `medium` onto `moderate` so the two vocabularies compose.
+_SPINE_CERTAINTY_TO_RANK = {"low": "low", "medium": "moderate", "high": "high"}
+
+
+def parse_certainty_by_axis(pkg: dict) -> dict:
+    """Project synthesis.decision_facets.certainty_by_axis into {short: level} where level is the spine's
+    weakest-link per-axis certainty (CERTAINTY_MODEL: min(coverage, corroboration)) normalized onto the
+    integrator's {low, moderate, high} rank. Tolerates absence (older package / no axis opted in) → {}."""
+    facets = ((pkg.get("synthesis") or {}).get("decision_facets") or {})
+    cba = facets.get("certainty_by_axis")
+    if not isinstance(cba, dict):
+        return {}
+    out: dict = {}
+    for short, rec in cba.items():
+        if not isinstance(rec, dict):
+            continue
+        lvl = ((rec.get("certainty") or {}).get("level") if isinstance(rec.get("certainty"), dict)
+               else None)
+        norm = _SPINE_CERTAINTY_TO_RANK.get(str(lvl).lower()) if lvl is not None else None
+        if norm:
+            out[short] = norm
+    return out
+
+
+def weakest_link_certainty(conviction: dict, in_scope: list, certainty_by_axis: dict = None) -> tuple:
+    """Overall certainty bounded by the weakest decision-relevant line.
+
+    Per-axis base: prefer the spine's own CERTAINTY_MODEL level (`certainty_by_axis[short]`, normalized to
+    the integrator rank) so the integrator agrees with the spine instead of re-deriving; fall back to the
+    binary `_dim_certainty` proxy for axes that have NOT opted into the sidecar. A spine-supplied `high`
+    is honoured here (the old proxy never emitted `high`) but breadth/independence can still LOWER it via
+    discounted_certainty — the independence cap keeps single-substrate corroboration from shipping `high`."""
     if not in_scope:
         return "low", None
-    worst, limiting = "moderate", None
+    cba = certainty_by_axis or {}
+    worst, limiting = "high", None
     for dim in in_scope:
-        c = _dim_certainty(conviction.get(dim))
+        c = cba.get(dim) or _dim_certainty(conviction.get(dim))
         if CERTAINTY_RANK[c] < CERTAINTY_RANK[worst]:
             worst, limiting = c, dim
     return worst, limiting
