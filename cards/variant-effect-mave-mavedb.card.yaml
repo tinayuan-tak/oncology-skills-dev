@@ -1,0 +1,107 @@
+# Card — MEASURED VARIANT-EFFECT  (MAVE / DMS / SGE functional scores, MAVEdb)  [VERDICT-INERT DISPLAY]
+#
+# The MEASURED per-variant FUNCTIONAL axis, complementing CIViC's per-variant CLINICAL call. Every
+# other variant-level card in the framework reports interpretation or frequency: variant-level-
+# interpretation gives CIViC curated oncogenicity/resistance (a CLINICAL call), alteration-role gives
+# gene-level GoF/LoF, and mutation-hotspot-frequency reports recurrence (FREQUENCY not FUNCTION). None
+# reports the MEASURED functional effect of a gene's variants from a multiplexed assay.
+#
+# This card adds that axis from MAVEdb (mavedb.org; Rubin, Esposito, Fowler et al.) — Multiplexed
+# Assays of Variant Effect (deep mutational scanning / saturation genome editing). It answers: "how
+# many of this gene's variants have been functionally ASSAYED, across how many MAVE score sets, and
+# what is the pooled functional-score distribution?" TARGET-GRAIN + indication-INDEPENDENT (a gene's
+# MAVE footprint is a property of the gene's variants, not of a cohort).
+#
+# ORTHOGONAL to CIViC (variant-level-interpretation): MEASURED multiplexed functional scores vs.
+# curated clinical interpretation — a DISTINCT claim (its own measurement_type), not a corroborating
+# provider of variant_level_interpretation.
+#
+# Substrate: mavedb-variant-effect-per-gene-v1 — a gene_symbol-keyed rollup of the MAVEdb snapshot,
+# per gene: has_hgnc_mapping, n_score_sets, n_variants_assayed / n_variants_scored, the pooled
+# per-assay functional-score distribution (score_min/median/max), target_categories, and score-set
+# URNs. The reader pyarrow-column-pushdowns ONE gene's row.
+#
+# DISPLAY facet — verdict-inert. Feeds NO interpretation rule and NO resolver rung (no rule keys
+# card_id variant-effect-mave-mavedb), so the genomic-alteration verdict is byte-stable with or
+# without it. MAVE score scales are PER-ASSAY and not cross-comparable, so this card surfaces the raw
+# distribution + assay-coverage, NEVER a thresholded loss-of-function call.
+
+card_id: variant-effect-mave-mavedb
+version: 0.1.0
+question: "For {target.symbol}, how extensively have its variants been functionally ASSAYED in multiplexed variant-effect experiments (MAVE / deep mutational scanning), and what is the measured functional-score distribution — the MEASURED functional axis CIViC's clinical interpretation can't supply?"
+
+tier: target   # a gene's MAVE functional-assay footprint is a property of the gene's variants, indication-independent
+
+applies_when:
+  - "true"   # any gene; not_assayed-safe when the gene has no HGNC-mapped MAVEdb functional data
+
+required_inputs:
+  # Consumed via the derived gene_symbol-pushdown product (parquet-storage-standard): the reader
+  # pyarrow-column-pushdowns one gene (filters=[("gene_symbol","=",symbol)]). Declaring the derived
+  # product keeps the resolve_cards provenance stamp equal to what is actually read.
+  - product_id: mavedb-variant-effect-per-gene-v1
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/mavedb_variant_effect/read.py::read_target_summary(target=,
+  # indication=). No bespoke dispatcher needed.
+  - call: mavedb-variant-effect
+    module: mavedb_variant_effect
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  # summary_fields match the reader's emitted dict EXACTLY (methods/mavedb_variant_effect/read.py::
+  # compute_summary). A reader RENAME breaks the genomic-alteration replay drift guard (freeze reads
+  # these field keys), so keep the two in lockstep.
+  summary_fields:
+    - mave_evidence_class                  # PRIMARY categorical — measured MAVE-evidence strength
+    - has_hgnc_mapping                      # bool: row came from an HGNC mapping (clean human-gene universe)
+    - n_score_sets                          # distinct MAVE score sets assaying this gene
+    - n_variants_assayed                    # sum of the gene's score sets' assayed-variant counts
+    - n_variants_scored                     # variants with a parseable finite numeric functional score
+    - score_min                             # min pooled functional score (PER-ASSAY scale; nullable)
+    - score_median                          # median pooled functional score (PER-ASSAY scale; nullable)
+    - score_max                             # max pooled functional score (PER-ASSAY scale; nullable)
+    - target_categories                     # distinct MAVEdb targetGene.category values ('; '-joined)
+    - urns                                  # the gene's score-set URNs (';'-joined, capped)
+    - mave_context                          # human-readable summary
+    - method_version
+
+  summary_fields_vocabulary:
+    mave_evidence_class:
+      - mave_well_characterized             # HGNC-mapped, >=2 independent MAVE score sets — measured functional coverage
+      - mave_assayed                        # HGNC-mapped, exactly 1 MAVE score set — measured but single-assay
+      - mave_unmapped_target                # a raw non-HGNC MAVEdb target-name row carrying assay data (out of the clean HGNC universe); counts surfaced but not a clean human-gene mapping — weak-negative
+      - not_assayed                         # gene ABSENT from the product — MEASURED absence of MAVE evidence, weak-negative
+      - data_unavailable                    # MAVEdb product couldn't be read (coverage/read fault) — NOT a measured absence
+
+caveats:
+  - |
+    MEASURED multiplexed variant-effect (MAVE) functional scores — deep mutational scanning /
+    saturation genome editing (MAVEdb; mavedb.org; Rubin, Esposito, Fowler et al.). The MEASURED
+    functional axis complementing CIViC's curated CLINICAL interpretation (variant-level-
+    interpretation) and the gene-level alteration-role — a DISTINCT claim, not a CIViC corroborator.
+  - |
+    MAVE score SCALES ARE PER-ASSAY and not cross-comparable; per-assay LoF calibration thresholds
+    are published for only a minority of score sets. This card surfaces the pooled raw
+    score_min/median/max + assay coverage, NEVER a thresholded loss-of-function / functional-abnormal
+    call. Apply a per-score-set threshold from the primary publication for a directional call.
+  - |
+    Coverage is thin (~75 HGNC-mapped genes); mave_evidence_class is measured EVIDENCE strength, NOT
+    functional direction. Only has_hgnc_mapping=true rows are clean human-gene MAVE evidence; a raw
+    non-HGNC target name that still carries assay data reads mave_unmapped_target (counts surfaced,
+    out of the clean universe — e.g. KRAS, deposited without an HGNC mapping). not_assayed (gene
+    absent) is a measured absence, distinct from data_unavailable (a read fault).
+  - |
+    VERDICT-INERT display in genomic-alteration-profile: feeds no interpretation rule and no resolver
+    rung, so the multi-class genomic-alteration verdict is byte-stable with or without it. It is an
+    additive measured-functional facet alongside the SNV / copy-number / fusion / role axes.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — a view of the `variant_functional_effect_mave` claim (MEASURED
+# multiplexed functional effect; DISTINCT from variant_level_interpretation, which is CIViC's curated
+# CLINICAL call — different substrate, different claim). derived_from [mavedb-variant-effect-per-gene-v1].
+measurement_type: variant_functional_effect_mave
+entity_grains: [target]
+schema_version: 1

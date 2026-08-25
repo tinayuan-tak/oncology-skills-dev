@@ -450,7 +450,7 @@ skill_objectives:
     objective: "How is the target genomically altered (SNV/CN/fusion), and which class drives?"
     primary_axis: genomic_alteration
     questions:
-      - {q: "Recurrent SNV/indel driver (overall + by subtype)?", answered_by: [mutation-type-counts, mutation-hotspot-frequency, alteration-role, variant-level-interpretation, subgroup-stratified-mutation-frequency]}
+      - {q: "Recurrent SNV/indel driver (overall + by subtype)?", answered_by: [mutation-type-counts, mutation-hotspot-frequency, alteration-role, variant-level-interpretation, variant-effect-mave-mavedb, subgroup-stratified-mutation-frequency]}
       - {q: "Copy-number driven (amplification / deletion)?", answered_by: [copy-number-distribution, subgroup-stratified-copy-number, alteration-role]}
       - {q: "Fusion / rearrangement driven?", answered_by: [fusion-rearrangement-landscape, subgroup-stratified-fusion, alteration-role]}
       - {q: "Which alteration class carries a biomarker-stratified dependency?", answered_by: [mutation-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, amp-expr-stratified-dependency, cross-consortium-dependency, dependency-predictability]}

@@ -691,6 +691,20 @@ measurement_types:
     providers:
       - {kind: dataset, source: civic-variant-interpretation-per-gene-v1, method: civic_variant_interpretation, evidence_tier: measured}
 
+  variant_functional_effect_mave:
+    # MEASURED multiplexed variant-effect (MAVE / deep mutational scanning / saturation genome
+    # editing) functional scores, aggregated to the gene. The MEASURED functional axis — DISTINCT
+    # from variant_level_interpretation (CIViC's curated CLINICAL call) by the concordance test: MAVE
+    # experimental functional scores are not interchangeable evidence for CIViC clinical
+    # interpretation, they are a different claim shown ALONGSIDE it. Target-grain + indication-
+    # independent. No modality_relevance — a descriptive measured-functional facet, not a modality-
+    # routing signal. DISPLAY facet, verdict-inert. Source: MAVEdb (mavedb.org).
+    claim: "For target, how extensively have its variants been functionally assayed in MAVE experiments, and what is the measured functional-score distribution?"
+    entity_grains: [target]
+    cards: [variant-effect-mave-mavedb]
+    providers:
+      - {kind: dataset, source: mavedb-variant-effect-per-gene-v1, method: mavedb_variant_effect, evidence_tier: measured}
+
   reactome_pathway_membership:
     # Target-intrinsic pathway/geneset MEMBERSHIP (distinct from signaling_network_mechanism's
     # directed edges). No modality_relevance — this is descriptive molecular context, not a
