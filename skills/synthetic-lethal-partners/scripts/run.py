@@ -24,6 +24,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.sl_question_table import sl_question_table
 
 
@@ -44,6 +45,55 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "synthetic_lethal_partners")
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the SYNTHETIC-LETHAL-PARTNERS per-axis builder. An SL partner is an
+#    OPPORTUNITY (a combination strategy), so a partner SUPPORTS; its measured absence is neutral (not a
+#    negative for the target itself). VERDICT-INERT: surfaced by the fan-out into
+#    decision.claim_record_shadow.synthetic_lethal_partners, consumed by NOTHING. No verdict-disjoint
+#    corroborator → minimal coverage-only certainty. Mirrors the other axes' hook.
+def _sl_availability(v) -> str:
+    if v == "data_unavailable" or v is None:
+        return "not_wired"
+    if v == "insufficient":
+        return "insufficient"
+    if v == "no_curated_sl_partner":
+        return "measured_negative"               # we looked; no curated partner
+    return "measured_positive"                   # has_experimental / has_computational partner
+
+
+def _sl_finding(v):
+    """(direction, magnitude.level). Experimental SL evidence > computational."""
+    if v == "has_experimental_sl_partner":
+        return "supports", "strong"
+    if v == "has_computational_sl_partner":
+        return "supports", "moderate"
+    return "neutral", "none"                      # absence / insufficient / open-world
+
+
+def _sl_certainty(v) -> dict:
+    if v == "data_unavailable" or v is None:
+        return {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 1.0}
+    if v == "insufficient":
+        return {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 0.5}
+    return {"level": "medium", "coverage": "medium", "corroboration": "unmeasured", "unknown_mass": 0.0}
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    direction, level = _sl_finding(v)
+    return assemble_claim_record(
+        axis="synthetic_lethal_partners",
+        state=(v or "insufficient"),
+        direction=direction,
+        availability=_sl_availability(v),
+        magnitude={"level": level},
+        certainty=_sl_certainty(v),
+        fired=fired,
+        cards=cards,
+    )
+
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)

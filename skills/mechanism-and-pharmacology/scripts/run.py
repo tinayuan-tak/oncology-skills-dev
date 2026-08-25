@@ -25,6 +25,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.mechanism_claims import mechanism_claim_vector, mechanism_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
@@ -76,6 +77,54 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "mechanism")
+
+
+# ── FACTORED-RECORD SHADOW (M1) — the MECHANISM per-axis builder. Describes how well the target's
+#    mechanism / pharmacodynamics is characterized: understanding SUPPORTS a program. VERDICT-INERT:
+#    surfaced by the fan-out into decision.claim_record_shadow.mechanism, consumed by NOTHING.
+#    Mechanism has no verdict-disjoint corroborator (CERTAINTY_MODEL: unmeasured) → minimal coverage-only
+#    certainty. Mirrors the other axes' hook.
+_MECH_LEVEL = {"well_characterized": "strong", "has_pd_marker": "moderate", "partial": "moderate",
+               "sparse": "weak"}
+
+
+def _mech_availability(v) -> str:
+    if v == "data_unavailable" or v is None:
+        return "not_wired"
+    if v == "insufficient":
+        return "insufficient"
+    return "measured_positive"                   # well_characterized / has_pd_marker / partial / sparse
+
+
+def _mech_direction(v) -> str:
+    if v in ("well_characterized", "has_pd_marker", "partial", "sparse"):
+        return "supports"                        # any degree of mechanistic understanding supports
+    return "neutral"
+
+
+def _mech_certainty(v) -> dict:
+    if v == "data_unavailable" or v is None:
+        return {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 1.0}
+    if v in {"insufficient", "sparse"}:   # set literal, NOT a 2-string tuple — keeps this verdict
+        # membership check from being misread as a rule-id precedence tuple by the reference-drift guard.
+        return {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 0.5}
+    return {"level": "medium", "coverage": "medium", "corroboration": "unmeasured", "unknown_mass": 0.0}
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    return assemble_claim_record(
+        axis="mechanism",
+        state=(v or "insufficient"),
+        direction=_mech_direction(v),
+        availability=_mech_availability(v),
+        magnitude={"level": _MECH_LEVEL.get(v, "none")},
+        certainty=_mech_certainty(v),
+        fired=fired,
+        cards=cards,
+    )
+
 
 # --- dependency-predictability feature-attribution facet (verdict-inert) ---------------------------
 # feature_class -> the prefix its `feature` name carries a PARTNER gene symbol under. These cross-gene
