@@ -26,7 +26,12 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.7.0   # 1.7.0 (2026-08-21): safety data-utilization expansion — 2 new safety HOLD verdicts gated +
+version: 1.8.0   # 1.8.0 (2026-08-25): + surface_modality pmhc_tce_supported to positive_signals_modality_scoped
+                 #   (bite_tce-scoped POSITIVE, weight supportive). The IEDB pMHC-epitope promotion: the pMHC-TCE
+                 #   route for a folded-surface-dead intracellular oncoprotein. POSITIVE, not kill-capable — no
+                 #   gates / excluded_modality_scoped / kill_capable_verdicts entry (F-symmetry: applies only under
+                 #   an explicit bite_tce modality query). No veto/hold set changed.
+                 # 1.7.0 (2026-08-21): safety data-utilization expansion — 2 new safety HOLD verdicts gated +
                  #   registered kill-capable: pan_essential_broad_tox_concern (DepMap common-essential broad tox)
                  #   and normal_tissue_protein_safety_concern (HPA-IHC essential-tissue protein). Both HOLD (not
                  #   veto), mirroring highly_constrained_safety_concern. The pan-essential HOLD is redundant-with
@@ -482,6 +487,15 @@ positive_signals_modality_scoped:
   # prior TitleCase `TCE_preferred`/`ADC_preferred` here never matched — these two positives were DEAD.
   - {sub_skill: surface_modality, verdict: tce_preferred,             weight: dominant,   when_modality_in: [bite_tce, antibody]}
   - {sub_skill: surface_modality, verdict: adc_preferred,             weight: dominant,   when_modality_in: [adc, antibody]}
+  # pMHC-TCE route (2026-08-25): IEDB-promotion positive. pmhc_tce_supported fires when the folded-surface
+  # fit is neither_viable but experimentally-validated pMHC epitopes support a TCR-mimetic peptide-MHC T-cell
+  # engager (WT1/PRAME/NY-ESO-1/MAGE-A4 intracellular oncoproteins). bite_tce ONLY (an ADC / naked antibody
+  # binds the folded protein, not the pMHC complex) — so scoped to [bite_tce], NOT adc/antibody. SUPPORTIVE,
+  # not dominant: a single-axis IEDB ground-truth signal (necessary-not-sufficient; tumor-context-agnostic)
+  # corroborates a pMHC-TCE nomination and rescues the surface-neither_viable target from a modality-dead read
+  # under an explicit bite_tce query — but must not alone mint a `strong` tier. In DEFAULT (no --modality)
+  # mode it does NOT apply, symmetric to the other surface positives (the F-symmetry). NOT kill-capable.
+  - {sub_skill: surface_modality, verdict: pmhc_tce_supported,        weight: supportive, when_modality_in: [bite_tce]}
 
 # An OPPOSING MEASURED verdict on a positive-eligible axis blocks `strong`. NOTE:
 # insufficient / data_unavailable / not_informative are NOT contradictions — absence

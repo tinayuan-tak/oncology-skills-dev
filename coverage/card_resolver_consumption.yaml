@@ -35,6 +35,7 @@ resolver_consumed_cards:
 - pan-cancer-rnai-dependency-distribution
 - paralog-buffering
 - partner-conditional-dependency
+- pmhc-epitope-evidence-iedb
 - prism-compound-activity
 - prism-crispr-concordance
 - sc-normal-celltype-expression
@@ -255,6 +256,12 @@ detail:
     rules:
     - partner-conditional-moderately-dependent-supportive
     - partner-conditional-strongly-dependent-supportive
+  pmhc-epitope-evidence-iedb:
+    resolvers:
+    - surface_modality
+    rules:
+    - pmhc-iedb-presented-tce-supportive
+    - pmhc-iedb-tcell-validated-tce-supportive
   prism-compound-activity:
     resolvers:
     - tractability_small_molecule

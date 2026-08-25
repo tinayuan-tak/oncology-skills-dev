@@ -2,8 +2,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 399
-  gating: 121
+  total: 401
+  gating: 123
   display: 278
 gating:
 - adc-preferred-supportive
@@ -94,6 +94,8 @@ gating:
 - pan-essential-killer
 - partner-conditional-moderately-dependent-supportive
 - partner-conditional-strongly-dependent-supportive
+- pmhc-iedb-presented-tce-supportive
+- pmhc-iedb-tcell-validated-tce-supportive
 - prism-clinical-precedent-only-weak-supportive-sm
 - prism-clinically-active-supportive-sm
 - prism-no-compounds-found-neutral

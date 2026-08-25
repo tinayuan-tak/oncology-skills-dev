@@ -12,7 +12,10 @@
 # the rules engine when the lens is not invoked.
 
 rules_id: surface-intrinsic
-version: 1.0.0
+version: 1.1.0   # 2026-08-25: + block O2 — IEDB experimentally-validated pMHC epitope evidence
+                # (pmhc-iedb-tcell-validated-tce-supportive / -presented-tce-supportive; bite_tce-only).
+                # VERDICT-BEARING via the surface_modality pmhc_tce_supported rung (fires only with
+                # neither-viable-killer — the pMHC-TCE route when the folded-surface ladder is dead).
 axis: surface_intrinsic
 schema_version: 1
 
@@ -1778,6 +1781,67 @@ rules:
       tumor-restricted peptide + tight HLA restriction can still carve a window, but broad benign
       presentation is a first-order concern for a peptide-centric program. not_observed / intermediate
       fire nothing (weak-negative / ambiguous -> abstain).
+
+  # ============================================================================
+  # O2 — EXPERIMENTALLY-VALIDATED pMHC EPITOPE EVIDENCE (IEDB, VERDICT-BEARING 2026-08-25)
+  # ============================================================================
+  # Keyed on epitope_evidence_class (pmhc-epitope-evidence-iedb card; IEDB positive-assay rollup per
+  # UniProt). The EXPERIMENTAL companion to pmhc-presentation (block O, HLA-Ligand-Atlas benign BREADTH):
+  # this is positive-assay epitope + T-cell RECOGNITION GROUND TRUTH — have the target's peptides actually
+  # been observed presented on human HLA and/or T-cell-recognized (KRAS-G12V/WT1/PRAME/NY-ESO-1/MAGE-A4
+  # class)? Signals bite_tce ONLY — a TCR-mimetic pMHC T-cell engager reaches an INTRACELLULAR oncoprotein
+  # via the peptide-MHC complex; an ADC / naked antibody binds the folded surface protein, not pMHC.
+  #
+  # VERDICT-BEARING (promotion 2026-08-25): the two POSITIVE classes feed a surface_modality resolver rung
+  # (pmhc_tce_supported) that fires ONLY in conjunction with neither-viable-killer — i.e. when the folded-
+  # surface ladder is DEAD (neither_viable) but experimental epitopes support the SEPARATE peptide-MHC
+  # (pMHC-TCE) route the surface cards cannot see (WT1/PRAME/NY-ESO-1/MAGE-A4: correctly surface-neither_
+  # viable yet pMHC-TCE-viable). For a surface-VIABLE antigen the neither-viable-killer does NOT fire, so
+  # these rules ride as an ADDITIVE bite_tce signal and do NOT flip the surface ADC/TCE call.
+  #
+  # ASSAY ASYMMETRY (the card's core caveat): absence of a deposited epitope != not presented. So only the
+  # two POSITIVE classes fire — no_positive_epitopes / not_observed / data_unavailable fire NOTHING (a weak
+  # negative / coverage gap → abstain, NEVER a killer or opposing). This mirrors block O's not_observed rule.
+
+  - rule_id: pmhc-iedb-tcell-validated-tce-supportive
+    when:
+      card_id: pmhc-epitope-evidence-iedb
+      field: epitope_evidence_class
+      equals: tcell_validated
+    signals:
+      bite_tce: supportive
+    dominant: true
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      >=1 positive IEDB epitope AND a positive T-cell-recognition assay — the peptide is experimentally
+      T-cell-RECOGNIZED, the strongest pMHC ground truth (ERBB2 / NY-ESO-1(CTAG1B) / MAGE-A4 / WT1 / PRAME
+      archetype). Dominant supportive for bite_tce (a TCR-mimetic pMHC T-cell engager): experimental
+      recognition confirms a real pMHC target even for an INTRACELLULAR oncoprotein invisible to surface
+      presence. bite_tce ONLY — ADC / naked antibody bind the folded surface protein, not the pMHC complex.
+      Necessary-not-sufficient: IEDB is tumor-context-agnostic (a cancer-context flag, not a tumor-
+      restriction call), so the tumor-restriction / normal-presentation window still needs the benign-atlas
+      (pmhc-presentation) + a tumor immunopeptidome. VERDICT-MOVING only when the folded-surface fit is
+      neither_viable (→ pmhc_tce_supported); additive otherwise (surface-viable antigens keep their fit).
+
+  - rule_id: pmhc-iedb-presented-tce-supportive
+    when:
+      card_id: pmhc-epitope-evidence-iedb
+      field: epitope_evidence_class
+      equals: presented_not_tcell_confirmed
+    signals:
+      bite_tce: supportive
+    modality_importance:
+      bite_tce: secondary
+    rationale: |
+      >=1 positive IEDB epitope with MHC-ligand PRESENTATION observed but no recorded positive T-cell assay
+      (presented; recognition uncharacterised). Supportive but NON-DOMINANT (secondary) for bite_tce: the
+      peptide is experimentally displayed on human HLA — a real peptide-MHC target for a TCR-mimetic pMHC
+      TCE — but T-cell recognisability is not yet confirmed, a weaker call than tcell_validated. bite_tce
+      ONLY. Same VERDICT-MOVING scope as the validated rung: it promotes a surface-neither_viable target to
+      pmhc_tce_supported (the pMHC route is the sole biologics route), else it is additive. no_positive_
+      epitopes / not_observed / data_unavailable fire NOTHING (assay asymmetry: absence is a weak negative,
+      never a proven non-epitope).
 
   # ============================================================================
   # F5 — sc-normal-celltype-expression card (scRNA normal, WIRED 2026-08-07)
