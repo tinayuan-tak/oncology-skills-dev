@@ -362,15 +362,26 @@ modality_scoped_veto_suppression:
 biology_axis_scoped_veto_downgrade:
   - downgrades: {sub_skill: dependency, verdict: non_dependent}
     to_action: hold
-    when_biology_axis_in: [surface_intrinsic]
+    when_biology_axis_in: [surface_intrinsic, unknown]
     when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, surface_viable_density_caveated]
     rationale: |
-      A curated surface antigen (biology_axis=surface_intrinsic) with a FAVORABLE surface_modality
-      fit is engaged via antigen binding, so a pooled pan-cancer `non_dependent` is not a trusted
-      reason to VETO — it is downgraded to `hold`, surfacing the target (with its real surface/safety
-      liabilities carried by the surface + safety axes) rather than force-declining it on an
-      irrelevant intracellular-dependency criterion. Fires without an explicit --modality; the
-      favorable-surface co-condition prevents rescuing surface-junk. Does NOT touch pan_essential_killer.
+      A surface antigen with a FAVORABLE surface_modality fit is engaged via antigen binding, so a
+      pooled pan-cancer `non_dependent` is not a trusted reason to VETO — it is downgraded to `hold`,
+      surfacing the target (with its real surface/safety liabilities carried by the surface + safety
+      axes) rather than force-declining it on an irrelevant intracellular-dependency criterion.
+
+      DATA-DRIVEN, not curation-gated (2026-08-25, gap T2b): the axis set includes `unknown` (a
+      target NOT in the curated target_biology_axis_lookup), because a FAVORABLE adc/tce `fit_class`
+      is itself the surface-antigen evidence — it is minted only from real surface topology +
+      surfaceome-family signal, so a cytosolic/nuclear target resolves to `neither_viable` and is
+      never downgraded here. This closes the default-run false-veto of UNCURATED approved antigens
+      (TROP2/TACSTD2, NECTIN4, CD19, FOLR1 …) that the 22-target lookup does not enumerate. An
+      explicitly-classified `intracellular_intrinsic` target is DELIBERATELY excluded (it keeps the
+      veto) — an intracellular oncogene with an incidental surface signal is not a surface antigen.
+
+      Fires without an explicit --modality; the favorable-surface co-condition prevents rescuing
+      surface-junk. Downgrade is veto→hold (never nominate), so it cannot manufacture a false
+      nomination. Does NOT touch pan_essential_killer.
 
 # ============================================================================
 # POSITIVE TIER (2026-07-17) — deterministic confidence FLOOR, never an action.
