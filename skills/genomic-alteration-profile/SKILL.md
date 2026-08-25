@@ -57,7 +57,9 @@ composition:
     - mutation-hotspot-frequency             # recurrence frequency + pooled driver-recurrence (VERDICT-DRIVING)
     # ADDITIVE signal-only layers — feed the LLM/matrix + headline; fire NO resolver rung, so they are
     # NOT in rules_scope and the verdict spine is byte-stable:
-    - variant-level-interpretation           # CIViC per-variant oncogenicity + resistance alleles
+    - variant-level-interpretation           # CIViC per-variant oncogenicity + resistance alleles (clinical interp)
+    - variant-effect-mave-mavedb             # MAVEdb MEASURED multiplexed variant-effect (DMS/SGE functional scores);
+                                             # orthogonal to CIViC's clinical interpretation (verdict-inert)
     - target-clonality                       # mutation clonality/truncality (ccf from MC3 VAF × ABSOLUTE purity)
     - functional-gene-state                  # allele-count / biallelic two-hit state
     - genomic-event-model-match              # which DepMap models carry the SAME event as the tumours
@@ -97,6 +99,7 @@ composition:
     - fusion_rearrangement                   # fusion-rearrangement-landscape (VERDICT-DRIVING: recurrent_fusion_driver rung)
                                              # + subgroup-stratified-fusion (subtype view, display-only)
     - variant_level_interpretation           # variant-level-interpretation
+    - variant_functional_effect_mave         # variant-effect-mave-mavedb (MEASURED MAVE functional effect; verdict-inert)
     - mutation_clonality                     # target-clonality (#2: ccf-based truncality; verdict-inert)
     - functional_gene_state                  # functional-gene-state
     - genomic_event_model_match              # genomic-event-model-match

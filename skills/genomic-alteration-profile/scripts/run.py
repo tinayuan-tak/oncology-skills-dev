@@ -80,7 +80,8 @@ CARDS = [
     "mutational-signature-context",    # indication-level mutagenic-process context (TCGA MC3 SBS signatures)
     "ddr-deficiency-context",          # indication-level DDR/HRD cohort context (frames the HRD-conditional axis)
     "oncogenic-pathway-alteration",    # indication-level oncogenic-pathway alteration frequency (Sanchez-Vega 2018)
-    "variant-level-interpretation",    # per-variant oncogenicity + therapy-resistance alleles (CIViC)
+    "variant-level-interpretation",    # per-variant oncogenicity + therapy-resistance alleles (CIViC clinical interp)
+    "variant-effect-mave-mavedb",      # per-variant MEASURED functional effect (MAVEdb DMS/SGE); orthogonal to CIViC (verdict-inert)
     "target-clonality",                # is the driver mutation truncal (durable) or subclonal (relapse-prone)?
     # ── Q4 KO-dependency CONFIDENCE annotations (additive, verdict-inert; fire NO genomic rung) ──
     "cross-consortium-dependency",     # Broad↔Sanger CRISPR agreement — is the dependency reproducible?
@@ -408,6 +409,11 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     ("civic_variant_class",                 "variant-level-interpretation",   "civic_variant_class"),
     ("civic_oncogenic_variants",            "variant-level-interpretation",   "oncogenic_variants"),
     ("civic_resistance_variants",           "variant-level-interpretation",   "resistance_variants"),
+
+    # ── Per-variant MEASURED functional effect (MAVEdb DMS/SGE; verdict-inert) ─
+    ("mave_evidence_class",                 "variant-effect-mave-mavedb",     "mave_evidence_class"),
+    ("mave_n_score_sets",                   "variant-effect-mave-mavedb",     "n_score_sets"),
+    ("mave_score_median",                   "variant-effect-mave-mavedb",     "score_median"),
 
     # ── Q4 dependency CONFIDENCE (additive, verdict-inert) ────────────────────
     ("cross_consortium_class",              "cross-consortium-dependency",    "cross_consortium_class"),

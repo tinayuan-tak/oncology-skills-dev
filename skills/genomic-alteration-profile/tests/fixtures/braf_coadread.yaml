@@ -782,6 +782,20 @@ oncogenic-pathway-alteration:
     pathway_alteration_class: frequently_altered
   target_pathway_membership:
   - RTK RAS
+variant-effect-mave-mavedb:
+  has_hgnc_mapping: true
+  mave_context: '3 MAVE score set(s) assaying BRAF: 911 of 933 variants scored (pooled
+    per-assay functional scores)'
+  mave_evidence_class: mave_well_characterized
+  method_version: 0.1.0
+  n_score_sets: 3
+  n_variants_assayed: 933
+  n_variants_scored: 911
+  score_max: 47.958797131244744
+  score_median: 0.7658622752452033
+  score_min: 0.4439543120384661
+  target_categories: protein_coding
+  urns: urn:mavedb:00000091-a-1;urn:mavedb:00001237-a-1;urn:mavedb:00001237-a-2
 variant-level-interpretation:
   civic_interpretation_context: '41 single-variant CIViC profiles for BRAF: 37 oncogenic/likely,
     12 with resistance annotation'

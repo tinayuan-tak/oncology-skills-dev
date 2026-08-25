@@ -476,6 +476,9 @@ SUB_SKILL_CARDS = {
         "variant-level-interpretation",      # composer-registry sweep (2026-08-07): per-variant
                                              # oncogenicity (CIViC + hotspot). Same drift — in CARDS,
                                              # not composed → dropped. Restored.
+        "variant-effect-mave-mavedb",        # MAVEdb MEASURED multiplexed variant-effect (DMS/SGE)
+                                             # facet — in genomic-alteration-profile CARDS; composed here for
+                                             # composer-consistency. VERDICT-INERT (no rules; verdict byte-stable).
         "ddr-deficiency-context",            # 2026-08-11 DDR/HRD inert context
                                              # facet. In genomic-alteration-profile CARDS, composed under
                                              # no entry → dropped. VERDICT-INERT render facet (no rules).

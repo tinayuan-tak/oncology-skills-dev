@@ -768,6 +768,22 @@ oncogenic-pathway-alteration:
     pathway_alteration_class: frequently_altered
   target_pathway_membership:
   - RTK RAS
+variant-effect-mave-mavedb:
+  has_hgnc_mapping: false
+  mave_context: "MAVEdb row present for 'KRAS' (30 score set(s), 198041 variants scored)\
+    \ but NOT HGNC-mapped \u2014 out-of-universe raw target name, not counted as clean\
+    \ human-gene MAVE evidence"
+  mave_evidence_class: mave_unmapped_target
+  method_version: 0.1.0
+  n_score_sets: 30
+  n_variants_assayed: 200525
+  n_variants_scored: 198041
+  score_max: 3.1614442
+  score_median: -0.374167032625813
+  score_min: -2.0171945
+  target_categories: protein_coding
+  urns: urn:mavedb:00000115-a-1;urn:mavedb:00000115-a-10;urn:mavedb:00000115-a-11;urn:mavedb:00000115-a-12;urn:mavedb:00000115-a-13;urn:mavedb:00000115-a-14;urn:mavedb:00000115-a-15;urn:mavedb:00000115-a-16;urn:mavedb:00000115-a-17;urn:mavedb:00000115-a-18;urn:mavedb:00000115-a-19;urn:mavedb:00000115-a-2;urn:mavedb:00000115-a-20;urn:mavedb:00000115-a-21;urn:mavedb:00000115-a-22;urn:mavedb:00000115-a-23;urn:mavedb:00000115-a-24;urn:mavedb:00000115-a-25;urn:mavedb:00000115-a-26;urn:mavedb:00000115-a-27;urn:mavedb:00000115-a-28;urn:mavedb:00000115-a-3;urn:mavedb:00000115-a-4;urn:mavedb:00000115-a-5;urn:mavedb:00000115-a-6;...(+5
+    more)
 variant-level-interpretation:
   civic_interpretation_context: '29 single-variant CIViC profiles for KRAS: 13 oncogenic/likely,
     23 with resistance annotation'

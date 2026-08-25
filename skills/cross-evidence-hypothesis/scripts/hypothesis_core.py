@@ -88,6 +88,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "genomic-instability-state", "mutation-drug-response", "mutation-hotspot-frequency",
         "mutation-stratified-dependency", "mutation-type-counts", "mutational-signature-context",
         "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation",
+        "variant-effect-mave-mavedb",   # MAVEdb MEASURED variant-effect facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (verdict-inert)
         # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[genomic-alteration-profile] which regained
         # these two dependency-confidence cards (lifted by genomic _HEADLINE_FIELDS/_lift_field).
         "cross-consortium-dependency", "dependency-predictability",
