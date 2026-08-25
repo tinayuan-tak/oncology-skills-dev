@@ -21,8 +21,17 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Optional
 
+from methods.catalog_query.read import s3_uri_for
+
 DEFAULT_CUTOFFS = {"top_1pct": 99.0, "top_decile": 90.0, "bottom_decile": 10.0}
 _MIN_COVERED = 20  # pooled n_cov floor to rank a gene (mirrors the GENIE per-cohort floor)
+
+# Precomputed per-(indication, gene) pooled-recurrence product (build_pooled_recurrence_table
+# materialized per indication). Lets pooled_recurrence_for_gene push down ONE (indication, gene) row
+# instead of rebuilding the pooled null LIVE — which loads the MSK-CHORD + GENIE panel-coverage maps
+# and scans every cohort's MAF (~8-10s, the dominant cost of the mutation-hotspot-frequency card's
+# pooled arm). Resolved lazily so import never breaks before the manifest is registered.
+_POOLED_PRODUCT_ID = "pooled-snv-recurrence-per-gene-v1"
 
 
 # ── pure pooling core (unit-testable, no I/O) ─────────────────────────────────────────────────────
@@ -99,10 +108,66 @@ def _pooled_for_indication(indication: str) -> dict:
     return pool_gene_counts(per_cohort)
 
 
+def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
+    """Read ONE (indication, gene) pooled-recurrence row from the precomputed product (pushdown).
+
+    Returns the SAME dict pooled_recurrence_for_gene builds for a RANKABLE gene (n_cov >= _MIN_COVERED)
+    — the product stores exactly those genes, with the percentile ranked among the same pooled null, and
+    n_ranked_genes to reconstruct the context string byte-identically. Returns None when the product is
+    UNREACHABLE (manifest not registered → s3_uri_for raises; object absent → 404) OR the (indication,
+    gene) is NOT a rankable row — the caller then falls back to the LIVE path, which is the ONLY place
+    the two non-rankable sub-cases are distinguished (uncovered → n_cov 0 data_unavailable; covered-but-
+    thin → freq emitted, pct None). A transient/creds error re-raises. Cutoffs other than the default
+    change the class thresholds, so a non-default cutoffs also routes to live (the product baked DEFAULT)."""
+    if cutoffs is not None:
+        return None
+    try:
+        uri = s3_uri_for(_POOLED_PRODUCT_ID)
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- LOCAL catalog manifest lookup, not an S3 read; a raise means the derived manifest is not registered → fall back to the live pooled computation
+        return None
+    try:
+        import pandas as pd
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+        path = uri.replace("s3://", "", 1)
+        df = pq.read_table(path, filesystem=fs.S3FileSystem(),
+                           filters=[("indication", "=", indication),
+                                    ("gene_symbol", "=", target)]).to_pandas()
+        if df.empty:
+            return None   # not a rankable row → live fallback (distinguishes uncovered vs too-thin)
+        row = df.iloc[0]
+        cohorts = str(row["cohorts_contributing"]).split(",") if row["cohorts_contributing"] else []
+        n_ranked = int(row["n_ranked_genes"])
+        return {
+            "pooled_mutation_frequency": float(row["pooled_mutation_frequency"]),
+            "n_covered_pooled": int(row["n_covered_pooled"]),
+            "n_mutated_pooled": int(row["n_mutated_pooled"]),
+            "pooled_driver_recurrence_percentile": (None if pd.isna(row["pooled_driver_recurrence_percentile"])
+                                                    else float(row["pooled_driver_recurrence_percentile"])),
+            "pooled_driver_recurrence_class": str(row["pooled_driver_recurrence_class"]),
+            "cohorts_contributing": cohorts,
+            "pooled_recurrence_context": (
+                f"pooled {'+'.join(cohorts)} — {target} ranks among {n_ranked} "
+                f"panel-covered genes in {indication} (summed-counts/summed-coverage)"),
+        }
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
+        return None   # product object genuinely absent → live fallback
+
+
 def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = None) -> dict:
     """Pooled multi-cohort recurrence for one (target, indication). Returns pooled_mutation_frequency
     (Σn_mut/Σn_cov), n_covered_pooled, n_mutated_pooled, pooled_driver_recurrence_percentile + _class,
-    cohorts_contributing, and a context string. data_unavailable when no cohort covers the gene."""
+    cohorts_contributing, and a context string. data_unavailable when no cohort covers the gene.
+
+    Prefers the precomputed per-(indication, gene) product (pushdown; avoids rebuilding the pooled null
+    LIVE — the MSK-CHORD + GENIE panel-coverage loads). Falls back to the live computation when the
+    product is unreachable or the gene is not a rankable product row. Byte-identical either way."""
+    prod = _pooled_from_product(target, indication, cutoffs)
+    if prod is not None:
+        return prod
     pooled = _pooled_for_indication(indication)
     if not pooled:
         return {"pooled_driver_recurrence_class": "data_unavailable",
@@ -147,6 +212,8 @@ def build_pooled_recurrence_table(indication: str):
         return pa.Table.from_pylist([], schema=_schema())
     from methods.percentile_null import percentile_rank, classify_percentile
     null_vec = tuple(e["n_mut"] / e["n_cov"] for e in rankable.values())
+    n_ranked = len(null_vec)   # == len(null_vec) in pooled_recurrence_for_gene → lets the product-read
+                               # reader reconstruct the context string byte-identically (see _pooled_from_product).
     rows = []
     for gene, e in rankable.items():
         freq = e["n_mut"] / e["n_cov"]
@@ -156,7 +223,8 @@ def build_pooled_recurrence_table(indication: str):
                      "pooled_mutation_frequency": freq,
                      "pooled_driver_recurrence_percentile": pct,
                      "pooled_driver_recurrence_class": classify_percentile(pct, DEFAULT_CUTOFFS),
-                     "cohorts_contributing": ",".join(e["cohorts"])})
+                     "cohorts_contributing": ",".join(e["cohorts"]),
+                     "n_ranked_genes": n_ranked})
     rows.sort(key=lambda r: r["gene_symbol"])
     return pa.Table.from_pylist(rows, schema=_schema())
 
@@ -170,4 +238,5 @@ def _schema():
         pa.field("pooled_driver_recurrence_percentile", pa.float64()),
         pa.field("pooled_driver_recurrence_class", pa.string()),
         pa.field("cohorts_contributing", pa.string()),
+        pa.field("n_ranked_genes", pa.int64()),
     ])
