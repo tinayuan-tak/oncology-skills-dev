@@ -27,6 +27,19 @@ def test_well_characterized_supports_strong():
     assert rec["provenance"]["fired_rule_ids"] == ["moa-well-characterized"]
 
 
+def test_moa_classes_populate_mechanism_coordinate():
+    cards = [{"card_id": "signaling-network-mechanism",
+              "summary": {"moa_classes_present": ["kinase", "transcription_factor"]}}]
+    rec = me._claim_record(cards, fired=_fired("moa-well-characterized"),
+                           verdict_pair=("well_characterized", "moa-well-characterized"))
+    assert rec["mechanism"]["classes"] == ["kinase", "transcription_factor"]   # WHY on the chart
+
+
+def test_no_mechanism_block_when_moa_absent():
+    rec = me._claim_record([], fired=[], verdict_pair=("sparse", None))
+    assert "mechanism" not in rec               # empty MoA → no fabricated block
+
+
 def test_data_unavailable_open_world():
     rec = me._claim_record([], fired=[], verdict_pair=("data_unavailable", None))
     assert rec["finding"]["availability"] == "not_wired"

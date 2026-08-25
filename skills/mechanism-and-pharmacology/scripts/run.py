@@ -112,14 +112,24 @@ def _mech_certainty(v) -> dict:
 
 
 def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
-    """M1 shadow builder — standalone, mirrors the other axes' hook."""
+    """M1 shadow builder — standalone, mirrors the other axes' hook.
+
+    Record-enrichment (review move #3): populate mechanism.classes from the signaling-network card's
+    `moa_classes_present` (the 21-class MoA ontology). This puts the WHY / candidate-MoA-hook onto the
+    chart (mechanism.classes was empty everywhere) — a legitimate DISPLAY coordinate on the mechanism
+    axis's own record. It does NOT wire the ontology into any resolver/gate (the adversarial review's
+    caution: keep MoA rule-wiring speculative until a specific class drives a specific decision)."""
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    moa = get_card_field(cards, "signaling-network-mechanism", "moa_classes_present") \
+        if any(c.get("card_id") == "signaling-network-mechanism" for c in (cards or [])) else None
+    mechanism = {"classes": list(moa)} if isinstance(moa, (list, tuple)) and moa else None
     return assemble_claim_record(
         axis="mechanism",
         state=(v or "insufficient"),
         direction=_mech_direction(v),
         availability=_mech_availability(v),
         magnitude={"level": _MECH_LEVEL.get(v, "none")},
+        mechanism=mechanism,
         certainty=_mech_certainty(v),
         fired=fired,
         cards=cards,
