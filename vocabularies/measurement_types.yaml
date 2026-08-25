@@ -362,11 +362,19 @@ measurement_types:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule]
-    claim: "Does an annotated compound hit target, and is its activity lineage-selective or pan-cancer?"
+    claim: "Does an annotated compound hit target in cancer cell lines (Broad PRISM + Sanger GDSC drug-response panels), and is its activity lineage-selective or pan-cancer?"
     entity_grains: [target, target_lineage]
-    cards: [prism-compound-activity]
+    cards: [prism-compound-activity, gdsc-drug-activity]
+    # Two orthogonal cell-line drug-response platforms for the SAME claim (2026-08-25): Broad PRISM
+    # (OncRef 25Q4 Log2AUC + Repurposing) + Sanger GDSC1+GDSC2 dose-response (fitted LN_IC50/AUC). A
+    # target whose SM tractability REPRODUCES across both is far more credible than either alone. Both
+    # `measured` tier; policy is behaviorally inert here (gdsc-drug-activity is verdict-INERT — it fires
+    # no rule and feeds no tractability resolver rung, PRISM's rules own the verdict), declared to
+    # satisfy the >1-provider governance rule (the ProCan->Gygi analog on the tractability side).
+    multi_provider_policy: tier_dominant
     providers:
       - {kind: dataset, source: depmap-prism-activity-v3, evidence_tier: measured}
+      - {kind: dataset, source: gdsc-drug-activity-per-gene-v1, evidence_tier: measured}
 
   mutation_hotspot_frequency:
     claim: "What is target's somatic mutation frequency + hotspot landscape in patient cohorts, incl. subgroup slices?"

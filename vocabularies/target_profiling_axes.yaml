@@ -471,7 +471,7 @@ skill_objectives:
     objective: "Is the target druggable by a small molecule, and does the chemical signal agree with the genetics?"
     primary_axis: tractability_sm
     questions:
-      - {q: "Is there a compound that hits it (PRISM)?", answered_by: [prism-compound-activity]}
+      - {q: "Is there a compound that hits it (cell-line drug response: PRISM + Sanger GDSC)?", answered_by: [prism-compound-activity, gdsc-drug-activity]}
       - {q: "Does the chemical signal agree with the genetic dependency?", answered_by: [prism-crispr-concordance]}
       - {q: "Measured potency of known ligands?", answered_by: [measured-potency-tractability]}
       - {q: "Structurally ligandable pocket?", answered_by: [structure-features-static]}
