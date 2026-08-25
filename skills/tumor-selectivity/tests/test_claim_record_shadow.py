@@ -39,6 +39,17 @@ def test_strong_selective_measured_positive_with_real_magnitude():
     assert rec["provenance"]["fired_rule_ids"] == ["tumor-selective-strong"]
 
 
+def test_magnitude_carries_distance_to_cut():
+    # strong verdict, max|log2FC|=3.1 vs the strong cutpoint 1.5 -> distance_to_cut = 1.6 (well clear)
+    rec = sel._claim_record(_tvn(max_abs_log2fc=3.1), fired=[],
+                            verdict_pair=("strong_tumor_selective", None))
+    assert rec["finding"]["magnitude"]["distance_to_cut"] == 1.6
+    # a barely-cleared modest call: 0.6 vs the modest cutpoint 0.5 -> distance 0.1 (knife-edge)
+    rec2 = sel._claim_record(_tvn(max_abs_log2fc=0.6), fired=[],
+                             verdict_pair=("modest_tumor_selective", None))
+    assert rec2["finding"]["magnitude"]["distance_to_cut"] == 0.1
+
+
 def test_not_selective_is_measured_negative_opposes():
     rec = sel._claim_record(_tvn(), fired=[], verdict_pair=("not_selective", None))
     assert rec["finding"]["availability"] == "measured_negative"

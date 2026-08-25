@@ -635,6 +635,32 @@ def _channel_value(modality_scope: dict, channel: str):
     return v if v in _MODALITY_FIT_ORDER else None      # 'na' / None → axis is silent on this channel
 
 
+# --- MAGNITUDE-BORDERLINE consumer (M4 coarsen-magnitude; VERDICT_REPRESENTATION move #5 / R5) -------
+# Over-precision audit made actionable: a categorical verdict HARD-CUTS a continuous measure at a
+# boundary, so a call whose value barely cleared its cutpoint is knife-edge — the token asserts a
+# crispness the data doesn't support. The factored record retains the raw value + distance_to_cut, so
+# this reads them back and flags axes whose call sits within a NEAR-THRESHOLD band of its cutpoint.
+# Scale-aware (the band is in the measure's own units). VERDICT-INERT — a fragility signal for the
+# reader, never the spine. Empty until an axis populates magnitude.value + distance_to_cut (selectivity
+# is the first: max|log2FC| vs the strong>=1.5 / modest>=0.5 cutpoints).
+_BORDERLINE_BAND = {"log2fc": 0.25}    # within this many units of the cutpoint = borderline
+
+
+def _magnitude_borderline(sub_results: dict) -> list[dict]:
+    shadow = _claim_record_shadow_by_axis(sub_results)
+    out: list[dict] = []
+    for short in sorted(shadow):
+        mag = ((shadow[short] or {}).get("finding") or {}).get("magnitude") or {}
+        value, scale, dist = mag.get("value"), mag.get("scale"), mag.get("distance_to_cut")
+        band = _BORDERLINE_BAND.get(scale)
+        if value is None or dist is None or band is None:
+            continue                   # axis has no continuous value / cutpoint to be borderline on
+        if abs(dist) <= band:
+            out.append({"axis": short, "level": mag.get("level"), "value": value, "scale": scale,
+                        "distance_to_cut": dist, "band": band})
+    return out
+
+
 def _modality_fit_by_channel(sub_results: dict) -> dict:
     """{channel: {fit, limiting_axis, by_axis}} — worst-case conjunction of every axis's record
     modality_scope. `fit` is the min (worst) favorability across the axes that speak to the channel;

@@ -60,7 +60,7 @@ from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
-    _claim_record_shadow_by_axis, _modality_fit_by_channel,
+    _claim_record_shadow_by_axis, _modality_fit_by_channel, _magnitude_borderline,
     _deciding_axis, _dependency_facet,
     _cross_gate_shared_evidence,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
@@ -419,6 +419,11 @@ def main() -> int:
     # on the spine; a projection over the shadow for the reader + LLM synthesis.
     modality_fit_by_channel = _modality_fit_by_channel(sub_results)
 
+    # M4 coarsen-magnitude: flag axes whose categorical call HARD-CUTS a continuous value that barely
+    # cleared its cutpoint (knife-edge / over-precision). Read from the record's magnitude value +
+    # distance_to_cut. VERDICT-INERT — a fragility signal for the reader, never the spine.
+    magnitude_borderline = _magnitude_borderline(sub_results)
+
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
     # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
@@ -772,6 +777,9 @@ def main() -> int:
         # M4 per-channel modality favorability rolled up from the records' modality_scope (worst-case
         # conjunction). ADDITIVE / verdict-inert — the per-modality view the scalar verdict couldn't hold.
         "modality_fit_by_channel": modality_fit_by_channel,
+        # M4 over-precision audit: axes whose call is knife-edge on its continuous cutpoint. ADDITIVE /
+        # verdict-inert. Empty until an axis populates magnitude.value + distance_to_cut (selectivity first).
+        "magnitude_borderline": magnitude_borderline,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.

@@ -356,6 +356,8 @@ _SEL_STRENGTH_TO_LEVEL = {
 }
 _SEL_OPEN_WORLD = {"data_unavailable", None}
 _SEL_MEASURED_INCONCLUSIVE = {"discordant_across_comparators", "not_informative", "insufficient"}
+# boundary-aligned max|log2FC| cutpoints each positive verdict is DEFINED on (card thresholds).
+_SEL_LOG2FC_CUT = {"strong_tumor_selective": 1.5, "modest_tumor_selective": 0.5}
 
 
 def _sel_availability(v) -> str:
@@ -381,11 +383,18 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
     sc = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)
     level = _SEL_STRENGTH_TO_LEVEL.get(_selectivity_strength(v), "none")
-    # carry the continuous tumor-vs-normal window as the magnitude value when we made a real call
+    # carry the continuous tumor-vs-normal window as the magnitude value when we made a real call, PLUS
+    # distance_to_cut = how far max|log2FC| cleared the boundary the verdict is defined on (strong>=1.5,
+    # modest>=0.5; see cards/tumor-vs-normal-selectivity.card.yaml). A small distance = a knife-edge call
+    # (the borderline consumer reads this to flag over-precision — a token that hard-cuts a near-boundary
+    # continuous value). Late, non-destructive: the raw value + its distance are retained on the record.
     magnitude = {"level": level}
     max_log2fc = (card_summary(cards, "tumor-vs-normal-selectivity") or {}).get("max_abs_log2fc")
     if level != "none" and isinstance(max_log2fc, (int, float)):
         magnitude = {"level": level, "value": float(max_log2fc), "scale": "log2fc"}
+        cut = _SEL_LOG2FC_CUT.get(v)
+        if cut is not None:
+            magnitude["distance_to_cut"] = round(float(max_log2fc) - cut, 4)
     return assemble_claim_record(
         axis="selectivity",
         state=(v or "insufficient"),
