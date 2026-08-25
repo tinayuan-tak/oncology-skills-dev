@@ -11,7 +11,8 @@ import pytest
 
 SKILLS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILLS))
-from _skills_common.claim_record import assemble_claim_record, OPEN_WORLD_AVAILABILITY  # noqa: E402
+from _skills_common.claim_record import (  # noqa: E402
+    assemble_claim_record, render_verdict, OPEN_WORLD_AVAILABILITY)
 
 _CERT = {"level": "medium", "coverage": "medium", "corroboration": "unmeasured", "unknown_mass": 0.0}
 _FIRED = [{"rule_id": "b-rule", "card_id": "c1"}, {"rule_id": "a-rule", "card_id": "c2"},
@@ -60,6 +61,26 @@ def test_bad_availability_and_direction_rejected():
     with pytest.raises(ValueError):
         assemble_claim_record(axis="x", state="s", direction="sideways", availability="measured_positive",
                               certainty=_CERT, fired=[], cards=[])
+
+
+def test_provenance_carries_legacy_verdict():
+    rec = _closed()
+    assert rec["provenance"]["legacy_verdict"] == "multi_class_driver"    # == state (measured)
+
+
+def test_render_identity_on_measured_finding():
+    rec = _closed()
+    assert render_verdict(rec) == "multi_class_driver"                    # rho = state
+
+
+def test_render_reads_legacy_verdict_on_open_world():
+    # open-world: state forced to 'unknown', but the raw token was 'data_unavailable' -> render reads it back
+    rec = assemble_claim_record(
+        axis="selectivity", state="data_unavailable", direction="opposes",
+        availability="not_wired", certainty=_CERT, fired=[], cards=[])
+    assert rec["finding"]["state"] == "unknown"
+    assert rec["provenance"]["legacy_verdict"] == "data_unavailable"
+    assert render_verdict(rec) == "data_unavailable"                     # rho reproduces the exact token
 
 
 def test_optional_blocks_omitted_when_absent():

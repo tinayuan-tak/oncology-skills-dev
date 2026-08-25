@@ -76,6 +76,12 @@ def assemble_claim_record(
     if availability not in _VALID_AVAILABILITY:
         raise ValueError(f"claim_record[{axis}]: availability {availability!r} not in {sorted(_VALID_AVAILABILITY)}")
 
+    # M2 render-equivalence anchor: capture the incoming (raw) verdict token BEFORE the open-world
+    # override rewrites state to 'unknown'. For a measured finding this equals finding.state (render is
+    # identity); for an open-world record it preserves the specific no-data token the factored finding
+    # discards, so render_verdict(record) reproduces the byte-exact legacy decision.json verdict.
+    legacy_verdict = state
+
     mag = dict(magnitude) if magnitude else dict(_NONE_MAGNITUDE)
     # normalize optional magnitude keys so the shape is always complete
     for k, default in _NONE_MAGNITUDE.items():
@@ -103,6 +109,7 @@ def assemble_claim_record(
         "provenance": {
             "fired_rule_ids": _rule_ids(fired),
             "cards": _card_ids(cards),
+            "legacy_verdict": legacy_verdict,
         },
     }
     if mechanism:
@@ -114,3 +121,24 @@ def assemble_claim_record(
     if versions:
         rec["provenance"]["versions"] = versions
     return rec
+
+
+def render_verdict(record: dict) -> str:
+    """rho(record) -> the legacy verdict TOKEN (M2 render-equivalence).
+
+    The token is DERIVABLE from the factored record, which is the strangler-fig invariant that lets
+    the migration swap decision.json's verdict source to the record (M3) without moving any hash:
+
+      * MEASURED finding  -> finding.state IS the token (identity). The record carries strictly more
+        than the token (magnitude, modality_scope, certainty, ...); the token is the state projection.
+      * OPEN-WORLD finding -> finding.state is the honest sentinel 'unknown' (ignorance != negation),
+        which is NOT a legacy token; the exact discarded no-data token is read back from
+        provenance.legacy_verdict so rho reproduces the byte-exact pre-migration verdict.
+
+    Deterministic and pure — no data lookups, no arithmetic.
+    """
+    finding = record.get("finding") or {}
+    state = finding.get("state")
+    if state and state != "unknown":
+        return state
+    return (record.get("provenance") or {}).get("legacy_verdict")
