@@ -26,7 +26,12 @@
 # double-counts. driving_rule is set EXPLICITLY on every rung (the interpreter's rids[-1] fallback
 # would otherwise name whichever leg happened to fire last).
 gate: cis_coherence
-version: 1.0.0
+version: 1.1.0
+# Fold (VERDICT_REPRESENTATION_FOLD.md): evaluated match-all-then-reduce = the matching rung of MINIMUM
+# `priority` (explicit precedence data; rung ORDER is now irrelevant — R6 order-independence). Priorities
+# = the former ladder indices, so this is BYTE-EQUIVALENT to the retired first_match ladder (proven by
+# the resolver golden + the cis replay). cis_coherence is the first resolver flipped; the rest follow.
+evaluation: match_all_reduce
 description: |
   Cis-coherence verdict: does the target's own copy-number drive its own expression (leg-1, the new
   cis-dosage card), and does that expression/feature track its own dependency (leg-2, reused
@@ -40,8 +45,8 @@ resolve:
   #    Two rungs (leg-2 is an OR): the conjoint amplification-addiction leg first (more mechanism-
   #    specific), then the expression-dependency correlation leg. driving_rule names leg-1 — the leg
   #    that establishes the call is CIS (amplification-driven), which is the whole point of the skill.
-  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-coupled-supportive}
-  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-coupled-supportive}
+  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-coupled-supportive, priority: 0}
+  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-coupled-supportive, priority: 1}
 
   # ── coherent_epigenetic_silencing — LoF arm: methylation coherently explains LOW expression ─────
   #    STANDALONE (no dependency leg): a silenced gene is turned OFF, not a self-dependency. A synthetic-
@@ -49,23 +54,23 @@ resolve:
   #    rungs so a genuine amplification-addiction (with a dependency leg) still names coherent_cis_driver
   #    first; a gene silenced but not amplification-driven lands here. Cell-line arm (CCLE RRBS); the
   #    patient promoter-methylation arm is a separate later leg.
-  - {verdict: coherent_epigenetic_silencing, when_fired: cis-silencing-coupled-supportive, driving_rule: cis-silencing-coupled-supportive}
+  - {verdict: coherent_epigenetic_silencing, when_fired: cis-silencing-coupled-supportive, driving_rule: cis-silencing-coupled-supportive, priority: 2}
 
   # ── expressed_cis_coupled_inert — leg-1 coupled AND leg-2 absent (abundance-laundering guard) ────
   #    CN drives expression, but expression does NOT track dependency: the target is present and even
   #    cis-driven, yet more abundance does not mean more required. This is the case a bare abundance
   #    steer would launder as "expected non-dependency"; naming it explicitly is a Rank-1 goal.
-  - {verdict: expressed_cis_coupled_inert, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-absent-neutral], driving_rule: cis-expr-dependency-absent-neutral}
+  - {verdict: expressed_cis_coupled_inert, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-absent-neutral], driving_rule: cis-expr-dependency-absent-neutral, priority: 3}
 
   # ── dependency_without_cis_dosage — leg-1 uncoupled AND leg-2 dependency-coupled ─────────────────
   #    A real expression->dependency signal, but copy-number does NOT drive the expression: the
   #    dependency is trans/lineage-regulated, not amplification-driven. Routes the modality framing
   #    toward dependency_relational rather than a copy-number-stratified strategy.
-  - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-uncoupled-neutral, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-uncoupled-neutral}
-  - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-uncoupled-neutral}
+  - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-uncoupled-neutral, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-uncoupled-neutral, priority: 4}
+  - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-uncoupled-neutral, priority: 5}
 
   # ── cis_uncoupled_no_dependency — leg-1 uncoupled AND leg-2 absent (no coherent cis chain) ───────
-  - {verdict: cis_uncoupled_no_dependency, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-absent-neutral], driving_rule: cis-dosage-uncoupled-neutral}
+  - {verdict: cis_uncoupled_no_dependency, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-absent-neutral], driving_rule: cis-dosage-uncoupled-neutral, priority: 6}
 
 # Any leg untestable (cn_invariant_panel / data_unavailable → no leg-1 token) or unmeasured →
 # no rung matches → insufficient_cis_coherence. Honest abstention, never a passenger claim from a gap.
