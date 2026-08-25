@@ -314,6 +314,12 @@ SUB_SKILL_CARDS = {
                                                  # Surfaces the normal-PROTEIN breadth/abundance facet in the
                                                  # composed selectivity lens too. Multi-parity list #2 (SUB_SKILL_
                                                  # CARDS) — mirrored in DIMENSION_CARDS[selectivity] (#3).
+        "tumor-vs-normal-protein-abundance-tphp", # composer-consistency: the TPHP DIA-MS RNA→PROTEIN tumor-vs-
+                                                 # normal corroboration facet (verdict-inert, feeds no resolver
+                                                 # rung), PARALLEL to tumor-protein-abundance-cptac. Multi-parity
+                                                 # list #2 (SUB_SKILL_CARDS) — mirrored in DIMENSION_CARDS[selectivity]
+                                                 # (#3). (NB: the CPTAC sibling is NOT here — it is the certainty
+                                                 # corroboration card, consumed via the certainty model, not composed.)
         # v1.9.0 (2026-08-17) SINGLE-CELL + SPATIAL — composer-consistency with the standalone CARDS.
         # All verdict-inert (feed no resolver rung); composed here so the malignant-vs-stroma + in-situ
         # spatial evidence also surfaces in the COMPOSED target-profile selectivity lens (not only

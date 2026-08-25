@@ -273,6 +273,21 @@ tumor-vs-normal-percentile-crossing:
   studies:
   - COAD
   - READ
+tumor-vs-normal-protein-abundance-tphp:
+  _data_note: target_not_in_tphp_tvn_cohort_Colon_carcinoma
+  cohort: null
+  method_version: 0.1.0
+  n_normal_samples: null
+  n_tumor_samples: null
+  protein_bh_q_value: null
+  protein_effect_size: null
+  protein_expression_class: data_unavailable
+  protein_median_log2_normal: null
+  protein_median_log2_tumor: null
+  protein_p_value: null
+  stat_test_used: welch_unpaired_tumor_vs_adjacent_normal
+  tissue: null
+  uniprot_ac: null
 tumor-vs-normal-selectivity:
   _data_source: coadread-dge-tumor-vs-normal-sensitivity-v1
   _schema: v3_four_cell

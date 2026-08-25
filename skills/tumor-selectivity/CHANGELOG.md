@@ -4,6 +4,21 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.14.0
+- Added the `tumor-vs-normal-protein-abundance-tphp` card — a VERDICT-INERT RNA→PROTEIN tumor-vs-normal
+  corroboration facet, PARALLEL to `tumor-protein-abundance-cptac`, over the TPHP DIA-MS product
+  `tphp-tumor-vs-normal-protein-per-cohort-v1` (Xu et al., Nature 2026): 22 carcinoma cohorts, several
+  OUTSIDE CPTAC coverage (gallbladder, laryngeal, GIST, testis, thymoma, ...). New reader
+  `methods/tphp_tumor_vs_normal_protein/read.py` emits CPTAC-ALIGNED field names
+  (`protein_effect_size` / `protein_bh_q_value` / ...), so the existing `_rna_protein_tvn_concordance`
+  projection consumes it UNCHANGED; the `_headline` surfaces a namespaced `_tphp` corroboration block.
+- Fires NO resolver rung and NO veto clamp — verdict-INERT (absent from `card_resolver_consumption`).
+  Added to run.py `CARDS` + `SKILL.md` cards_used/measurement_types_pulled + the 3 parity lists
+  (`CARDS`, `SUB_SKILL_CARDS[tumor-selectivity]`, `DIMENSION_CARDS[selectivity]`). NOT wired into the
+  certainty corroboration model (kept a pure display facet — the CPTAC sibling remains the sole
+  selectivity certainty-corroboration source). New measurement_type `tumor_vs_normal_protein_abundance`
+  (target-contracts). Selectivity verdict byte-stable (CEACAM5/TACSTD2 replay guard).
+
 ## 1.13.0
 - Promoted the `normal-tissue-protein-abundance-tphp` card from DISPLAY-only to a VERDICT-BEARING
   NORMAL-BREADTH veto arm (the 4th). Its new `tphp_normal_protein_liability_class == broad_and_abundant`

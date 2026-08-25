@@ -43,7 +43,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.13.0"
+SKILL_VERSION = "1.14.0"
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -106,6 +106,16 @@ CARDS = [
                                              # veto arm): broad_and_abundant -> tvn-tphp-broad-abundant-normal-protein-veto
                                              # -> _verdict clamp -> selective_with_normal_liability. data_unavailable off
                                              # the TPHP proteome (e.g. DLL3).
+    "tumor-vs-normal-protein-abundance-tphp", # RNA→PROTEIN CORROBORATION (verdict-inert), PARALLEL to
+                                             # tumor-protein-abundance-cptac. Does the tumor-vs-normal signal
+                                             # hold at the PROTEIN layer in the TPHP DIA-MS proteome (Xu et al.
+                                             # Nature 2026; tphp-tumor-vs-normal-protein-per-cohort-v1) — 22
+                                             # carcinoma cohorts, several OUTSIDE CPTAC coverage (gallbladder,
+                                             # laryngeal, GIST, testis, thymoma, ...). Emits CPTAC-ALIGNED
+                                             # protein_effect_size + protein_bh_q_value, so the SAME derived
+                                             # _rna_protein_tvn_concordance projection consumes it unchanged.
+                                             # Feeds no resolver rung / no clamp; data_unavailable off the TPHP
+                                             # carcinoma cohorts (honest abstain).
     # ── SINGLE-CELL + IN-SITU SPATIAL (tumor side; verdict-inert) ──
     # The bulk four-cell DESeq2 axis-A signal cannot tell whether a "tumor_selective" call is
     # MALIGNANT-cell-intrinsic or driven by CAF/stromal/immune microenvironment content (the purity
@@ -429,6 +439,7 @@ def _headline(cards, fired, verdict_pair):
     purity = _summary("expression-purity-confound")
     density = _summary("surface-abundance-density")
     protein_tvn = _summary("tumor-protein-abundance-cptac")   # RNA→protein corroboration (verdict-inert)
+    protein_tvn_tphp = _summary("tumor-vs-normal-protein-abundance-tphp")  # RNA→protein corrob, TPHP DIA-MS (verdict-inert)
     sc_normal = _summary("sc-normal-celltype-expression")     # veto instrument (normal side)
     sc_tumor = _summary("tumor-scrna-celltype-expression")    # tumor side, single-cell
     spatial_rna = _summary("spatial-region-rna-expression")
@@ -483,6 +494,17 @@ def _headline(cards, fired, verdict_pair):
             tvn.get("dominant_direction"),
             protein_tvn.get("protein_effect_size"),
             protein_tvn.get("protein_bh_q_value")),
+        # TPHP DIA-MS RNA→PROTEIN corroboration facet (verdict-inert), PARALLEL to the CPTAC block above.
+        # Same CPTAC-aligned field names → the SAME _rna_protein_tvn_concordance projection is reused,
+        # unchanged, over the TPHP card summary. Broadens protein corroboration to 22 carcinoma cohorts
+        # (several outside CPTAC). Namespaced (_tphp) so it never collides with the CPTAC facet; spine byte-stable.
+        "protein_tumor_vs_normal_tphp_effect_size": protein_tvn_tphp.get("protein_effect_size"),
+        "protein_tumor_vs_normal_tphp_q_value":     protein_tvn_tphp.get("protein_bh_q_value"),
+        "protein_tumor_vs_normal_tphp_cohort":      protein_tvn_tphp.get("cohort"),
+        "rna_protein_tvn_concordance_tphp":         _rna_protein_tvn_concordance(
+            tvn.get("dominant_direction"),
+            protein_tvn_tphp.get("protein_effect_size"),
+            protein_tvn_tphp.get("protein_bh_q_value")),
         # Single-cell (NORMAL side) facet — the sc-normal veto's own inputs, surfaced for transparency.
         # This card is verdict-DRIVING via the veto (sc_normal_safety_essential_class ==
         # critical_organ_liability), but a reader of decision['headline'] alone could not otherwise see

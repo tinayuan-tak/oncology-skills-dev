@@ -116,6 +116,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         # SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so this mirror must carry it too
         # (test_dimension_cards_matches_spine). Verdict-inert in tumor-selectivity.
         "normal-tissue-protein-abundance-tphp",
+        # 2026-08-25 — the TPHP DIA-MS RNA→PROTEIN tumor-vs-normal corroboration facet (parallel to
+        # tumor-protein-abundance-cptac), added to SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so
+        # this mirror must carry it too (test_dimension_cards_matches_spine). Verdict-inert.
+        "tumor-vs-normal-protein-abundance-tphp",
         # v1.9.0 tumor-side single-cell + spatial facets — added to SUB_SKILL_CARDS[tumor-selectivity]
         # (tp_fanout) so this mirror must carry them too (test_dimension_cards_matches_spine). Verdict-
         # inert in tumor-selectivity; here they let the integrator credit a sc/spatial-surfaced tension.

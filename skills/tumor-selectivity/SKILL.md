@@ -13,9 +13,10 @@ description: |
   (the KILL); the sc-normal critical-organ arm → selective_with_normal_liability (a selectivity-
   PRESERVING named-organ SAFETY flag — approved antigens DLL3/ERBB2/FOLR1 land here; severity owned
   by on-target-safety-liability + modality-fit). CORROBORATION (1):
-  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (6):
-  expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac
-  (RNA→protein tumor-vs-normal corroboration), and the tumor
+  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (7):
+  expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac +
+  tumor-vs-normal-protein-abundance-tphp (two PARALLEL RNA→protein tumor-vs-normal corroboration
+  facets: CPTAC TMT ~10 cohorts + TPHP DIA-MS 22 cohorts), and the tumor
   SIDE at single-cell + in-situ spatial resolution (tumor-scrna-celltype-expression:
   malignant-cell-intrinsic vs stroma/CAF; spatial-region-rna-expression + spatial-tumor-
   normal-colocalization + spatial-surface-protein-abundance: in-situ tumour enrichment +
@@ -33,7 +34,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.13.0
+  version: 1.14.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -65,6 +66,11 @@ composition:
                                              # which the _verdict clamp turns into selective_with_normal_liability. Abundance-
                                              # gated (Floor-C), NOT DIA detection. Per-tissue DIA-MS across 70 adult + 4 fetal
                                              # groups (TPHP; Xu et al. Nature 2026). No resolver rung (skills-side clamp).
+    - tumor-vs-normal-protein-abundance-tphp # RNA→PROTEIN corroboration (verdict-inert), PARALLEL to
+                                             # tumor-protein-abundance-cptac: tumor-vs-adjacent-normal protein_effect_size +
+                                             # protein_bh_q_value from the TPHP DIA-MS proteome (Xu et al. Nature 2026), 22
+                                             # carcinoma cohorts (several outside CPTAC). CPTAC-ALIGNED field names → the SAME
+                                             # rna_protein_tvn_concordance projection consumes it unchanged. No resolver rung.
     - tumor-scrna-celltype-expression        # single-cell, tumor side (verdict-inert): malignant-cell-intrinsic
                                              # vs stroma/CAF — resolves the purity confound at single-cell
                                              # resolution, which expression-purity-confound only proxies via
@@ -94,6 +100,7 @@ composition:
     - surface_density                        # surface-abundance-density (additive)
     - tumor_protein_abundance                # tumor-protein-abundance-cptac (RNA→protein corroboration, additive)
     - normal_tissue_protein_abundance        # normal-tissue-protein-abundance-tphp (quantitative normal-PROTEIN comparator, additive)
+    - tumor_vs_normal_protein_abundance      # tumor-vs-normal-protein-abundance-tphp (TPHP RNA→protein corroboration, additive)
     - sc_tumor_celltype_expression           # tumor-scrna-celltype-expression (single-cell, additive)
     - spatial_region_rna                     # spatial-region-rna-expression (spatial RNA, additive)
     - spatial_colocalization                 # spatial-tumor-normal-colocalization (spatial, additive)

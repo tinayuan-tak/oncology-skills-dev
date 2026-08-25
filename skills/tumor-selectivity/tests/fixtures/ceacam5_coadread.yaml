@@ -265,6 +265,21 @@ tumor-vs-normal-percentile-crossing:
   studies:
   - COAD
   - READ
+tumor-vs-normal-protein-abundance-tphp:
+  _data_source: tphp-tumor-vs-normal-protein-per-cohort-v1
+  cohort: Colon carcinoma
+  method_version: 0.1.0
+  n_normal_samples: 13
+  n_tumor_samples: 40
+  protein_bh_q_value: 0.9721745877818351
+  protein_effect_size: 0.2460003306487124
+  protein_expression_class: unchanged
+  protein_median_log2_normal: 17.088436298759
+  protein_median_log2_tumor: 17.334436629407712
+  protein_p_value: 0.9539357102623679
+  stat_test_used: welch_unpaired_tumor_vs_adjacent_normal
+  tissue: large intestine
+  uniprot_ac: P06731
 tumor-vs-normal-selectivity:
   _data_source: coadread-dge-tumor-vs-normal-sensitivity-v1
   _schema: v3_four_cell
