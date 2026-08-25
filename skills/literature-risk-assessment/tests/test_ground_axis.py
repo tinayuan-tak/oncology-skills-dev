@@ -216,6 +216,31 @@ def test_retrieval_widening_constants():
     assert ga.RETRIEVAL_FLOOR >= 1 and ga.MAX_RETRIEVED >= ga.RETRIEVAL_FLOOR
 
 
+# ===================== engine-aware multi-query angles (2026-08-25) =====================
+def test_keyword_angles_mesh_when_disease_scoped_and_available():
+    # disease-scoped axis WITH a MeSH clause -> [tight, MeSH-anchored]; the 2nd angle is the MeSH one
+    angles = ga._keyword_angles("KRAS", "colorectal cancer", "dependency",
+                                '"colorectal neoplasms"[MeSH Terms]', disease_scoped=True)
+    assert len(angles) == 2
+    assert "colorectal cancer" in angles[0] and "dependency" in angles[0].lower()   # tight
+    assert "[MeSH Terms]" in angles[1] and "dependency" in angles[1].lower()          # MeSH precision angle
+    assert angles[0] != angles[1]                                                     # complementary, not identical
+
+
+def test_keyword_angles_broad_fallback_when_no_mesh():
+    # no MeSH clause -> 2nd angle is the broad (axis-terms-dropped) recall angle
+    angles = ga._keyword_angles("STAG1", "bladder cancer", "dependency", None, disease_scoped=True)
+    assert angles[1] == "(STAG1) AND (bladder cancer)"          # broad
+    assert "dependency" in angles[0].lower() and "dependency" not in angles[1].lower()
+
+
+def test_keyword_angles_target_scoped_axis_uses_broad_second():
+    # target-scoped axis (safety, disease_scoped=False): MeSH N/A -> tight + broad(gene-only)
+    angles = ga._keyword_angles("STAG1", "bladder cancer", "safety", None, disease_scoped=False)
+    assert angles[1] == "(STAG1)"
+    assert "toxicity" in angles[0]
+
+
 def test_interleave_round_robin_and_dedup():
     # round-robin across the three lanes (entity, OT-floor, keyword), first occurrence wins on dedup
     entity = ["e1", "e2", "e3"]
