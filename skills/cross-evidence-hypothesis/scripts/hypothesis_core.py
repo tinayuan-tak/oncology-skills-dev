@@ -107,7 +107,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         # (pan-essential broad-tox + HPA-IHC essential-tissue protein HOLD legs); mirror must carry them.
         "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
         # PR-4c 2026-08-24 — rarely-altered guard (GROUP-0b); mirror must carry it.
-        "functional-gene-state"}),
+        "functional-gene-state",
+        # 2026-08-25 — OnSIDES drug-label ADE CONTEXT (verdict-inert display); added to
+        # SUB_SKILL_CARDS[on-target-safety-liability], mirror must carry it.
+        "onsides-adverse-event-safety"}),
     "selectivity": frozenset({
         "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
         "surface-abundance-density", "tumor-vs-normal-percentile-crossing",

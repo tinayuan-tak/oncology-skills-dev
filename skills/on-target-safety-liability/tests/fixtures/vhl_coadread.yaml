@@ -192,3 +192,20 @@ target-safety-prioritisation:
   prioritisation_status: scored
   source: opentargets-26-06/target_prioritisation
   target: VHL
+
+# onsides-adverse-event-safety — verdict-INERT display card (2026-08-25). Frozen from
+# onsides-adverse-event-per-gene-v1; read is byte-inert to the safety verdict.
+onsides-adverse-event-safety:
+  onsides_ade_class: no_mapped_drug_ade
+  n_drugs_mapped: 0
+  n_meddra_terms: 0
+  has_boxed_warning: false
+  n_boxed_warning_terms: 0
+  n_high_confidence_terms: 0
+  example_terms: null
+  example_boxed_warning_terms: null
+  example_drugs: null
+  onsides_ade_context: 'VHL: no drug fuzzy-mapped to this gene in the OnSIDES per-gene ADE product (the
+    drug-name->gene join found no mapped drug). A coverage gap — NOT evidence of safety.'
+  method_version: 0.1.0
+  _data_source: onsides-adverse-event-per-gene-v1

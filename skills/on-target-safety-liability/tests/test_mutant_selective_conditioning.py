@@ -38,7 +38,8 @@ _ALL_SAFETY_CARD_IDS = ["gnomad-lof-constraint", "alteration-role", "gene-burden
                         # data-util expansion 2026-08-21 — _headline now also reads these cards
                         "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
                         "drug-warning-safety",
-                        "functional-gene-state"]   # PR-4c — rarely-altered guard card
+                        "functional-gene-state",   # PR-4c — rarely-altered guard card
+                        "onsides-adverse-event-safety"]   # 2026-08-25 — OnSIDES drug-label ADE context (verdict-inert display)
 
 
 def _safety_cards(**summaries):

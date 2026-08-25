@@ -24,7 +24,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.11.0
+  version: 1.12.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -58,6 +58,7 @@ composition:
                                        # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_
                                        # concern HOLD. Same card the dependency skill vetoes; SAFETY reading.
     - drug-warning-safety              # (2026-08-21) OT pharmacovigilance CONTEXT (verdict-inert): black-box/withdrawn history of target-engaging drugs
+    - onsides-adverse-event-safety     # (2026-08-25) OnSIDES drug-label ADE CONTEXT (verdict-inert DISPLAY): per-MedDRA-term adverse-effect profile (incl. boxed-warning severity) of target-engaging drugs. Fuzzy drug->gene join (~63% match) + per-term grain — context-only, NOT in rules_scope.
     - normal-tissue-liability          # data-util expansion 2026-08-21 — HPA-IHC essential-tissue PROTEIN
                                        # leg (the protein sibling of normal-tissue-liability-gtex, no longer
                                        # only on the surface axis): essential_tissue_flag==present fires
@@ -87,6 +88,7 @@ composition:
     - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
     - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
     - drug_warning_safety                      # drug-warning-safety — OT pharmacovigilance context (verdict-inert, 2026-08-21)
+    - onsides_adverse_event_safety             # onsides-adverse-event-safety — OnSIDES drug-label ADE context (verdict-inert DISPLAY, 2026-08-25)
   # rules_scope = the CARDS whose rules enter the safety resolver (convention: card-ids, matching
   # the sibling skills). 2026-08-14 review (S3): completed from 2 entries — it listed the
   # gnomad-lof-constraint card + the activating-driver-role-safety-context RULE-id (inconsistent),

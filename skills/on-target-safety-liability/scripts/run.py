@@ -26,7 +26,12 @@ from _skills_common.modality_safety import safety_verdict_by_modality
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-08-21): compose drug-warning-safety (OT pharmacovigilance
+SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
+                          # drug-label ADE, per-MedDRA-term incl. boxed-warning severity) — VERDICT-INERT
+                          # DISPLAY card, finer-grained than drug-warning-safety. Gene attribution is a
+                          # FUZZY drug-name->gene join (~63% match) + per-MedDRA-term grain (no per-organ,
+                          # MedDRA license), so it is context-only, never a resolver rung. Verdict byte-stable.
+                          # 1.11.0 (2026-08-21): compose drug-warning-safety (OT pharmacovigilance
                           # CONTEXT) — VERDICT-INERT, closes the P5 drug_warning placeholder axis
                           # (only colocalisation remains). Verdict byte-stable (no resolver rung).
                           # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
@@ -119,6 +124,14 @@ CARDS = [
                                       # drug_mechanism_of_action)? VERDICT-INERT (no resolver rung; like
                                       # target-safety-prioritisation) — a confounded on-target signal that
                                       # ORIENTS, never HOLDs. Closes the P5 drug_warning placeholder axis.
+    "onsides-adverse-event-safety",   # (2026-08-25) — OnSIDES drug-label ADE CONTEXT: per-MedDRA-term
+                                      # adverse-effect profile (incl. boxed-warning severity) of drugs that
+                                      # ENGAGE the target, finer-grained than the drug-warning boolean above.
+                                      # VERDICT-INERT (no resolver rung): the gene attribution is a FUZZY
+                                      # drug-name->gene join (~63% match; DGIdb directional recall-union so
+                                      # drug-level + class-wide — cannot separate on- from off-target) and
+                                      # per-MedDRA-TERM grain only (per-organ/SOC needs a MedDRA license).
+                                      # ORIENTS, never HOLDs. Same posture as drug-warning-safety.
 ]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
@@ -421,6 +434,12 @@ def _headline(cards, fired, verdict_pair):
         "drug_warning_class":                 get_card_field(cards, "drug-warning-safety", "drug_warning_class"),
         "drug_warning_has_black_box":         get_card_field(cards, "drug-warning-safety", "has_black_box"),
         "drug_warning_toxicity_classes":      get_card_field(cards, "drug-warning-safety", "toxicity_classes"),
+        # OnSIDES drug-label ADE CONTEXT (verdict-inert): per-MedDRA-term adverse-effect profile (incl.
+        # boxed-warning severity) of drugs engaging the target — fuzzy drug-name->gene join, per-term
+        # grain. Orients the reader; no resolver rung reads these.
+        "onsides_ade_class":                  get_card_field(cards, "onsides-adverse-event-safety", "onsides_ade_class"),
+        "onsides_has_boxed_warning":          get_card_field(cards, "onsides-adverse-event-safety", "has_boxed_warning"),
+        "onsides_example_boxed_warning_terms": get_card_field(cards, "onsides-adverse-event-safety", "example_boxed_warning_terms"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (

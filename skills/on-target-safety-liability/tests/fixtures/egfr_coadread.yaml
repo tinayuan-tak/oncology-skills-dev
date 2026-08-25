@@ -213,3 +213,22 @@ target-safety-prioritisation:
   prioritisation_status: scored
   source: opentargets-26-06/target_prioritisation
   target: EGFR
+
+# onsides-adverse-event-safety — verdict-INERT display card (2026-08-25). Frozen from
+# onsides-adverse-event-per-gene-v1; read is byte-inert to the safety verdict.
+onsides-adverse-event-safety:
+  onsides_ade_class: boxed_warning_ade
+  n_drugs_mapped: 16
+  n_meddra_terms: 528
+  has_boxed_warning: true
+  n_boxed_warning_terms: 2
+  n_high_confidence_terms: 4
+  example_terms: Rash|Stomatitis|Nausea|Interstitial lung disease|Pruritus|Dry skin|Infection|Fatigue
+  example_boxed_warning_terms: Hepatotoxicity|Torsades de pointes
+  example_drugs: acalabrutinib|afatinib|amivantamab|brigatinib|dacomitinib|erlotinib|gefitinib|ibrutinib
+  onsides_ade_context: 'EGFR: 16 mapped drug(s), 528 labeled MedDRA ADE term(s), 2 in a BOXED WARNING
+    (e.g. Hepatotoxicity|Torsades de pointes). Mapped drugs: acalabrutinib|afatinib|amivantamab|brigatinib|dacomitinib|erlotinib|gefitinib|ibrutinib.
+    Drug-level, class-wide via a fuzzy drug-name join (recall-union over every gene a drug engages) —
+    CANNOT separate on-target from off-target; context only, not a verdict input.'
+  method_version: 0.1.0
+  _data_source: onsides-adverse-event-per-gene-v1
