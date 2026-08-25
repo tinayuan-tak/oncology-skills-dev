@@ -97,6 +97,7 @@ targets:
     hgnc_id: 3430
     biology_axis: surface_intrinsic
     rationale: "Surface receptor tyrosine kinase; intracellular kinase domain is also a small-molecule target (multi-axis). Iter-1b classifies as surface_intrinsic for ADC/antibody/BiTE contexts; iter-2 may extend."
+    iter2_note: "ERBB2/HER2 is a multi-axis target (surface antigen for ADC/antibody AND intracellular kinase for small molecules — tucatinib/lapatinib/neratinib). Iter-1b classifies as surface_intrinsic; the SM arm stays live (multi_axis)."
     literature_anchor:
       pmid: 11248153
 
@@ -111,6 +112,7 @@ targets:
     hgnc_id: 7029
     biology_axis: surface_intrinsic
     rationale: "Surface receptor tyrosine kinase. Multi-axis (intracellular kinase for SM inhibitors; surface antigen for ADC like telisotuzumab). Iter-1b classifies as surface_intrinsic for the ADC context."
+    iter2_note: "MET is a multi-axis target (surface antigen for ADC like telisotuzumab AND intracellular kinase for small molecules — capmatinib/tepotinib/crizotinib). Iter-1b classifies as surface_intrinsic; the SM arm stays live (multi_axis)."
     literature_anchor:
       pmid: 36791751
 
