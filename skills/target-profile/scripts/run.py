@@ -60,7 +60,7 @@ from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
-    _claim_record_shadow_by_axis,
+    _claim_record_shadow_by_axis, _modality_fit_by_channel,
     _deciding_axis, _dependency_facet,
     _cross_gate_shared_evidence,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
@@ -413,6 +413,12 @@ def main() -> int:
     # spine for the M2 render-equivalence proof, NEVER in sub_verdicts / the recommendation spine.
     claim_record_shadow = _claim_record_shadow_by_axis(sub_results)
 
+    # M4 modality-fit-by-channel: roll up the records' modality_scope into a PER-CHANNEL favorability
+    # (worst-case conjunction) so the nomination can express per-modality calls — nominable as an
+    # allele-selective SM, hold as a degrader — instead of one scalar. VERDICT-INERT / consumed-by-nothing
+    # on the spine; a projection over the shadow for the reader + LLM synthesis.
+    modality_fit_by_channel = _modality_fit_by_channel(sub_results)
+
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
     # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
@@ -763,6 +769,9 @@ def main() -> int:
         # M1 factored claim-record shadow, keyed by sub-skill short. ADDITIVE / verdict-inert /
         # consumed-by-nothing — the substrate for the M2 render-equivalence proof. {} until axes opt in.
         "claim_record_shadow": claim_record_shadow,
+        # M4 per-channel modality favorability rolled up from the records' modality_scope (worst-case
+        # conjunction). ADDITIVE / verdict-inert — the per-modality view the scalar verdict couldn't hold.
+        "modality_fit_by_channel": modality_fit_by_channel,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.

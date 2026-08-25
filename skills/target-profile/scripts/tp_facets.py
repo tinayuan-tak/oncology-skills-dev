@@ -608,6 +608,56 @@ def _claim_record_shadow_by_axis(sub_results: dict) -> dict:
     return out
 
 
+# --- MODALITY-FIT-BY-CHANNEL rollup (M4 move #4; VERDICT_REPRESENTATION §8 / migration §3) ----------
+# The SECOND factored-record consumer, and the answer to the KRAS motivating case: a target is not
+# "safe/unsafe" or "druggable/undruggable" as a SCALAR — it is favorable for SOME modalities and not
+# others. This rolls up each axis's record `modality_scope` into a PER-CHANNEL favorability, so the
+# nomination can say "nominable as an allele-selective small molecule, hold as a degrader" instead of
+# collapsing to one call. Deterministic worst-case CONJUNCTION across axes (the selectivity
+# best-practice: a target is only as deliverable via a channel as its WEAKEST modality-relevant axis
+# on that channel). VERDICT-INERT — a projection over the shadow, never the recommendation spine.
+_MODALITY_FIT_ORDER = {"unfavorable": 0, "conditional": 1, "favorable": 2}   # worst -> best
+# a specific channel inherits from the record's `_refinements[channel]` if present, else its BASE
+# channel: small_molecule for degrader (a PROTAC is a small molecule), biologics for adc/bite_tce/antibody.
+_CHANNEL_BASE = {"small_molecule": "small_molecule", "biologics": "biologics",
+                 "degrader": "small_molecule", "adc": "biologics",
+                 "bite_tce": "biologics", "antibody": "biologics"}
+
+
+def _channel_value(modality_scope: dict, channel: str):
+    """The axis's favorability for `channel`: an explicit _refinements override wins, else the base
+    channel value. Returns None when the axis says nothing (base 'na'/absent) about that channel."""
+    ref = (modality_scope.get("_refinements") or {})
+    if channel in ref:
+        v = ref[channel]
+    else:
+        v = modality_scope.get(_CHANNEL_BASE.get(channel, channel))
+    return v if v in _MODALITY_FIT_ORDER else None      # 'na' / None → axis is silent on this channel
+
+
+def _modality_fit_by_channel(sub_results: dict) -> dict:
+    """{channel: {fit, limiting_axis, by_axis}} — worst-case conjunction of every axis's record
+    modality_scope. `fit` is the min (worst) favorability across the axes that speak to the channel;
+    'na' when no axis constrains it. limiting_axis names the axis that set the worst (the reason)."""
+    shadow = _claim_record_shadow_by_axis(sub_results)
+    out: dict = {}
+    for channel in ("small_molecule", "biologics", "degrader", "adc", "bite_tce", "antibody"):
+        by_axis: dict = {}
+        for short, rec in shadow.items():
+            ms = (rec or {}).get("modality_scope")
+            if not isinstance(ms, dict):
+                continue
+            v = _channel_value(ms, channel)
+            if v is not None:
+                by_axis[short] = v
+        if not by_axis:
+            out[channel] = {"fit": "na", "limiting_axis": None, "by_axis": {}}
+            continue
+        limiting_axis = min(by_axis, key=lambda s: _MODALITY_FIT_ORDER[by_axis[s]])
+        out[channel] = {"fit": by_axis[limiting_axis], "limiting_axis": limiting_axis, "by_axis": by_axis}
+    return out
+
+
 # --- MODALITY-CONJUNCTION facet (cross-lens; the composed layer's job) --------------------------
 # The modality nomination presence deliberately CANNOT mint (it is modality-blind). This is where
 # it is completed: the presence CLAIM VECTOR (A abundance / C malignant-intrinsic / homogeneity)
