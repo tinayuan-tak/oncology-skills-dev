@@ -31,6 +31,7 @@ modality-therapeutic-window:
   window_ratio_essential: 0.11
   window_ratio_full_normal: 0.02
 normal-tissue-protein-abundance-tphp:
+  abundance_floor_log2: 15.076
   fetal_vs_adult_flag: adult_and_fetal
   highest_abundance_tissue: tympanum
   highest_abundance_tissue_class: adult_normal
@@ -38,6 +39,7 @@ normal-tissue-protein-abundance-tphp:
   max_median_log2_abundance: 17.284395573737285
   median_across_tissues_log2_abundance: 14.8693
   method_version: 0.1.0
+  n_adult_tissues_above_abundance_floor: 28
   n_adult_tissues_detected: 55
   n_adult_tissues_total: 70
   n_fetal_groups_detected: 4
@@ -45,18 +47,21 @@ normal-tissue-protein-abundance-tphp:
   n_tissues_detected: 59
   normal_protein_breadth_class: broad_normal_protein
   per_tissue_abundance: __omitted_from_fixture__ (list, 59 items)
+  tphp_normal_protein_liability_class: detected_not_abundant
   uniprot_ac: P09758
 sc-normal-celltype-expression:
   expressing_donor_fraction_max: 1.0
   indication: COADREAD
-  max_detection_cell_type: papillary tips cell
-  max_detection_fraction: 0.9661016949152542
+  max_detection_cell_type: airway submucosal gland collecting duct epithelial cell
+  max_detection_fraction: 1.0
   method_version: 0.1.0
-  n_cell_types_above_20pct: 22
-  n_reliable_cell_types: 91
+  n_cell_types_above_20pct: 61
+  n_reliable_cell_types: 196
   origin_tissues:
   - colon
+  per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
   safety_essential_flags:
+    cycling pulmonary alveolar type 2 cell: 0.2413793103448276
     kidney collecting duct alpha-intercalated cell: 0.05971945674462836
     kidney collecting duct cell: 0.7049689440993789
     kidney collecting duct intercalated cell: 0.30392156862745096
@@ -68,6 +73,8 @@ sc-normal-celltype-expression:
     kidney loop of Henle thin ascending limb epithelial cell: 0.7049180327868853
     kidney loop of Henle thin descending limb epithelial cell: 0.4203305068985038
     neuron: 0.05660754074463332
+    pulmonary alveolar type 1 cell: 0.7978947368421052
+    pulmonary alveolar type 2 cell: 0.45984972677595626
   sc_normal_expression_class: HIGH_LIABILITY
   sc_normal_safety_essential_class: critical_organ_liability
   tissues_queried:
@@ -78,6 +85,8 @@ sc-normal-celltype-expression:
   - bone_marrow
   - brain
   - adrenal_gland
+  - lung
+  - pancreas
 spatial-region-rna-expression:
   _evidence_tier: spatial_rna_measured
   detected_tumour: true
@@ -174,28 +183,40 @@ tumor-protein-abundance-cptac:
   n_normal_samples: 100
   n_tumor_samples: 97
   protein_bh_q_value: 6.6860028996197e-05
+  protein_effect_cohens_d: 0.5868
   protein_effect_size: 0.831081889936636
+  protein_effect_size_se: null
+  protein_effect_standardized_class: medium
+  protein_effect_standardized_method: pvalue_zscore_approx
+  protein_effect_standardized_t: 4.1174
   protein_expression_class: modest_up
   protein_median_log2_normal: -0.58651837103213
   protein_median_log2_tumor: -0.326866779728215
   protein_p_value: 3.83151770373192e-05
   stat_test_used: msstatstmt_limma_ebayes_moderated
 tumor-scrna-celltype-expression:
-  caf_abundance_log1p_cp10k: 0.038335
+  ambient_contamination_risk: low
+  caf_abundance_log1p_cp10k: 0.03757
   caf_compartment_available: true
-  caf_detection_fraction: 0.047950000000000007
+  caf_detection_fraction: 0.04444
   caf_vs_malignant_class: caf_low
   compartment_detection:
-    epithelial_normal: 0.17272500000000002
-    immune: 0.00313
-    malignant: 0.113615
-    other: 0.01985
-    stromal: 0.047950000000000007
+    epithelial_normal: 0.275465
+    immune: 0.00312
+    malignant: 0.11238000000000001
+    other: 0.014315000000000001
+    stromal: 0.04444
+  entity_purity: entity_specific
+  fraction_donors_broadly_detecting: 0.18314
   indication: COADREAD
-  malignant_abundance_log1p_cp10k: 0.072635
+  inter_donor_consistency_class: variable
+  malignant_abundance_log1p_cp10k: 0.07136
+  malignant_annotation_method: curated
   malignant_compartment_available: true
-  malignant_detection_fraction: 0.113615
-  malignant_n_donors: 350
+  malignant_detection_donor_iqr: 0.316823
+  malignant_detection_fraction: 0.11238000000000001
+  malignant_n_cells: 503030
+  malignant_n_donors: 344
   method_version: 0.1.0
   n_compartments_measured: 5
   n_datasets: 44
@@ -203,39 +224,41 @@ tumor-scrna-celltype-expression:
   per_compartment:
   - compartment: malignant
     is_caf: false
-    median_abundance_log1p_cp10k: 0.072635
-    median_detection_fraction: 0.113615
-    n_cells_total: 503126
-    n_donors: 350
+    median_abundance_log1p_cp10k: 0.07136
+    median_detection_fraction: 0.11238000000000001
+    n_cells_total: 503030
+    n_donors: 344
   - compartment: stromal
     is_caf: true
-    median_abundance_log1p_cp10k: 0.038335
-    median_detection_fraction: 0.047950000000000007
-    n_cells_total: 133651
-    n_donors: 262
+    median_abundance_log1p_cp10k: 0.03757
+    median_detection_fraction: 0.04444
+    n_cells_total: 133432
+    n_donors: 247
   - compartment: immune
     is_caf: false
-    median_abundance_log1p_cp10k: 0.00349
-    median_detection_fraction: 0.00313
-    n_cells_total: 1046159
-    n_donors: 339
+    median_abundance_log1p_cp10k: 0.00346
+    median_detection_fraction: 0.00312
+    n_cells_total: 1046127
+    n_donors: 337
   - compartment: epithelial_normal
     is_caf: false
-    median_abundance_log1p_cp10k: 0.138705
-    median_detection_fraction: 0.17272500000000002
-    n_cells_total: 1629
-    n_donors: 26
+    median_abundance_log1p_cp10k: 0.26571
+    median_detection_fraction: 0.275465
+    n_cells_total: 1462
+    n_donors: 14
   - compartment: other
     is_caf: false
-    median_abundance_log1p_cp10k: 0.024730000000000002
-    median_detection_fraction: 0.01985
-    n_cells_total: 4666
-    n_donors: 48
+    median_abundance_log1p_cp10k: 0.020470000000000002
+    median_detection_fraction: 0.014315000000000001
+    n_cells_total: 4555
+    n_donors: 40
   product_id: sc-pseudobulk-tumor-crc-coadread-v1
   sc_expression_class: malignant_subset_detected
+  tce_antigen_escape_class: escape_risk_high
   tce_homogeneity_class: heterogeneous
   top_microenvironment_compartment: stromal
-  top_microenvironment_detection_fraction: 0.047950000000000007
+  top_microenvironment_detection_fraction: 0.04444
+  within_tumor_coverage_class: low
 tumor-vs-normal-percentile-crossing:
   distribution_overlap_tumor_normal: 0.27940711160573034
   fraction_tumor_above_normal_p95: 0.7623318385650224

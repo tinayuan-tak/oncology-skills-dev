@@ -12076,7 +12076,8 @@
    "tvn-discordant-neutral-flagged",
    "tvn-not-selective-neutral",
    "tvn-not-informative-neutral",
-   "tvn-data-unavailable-insufficient"
+   "tvn-data-unavailable-insufficient",
+   "tvn-tphp-broad-abundant-normal-protein-veto"
   ],
   "table": {
    "": [
@@ -12087,7 +12088,15 @@
     "data_unavailable",
     "tvn-data-unavailable-insufficient"
    ],
+   "tvn-data-unavailable-insufficient,tvn-tphp-broad-abundant-normal-protein-veto": [
+    "data_unavailable",
+    "tvn-data-unavailable-insufficient"
+   ],
    "tvn-discordant-neutral-flagged": [
+    "discordant_across_comparators",
+    "tvn-discordant-neutral-flagged"
+   ],
+   "tvn-discordant-neutral-flagged,tvn-tphp-broad-abundant-normal-protein-veto": [
     "discordant_across_comparators",
     "tvn-discordant-neutral-flagged"
    ],
@@ -12095,7 +12104,15 @@
     "modest_tumor_selective",
     "tvn-modest-selective-supportive"
    ],
+   "tvn-modest-selective-supportive,tvn-tphp-broad-abundant-normal-protein-veto": [
+    "modest_tumor_selective",
+    "tvn-modest-selective-supportive"
+   ],
    "tvn-not-informative-neutral": [
+    "not_informative",
+    "tvn-not-informative-neutral"
+   ],
+   "tvn-not-informative-neutral,tvn-tphp-broad-abundant-normal-protein-veto": [
     "not_informative",
     "tvn-not-informative-neutral"
    ],
@@ -12103,9 +12120,21 @@
     "not_selective",
     "tvn-not-selective-neutral"
    ],
+   "tvn-not-selective-neutral,tvn-tphp-broad-abundant-normal-protein-veto": [
+    "not_selective",
+    "tvn-not-selective-neutral"
+   ],
    "tvn-strong-selective-supportive": [
     "strong_tumor_selective",
     "tvn-strong-selective-supportive"
+   ],
+   "tvn-strong-selective-supportive,tvn-tphp-broad-abundant-normal-protein-veto": [
+    "strong_tumor_selective",
+    "tvn-strong-selective-supportive"
+   ],
+   "tvn-tphp-broad-abundant-normal-protein-veto": [
+    "insufficient",
+    null
    ]
   }
  },

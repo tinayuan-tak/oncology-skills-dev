@@ -182,6 +182,39 @@ def test_selective_without_veto_is_unchanged():
     assert _fire("tvn-strong-selective-supportive") == (
         "strong_tumor_selective", "tvn-strong-selective-supportive")
 
+# --- NORMAL-BREADTH VETO: the quantitative normal-PROTEIN abundance arm (tphp, Floor-C). ---
+_TPHP_VETO = "tvn-tphp-broad-abundant-normal-protein-veto"
+
+
+def test_strong_selective_flagged_liability_by_tphp_normal_protein_veto():
+    """A target broadly ABUNDANT (Floor-C, not trace) across normal tissues at the PROTEIN level
+    (tphp_normal_protein_liability_class == broad_and_abundant) with a real RNA window → the tphp arm
+    produces the SELECTIVITY-PRESERVING selective_with_normal_liability (mirrors the sc-normal arm),
+    NOT the housekeeping KILL. This is the RNA-clean / protein-broad safety-net the arm closes."""
+    assert ts._verdict(
+        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _TPHP_VETO}]) == (
+        "selective_with_normal_liability", _TPHP_VETO)
+
+
+def test_tphp_veto_alone_does_not_manufacture_selective():
+    v = ts._verdict([{"rule_id": _TPHP_VETO}])[0]
+    assert v not in ("selective_but_broadly_normal", "selective_with_normal_liability")
+
+
+def test_window_kill_outranks_tphp_liability_when_both_fire():
+    """Precedence: a no-window KILL (housekeeping GAPDH: window veto + broad_and_abundant tphp both
+    fire) outranks the tphp named liability → selective_but_broadly_normal, driven by the window veto."""
+    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
+                          {"rule_id": _VETO}, {"rule_id": _TPHP_VETO}])
+    assert v == "selective_but_broadly_normal" and drv == _VETO
+
+
+def test_tphp_does_not_clamp_a_non_selective_call():
+    """KRAS archetype: broad_and_abundant tphp fires but axis-A is not selective (discordant/not_selective)
+    → the one-directional clamp is a no-op (never manufactures a downgrade on a non-selective verdict)."""
+    v = ts._verdict([{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _TPHP_VETO}])[0]
+    assert v == "not_selective"
+
 
 # --- _headline must EMIT the resolved (post-veto) verdict, not the raw pre-veto axis-A class. ---
 # If _headline emitted the raw tvn.selectivity_class, a veto-downgraded target

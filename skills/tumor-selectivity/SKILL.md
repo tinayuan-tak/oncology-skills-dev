@@ -33,7 +33,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.12.0
+  version: 1.13.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -59,11 +59,12 @@ composition:
                                              # protein_effect_size + protein_bh_q_value (CPTAC per-cohort
                                              # TMT-MS). Derived rna_protein_tvn_concordance surfaces the
                                              # RNA-up/protein-flat false-positive (closes caveat #5).
-    - normal-tissue-protein-abundance-tphp   # QUANTITATIVE NORMAL-tissue PROTEIN comparator (verdict-inert):
-                                             # per-tissue DIA-MS protein abundance across 70 adult tissues + 4 fetal
-                                             # germ-layer groups (TPHP; Xu et al. Nature 2026). The normal-PROTEIN
-                                             # baseline the skill lacked (had GTEx-RNA + HPA-IHC categorical breadth).
-                                             # Additive facet; feeds no resolver rung / no clamp.
+    - normal-tissue-protein-abundance-tphp   # QUANTITATIVE NORMAL-tissue PROTEIN comparator. Most fields DISPLAY; its
+                                             # tphp_normal_protein_liability_class is VERDICT-BEARING (the 4th normal-breadth
+                                             # veto arm): broad_and_abundant fires tvn-tphp-broad-abundant-normal-protein-veto,
+                                             # which the _verdict clamp turns into selective_with_normal_liability. Abundance-
+                                             # gated (Floor-C), NOT DIA detection. Per-tissue DIA-MS across 70 adult + 4 fetal
+                                             # groups (TPHP; Xu et al. Nature 2026). No resolver rung (skills-side clamp).
     - tumor-scrna-celltype-expression        # single-cell, tumor side (verdict-inert): malignant-cell-intrinsic
                                              # vs stroma/CAF — resolves the purity confound at single-cell
                                              # resolution, which expression-purity-confound only proxies via
@@ -102,6 +103,8 @@ composition:
     - tumor-vs-normal-percentile-crossing
     - modality-therapeutic-window            # tvn-no-therapeutic-window-veto + tvn-no-full-normal-window-veto feed the _verdict clamp
     - sc-normal-celltype-expression          # tvn-sc-normal-critical-organ-veto (the 3rd, verdict-driving veto arm)
+    - normal-tissue-protein-abundance-tphp   # tvn-tphp-broad-abundant-normal-protein-veto (the 4th veto arm: quantitative
+                                             # normal-PROTEIN abundance liability, Floor-C; feeds the _verdict clamp -> selective_with_normal_liability)
   synthesis:
     - rule_engine
     - structured_llm    # opt-in --synthesize (selectivity-lens narrator, two-slot; verdict-inert)
@@ -143,12 +146,14 @@ composition:
   tumor BELOW the worst critical/full normal — a housekeeping/no-window gene) downgrades to
   `selective_but_broadly_normal` (the KILL — no real window at all); (b) the sc-normal critical-organ
   arm (`tvn-sc-normal-critical-organ-veto`: a real window but an essential-cell liability in a
-  NON-origin critical organ) downgrades to `selective_with_normal_liability` — a SELECTIVITY-
-  PRESERVING named-organ flag (the target IS tumor-selective; approved antigens DLL3/ERBB2/FOLR1
+  NON-origin critical organ) AND the tphp normal-PROTEIN arm (`tvn-tphp-broad-abundant-normal-protein-veto`:
+  a real window but a quantitatively ABUNDANT — Floor-C, not trace — normal-protein footprint across a
+  broad tissue count, TPHP DIA-MS) both downgrade to `selective_with_normal_liability` — a SELECTIVITY-
+  PRESERVING named liability (the target IS tumor-selective; approved antigens DLL3/ERBB2/FOLR1
   land here — their normal expression is real but they are drugs via modality/accessibility/
   precedent; the SAFETY severity is owned by on-target-safety-liability + modality-fit). Precedence
-  when both fire: window > full-normal > sc-normal (a no-window KILL outranks a liability flag, e.g.
-  TROP2). This is a 2-card conjunction the single-rule resolver cannot express; it exists to stop a
+  when both fire: window > full-normal > sc-normal > tphp-normal-protein (a no-window KILL outranks a
+  liability flag, e.g. TROP2). This is a 2-card conjunction the single-rule resolver cannot express; it exists to stop a
   housekeeping-like gene passing as tumor-selective WITHOUT lumping approved antigens into that KILL.
   The clamp is applied in ALL THREE consumers — the
   standalone skill (`_verdict`), the composed target-profile (its fan-out calls `_verdict`, and

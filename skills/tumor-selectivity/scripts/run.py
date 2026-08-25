@@ -43,7 +43,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.12.0"
+SKILL_VERSION = "1.13.0"
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -101,8 +101,11 @@ CARDS = [
                                              # categorical breadth, but no quantitative normal protein. Surfaces
                                              # normal_protein_breadth_class + highest-abundance normal tissue as an
                                              # additive normal-comparator facet (a target RNA-restricted in normal
-                                             # tissue can still be broadly normal-PROTEIN-expressed). Feeds no
-                                             # resolver rung / no clamp; data_unavailable off the TPHP proteome.
+                                             # tissue can still be broadly normal-PROTEIN-expressed). Its
+                                             # tphp_normal_protein_liability_class is VERDICT-BEARING (4th normal-breadth
+                                             # veto arm): broad_and_abundant -> tvn-tphp-broad-abundant-normal-protein-veto
+                                             # -> _verdict clamp -> selective_with_normal_liability. data_unavailable off
+                                             # the TPHP proteome (e.g. DLL3).
     # ── SINGLE-CELL + IN-SITU SPATIAL (tumor side; verdict-inert) ──
     # The bulk four-cell DESeq2 axis-A signal cannot tell whether a "tumor_selective" call is
     # MALIGNANT-cell-intrinsic or driven by CAF/stromal/immune microenvironment content (the purity

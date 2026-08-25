@@ -31,7 +31,13 @@ _AXIS_A_SELECTIVE = frozenset({
 _WINDOW_VETO_RULE = "tvn-no-therapeutic-window-veto"
 _FULL_NORMAL_VETO_RULE = "tvn-no-full-normal-window-veto"
 _SC_NORMAL_VETO_RULE = "tvn-sc-normal-critical-organ-veto"
-_NORMAL_BREADTH_VETO_RULES = (_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE)
+# 4th arm (2026-08-25): quantitative normal-PROTEIN abundance liability (TPHP DIA-MS). Fires on the
+# normal-tissue-protein-abundance-tphp card's tphp_normal_protein_liability_class == broad_and_abundant
+# (abundance-gated Floor-C, NOT DIA detection). Like the sc-normal arm it is SELECTIVITY-PRESERVING ->
+# selective_with_normal_liability (a named normal-protein liability, not the housekeeping KILL).
+_TPHP_NORMAL_PROTEIN_VETO_RULE = "tvn-tphp-broad-abundant-normal-protein-veto"
+_NORMAL_BREADTH_VETO_RULES = (_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE,
+                              _TPHP_NORMAL_PROTEIN_VETO_RULE)
 
 # The clamp produces two DISTINCT downgrade outcomes (the sc-normal-liability SPLIT, 2026-08-19):
 #   - the therapeutic-window arms (tumor BELOW the worst critical/full normal — housekeeping GAPDH,
@@ -53,6 +59,7 @@ _VETO_RULE_VERDICT = {
     _WINDOW_VETO_RULE: _VETO_VERDICT,
     _FULL_NORMAL_VETO_RULE: _VETO_VERDICT,
     _SC_NORMAL_VETO_RULE: _LIABILITY_VERDICT,
+    _TPHP_NORMAL_PROTEIN_VETO_RULE: _LIABILITY_VERDICT,   # normal-PROTEIN abundance liability (selectivity-preserving)
 }
 # Both clamp outcomes are still "selective" in the sense that axis-A over-expression held; consumers
 # that ask "did the normal-breadth clamp fire?" should test membership in this set.
@@ -62,9 +69,10 @@ _VETO_OUTCOMES = frozenset(_VETO_RULE_VERDICT.values())
 def apply_normal_breadth_veto(verdict, driving_rule_id, fired):
     """Post-resolver clamp: downgrade a SELECTIVE axis-A ``(verdict, driving_rule_id)`` when ANY
     normal-breadth veto rule is in ``fired``. The window arms → ``selective_but_broadly_normal`` (the
-    housekeeping/no-window KILL); the sc-normal critical-organ arm → ``selective_with_normal_liability``
-    (a selectivity-PRESERVING named-organ flag). Precedence: window > full-normal > sc-normal (a
-    no-window KILL outranks a named-organ liability when both fire). Returns the input pair unchanged
+    housekeeping/no-window KILL); the sc-normal critical-organ AND tphp normal-protein arms →
+    ``selective_with_normal_liability`` (selectivity-PRESERVING named liabilities). Precedence: window >
+    full-normal > sc-normal > tphp-normal-protein (a no-window KILL outranks a named liability when both
+    fire; the two liability arms yield the same verdict). Returns the input pair unchanged
     when the verdict is not a selective axis-A class or no veto fired. One-directional.
 
     ``fired`` is the flat list of fired-rule dicts (each with ``rule_id``)."""

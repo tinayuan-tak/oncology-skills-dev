@@ -4,6 +4,25 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.13.0
+- Promoted the `normal-tissue-protein-abundance-tphp` card from DISPLAY-only to a VERDICT-BEARING
+  NORMAL-BREADTH veto arm (the 4th). Its new `tphp_normal_protein_liability_class == broad_and_abundant`
+  fires `tvn-tphp-broad-abundant-normal-protein-veto`; the shared `selectivity_veto` clamp then
+  downgrades an axis-A-selective call to `selective_with_normal_liability` (a SELECTIVITY-PRESERVING
+  named liability, NOT the housekeeping KILL — same outcome as the sc-normal critical-organ arm).
+- Gated on ABUNDANCE, not DIA detection (Floor-C): `broad_and_abundant` requires a BROAD count of adult
+  tissues (>=35) each at/above a global per-tissue abundance floor (product p75). A broadly-DETECTED-but-
+  not-broadly-abundant protein (CEACAM5: 63 tissues detected, 30 above floor) reads `detected_not_abundant`
+  and does NOT fire — the deliberate DIA-detects-broadly-at-trace correction.
+- Applied SKILLS-SIDE (no target-contracts resolver rung; a conjunction the single-rung resolver cannot
+  express). Precedence: window > full-normal > sc-normal > tphp-normal-protein (a no-window KILL outranks
+  the liability flag). Card moved DISPLAY-ONLY -> `rules_scope`; the 3 parity lists intact. Golden
+  snapshot regenerated (selectivity gate rule_ids += the new rule; resolver treats it inert — verdicts
+  unchanged, since the clamp is skills-side). Replay fixtures (CEACAM5/TACSTD2) refrozen.
+- VERDICT-FLIP DELTA (panel): ZERO flips. CEACAM5/ERBB2/FOLR1/MSLN/EPCAM/TACSTD2 read
+  detected_not_abundant/restricted (no fire); DLL3 data_unavailable; GAPDH fires but the window KILL
+  outranks it; KRAS fires but is not axis-A-selective (clamp no-op). No approved antigen is downgraded.
+
 ## 1.12.0
 - Added the canonical HEADLINE layer (verdict + confidence + top-tension), mirroring the merged
   tumor-presence / functional-requirement exemplars (docs/HEADLINE_CONTRACT.md). `_headline` now emits
