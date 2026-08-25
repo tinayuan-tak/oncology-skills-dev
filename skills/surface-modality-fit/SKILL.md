@@ -138,12 +138,15 @@ composition:
                                        # (AND/OR/NOT best partner over 52 clinical-seed antigens). NECESSITY
                                        # companion to surface-colocalization-avidity (same-cell avidity =
                                        # sufficiency). ADDITIVE verdict-INERT bispecific facet (no resolver rung).
-    - pmhc-epitope-evidence-iedb       # (in run.py CARDS; 2026-08-25) EXPERIMENTALLY-VALIDATED pMHC epitope / MHC
-                                       # ground truth from IEDB (iedb-epitope-mhc-per-protein-v1) — peptides observed
-                                       # presented on human HLA and/or T-cell-RECOGNIZED, class / allele count, cancer
-                                       # context. Experimental COMPLEMENT to pmhc-presentation (HLA-Ligand-Atlas benign
-                                       # breadth). VERDICT-INERT display: no rule maps it, no resolver rung consumes it
-                                       # (fit_class byte-stable). Adds pMHC narrative context for the TCR-mimetic-TCE axis.
+    - pmhc-epitope-evidence-iedb       # (in run.py CARDS; VERDICT-BEARING 2026-08-25) EXPERIMENTALLY-VALIDATED pMHC
+                                       # epitope / MHC ground truth from IEDB (iedb-epitope-mhc-per-protein-v1) — peptides
+                                       # observed presented on human HLA and/or T-cell-RECOGNIZED, class / allele count,
+                                       # cancer context. Experimental COMPLEMENT to pmhc-presentation (HLA-Ligand-Atlas
+                                       # benign breadth). PROMOTED to VERDICT-BEARING: its rules (block O2 — pmhc-iedb-
+                                       # tcell-validated / -presented-tce-supportive, bite_tce-only) feed the surface_modality
+                                       # pmhc_tce_supported rung, which fires ONLY when the folded-surface fit is neither_viable
+                                       # (the pMHC-TCE route for an intracellular oncoprotein WT1/PRAME/NY-ESO-1/MAGE-A4). For
+                                       # a surface-viable antigen the rule rides as an additive bite_tce signal (no verdict flip).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -193,11 +196,11 @@ composition:
                                        # essential normal cell-type expression). Wired + read (run.py:282-284).
     - antigen_pair_coexpression        # (2026-08-20) surface-colocalization-avidity — same-cell avidity + tumor-vs-normal
     - antigen_pair_selectivity         # (2026-08-20) surface-bulk-pair-selectivity — BULK tumor-vs-normal AND/OR/NOT pair-selectivity (necessity companion to same-cell avidity)
-    - pmhc_epitope_evidence            # (2026-08-25) pmhc-epitope-evidence-iedb — IEDB experimentally-validated pMHC epitope / MHC
-                                       # ground truth (bite_tce); DISTINCT lens from pmhc_presentation (benign-atlas breadth). VERDICT-INERT
-                                       # display card (no rule / no resolver rung), verdict byte-stable.
-                                       # selectivity window for AND-gate bispecifics; adc/bite_tce/antibody. ADDITIVE (its
-                                       # rules are in no resolver), verdict byte-stable.
+    - pmhc_epitope_evidence            # (VERDICT-BEARING 2026-08-25) pmhc-epitope-evidence-iedb — IEDB experimentally-validated
+                                       # pMHC epitope / MHC ground truth (bite_tce); DISTINCT lens from pmhc_presentation (benign-
+                                       # atlas breadth). PROMOTED: its block-O2 rules feed the surface_modality pmhc_tce_supported
+                                       # rung (the pMHC-TCE route when the folded surface is neither_viable). Additive for a
+                                       # surface-viable antigen (no verdict flip).
   rules_scope:
     - all
   synthesis:
@@ -231,6 +234,15 @@ composition:
   4. `neither-viable-killer` → `neither_viable`
   5. `isoform-dependent-modality-suppression` → `isoform_dependent_undefined`
   6. else → `insufficient` (honest — surface inputs data_unavailable)
+
+The base ladder above is refined by `when_all_fired` combination rungs (safety / density / shed
+downgrades — see the resolver). The one POSITIVE combination rung (2026-08-25): when the folded surface
+is `neither_viable` AND IEDB carries experimentally-validated pMHC epitopes
+(`pmhc-iedb-{tcell-validated,presented}-tce-supportive`), the verdict is promoted to
+`pmhc_tce_supported` — the peptide-MHC (TCR-mimetic TCE) route for an intracellular oncoprotein the
+folded-surface ladder cannot see. `fit_class=neither_viable` is still emitted alongside, so the report
+reads "surface: neither_viable; pMHC-TCE: supported". It CANNOT flip a surface-viable ADC/TCE call
+(the pMHC rung only co-fires with `neither-viable-killer`).
 
 ## Orthogonality facet (E7, 2026-08-07 — VERDICT-INERT)
 

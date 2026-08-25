@@ -250,3 +250,53 @@ def test_additive_signals_alone_still_insufficient():
     default — these cards ENRICH a verdict, they never CREATE one."""
     for extra in _NEWLY_REACHABLE_RULES:
         assert smf._verdict([{"rule_id": extra}]) == ("insufficient", None)
+
+
+# ---------------------------------------------------------------------------
+# IEDB pMHC-epitope PROMOTION (2026-08-25): pmhc-epitope-evidence-iedb → VERDICT-BEARING.
+# The representational gap: an intracellular oncoprotein (WT1/PRAME/NY-ESO-1/MAGE-A4) is correctly
+# surface-neither_viable YET pMHC-TCE-viable. The two IEDB rules feed a `when_all_fired` rung that
+# fires ONLY with neither-viable-killer → pmhc_tce_supported (a bite_tce-scoped POSITIVE), surfacing
+# the peptide-MHC route the folded-surface ladder cannot see, WITHOUT flipping a surface-viable call.
+# ---------------------------------------------------------------------------
+
+_PMHC_RULES = ("pmhc-iedb-tcell-validated-tce-supportive", "pmhc-iedb-presented-tce-supportive")
+
+
+def test_pmhc_promotes_neither_viable_to_pmhc_tce_supported():
+    # THE GAP FIX: surface-dead intracellular oncoprotein + experimentally-validated pMHC epitopes →
+    # pmhc_tce_supported (the pMHC-TCE route), outranking the bare neither_viable rung.
+    assert _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive") == (
+        "pmhc_tce_supported", "pmhc-iedb-tcell-validated-tce-supportive")
+    # the presented-but-not-T-cell-confirmed class promotes identically (driving_rule names the class).
+    assert _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive") == (
+        "pmhc_tce_supported", "pmhc-iedb-presented-tce-supportive")
+
+
+def test_bare_neither_viable_without_iedb_is_byte_stable():
+    # No IEDB epitope → the honest surface negative stands unchanged (assay asymmetry: absence abstains).
+    assert _vv("neither-viable-killer") == ("neither_viable", "neither-viable-killer")
+
+
+def test_pmhc_never_flips_a_surface_viable_call():
+    # THE GUARDRAIL: a surface-VIABLE antigen (ERBB2-class both_viable, or adc/tce_preferred) with IEDB
+    # epitopes keeps its surface verdict — the pMHC rule rides as an ADDITIVE bite_tce signal, never a flip
+    # (the pmhc rung requires neither-viable-killer, which is mutually exclusive with a fit-positive rung).
+    for base in ("both-viable-supportive", "adc-preferred-supportive", "tce-preferred-supportive"):
+        baseline = smf._verdict([{"rule_id": base}])
+        for pmhc in _PMHC_RULES:
+            assert _vv(base, pmhc) == baseline, (
+                f"pMHC rule {pmhc} wrongly flipped a surface-viable {baseline} for base {base}")
+
+
+def test_pmhc_rule_alone_is_insufficient():
+    # An IEDB epitope with NO fit_class rung fired creates no verdict (needs the neither_viable co-condition).
+    for pmhc in _PMHC_RULES:
+        assert smf._verdict([{"rule_id": pmhc}]) == ("insufficient", None)
+
+
+def test_tcell_validated_outranks_presented_when_both_present():
+    # Deterministic tie-break (impossible in practice — the class is single-valued — but priority-pinned):
+    # tcell_validated (priority 17) wins over presented (18).
+    assert _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive",
+               "pmhc-iedb-tcell-validated-tce-supportive")[1] == "pmhc-iedb-tcell-validated-tce-supportive"

@@ -111,7 +111,11 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 CEACAM5 = ("ceacam5_coadread", "CEACAM5", "COADREAD", "adc_preferred_tce_unsafe")
 TACSTD2 = ("tacstd2_coadread", "TACSTD2", "COADREAD", "adc_preferred_tce_unsafe")
 ERBB2   = ("erbb2_coadread",   "ERBB2",   "COADREAD", "adc_preferred_tce_unsafe")
-ALL = [CEACAM5, TACSTD2, ERBB2]
+# pMHC promotion (2026-08-25): WT1 is an INTRACELLULAR transcription factor — correctly surface-
+# neither_viable — yet carries T-cell-validated IEDB epitopes, so it resolves to the pMHC-TCE route
+# (pmhc_tce_supported). Guards the new verdict path against reader drift in the IEDB epitope class.
+WT1     = ("wt1_coadread",     "WT1",     "COADREAD", "pmhc_tce_supported")
+ALL = [CEACAM5, TACSTD2, ERBB2, WT1]
 KILLER = [CEACAM5, TACSTD2]
 
 
@@ -192,6 +196,29 @@ def test_replay_headline_block_populated_and_verdict_inert():
     tension = blk.get("top_tension")
     assert tension and tension.get("source") == "surface_modality_downgrade", (
         f"expected the TCE-unsafe downgrade as top tension, got {tension!r}")
+
+
+def test_pmhc_tce_route_surfaces_when_surface_is_neither_viable():
+    """pMHC PROMOTION crown-jewel (2026-08-25): WT1 (intracellular oncoprotein) is correctly surface-
+    neither_viable, but its T-cell-validated IEDB epitopes promote the verdict to pmhc_tce_supported —
+    the peptide-MHC (TCR-mimetic TCE) route the folded-surface ladder cannot see. The fit_class stays
+    neither_viable (read direct from the composed card) alongside the verdict, and the headline surfaces
+    the pMHC route as the top note so the "neither viable" call is not read as "no biologics route".
+    If the IEDB reader's epitope_evidence_class drifts, the promotion stops and this goes red."""
+    d = _decision(*WT1[:3])
+    h = d.get("headline") or {}
+    assert h.get("fit_class") == "neither_viable", (
+        f"WT1 fit_class={h.get('fit_class')!r}, expected neither_viable (intracellular — no cell-surface antigen).")
+    assert h.get("surface_modality_verdict") == "pmhc_tce_supported", (
+        f"WT1 verdict={h.get('surface_modality_verdict')!r}, expected pmhc_tce_supported (IEDB pMHC route).")
+    assert h.get("driving_rule_id") == "pmhc-iedb-tcell-validated-tce-supportive"
+    assert h.get("pmhc_epitope_evidence_class") == "tcell_validated"
+    blk = h.get("headline_block") or {}
+    # the fit_class call is the negative neither_viable; the pMHC route rides as the top note.
+    assert blk.get("verdict", {}).get("call") == "neither_viable"
+    tension = blk.get("top_tension") or {}
+    assert tension.get("source") == "pmhc_tce_route", (
+        f"expected the pMHC-TCE route as top note, got {tension!r}")
 
 
 def test_isoform_dominance_gate_keeps_base_fit():

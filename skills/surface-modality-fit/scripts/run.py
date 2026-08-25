@@ -78,8 +78,22 @@ _SURFACE_DOWNGRADE_REASON = {
 def _surface_tension_extra(headline: dict):
     """The resolver KILLER/downgrade (safety / density / shed) — carried in surface_modality_verdict but
     NOT in the canonical fit_class `call` — is surface-modality-fit's sharpest caveat. Surfaced so the
-    one-word fit_class call does not hide a TCE-unsafe / below-density-floor / shed-sink downgrade."""
+    one-word fit_class call does not hide a TCE-unsafe / below-density-floor / shed-sink downgrade.
+
+    pmhc_tce_supported (2026-08-25) is the INVERSE case: the fit_class `call` is neither_viable (a NEGATIVE
+    badge) yet a SEPARATE pMHC-TCE route is supported by experimentally-validated IEDB epitopes — the
+    folded-surface ladder cannot see it. Surface it as the top note so the "Neither ADC nor TCE viable"
+    call is not falsely read as "no biologics route" for an intracellular oncoprotein (WT1/PRAME/NY-ESO-1/
+    MAGE-A4). Same slot/severity — it is the sharpest correction to the one-word call."""
     v = headline.get("surface_modality_verdict")
+    if v == "pmhc_tce_supported":
+        drv = headline.get("driving_rule_id")
+        strength = ("T-cell-validated" if drv == "pmhc-iedb-tcell-validated-tce-supportive"
+                    else "HLA-presented (T-cell recognition uncharacterised)")
+        return {"text": f"surface fit_class=neither_viable, BUT experimentally-validated pMHC epitopes "
+                        f"({strength}) support a TCR-mimetic peptide-MHC T-cell engager (pMHC-TCE) route "
+                        f"the folded-surface ladder cannot see — surface: neither_viable; pMHC-TCE: supported",
+                "source": "pmhc_tce_route", "severity": 3}
     reason = _SURFACE_DOWNGRADE_REASON.get(v)
     if reason:
         return {"text": f"surface verdict downgraded to {v}: {reason} (base fit_class="
@@ -309,8 +323,11 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 _SM_ORD = {"low": 0, "medium": 1, "high": 2}
 _CERTAINTY_CORROBORATION_CARDS = frozenset({"protein-surface-evidence"})
 _SM_STRONG_POS = {"both_viable"}
+# pmhc_tce_supported (2026-08-25): the pMHC-TCE route when the folded surface is neither_viable —
+# a moderate bite_tce-scoped positive (experimentally-validated IEDB epitope ground truth, single-axis /
+# necessary-not-sufficient), grouped with the other modality-preferring positives.
 _SM_MOD_POS = {"adc_preferred", "tce_preferred", "surface_viable_density_caveated",
-               "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk"}
+               "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk", "pmhc_tce_supported"}
 _SM_WEAK_POS = {"shed_dominant_opposed"}
 _SM_NEG = {"neither_viable", "tce_unsafe_normal_liability", "tce_escape_risk"}
 _SM_NONE = {"modality_ambiguous", "isoform_dependent_undefined", "insufficient", "data_unavailable", None}
@@ -430,6 +447,10 @@ def _sm_modality_scope(v) -> dict | None:
         bite = "unfavorable"
     elif v == "tce_escape_risk":
         bite = "conditional"
+    elif v == "pmhc_tce_supported":
+        # The folded surface is neither_viable (adc/naked-antibody bind the folded protein → unfavorable),
+        # but the peptide-MHC (pMHC-TCE) route is favorable via a TCR-mimetic T-cell engager (bite_tce).
+        adc, bite = "unfavorable", "favorable"
     elif v in ("neither_viable", "shed_dominant_opposed"):
         adc = bite = "unfavorable"
     else:
@@ -551,6 +572,14 @@ def _headline(cards, fired, verdict_pair):
         "pmhc_presentation_class":        get_card_field(cards, "pmhc-presentation", "pmhc_presentation_class"),
         "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
         "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
+        # EXPERIMENTALLY-VALIDATED pMHC epitope evidence (pmhc-epitope-evidence-iedb) — the IEDB positive-assay
+        # ground-truth companion to pmhc-presentation. VERDICT-BEARING 2026-08-25: its rules (pmhc-iedb-tcell-
+        # validated / -presented-tce-supportive, bite_tce-only) feed the surface_modality pmhc_tce_supported
+        # rung when the folded surface is neither_viable (the pMHC-TCE route for an intracellular oncoprotein).
+        "pmhc_epitope_evidence_class":    get_card_field(cards, "pmhc-epitope-evidence-iedb", "epitope_evidence_class"),
+        "pmhc_epitope_n_epitopes":        get_card_field(cards, "pmhc-epitope-evidence-iedb", "n_epitopes"),
+        "pmhc_epitope_has_tcell_positive": get_card_field(cards, "pmhc-epitope-evidence-iedb", "has_tcell_positive"),
+        "pmhc_epitope_n_hla_alleles":     get_card_field(cards, "pmhc-epitope-evidence-iedb", "n_hla_alleles"),
         # Modality exon-window (modality-exon-window) — EXON-resolution companion of the gene window.
         # Its rules fire on exon_window_class: exon_heterogeneity_flag → supportive (SECONDARY, a hypothesis
         # worth junction-level follow-up — per-exon coverage can't confirm isoform identity); essential_exon_
@@ -665,6 +694,7 @@ _SYNTHESIS_FACET_KEYS = (
     "surface_modality_verdict", "driving_rule_id", "fit_class", "topology_class",
     "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
     "window_class", "tce_antigen_escape_class",   # verdict-moving TCE safety + efficacy facets (2026-08-24)
+    "pmhc_epitope_evidence_class",                 # verdict-moving pMHC-TCE facet (IEDB, 2026-08-25)
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",

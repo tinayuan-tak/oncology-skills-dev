@@ -1,0 +1,528 @@
+adc-tce-modality-fit:
+  _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
+  endocytosis_confidence: unmeasured
+  fit_class: neither_viable
+  fit_rationale: tm_count=0, ec_length=449, endo_motif_hc=unmeasured, n_ubiq=unmeasured
+  gpi_surface_rescued: false
+  is_adc_topology_favorable: false
+  is_gpi_anchored: false
+  is_tce_topology_favorable: false
+  isoform_mechanism_caveat: null
+  isoform_selective_offcontext: false
+  isoform_selective_suppressed: false
+  structure_epitope_context:
+    alphafold_confidence_class: low
+    disordered_fraction: 0.6503
+    hotspot_pocket_adjacency_call: no_hotspots_annotated
+  surface_family_class: not_surface
+cd-antigen-backbone:
+  _data_source: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08
+  cd_antigen_backbone_class: not_cd_antigen
+  cd_gene_groups: null
+  cd_number: null
+  cd_roster_uniprot: null
+  established_io_precedent: false
+  method_version: 1.0.0
+  on_cd_roster: false
+  target: WT1
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: del_dominant
+  cn_fraction_deep_deletion: 0.0064
+  cn_fraction_focal_amplification: 0.024
+  cn_fraction_high_amplification: 0.0008
+  cn_fraction_neutral: 0.4552
+  cn_fraction_shallow_amplification: 0.2384
+  cn_fraction_shallow_deletion: 0.2752
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.17882342636585236
+  cn_median_panel: 1.0065933465957642
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.8967239111661911
+  cn_p5_panel: 0.6589935928583145
+  cn_p75_panel: 1.0755473375320435
+  cn_p95_panel: 1.3581373572349549
+  cn_recurrent_amplification_score: 0.0248
+  cn_recurrent_deletion_score: 0.2816
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 0.125
+    fraction_of_amp_tail: 0.06451612903225806
+    lineage: Cervix
+    median_cn: 0.9896387159824371
+    n_in_lineage: 16
+  - fraction_focal_amplified: 0.12
+    fraction_of_amp_tail: 0.1935483870967742
+    lineage: Breast
+    median_cn: 0.9882451593875885
+    n_in_lineage: 50
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.6666666666666666
+    fraction_of_del_tail: 0.011363636363636364
+    lineage: Testis
+    median_cn: 0.848772794008255
+    n_in_lineage: 6
+  - fraction_deleted: 0.44
+    fraction_of_del_tail: 0.0625
+    lineage: Breast
+    median_cn: 0.9882451593875885
+    n_in_lineage: 50
+  - fraction_deleted: 0.4090909090909091
+    fraction_of_del_tail: 0.02556818181818182
+    lineage: Bladder/Urinary Tract
+    median_cn: 0.941836416721344
+    n_in_lineage: 22
+  - fraction_deleted: 0.4090909090909091
+    fraction_of_del_tail: 0.02556818181818182
+    lineage: Pleura
+    median_cn: 0.9738667905330658
+    n_in_lineage: 22
+  - fraction_deleted: 0.4
+    fraction_of_del_tail: 0.005681818181818182
+    lineage: Vulva/Vagina
+    median_cn: 1.075573444366455
+    n_in_lineage: 5
+  copy_number_class: recurrently_deleted
+  patient_amplified_fraction: 0.125
+  patient_cn_context: "COADREAD: 12% of 592 TCGA GISTIC samples amplify WT1 (0% high-level\
+    \ +2), 11% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check to the\
+    \ DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: broadly_neutral
+  patient_deleted_fraction: 0.11486486486486487
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.0016891891891891893
+  patient_homdel_fraction: 0.0016891891891891893
+modality-exon-window:
+  _data_note: gene absent from surfaceome-scoped exon product
+  best_exon_id: null
+  best_exon_max_essential_tpm: null
+  best_exon_tumor_tpm: null
+  best_exon_window_ratio: null
+  exon_heterogeneity_log2: null
+  exon_window_class: not_in_product
+  indication: COADREAD
+  median_exon_tumor_log2tpm: null
+  method_version: 1.1.0
+  modality: bite_tce
+  modality_tier_threshold_tpm: null
+  n_exons: 0
+  target: WT1
+  tumor_studies: null
+modality-therapeutic-window:
+  full_normal_window_class: not_expressed_in_cohort
+  indication: COADREAD
+  max_essential_normal_organ: BONE_MARROW
+  max_essential_normal_tpm: 21.39
+  max_full_normal_organ: UTERUS
+  max_full_normal_tpm: 86.44
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_gtex_tissues: 31
+  target: WT1
+  therapeutic_window_class: not_expressed_in_cohort
+  tumor_studies:
+  - COAD
+  - READ
+  tumor_tpm: 0.47
+  window_class: not_expressed_in_cohort
+  window_ratio_essential: 0.07
+  window_ratio_full_normal: 0.02
+mutation-stratified-surface:
+  _data_source: mutation-stratified-surface-window-v1
+  delta_log2: null
+  driver_gene: KRAS
+  indication: COADREAD
+  method_version: 0.1.0
+  mutant_stratified_surface_class: not_in_product
+  mutation_stratified_context: '''WT1'' not in the mutation-stratified surface product
+    for KRAS/COADREAD (coverage gap; v1 covers KRAS/NSCLC only).'
+  n_mutant: null
+  n_wt: null
+  q_value: null
+normal-tissue-liability:
+  essential_tissue_flag: absent
+  essential_tissues_flagged: []
+  hpa_tissue_distribution: Detected in single
+  hpa_tissue_specificity: Tissue enriched
+  method_version: 0.2.0
+  n_essential_tissues_with_expression: 0
+  n_specific_tissues: 1
+  normal_tissue_breadth_class: restricted_normal_expression
+  safety_tissue_flags: []
+  specific_tissues:
+  - intensity: 74075.1
+    tissue: fallopian tube
+pathway-stratified-surface:
+  _data_source: pathway-stratified-surface-window-v1
+  delta_log2: null
+  indication: COADREAD
+  method_version: 0.1.0
+  n_high: null
+  n_low: null
+  pathway_stratified_context: '''WT1'' not in the pathway-stratified surface product
+    for HALLMARK_HYPOXIA/COADREAD (coverage gap; v1 covers HALLMARK_HYPOXIA/NSCLC
+    only).'
+  pathway_stratified_surface_class: not_in_product
+  q_value: null
+  signature: HALLMARK_HYPOXIA
+pmhc-epitope-evidence-iedb:
+  _data_source: iedb-epitope-mhc-per-protein-v1
+  epitope_evidence_class: tcell_validated
+  example_hla_alleles: HLA-A*01:01;HLA-A*02:01;HLA-A*02:05;HLA-A*02:06;HLA-A*03:01
+  has_cancer_context: true
+  has_tcell_positive: true
+  method_version: 1.0.0
+  n_epitopes: 60
+  n_hla_alleles: 38
+  n_mhc_class_i_epitopes: 55
+  n_mhc_class_ii_epitopes: 15
+  uniprot_ac: P19544
+pmhc-presentation:
+  _data_source: hla-ligand-atlas-presentation-per-protein-v1
+  hla_class: HLA-I
+  method_version: 1.0.0
+  n_normal_tissues_presented: 5
+  n_presented_peptides: 3
+  n_strong_binder_peptides: 3
+  n_weak_binder_peptides: 0
+  normal_tissues_presented: Kidney;Ovary;Spleen;Testis;Uterus
+  pmhc_presentation_class: intermediate_presentation
+  uniprot_ac: P19544
+protein-surface-evidence:
+  _data_note: '''WT1'' not in the CSPA high-confidence surfaceome master (measured-absent
+    in the 41-cell-line panel, not a coverage gap)'
+  _data_source: cspa-surface-confirmation-per-uniprot-v1
+  cspa_category: null
+  evidence_tier: measured
+  hpa_if_plasma_membrane: false
+  hpa_if_reliability: Enhanced
+  hpa_if_surface_class: intracellular_only
+  measured_in_cspa: false
+  method_version: 0.2.0
+  n_celllines_detected: 0
+  surface_confirmation_class: not_surface
+  surface_multimodal_support: single_modality_negative
+  uniprot_ac: null
+rna-protein-concordance-tumor:
+  _data_note: 'coad: 0 tumors with matched RNA+protein for WT1 (floor 20)'
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_paired_tumors: 0
+  rna_as_biomarker: data_unavailable
+  rna_protein_r: null
+  substrate: cptac_tumor
+  target: WT1
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: epithelial cell of glomerular capsule
+  max_detection_fraction: 0.9126315789473685
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 14
+  n_reliable_cell_types: 73
+  origin_tissues:
+  - colon
+  per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
+  safety_essential_flags:
+    L3 intratelencephalic projecting glutamatergic neuron: 0.06577540106951871
+    L4/5 intratelencephalic projecting glutamatergic neuron: 0.054758800521512385
+    direct pathway medium spiny neuron: 0.06294850147741662
+    indirect pathway medium spiny neuron: 0.053146430012101654
+    medium spiny neuron: 0.0604631217838765
+    neuron: 0.06767676767676768
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+sc-surface-normal-safety:
+  _data_note: WT1 not surface-profiled by ADT in the immune panel (not measured; not
+    a safety pass).
+  compartment_scope: immune_pbmc
+  max_mean_clr: null
+  max_positive_fraction: null
+  max_surface_cell_type: null
+  method_version: 0.1.0
+  n_celltypes_surface_positive: 0
+  sc_surface_normal_class: data_unavailable
+  target: WT1
+sc-surface-rna-protein-concordance:
+  _data_note: WT1 not in the CITE-seq surface panel (not surface-profiled by ADT;
+    not measured, not a pass).
+  adt_proteins: null
+  compartment_scope: null
+  datasets: []
+  measurement_type: rna_protein_concordance
+  method_version: 0.1.0
+  n_cell_types: 0
+  rna_as_biomarker: data_unavailable
+  rna_protein_r: null
+  rna_protein_spearman: null
+  substrate: cite_seq_surface
+  target: WT1
+shed-ectodomain-liability:
+  hpa_secretome_location: null
+  measured_shed_class: not_on_secreted_panel
+  media_mean_npx: null
+  media_n_lines_detected: null
+  media_panel_high_npx: 1.358
+  media_uniprot: P19544-7
+  method_version: 0.2.0
+  serum_marker: null
+  shed_evidence_tier: none
+  shed_liability_class: not_shed_membrane_retained
+  shed_product: null
+  shedding_protease: null
+  source_citation: null
+structure-features-static:
+  _data_source: pdb-alphafold-structure-features-per-uniprot-v1
+  _ligandability_source: structure-ligandability-per-protein-v1
+  alphafold_confidence_class: low
+  alphafold_plddt_mean: 50.795
+  alphafold_plddt_min: 23.95
+  alphafold_plddt_min_domain: 23.95
+  disordered_fraction: 0.6503
+  has_annotated_binding_site: false
+  has_cryptic_site: false
+  has_druggable_pocket: true
+  has_experimental_cocrystal: false
+  has_virtual_screen_hit: false
+  hotspot_pocket_adjacency_call: no_hotspots_annotated
+  is_foldable: false
+  ligandability_disorder_class: highly_disordered
+  method_version: 0.2.0
+  mutation_hotspot_in_druggable_pocket: false
+  n_domains_low_plddt: 2
+  n_ligandability_axes: 1
+  pdb_best_method: X-ray diffraction
+  pdb_best_resolution_angstrom: 1.45
+  pdb_coverage_class: strong
+  pdb_ids_available:
+  - 1XF7
+  - 2JP9
+  - 2JPA
+  - 2PRT
+  - 3HPJ
+  - 3MYJ
+  - 4R2E
+  - 4R2P
+  - 4R2Q
+  - 4R2R
+  - 4R2S
+  - 4WUU
+  - 5KL2
+  - 5KL3
+  - 5KL4
+  - 5KL5
+  - 5KL6
+  - 5KL7
+  - 6B0O
+  - 6B0P
+  - 6B0Q
+  - 6B0R
+  - 6BLW
+  - 6RSY
+  - 6WLH
+  - 7BBG
+  - 7SR5
+  - 8ISN
+  - 9VSO
+  - 9WC2
+  - 9WC3
+  structural_ligandability_class: predicted_ligandable
+surface-abundance-density:
+  _anchor_strength: breadth_only
+  _band_factor: 40.96
+  _cptac_cohort: null
+  _cptac_covered: false
+  _cptac_log2fc: null
+  _gpi_anchored: false
+  _topology_class: no_transmembrane
+  _whole_cell_class: moderate
+  absolute_copies_per_cell: null
+  absolute_density_class: no_absolute_measurement
+  absolute_density_grade: E
+  absolute_measurement_semantics: null
+  absolute_n_measurements: 0
+  density_evidence_level: D
+  density_floor_verdict: unmeasured
+  estimated_copies_per_cell_lower: 73.2
+  estimated_copies_per_cell_median: 3000.0
+  estimated_copies_per_cell_upper: 122880.0
+  hpa_ihc_anchor_used: HPA restricted_normal_expression (intestine)
+  hpa_ihc_intensity_class: low
+  is_adc_high_payload_viable: false
+  is_tce_viable: false
+  method_version: 0.1.0
+  surface_accessibility_note: no_transmembrane_domain_whole_cell_estimate_retained_not_a_surface_density
+  surface_density_admissibility: unsupported
+  surface_density_class: not_surface_density_whole_cell_estimate
+surface-bulk-pair-selectivity:
+  _avidity_caveat: "Bulk co-expression in a tumor SAMPLE is necessary but NOT sufficient\
+    \ for same-CELL co-expression, which is what an AND-gate bispecific requires (avidity).\
+    \ Two antigens can be high in a sample yet on different cells. This scan NOMINATES\
+    \ pairs to confirm; same-cell / co-localization confirmation needs single-cell\
+    \ (CELLxGENE Census same-cell coexpression) or spatial data \u2014 a documented\
+    \ gap."
+  _data_note: target_not_in_bulk_pair_selectivity_for_indication
+  _data_source: bispecific-bulk-pair-selectivity-per-indication-v1
+  best_and_call_class: data_unavailable
+  best_and_partner: null
+  best_and_selectivity: null
+  best_not_partner: null
+  best_not_selectivity: null
+  best_or_partner: null
+  best_or_selectivity: null
+  indication: COADREAD
+  n_partners_scanned: 0
+  target: WT1
+surface-colocalization-avidity:
+  _data_note: WT1 not in any nominated pair in sc-samecell-coexpr-crc-coadread-v1
+    (no avidity partner scanned)
+  _window:
+    _data_note: WT1 not in any nominated pair in sc-samecell-coexpr-crc-coadread-v1
+      (no avidity partner scanned)
+    best_partner: null
+    best_selectivity_margin: null
+    indication: COADREAD
+    n_partners_tested: 0
+    partners: []
+    target: WT1
+    window_verdict: data_unavailable
+  best_avidity_call: null
+  best_both_fraction_median: null
+  best_enrichment_median: null
+  best_partner: null
+  indication: COADREAD
+  method_version: 0.2.0
+  n_coordinated_partners: 0
+  n_partners_tested: 0
+  n_window_open: null
+  normal_liability_locus: null
+  partners: []
+  samecell_avidity_class: data_unavailable
+  selectivity_margin: null
+  target: WT1
+  window_best_partner: null
+  window_verdict: data_unavailable
+surface-topology-and-ptm:
+  _ptm_coverage: data_unavailable
+  ecd_engineerability_class: no_extracellular_domain
+  ecd_orientation: inside
+  endocytosis_motif_count: null
+  endocytosis_motif_count_high_confidence: null
+  endocytosis_motif_types: []
+  extracellular_residue_count: 449
+  has_tm_beta: false
+  isoform_selective_dominant_isoform: null
+  isoform_selective_warning: false
+  method_version: read-0.1.0
+  n_glycosylation_sites: null
+  n_ubiquitination_sites: null
+  signal_peptide_length: -1
+  signal_peptide_present: false
+  tm_pass_count: 0
+  tmbed_model_version: 1.0.2
+  topology_class: no_transmembrane
+  topology_summary: ECD-inside
+surfaceome-cohort-ranking:
+  _data_note: target_not_in_ranking_any_indication
+  cells_supporting: null
+  cohort_rank_class: data_unavailable
+  indication: null
+  max_abs_log2fc: null
+  method_version: 0.1.0
+  ranking_score: null
+  rna_protein_concordance: no_protein
+  surface_protein_family: null
+  tissue_percentile_protein: null
+  tissue_percentile_rna: null
+  tissue_rank: null
+surfaceome-family-classification:
+  _data_source: surfaceome-family-classification-per-uniprot-v1
+  family_class: not_surface
+  fusion_provenance:
+  - surfy:not_surface
+  - hpa:not_surface
+  hpa_protein_class_verbatim: Cancer-related genes, Disease related genes, Human disease
+    related genes, Predicted intracellular proteins, Transcription factors
+  is_surface_protein: false
+  method_version: 0.1.0
+  source_hpa_plasma_membrane: false
+  source_iuphar_family: ''
+  source_surfy_positive: false
+  source_uniprot_ec_number: ''
+  surface_protein_family: Not_surface
+  surfaceome_confidence_score: 1.0
+tumor-scrna-celltype-expression:
+  ambient_contamination_risk: low
+  caf_abundance_log1p_cp10k: 0.00831
+  caf_compartment_available: true
+  caf_detection_fraction: 0.01198
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.43771000000000004
+    immune: 0.00074
+    malignant: 0.01555
+    other: 0.02941
+    stromal: 0.01198
+  entity_purity: entity_specific
+  fraction_donors_broadly_detecting: 0.019231
+  indication: COADREAD
+  inter_donor_consistency_class: variable
+  malignant_abundance_log1p_cp10k: 0.00643
+  malignant_annotation_method: curated
+  malignant_compartment_available: true
+  malignant_detection_donor_iqr: 0.03819
+  malignant_detection_fraction: 0.01555
+  malignant_n_cells: 361969
+  malignant_n_donors: 208
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 36
+  n_donor_groups: 294
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.00643
+    median_detection_fraction: 0.01555
+    n_cells_total: 361969
+    n_donors: 208
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.00831
+    median_detection_fraction: 0.01198
+    n_cells_total: 103453
+    n_donors: 113
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.0007
+    median_detection_fraction: 0.00074
+    n_cells_total: 564034
+    n_donors: 133
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.06769
+    median_detection_fraction: 0.43771000000000004
+    n_cells_total: 87
+    n_donors: 2
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.0164
+    median_detection_fraction: 0.02941
+    n_cells_total: 799
+    n_donors: 11
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: broadly_low
+  tce_antigen_escape_class: escape_risk_high
+  tce_homogeneity_class: heterogeneous
+  top_microenvironment_compartment: stromal
+  top_microenvironment_detection_fraction: 0.01198
+  within_tumor_coverage_class: low
