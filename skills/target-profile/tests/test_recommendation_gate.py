@@ -613,3 +613,57 @@ def test_biology_axis_downgrade_absent_axis_is_backward_compatible():
     """No biology_axis (default None) → veto stands, exactly as before the downgrade existed."""
     forced, _hits, _sup = tp._gate_recommendation(_surface_antigen_subs())
     assert forced == "veto"
+
+
+# --- T2b (2026-08-25): DATA-DRIVEN downgrade for UNCURATED surface antigens ---
+# The downgrade rescued only the 22 CURATED surface_intrinsic targets; an uncurated approved antigen
+# (TROP2/TACSTD2, NECTIN4, CD19, FOLR1 ...) resolves to biology_axis=unknown and was force-VETOED on a
+# default run (round-1 5/5). Adding `unknown` to when_biology_axis_in makes the downgrade key on the
+# FAVORABLE fit_class (real surface evidence) instead of the curation. These use a SYNTHETIC vocab so
+# the mechanism is proven independent of the companion contracts vocab merge (target-contracts #546).
+
+def _vocab_with_unknown(tmp_path):
+    """A minimal gate vocab whose downgrade admits biology_axis=unknown (the post-#546 shape)."""
+    voc = tmp_path / "vocabularies"; voc.mkdir()
+    (voc / "nomination_verdict_gate.yaml").write_text(
+        "gates:\n"
+        "  - {sub_skill: dependency, verdict: non_dependent, action: veto}\n"
+        "biology_axis_scoped_veto_downgrade:\n"
+        "  - downgrades: {sub_skill: dependency, verdict: non_dependent}\n"
+        "    to_action: hold\n"
+        "    when_biology_axis_in: [surface_intrinsic, unknown]\n"
+        "    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, "
+        "adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, surface_viable_density_caveated]\n"
+    )
+    return tmp_path
+
+
+def test_uncurated_surface_antigen_downgrades_to_hold(tmp_path):
+    """TROP2/NECTIN4/CD19 pattern: an UNCURATED antigen (biology_axis=unknown) with a favorable surface
+    fit has its pooled non_dependent VETO downgraded to hold — data-driven off the fit_class, not the
+    curated lookup. This is the round-1 T2b fix."""
+    forced, hits, sup = tp._gate_recommendation(
+        _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path), biology_axis="unknown")
+    assert forced == "hold", (forced, hits)
+    dep_hit = next(h for h in hits if h["short"] == "dependency")
+    assert dep_hit["action"] == "hold" and dep_hit.get("_downgraded_from") == "veto"
+    assert any(s["suppressed_by"]["kind"] == "biology_axis_downgrade" for s in sup)
+
+
+def test_uncurated_requires_favorable_surface(tmp_path):
+    """Guard preserved for the unknown axis: an uncurated target with NO viable surface arm
+    (neither_viable) still VETOES — the favorable-surface co-condition prevents rescuing surface-junk."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs("neither_viable"), contracts_repo=_vocab_with_unknown(tmp_path),
+        biology_axis="unknown")
+    assert forced == "veto"
+
+
+def test_intracellular_still_vetoes_even_with_unknown_admitted(tmp_path):
+    """CRITICAL guard: adding `unknown` must NOT loosen the intracellular exclusion — an
+    explicitly-classified intracellular_intrinsic target with a favorable surface signal still VETOES
+    (an intracellular oncogene with an incidental surface signal is not a surface antigen)."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path),
+        biology_axis="intracellular_intrinsic")
+    assert forced == "veto"
