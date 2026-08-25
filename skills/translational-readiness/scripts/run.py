@@ -28,26 +28,38 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "translational-readiness"
-SKILL_VERSION = "1.1.0"
+SKILL_VERSION = "1.2.0"
 
 CARDS = [
     "target-model-availability",   # scientific-gap #1 (2026-08-14): per-indication HCMI patient-derived
                                    # model coverage (organoid/next-gen cancer models). INDICATION-level,
                                    # target-independent translational cohort context. VERDICT-INERT.
+    "target-genotype-matched-model",  # genotype-matched refinement (2026-08-24): do the available HCMI
+                                   # models CARRY a functional coding alteration in THIS target? (gene x
+                                   # indication; HCMI WXS MAF join). VERDICT-INERT translational context.
+    "target-pdx-drug-response",    # in-vivo tractability corroboration (Novartis PDXE, Gao 2015): do
+                                   # treatments naming the target produce tumour regression in PDX
+                                   # population trials? Target-grain. VERDICT-INERT display facet.
 ]
 
 QUESTION = ("How translationally ready is {target} in {indication} — are there patient-derived "
             "(HCMI organoid / next-generation cancer) models available to preclinically validate a "
-            "nomination? (PD-assay, imaging-tracer, and internal-model legs remain un-wired.)")
+            "nomination (and do those models carry the target's alteration), and does the target's "
+            "drug-response reproduce in vivo in PDX population trials? (PD-assay, imaging-tracer, and "
+            "internal-model legs remain un-wired.)")
 
 # Honest partial-coverage note: the internal Takeda models registry (PDX/organoid/GEMM), PD-assay, and
-# imaging-tracer catalogs are NOT in data-catalog, so those legs are still un-wired. Only the public
-# HCMI model-availability leg is reflected in this decision.
+# imaging-tracer catalogs are NOT in data-catalog, so those legs are still un-wired. Three public
+# translational legs are now reflected: HCMI model-availability, HCMI genotype-matched-model coverage,
+# and PDXE in-vivo drug-response.
 PARTIAL_STATUS_NOTE = (
-    "translational-readiness is status: partial — only the public HCMI model-availability leg is wired "
-    "(target-model-availability card). The PD-assay, imaging-tracer, and INTERNAL Takeda models "
-    "(PDX/organoid/GEMM) catalogs are not yet in data-catalog. Model availability is INDICATION-level "
-    "(target-independent) translational context; genotype-matched model coverage is a v2."
+    "translational-readiness is status: partial — three public translational legs are wired: HCMI "
+    "model-availability (target-model-availability; INDICATION-level, target-independent), HCMI "
+    "genotype-matched-model coverage (target-genotype-matched-model; does an available model carry THIS "
+    "target's alteration?), and PDXE in-vivo drug-response (target-pdx-drug-response; does the target's "
+    "tractability reproduce in PDX population trials?). The PD-assay, imaging-tracer, and INTERNAL "
+    "Takeda models (PDX/organoid/GEMM) catalogs are not yet in data-catalog. All three legs are "
+    "VERDICT-INERT translational context; they inform confidence, not a nomination gate."
 )
 
 
@@ -63,6 +75,18 @@ def _headline(cards, fired, verdict_pair):
         "primary_site_breakdown":    get_card_field(cards, "target-model-availability",
                                           "primary_site_breakdown"),
         "model_source":              get_card_field(cards, "target-model-availability", "source"),
+        # genotype-matched refinement — does an available HCMI model carry THIS target's alteration?
+        "genotype_matched_class":    get_card_field(cards, "target-genotype-matched-model",
+                                          "genotype_matched_class"),
+        "n_models_with_alteration":  get_card_field(cards, "target-genotype-matched-model",
+                                          "n_models_with_alteration"),
+        # in-vivo (PDX) tractability corroboration — Novartis PDXE
+        "pdx_drug_response_class":   get_card_field(cards, "target-pdx-drug-response",
+                                          "pdx_drug_response_class"),
+        "pdx_responder_fraction":    get_card_field(cards, "target-pdx-drug-response",
+                                          "responder_fraction"),
+        "pdx_most_active_treatment": get_card_field(cards, "target-pdx-drug-response",
+                                          "most_active_treatment"),
     }
 
 

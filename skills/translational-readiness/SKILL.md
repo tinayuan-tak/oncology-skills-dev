@@ -11,12 +11,15 @@ description: |
   DESCRIPTIVE (emits no verdict — like target-intrinsic): model availability is translational CONTEXT
   that informs confidence, not a nomination gate.
 
+  Also composes two more public translational legs: the HCMI genotype-MATCHED-model card (does an
+  available patient-derived model carry THIS target's alteration?) and the PDXE in-vivo drug-response
+  card (does the target's tractability reproduce in Novartis PDXE PDX population trials?).
+
   STILL PARTIAL: the PD-assay, imaging-tracer, and INTERNAL Takeda models (PDX/organoid/GEMM) legs
-  remain un-wired (those catalogs are not in data-catalog). The genotype-MATCHED refinement (does an
-  available model carry THIS target's alteration?) is a v2 (HCMI WXS MAF join).
+  remain un-wired (those catalogs are not in data-catalog).
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -28,8 +31,14 @@ composition:
   cards_used:
     - target-model-availability   # scientific-gap #1: per-indication HCMI patient-derived model coverage;
                                   # INDICATION-level, target-independent; VERDICT-INERT translational context
+    - target-genotype-matched-model  # genotype-matched refinement: do available HCMI models carry THIS
+                                  # target's alteration? (gene x indication, HCMI WXS MAF join); VERDICT-INERT
+    - target-pdx-drug-response    # in-vivo tractability corroboration (Novartis PDXE, Gao 2015); target-grain;
+                                  # VERDICT-INERT translational display facet
   measurement_types_pulled:
     - model_availability          # target-model-availability (cohort-grain, HCMI-CMDC-DR45 derived)
+    - genotype_matched_model      # target-genotype-matched-model (target_indication-grain, HCMI WXS MAF join)
+    - pdx_drug_response           # target-pdx-drug-response (target-grain, PDXE-Gao-2015 derived)
   rules_scope:
     - none                        # DESCRIPTIVE skill (verdict_fn=None) — no resolver rung
   synthesis:
@@ -56,6 +65,13 @@ When invoked, it emits `decision.json` with:
   - `n_patient_derived_models`: count of distinct HCMI models crosswalked to the indication
   - `primary_site_breakdown`: provenance of which GDC histologies mapped in
   - `model_source`: `HCMI-CMDC-DR45`
+  - `genotype_matched_class`: `matched_deep` (>=5 models) / `matched_sparse` (1-4) / `none` (0) /
+    `data_unavailable` — do the available HCMI models carry a functional coding alteration in THIS target?
+  - `n_models_with_alteration`: distinct HCMI models carrying an alteration in the target (within the indication)
+  - `pdx_drug_response_class`: `pdx_objective_responders` / `pdx_no_objective_response` /
+    `pdx_response_unavailable` / `data_unavailable` — does the target's tractability reproduce in vivo (PDXE)?
+  - `pdx_responder_fraction`: objective-response rate (mRECIST CR/PR) across PDX models + treatments
+  - `pdx_most_active_treatment`: the best single agent/combo naming the target in PDXE
 - `partial_status_note`: the still-un-wired legs.
 
 ## What this skill wires
@@ -64,14 +80,23 @@ When invoked, it emits `decision.json` with:
   Models Initiative) patient-derived model coverage. INDICATION-level, target-INDEPENDENT translational
   cohort context — "how many patient-derived models exist to validate a target here?" Backed by
   `hcmi-model-availability-per-indication-v1` (376 models across COADREAD / PAAD / NSCLC / GC).
+- **target-genotype-matched-model** (genotype-matched refinement): the target-DEPENDENT complement —
+  "do the available HCMI models CARRY a functional coding alteration in THIS target?" (gene x indication).
+  Backed by `hcmi-genotype-matched-model-per-gene-v1` (HCMI-CMDC DR45 WXS aliquot-MAF join on top of the
+  availability crosswalk; 12 indications + an `ALL` rollup). VERDICT-INERT translational context.
+- **target-pdx-drug-response** (in-vivo tractability corroboration): "does the target's drug-response
+  reproduce IN VIVO — do treatments naming it produce tumour regression in PDX population trials?"
+  Backed by `pdxe-drug-response-per-gene-v1` (Novartis PDXE, Gao et al. 2015 Nat Med; the only large
+  public in-vivo genotype -> drug-response resource). TARGET-grain (no per-indication split); a
+  RESEARCH-ONLY source. VERDICT-INERT translational display facet.
 
 ## Still un-wired (honest coverage gaps)
 
 - **Internal Takeda models registry** (PDX/organoid/GEMM) — not catalogued in data-catalog.
 - **PD-assay catalog** — not wired.
 - **Imaging-tracer catalog** — not wired.
-- **Genotype-matched model coverage** (does an available model carry THIS target's alteration?) — the
-  v2 refinement (HCMI WXS aliquot-MAF join on top of the availability crosswalk).
+- **Genotype-STRATIFIED PDX response** (do BRAF-MUTANT PDX respond to encorafenib?) — a downstream v2
+  requiring the PDXE per-model genomics join; the current PDX card is a drug -> target rollup.
 
 ## How Claude invokes this skill
 
