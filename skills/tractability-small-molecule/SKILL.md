@@ -33,6 +33,9 @@ composition:
     - known-drug-tractability        # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
     - measured-potency-tractability  # E-measured-potency (T3.1): ChEMBL/BindingDB MEASURED binding potency
     - degradation-feasibility        # E3 slice 3: DEGRADER-lens degradability (fires degrader-channel rules)
+    - gdsc-drug-activity             # 2nd drug-response platform (Sanger GDSC1/2), ORTHOGONAL corroboration of
+                                     # PRISM. DISPLAY-ONLY / verdict-INERT — fires no rule, NOT in rules_scope;
+                                     # a 2nd provider of the prism_compound_activity claim (the ProCan->Gygi analog)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. chemical_genetic_concordance is
   # the derived on-target-engagement type this gate shares with functional-requirement (flow-pattern 2:
   # one atom, two gate-views). dependency_predictability had no puller before this — now claimed here.

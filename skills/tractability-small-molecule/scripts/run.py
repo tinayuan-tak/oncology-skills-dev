@@ -244,6 +244,9 @@ CARDS = [
     "known-drug-tractability",     # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
     "measured-potency-tractability",  # E-measured-potency (T3.1): ChEMBL/BindingDB MEASURED binding potency
     "degradation-feasibility",     # E3 slice 3: DEGRADER-lens degradability (E3-substrate + precedent + location gate)
+    "gdsc-drug-activity",          # 2nd drug-response platform (Sanger GDSC1/2) — ORTHOGONAL corroboration of
+                                   # PRISM. DISPLAY-ONLY / verdict-INERT: fires no rule, feeds no resolver rung,
+                                   # so druggability_snapshot is byte-stable (the ProCan->Gygi analog).
 ]
 
 QUESTION = ("Does {target} in {indication} show small-molecule druggability evidence "
@@ -405,6 +408,13 @@ def _headline(cards, fired, verdict_pair):
         # the correct field names directly via the rule engine).
         "prism_activity_class":      get_card_field(cards, "prism-compound-activity", "prism_activity_class"),
         "prism_crispr_concord":      get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
+        # GDSC 2nd-platform ORTHOGONAL corroboration (2026-08-25): Sanger GDSC1+GDSC2 drug-response,
+        # a DIFFERENT lab/assay/library than Broad PRISM. VERDICT-INERT display — the card fires no
+        # rule + feeds no resolver rung, so these fields never move druggability_snapshot; a headline-
+        # only cross-platform read (a target potent in BOTH GDSC and PRISM is more credible). NOT in
+        # _SYNTHESIS_FACET_KEYS → the composed claim_vector/facet stay byte-stable.
+        "gdsc_activity_class":       get_card_field(cards, "gdsc-drug-activity", "gdsc_activity_class"),
+        "gdsc_most_sensitive_drug":  get_card_field(cards, "gdsc-drug-activity", "most_sensitive_drug_name"),
         "predictability_class":      get_card_field(cards, "dependency-predictability", "predictability_class"),
         # E8 structural / forward ligandability (2026-07-17)
         "hotspot_pocket_adjacency":  get_card_field(cards, "structure-features-static", "hotspot_pocket_adjacency_call"),

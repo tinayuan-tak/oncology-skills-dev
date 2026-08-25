@@ -18,24 +18,189 @@ degradation-feasibility:
   n_e3_predicted_confident: 67
   surface_location_excluded: false
 dependency-predictability:
-  _live_read_error: target_not_in_derived_product
-  _remediation: Target not in v2 medium-scope precompute. Will be re-evaluated in
-    the genome-wide batch.
-  delta_r2: null
-  model_agreement: data_unavailable
-  pearson_r_rf: null
-  pearson_r_squared_rf: null
-  pearson_r_squared_rf_ci_hi: null
-  pearson_r_squared_rf_ci_lo: null
-  pearson_r_squared_xgb: null
-  pearson_r_xgb: null
-  per_lineage_predictability: []
-  pred_dominant_feature: null
-  pred_dominant_feature_class: data_unavailable
-  pred_n_cell_lines_evaluated: 0
-  pred_top_features_rf: []
-  pred_top_features_xgb: []
-  predictability_class: data_unavailable
+  delta_r2: 0.11359727382659912
+  model_agreement: divergent
+  pearson_r_rf: 0.5808413028717041
+  pearson_r_squared_rf: 0.33737659454345703
+  pearson_r_squared_rf_ci_hi: 0.43856534361839294
+  pearson_r_squared_rf_ci_lo: 0.24027733504772186
+  pearson_r_squared_xgb: 0.2237793207168579
+  pearson_r_xgb: 0.4730531871318817
+  per_lineage_predictability:
+  - lineage: Breast
+    n_cell_lines: 73
+    r2: 0.3780444264411926
+    top_feature: expr_FAM25A
+  - lineage: Pancreas
+    n_cell_lines: 74
+    r2: 0.19141703844070435
+    top_feature: expr_METTL3
+  - lineage: Ovary/Fallopian Tube
+    n_cell_lines: 64
+    r2: 0.1811334788799286
+    top_feature: expr_MFAP5
+  - lineage: Bowel
+    n_cell_lines: 88
+    r2: 0.10590550303459167
+    top_feature: expr_EMP3
+  - lineage: Uterus
+    n_cell_lines: 38
+    r2: 0.06626329571008682
+    top_feature: cn_TAOK1
+  - lineage: Peripheral Nervous System
+    n_cell_lines: 53
+    r2: 0.062071435153484344
+    top_feature: cn_FNDC11
+  - lineage: Lung
+    n_cell_lines: 141
+    r2: 0.05758487805724144
+    top_feature: own_expression
+  - lineage: Kidney
+    n_cell_lines: 35
+    r2: 0.05674184858798981
+    top_feature: cn_HLA-DQA1
+  - lineage: Biliary Tract
+    n_cell_lines: 36
+    r2: 0.03128131851553917
+    top_feature: expr_RHBG
+  - lineage: Bone
+    n_cell_lines: 79
+    r2: 0.025727489963173866
+    top_feature: expr_LRFN3
+  - lineage: Lymphoid
+    n_cell_lines: 135
+    r2: 0.023908816277980804
+    top_feature: cn_USP40
+  - lineage: Head and Neck
+    n_cell_lines: 79
+    r2: 0.005970384459942579
+    top_feature: expr_BMP3
+  - lineage: Soft Tissue
+    n_cell_lines: 63
+    r2: 0.004577483981847763
+    top_feature: expr_C2CD2
+  - lineage: Skin
+    n_cell_lines: 78
+    r2: 0.0021403925493359566
+    top_feature: expr_C7orf78
+  - lineage: Esophagus/Stomach
+    n_cell_lines: 97
+    r2: 0.0009830876952037215
+    top_feature: expr_MCRIP1
+  - lineage: Myeloid
+    n_cell_lines: 69
+    r2: 0.0005927233141846955
+    top_feature: expr_NPL
+  - lineage: CNS/Brain
+    n_cell_lines: 167
+    r2: 0.00017849047435447574
+    top_feature: expr_HOXC13
+  - lineage: Bladder/Urinary Tract
+    n_cell_lines: 34
+    r2: 0.00013807146751787513
+    top_feature: expr_HDAC5
+  pred_dominant_feature: expr_SPDEF
+  pred_dominant_feature_class: cross_gene_expression
+  pred_n_cell_lines_evaluated: 1538
+  pred_top_features_rf:
+  - feature: expr_SPDEF
+    feature_class: cross_gene_expression
+    importance: 0.27361464500427246
+    rf_importance: 0.27361464500427246
+  - feature: own_expression
+    feature_class: own_expression
+    importance: 0.13727985322475433
+    rf_importance: 0.13727985322475433
+  - feature: cn_KRT8P34
+    feature_class: cross_gene_copy_number
+    importance: 0.041364721953868866
+    rf_importance: 0.041364721953868866
+  - feature: expr_LRRC26
+    feature_class: cross_gene_expression
+    importance: 0.030952213332057
+    rf_importance: 0.030952213332057
+  - feature: expr_AR
+    feature_class: cross_gene_expression
+    importance: 0.022054823115468025
+    rf_importance: 0.022054823115468025
+  - feature: methyl_KLHL21
+    feature_class: methylation_tss
+    importance: 0.017821960151195526
+    rf_importance: 0.017821960151195526
+  - feature: expr_CREB3L4
+    feature_class: cross_gene_expression
+    importance: 0.017641467973589897
+    rf_importance: 0.017641467973589897
+  - feature: expr_DEFB132
+    feature_class: cross_gene_expression
+    importance: 0.016337411478161812
+    rf_importance: 0.016337411478161812
+  - feature: expr_EPN3
+    feature_class: cross_gene_expression
+    importance: 0.013430134393274784
+    rf_importance: 0.013430134393274784
+  - feature: cn_RARA
+    feature_class: cross_gene_copy_number
+    importance: 0.013173682615160942
+    rf_importance: 0.013173682615160942
+  pred_top_features_xgb:
+  - feature: expr_SPDEF
+    feature_class: cross_gene_expression
+    importance: 0.27361464500427246
+    rf_importance: 0.0
+  - feature: own_expression
+    feature_class: own_expression
+    importance: 0.13727985322475433
+    rf_importance: 0.0
+  - feature: cn_KRT8P34
+    feature_class: cross_gene_copy_number
+    importance: 0.041364721953868866
+    rf_importance: 0.0
+  - feature: expr_LRRC26
+    feature_class: cross_gene_expression
+    importance: 0.030952213332057
+    rf_importance: 0.0
+  - feature: expr_AR
+    feature_class: cross_gene_expression
+    importance: 0.022054823115468025
+    rf_importance: 0.0
+  - feature: methyl_KLHL21
+    feature_class: methylation_tss
+    importance: 0.017821960151195526
+    rf_importance: 0.0
+  - feature: expr_CREB3L4
+    feature_class: cross_gene_expression
+    importance: 0.017641467973589897
+    rf_importance: 0.0
+  - feature: expr_DEFB132
+    feature_class: cross_gene_expression
+    importance: 0.016337411478161812
+    rf_importance: 0.0
+  - feature: expr_EPN3
+    feature_class: cross_gene_expression
+    importance: 0.013430134393274784
+    rf_importance: 0.0
+  - feature: cn_RARA
+    feature_class: cross_gene_copy_number
+    importance: 0.013173682615160942
+    rf_importance: 0.0
+  predictability_class: weakly_predictable
+gdsc-drug-activity:
+  _data_note: "Target 'FOXA1' matches no GDSC putative-target token (direct or via\
+    \ the HGNC-alias sidecar). No GDSC1/2 compound annotates against it \u2014 a first-in-class\
+    \ opportunity, NOT a data-availability gap."
+  datasets: null
+  gdsc_activity_class: no_compounds_found
+  gdsc_target_token: null
+  looks_like_gene_symbol: null
+  median_auc: null
+  median_ln_ic50: null
+  method_version: 0.1.0
+  min_median_ln_ic50: null
+  most_sensitive_drug_name: null
+  n_cell_lines_tested: 0
+  n_drugs: 0
+  resolved_via: null
 known-drug-tractability:
   _data_source: dgidb-drug-gene-per-gene-v1
   druggability_tier: clinically_actionable
@@ -57,11 +222,12 @@ measured-potency-tractability:
   bindingdb_best_p_affinity: null
   bindingdb_n_potent_ligands: null
   chembl_best_pchembl: null
+  chembl_clinical_phase_class: data_unavailable
   chembl_max_clinical_phase: null
   chembl_n_potent_ligands: null
   measured_bioactivity_class: data_unavailable
   measured_potency_context: null
-  method_version: 0.1.0
+  method_version: 0.2.0
 prism-compound-activity:
   _data_note: Target 'FOXA1' has no PRISM-annotated compounds across either OncRef
     25Q4 or Repurposing 24Q2. First-in-class opportunity, not a data-availability

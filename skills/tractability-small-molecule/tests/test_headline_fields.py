@@ -29,7 +29,8 @@ tp = _load()
 # _headline calls get_card_field on ALL 6 CARDS and get_card_field RAISES KeyError on a missing
 # card_id — so every card_id must be present (empty summary is fine for the ones not under test).
 _ALL_CARD_IDS = ["prism-compound-activity", "prism-crispr-concordance", "dependency-predictability",
-                 "structure-features-static", "known-drug-tractability", "degradation-feasibility"]
+                 "structure-features-static", "known-drug-tractability", "degradation-feasibility",
+                 "gdsc-drug-activity"]   # 2026-08-25: _headline now reads the GDSC 2nd-platform display card
 
 
 def _cards(**summaries):

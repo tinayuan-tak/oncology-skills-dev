@@ -561,6 +561,11 @@ SUB_SKILL_CARDS = {
                                              # but composed under no entry → dropped. The card already
                                              # feeds the skill's own verdict (run.py:198); this restores it to
                                              # the composed target-profile so the known-drug signal reaches it.
+        "gdsc-drug-activity",                # 2026-08-25: Sanger GDSC1/2 2nd drug-response platform, ORTHOGONAL
+                                             # corroboration of PRISM. In tractability-small-molecule/run.py CARDS;
+                                             # composed here for composer-consistency + DIMENSION_CARDS parity.
+                                             # VERDICT-INERT (fires no rule, no resolver rung) — the composed
+                                             # tractability sub-verdict is byte-stable with or without it.
     ],
     "surface-modality-fit": [                # split: biologics-modality half
         "surface-topology-and-ptm",

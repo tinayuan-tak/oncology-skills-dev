@@ -202,6 +202,19 @@ dependency-predictability:
     importance: 0.013274150900542736
     rf_importance: 0.0
   predictability_class: weakly_predictable
+gdsc-drug-activity:
+  datasets: GDSC1|GDSC2
+  gdsc_activity_class: potent_activity
+  gdsc_target_token: EGFR
+  looks_like_gene_symbol: true
+  median_auc: 0.914502
+  median_ln_ic50: 2.034561
+  method_version: 0.1.0
+  min_median_ln_ic50: -0.495219
+  most_sensitive_drug_name: CUDC-101
+  n_cell_lines_tested: 977
+  n_drugs: 19
+  resolved_via: direct
 known-drug-tractability:
   _data_source: dgidb-drug-gene-per-gene-v1
   druggability_tier: clinically_actionable
@@ -225,6 +238,7 @@ measured-potency-tractability:
   bindingdb_best_p_affinity: 11.699
   bindingdb_n_potent_ligands: 22078
   chembl_best_pchembl: 11.0
+  chembl_clinical_phase_class: approved
   chembl_max_clinical_phase: 4.0
   chembl_n_potent_ligands: 16683
   measured_bioactivity_class: potent_measured_ligand
@@ -232,7 +246,7 @@ measured-potency-tractability:
     \ (best 11.7 -log10 M, <= 1 uM) (ChEMBL/BindingDB). A real sub-micromolar chemical\
     \ start point \u2014 stronger than a predicted pocket or a bare drug catalogue\
     \ entry."
-  method_version: 0.1.0
+  method_version: 0.2.0
 prism-compound-activity:
   highest_clinical_phase: phase_1_plus
   median_log2auc_across_compounds: -0.07906319200992584

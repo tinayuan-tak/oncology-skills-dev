@@ -156,9 +156,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "protein-domains-class", "reactome-pathway-membership", "target-development-level",
         "target-identity-summary"}),
     "tractability_sm": frozenset({
-        "degradation-feasibility", "dependency-predictability", "known-drug-tractability",
-        "measured-potency-tractability", "prism-compound-activity", "prism-crispr-concordance",
-        "structure-features-static"}),
+        "degradation-feasibility", "dependency-predictability", "gdsc-drug-activity",
+        "known-drug-tractability", "measured-potency-tractability", "prism-compound-activity",
+        "prism-crispr-concordance", "structure-features-static"}),
 }
 # normalized: dim_norm -> {card_norm}. Used to expand a dimension token to its member cards when
 # deciding whether a contradiction was surfaced (dimension-grain OR card-grain both count).
