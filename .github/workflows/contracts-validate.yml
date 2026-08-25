@@ -111,6 +111,12 @@ jobs:
       - name: Validate rule-role partition (gating vs display drift)
         run: python validators/build_rule_role_partition.py --self-check
 
+      # Fold M3 completion guard (VERDICT_REPRESENTATION_FOLD.md): every resolver must stay
+      # match_all_reduce with unique per-rung priorities — the first_match interpreter path is retired
+      # to a test oracle and a new/hand-edited resolver must not silently reintroduce positional precedence.
+      - name: Validate Fold migration (all resolvers folded)
+        run: python validators/validate_fold_migration.py --resolvers resolvers/
+
       # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
       # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
       # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test
