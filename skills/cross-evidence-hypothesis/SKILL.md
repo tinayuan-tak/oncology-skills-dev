@@ -27,7 +27,7 @@ description: |
   consumer: it does not modify target-profile or any sub-skill.
 
 metadata:
-  version: 0.4.0
+  version: 0.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

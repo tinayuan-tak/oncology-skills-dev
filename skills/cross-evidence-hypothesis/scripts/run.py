@@ -50,7 +50,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hypothesis_core as hc  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.4.0"   # 0.3.0→0.4.0: consume the remaining decision_facets — cross_gate_shared_evidence
+SKILL_VERSION = "0.5.0"   # 0.4.0→0.5.0: P4 reconciliation — the spine's cross-gate correlation
+                          # (independent decision-gate groups) tightens the certainty discount as the
+                          # MORE conservative unit count (min with card-substrate); never more permissive.
+                          # 0.3.0→0.4.0: consume the remaining decision_facets — cross_gate_shared_evidence
                           # (surfaced in evidence_independence, additive) + fragility/competitor into the
                           # LLM panel (P4/P5).
                           # 0.2.0→0.3.0: consume the spine's decision_facets layer — modality×safety
@@ -520,7 +523,14 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     if not panel["risk_present"]:
         degraded_inputs.append("risk")
     substrate = panel["substrate"]
-    cert = hc.discounted_certainty(base_certainty, substrate["n_independent_units"], degraded_inputs)
+    # P4 gate-independence: the spine's AUTHORITATIVE cross-gate correlation collapsed over the SUPPORTING
+    # (non-gap) in-scope decision gates → independent-gate-group count. Feeds the discount as the MORE
+    # CONSERVATIVE unit count (min with the card-substrate view); None when the facet is absent → the
+    # substrate discount stands alone (byte-stable for older packages).
+    supporting_gates = [d for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS]
+    gate_ind = hc.gate_independence(panel.get("cross_gate_shared_evidence"), supporting_gates)
+    cert = hc.discounted_certainty(base_certainty, substrate["n_independent_units"], degraded_inputs,
+                                   n_independent_gate_groups=gate_ind["n_independent_gate_groups"])
     # confidence_tier CROSS-CHECK (quick win; no emit-side dependency): the spine emits its OWN
     # composed confidence tier. When the integrator's discounted certainty DIVERGES from it, record the
     # divergence (informational — the integrator's certainty is weakest-link + independence-discounted, a
@@ -674,11 +684,16 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "n_independent_units": substrate["n_independent_units"],
             "n_distinct_substrates": substrate["n_distinct_substrates"],
             "n_untagged_cards": substrate["n_untagged_cards"],
-            # P4 — the spine's AUTHORITATIVE cross-gate correlation view (which gate verdicts share an
-            # input card). Surfaced additively for the reader + panel; the substrate-unit discount above
-            # stays the certainty basis (a deliberate conservative choice — the two views are different
-            # grains: card-substrate clustering vs gate-level card sharing). Empty for older packages.
+            # P4 — the spine's AUTHORITATIVE cross-gate correlation, now RECONCILED into the certainty
+            # discount: independent decision-gate groups over the supporting gates (spine
+            # cross_gate_shared_evidence) + the effective unit count actually used (the more conservative
+            # of the substrate and gate-group views). cross_gate_shared_evidence is the raw spine view;
+            # n_independent_gate_groups is None for an older package (facet absent) → discount unchanged.
             "cross_gate_shared_evidence": panel.get("cross_gate_shared_evidence") or {},
+            "n_independent_gate_groups": gate_ind["n_independent_gate_groups"],
+            "gate_independence_present": gate_ind["present"],
+            "effective_independent_units": cert["effective_independent_units"],
+            "independence_unit_kind": cert["independence_unit_kind"],
         },
         "subtype_resolved": {
             "present": panel["subtype"]["present"],

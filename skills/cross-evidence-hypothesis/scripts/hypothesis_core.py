@@ -611,24 +611,70 @@ def weakest_link_certainty(conviction: dict, in_scope: list, certainty_by_axis: 
     return worst, limiting
 
 
-def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: list) -> dict:
-    """Apply the two orthogonal certainty caps AFTER the weakest-link base (
+def gate_independence(cross_gate_shared_evidence: Optional[dict], supporting_gates) -> dict:
+    """Count INDEPENDENT decision-gate groups among the SUPPORTING (non-gap, in-scope) gates, using the
+    spine's AUTHORITATIVE cross_gate_shared_evidence (P4). Each gate starts its own group; gates that
+    share a fired input card (spine `correlated_gate_pairs`) are UNIONed. Fewer groups = less independent
+    corroboration at the DECISION grain (the spine's own note: '~11 verdict gates carry only ~4
+    independent axes'). This is the spine-authoritative sibling of the card-substrate discount.
+
+    `present=False` (→ no gate-cap; the substrate discount stands alone) when the spine facet is absent —
+    an older package is unaffected. Restricting the union to `supporting_gates` keeps a pair touching an
+    out-of-scope / gap gate from spuriously collapsing the count."""
+    if not isinstance(cross_gate_shared_evidence, dict) or not cross_gate_shared_evidence:
+        return {"present": False, "n_independent_gate_groups": None, "correlated_gate_pairs": []}
+    gates = list(dict.fromkeys(supporting_gates))       # de-dup, preserve order
+    parent = {g: g for g in gates}
+
+    def _find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    used_pairs = []
+    for pair in (cross_gate_shared_evidence.get("correlated_gate_pairs") or []):
+        if not (isinstance(pair, (list, tuple)) and len(pair) == 2):
+            continue
+        a, b = pair
+        if a in parent and b in parent:                 # both ends are supporting decision gates
+            used_pairs.append([a, b])
+            parent[_find(a)] = _find(b)
+    n_groups = len({_find(g) for g in gates}) if gates else 0
+    return {"present": True, "n_independent_gate_groups": n_groups,
+            "correlated_gate_pairs": used_pairs}
+
+
+def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: list,
+                         n_independent_gate_groups: Optional[int] = None) -> dict:
+    """Apply the orthogonal certainty caps AFTER the weakest-link base (
     'the correlated-evidence discount is applied before certainty is reported'):
-      - independence cap: < 2 independent substrate-units → cap `low` (all corroboration is one
-        measurement); this is where cards sharing a substrate stop inflating certainty.
+      - independence cap: < 2 independent EVIDENCE units → cap `low` (all corroboration is one
+        measurement). The unit count is the MORE CONSERVATIVE of the card-substrate discount
+        (n_independent_units) and — when the spine's authoritative cross-gate view is available — the
+        decision-gate-group count (n_independent_gate_groups): min() so the spine's view can only TIGHTEN
+        the discount, never loosen it (never more permissive than before). When the gate view is absent
+        (older package) the substrate count stands alone → behaviour is unchanged.
       - degradation cap: a missing optional input (dossier / risk) → cap `low` (a missing
         input must never inflate certainty)."""
     cap = CERTAINTY_RANK["high"]
     reasons = []
-    if n_independent_units < 2:
+    effective_units = n_independent_units
+    unit_kind = "substrate"
+    if n_independent_gate_groups is not None and n_independent_gate_groups < effective_units:
+        effective_units = n_independent_gate_groups
+        unit_kind = "decision-gate-group"
+    if effective_units < 2:
         cap = min(cap, CERTAINTY_RANK["low"])
-        reasons.append(f"only {n_independent_units} independent evidence substrate(s)")
+        reasons.append(f"only {effective_units} independent evidence {unit_kind}(s)")
     if degraded_inputs:
         cap = min(cap, CERTAINTY_RANK["low"])
         reasons.append(f"degraded inputs: {sorted(degraded_inputs)}")
     final_rank = min(CERTAINTY_RANK.get(base, 0), cap)
     return {"base": base, "final": RANK_CERTAINTY[final_rank],
-            "capped": final_rank < CERTAINTY_RANK.get(base, 0), "cap_reasons": reasons}
+            "capped": final_rank < CERTAINTY_RANK.get(base, 0), "cap_reasons": reasons,
+            "effective_independent_units": effective_units,
+            "independence_unit_kind": unit_kind}
 
 
 # --- retrieve-don't-recall + clause-traceability WITH TEETH ------------------------------
