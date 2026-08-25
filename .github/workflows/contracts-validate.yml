@@ -105,6 +105,12 @@ jobs:
       - name: Validate factored claim records (schema + invariants)
         run: python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
 
+      # M5 (VERDICT_REPRESENTATION move #5): the rule-role partition (gating vs display) must match the
+      # live contracts — a rule gaining/losing resolver consumption fails until the committed snapshot
+      # (coverage/rule_role_partition.yaml) is consciously regenerated.
+      - name: Validate rule-role partition (gating vs display drift)
+        run: python validators/build_rule_role_partition.py --self-check
+
       # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
       # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
       # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test
