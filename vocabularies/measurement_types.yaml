@@ -1625,6 +1625,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: hla-ligand-atlas-presentation-per-protein-v1, method: pmhc_presentation, evidence_tier: measured}
 
+  pmhc_epitope_evidence:
+    # biologics enrichment (2026-08-25): EXPERIMENTALLY-VALIDATED pMHC epitope / MHC-binding ground
+    # truth from IEDB (the human cancer/self-antigen minority, positive assays only). A DISTINCT pMHC
+    # lens from pmhc_presentation (benign-atlas breadth): here it is experimental epitope + T-cell
+    # recognition evidence (what has been OBSERVED), complementing the HLA Ligand Atlas denominator.
+    # VERDICT-INERT display card (no rule maps it, no resolver rung consumes it).
+    modality_relevance: [bite_tce]
+    claim: "Does the target have experimentally-validated epitopes in IEDB — peptides observed presented on human HLA and/or recognized by T cells (which class / how many alleles, in a cancer context)?"
+    entity_grains: [target]
+    cards: [pmhc-epitope-evidence-iedb]
+    providers:
+      - {kind: dataset, source: iedb-epitope-mhc-per-protein-v1, method: iedb_epitope, evidence_tier: measured}
+
   adc_tce_modality_fit:
     claim: "Which biologic modalities (ADC / TCE / both / neither) are viable candidates for target?"
     entity_grains: [target]

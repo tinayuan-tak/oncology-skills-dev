@@ -492,7 +492,7 @@ skill_objectives:
       - {q: "Epitope / exon window (splice/isoform) + stratified surface signal?", answered_by: [modality-exon-window, mutation-stratified-surface, pathway-stratified-surface]}
       - {q: "Antigen density from amplification + RNA↔protein proxy quality?", answered_by: [copy-number-distribution, rna-protein-concordance-tumor, sc-surface-rna-protein-concordance]}   # H3 fix + M6 sc twin
       - {q: "Small-molecule pocket cross-reference (DISPLAYED — drives the SM sibling, NOT the biologics fit_class)?", answered_by: [structure-features-static]}   # H3: structure is an SM card, not a surface-antigen answer
-      - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, cd-antigen-backbone]}
+      - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, pmhc-epitope-evidence-iedb, cd-antigen-backbone]}   # pmhc-epitope-evidence-iedb (2026-08-25) = IEDB experimentally-validated epitope ground truth (verdict-inert display), complements the HLA-Ligand-Atlas benign-breadth pmhc-presentation card
       - {q: "Same-cell avidity + tumor-vs-normal selectivity window for an AND-gate bispecific (TCE / dual-ADC)?", answered_by: [surface-colocalization-avidity]}
       - {q: "Best tumor-vs-normal SELECTIVE bispecific PAIR (AND/OR/NOT logic gate)?", answered_by: [surface-bulk-pair-selectivity]}
   - skill: on-target-safety-liability
