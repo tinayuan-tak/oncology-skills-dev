@@ -551,11 +551,14 @@ skill_objectives:
     questions:
       - {q: "Are patient-derived (HCMI) models available to validate the target in this indication?", answered_by: [target-model-availability]}
   - skill: immune-context
-    objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect)?"
+    objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect), and what is the surrounding TME context — suppressive myeloid states, CAF/stroma, and the ICI-response association?"
     primary_axis: null
-    role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2)."
+    role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2). The 3 TME/immune facet cards below (myeloid / CAF / ICI-response) are VERDICT-INERT display context wired 2026-08-25; they add TME composition + outcome-anchored ICI-response direction alongside the CD8 effector call, moving no verdict."
     questions:
       - {q: "Is there a CD8 effector T-cell population (immune-hot vs cold) for a TCE to redirect?", answered_by: [immune-context]}
+      - {q: "Does the target sit on tumour-infiltrating MYELOID cells — is it a myeloid-target / suppressive-TAM antigen (CSF1R-axis / TREM2 / SPP1 / SIRPA)? (display-only)", answered_by: [myeloid-compartment-expression-cheng]}
+      - {q: "Does the target sit on tumour cancer-associated fibroblasts, and in which CAF state (myCAF / iCAF / apCAF / ...)? (display-only, stroma-vs-malignant denominator)", answered_by: [caf-compartment-expression-luo]}
+      - {q: "Is baseline target expression higher in melanoma ICI (anti-PD-1) responders than non-responders? (display-only, melanoma-scoped)", answered_by: [ici-response-association]}
   - skill: combination-and-vulnerability
     objective: "What does the target depend on / combine with — synthetic-lethal partners, measured dual-KO co-dependencies, combination co-targets under inhibition, and resistance mediators?"
     primary_axis: combination_vulnerability

@@ -1628,6 +1628,43 @@ measurement_types:
     providers:
       - {kind: dataset, source: gdc-pancanatlas-immune-2018, method: immune_context, evidence_tier: measured}
 
+  sc_tumor_myeloid_state_expression:
+    # TME-triad myeloid lane (2026-08-25): pan-cancer tumour-infiltrating MYELOID cell-STATE presence
+    # (Cheng et al. 2021 atlas GSE154763). A DISPLAY/context type for the immune-context suppressive-TME
+    # / myeloid-target lens (CSF1R-axis / TREM2 / SPP1 / SIRPA-CD47). Distinct from
+    # sc_tumor_celltype_expression (malignant-vs-TME compartment attribution): the grain here is the
+    # author myeloid MajorCluster cell-state, and the atlas is MYELOID-ONLY. VERDICT-INERT (no
+    # modality_relevance key — no modality-gate rule ships for this lane; presence/context facet only).
+    claim: "In how many pan-cancer tumour-infiltrating MYELOID cell states is target detected at single-cell resolution, and is it a myeloid-target / suppressive-TAM antigen?"
+    entity_grains: [target]   # pan-cancer myeloid readout; indication-independent (single provider, one atlas)
+    cards: [myeloid-compartment-expression-cheng]
+    providers:
+      - {kind: dataset, source: sc-pseudobulk-myeloid-cheng-v1, method: myeloid_compartment, evidence_tier: measured}
+
+  sc_tumor_caf_state_expression:
+    # TME-triad stromal/CAF lane (2026-08-25): pan-cancer tumour CANCER-ASSOCIATED-FIBROBLAST cell-STATE
+    # presence (Luo et al. 2022 atlas GSE210347). A DISPLAY/context type for the immune-context stromal
+    # lens (FAP / PDGFRB / ACTA2 — the stroma-vs-malignant denominator). Distinct from
+    # sc_tumor_celltype_expression: the grain is the CAF subtype (myCAF/iCAF/apCAF/...). VERDICT-INERT
+    # (no modality_relevance — presence/context facet only).
+    claim: "In how many pan-cancer tumour CAF cell states is target detected at single-cell resolution, and which CAF state (myCAF / iCAF / apCAF / ...) carries it?"
+    entity_grains: [target]   # pan-cancer stromal readout; indication-independent (single provider, one atlas)
+    cards: [caf-compartment-expression-luo]
+    providers:
+      - {kind: dataset, source: sc-pseudobulk-caf-luo-pancancer-v1, method: caf_compartment, evidence_tier: measured}
+
+  ici_response_expression:
+    # ICI-biomarker lane (2026-08-25): per-gene immune-checkpoint-inhibitor RESPONSE expression
+    # association from open-GEO MELANOMA anti-PD-1 cohorts (Riaz GSE91061 + Hugo GSE78220 + Stouffer
+    # rollup). A DISPLAY/context type for the immune-context ICI-biomarker lens — the outcome-anchored
+    # complement to the CIBERSORT effector-context call. VERDICT-INERT (no modality_relevance — the
+    # per-gene ICI signal is directional context, individually non-significant by design; not a gate).
+    claim: "Is baseline target expression higher in melanoma ICI (anti-PD-1) responders than non-responders (open-GEO cohorts + cross-cohort Stouffer rollup)?"
+    entity_grains: [target]   # per-gene ICI-response association (melanoma-scoped)
+    cards: [ici-response-association]
+    providers:
+      - {kind: dataset, source: ici-response-expression-per-gene-v1, method: ici_response, evidence_tier: measured}
+
   pmhc_presentation:
     # biologics enrichment E1 (2026-08-07): peptide-centric HLA presentation — reaches intracellular
     # targets via the peptide-MHC complex (TCR-mimetic TCE), an axis surface_confirmation/topology can't

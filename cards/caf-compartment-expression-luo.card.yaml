@@ -1,0 +1,75 @@
+# Card — PAN-CANCER CANCER-ASSOCIATED-FIBROBLAST (CAF) STATE EXPRESSION (sc_rna; Luo pan-CAF atlas)
+#
+# The STROMAL/CAF lane of the TME triad — a VERDICT-INERT display/context card for the immune-context
+# skill's stromal lens. Answers "does the target sit on tumour cancer-associated fibroblasts, and in
+# WHICH CAF state (myofibroblastic / inflammatory / adipogenic / EndMT / peripheral-nerve /
+# antigen-presenting)?" — the FAP / PDGFRB / ACTA2 stromal denominator that separates a
+# CAF/stroma-directed target from a tumour-cell-intrinsic one.
+#
+# Pan-cancer, target-grain (indication-independent): the Luo et al. 2022 atlas cancer_type axis
+# (lung/PDAC/bladder/thyroid/colorectal/gastric/breast/ovarian/prostate/ICC) is a pan-cancer stromal
+# readout, not a framework-indication scope. Presence/abundance at CAF-subtype resolution. DISPLAY-ONLY:
+# fires no rule, moves no verdict.
+#
+# caf_expression_class (PRIMARY): caf_broadly_detected | caf_subset_detected | caf_low | data_unavailable.
+
+card_id: caf-compartment-expression-luo
+version: 0.1.0
+question: "Across pan-cancer tumour cancer-associated-fibroblast states (Luo atlas), in how many CAF subtypes is {target.symbol} detected, and which CAF state (myCAF / iCAF / apCAF / ...) carries it?"
+
+tier: target   # pan-cancer stromal readout; a property of the target, indication-independent
+
+applies_when:
+  # A pan-cancer CAF/stromal display facet — admitted wherever the immune-context effector story runs
+  # (mirrors immune-context.card.yaml's indication set). The stromal readout itself is pan-cancer.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC']"
+
+required_inputs:
+  - product_id: sc-pseudobulk-caf-luo-pancancer-v1   # Luo et al. 2022 pan-cancer CAF atlas (GSE210347) pseudobulk
+
+methods:
+  - call: caf-compartment-expression
+    module: caf_compartment          # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"      # accepted for the reader contract; NOT used to filter (pan-cancer)
+
+outputs:
+  summary_fields:
+    - caf_expression_class            # PRIMARY categorical (verdict-INERT; presence axis)
+    - max_detection_fraction          # max cross-group single-cell detection fraction (dropout-aware)
+    - max_detection_caf_subtype       # the CAF state carrying the max (CAFmyo / CAFinfla / ...)
+    - max_detection_cancer_type       # the cancer_type carrying the max
+    - median_detection_fraction       # median detection across measured (subtype, cancer) groups
+    - max_abundance_log1p_cp10k       # max mean log1p(CP10K) abundance across groups
+    - n_caf_subtypes_expressing       # distinct CAF subtypes with detection >= 0.25
+    - n_caf_groups_measured           # total (subtype, cancer_type) groups measured for the gene
+    - n_cancer_types_expressing       # distinct cancer types with an expressing CAF group
+    - expressing_caf_subtypes         # list<str> — the expressing CAF-subtype labels
+    - indication                      # the queried indication (echoed; not a filter)
+    - product_id                      # provenance
+
+  summary_fields_vocabulary:
+    caf_expression_class:
+      - caf_broadly_detected          # max CAF detection >= 0.5 — target in most cells of a CAF state
+      - caf_subset_detected           # 0.10 <= max detection < 0.5 — a real target-high CAF subset
+      - caf_low                        # max detection < 0.10 — effectively undetected across CAF states
+      - data_unavailable               # no landed product / gene absent (coverage gap, NOT a measured negative)
+
+warning_predicates:
+  - warning_id: caf_stromal_target_context
+    if: "caf_expression_class == 'caf_broadly_detected'"
+    message: "{target.symbol} is broadly detected on tumour cancer-associated fibroblasts — a stromal/CAF-directed context signal (display-only). Separate this from tumour-cell-intrinsic expression before a tumour-cell-targeted modality call."
+
+caveats:
+  - "VERDICT-INERT display/context card for the immune-context stromal/CAF lens. Fires no interpretation rule and moves no gate verdict; it adds pan-cancer CAF-state context alongside the CD8 effector-context call."
+  - "Pan-cancer, target-grain: the Luo atlas cancer_type axis (lung/PDAC/bladder/thyroid/colorectal/gastric/breast/ovarian/prostate/ICC, tumour-group fibroblasts only) is a pan-cancer stromal readout, NOT a framework-indication scope. The indication is echoed but does not filter the summary."
+  - "detection_fraction is single-cell-native (fraction of a CAF state's cells with count>0) and is NOT comparable to bulk TPM; scRNA dropout under-detects. CAF subtypes come from the atlas fibroblast subcluster crosswalk (c1..c8 -> CAFmyo/CAFinfla/CAFadi/CAFEndMT/CAFPN/CAFap + NIF)."
+  - "RNA detection does not imply protein presence; pair with the surface/protein cards. NIF (normal infiltrating fibroblast) is retained as a subtype for the stroma-vs-CAF contrast; minor CAF states (CAFPN/CAFap/CAFEndMT) are present in only a subset of cancers."
+
+measurement: sc_rna
+sample_context: tumor
+measurement_type: sc_tumor_caf_state_expression
+entity_grains: [target]
+schema_version: 1

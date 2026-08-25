@@ -1,0 +1,78 @@
+# Card — PAN-CANCER TUMOUR-INFILTRATING MYELOID-STATE EXPRESSION (sc_rna; Cheng myeloid atlas)
+#
+# The MYELOID lane of the TME triad — a VERDICT-INERT display/context card for the immune-context
+# skill's suppressive-TME / myeloid-target lens. The CD8 effector-context card (immune-context) asks
+# "is there a T-cell population to redirect?"; THIS card asks the orthogonal "does the target sit on
+# tumour-infiltrating MYELOID cells — is it a myeloid-target / suppressive-TAM antigen (CSF1R-axis,
+# TREM2, SPP1, SIRPA/CD47-axis)?"
+#
+# Pan-cancer, target-grain (indication-independent): the Cheng et al. 2021 atlas cancer_type axis
+# (ESCA/KIDNEY/LYM/MYE/OV-FTC/PAAD/THCA/UCEC) is a pan-cancer myeloid readout, not a framework-
+# indication scope. Presence/abundance at MYELOID cell-STATE resolution (author MajorCluster), NOT a
+# tumour-vs-normal contrast and NOT a malignant-compartment attribution. DISPLAY-ONLY: fires no rule,
+# moves no verdict.
+#
+# myeloid_expression_class (PRIMARY): myeloid_broadly_detected | myeloid_subset_detected | myeloid_low |
+#   data_unavailable.
+
+card_id: myeloid-compartment-expression-cheng
+version: 0.1.0
+question: "Across pan-cancer tumour-infiltrating myeloid cell states (Cheng atlas), in how many myeloid subtypes is {target.symbol} detected, and is it a myeloid-target / suppressive-TAM antigen (CSF1R-axis / TREM2 / SPP1 / SIRPA)?"
+
+tier: target   # pan-cancer myeloid readout; a property of the target, indication-independent
+
+applies_when:
+  # A pan-cancer myeloid display facet — admitted wherever the immune-context effector story runs
+  # (mirrors immune-context.card.yaml's indication set). The myeloid readout itself is pan-cancer.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC']"
+
+required_inputs:
+  - product_id: sc-pseudobulk-myeloid-cheng-v1   # Cheng et al. 2021 pan-cancer tumour myeloid atlas (GSE154763) pseudobulk
+
+methods:
+  - call: myeloid-compartment-expression
+    module: myeloid_compartment          # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"          # accepted for the reader contract; NOT used to filter (pan-cancer)
+
+outputs:
+  summary_fields:
+    - myeloid_expression_class            # PRIMARY categorical (verdict-INERT; presence axis)
+    - max_detection_fraction              # max cross-group single-cell detection fraction (dropout-aware)
+    - max_detection_myeloid_subtype       # the myeloid cell-state (MajorCluster) carrying the max
+    - max_detection_cancer_type           # the cancer_type carrying the max
+    - median_detection_fraction           # median detection across measured (subtype, cancer) groups
+    - max_abundance_log1p_cp10k           # max mean log1p(CP10K) abundance across groups
+    - n_myeloid_subtypes_expressing       # distinct myeloid subtypes with detection >= 0.25
+    - n_myeloid_groups_measured           # total (subtype, cancer_type) groups measured for the gene
+    - n_cancer_types_expressing           # distinct cancer types with an expressing myeloid group
+    - expressing_myeloid_subtypes         # list<str> — the expressing MajorCluster labels
+    - myeloid_target_family_flag          # bool — target is a canonical myeloid-target / suppressive-TAM antigen
+    - indication                          # the queried indication (echoed; not a filter)
+    - product_id                          # provenance
+
+  summary_fields_vocabulary:
+    myeloid_expression_class:
+      - myeloid_broadly_detected          # max myeloid detection >= 0.5 — target in most cells of a myeloid state
+      - myeloid_subset_detected           # 0.10 <= max detection < 0.5 — a real target-high myeloid subset
+      - myeloid_low                        # max detection < 0.10 — effectively undetected across myeloid states
+      - data_unavailable                   # no landed product / gene absent (coverage gap, NOT a measured negative)
+
+warning_predicates:
+  - warning_id: myeloid_target_antigen
+    if: "myeloid_target_family_flag == true"
+    message: "{target.symbol} is a canonical myeloid-target / suppressive-TAM antigen (CSF1R-axis / TREM2 / SPP1 / SIRPA-CD47). Its tumour-infiltrating myeloid detection here is a myeloid-directed-modality context signal (display-only)."
+
+caveats:
+  - "VERDICT-INERT display/context card for the immune-context suppressive-TME lens. Fires no interpretation rule and moves no gate verdict; it adds pan-cancer myeloid-state context alongside the CD8 effector-context call."
+  - "Pan-cancer, target-grain: the Cheng atlas cancer_type axis (ESCA/KIDNEY/LYM/MYE/OV-FTC/PAAD/THCA/UCEC, tumour tissue only) is a pan-cancer myeloid readout, NOT a framework-indication scope. The indication is echoed but does not filter the summary."
+  - "detection_fraction is single-cell-native (fraction of a myeloid state's cells with UMI>0) and is NOT comparable to bulk TPM; scRNA dropout under-detects lowly-expressed genes. The Cheng atlas is MYELOID-ONLY (monocyte/macrophage/cDC/pDC/mast) — this is not a malignant-vs-TME compartment attribution."
+  - "RNA detection does not imply protein presence; pair with the surface/protein cards for a myeloid-directed ADC/TCE decision. Grain is the author MajorCluster myeloid cell-STATE (cancer-specific)."
+
+measurement: sc_rna
+sample_context: tumor
+measurement_type: sc_tumor_myeloid_state_expression
+entity_grains: [target]
+schema_version: 1
