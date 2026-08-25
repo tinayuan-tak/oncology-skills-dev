@@ -593,6 +593,10 @@ SUB_SKILL_CARDS = {
                                              # so REQUIRED in THIS entry (facet-parity guard: the fan-out scopes each
                                              # sub-skill to its own entry). Its rules are in no resolver → additive;
                                              # composed surface verdict byte-stable.
+        "pmhc-epitope-evidence-iedb",        # 2026-08-25: IEDB experimentally-validated pMHC epitope / MHC ground truth
+                                             # (experimental complement to pmhc-presentation's benign-atlas breadth).
+                                             # VERDICT-INERT display card — no rule maps it, no resolver rung consumes it
+                                             # → composed surface verdict byte-stable. In surface-modality-fit CARDS.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",

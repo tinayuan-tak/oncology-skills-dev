@@ -281,6 +281,13 @@ CARDS = [
                                          # best-partner-per-gate over the 52 clinical-seed antigens. The NECESSITY
                                          # companion to surface-colocalization-avidity's same-cell AVIDITY (sufficiency).
                                          # ADDITIVE verdict-INERT bispecific facet (no resolver rung → byte-stable).
+    "pmhc-epitope-evidence-iedb",        # 2026-08-25: EXPERIMENTALLY-VALIDATED pMHC epitope / MHC ground truth
+                                         # from IEDB (iedb-epitope-mhc-per-protein-v1) — has the target's peptides
+                                         # been observed presented on human HLA and/or T-cell-RECOGNIZED, on which
+                                         # class / how many alleles, in a cancer context. The experimental COMPLEMENT
+                                         # to pmhc-presentation (HLA-Ligand-Atlas benign-breadth). VERDICT-INERT
+                                         # DISPLAY card: no interpretation rule maps it, no resolver rung consumes it
+                                         # → fit_class byte-stable. Adds pMHC narrative context for the TCR-mimetic-TCE axis.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "

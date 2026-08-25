@@ -163,6 +163,18 @@ pathway-stratified-surface:
   pathway_stratified_surface_class: not_in_product
   q_value: null
   signature: HALLMARK_HYPOXIA
+pmhc-epitope-evidence-iedb:
+  _data_source: iedb-epitope-mhc-per-protein-v1
+  epitope_evidence_class: presented_not_tcell_confirmed
+  example_hla_alleles: HLA-A*03:01;HLA-A*24:02;HLA-B*15:02;HLA-B*27:08;HLA-B27
+  has_cancer_context: true
+  has_tcell_positive: false
+  method_version: 1.0.0
+  n_epitopes: 72
+  n_hla_alleles: 14
+  n_mhc_class_i_epitopes: 13
+  n_mhc_class_ii_epitopes: 59
+  uniprot_ac: P09758
 pmhc-presentation:
   _data_source: hla-ligand-atlas-presentation-per-protein-v1
   hla_class: HLA-I+II

@@ -138,6 +138,12 @@ composition:
                                        # (AND/OR/NOT best partner over 52 clinical-seed antigens). NECESSITY
                                        # companion to surface-colocalization-avidity (same-cell avidity =
                                        # sufficiency). ADDITIVE verdict-INERT bispecific facet (no resolver rung).
+    - pmhc-epitope-evidence-iedb       # (in run.py CARDS; 2026-08-25) EXPERIMENTALLY-VALIDATED pMHC epitope / MHC
+                                       # ground truth from IEDB (iedb-epitope-mhc-per-protein-v1) — peptides observed
+                                       # presented on human HLA and/or T-cell-RECOGNIZED, class / allele count, cancer
+                                       # context. Experimental COMPLEMENT to pmhc-presentation (HLA-Ligand-Atlas benign
+                                       # breadth). VERDICT-INERT display: no rule maps it, no resolver rung consumes it
+                                       # (fit_class byte-stable). Adds pMHC narrative context for the TCR-mimetic-TCE axis.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -187,6 +193,9 @@ composition:
                                        # essential normal cell-type expression). Wired + read (run.py:282-284).
     - antigen_pair_coexpression        # (2026-08-20) surface-colocalization-avidity — same-cell avidity + tumor-vs-normal
     - antigen_pair_selectivity         # (2026-08-20) surface-bulk-pair-selectivity — BULK tumor-vs-normal AND/OR/NOT pair-selectivity (necessity companion to same-cell avidity)
+    - pmhc_epitope_evidence            # (2026-08-25) pmhc-epitope-evidence-iedb — IEDB experimentally-validated pMHC epitope / MHC
+                                       # ground truth (bite_tce); DISTINCT lens from pmhc_presentation (benign-atlas breadth). VERDICT-INERT
+                                       # display card (no rule / no resolver rung), verdict byte-stable.
                                        # selectivity window for AND-gate bispecifics; adc/bite_tce/antibody. ADDITIVE (its
                                        # rules are in no resolver), verdict byte-stable.
   rules_scope:
