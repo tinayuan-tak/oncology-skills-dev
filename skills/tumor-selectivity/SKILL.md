@@ -4,18 +4,18 @@ description: |
   Focused question skill: "How selectively is target X expressed in tumor
   vs normal for indication Y, and how robust is that call across
   independent comparators — bulk, single-cell, and in-situ spatial?" Consumes TWELVE
-  cards across three roles. VERDICT-DRIVING (4): tumor-vs-normal-selectivity (v3,
+  cards across three roles. VERDICT-DRIVING (5): tumor-vs-normal-selectivity (v3,
   four-cell sensitivity; the aggregate axis-A verdict) + the normal-breadth VETO
-  instruments modality-therapeutic-window (2 arms) and sc-normal-celltype-expression
-  (1 arm) that DOWNGRADE an axis-A-selective call. The SPLIT (Phase S): the therapeutic-window
+  instruments modality-therapeutic-window (2 arms), sc-normal-celltype-expression
+  (1 arm), and normal-tissue-protein-abundance-tphp (1 arm, abundance-gated protein liability)
+  that DOWNGRADE an axis-A-selective call. The SPLIT (Phase S): the therapeutic-window
   arms (tumor below the worst critical/full normal — housekeeping) → selective_but_broadly_normal
   (the KILL); the sc-normal critical-organ arm → selective_with_normal_liability (a selectivity-
   PRESERVING named-organ SAFETY flag — approved antigens DLL3/ERBB2/FOLR1 land here; severity owned
   by on-target-safety-liability + modality-fit). CORROBORATION (1):
-  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (7):
+  tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (6):
   expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac
-  (RNA→protein tumor-vs-normal corroboration), normal-tissue-protein-abundance-tphp
-  (quantitative normal-tissue PROTEIN comparator, TPHP DIA-MS), and the tumor
+  (RNA→protein tumor-vs-normal corroboration), and the tumor
   SIDE at single-cell + in-situ spatial resolution (tumor-scrna-celltype-expression:
   malignant-cell-intrinsic vs stroma/CAF; spatial-region-rna-expression + spatial-tumor-
   normal-colocalization + spatial-surface-protein-abundance: in-situ tumour enrichment +

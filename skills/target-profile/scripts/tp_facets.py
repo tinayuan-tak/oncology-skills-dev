@@ -509,6 +509,8 @@ def _framework_preferred_modalities(surface_verdict) -> set:
         return {"ADC"}
     if v in ("tce_preferred", "tce_escape_risk"):
         return {"TCE"}
+    if v == "pmhc_tce_supported":   # peptide-MHC / TCR-mimic route (surface-dead intracellular target)
+        return {"TCE"}
     return set()
 
 

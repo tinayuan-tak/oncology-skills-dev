@@ -176,7 +176,7 @@ FIT_ICONS = {"strong": "🟢", "moderate": "🟡", "weak": "🟠",
 # verdicts. A verdict absent from the map renders with a neutral marker (never crashes).
 VERDICT_ICONS = {
     # --- positive / supported ---
-    "both_viable": "🟢", "adc_preferred": "🟢", "tce_preferred": "🟢",
+    "both_viable": "🟢", "adc_preferred": "🟢", "tce_preferred": "🟢", "pmhc_tce_supported": "🟢",
     "well_covered": "🟢", "chemically_confirmed_genetic": "🟢",
     "concordant_dependent": "🟢", "chemical_genetic_confirmed_dependent": "🟢",
     "lineage_selective": "🟢", "selective_dependent": "🟢",
