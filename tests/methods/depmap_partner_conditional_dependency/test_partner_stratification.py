@@ -114,6 +114,15 @@ def test_partner_map_loads_anchor():
     assert any(e["deficiency_type"] == "lof_mutation" for e in pm["PARP1"])
 
 
+def test_partner_map_carries_keap1_nfe2l2_lof_entry():
+    """Round-1 T2a: KEAP1-loss → NRF2 addiction. KEAP1 is a conditioning variable via the lof_mutation
+    arm; NFE2L2 is the curated target (live DepMap 26q1 probe: delta -0.377, q 9.8e-5, rb 0.42, n=27
+    KEAP1-LoF → partner_conditional_moderately_dependent)."""
+    pm = load_partner_map()
+    assert "NFE2L2" in pm, "KEAP1/NFE2L2 partner-conditional entry missing"
+    assert any(e["partner"] == "KEAP1" and e["deficiency_type"] == "lof_mutation" for e in pm["NFE2L2"])
+
+
 def test_effect_size_path_recovers_modest_delta_sl():
     """The PRMT5×MTAP / SMARCA2×SMARCA4 shape: a REAL synthetic-lethal contrast whose median-delta is
     modest (misses the -0.2 floor) but whose rank-biserial effect size is moderate (>=0.30) and the

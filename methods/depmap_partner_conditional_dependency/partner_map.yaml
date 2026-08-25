@@ -66,3 +66,23 @@ partners:
         Paralog partner-conditional (calibration watchlist). Probe: delta -0.10, significant but
         below MODERATE on LoF-mutation alone — may need the paralog-buffering signal alongside.
         Wired as a real test; expected to read weak_partner_selectivity until buffering is combined.
+
+  # ── KEAP1-loss → NRF2 addiction (lof_mutation arm, 2026-08-25, round-1 gap T2a) ──────────────────
+  # KEAP1 loss-of-function stabilizes NFE2L2/NRF2 (KEAP1 is NRF2's degradation adaptor), so KEAP1-mutant
+  # cells become selectively NRF2-ADDICTED — the textbook KEAP1/NRF2-mutant NSCLC vulnerability. This is
+  # the KEAP1-as-conditioning-variable case round-1 flagged as missing. Curated AFTER a live DepMap 26q1
+  # probe over the KEAP1-LoF stratum (n=27 deficient / 1511 neutral) confirmed a MEASURABLE signal (same
+  # discipline as the WRN×MSI anchor):
+  #   NFE2L2:   delta -0.377, q 9.8e-5, rank-biserial 0.42 → partner_conditional_moderately_dependent
+  # Secondary probe hits NOT curated pending mechanism review (avoid a collateral/passenger row):
+  #   SLC33A1 (delta -0.34, q 1.3e-6, rb 0.53 — strong stats, weak mechanistic link) and
+  #   PGD (delta -0.21, q 5.9e-3 — borderline PPP/NRF2 collateral).
+  NFE2L2:
+    - partner: KEAP1
+      deficiency_type: lof_mutation
+      note: >
+        KEAP1-LoF → NRF2 stabilization → NRF2 addiction (textbook KEAP1/NRF2-mutant NSCLC). Live DepMap
+        26q1 probe over the KEAP1-LoF stratum: delta -0.377 Chronos, mann-whitney q 9.8e-5, rank-biserial
+        0.42, n=27 KEAP1-LoF / 1511 neutral → partner_conditional_moderately_dependent. Makes KEAP1 a
+        conditioning variable so an NFE2L2 profile in KEAP1-mutant context reads the conditional
+        dependency instead of a pooled non_dependent (which the gate would veto).
