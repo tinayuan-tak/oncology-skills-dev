@@ -393,6 +393,13 @@ SUB_SKILL_CARDS = {
     ],
     "immune-context": [
         "immune-context",                # CIBERSORT LM22 CD8 effector context (gdc-pancanatlas-immune-2018)
+        # VERDICT-INERT TME/immune display cards (wired 2026-08-25): composed for facet-parity so the
+        # TME composition + ICI-response context reach the composed profile. immune-context is gateless
+        # (absent from _SHORT_TO_GATE) — byte-stable on the nomination spine. Kept in lockstep with the
+        # immune-context run.py CARDS + DIMENSION_CARDS[immune_context] (test_dimension_cards_matches_spine).
+        "myeloid-compartment-expression-cheng",
+        "caf-compartment-expression-luo",
+        "ici-response-association",
     ],
     "combination-and-vulnerability": [   # CONSOLIDATED relational annex (wired 2026-08-20).
         "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)

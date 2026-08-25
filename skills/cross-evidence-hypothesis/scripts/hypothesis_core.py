@@ -141,7 +141,12 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "surfaceome-cohort-ranking",     # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
         "surface-bulk-pair-selectivity", # bulk pair-selectivity facet (mirrors SUB_SKILL_CARDS)
         "pmhc-epitope-evidence-iedb"}), # 2026-08-25 IEDB pMHC epitope ground truth (mirrors SUB_SKILL_CARDS[surface-modality-fit]; verdict-inert display)
-    "immune_context": frozenset({"immune-context"}),   # mirrors SUB_SKILL_CARDS[immune-context]
+    "immune_context": frozenset({"immune-context",
+                                # mirrors SUB_SKILL_CARDS[immune-context] incl. the 3 VERDICT-INERT
+                                # TME/immune display cards wired 2026-08-25 (spine-parity guard).
+                                "myeloid-compartment-expression-cheng",
+                                "caf-compartment-expression-luo",
+                                "ici-response-association"}),
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
         "protein-domains-class", "reactome-pathway-membership", "target-development-level",

@@ -37,6 +37,13 @@ SKILL_VERSION = "1.1.0"   # 1.1.0: + canonical HEADLINE block (verdict + confide
 
 CARDS = [
     "immune-context",
+    # VERDICT-INERT TME/immune display cards (wired 2026-08-25). immune-context is GATELESS and its
+    # verdict is a direct read of immune_context_class (see _verdict), so these fire no rule and leave
+    # the effector-context verdict byte-stable — they add pan-cancer TME composition (myeloid + CAF) and
+    # the outcome-anchored melanoma ICI-response association as display/context alongside the CD8 call.
+    "myeloid-compartment-expression-cheng",   # pan-cancer tumour-infiltrating myeloid states (suppressive-TME / myeloid-target)
+    "caf-compartment-expression-luo",         # pan-cancer CAF states (stromal lens; stroma-vs-malignant denominator)
+    "ici-response-association",               # per-gene ICI (anti-PD-1) responder-vs-non-responder association (melanoma-scoped)
 ]
 
 QUESTION = ("For {indication}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell "

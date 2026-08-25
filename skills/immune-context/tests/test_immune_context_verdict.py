@@ -47,5 +47,14 @@ def test_no_immune_rule_fired_is_insufficient():
     assert ic._verdict([{"rule_id": "single-pass-type1-adc-supportive"}]) == ("insufficient", None)
 
 
-def test_cards_list_is_just_immune_context():
-    assert ic.CARDS == ["immune-context"]
+def test_cards_list_includes_immune_context_and_tme_display_cards():
+    # immune-context (the verdict-bearing CD8 effector card) + the 3 VERDICT-INERT TME/immune display
+    # cards wired 2026-08-25. The verdict is a direct read of immune_context_class (see _verdict), so
+    # the display cards fire no rule and leave the effector-context verdict byte-stable.
+    assert ic.CARDS[0] == "immune-context"
+    assert set(ic.CARDS) == {
+        "immune-context",
+        "myeloid-compartment-expression-cheng",
+        "caf-compartment-expression-luo",
+        "ici-response-association",
+    }

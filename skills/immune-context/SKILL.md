@@ -36,8 +36,17 @@ composition:
   phase: [F]
   cards_used:
     - immune-context
+    # VERDICT-INERT TME/immune display cards (wired 2026-08-25) — add TME composition + outcome-anchored
+    # ICI-response context alongside the CD8 effector call. Fire no rule; the immune_context verdict is
+    # byte-stable (gateless skill; verdict is a direct read of immune_context_class).
+    - myeloid-compartment-expression-cheng   # pan-cancer tumour-infiltrating myeloid states (suppressive-TME / myeloid-target lens)
+    - caf-compartment-expression-luo         # pan-cancer CAF states (stromal lens; stroma-vs-malignant denominator)
+    - ici-response-association               # per-gene ICI (anti-PD-1) responder-vs-non-responder association (melanoma-scoped)
   measurement_types_pulled:
     - immune_context
+    - sc_tumor_myeloid_state_expression      # DISPLAY-ONLY
+    - sc_tumor_caf_state_expression          # DISPLAY-ONLY
+    - ici_response_expression                # DISPLAY-ONLY
   rules_scope:
     - surface_intrinsic       # the immune-context rules live on the surface_intrinsic axis (bite_tce)
   synthesis:
