@@ -1329,6 +1329,26 @@ measurement_types:
       # target_safety_prioritisation) — the join is a method detail, not a cross-measurement-type edge.
       - {kind: dataset, source: opentargets-26-06, evidence_tier: inferred}
 
+  onsides_adverse_event_safety:
+    # (2026-08-25) — OnSIDES drug-label adverse-drug-event (ADE) profile attached to the target gene
+    # as safety-ORIENTING CONTEXT, finer-grained than drug_warning_safety (per-MedDRA-term, not a coarse
+    # black-box boolean). Verdict-INERT (no resolver reference, no warning); NOT modality-relevant (no
+    # modality_relevance key — safety is axis-1 and this card has no modality-axis rule). Two honest
+    # limits make it context-only, never a verdict-mover: (1) the gene attribution is a FUZZY
+    # drug-NAME->gene join (~63% match-rate; drug-level + class-wide via a recall-union over every gene
+    # a drug engages → cannot separate on- from off-target); (2) per-MedDRA-TERM grain only (per-organ /
+    # SOC rollup needs the licensed MedDRA hierarchy). The authoritative verdict-moving safety reads
+    # remain gnomad_lof_constraint + the P5 human-genetics types. Same posture as drug_warning_safety.
+    claim: "What FDA/EMA/PMDA drug-label adverse-drug-event terms (incl. boxed-warning severity) do drugs that ENGAGE the target carry (pharmacovigilance orienting context)?"
+    entity_grains: [target]
+    cards: [onsides-adverse-event-safety]
+    providers:
+      # inferred: an engineered FUZZY drug-name join (onsides-drug-adverse-event-per-ingredient-v1 ⋈
+      # dgidb-drug-target-directional-v1), materialized as onsides-adverse-event-per-gene-v1 — not a
+      # direct on-target measurement. Dataset provider (mirrors drug_warning_safety); the fuzzy join is
+      # a producer detail, not a cross-measurement-type edge.
+      - {kind: dataset, source: onsides-adverse-event-per-gene-v1, evidence_tier: inferred}
+
   genomic_event_model_match:
     claim: "Which DepMap models carry the SAME functional genomic event (biallelic/monoallelic state) as the indication's tumors for target, and which of those genotype-matched models are dependent (positive screen lines)?"
     # M11 — the CANONICAL P3 patient↔model join, on GENOMIC EVENT (functional_gene_state), unblocked by

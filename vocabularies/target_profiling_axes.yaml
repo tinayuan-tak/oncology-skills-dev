@@ -508,6 +508,7 @@ skill_objectives:
       - {q: "Mechanism downgrade (GoF mutant-selective / amplification)?", answered_by: [alteration-role, copy-number-distribution, functional-gene-state]}   # functional-gene-state = rarely-altered guard (PR-4c 2026-08-24): a rarely_altered oncogene KEEPS the WT-loss hold (MCL1)
       - {q: "Engineered safety prior?", answered_by: [target-safety-prioritisation]}
       - {q: "Pharmacovigilance precedent — do drugs engaging the target carry black-box / withdrawn warnings?", answered_by: [drug-warning-safety]}   # OT drug_warning context (verdict-inert, 2026-08-21)
+      - {q: "Drug-label adverse-event profile (per-MedDRA-term, incl. boxed-warning severity) of drugs engaging the target?", answered_by: [onsides-adverse-event-safety]}   # OnSIDES ADE context (verdict-inert display, fuzzy drug->gene join, 2026-08-25)
   - skill: differentiation-landscape
     objective: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
     primary_axis: differentiation
