@@ -666,9 +666,32 @@ _CARD_FIGURE_ORDER = {
 }
 
 
-def _card_plot_divs(card_id: str, card_figures, figures_dir) -> tuple[list[str], int]:
-    """Interactive Plotly divs for ONE card (same embed the flat view uses). When the card has a
-    curated figure order (_CARD_FIGURE_ORDER), only those ids are shown, in that order."""
+def _card_svg_img(card_id: str, card_figures, figures_dir) -> Optional[str]:
+    """A self-contained inline <img> (base64 SVG data-URI) for a card's primary static figure — the
+    offline/portable embed (no plotly, no CDN). Reads the first non-dynamic SVG descriptor's file."""
+    import base64
+    if not card_figures or not figures_dir:
+        return None
+    for f in card_figures.get(card_id) or []:
+        if f.get("dynamic"):
+            continue
+        pth = Path(figures_dir) / (f.get("path") or "")
+        if pth.suffix == ".svg" and pth.exists():
+            b64 = base64.b64encode(pth.read_bytes()).decode()
+            return (f"<img class=card-svg style='max-width:100%;height:auto' "
+                    f"src='data:image/svg+xml;base64,{b64}' alt='{_esc(card_id)} figure'>")
+    return None
+
+
+def _card_plot_divs(card_id: str, card_figures, figures_dir,
+                    embed: str = "interactive") -> tuple[list[str], int]:
+    """Per-card figure embed for ONE card. embed='interactive' → Plotly divs + inline specs (drawn by
+    the JS bootstrap; plotly.js from CDN). embed='self_contained' → an inline base64 SVG <img> (no JS,
+    no external fetch — the portable/offline dashboard); returns n=0 so no plotly bootstrap is emitted.
+    When the card has a curated figure order (_CARD_FIGURE_ORDER), only those ids are shown, in order."""
+    if embed == "self_contained":
+        img = _card_svg_img(card_id, card_figures, figures_dir)
+        return ([img] if img else []), 0
     specs = {s["id"]: s for s in _read_card_plotly_specs(card_figures, figures_dir, card_id)}
     order = _CARD_FIGURE_ORDER.get(card_id) or list(specs.keys())
     divs, n = [], 0
@@ -781,7 +804,8 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
                               exclude_card_ids: set | None = None,
                               include_only_card_ids: list | None = None,
                               sec_id: str | None = None,
-                              grounded_html: list[str] | None = None) -> tuple[list[str], int]:
+                              grounded_html: list[str] | None = None,
+                              embed: str = "interactive") -> tuple[list[str], int]:
     """Render ONE gate as a section whose SUBTABS are its evidence CARDS. Each card subtab shows,
     top-to-bottom: a verdict strip (the rule/verdict this card drove), the card's key facts, and its
     interactive Plotly figure. PURE PROJECTION — recomputes nothing. Returns (html, n_plotly).
@@ -860,7 +884,7 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
     # default tab = first card that has a live plot, else first card
     default_idx = 0
     for i, (c, _f) in enumerate(cards):
-        if _card_plot_divs(c.get("card_id"), card_figures, figures_dir)[0]:
+        if _card_plot_divs(c.get("card_id"), card_figures, figures_dir, embed)[0]:
             default_idx = i
             break
 
@@ -893,7 +917,7 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         pan.append("<div class=card-body>")
 
         # -- LEFT: the interactive plot(s) --
-        divs, npl = _card_plot_divs(cid, card_figures, figures_dir)
+        divs, npl = _card_plot_divs(cid, card_figures, figures_dir, embed)
         n_plotly_total += npl
         pan.append("<div class=card-plots>")
         if divs:
@@ -1434,6 +1458,7 @@ def _render_target_profile_html(
     confidence_tier: Optional[dict] = None,
     risk_rollup: Optional[dict] = None,
     addressable_population: Optional[dict] = None,
+    embed: str = "interactive",   # "interactive" (Plotly+CDN) | "self_contained" (inline SVG data-URI, offline)
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1577,33 +1602,33 @@ def _render_target_profile_html(
     # scorecard below IS the native-HTML "at a glance". The SVG remains a .md/PPT slide asset.
     # Nav: no "Sections" heading; narrow column (CSS). Subskill links are DERIVED from _sections
     # (the SAME list the body renders), so a new/renamed subskill appears automatically — no drift.
+    # Build the ONE view model — the single source of block set / order / selection that BOTH the
+    # left nav and the body below iterate (kills the old nav-vs-body ordering drift). Emitters read
+    # what they need from this ctx.
+    from tp_view_model import RenderContext, build_view_model
+    _ctx = RenderContext(
+        target=target, indication=indication, sub_results=sub_results, llm_output=llm_output,
+        invoked_lenses=invoked_lenses, deciding_axis=deciding_axis, ordinal_matrix=ordinal_matrix,
+        scorecard=scorecard, catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
+        card_figures=card_figures, figures_dir=figures_dir, presence_facet=presence_facet,
+        selectivity_facet=selectivity_facet, risk_assessment=risk_assessment,
+        grounded_by_axis=grounded_by_axis, hypothesis=hypothesis, confidence_tier=confidence_tier,
+        risk_rollup=risk_rollup, addressable_population=addressable_population,
+        presence_only=presence_only, show_deciding_axis=show_deciding_axis, embed=embed)
+    _blocks = build_view_model(_ctx)
+
+    # Nav: one link per present block, in view-model order; the subskill_sections block expands to a
+    # per-subskill link list (fan-out order). Derived from _blocks so nav == body, always.
     shell_cls = "shell focused" if presence_only else "shell"
-    nav = [f"<div class={shell_cls}><nav class=toc>",
-           ("<a href='#s-hypothesis'>Cross-evidence hypothesis</a>" if hypothesis
-            else "<a href='#s-exec'>Executive summary</a>")]
-    if presence_only:
-        for _s, _lab, _anc in _sections:
-            nav.append(f"<a href='#{_anc}'>{_esc(_lab)}</a>")
-    else:
-        if risk_rollup:
-            nav.append("<a href='#s-risk-rollup'>Risk by category (deterministic)</a>")
-        if risk_assessment:
-            nav.append("<a href='#s-litrisk'>Literature risk (context)</a>")
-        if scorecard:
-            nav.append("<a href='#s-evidence'>Evidence summary</a>")
-        if deciding_axis and show_deciding_axis:
-            nav.append("<a href='#s-deciding'>Deciding axis</a>")
-        if ordinal_matrix:
-            nav.append("<a href='#s-matrix'>Modality-fit matrix</a>")
-        # one flat link per subskill (fan-out order) — no bands, no gate letters.
-        # NOTE nav order MUST match the main-page order below.
-        nav.append("<span class=h>Subskill evidence</span>")
-        for _s, _lab, _anc in _sections:
-            nav.append(f"<a href='#{_anc}'>{_esc(_lab)}</a>")
-        if not hypothesis:   # the hypothesis section carries its own Tensions block
-            nav.append("<a href='#s-tension'>Conflicting signals</a>")
-        nav.append("<a href='#s-provenance'>Provenance trace</a>")
-        nav.append("<a href='#s-about'>About this analysis</a>")
+    nav = [f"<div class={shell_cls}><nav class=toc>"]
+    for _b in _blocks:
+        if _b.kind == "subskill_sections":
+            if not presence_only:
+                nav.append("<span class=h>Subskill evidence</span>")
+            for _s, _lab, _anc in _sections:
+                nav.append(f"<a href='#{_anc}'>{_esc(_lab)}</a>")
+        elif _b.nav:
+            nav.append(f"<a href='#{_b.id}'>{_esc(_b.title)}</a>")
     nav.append("</nav><div class=content>")
     p.append("".join(nav))
 
@@ -1639,35 +1664,26 @@ def _render_target_profile_html(
             "reproducible from the same inputs.</div></div>",
         ]
 
-    # --- Risk by category (DETERMINISTIC 5R spine) — the committee glance, leads the analytical
-    # content per RISK_CATEGORY_DASHBOARD_SPINE.md. Reproducible bins from the sub-verdicts; the
-    # separate literature panel below is labeled non-reproducible context. Suppressed in presence_only.
-    if risk_rollup and not presence_only:
-        p.extend(_safe_panel(_render_risk_rollup_html, risk_rollup, _what="risk-rollup"))
+    # --- Narrative/context section emitters (risk-by-category, synthesis, literature risk). Defined as
+    # closures and emitted in the ordered dispatch loop below via the view model — NOT appended inline,
+    # so ALL block ordering lives in one place. (Addressable-population sizing intentionally not rendered
+    # — 2026-08-18; the helper + param are retained for a future rework.)
+    def _risk_rollup_emit() -> list[str]:
+        # committee glance; leads the analytical content per RISK_CATEGORY_DASHBOARD_SPINE.md.
+        return _safe_panel(_render_risk_rollup_html, risk_rollup, _what="risk-rollup")
 
-    # --- Addressable-population sizing intentionally NOT rendered (not ready for prime time,
-    # 2026-08-18). The _render_addressable_population_html helper + param are retained for a future
-    # rework; the section is simply omitted from the dashboard.
+    def _synthesis_emit() -> list[str]:
+        # cross-evidence hypothesis REPLACES the Tier-3 exec summary + tension when supplied; else the
+        # original executive summary (backward-compatible — always a synthesis section).
+        hyp_html = _safe_panel(_render_hypothesis_html, hypothesis, _what="hypothesis") if hypothesis else []
+        if hyp_html:
+            return hyp_html
+        return ["<div class='llm llm-exec' id=s-exec><span class='tag tag-corner'>AI-generated</span>"
+                f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>"]
 
-    # --- Synthesis (LLM) — the lead reasoning. When a cross-evidence hypothesis is supplied it
-    # REPLACES the original Tier-3 executive-summary + tension narrative with the gate-clamped, cited
-    # structured hypothesis (its own tensions render inside it). Otherwise the original executive
-    # summary is shown (backward-compatible).
-    hyp_html = _safe_panel(_render_hypothesis_html, hypothesis, _what="hypothesis") if hypothesis else []
-    if hyp_html:
-        p.extend(hyp_html)
-    else:
-        # no hypothesis supplied, OR the hypothesis panel failed to render — fall back to the original
-        # Tier-3 executive summary so there is always a synthesis section.
-        p.append("<div class='llm llm-exec' id=s-exec><span class='tag tag-corner'>AI-generated</span>"
-                 f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
-
-    # --- Literature risk assessment (6 dimensions; CONTEXT-TIER lens) -------
-    # The target×indication-level literature read from literature-risk-assessment (risk_assessment.json).
-    # Rendered as a visually-separate, explicitly-labeled non-reproducible context block — NOT the
-    # deterministic verdict grid (RISK_ASSESSMENT_INTEGRATION.md). Suppressed in presence_only.
-    if risk_assessment and not presence_only:
-        p.extend(_safe_panel(_render_literature_risk_html, risk_assessment, _what="literature-risk"))
+    def _literature_risk_emit() -> list[str]:
+        # non-reproducible context block, explicitly labeled (RISK_ASSESSMENT_INTEGRATION.md).
+        return _safe_panel(_render_literature_risk_html, risk_assessment, _what="literature-risk")
 
     # --- Subskill sections (FLAT). Iterates _sections (the SAME list the left nav uses — no drift).
     # ONE section per subskill in fan-out order; each renders its own cards as a card-subtab section,
@@ -1696,11 +1712,14 @@ def _render_target_profile_html(
             "", label, [short], sub_results, scorecard_by_short,
             card_figures, figures_dir, indication=indication, modality_note=None,
             reports_into_map=reports_into_map,
-            sec_id=sec_id, grounded_html=grounded_html)
+            sec_id=sec_id, grounded_html=grounded_html, embed=embed)
         bands_html.extend(gate_html)
         n_gate_plotly += n_g
     # presence_only renders the single section directly (early-return below handles the rest).
+    # Synthesis (exec summary) leads the focused view too — parity with the pre-view-model behavior,
+    # where the synthesis block was emitted before the presence early-return.
     if presence_only:
+        p.extend(_synthesis_emit())
         p.extend(bands_html)
 
     # FOCUSED VIEW: presence-only — close out after the Presence section, skipping the
@@ -1885,17 +1904,26 @@ def _render_target_profile_html(
         out.append("</details></section>")
         return out
 
-    # === ORDERED ASSEMBLY: summaries lead, then the flat subskill sections, conflicting signals,
-    # About last. Exec + Literature-risk are already in `p` (rendered right after the exec summary).
-    # Now: Evidence summary → Modality-fit matrix → deciding-axis → [subskill sections] →
-    #   Conflicting signals → About (bottom). Nav order (built above) mirrors this exactly.
-    p.extend(_evidence_summary_html("".join(p) + "".join(bands_html)))  # link rows to rendered sections
-    p.extend(_matrix_html())
-    p.extend(_deciding_html())
-    p.extend(bands_html)
-    p.extend(_tension_html())
-    p.extend(_provenance_trace_html())
-    p.extend(_about_html())
+    # === ORDERED ASSEMBLY via the view model: iterate build_view_model(_ctx) and dispatch each block
+    # kind to its emitter. ONE ordered source (the same _blocks the nav derived from) — body and nav
+    # can no longer drift. `bands_html` (the subskill sections) is pre-built above; evidence-summary
+    # links its rows to whatever has been emitted so far + bands_html.
+    _HTML_EMITTERS = {
+        "risk_by_category":  _risk_rollup_emit,
+        "synthesis":         _synthesis_emit,
+        "literature_risk":   _literature_risk_emit,
+        "evidence_summary":  lambda: _evidence_summary_html("".join(p) + "".join(bands_html)),
+        "modality_matrix":   _matrix_html,
+        "deciding_axis":     _deciding_html,
+        "subskill_sections": lambda: bands_html,
+        "tension":           _tension_html,
+        "provenance_trace":  _provenance_trace_html,
+        "about":             _about_html,
+    }
+    for _b in _blocks:
+        emit = _HTML_EMITTERS.get(_b.kind)
+        if emit is not None:
+            p.extend(emit())
 
     kind = "Interactive" if n_plotly else "Static"
     p.append("<footer>"

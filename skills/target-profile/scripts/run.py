@@ -198,6 +198,12 @@ def main() -> int:
                          "The deterministic verdict spine is byte-identical to a full run — figures "
                          "never feed the verdict. Use for fast iteration / re-runs; render later via "
                          "the deferred-render path. (Perf Stage 1, 2026-07-23.)")
+    ap.add_argument("--self-contained", action="store_true",
+                    help="Render target_profile.html as a fully OFFLINE, portable artifact: per-card "
+                         "figures embed as inline base64 SVG data-URIs (no interactive Plotly, no CDN "
+                         "fetch), so it renders in any webview / can be shared or served from S3 with "
+                         "no network. Default (omit) keeps the interactive Plotly+CDN embed. "
+                         "Verdict-inert; the .md/nomination spine is unchanged.")
     ap.add_argument("--no-synthesis", action="store_true",
                     help="Skip the Tier-3 Bedrock LLM synthesis (executive-summary / tension / "
                          "recommendation narrative). The deterministic verdict spine — sub-verdicts, "
@@ -715,6 +721,7 @@ def main() -> int:
             risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
             hypothesis=hypothesis, confidence_tier=confidence_tier,
             risk_rollup=risk_rollup, addressable_population=addressable_population,
+            embed="self_contained" if getattr(args, "self_contained", False) else "interactive",
         )
         write_artifact(args.out, "html", htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
