@@ -138,7 +138,10 @@ def _build_synthesis_tool() -> dict:
                 "type": "string",
                 "description": (
                     "3-5 sentence synthesis of what the (up to 10) sub-verdicts "
-                    "collectively imply for this (target, indication)."
+                    "collectively imply for this (target, indication). CITE the "
+                    "load-bearing driver(s) inline in square brackets — [rule_id] "
+                    "and/or [card_id] — using ONLY anchors from the Per-verdict "
+                    "narrative block."
                 ),
             },
             "tension_analysis": {
@@ -146,21 +149,44 @@ def _build_synthesis_tool() -> dict:
                 "description": (
                     "Where sub-verdicts disagree and why — e.g. tumor-"
                     "selectivity says discordant while functional-"
-                    "requirement says lineage_selective. If there's no "
-                    "meaningful tension, say so briefly (do not invent)."
+                    "requirement says lineage_selective. Ground each tension in "
+                    "the specific dissenting / flip anchor inline in [brackets] "
+                    "([rule_id]/[card_id]) from the Per-verdict narrative block. "
+                    "If there's no meaningful tension, say so briefly (do not invent)."
                 ),
             },
             "top_arguments_for": {
                 "type": "array",
                 "items": {"type": "string"},
                 "maxItems": 5,
-                "description": "Up to 5 strongest positive arguments.",
+                "description": ("Up to 5 strongest positive arguments; each cites its "
+                                "supporting [rule_id]/[card_id] anchor inline."),
             },
             "top_arguments_against": {
                 "type": "array",
                 "items": {"type": "string"},
                 "maxItems": 5,
-                "description": "Up to 5 strongest negative arguments.",
+                "description": ("Up to 5 strongest negative arguments; each cites its "
+                                "[rule_id]/[card_id] anchor inline (a dissenter, veto, or gap)."),
+            },
+            "citations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["claim", "anchors"],
+                    "properties": {
+                        "claim": {"type": "string",
+                                  "description": "the argument / tension this supports"},
+                        "anchors": {"type": "array", "items": {"type": "string"},
+                                    "description": ("rule_id and/or card_id tokens (from the "
+                                                    "Per-verdict narrative block) that back the claim")},
+                    },
+                },
+                "description": (
+                    "OPTIONAL structured backing for the load-bearing claims: each entry maps a "
+                    "claim to the rule_id/card_id anchors that support it. Every anchor MUST appear "
+                    "in the provided Per-verdict narrative block — never invent one."
+                ),
             },
             "overall_recommendation": {
                 "type": "string",
@@ -386,6 +412,48 @@ def format_mode_governance_block(mode_facet: Optional[dict]) -> str:
     return "\n".join(parts)
 
 
+def _render_narrative_block(narrative_by_axis: Optional[dict]) -> list[str]:
+    """Per-verdict reasoning trace for the prompt (from nomination.json.narrative_by_axis): the rules
+    that SET each verdict (movers), the fired rules that OPPOSED it and lost (dissenters), and the
+    single rule-toggles that would FLIP it. This is the citeable anchor set — the model must ground its
+    arguments in these rule_id / card_id tokens (inline [brackets]), not free-associate. VERDICT-INERT:
+    it never moves the recommendation; it makes the narration TRACEABLE to the deterministic engine."""
+    if not narrative_by_axis:
+        return []
+    out = ["", "### Per-verdict narrative — the CITEABLE reasoning trace (deterministic)",
+           "For each axis below: what SET the verdict (movers), what fired AGAINST it and lost "
+           "(dissenters), and the single rule-toggles that would FLIP it. When you write an argument "
+           "for/against or a tension, CITE the specific driver inline in square brackets — [rule_id] "
+           "and/or [card_id] — using ONLY anchors listed here. Do NOT cite anchors not listed."]
+    for short, n in narrative_by_axis.items():
+        if not isinstance(n, dict):
+            continue
+        v, drv = n.get("verdict"), n.get("driving_rule_id")
+        out.append(f"- **{short}**: `{v}`" + (f" — set by [{drv}]" if drv else ""))
+        for m in (n.get("movers") or []):
+            if m.get("role") == "driver":
+                continue
+            out.append(f"    · also supports: [{m.get('rule_id')}] (card [{m.get('card_id')}])")
+        by_rule: dict = {}
+        for d in (n.get("dissenters") or []):
+            by_rule.setdefault(d.get("rule_id"), {"channels": [], "sentence": d.get("sentence") or ""})
+            by_rule[d.get("rule_id")]["channels"].append(d.get("channel"))
+        for rid, info in by_rule.items():
+            chans = ", ".join(c for c in info["channels"] if c)
+            out.append(f"    · DESPITE (dissent on {chans}): [{rid}] — {info['sentence']}")
+        for f in (n.get("flip_conditions") or []):
+            cond = "drop" if f.get("present") else "add"
+            rec = " [crosses GO/NO-GO]" if f.get("recommendation_flip") else ""
+            out.append(f"    · flips to `{f.get('to_verdict')}` if you {cond} [{f.get('rule_id')}]{rec}")
+        for g in (n.get("gaps") or []):
+            if g.get("kind") == "acquire":
+                cids = ", ".join(c.get("card_id") for c in (g.get("missing_cards") or []) if c.get("card_id"))
+                out.append(f"    · GAP (acquire — held by ignorance, not a measured negative): {cids or 'missing data'}")
+            elif g.get("kind") == "strengthen":
+                out.append("    · GAP (strengthen — measured but underpowered)")
+    return out
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -400,6 +468,7 @@ def _build_user_prompt(
     axis_info: Optional[dict] = None,
     actionability_mode: Optional[dict] = None,
     competitor_crossref: Optional[dict] = None,
+    narrative_by_axis: Optional[dict] = None,
 ) -> str:
     """Compose the user-message text: biology-axis governance + sub-verdicts + per-axis
     how-solid (certainty) block + modality-scoped matrix slice + biomarker convergence facet +
@@ -465,6 +534,8 @@ def _build_user_prompt(
         lines.append("")
     if fragility is not None:
         lines.extend(_render_certainty_block(fragility, sub_results))
+    if narrative_by_axis:
+        lines.extend(_render_narrative_block(narrative_by_axis))
     if ordinal_matrix is not None:
         lines.extend(_render_matrix_slice_for_prompt(ordinal_matrix))
     if presence_facet is not None:

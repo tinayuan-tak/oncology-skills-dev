@@ -608,6 +608,7 @@ def main() -> int:
             axis_info=axis_info,
             actionability_mode=actionability_mode,
             competitor_crossref=competitor_crossref,
+            narrative_by_axis=narrative_by_axis,
         )
         llm_output = synthesize_structured(
             system_prompt=_SYSTEM_PROMPT,
