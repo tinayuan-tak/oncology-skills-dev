@@ -419,7 +419,7 @@ skill_objectives:
       - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, cellline-protein-abundance-procan, tumor-rna-distribution, tumor-protein-abundance-cptac]}
       - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
       - {q: "Elevated vs normals (adjacent + normal-tissue footprint)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability, sc-normal-celltype-expression]}
-      - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype]}
+      - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype, tumor-protein-distribution-by-subtype]}
       - {q: "Absolute abundance vs all genes?", answered_by: [tumor-protein-abundance-cptac, cellline-protein-abundance, cellline-rna-distribution, tumor-rna-distribution]}
       - {q: "Do RNA and protein agree?", answered_by: [cellline-rna-protein-concordance, rna-protein-concordance-tumor]}
       - {q: "Is the tumor signal malignant-cell-intrinsic (not stroma)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
