@@ -220,6 +220,7 @@ def _validation_summary_from_sub_results(sub_results: dict) -> dict:
 # production (per-gate short in the synthetic fixtures) — both are tried, per axis.
 _SUBTYPE_STRAT_CARDS = [
     ("expression",         "tumor-rna-distribution-by-subtype",      "expression"),
+    ("expression",         "tumor-protein-distribution-by-subtype",  "protein"),
     ("dependency",         "subgroup-stratified-dependency",         "dependency"),
     ("genomic_alteration", "subgroup-stratified-mutation-frequency", "mutation_frequency"),
 ]

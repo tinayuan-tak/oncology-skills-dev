@@ -258,6 +258,7 @@ CARDS = [
     # ── DISPLAY-ONLY facets (6) — additive context, feed no ladder ────────────
     "tumor-rna-distribution-by-subtype",     # per-molecular-subtype tumor RNA panorama
     "cellline-rna-distribution-by-subtype",  # cell-line RNA by DepMap driver subtype (COADREAD proof)
+    "tumor-protein-distribution-by-subtype", # per-molecular-subtype tumor PROTEIN panorama (CPTAC MSI, COADREAD)
     "expression-purity-confound",            # tumor-intrinsic vs stromal/immune signal
     "cellline-rna-protein-concordance",      # is RNA an adequate protein proxy? (cell-line arm)
     "rna-protein-concordance-tumor",         # is RNA an adequate protein proxy? (patient-tumor CPTAC arm)
@@ -284,6 +285,7 @@ CARD_CONTEXT = {
     "tumor-rna-distribution":               ("bulk_rna", "tumor"),
     "tumor-rna-distribution-by-subtype":    ("bulk_rna", "tumor"),
     "cellline-rna-distribution-by-subtype": ("bulk_rna", "cell_line"),
+    "tumor-protein-distribution-by-subtype": ("bulk_protein_ms", "tumor"),
     "tumor-protein-abundance-cptac":        ("bulk_protein_ms", "tumor"),
     "cellline-protein-abundance":           ("bulk_protein_ms", "cell_line"),
     "cellline-protein-abundance-procan":    ("bulk_protein_ms", "cell_line"),  # DISPLAY-ONLY 2nd platform (ProCan DIA); fires no rule → verdict-inert

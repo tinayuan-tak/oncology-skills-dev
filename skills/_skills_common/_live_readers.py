@@ -703,6 +703,35 @@ def _dispatch_cellline_expression_distribution_subtype(target: str, indication: 
     return read_mod.build_expression_subtype_panorama(target, indication, strata, manifest)
 
 
+# Indication → CPTAC (aliquot-keyed) assignment shard for the tumor-protein subtype panorama.
+# COADREAD-only today (cptac-subgroup-assignments-coadread-v1, MSI_H/MSS from MMR-IHC). Extend in
+# lockstep with the card's applies_when + the method's INDICATION_TO_CPTAC_ASSIGNMENT_MANIFEST.
+_TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS = {
+    "COADREAD": "cptac-subgroup-assignments-coadread-v1",
+    "COAD":     "cptac-subgroup-assignments-coadread-v1",
+    "READ":     "cptac-subgroup-assignments-coadread-v1",
+}
+
+
+def _dispatch_tumor_protein_distribution_subtype(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-protein-distribution-by-subtype card (target_subtype grain) to
+    methods/cptac_protein_distribution/read.py::build_protein_subtype_panorama.
+
+    The CPTAC-protein analogue of _dispatch_cellline_expression_distribution_subtype. Resolves the
+    CPTAC assignment shard's strata (aliquot-keyed, MSI_H/MSS) and recomputes the per-aliquot
+    tumor-protein log2-ratio distribution within each stratum. DESCRIPTIVE / verdict-inert. No shard
+    for the indication → subtype_axis_available:false (honest)."""
+    manifest = _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS.get((indication or "").upper())
+    if manifest is None:
+        return {"subtype_axis_available": False, "subtype_axis_quality": "unavailable",
+                "n_subtypes_measured": 0, "subtype_stratification_class": None,
+                "per_subgroup_metrics": []}
+    read_mod = _import_method("cptac_protein_distribution.read")
+    scoping = _import_method("subgroup_common.scoping")
+    strata = sorted(scoping.load_assignments(manifest)["stratum_id"].unique().tolist())
+    return read_mod.build_protein_subtype_panorama(target, indication, strata, manifest)
+
+
 def _dispatch_sc_tumor_celltype_expression(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route tumor-scrna-celltype-expression card (sc_rna/tumor bucket) to
     methods/sc_tumor_expression_celltype/cli.py::build_summary.
@@ -1615,6 +1644,7 @@ CARD_DISPATCHERS = {
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
     "cellline-rna-distribution-by-subtype": _dispatch_cellline_expression_distribution_subtype,
+    "tumor-protein-distribution-by-subtype": _dispatch_tumor_protein_distribution_subtype,  # CPTAC MSI protein panorama
     "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
     "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket
     "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg

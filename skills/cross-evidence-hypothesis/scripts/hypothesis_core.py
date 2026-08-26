@@ -80,7 +80,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[tumor-presence] which regained these 4
         # (strictly read by presence _headline; see the fan-out composer fix).
         "cellline-rna-distribution-by-subtype", "normal-tissue-liability",
-        "rna-protein-concordance-tumor", "sc-normal-celltype-expression"}),
+        "rna-protein-concordance-tumor", "sc-normal-celltype-expression",
+        # 2026-08-26: CPTAC-protein subtype panorama added to SUB_SKILL_CARDS[tumor-presence] (#676).
+        "tumor-protein-distribution-by-subtype"}),
     "genomic_alteration": frozenset({
         "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
         "copy-number-stratified-dependency", "ddr-deficiency-context", "functional-gene-state",

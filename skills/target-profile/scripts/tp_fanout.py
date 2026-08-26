@@ -352,6 +352,11 @@ SUB_SKILL_CARDS = {
         "tumor-rna-distribution-by-subtype",  # target_subtype-grain sibling — per-molecular-subtype
                                          # panorama (per_subgroup_metrics). Same pairing rule: wired into
                                          # tumor-presence CARDS + this composer map together.
+        "tumor-protein-distribution-by-subtype",  # CPTAC-protein analogue of the RNA-by-subtype sibling
+                                         # (per_subgroup_metrics, MSI_H/MSS). DISPLAY-ONLY / verdict-inert;
+                                         # composed here (also feeds tp_evidence_package _SUBTYPE_STRAT_CARDS)
+                                         # so the protein subtype panorama reaches the composed profile —
+                                         # added to tumor-presence CARDS + this composer map together.
         "expression-purity-confound",    # Q9 (2026-07-23) — purity-confound caveat; render facet.
         # phospho-pathway-activity RE-HOMED 2026-08-05 → the mechanism-and-pharmacology entry below
         # (activity/signaling-state, not presence). Kept in lockstep with its sub-skill CARDS.

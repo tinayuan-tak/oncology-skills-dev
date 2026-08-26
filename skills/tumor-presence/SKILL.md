@@ -64,9 +64,10 @@ composition:
     - cellline-protein-abundance
     - tumor-elevation-breadth
     - tumor-rna-distribution
-    # DISPLAY-ONLY facets (6) — additive context, feed no ladder (verdict byte-stable)
+    # DISPLAY-ONLY facets (7) — additive context, feed no ladder (verdict byte-stable)
     - tumor-rna-distribution-by-subtype
     - cellline-rna-distribution-by-subtype
+    - tumor-protein-distribution-by-subtype   # CPTAC-protein subtype panorama (MSI_H/MSS, COADREAD); DISPLAY-ONLY / verdict-inert
     - expression-purity-confound
     - cellline-rna-protein-concordance
     - rna-protein-concordance-tumor
