@@ -258,7 +258,7 @@ def synthesize_structured(
     model_id: Optional[str] = None,
     max_tokens: int = 8192,
     temperature: Optional[float] = None,
-    max_retries: int = 2,
+    max_retries: int = int(os.environ.get("SYNTH_MALFORMED_RETRIES", "6")),
 ) -> dict:
     """Invoke Bedrock with forced structured tool-use, return the parsed
     tool_input dict stamped with provenance metadata.

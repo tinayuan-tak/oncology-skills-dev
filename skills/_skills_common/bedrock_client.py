@@ -101,8 +101,13 @@ def get_bedrock_client():
         # Workaround: build the SSL context ourselves with VERIFY_X509_STRICT
         # cleared, then pass an httpx.Client that uses it.
         http_client = _build_corporate_http_client()
+        # Bedrock intermittently returns 503; the SDK default of 2 retries can be
+        # exhausted during an outage window, killing a multi-minute full run at the
+        # synthesis step. Raise the retry budget (SDK does exponential backoff on
+        # 429/5xx/connection errors). Override via BEDROCK_MAX_RETRIES.
         return AnthropicBedrock(
             aws_region=aws_region,
+            max_retries=int(os.environ.get('BEDROCK_MAX_RETRIES', '8')),
             **({'http_client': http_client} if http_client else {}),
         )
     except Exception as e:
