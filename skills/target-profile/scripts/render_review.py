@@ -420,6 +420,79 @@ def _chain_html(pkg: dict) -> str:
             "those rules resolve to. ★ = the rung that drove the verdict.</p>" + table + vbox)
 
 
+def _why_verdict_html(short: str, nom: Optional[dict]) -> str:
+    """Render the per-verdict NARRATIVE for one axis from nomination.json.narrative_by_axis[short]:
+    what SET the verdict (movers), what pushed back and lost (dissenters), what would FLIP it
+    (flip_conditions), and the open GAPS. Pure projection — no recompute. The deterministic
+    counterpart to the LLM synthesis: it makes the abstract rule_ids/verdict tell their own story."""
+    nba = (nom or {}).get("narrative_by_axis") or {}
+    n = nba.get(short)
+    if not isinstance(n, dict):
+        return ("<p class=muted>No narrative for this axis (only resolver-backed sub-verdicts emit "
+                "one; re-run target-profile so nomination.json carries <code>narrative_by_axis</code>).</p>")
+    movers = n.get("movers") or []
+    dissenters = n.get("dissenters") or []
+    flips = n.get("flip_conditions") or []
+    gaps = n.get("gaps") or []
+    if not (movers or dissenters or flips or gaps):
+        return "<p class=muted>Narrative empty (no movers, dissenters, or flips for this verdict).</p>"
+
+    rows = []
+    # SET BY — the winning driver (★) + same-direction referenced movers
+    if movers:
+        chips = []
+        for m in movers:
+            star = " ★" if m.get("role") == "driver" else ""
+            chips.append(f"<abbr class=pol-sup title=\"{_esc(m.get('sentence') or '')}\">"
+                         f"<code>{_esc(m.get('rule_id'))}</code>{star}</abbr>")
+        rows.append(f"<div class=whyrow><span class=whytag>set by</span>"
+                    f"<span class=whyval>{' '.join(chips)}</span></div>")
+        drv = next((m for m in movers if m.get("role") == "driver"), None)
+        if drv and drv.get("sentence"):
+            rows.append(f"<div class=whysent>{_esc(drv['sentence'])}</div>")
+    # DESPITE — dissenters (fired rules opposing the resolved call), deduped per rule with channels
+    if dissenters:
+        by_rule: dict[str, list] = {}
+        sent: dict[str, str] = {}
+        for d in dissenters:
+            rid = d.get("rule_id")
+            by_rule.setdefault(rid, []).append(d.get("channel"))
+            sent.setdefault(rid, d.get("sentence") or "")
+        chips = [f"<abbr class=pol-opp title=\"{_esc(sent.get(rid) or '')}\"><code>{_esc(rid)}</code> "
+                 f"<span class=whych>({_esc(', '.join(c for c in chans if c))})</span></abbr>"
+                 for rid, chans in by_rule.items()]
+        rows.append(f"<div class=whyrow><span class=whytag>despite</span>"
+                    f"<span class=whyval>{' '.join(chips)}</span></div>")
+    # FLIPS IF — single-rule counterfactuals; ⚑ marks a Go/No-Go (recommendation) flip
+    if flips:
+        items = []
+        for f in flips:
+            rid, to = f.get("rule_id"), f.get("to_verdict")
+            cond = "without" if f.get("present") else "with"
+            flag = " <span class=whyflag title='crosses the Go/No-Go boundary'>⚑ rec</span>" \
+                if f.get("recommendation_flip") else ""
+            items.append(f"<span class=whyflip>{cond} <code>{_esc(rid)}</code> → "
+                         f"<b>{_esc(to)}</b>{flag}</span>")
+        rows.append(f"<div class=whyrow><span class=whytag>flips if</span>"
+                    f"<span class=whyval>{' '.join(items)}</span></div>")
+    # GAPS — acquire (held by ignorance) / strengthen (measured-but-underpowered)
+    if gaps:
+        labs = []
+        for g in gaps:
+            if g.get("kind") == "acquire":
+                cids = ", ".join(c.get("card_id") for c in (g.get("missing_cards") or []) if c.get("card_id"))
+                labs.append(f"acquire <code>{_esc(cids)}</code>" if cids else "acquire (missing data)")
+            elif g.get("kind") == "strengthen":
+                labs.append("strengthen (measured but underpowered)")
+        if labs:
+            rows.append(f"<div class=whyrow><span class=whytag>gaps</span>"
+                        f"<span class=whyval>{' · '.join(labs)}</span></div>")
+    return ("<p class=hint>Deterministic reasoning trace: what <b>set</b> the verdict, what fired "
+            "<b>against</b> it and lost, and the single rule-toggles that would <b>flip</b> it. Hover a "
+            "rule for its plain-English rationale.</p>"
+            f"<div class=why>{''.join(rows)}</div>")
+
+
 def _descriptive_facts_html(short: str, pkg: dict) -> str:
     spec = DESCRIPTIVE_FIELDS.get(short) or {}
     summ = {c.get("card_id"): (c.get("summary") or {}) for c in (pkg.get("cards") or [])}
@@ -452,7 +525,9 @@ def _subskill_section(short: str, pkg: dict, nom: Optional[dict]) -> str:
     else:
         body = (f"<h4>a · Interpretation (LLM synthesis — key findings)</h4>{_synthesis_html(pkg)}"
                 f"<h4>b · Key questions → outputs (data used)</h4>{_question_table_html(short, nom)}"
-                f"<h4>c · Cards → data → rules → verdict</h4>{_chain_html(pkg)}")
+                f"<h4>c · Cards → data → rules → verdict</h4>{_chain_html(pkg)}"
+                f"<h4>d · Why this verdict — movers, dissenters, what would flip it</h4>"
+                f"{_why_verdict_html(short, nom)}")
         vchip = _esc(pkg.get('verdict')) or 'verdict: none'
     return f"""
     <details class=subskill open>
@@ -474,6 +549,7 @@ _LEGEND = """<details class=howto><summary>How to read this review</summary><div
 <li><b>Risk badges:</b> <span class="rbadge r-low">LOW</span> <span class="rbadge r-med">MEDIUM</span>
 <span class="rbadge r-high">HIGH</span>; insufficient_evidence = that dimension has no wired data.</li>
 <li><b>Cross-dimension edges</b> show how one sub-skill's output conditions / corroborates / contradicts / tensions another (hover a relation for its meaning).</li>
+<li><b>Why this verdict (d)</b> is the deterministic reasoning trace: <b>set by</b> (the movers that produced the call, ★ = driver), <b>despite</b> (dissenting rules that fired but lost), and <b>flips if</b> (single rule-toggles that would change it; <span class=whyflag>⚑ rec</span> = crosses the Go/No-Go). Verdict-inert — it explains, never changes, the verdict.</li>
 <li>Tokens in <code>mono</code> are card IDs / rule IDs / raw class values — the audit trail; hover dotted terms for a gloss.</li>
 </ul></div></details>"""
 
@@ -536,6 +612,16 @@ details.howto{margin:10px 0;border:1px solid var(--rule);border-radius:6px;backg
 details.howto>summary{cursor:pointer;padding:8px 12px;font-weight:600;font-size:13px}
 .howto-body{padding:0 14px 10px;font-size:13px}.howto-body ul{margin:6px 0;padding-left:18px}.howto-body li{margin:4px 0}
 .foot{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--rule);padding-top:10px}
+/* "Why this verdict" narrative panel (d) — deterministic movers/dissenters/flips/gaps */
+.why{background:#fafbfc;border:1px solid var(--rule);border-radius:5px;padding:8px 12px;display:flex;flex-direction:column;gap:5px}
+.whyrow{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.whytag{flex:0 0 64px;text-transform:uppercase;letter-spacing:.05em;font-size:10px;font-weight:700;color:var(--muted);padding-top:2px}
+.whyval{flex:1;font-size:12.5px}.whyval abbr{margin-right:8px;text-decoration:none}
+.whyval code{background:#fff;border:1px solid var(--rule)}
+.whysent{color:#555;font-size:12px;padding-left:72px;font-style:italic}
+.whych{color:var(--muted);font-size:11px}
+.whyflip{display:inline-block;margin:0 10px 3px 0;font-size:12px}
+.whyflag{color:var(--veto);font-weight:600;font-size:11px}
 """
 
 
