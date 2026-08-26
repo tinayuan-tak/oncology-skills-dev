@@ -109,3 +109,45 @@ def filter_rules_by_card_ids(
         return rules
     keep = set(card_ids)
     return [r for r in rules if (r.get("when") or {}).get("card_id") in keep]
+
+
+@functools.lru_cache(maxsize=8)
+def rule_text_index(contracts_root: Optional[Path] = None) -> dict:
+    """A GLOBAL {rule_id: {rationale, killer_message, card_id, axis}} index across every
+    interpretation-rules/*.rules.yaml file — the rule_id -> human-sentence path.
+
+    Unlike ``load_interpretation_rules`` (per-axis, verdict/fire-time), this indexes ALL rules
+    regardless of axis so a caller can look up the human text of ANY rule_id — crucially including
+    the ~majority of display/inert rules that never fire and whose ``rationale`` therefore never
+    reaches ``fired_rules`` output. The narrative builder uses it to caption counterfactual flip
+    rules (a rule that WOULD flip the verdict if toggled is, by definition, not in the fired set).
+
+    Iterates the exact glob ``reachability._rule_id_to_card`` walks, so the two derive the same
+    rule universe. Memoized like ``load_interpretation_rules``. Returns {} when the directory is
+    absent (caller then has no sentences — never a hard failure).
+    """
+    root = Path(contracts_root) if contracts_root is not None else TARGET_CONTRACTS
+    rules_dir = root / "interpretation-rules"
+    out: dict[str, dict] = {}
+    if not rules_dir.is_dir():
+        return out
+    for f in sorted(rules_dir.glob("*.rules.yaml")):
+        try:
+            doc = yaml.load(f.read_text(), Loader=_SafeLoader)
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        axis = doc.get("axis")
+        for r in doc.get("rules", []) or []:
+            rid = r.get("rule_id")
+            if not rid:
+                continue
+            when = r.get("when") or {}
+            out[rid] = {
+                "rationale": (r.get("rationale") or "").strip(),
+                "killer_message": r.get("killer_message"),
+                "card_id": when.get("card_id") if isinstance(when, dict) else None,
+                "axis": axis,
+            }
+    return out
