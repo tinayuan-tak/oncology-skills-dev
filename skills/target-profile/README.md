@@ -270,12 +270,23 @@ pixi run python skills/target-profile/scripts/run.py \
 |---|---|
 | `--subtypes <ids>` | Comma-separated molecular subgroup ids (e.g. `MSI_H,MSS`). **Can change the recommendation.** Negative-selection only: a measured, floor-cleared subtype that is *not* a dependency fires the subtype-non-dependence rule → `hold`. Omit for a whole-cohort (backward-compatible byte-identical) profile. |
 
-### Literature grounding (needs Bedrock + network; verdict-inert, off by default)
+### Grounded-substrate chain — DEFAULT-ON (needs Bedrock + network; verdict-inert)
+
+Since **v1.2.0** a full nomination run auto-runs the whole `ground → risk → hypothesis` chain in-process
+(display-only / verdict-inert / best-effort). This makes a default run call **Bedrock + PubMed** and
+**non-reproducible**; opt out with `--no-substrate` (restores the offline, byte-identical run). The chain
+is auto-skipped in `--no-synthesis` / `--verdict-only` / `--emit evidence-package`.
 
 | Flag | Description |
 |---|---|
-| `--ground [AXES]` | After the fan-out, run `ground_axis` over the assembled evidence-package to produce per-axis `grounded_<axis>.json` (escalate-only, PMID-cited). Value: `engine` (default: 5 engine axes), `all` (+ clinical/commercial), or a comma-list (e.g. `safety,dependency`). Best-effort; a failing axis is logged + skipped. A run without `--ground` makes no network call and is byte-identical. |
-| `--ground-indication <TERM>` | Natural-language disease term for grounding's PubMed retrieval (e.g. `"colorectal cancer"`). Defaults to `--indication`. Affects **only** grounding retrieval, not the verdict spine. Pass this when `--indication` is an OncoTree code (which retrieves almost nothing from PubMed). |
+| `--no-substrate` | Opt OUT of the default-on chain — restores the offline, network-free, byte-identical run. |
+| `--no-ground` / `--no-risk` / `--no-hypothesis` | Granular per-leg opt-outs (skip grounding / the two 6-dim risk reads / the cross-evidence hypothesis). |
+| `--ground [AXES]` | Explicit grounding override: run `ground_axis` over the assembled evidence-package → per-axis `grounded_<axis>.json` (escalate-only, PMID-cited). Value: `engine` (default: the engine axes), `all` (+ clinical/commercial), or a comma-list (e.g. `safety,dependency`). Best-effort. Also the default axis set when the chain is on. |
+| `--ground-indication <TERM>` | Natural-language disease term for grounding + the 6-dim literature risk read's PubMed retrieval (e.g. `"colorectal cancer"`). Defaults to `--indication`. Affects **only** retrieval, not the verdict spine. Pass this when `--indication` is an OncoTree code (which retrieves almost nothing from PubMed). |
+
+The chain auto-produces `grounded_<axis>.json` + `risk_rollup.json` + `risk_assessment.json` +
+`hypothesis.json` in `--out`. An explicit `--grounded-dir` / `--risk-rollup` / `--risk-assessment` /
+`--hypothesis` file (below) always **wins** over the auto-produced artifact.
 
 ### Display-only integration (render pre-computed sibling artifacts)
 

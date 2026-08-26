@@ -287,6 +287,29 @@ def main() -> int:
                          "which would quietly invalidate an at-scale batch. Pass this ONLY for an "
                          "intentional cache-only / offline run. (env TARGET_PROFILE_SKIP_PREFLIGHT=1 "
                          "has the same effect.)")
+    # DEFAULT-ON grounded-substrate chain (2026-08-26). After the fan-out, a full nomination run now
+    # AUTO-RUNS the two-projection chain over the assembled evidence_package: ground_axis → risk_rollup
+    # [3A] + the 6-dim literature risk_assessment + cross-evidence-hypothesis [3B]. All three are
+    # DISPLAY-ONLY / verdict-INERT (they read the finished spine; the recommendation stays byte-stable),
+    # but they require Bedrock + PubMed network and are NON-reproducible — so a default run is no longer
+    # byte-identical / offline. Opt out with --no-substrate (restores the offline, network-free run), or
+    # suppress one leg with --no-ground / --no-risk / --no-hypothesis. The chain is ALSO auto-skipped in
+    # the offline/fast/machine modes (--no-synthesis / --verdict-only / --emit evidence-package), which
+    # stay byte-identical. An explicit --ground / --risk-assessment / --risk-rollup / --hypothesis / a
+    # --grounded-dir file always takes precedence over the auto-produced artifact.
+    ap.add_argument("--no-substrate", action="store_true",
+                    help="Opt OUT of the DEFAULT-ON grounded-substrate chain (ground_axis → risk_rollup "
+                         "[3A] + 6-dim literature risk_assessment + cross-evidence-hypothesis [3B]). "
+                         "Restores the offline, network-free, byte-identical run. The chain is "
+                         "display-only / verdict-INERT either way.")
+    ap.add_argument("--no-ground", action="store_true",
+                    help="Granular opt-out: skip only the auto-grounding leg (no ground_axis PubMed "
+                         "retrieval). risk_rollup/hypothesis then run without grounded findings.")
+    ap.add_argument("--no-risk", action="store_true",
+                    help="Granular opt-out: skip the risk_rollup [3A] + 6-dim literature risk_assessment "
+                         "legs (the hypothesis, if on, then has no --risk input).")
+    ap.add_argument("--no-hypothesis", action="store_true",
+                    help="Granular opt-out: skip the cross-evidence-hypothesis [3B] leg.")
     args = ap.parse_args()
 
     # Normalize --modality to a canonical modality.enum.yaml token. The gate's veto-suppression +
@@ -371,6 +394,29 @@ def main() -> int:
             hypothesis = json.loads(Path(args.hypothesis).read_text())
         except Exception as e:  # noqa: BLE001
             print(f"[target-profile] WARN: could not read --hypothesis: {e}", file=sys.stderr)
+
+    # DEFAULT-ON grounded-substrate chain gating (display-only / verdict-INERT). The chain runs for a
+    # full nomination run unless opted out. It is auto-SKIPPED in the offline/fast/machine modes so those
+    # stay byte-identical + network-free: --no-substrate (explicit), --no-synthesis / --verdict-only
+    # (which set args.no_synthesis above), and --emit evidence-package (the deterministic envelope).
+    # The gating is a PURE function (tp_grounding.plan_substrate) so it is unit-testable without
+    # executing main(): grounding honors an explicit --ground else defaults to the engine axes; the
+    # projections [3A]/[3B] auto-produce unless suppressed OR an explicit file input already supplied the
+    # artifact (file always wins, handled below). The grounded substrate feeds BOTH the inline render and
+    # the two projections.
+    from tp_grounding import plan_substrate
+    _plan = plan_substrate(
+        no_substrate=args.no_substrate, no_synthesis=args.no_synthesis, emit=args.emit,
+        ground=args.ground, no_ground=args.no_ground, no_risk=args.no_risk,
+        no_hypothesis=args.no_hypothesis,
+    )
+    substrate_chain_on = _plan["chain_on"]
+    run_ground, ground_spec = _plan["run_ground"], _plan["ground_spec"]
+    run_risk, run_hypothesis = _plan["run_risk"], _plan["run_hypothesis"]
+    if substrate_chain_on:
+        print(f"[target-profile] grounded-substrate chain ON (ground={run_ground}, risk={run_risk}, "
+              f"hypothesis={run_hypothesis}); display-only/verdict-inert, needs Bedrock+PubMed. "
+              "Pass --no-substrate for an offline byte-identical run.", file=sys.stderr)
 
     invoked_lenses: dict = {}
     if args.modality:
@@ -656,7 +702,7 @@ def main() -> int:
     # reused --out with stale artifacts from a prior mode.
     _written: set = set()
     ep_path = None
-    if args.emit == "evidence-package" or args.ground or args.full_package:
+    if args.emit == "evidence-package" or args.ground or args.full_package or substrate_chain_on:
         ep_path = _write_evidence_package(
             args=args, sub_results=sub_results, gate_action=gate_action,
             recommendation_gate=recommendation_gate, confidence_tier=confidence_tier,
@@ -680,13 +726,14 @@ def main() -> int:
     # just-written evidence package. VERDICT-INERT (reads the finished spine) + best-effort (any failure
     # degrades to 'not grounded'). Populates grounded_by_axis so the inline HTML render shows the
     # findings, and persists grounded_<axis>.json in --out for downstream --substrate consumers.
-    if args.ground and ep_path is not None:
+    # ground_axis retrieves PubMed BY TERM → use the natural-language --ground-indication when given
+    # (an OncoTree code retrieves ~nothing); default to --indication otherwise. Shared by grounding +
+    # the 6-dim literature risk read below.
+    ground_ind = args.ground_indication or args.indication
+    if run_ground and ep_path is not None:
         try:
             from tp_grounding import resolve_axes, auto_ground
-            axes = resolve_axes(args.ground)
-            # ground_axis retrieves PubMed BY TERM → use the natural-language --ground-indication when
-            # given (an OncoTree code retrieves ~nothing); default to --indication otherwise.
-            ground_ind = args.ground_indication or args.indication
+            axes = resolve_axes(ground_spec)
             print(f"[target-profile] auto-grounding axes {axes} over {ep_path.name} "
                   f"(indication term {ground_ind!r}; verdict-inert)...", file=sys.stderr)
             produced = auto_ground(args.target, ground_ind, ep_path, args.out, axes)
@@ -696,6 +743,28 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001 — grounding is substrate/display context, never blocks a run
             print(f"[target-profile] WARN: auto-grounding failed ({type(e).__name__}: {e}); "
                   "continuing without grounded substrate", file=sys.stderr)
+
+    # [3A] the two DETERMINISTIC-anchored risk reads (display-only / verdict-INERT). Both are best-effort
+    # (their orchestrators swallow + WARN on any failure → None) so a missing Bedrock/network degrades to
+    # "not shown" and never blocks the profile. An explicit --risk-rollup / --risk-assessment file wins.
+    if run_risk and ep_path is not None:
+        from tp_grounding import auto_risk_rollup, auto_risk_assessment
+        if risk_rollup is None:
+            risk_rollup = auto_risk_rollup(ep_path, args.modality, grounded_by_axis, args.out)
+        if risk_assessment is None:
+            risk_assessment = auto_risk_assessment(args.target, ground_ind, ep_path, args.out)
+
+    # [3B] the cross-evidence hypothesis (display-only / verdict-INERT; when present it REPLACES the
+    # Tier-3 exec-summary/tension in the HTML render). Consumes the shared substrate + the 6-dim risk read
+    # produced just above. Best-effort; an explicit --hypothesis file wins.
+    if run_hypothesis and ep_path is not None and hypothesis is None:
+        from tp_grounding import auto_hypothesis
+        risk_path = Path(args.out) / "risk_assessment.json"
+        hypothesis = auto_hypothesis(
+            ep_path, args.out, modality=args.modality,
+            risk_path=(str(risk_path) if risk_assessment is not None else None),
+            grounded_by_axis=grounded_by_axis,
+        )
 
     # --emit evidence-package: RETURN after emitting the deterministic machine envelope (written above),
     # skipping every nomination-oriented render (composite panel / md / html / nomination.json /

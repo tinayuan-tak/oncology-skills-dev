@@ -133,3 +133,84 @@ def test_produced_record_is_consumable_by_substrate_parser(tmp_path):
     assert parsed["present"] is True
     assert parsed["n_findings"] == 1
     assert "12345678" in parsed["pmids"]
+
+
+# =============================== plan_substrate (DEFAULT-ON gating) ===============================
+def test_plan_substrate_default_full_run_turns_the_whole_chain_on():
+    """A plain nomination run (no opt-outs, no fast/machine mode) runs ground + both projections, with
+    grounding defaulting to the engine axes."""
+    p = tg.plan_substrate(no_substrate=False, no_synthesis=False, emit=None, ground=None,
+                          no_ground=False, no_risk=False, no_hypothesis=False)
+    assert p == {"chain_on": True, "run_ground": True, "ground_spec": "engine",
+                 "run_risk": True, "run_hypothesis": True}
+
+
+def test_plan_substrate_no_substrate_restores_offline_byte_identical_run():
+    p = tg.plan_substrate(no_substrate=True, no_synthesis=False, emit=None, ground=None,
+                          no_ground=False, no_risk=False, no_hypothesis=False)
+    assert p["chain_on"] is False
+    assert (p["run_ground"], p["run_risk"], p["run_hypothesis"]) == (False, False, False)
+
+
+def test_plan_substrate_fast_and_machine_modes_skip_the_chain():
+    # --no-synthesis / --verdict-only (which sets no_synthesis) and --emit all keep the run byte-identical
+    for kw in ({"no_synthesis": True}, {"emit": "evidence-package"}):
+        base = dict(no_substrate=False, no_synthesis=False, emit=None, ground=None,
+                    no_ground=False, no_risk=False, no_hypothesis=False)
+        base.update(kw)
+        p = tg.plan_substrate(**base)
+        assert p["chain_on"] is False
+        assert (p["run_risk"], p["run_hypothesis"]) == (False, False)
+
+
+def test_plan_substrate_granular_opt_outs_are_independent():
+    p = tg.plan_substrate(no_substrate=False, no_synthesis=False, emit=None, ground=None,
+                          no_ground=True, no_risk=False, no_hypothesis=True)
+    assert p["chain_on"] is True
+    assert p["run_ground"] is False and p["run_hypothesis"] is False
+    assert p["run_risk"] is True
+
+
+def test_plan_substrate_explicit_ground_survives_no_ground_and_sets_spec():
+    # an explicit --ground value forces grounding on even in a mode where the chain would be off, and
+    # threads the requested axis spec through.
+    p = tg.plan_substrate(no_substrate=True, no_synthesis=False, emit=None, ground="safety,dependency",
+                          no_ground=True, no_risk=False, no_hypothesis=False)
+    assert p["run_ground"] is True and p["ground_spec"] == "safety,dependency"
+
+
+# =============================== [3A]/[3B] orchestrators (best-effort) ===============================
+def _minimal_pkg(tmp_path):
+    pkg = tmp_path / "evidence_package.json"
+    pkg.write_text(json.dumps({"synthesis": {"sub_verdicts": {
+        "safety": "tolerant_reduced_safety_risk", "dependency": "concordant_dependent",
+        "mechanism": "well_characterized", "tractability_sm": "well_covered"}}, "cards": []}))
+    return pkg
+
+
+def test_auto_risk_rollup_projects_deterministic_bins_and_writes_file(tmp_path):
+    pkg = _minimal_pkg(tmp_path)
+    dims = tg.auto_risk_rollup(pkg, "small_molecule", {}, tmp_path)
+    assert isinstance(dims, dict)
+    # the deterministic 6-dim spine is present
+    assert {"safety", "biological", "druggability", "clinical", "commercial", "translational"} <= set(dims)
+    assert (tmp_path / "risk_rollup.json").exists()
+
+
+def test_auto_risk_rollup_is_best_effort_bad_package_returns_none(tmp_path):
+    # a nonexistent package path must degrade to None (WARN), never raise
+    assert tg.auto_risk_rollup(tmp_path / "nope.json", "small_molecule", {}, tmp_path) is None
+
+
+def test_auto_risk_assessment_is_best_effort_on_failure(tmp_path, monkeypatch):
+    # Inject a failing sibling loader so the fail-soft contract is tested WITHOUT touching the network
+    # (the live LRA path hits PubMed before reading the package, so a bad-path test would be flaky).
+    monkeypatch.setattr(tg, "_load_sibling",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no Bedrock/network")))
+    assert tg.auto_risk_assessment("KRAS", "colorectal cancer", tmp_path / "nope.json", tmp_path) is None
+
+
+def test_auto_hypothesis_is_best_effort_on_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(tg, "_load_sibling",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no Bedrock/network")))
+    assert tg.auto_hypothesis(tmp_path / "nope.json", tmp_path, modality="small_molecule") is None

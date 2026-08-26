@@ -24,7 +24,7 @@ for _p in (str(Path(__file__).resolve().parent), str(SKILLS_DIR)):
 
 
 SKILL_NAME = "target-profile"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.2.0"   # 1.2.0: grounded-substrate chain (ground→risk→hypothesis) DEFAULT-ON (--no-substrate opts out)
 
 
 def _framework_model_version() -> str | None:

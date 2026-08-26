@@ -39,7 +39,7 @@ description: |
   "should we nominate MET in NSCLC?"
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -181,25 +181,45 @@ composition:
   re-resolution. `governance.data_mode` is `exploratory` (live, unpinned, not
   concurrence-reviewed).
 
-## Literature grounding (`--ground`) — fanout-integration
+## Grounded-substrate chain (DEFAULT-ON) — ground → risk → hypothesis
 
-`--ground` AUTO-PRODUCES the per-axis **grounded substrate** in one pass: after the fan-out, it runs
-`literature-risk-assessment/ground_axis` over the just-assembled `evidence_package.json` and writes
-`grounded_<axis>.json` (escalate-only, PMID-cited literature findings) into `--out`. Those records
-feed **both** downstream consumers of the shared substrate (grounded-substrate two-projection design):
-the inline per-subskill grounded blocks on the HTML dashboard, **and** `--substrate axis=path` on
-`risk_rollup` (6-dim risk [3A]) + `cross-evidence-hypothesis` ([3B]).
+**DEFAULT-ON (2026-08-26, v1.2.0).** A full nomination run now AUTO-RUNS the whole grounded-substrate
+two-projection chain in-process, after the fan-out, over the just-assembled `evidence_package.json`:
 
-- `--ground` / `--ground engine` — the 5 engine axes (`safety`, `dependency`, `selectivity`,
-  `surface_modality`, `tractability_sm`) that anchor to a sub-verdict.
+1. **ground** — `literature-risk-assessment/ground_axis` per engine axis → `grounded_<axis>.json`
+   (escalate-only, PMID-cited literature findings). The ONE shared substrate.
+2. **[3A] risk** — BOTH 6-dim risk reads:
+   - `risk_rollup.json` — the **deterministic** modality-conditioned bins (a pure function of the
+     sub_verdicts; grounded findings only escalate, never move a bin).
+   - `risk_assessment.json` — the **LLM** retrieval-grounded 6-dim literature read
+     (`literature-risk-assessment`: Biological / Druggability / Translational / Clinical / Safety /
+     Commercial).
+3. **[3B] hypothesis** — `cross-evidence-hypothesis` → `hypothesis.json`, the gate-clamped, cited,
+   six-part drug-target hypothesis reasoning ACROSS the lines (it REPLACES the Tier-3 exec-summary on
+   the HTML dashboard). Consumes the shared substrate + the 6-dim risk from step 2.
+
+All three are **DISPLAY-ONLY / verdict-INERT** — they read the finished spine and NEVER change a
+sub-verdict, gate, or the recommendation — and **best-effort** (any failure — Bedrock, PubMed, parse —
+is logged and degrades to "not shown"; the profile still emits). Because they call **Bedrock + PubMed**
+and are **non-reproducible**, a default run is **no longer byte-identical / offline** (the Tier-3
+synthesis already made a default run call Bedrock; this adds the PubMed retrieval).
+
+### Opting out / tuning
+- `--no-substrate` — opt OUT of the whole chain; restores the offline, network-free, byte-identical run.
+- `--no-ground` / `--no-risk` / `--no-hypothesis` — granular per-leg opt-outs.
+- The chain is **auto-skipped** in the offline/fast/machine modes (`--no-synthesis`, `--verdict-only`,
+  `--emit evidence-package`), which stay byte-identical.
+- An explicit `--ground` / `--grounded-dir` / `--risk-assessment` / `--risk-rollup` / `--hypothesis`
+  input **always wins** over the auto-produced artifact.
+
+### `--ground` axis selection (explicit override)
+- `--ground` / `--ground engine` — the engine axes (`safety`, `dependency`, `selectivity`,
+  `surface_modality`, `tractability_sm`, + the rolled-out `mechanism` / `genomic_alteration` /
+  `differentiation` / `expression`) that anchor to a sub-verdict. This is also the default when the
+  chain is on.
 - `--ground all` — engine axes **+** the `clinical` / `commercial` pseudo-cards (engine-blind,
   literature-only).
 - `--ground safety,dependency` — an explicit comma-list (validated against `ground_axis.AXIS_CONFIG`).
-
-VERDICT-INERT (grounding reads the finished spine; it never changes a sub-verdict) and **best-effort**
-(a failing axis is logged + skipped; the run's other artifacts are never blocked). Requires Bedrock +
-network (`BEDROCK_AWS_PROFILE`). **Off by default** — a run without `--ground` makes no network call and
-is byte-identical. Coverage grows as axes are added to `AXIS_CONFIG`; this step picks them up for free.
 
 ## Optional lenses
 
