@@ -150,8 +150,9 @@ html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   color:var(--ink);background:var(--surface-3);margin:0;padding:0}
 /* Header band — full-bleed; inner content aligned to the same max-width as the shell */
-header{background:linear-gradient(100deg,var(--brand),#123a5e);color:#fff;
-  padding:24px 40px;border-bottom:3px solid var(--brand-accent)}
+/* Header — flat brand fill (calmer than the gradient), thin accent rule instead of a heavy 3px band. */
+header{background:var(--brand);color:#fff;
+  padding:24px 40px;border-bottom:1px solid var(--brand-accent)}
 header>*{max-width:1560px;margin-left:auto;margin-right:auto}
 header h1{font-size:25px;font-weight:650;margin:0;letter-spacing:-.01em;line-height:1.25}
 header .rec{font-size:14px;margin-top:10px;opacity:.95;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -164,10 +165,10 @@ header .subtype-banner.subtype-muted{opacity:.78}
 header .pill{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);
   border-radius:999px;padding:2px 12px;font-weight:650}
 .badge-rule{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
-  border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600;cursor:help}
+  border-radius:5px;padding:2px 9px;font-size:12px;font-weight:600;cursor:help}   /* radius unified w/ .tag / .badge-deciding */
 /* 2-column shell: sticky left nav + content. Wide — uses the full viewport up to a large cap. */
 .shell{display:flex;gap:28px;max-width:1680px;margin:0 auto;padding:26px 40px 64px;align-items:flex-start}
-nav.toc{position:sticky;top:20px;flex:0 0 150px;font-size:12.5px;line-height:1.3}   /* narrower (item 7) */
+nav.toc{position:sticky;top:20px;flex:0 0 150px;font-size:12px;line-height:1.3}   /* narrower (item 7) */
 nav.toc .h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
   font-weight:700;margin:0 0 8px}
 nav.toc a{display:block;padding:6px 10px;border-radius:7px;color:var(--ink-2);text-decoration:none;
@@ -178,21 +179,25 @@ nav.toc a:hover{background:var(--surface);color:var(--brand);border-left-color:v
 /* Responsive inline SVG — strip matplotlib's fixed pt size, scale to the card (viewBox holds ratio) */
 section svg{width:100%!important;height:auto!important;display:block}
 /* Section cards */
+/* Section cards — borderless-light: no shadow, a bit more breathing room between blocks so a long
+   dossier scans calmly (the border alone separates cards). */
 section{background:var(--surface);border:1px solid var(--line);border-radius:12px;
-  padding:18px 20px;margin:0 0 18px;box-shadow:0 1px 2px rgba(20,28,38,.04)}
+  padding:18px 20px;margin:0 0 22px}
 h2{font-size:16px;font-weight:650;margin:0 0 12px;color:var(--brand);letter-spacing:-.005em}
 h2 .n{color:var(--muted);font-weight:500;font-size:13px}
 /* Tables */
-table{border-collapse:collapse;width:100%;font-size:13.5px}
+table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:8px 11px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
 th{background:var(--surface-2);font-weight:600;color:var(--ink-2);font-size:12px;
   text-transform:uppercase;letter-spacing:.03em;border-bottom:1.5px solid var(--line-2)}
 tr:last-child td{border-bottom:0}
-code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+code{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   background:var(--surface-3);padding:1px 5px;border-radius:4px;color:var(--ink-2)}
 /* LLM vs deterministic provenance tags */
-.llm{background:var(--llm-bg);border:1px solid var(--llm-bd);border-radius:12px;padding:16px 20px;margin:0 0 18px}
-.llm h2{color:var(--llm-ink)}
+/* AI-generated sections read as normal cards; the purple is demoted to the small tag only (was a
+   full purple-tinted card + purple heading, which competed with the brand + status accents). */
+.llm{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:0 0 22px}
+.llm h2{color:var(--brand)}
 .tag{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;
   padding:2px 8px;border-radius:5px;margin-bottom:8px}
 .llm .tag{color:var(--llm-ink);background:rgba(91,63,160,.1)}
@@ -202,7 +207,7 @@ code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
    reads against the dark band rather than the light in-flow tag treatment. */
 .llm-exec{position:relative}
 .llm-exec .tag-corner{position:absolute;top:9px;right:14px;margin:0;z-index:2;
-  color:#fff;background:rgba(255,255,255,.18)}
+  color:var(--llm-ink);background:rgba(91,63,160,.12)}   /* reads on the now-white card */
 /* Status chips — validated: tinted bg + dark ink + glyph + label */
 .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
   font-size:12px;font-weight:650;white-space:nowrap;line-height:1.3}
@@ -218,7 +223,7 @@ code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 .scorecard tr.deciding{background:#fff9ec}
 .scorecard tr.deciding td:first-child{box-shadow:inset 3px 0 0 var(--neu-ink)}
 .badge-deciding{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-  color:var(--neu-ink);background:var(--neu-bg);padding:1px 6px;border-radius:4px;margin-left:6px}
+  color:var(--neu-ink);background:var(--neu-bg);padding:1px 6px;border-radius:5px;margin-left:6px}
 /* Deciding-axis banner */
 .banner{background:linear-gradient(90deg,#eef4f8,var(--surface));border-left:4px solid var(--brand-accent);
   padding:12px 16px;border-radius:8px;margin:0 0 12px;font-size:14px}
