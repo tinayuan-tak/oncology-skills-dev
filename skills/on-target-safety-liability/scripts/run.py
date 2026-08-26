@@ -23,10 +23,14 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.modality_safety import safety_verdict_by_modality
+from _skills_common.narrative import build_narrative
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
+SKILL_VERSION = "1.13.0"  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
+                          # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
+                          # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
+                          # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
                           # drug-label ADE, per-MedDRA-term incl. boxed-warning severity) — VERDICT-INERT
                           # DISPLAY card, finer-grained than drug-warning-safety. Gene attribution is a
                           # FUZZY drug-name->gene join (~63% match) + per-MedDRA-term grain (no per-organ,
@@ -461,6 +465,19 @@ def _headline(cards, fired, verdict_pair):
     # for the scalar `safety_verdict`'s GoF-role-proxy downgrade. Does NOT feed the scalar or the gate
     # yet (the gate-swap + retirement of the 6 role-proxy rungs is a separate calibration-verified change).
     hl["safety_verdict_by_modality"] = safety_verdict_by_modality(fired)
+    # PER-VERDICT NARRATIVE (Stage B, VERDICT-INERT) — re-materialises the traversal the resolver
+    # distils away: movers (the winning driver + same-direction referenced rules present), dissenters
+    # (fired rules whose per-channel signal OPPOSES the resolved liability — e.g. a reassuring
+    # tolerant/recessive-only leg that lost to a constraint concern), single-rule flip_conditions
+    # (what would flip the call), and rule_sentences for every cited rule_id (fired OR not). The
+    # deterministic, citeable substrate both the dashboard "why this verdict" panel and the Tier-3
+    # synthesis consume. Best-effort: a build fault must never discard the safety spine.
+    try:
+        hl["narrative"] = build_narrative(axis="safety", gate="safety", fired=fired,
+                                          verdict=v, driving_rule_id=drv)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["narrative"] = f"{type(exc).__name__}: {exc}"
+        hl["narrative"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
@@ -496,6 +513,9 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the per-verdict narrative (movers / dissenters / flip_conditions / rule_sentences) — the citeable
+    # substrate the composed "why this verdict" panel + Tier-3 synthesis consume (Stage C wires those)
+    "narrative",
 )
 
 
