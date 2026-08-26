@@ -63,7 +63,7 @@ from tp_facets import (
     _claim_record_shadow_by_axis, _modality_fit_by_channel, _magnitude_borderline,
     _deciding_axis, _dependency_facet,
     _cross_gate_shared_evidence,
-    _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
+    _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet,
     build_target_rollup, build_target_coherence,
 )
@@ -549,6 +549,13 @@ def main() -> int:
     # spine for the M2 render-equivalence proof, NEVER in sub_verdicts / the recommendation spine.
     claim_record_shadow = _claim_record_shadow_by_axis(sub_results)
 
+    # Per-axis NARRATIVE (interpretability layer): for every decision-relevant sub-verdict, the
+    # movers / dissenters / flip_conditions / gaps / rule_sentences that re-materialise the traversal
+    # the resolver distils into one token. A cheap re-projection of the fragility facet + each
+    # sub_result's fired-set (no second flip scan). VERDICT-INERT — emitted beside claim_record_shadow,
+    # consumed by the dashboard 'why this verdict' panel + the Tier-3 synthesis, never the spine.
+    narrative_by_axis = _narrative_by_axis(sub_results, fragility, modality=args.modality)
+
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
     # deterministic verdict + gate recommendation are untouched.
@@ -920,6 +927,10 @@ def main() -> int:
         # M1 factored claim-record shadow, keyed by sub-skill short. ADDITIVE / verdict-inert /
         # consumed-by-nothing — the substrate for the M2 render-equivalence proof. {} until axes opt in.
         "claim_record_shadow": claim_record_shadow,
+        # Per-axis NARRATIVE (interpretability), keyed by sub-skill short: movers / dissenters /
+        # flip_conditions / gaps / rule_sentences per decision-relevant verdict. ADDITIVE / verdict-inert
+        # — the citeable substrate for the dashboard 'why this verdict' panel + Tier-3 synthesis.
+        "narrative_by_axis": narrative_by_axis,
         # M4 per-channel modality favorability rolled up from the records' modality_scope (worst-case
         # conjunction). ADDITIVE / verdict-inert — the per-modality view the scalar verdict couldn't hold.
         "modality_fit_by_channel": modality_fit_by_channel,

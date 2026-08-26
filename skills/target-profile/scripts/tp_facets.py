@@ -23,6 +23,7 @@ if _SCRIPTS_DIR not in sys.path:
 
 from _skills_common import ordinal_view
 from _skills_common.flip_analysis import flip_analysis
+from _skills_common.narrative import build_narrative
 from tp_common import _CONTRACTS_REPO, _first_card_summary_field
 from tp_fanout import SUBTYPE_SHORT, _SHORT_TO_GATE
 from tp_gates import _COVERAGE_RANK, _load_gate_coverage, _load_gate_verdicts, _load_positive_signals, _run_coverage_for_short, _sub_result_has_signal
@@ -1283,6 +1284,57 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     if subtypes:
         facet["subgroup_flips"] = _subgroup_flip_view(sub_results)
     return facet
+
+
+def _narrative_by_axis(sub_results: dict, fragility_facet: dict,
+                       contracts_repo: Path | None = None, modality: str | None = None) -> dict:
+    """Verdict-INERT per-axis NARRATIVE for every decision-relevant sub-verdict — the composed
+    fan-out of the shared build_narrative (Stage C deterministic half). For each resolver-backed
+    axis it re-materialises the traversal the resolver distils away: movers (winning driver +
+    same-direction referenced fired rules), dissenters (fired rules whose per-channel signal OPPOSES
+    the resolved call), flip_conditions, and rule_sentences (human text for every cited rule_id,
+    fired or not). Gaps (acquire / strengthen) are threaded from the fragility facet.
+
+    Assembled ENTIRELY from each sub_result's fired-set + the ALREADY-COMPUTED `fragility_facet`
+    (its per_axis[short].decision_flips / acquisition_backlog / underpowered_axes) — no second flip
+    scan, so it is a cheap projection. Emitted in nomination.json.narrative_by_axis and consumed by
+    the dashboard 'why this verdict' panel + the Tier-3 synthesis prompt. Never touches the verdict
+    spine. Mirrors _claim_record_shadow_by_axis (passthrough) + _fragility_facet (flip consumer)."""
+    per_axis = (fragility_facet or {}).get("per_axis") or {}
+    # gap tasks keyed by axis (acquire = held by ignorance; strengthen = measured-but-underpowered)
+    gaps_by_axis: dict[str, list] = {}
+    for g in (fragility_facet or {}).get("acquisition_backlog") or []:
+        gaps_by_axis.setdefault(g.get("axis"), []).append(
+            {"kind": "acquire", "availability": g.get("availability"),
+             "missing_cards": g.get("missing_cards") or []})
+    for g in (fragility_facet or {}).get("underpowered_axes") or []:
+        gaps_by_axis.setdefault(g.get("axis"), []).append(
+            {"kind": "strengthen", "availability": g.get("availability"), "missing_cards": []})
+
+    out: dict = {}
+    for short, ax in per_axis.items():
+        gaps = gaps_by_axis.get(short)
+        if ax.get("flip_applicable"):
+            r = sub_results.get(short) or {}
+            try:
+                out[short] = build_narrative(
+                    axis=short, gate=ax.get("gate"), fired=r.get("fired") or [],
+                    verdict=ax.get("base_verdict"), driving_rule_id=ax.get("base_driver"),
+                    modality=modality, contracts_repo=contracts_repo,
+                    flip_facet=ax,               # reuse the fragility facet's decision_flips (no re-scan)
+                    gaps=gaps,
+                )
+            except Exception:  # noqa: BLE001 — verdict-inert projection; a build fault must not abort
+                continue
+        elif gaps:
+            # blind / no-resolver axis with an outstanding acquire/strengthen task: gap-only narrative
+            # so the dashboard still surfaces "go measure X" (ignorance != a measured negative).
+            out[short] = {"axis": short, "gate": ax.get("gate"), "verdict": None,
+                          "driving_rule_id": None, "scan_depth": "single_rule",
+                          "movers": [], "dissenters": [], "flip_conditions": [],
+                          "gaps": gaps, "rule_sentences": {},
+                          "_basis": "blind/underpowered axis — acquire/strengthen gap only; verdict-INERT"}
+    return out
 
 
 def _find_card_summary(sub_results: dict, card_id: str) -> dict:
