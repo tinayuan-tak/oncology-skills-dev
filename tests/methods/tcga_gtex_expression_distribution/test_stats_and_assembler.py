@@ -475,3 +475,19 @@ def test_crossing_subtype_panorama_data_unavailable_safe(monkeypatch):
     assert out["crossing_varies_by_subtype"] is False
     assert out["max_subtype_fraction_above_normal_p95"] is None
     assert out["_subtype_note"] == "no landed tumor assignment shard"
+
+
+def test_subtype_panorama_projects_axis_quality_and_purity_spread(monkeypatch):
+    """Regression: build_subtype_panorama must project subtype_axis_quality (the honest capability grade)
+    and subtype_purity_spread — both declared by the tumor-rna-distribution-by-subtype card and computed
+    by the reader. They were previously dropped, leaving the tumor-side `subtype_axis_quality` headline
+    field permanently null while subtype_axis_available:true masked an underpowered axis."""
+    land = _fake_landscape(subtype_axis_quality="underpowered",
+                           subtype_purity_spread={"max_median_purity": 0.8, "min_median_purity": 0.5,
+                                                  "delta": 0.3})
+    monkeypatch.setattr(C._read, "read_tumor_expression_subtype_landscape",
+                        lambda t, i, plot_data_out=None: land)
+    pan = C.build_subtype_panorama("X", "COADREAD")
+    assert pan["subtype_axis_quality"] == "underpowered"
+    assert pan["subtype_purity_spread"] == {"max_median_purity": 0.8, "min_median_purity": 0.5,
+                                            "delta": 0.3}

@@ -93,6 +93,14 @@ def build_subtype_panorama(target: str, indication: str, plot_data_out=None) -> 
     return {
         "target": target, "indication": indication,
         "subtype_axis_available": land.get("subtype_axis_available", False),
+        # subtype_axis_quality (powered|underpowered|empty|unavailable) is the HONEST capability grade the
+        # card contract declares and the reader computes, but build_subtype_panorama previously dropped it
+        # (only the pooled build_summary + the sibling cell-line panorama projected it), so the tumor-side
+        # `subtype_axis_quality` headline field was permanently null. Project it (and the purity-spread
+        # confounder the card also declares) so subtype_axis_available:true no longer masks an underpowered
+        # axis. Verdict-inert (display-only honesty grade).
+        "subtype_axis_quality": land.get("subtype_axis_quality"),
+        "subtype_purity_spread": land.get("subtype_purity_spread"),
         "spotlight_subtype": land.get("spotlight_subtype"),
         "assignment_manifest": land.get("assignment_manifest"),
         "n_subtypes_measured": land.get("n_subtypes_measured", 0),
