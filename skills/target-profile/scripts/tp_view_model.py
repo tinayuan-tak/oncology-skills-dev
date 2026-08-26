@@ -57,6 +57,8 @@ class RenderContext:
     confidence_tier: Optional[dict] = None
     risk_rollup: Optional[dict] = None
     addressable_population: Optional[dict] = None
+    target_coherence: Optional[dict] = None      # target_coherence.v1 — the thesis / through-line lens
+    full_package: bool = False                   # --full-package → render the data-package explorer block
     presence_only: bool = False
     show_deciding_axis: bool = True
     embed: str = "interactive"        # "interactive" (plotly+CDN) | "self_contained" (inline SVG data-URI)
@@ -71,6 +73,8 @@ _BLOCK_SPEC = [
      lambda c: bool(c.risk_rollup)),
     ("synthesis",        "s-exec",       "Executive summary",              True,
      lambda c: True),                                                      # exec OR hypothesis (emitter picks)
+    ("coherence",        "s-coherence",  "Target thesis & coherence",      True,
+     lambda c: bool((c.target_coherence or {}).get("thesis"))),            # the through-line lens
     ("literature_risk",  "s-litrisk",    "Literature risk (context)",      True,
      lambda c: bool(c.risk_assessment)),
     ("evidence_summary", "s-evidence",   "Evidence summary",               True,
@@ -85,6 +89,8 @@ _BLOCK_SPEC = [
      lambda c: not c.hypothesis),                                         # hypothesis carries its own tensions
     ("provenance_trace", "s-provenance", "Provenance trace",               True,
      lambda c: bool(c.sub_results)),
+    ("data_package_explorer", "s-data-package", "Data package",            True,
+     lambda c: bool(c.full_package)),                                      # --full-package only
     ("about",            "s-about",      "About this analysis",            True,
      lambda c: True),
 ]

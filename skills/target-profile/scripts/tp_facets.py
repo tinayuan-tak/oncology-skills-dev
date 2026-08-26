@@ -149,7 +149,15 @@ def _ordinal_matrix(sub_results: dict) -> dict:
                  "cell": "strongest signal for (gate, modality), ordinal-projected"},
         "rows": rows,
         "legend": ordinal_view.scale_legend(),
-        "_disclaimer": ordinal_view.scale_legend()["_disclaimer"],
+        # SPINE-SAFETY GUARD: this matrix is a per-CELL display view; it must NOT be aggregated down a
+        # modality COLUMN into a per-modality call — multiple axes emit a negative surface signal for the
+        # SAME normal-breadth liability, so a column rollup double-counts it (regresses an ADC-favorable
+        # target to unfavorable). The authoritative per-modality spine is modality_fit_by_channel.
+        "spine_safe": False,
+        "spine_source": "modality_fit_by_channel",
+        "_disclaimer": ordinal_view.scale_legend()["_disclaimer"] + (
+            " NOT SPINE-SAFE: do not aggregate a modality COLUMN into a per-modality call — that "
+            "double-counts a normal-breadth liability shared across axes. Use modality_fit_by_channel."),
     }
 
 

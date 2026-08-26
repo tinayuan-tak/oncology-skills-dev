@@ -82,6 +82,8 @@ from tp_figures import *             # noqa: F401,F403
 from tp_figures import emit_figures, resolve_figures_root, FigureManifest
 from tp_emit import *                # noqa: F401,F403
 from tp_emit import write_artifact, assert_write_set, expected_artifacts, run_mode
+from tp_manifest import *            # noqa: F401,F403
+from tp_manifest import write_full_package
 
 # _skills_common symbols invoked directly by main() (modality_lens preserved from the
 # pre-split import surface).
@@ -199,6 +201,12 @@ def main() -> int:
                          "The deterministic verdict spine is byte-identical to a full run — figures "
                          "never feed the verdict. Use for fast iteration / re-runs; render later via "
                          "the deferred-render path. (Perf Stage 1, 2026-07-23.)")
+    ap.add_argument("--full-package", action="store_true",
+                    help="Self-contained REVIEW bundle: a normal run PLUS the deterministic "
+                         "evidence_package.json + a per-sub-skill package under subskills/<short>/"
+                         "package.json + a MANIFEST (.json/.md) index tying every artifact together. "
+                         "Additive + verdict-inert; for team review where all outputs must persist in "
+                         "one portable tree. Pairs well with --self-contained.")
     ap.add_argument("--self-contained", action="store_true",
                     help="Render target_profile.html as a fully OFFLINE, portable artifact: per-card "
                          "figures embed as inline base64 SVG data-URIs (no interactive Plotly, no CDN "
@@ -645,7 +653,7 @@ def main() -> int:
     # return path reuses the same file. When neither is requested, ep_path stays None → nothing written
     # → a default nomination run is byte-identical.
     ep_path = None
-    if args.emit == "evidence-package" or args.ground:
+    if args.emit == "evidence-package" or args.ground or args.full_package:
         ep_path = _write_evidence_package(
             args=args, sub_results=sub_results, gate_action=gate_action,
             recommendation_gate=recommendation_gate, confidence_tier=confidence_tier,
@@ -730,7 +738,8 @@ def main() -> int:
             hypothesis=hypothesis, confidence_tier=confidence_tier,
             risk_rollup=risk_rollup, addressable_population=addressable_population,
             embed="self_contained" if getattr(args, "self_contained", False) else "interactive",
-            target_rollup=target_rollup,
+            target_rollup=target_rollup, target_coherence=target_coherence,
+            full_package=getattr(args, "full_package", False),
         )
         write_artifact(args.out, "html", htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
@@ -877,6 +886,23 @@ def main() -> int:
     # Guard: the dashboard/spine artifacts on disk match this mode's declared MODE_WRITE_SET
     # (evidence_package is written by _write_evidence_package above when --ground/--full-package).
     assert_write_set(args.out, args, extra_present={"evidence_package"} if ep_path else set())
+
+    # --full-package: additive REVIEW bundle — the evidence_package.json was already written above
+    # (ep_path); here we add the per-sub-skill packages + a MANIFEST index tying every artifact together.
+    # Verdict-inert projection over the same sub_results; best-effort, never blocks a run.
+    if args.full_package:
+        try:
+            mpath = write_full_package(
+                args.out, target=args.target, indication=args.indication, sub_results=sub_results,
+                skill_name=SKILL_NAME, skill_version=SKILL_VERSION,
+                generated_at=provenance["generated_at"], subtypes=subtypes, modality=args.modality,
+                has_figures=not args.no_figures, has_evidence_package=ep_path is not None,
+                has_narrative=True)
+            print(f"[target-profile] --full-package: wrote per-sub-skill packages + {mpath.name} "
+                  f"(+ MANIFEST.md); evidence_package.json {'present' if ep_path else 'ABSENT'}")
+        except Exception as e:  # noqa: BLE001 — persistence side-artifact must never break the run
+            print(f"[target-profile] WARN: --full-package manifest failed "
+                  f"({type(e).__name__}: {e}); core artifacts already written", file=sys.stderr)
 
     print(f"[target-profile] wrote {args.out}/target_profile.md")
     print(f"[target-profile] wrote {args.out}/nomination.json")

@@ -1466,6 +1466,8 @@ def _render_target_profile_html(
     addressable_population: Optional[dict] = None,
     embed: str = "interactive",   # "interactive" (Plotly+CDN) | "self_contained" (inline SVG data-URI, offline)
     target_rollup: Optional[dict] = None,   # target_rollup.v1 — surfaces the PROMINENT subtype headline
+    target_coherence: Optional[dict] = None,   # target_coherence.v1 — the thesis / through-line block
+    full_package: bool = False,             # --full-package → render the data-package explorer block
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1631,6 +1633,7 @@ def _render_target_profile_html(
         selectivity_facet=selectivity_facet, risk_assessment=risk_assessment,
         grounded_by_axis=grounded_by_axis, hypothesis=hypothesis, confidence_tier=confidence_tier,
         risk_rollup=risk_rollup, addressable_population=addressable_population,
+        target_coherence=target_coherence, full_package=full_package,
         presence_only=presence_only, show_deciding_axis=show_deciding_axis, embed=embed)
     _blocks = build_view_model(_ctx)
 
@@ -1701,6 +1704,47 @@ def _render_target_profile_html(
     def _literature_risk_emit() -> list[str]:
         # non-reproducible context block, explicitly labeled (RISK_ASSESSMENT_INTEGRATION.md).
         return _safe_panel(_render_literature_risk_html, risk_assessment, _what="literature-risk")
+
+    def _coherence_emit() -> list[str]:
+        # target_coherence.v1 — the scientific THROUGH-LINE lens: the target thesis + thesis-relative
+        # coherence (confirms / expected caveats / flagged artifacts). Verdict-inert; a lens, not a gate.
+        tc = target_coherence or {}
+        th = tc.get("thesis") or {}
+        if not th.get("primary"):
+            return []
+        coh = tc.get("coherence") or {}
+        out = ["<section id=s-coherence class=det><span class=tag>Coherence lens (verdict-inert)</span>"
+               "<h2>Target thesis &amp; coherence <span class=n>— the through-line, not a gate</span></h2>",
+               f"<p><b>Thesis:</b> {_esc(_humanize(th.get('primary')))}"
+               + (f" <span class=sub>+ {_esc(', '.join(_humanize(t) for t in th.get('co_theses') or []))}</span>"
+                  if th.get("co_theses") else "")
+               + (f" · <span class=sub>coherence: {_esc(coh.get('class', ''))}</span>")
+               + "</p>"]
+        if th.get("reclassified_note"):
+            out.append(f"<p class=sub><b>Reclassified:</b> {_esc(th['reclassified_note'])}</p>")
+        items = ([("✓", c) for c in coh.get("confirms", [])]
+                 + [("~", c) for c in coh.get("caveats", [])]
+                 + [("!", c) for c in coh.get("artifact_flags", [])])
+        if items:
+            out.append("<ul class=grounded-findings>"
+                       + "".join(f"<li>{ic} {_esc(t)}</li>" for ic, t in items) + "</ul>")
+        out.append("</section>")
+        return out
+
+    def _data_package_explorer_emit() -> list[str]:
+        # Under --full-package: a compact index into the persisted bundle (machine envelope + per-sub-skill
+        # packages). Links are relative — resolve when the bundle is served / opened in place.
+        subs = [s for s in _present_shorts]
+        links = ("<a href='evidence_package.json'>evidence_package.json</a> "
+                 "<a href='nomination.json'>nomination.json</a> "
+                 "<a href='MANIFEST.json'>MANIFEST.json</a>")
+        sub_links = " ".join(f"<a href='subskills/{_esc(s)}/package.json'>{_esc(s)}</a>" for s in subs)
+        return ["<section id=s-data-package class=det><span class=tag>Full data package</span>"
+                "<h2>Data package <span class=n>— explore the persisted bundle</span></h2>",
+                f"<p class=sub>Machine artifacts: {links}</p>",
+                f"<p class=sub>Per-sub-skill packages: {sub_links or '—'}</p>",
+                "<p class=sub>Links are relative to this bundle (resolve when served / opened in place).</p>"
+                "</section>"]
 
     # --- Subskill sections (FLAT). Iterates _sections (the SAME list the left nav uses — no drift).
     # ONE section per subskill in fan-out order; each renders its own cards as a card-subtab section,
@@ -1928,6 +1972,7 @@ def _render_target_profile_html(
     _HTML_EMITTERS = {
         "risk_by_category":  _risk_rollup_emit,
         "synthesis":         _synthesis_emit,
+        "coherence":         _coherence_emit,
         "literature_risk":   _literature_risk_emit,
         "evidence_summary":  lambda: _evidence_summary_html("".join(p) + "".join(bands_html)),
         "modality_matrix":   _matrix_html,
@@ -1935,6 +1980,7 @@ def _render_target_profile_html(
         "subskill_sections": lambda: bands_html,
         "tension":           _tension_html,
         "provenance_trace":  _provenance_trace_html,
+        "data_package_explorer": _data_package_explorer_emit,
         "about":             _about_html,
     }
     for _b in _blocks:
