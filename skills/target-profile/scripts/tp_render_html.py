@@ -155,6 +155,12 @@ header{background:linear-gradient(100deg,var(--brand),#123a5e);color:#fff;
 header>*{max-width:1560px;margin-left:auto;margin-right:auto}
 header h1{font-size:25px;font-weight:650;margin:0;letter-spacing:-.01em;line-height:1.25}
 header .rec{font-size:14px;margin-top:10px;opacity:.95;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+header .subtype-banner{margin-top:10px;font-size:13px;display:inline-flex;align-items:center;gap:8px;
+  border-radius:8px;padding:5px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28)}
+header .subtype-banner .k{text-transform:uppercase;letter-spacing:.06em;font-size:10px;opacity:.8;
+  border-right:1px solid rgba(255,255,255,.3);padding-right:8px}
+header .subtype-banner.subtype-hit{background:rgba(63,174,122,.24);border-color:rgba(63,174,122,.5)}
+header .subtype-banner.subtype-muted{opacity:.78}
 header .pill{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);
   border-radius:999px;padding:2px 12px;font-weight:650}
 .badge-rule{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
@@ -1459,6 +1465,7 @@ def _render_target_profile_html(
     risk_rollup: Optional[dict] = None,
     addressable_population: Optional[dict] = None,
     embed: str = "interactive",   # "interactive" (Plotly+CDN) | "self_contained" (inline SVG data-URI, offline)
+    target_rollup: Optional[dict] = None,   # target_rollup.v1 — surfaces the PROMINENT subtype headline
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1499,10 +1506,19 @@ def _render_target_profile_html(
     else:
         checked = ("<span class=badge-rule title=\"No override rule fired; the AI's recommendation "
                    "stands, checked against the deterministic gate.\">✓ gate-checked</span>")
+    # PROMINENT subtype headline (from target_rollup.v1) — a first-class banner right under the title so
+    # the molecular-subtype signal is never buried. Shows convergent strata when present, else the honest
+    # whole-cohort / no-convergence state. Verdict-inert.
+    _sub = (target_rollup or {}).get("subtype") or {}
+    _sub_prom = _sub.get("prominence")
+    _sub_cls = {"convergent": "subtype-banner subtype-hit", "evaluated_no_convergence": "subtype-banner",
+                "whole_cohort": "subtype-banner subtype-muted"}.get(_sub_prom, "subtype-banner subtype-muted")
+    subtype_banner = (f"<div class='{_sub_cls}'><span class=k>Subtype</span> "
+                      f"<b>{_esc(_sub.get('headline', 'Whole-cohort'))}</b></div>") if _sub else ""
     if presence_only:
         # Focused view: clean "TARGET × INDICATION" header, no recommendation clutter.
         p.append(f"<header><h1>{_esc(target)} <span style='opacity:.6;font-weight:400'>×</span> "
-                 f"{_esc(indication)}</h1></header>")
+                 f"{_esc(indication)}</h1>{subtype_banner}</header>")
     else:
         # HYPOTHESIS-LED header (2026-08-18 redesign): the cross-evidence integrator's verdict is the
         # top-line; the deterministic gate recommendation is DEMOTED to a small 'engine:' chip. The
@@ -1530,6 +1546,7 @@ def _render_target_profile_html(
                  f"<h1>{_esc(target)} <span style='opacity:.7;font-weight:400'>in</span> {_esc(indication)}"
                  " — target profile</h1>"
                  f"<div class=rec>{lead}</div>"
+                 f"{subtype_banner}"
                  "</header>")
 
     # --- Presence at a glance: the 7-question (data · signal · confidence) table -------------------

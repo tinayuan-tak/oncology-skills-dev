@@ -65,6 +65,7 @@ from tp_facets import (
     _cross_gate_shared_evidence,
     _fragility_facet, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet,
+    build_target_rollup, build_target_coherence,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import _SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool, _build_user_prompt
@@ -497,6 +498,13 @@ def main() -> int:
     # pure intracellular target) not_applicable_by_axis — skipped for multi_axis duals (EGFR/ERBB2/MET).
     modality_fit_by_channel = _modality_fit_by_channel(sub_results, axis_info=axis_info)
 
+    # target_rollup.v1 + target_coherence.v1 — the VERDICT-INERT distillation layer (7-axis roll-up +
+    # negative block; thesis/coherence lens). Additive keys in nomination.json; never touch the spine.
+    # subtype_facet is threaded in so the roll-up can surface subtype signals prominently.
+    target_rollup = build_target_rollup(sub_results, modality_fit_by_channel,
+                                        subtype_facet=subtype_facet)
+    target_coherence = build_target_coherence(sub_results, target_rollup)
+
     # M4 coarsen-magnitude: flag axes whose categorical call HARD-CUTS a continuous value that barely
     # cleared its cutpoint (knife-edge / over-precision). Read from the record's magnitude value +
     # distance_to_cut. VERDICT-INERT — a fragility signal for the reader, never the spine.
@@ -722,6 +730,7 @@ def main() -> int:
             hypothesis=hypothesis, confidence_tier=confidence_tier,
             risk_rollup=risk_rollup, addressable_population=addressable_population,
             embed="self_contained" if getattr(args, "self_contained", False) else "interactive",
+            target_rollup=target_rollup,
         )
         write_artifact(args.out, "html", htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
@@ -774,6 +783,11 @@ def main() -> int:
         # convergence (expression / dependency / mutation-frequency). A FACET (not a gate) — defines
         # patient-selection strata + informs confidence; never mints a nominate.
         "subtype_facet": subtype_facet,
+        # target_rollup.v1 + target_coherence.v1 — the VERDICT-INERT distillation layer: a 7-axis
+        # roll-up + a NEGATIVE cross-axis block (no positive scalar) + a PROMINENT subtype block, and a
+        # thesis/coherence lens on top. Additive; never touch the spine above.
+        "target_rollup": target_rollup,
+        "target_coherence": target_coherence,
         # Presence cross-modal reconciliation facet (2026-08-17): tumor-presence's per-modality
         # presence matrix + RNA→protein proxy-quality + normal-tissue comparators. A FACET (not a
         # gate) — surfaces cross-modal tension the one-word presence verdict hides + frames tumor

@@ -1641,7 +1641,203 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
     }
 
 
+# =====================================================================================================
+# target_rollup.v1 + target_coherence.v1 — the VERDICT-INERT distillation layer (PR-4).
+# A multi-axis roll-up (7 decision axes + a NEGATIVE cross-axis block; NO positive scalar) and a
+# thesis/coherence lens ON TOP of it. Both recomputed from the SAME sub_results + facets already in a
+# composed run — additive keys in nomination.json; they NEVER touch the verdict spine (sub_verdicts /
+# recommendation_gate / confidence_tier / deciding_axis). Ported from the validated prototype +
+# TARGET_ROLLUP_DESIGN_2026-08-25.md (route-quality band map keyed on driving_rule_id class; biology
+# axis derived EVIDENCE-FIRST from surface_modality; block drawn from axis evidence, IGNORING
+# recommendation_gate.fired; thesis classified from UN-CONTAMINATED signals only).
+# =====================================================================================================
+_SURFACE_FITS = {"adc_preferred_tce_unsafe", "both_viable", "adc_preferred", "tce_preferred"}
+_INTRACELL_FITS = {"pmhc_tce_supported", "neither_viable"}
+_ROLLUP_FIT_ORDER = {"favorable": 3, "conditional": 2, "unfavorable": 0}
+
+
+def _rollup_sv(sub_results: dict, short: str) -> "tuple":
+    v = (sub_results.get(short) or {}).get("verdict")
+    if isinstance(v, (list, tuple)) and v:
+        return v[0], (v[1] if len(v) > 1 else None)
+    return None, None
+
+
+def _biology_axis_from_surface(surf_v: "Optional[str]") -> str:
+    if surf_v in _SURFACE_FITS:
+        return "surface_intrinsic"
+    if surf_v in _INTRACELL_FITS:
+        return "intracellular_intrinsic"
+    return "unknown"
+
+
+def _rollup_subtype_block(subtype_facet: "Optional[dict]") -> dict:
+    """A PROMINENT subtype block for the roll-up headline: which molecular strata carry convergent
+    multi-axis signal, which axes are stratified (honest coverage), and a one-line headline. Subtype
+    is a FACET not a gate — this surfaces it prominently without letting it move the block/verdict."""
+    sf = subtype_facet or {}
+    convergent = sf.get("convergent_subtypes") or []
+    axes_avail = sf.get("axes_available") or []
+    n_eval = sf.get("n_subtypes_evaluated") or 0
+    status = sf.get("verdict") or ("no_subtype_signal" if not n_eval else None)
+    if convergent:
+        headline = (f"{len(convergent)} convergent subtype stratum"
+                    f"{'a' if len(convergent) != 1 else ''}: {', '.join(convergent[:4])}"
+                    + (" …" if len(convergent) > 4 else "")
+                    + f" (multi-axis agreement; stratified axes: {', '.join(axes_avail) or '—'})")
+        prominence = "convergent"
+    elif n_eval:
+        headline = (f"{n_eval} subtype stratum{'a' if n_eval != 1 else ''} evaluated; no multi-axis "
+                    f"convergence yet (stratified axes: {', '.join(axes_avail) or '—'})")
+        prominence = "evaluated_no_convergence"
+    else:
+        headline = "Whole-cohort — no molecular-subtype stratification wired for this target-indication"
+        prominence = "whole_cohort"
+    return {
+        "prominence": prominence,
+        "headline": headline,
+        "status": status,
+        "convergent_subtypes": convergent,
+        "associated_subtypes": sf.get("associated_subtypes") or [],
+        "stratified_axes": axes_avail,
+        "n_subtypes_evaluated": n_eval,
+        "_note": "Subtype is a FACET, not a gate — surfaced prominently; never moves block/verdict. Only "
+                 "the expression axis is stratified today (coverage gap flagged in stratified_axes).",
+    }
+
+
+def build_target_rollup(sub_results: dict, modality_fit_by_channel: "Optional[dict]" = None,
+                        subtype_facet: "Optional[dict]" = None) -> dict:
+    """target_rollup.v1 — 7-axis distillation + a NEGATIVE cross-axis block + a PROMINENT subtype block.
+    Verdict-inert; the block is recomputed from axis evidence and deliberately IGNORES
+    recommendation_gate.fired (which mis-fires the dependency hard-gate on antigen-only targets)."""
+    mfc = modality_fit_by_channel or {}
+    dep_v, dep_r = _rollup_sv(sub_results, "dependency")
+    _gen_v, gen_r = _rollup_sv(sub_results, "genomic_alteration")
+    sel_v, _sel_r = _rollup_sv(sub_results, "selectivity")
+    surf_v, _surf_r = _rollup_sv(sub_results, "surface_modality")
+    safe_v, _safe_r = _rollup_sv(sub_results, "safety")
+    bio = _biology_axis_from_surface(surf_v)
+
+    # A biological_necessity — route-QUALITY ladder keyed on the driving_rule_id class (not the verdict
+    # string): CRISPR-confirmed lineage/stratified → favorable; amplification-inferred → capped
+    # conditional; mutation-spectrum-only driver is NOT a route; surface antigen non_dependent →
+    # insufficient (expected, non-blocking); intracellular w/ no route → unfavorable (block-eligible).
+    if dep_v in ("lineage_selective", "broadly_dependent") or (dep_r or "").startswith("mutant-strongly-dependent"):
+        A = ("lineage_dependency", "favorable")
+    elif (gen_r or "").startswith("cn-amplified"):
+        A = ("amplification_driven", "conditional")
+    elif bio == "surface_intrinsic" and dep_v in ("non_dependent", "non_dependent_paralog_buffered"):
+        A = ("antigen_no_survival_necessity", "insufficient")
+    elif bio == "intracellular_intrinsic":
+        A = ("no_necessity", "unfavorable")
+    else:
+        A = ("unresolved_necessity", "insufficient")
+
+    B = {"discordant_across_comparators": ("present_not_selective", "conditional"),
+         "selective_but_broadly_normal": ("present_broad_normal", "conditional"),
+         "selective_with_normal_liability": ("selective_normal_liability", "conditional"),
+         "strong_tumor_selective": ("tumor_selective_present", "favorable")}.get(sel_v, ("present", "insufficient"))
+
+    # D deliverability — per-channel from modality_fit_by_channel; frontier = best viable band.
+    ch: dict = {}
+    for c in ("small_molecule", "degrader", "adc", "bite_tce", "antibody"):
+        fit = (mfc.get(c) or {}).get("fit")
+        applicable = fit not in ("not_applicable_by_axis", "na", None)
+        ch[c] = {"fit": fit, "applicable": applicable,
+                 "viable": applicable and fit in ("favorable", "conditional")}
+    viable = [c for c, v in ch.items() if v["viable"]]
+    frontier = max((_ROLLUP_FIT_ORDER[ch[c]["fit"]] for c in viable), default=None)
+    D_band = {3: "favorable", 2: "conditional"}.get(frontier, "unfavorable")
+
+    # E safety — escapability = the per-channel safety×deliverability join. A WT-loss/human-genetics
+    # constraint is escaped by a viable tumor-restricted channel; a non-mutant-selective SM does NOT
+    # spare WT (drop it unless the necessity route is a driver/mutant-selective one). Pan-essential
+    # broad-tox is escapable_by=null.
+    if safe_v == "pan_essential_broad_tox_concern" or dep_v == "pan_essential_killer":
+        E, E_escape, E_blocks = ("pan_essential_veto", "unfavorable"), [], True
+    elif safe_v in ("highly_constrained_safety_concern", "human_genetics_safety_concern"):
+        E_escape = list(viable)
+        if "small_molecule" in E_escape and A[0] not in ("lineage_dependency", "amplification_driven"):
+            E_escape.remove("small_molecule")
+        E = ("constrained_escapable", "conditional") if E_escape else ("constrained_pan_modality", "unfavorable")
+        E_blocks = not E_escape
+    else:
+        E, E_escape, E_blocks = ("clean", "favorable"), [], False
+
+    blocks: list = []
+    if A[1] == "unfavorable" and bio == "intracellular_intrinsic":
+        blocks.append({"axis": "biological_necessity", "kind": "no_biological_necessity"})
+    if not viable:
+        blocks.append({"axis": "deliverability", "kind": "no_viable_modality"})
+    if E_blocks:
+        blocks.append({"axis": "safety_liability", "kind": "pan_modality_safety_veto"})
+    block_status = ("hard_block" if blocks
+                    else "provisional_block" if (A == ("unresolved_necessity", "insufficient")) else "not_blocked")
+    return {
+        "schema": "target_rollup.v1",
+        "biology_axis": bio,
+        "axes": {
+            "biological_necessity": {"call": A[0], "band": A[1]},
+            "presence_window": {"call": B[0], "band": B[1]},
+            "deliverability": {"band": D_band, "viable_channels": viable, "channels": ch},
+            "safety_liability": {"call": E[0], "band": E[1], "escapable_by": E_escape},
+        },
+        "block": {"blocked": bool(blocks), "status": block_status, "blocking_axes": blocks,
+                  "_basis": "union of per-axis unescapable blocks; from axis evidence, IGNORES recommendation_gate.fired"},
+        "subtype": _rollup_subtype_block(subtype_facet),
+        "_note": "VERDICT-INERT distillation. No positive scalar — the only target-level verdict is block.blocked.",
+    }
+
+
+def build_target_coherence(sub_results: dict, target_rollup: "Optional[dict]" = None) -> dict:
+    """target_coherence.v1 — thesis classification + thesis-relative coherence, ON TOP of the rollup.
+    Reads only UN-CONTAMINATED signals (cis_coherence, dependency, genomic rule-class, surface_modality);
+    NEVER alteration-role or actionability arms (both contaminated). Verdict-inert; never gates; emits a
+    PARALLEL note, never overwrites confidence_tier."""
+    dep_v, _dr = _rollup_sv(sub_results, "dependency")
+    _gv, gen_r = _rollup_sv(sub_results, "genomic_alteration")
+    cis_v, _cr = _rollup_sv(sub_results, "cis_coherence")
+    surf_v, _sr = _rollup_sv(sub_results, "surface_modality")
+    bio = _biology_axis_from_surface(surf_v)
+    reclassified = None
+    if bio == "surface_intrinsic":
+        if (gen_r or "").startswith("cn-amplified"):
+            thesis, co, actionable = "amplification_overexpression_antigen", ["surface_antigen_no_dependency"], True
+        else:
+            thesis, co, actionable = "surface_antigen_no_dependency", [], True
+            if (gen_r or "").startswith("mut-") and dep_v in ("non_dependent", "non_dependent_paralog_buffered"):
+                reclassified = "genomic 'driver' label is a mutation-spectrum artifact (cis-uncoupled + non_dependent)"
+    elif bio == "intracellular_intrinsic":
+        if cis_v == "coherent_cis_driver" and dep_v in ("lineage_selective", "broadly_dependent"):
+            thesis, co, actionable = "oncogene_addiction_driver", [], True
+        else:
+            thesis, co, actionable = "lineage_survival_dependency", [], True
+    else:
+        thesis, co, actionable = "insufficient_thesis", [], None
+
+    confirms, caveats, artifacts = [], [], []
+    if thesis in ("surface_antigen_no_dependency", "amplification_overexpression_antigen"):
+        if dep_v in ("non_dependent", "non_dependent_paralog_buffered"):
+            caveats.append("non_dependent is EXPECTED for a surface antigen — coherent, not a red flag")
+        if cis_v == "cis_uncoupled_no_dependency":
+            confirms.append("cis-uncoupled: no dosage-driven dependency — coherent (cis-coupling is ANTI here)")
+        if (gen_r or "").startswith("mut-"):
+            artifacts.append("genomic driver via mutation-spectrum, contradicted by cis-uncoupled + non_dependent → data_artifact")
+    elif thesis == "oncogene_addiction_driver":
+        confirms.append("cis-coherent driver + lineage-selective dependency — coherent addiction core")
+    coherence_class = "coherent" if not artifacts else "coherent_with_caveats"
+    return {
+        "schema": "target_coherence.v1",
+        "thesis": {"primary": thesis, "co_theses": co, "actionable": actionable, "reclassified_note": reclassified},
+        "coherence": {"class": coherence_class, "confirms": confirms, "caveats": caveats, "artifact_flags": artifacts},
+        "_note": "VERDICT-INERT lens (thesis + thesis-relative coherence). Un-contaminated signals only; never gates.",
+    }
+
+
 __all__ = [
+    'build_target_rollup',
+    'build_target_coherence',
     '_ADDRESSABLE_POPULATION_LEGEND',
     '_BIOMARKER_INPUTS',
     '_BIOMARKER_QUANT',
