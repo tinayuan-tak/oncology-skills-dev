@@ -79,6 +79,8 @@ from tp_evidence_package import (
 )
 from tp_figures import *             # noqa: F401,F403
 from tp_figures import emit_figures, resolve_figures_root, FigureManifest
+from tp_emit import *                # noqa: F401,F403
+from tp_emit import write_artifact, assert_write_set, expected_artifacts, run_mode
 
 # _skills_common symbols invoked directly by main() (modality_lens preserved from the
 # pre-split import surface).
@@ -673,6 +675,7 @@ def main() -> int:
     # skipping every nomination-oriented render (composite panel / md / html / nomination.json /
     # provenance). The spine it reads is byte-identical to a nomination run.
     if args.emit == "evidence-package":
+        assert_write_set(args.out, args, extra_present={"evidence_package"})   # envelope-only write-set
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
         print(f"Recommendation: {gate_action or '(no gate fired)'}")
         _restore_run_log()
@@ -695,7 +698,7 @@ def main() -> int:
         presence_facet=presence_facet,
         actionability_mode=actionability_mode,
     )
-    (args.out / "target_profile.md").write_text(md)
+    write_artifact(args.out, "markdown", md)
 
     # 3c. Render + emit the static HTML governance artifact (self-contained; inlines the
     # composite SVG). Pure projection — never blocks emission on failure.
@@ -713,7 +716,7 @@ def main() -> int:
             hypothesis=hypothesis, confidence_tier=confidence_tier,
             risk_rollup=risk_rollup, addressable_population=addressable_population,
         )
-        (args.out / "target_profile.html").write_text(htmldoc)
+        write_artifact(args.out, "html", htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
@@ -816,9 +819,7 @@ def main() -> int:
         "card_figures": card_figures,
         "llm_synthesis": llm_output,
     }
-    (args.out / "nomination.json").write_text(
-        json.dumps(nomination, indent=2, default=str)
-    )
+    write_artifact(args.out, "nomination", json.dumps(nomination, indent=2, default=str))
 
     provenance = {
         "skill": SKILL_NAME,
@@ -851,7 +852,10 @@ def main() -> int:
         # Verdict-inert; feeds the inline render + downstream --substrate (risk_rollup + hypothesis).
         "grounded_axes": sorted(grounded_by_axis) if args.ground else [],
     }
-    (args.out / "provenance.yaml").write_text(yaml.safe_dump(provenance, sort_keys=False))
+    write_artifact(args.out, "provenance", yaml.safe_dump(provenance, sort_keys=False))
+    # Guard: the dashboard/spine artifacts on disk match this mode's declared MODE_WRITE_SET
+    # (evidence_package is written by _write_evidence_package above when --ground/--full-package).
+    assert_write_set(args.out, args, extra_present={"evidence_package"} if ep_path else set())
 
     print(f"[target-profile] wrote {args.out}/target_profile.md")
     print(f"[target-profile] wrote {args.out}/nomination.json")
