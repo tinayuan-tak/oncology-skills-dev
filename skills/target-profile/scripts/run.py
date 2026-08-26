@@ -77,6 +77,8 @@ from tp_evidence_package import (
     _catalogue_rows_from_sub_results, _emit_card_figures, _validation_summary_from_sub_results,
     _write_evidence_package,
 )
+from tp_figures import *             # noqa: F401,F403
+from tp_figures import emit_figures, resolve_figures_root, FigureManifest
 
 # _skills_common symbols invoked directly by main() (modality_lens preserved from the
 # pre-split import surface).
@@ -372,7 +374,7 @@ def main() -> int:
     # persistence is a side artifact of resolution; card summaries + the verdict spine are unchanged.
     plot_data_root = None
     if not args.no_figures:
-        plot_data_root = args.out / "figures"
+        plot_data_root = resolve_figures_root(args.out)
         plot_data_root.mkdir(parents=True, exist_ok=True)
     _fanout_t0 = time.perf_counter() if args.profile_timers else 0.0
     sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes,
@@ -676,50 +678,13 @@ def main() -> int:
         _restore_run_log()
         return 0
 
-    # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
-    figures_dir = args.out / "figures"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    composite_png = figures_dir / "target_profile_at_a_glance.png"
-    composite_rel = None
-    if args.verdict_only:
-        # --verdict-only: the "at a glance" panel is a matplotlib figure that also narrates the LLM
-        # recommendation — skip it with the rest of the figures. The md/html degrade to no-image.
-        print("[target-profile] --verdict-only: skipped composite panel render", file=sys.stderr)
-    else:
-        try:
-            render_composite_panel(
-                out_path=composite_png,
-                target=args.target,
-                indication=args.indication,
-                sub_results=sub_results,
-                llm_output=llm_output,
-            )
-            composite_rel = f"figures/{composite_png.name}"
-            print(f"[target-profile] wrote {composite_png} (+ .svg companion)",
-                  file=sys.stderr)
-        except Exception as e:
-            # Panel rendering must never block artefact emission. Log + continue
-            # with no image reference in the markdown.
-            composite_rel = None
-            print(f"[target-profile] WARN: composite panel render failed: {e}",
-                  file=sys.stderr)
-
-    # 3a-bis. Produce per-card distribution figures (SVG + interactive .plotly.json) via the shared
-    # figure registry. This is the dynamic-dashboard change: a run now PRODUCES the per-card
-    # charts (previously rules/summary-only). Best-effort — never blocks artefact emission.
-    # PERF Stage 1: --no-figures skips this (the figure double-read + the 4.6MB plotly inline). The
-    # HTML then degrades to the tested static no-JS fallback; the verdict spine is byte-identical
-    # (card_figures never feeds nomination.json / sub_verdicts — it's a separate presentation slot).
-    if args.no_figures:
-        card_figures = {}
-        print("[target-profile] --no-figures: skipped per-card figure emission (verdict-only mode)",
-              file=sys.stderr)
-    else:
-        _fig_t0 = time.perf_counter() if args.profile_timers else 0.0
-        card_figures = _emit_card_figures(sub_results, figures_dir, args.target, args.indication)
-        if args.profile_timers:
-            print(f"[perf] === figure-emit total {time.perf_counter() - _fig_t0:6.1f}s ===",
-                  file=sys.stderr)
+    # 3a. Emit figures via the single orchestrator (tp_figures): composite panel (skipped under
+    # --verdict-only) + per-card registry figures + per-sub-skill heros (skipped under --no-figures).
+    # Returns a FigureManifest — the ONE source of figure paths the renderers read. Verdict-inert.
+    fig = emit_figures(args, sub_results, llm_output, profile_timers=args.profile_timers)
+    figures_dir = fig.figures_dir
+    composite_rel = fig.composite_rel
+    card_figures = fig.card_figures
 
     # 3b. Render + emit markdown artefact (Shape A — enriched).
     md = _render_target_profile_md(
@@ -735,7 +700,7 @@ def main() -> int:
     # 3c. Render + emit the static HTML governance artifact (self-contained; inlines the
     # composite SVG). Pure projection — never blocks emission on failure.
     try:
-        composite_svg = composite_png.with_suffix(".svg") if composite_rel else None
+        composite_svg = fig.composite_svg
         htmldoc = _render_target_profile_html(
             args.target, args.indication, sub_results, llm_output, invoked_lenses,
             deciding_axis=deciding_axis, ordinal_matrix=ordinal_matrix,
