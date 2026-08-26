@@ -982,6 +982,22 @@ def _synthesis_facet(cards, fired, verdict_pair):
     return facet
 
 
+def _llm_synthesis(cards, fired, verdict_pair, target, indication,
+                   model_id=None, subtype=None):
+    """Fan-out opt-in (mirrors _synthesis_facet): return this lens's provenance-tagged
+    llm_synthesis block for the COMPOSED target-profile run. Builds the SAME minimal decision the
+    narrator consumes standalone ({target, indication, headline, cards}) from the fan-out's already-
+    resolved cards + this skill's _headline, then narrates through its OWN lens synthesizer. Best-
+    effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow."""
+    headline = _headline(cards, fired, verdict_pair)
+    decision = {
+        "target": target, "indication": indication, "headline": headline,
+        "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
+                  for c in cards],
+    }
+    return synthesize_dependency(decision, model_id, subtype)
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,

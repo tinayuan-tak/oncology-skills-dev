@@ -807,6 +807,20 @@ def _synthesis_facet(cards, fired, verdict_pair):
     return facet
 
 
+def _llm_synthesis(cards, fired, verdict_pair, target, indication,
+                   model_id=None, subtype=None):
+    """Fan-out opt-in (mirrors _synthesis_facet): return the genomic-alteration lens's provenance-
+    tagged llm_synthesis block for the COMPOSED target-profile run. Rebuilds the headline from the
+    fan-out-resolved (verdict, driving_rule) via _build_headline (exactly as _synthesis_facet does),
+    then narrates through the genomic synthesizer. Best-effort + VERDICT-INERT (the subtype arg is
+    unused — genomic narrates whole-cohort; a failure is the caller's to swallow)."""
+    from _skills_common.synthesis_genomic import synthesize_genomic_alteration
+    verdict, driving = (verdict_pair or (None, None))
+    headline = _build_headline(cards, verdict, driving, {})
+    decision = {"target": target, "indication": indication, "headline": headline}
+    return synthesize_genomic_alteration(decision, model_id)
+
+
 def main() -> int:
     # PERF DEFAULT (2026-08-24): this skill HAND-ROLLS main() (it does not go through
     # run_wired_skill), so it never received the process-read-pool default that dispatcher.py sets

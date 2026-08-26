@@ -33,7 +33,24 @@ def _subskill_package(short: str, r: dict, figures_dir: Path) -> dict:
     decomposition + each of its cards' full summary and figures. Sourced entirely from the retained
     CompositionResult carrier — no re-resolution."""
     v = r.get("verdict")
+    driving_rule_id = v[1] if v else None
     facet = r.get("synthesis_facet") or {}
+    # Full fired-rule objects (rule_id + card_id + signals + tier), so a reviewer can trace the
+    # card -> rule -> verdict distillation chain (which card each rule read, its polarity, which rung
+    # drove the verdict). The flat fired_rule_ids alone loses the card linkage. Verdict-inert
+    # projection of the SAME `fired` list the fan-out already computed — nothing re-resolved.
+    fired_rules_out: list[dict] = []
+    for f in (r.get("fired") or []):
+        if not isinstance(f, dict):
+            continue
+        rid = f.get("rule_id")
+        fired_rules_out.append({
+            "rule_id": rid,
+            "card_id": f.get("card_id"),
+            "tier": f.get("tier"),
+            "signals": f.get("signals"),
+            "is_driving": rid is not None and rid == driving_rule_id,
+        })
     cards_out: list[dict] = []
     for c in (r.get("cards") or []):
         if not isinstance(c, dict):
@@ -51,10 +68,15 @@ def _subskill_package(short: str, r: dict, figures_dir: Path) -> dict:
     return {
         "sub_skill": short,
         "verdict": v[0] if v else None,
-        "driving_rule_id": v[1] if v else None,
+        "driving_rule_id": driving_rule_id,
         "fired_rule_ids": [f["rule_id"] for f in (r.get("fired") or [])],
+        # Full fired-rule objects (card linkage + polarity + driving flag) for the distillation chain.
+        "fired_rules": fired_rules_out,
         "claim_vector": facet.get("claim_vector"),
         "key_signals": facet.get("key_signals"),
+        # Per-sub-skill single-lens LLM narration (None unless the composed run used
+        # --synthesize-subskills AND this sub-skill declares a narrator). ADDITIVE / verdict-inert.
+        "llm_synthesis": r.get("llm_synthesis"),
         "n_cards": len(cards_out),
         "cards": cards_out,
     }

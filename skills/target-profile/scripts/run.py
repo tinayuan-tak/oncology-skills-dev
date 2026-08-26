@@ -213,6 +213,11 @@ def main() -> int:
                          "fetch), so it renders in any webview / can be shared or served from S3 with "
                          "no network. Default (omit) keeps the interactive Plotly+CDN embed. "
                          "Verdict-inert; the .md/nomination spine is unchanged.")
+    # Per-sub-skill LLM narration rides the SAME default-on substrate umbrella as ground/risk/hypothesis:
+    # ON by default, OFF under --no-substrate / --no-synthesis / --verdict-only / --emit. Each
+    # narrator-bearing sub-skill's single-lens narration is persisted under subskills/<short>/package.json
+    # (llm_synthesis). Best-effort + VERDICT-INERT (a Bedrock failure degrades to a note; the deterministic
+    # spine is unaffected). No dedicated flag — the substrate umbrella governs it.
     ap.add_argument("--no-synthesis", action="store_true",
                     help="Skip the Tier-3 Bedrock LLM synthesis (executive-summary / tension / "
                          "recommendation narrative). The deterministic verdict spine — sub-verdicts, "
@@ -440,9 +445,14 @@ def main() -> int:
         plot_data_root = resolve_figures_root(args.out)
         plot_data_root.mkdir(parents=True, exist_ok=True)
     _fanout_t0 = time.perf_counter() if args.profile_timers else 0.0
+    # Per-sub-skill LLM narration rides the SAME default-on substrate umbrella (run_hypothesis is the
+    # LLM tail gate — off under --no-substrate / --no-synthesis / --verdict-only / --emit), so a default
+    # run narrates each narrator sub-skill and an offline run stays byte-identical.
     sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes,
                                   profile_timers=args.profile_timers,
-                                  plot_data_root=plot_data_root)
+                                  plot_data_root=plot_data_root,
+                                  synthesize_subskills=run_hypothesis,
+                                  synthesis_model=getattr(args, "synthesis_model", None))
     if args.profile_timers:
         print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===",
               file=sys.stderr)

@@ -116,6 +116,80 @@ def _load_sub_skill_claim_record_fn(skill_dir_name: str) -> Any:
     return getattr(module, "_claim_record", None) if module is not None else None
 
 
+import random  # noqa: E402 — used only by the best-effort synthesis retry below
+import threading  # noqa: E402
+
+# The deterministic fan-out is concurrent (one thread per sub-skill). The OPTIONAL per-sub-skill
+# Bedrock narration, however, throttles hard (503) when all narrators fire at once, so serialize
+# JUST the synthesis Bedrock calls behind this lock — the card reads / verdict spine stay concurrent.
+# Combined with the jittered retry below, this clears the concurrent-throttle failure mode.
+_SYNTH_LOCK = threading.Lock()
+
+# Transient Bedrock conditions worth a backoff retry (throttling / capacity), vs a hard error
+# (auth, bad request) that will never clear. Matched on the message since the shared llm layer
+# surfaces provider errors as strings/typed exceptions with these tokens.
+_TRANSIENT_SYNTHESIS_TOKENS = ("503", "ServiceUnavailable", "Throttl", "Too many",
+                               "TooManyRequests", "capacity", "timeout", "Timeout", "429")
+
+
+def _is_transient_synth(err: str) -> bool:
+    return any(tok in (err or "") for tok in _TRANSIENT_SYNTHESIS_TOKENS)
+
+
+def _synthesize_with_retry(synth_fn, cards, fired, verdict_pair, target, indication,
+                           synthesis_model, *, max_attempts: int = 4) -> dict:
+    """Call a sub-skill's _llm_synthesis with backoff on TRANSIENT Bedrock errors (503/throttle),
+    which are common when the concurrent fan-out fires all narrators at once. Best-effort +
+    VERDICT-INERT: a persistent failure returns a {_synthesis_error} note; never raises.
+
+    Jittered exponential backoff spreads the retries so simultaneously-throttled narrators do not
+    re-collide. A non-transient error (auth / bad request) fails fast — no point retrying."""
+    last_err = None
+    for attempt in range(max_attempts):
+        try:
+            with _SYNTH_LOCK:   # serialize the Bedrock call across the concurrent fan-out (anti-throttle)
+                result = synth_fn(cards, fired, verdict_pair, target, indication, synthesis_model, None)
+        except Exception as e:  # noqa: BLE001 — narration must never break the fan-out
+            last_err = f"{type(e).__name__}: {e}"
+            result = None
+        # A narrator may swallow the provider error and RETURN a {_synthesis_error} dict instead of raising.
+        if isinstance(result, dict) and "_synthesis_error" in result:
+            last_err = str(result.get("_synthesis_error"))
+            if not _is_transient_synth(last_err):
+                return result  # hard error — surface as-is, no retry
+        elif result is not None:
+            return result  # success
+        if attempt < max_attempts - 1 and _is_transient_synth(last_err or ""):
+            time.sleep(min(30.0, 2.0 * (2 ** attempt)) + random.uniform(0.0, 1.5))  # jittered backoff
+            continue
+        break
+    return {
+        "_synthesis_error": last_err or "unknown",
+        "_note": "per-sub-skill LLM synthesis unavailable after retries; the deterministic verdict "
+                 "is unaffected.",
+    }
+
+
+def _load_sub_skill_synthesis_fn(skill_dir_name: str) -> Any:
+    """Return a sub-skill's OPTIONAL `_llm_synthesis(cards, fired, verdict_pair, target, indication,
+    model_id=None, subtype=None) -> dict`, or None.
+
+    The uniform opt-in a sub-skill uses to hand the COMPOSED target-profile fan-out its OWN single-lens
+    LLM narration — the same provenance-tagged block its standalone `--synthesize` run attaches at
+    decision['llm_synthesis'], reasoned over the SAME evidence through the SAME lens synthesizer.
+    Mirrors `_load_sub_skill_facet_fn` exactly (reads the prewarmed module cache, so a sub-skill
+    without the hook pays no cost). Only the six narrator-bearing sub-skills (tumor-presence,
+    functional-requirement, tumor-selectivity, genomic-alteration-profile, tractability-small-molecule,
+    surface-modality-fit) supply it. VERDICT-INERT + best-effort: the narration is a Bedrock call
+    attached AFTER the deterministic verdict, structurally unable to touch fired / the resolver /
+    the nomination spine; it runs ONLY when the composed run is invoked with --synthesize-subskills."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    return getattr(module, "_llm_synthesis", None) if module is not None else None
+
+
 def _prewarm_sub_skill_imports() -> None:
     """Perf byte-stability guard: single-threaded, BEFORE the thread pool, trigger every
     import the concurrent workers would otherwise race on — the compose-dashboard dispatcher (via
@@ -768,7 +842,9 @@ def _skipped_synthesis_output() -> dict:
 def _run_sub_skills(target: str, indication: str,
                     subtypes: Optional[list[str]] = None,
                     profile_timers: bool = False,
-                    plot_data_root: Optional[Path] = None) -> dict:
+                    plot_data_root: Optional[Path] = None,
+                    synthesize_subskills: bool = False,
+                    synthesis_model: Optional[str] = None) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
       - `skill_dir`
@@ -859,6 +935,17 @@ def _run_sub_skills(target: str, indication: str,
                 claim_record_shadow = _cr_fn(cards, fired, verdict_pair)
             except Exception:  # noqa: BLE001 — a shadow must never break the fan-out
                 claim_record_shadow = None
+        # OPTIONAL per-sub-skill single-lens LLM narration (--synthesize-subskills). Best-effort +
+        # VERDICT-INERT, same discipline as synthesis_facet: a narrator-bearing sub-skill exposes
+        # _llm_synthesis and hands the composed layer the SAME provenance-tagged block its standalone
+        # --synthesize run attaches; absence (7 non-narrator shorts) / failure (Bedrock auth) → None.
+        # This is the ONLY hook here that issues a network (Bedrock) call, gated on synthesize_subskills.
+        llm_synthesis = None
+        if synthesize_subskills:
+            _synth_fn = _load_sub_skill_synthesis_fn(skill_dir)
+            if _synth_fn is not None:
+                llm_synthesis = _synthesize_with_retry(
+                    _synth_fn, cards, fired, verdict_pair, target, indication, synthesis_model)
         return short, {
             "skill_dir": skill_dir,
             "cards": cards,
@@ -873,6 +960,10 @@ def _run_sub_skills(target: str, indication: str,
             # Factored claim-record SHADOW (M1). ADDITIVE / verdict-inert / consumed-by-nothing — see
             # _load_sub_skill_claim_record_fn. Assembled by tp_facets._claim_record_shadow_by_axis.
             "claim_record_shadow": claim_record_shadow,
+            # Per-sub-skill single-lens LLM narration (None unless --synthesize-subskills AND the
+            # sub-skill declares a narrator). ADDITIVE / verdict-inert — see
+            # _load_sub_skill_synthesis_fn; persisted into subskills/<short>/package.json by tp_manifest.
+            "llm_synthesis": llm_synthesis,
             # the SAME sub-verdict, carried in the shared CompositionResult type (the
             # foundation the later --emit evidence-package stage consumes). ADDITIVE — wraps the
             # already-decided verdict_pair (post-resolver logic preserved); verdict/fired/cards and
@@ -948,6 +1039,7 @@ __all__ = [
     '_load_sub_skill_verdict_fn',
     '_load_sub_skill_facet_fn',
     '_load_sub_skill_certainty_fn',
+    '_load_sub_skill_synthesis_fn',
     '_prewarm_sub_skill_imports',
     '_run_sub_skills',
     '_skipped_synthesis_output',
