@@ -63,13 +63,23 @@ def test_write_artifact_uses_canonical_filename(tmp_path):
         tp_emit.write_artifact(tmp_path, "bogus", "x")
 
 
-def test_assert_write_set_detects_drift(tmp_path):
-    # default mode expects the 4 core files; write only 2 → drift raises.
-    (tmp_path / "nomination.json").write_text("{}")
-    (tmp_path / "target_profile.md").write_text("#")
+def test_assert_write_set_tracks_written_not_disk():
+    # keys on the run-scoped `written` set, NOT files on disk. Required = expected − best-effort(html).
+    # missing a required kind → raises.
     with pytest.raises(AssertionError):
-        tp_emit.assert_write_set(tmp_path, _args())
-    # complete the set → passes.
-    (tmp_path / "target_profile.html").write_text("<html>")
-    (tmp_path / "provenance.yaml").write_text("a: 1")
-    tp_emit.assert_write_set(tmp_path, _args())
+        tp_emit.assert_write_set(_args(), {"nomination", "markdown"})            # missing provenance
+    # required present, html omitted (best-effort) → OK.
+    tp_emit.assert_write_set(_args(), {"nomination", "markdown", "provenance"})
+    # html present too → still OK (within expected).
+    tp_emit.assert_write_set(_args(), {"nomination", "markdown", "provenance", "html"})
+    # an UNEXPECTED extra kind → raises.
+    with pytest.raises(AssertionError):
+        tp_emit.assert_write_set(_args(), {"nomination", "markdown", "provenance", "evidence_package"})
+
+
+def test_assert_write_set_robust_to_reused_out():
+    # regression for the stale-file crash: --emit mode with ONLY evidence_package written this run passes
+    # even though a prior default run left spine files in the same --out (we track writes, not disk).
+    tp_emit.assert_write_set(_args(emit="evidence-package"), {"evidence_package"})
+    # html render failed (fail-open) on a default run → html absent from written, still passes.
+    tp_emit.assert_write_set(_args(), {"nomination", "markdown", "provenance"})

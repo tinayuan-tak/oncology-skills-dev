@@ -74,11 +74,15 @@ _BLOCK_SPEC = [
     ("synthesis",        "s-exec",       "Executive summary",              True,
      lambda c: True),                                                      # exec OR hypothesis (emitter picks)
     ("coherence",        "s-coherence",  "Target thesis & coherence",      True,
-     lambda c: bool((c.target_coherence or {}).get("thesis"))),            # the through-line lens
+     # predicate MUST match _coherence_emit's guard (needs thesis.primary) — else a dead nav anchor.
+     lambda c: bool(((c.target_coherence or {}).get("thesis") or {}).get("primary"))),
     ("literature_risk",  "s-litrisk",    "Literature risk (context)",      True,
-     lambda c: bool(c.risk_assessment)),
+     # predicate MUST match _render_literature_risk_html's guard (needs a dimensions dict).
+     lambda c: isinstance((c.risk_assessment or {}).get("dimensions"), dict)),
     ("evidence_summary", "s-evidence",   "Evidence summary",               True,
-     lambda c: bool(c.scorecard)),
+     # the emitter renders from sub_results verdicts (even gateless shorts w/ no scorecard row), so gate
+     # on present sub-skills, not on a truthy scorecard (which suppressed a gateless-only run's summary).
+     lambda c: bool(c.sub_results)),
     ("modality_matrix",  "s-matrix",     "Modality-fit matrix",            True,
      lambda c: bool(c.ordinal_matrix) or bool(c.catalogue_rows)),
     ("deciding_axis",    "s-deciding",   "Deciding axis",                  True,
@@ -86,7 +90,9 @@ _BLOCK_SPEC = [
     ("subskill_sections", "s-subskills", "Subskill evidence",             True,
      lambda c: True),                                                      # always ≥1 subskill
     ("tension",          "s-tension",    "Conflicting signals",            True,
-     lambda c: not c.hypothesis),                                         # hypothesis carries its own tensions
+     # suppressed ONLY when a hypothesis BODY replaces the synthesis (it carries its own tensions);
+     # a bodyless hypothesis leaves the exec-summary + tension in place (matches the synthesis swap).
+     lambda c: not (isinstance(c.hypothesis, dict) and c.hypothesis.get("hypothesis"))),
     ("provenance_trace", "s-provenance", "Provenance trace",               True,
      lambda c: bool(c.sub_results)),
     ("data_package_explorer", "s-data-package", "Data package",            True,
@@ -107,10 +113,14 @@ def build_view_model(ctx: RenderContext) -> list[Block]:
         return [Block("subskill_sections", "s-subskills", "Presence", nav=True)]
     blocks: list[Block] = []
     for kind, bid, title, nav, pred in _BLOCK_SPEC:
-        if kind == "synthesis" and ctx.hypothesis:
-            k2, id2, t2, nav2, _ = _HYP_SYNTHESIS
-            blocks.append(Block(k2, id2, t2, nav2))
-            continue
+        if kind == "synthesis":
+            # Swap the nav to the hypothesis anchor ONLY when a hypothesis BODY exists — otherwise the
+            # emitter falls back to the exec-summary (id s-exec), and a 's-hypothesis' nav link would be
+            # a dead anchor + mislabeled. (Matches _synthesis_emit / _render_hypothesis_html's guard.)
+            if isinstance(ctx.hypothesis, dict) and ctx.hypothesis.get("hypothesis"):
+                k2, id2, t2, nav2, _ = _HYP_SYNTHESIS
+                blocks.append(Block(k2, id2, t2, nav2))
+                continue
         if pred(ctx):
             blocks.append(Block(kind, bid, title, nav))
     return blocks

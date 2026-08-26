@@ -1376,6 +1376,33 @@ def _render_hypothesis_html(doc: Optional[dict]) -> list[str]:
                         f"<span class=sub>{_chips(t.get('citations'))}</span></li>" for t in tens)
         out.append(f"<details class=hyp-part><summary><b>Tensions &amp; trade-offs</b> "
                    f"<span class=sub>— {len(tens)} noted</span></summary><ul>{items}</ul></details>")
+    # CROSS-DIMENSION EDGES — the typed reasoning graph (previously carried in the doc but never shown).
+    edges = doc.get("edges") or []
+    if edges:
+        erows = "".join(
+            f"<li><code>{_esc(e.get('from_dimension'))}</code> "
+            f"<span class=sub>—{_esc(e.get('type'))}&rarr;</span> "
+            f"<code>{_esc(e.get('to_dimension'))}</code>"
+            + (f": {_esc(e.get('rationale'))}" if e.get('rationale') else "") + "</li>"
+            for e in edges if isinstance(e, dict))
+        out.append(f"<details class=hyp-part><summary><b>Cross-dimension edges</b> "
+                   f"<span class=sub>— {len(edges)} typed links across subskills</span></summary>"
+                   f"<ul class=grounded-findings>{erows}</ul></details>")
+    # EVIDENCE PATHS — each claim + the chain of lines/PMIDs that support it.
+    paths = doc.get("evidence_paths") or []
+    if paths:
+        def _chain(p):
+            ch = p.get("path") or p.get("supporting_lines") or p.get("dimensions") or []
+            return (f"<div class=sub>{_esc(' &rarr; '.join(str(x) for x in ch))}</div>"
+                    if isinstance(ch, list) and ch else "")
+        prows = "".join(
+            f"<li><b>{_esc(p.get('claim') or '')}</b>"
+            + (f" <span class=sub>{_chips(p.get('citations'))}</span>" if p.get('citations') else "")
+            + _chain(p) + "</li>"
+            for p in paths if isinstance(p, dict))
+        out.append(f"<details class=hyp-part><summary><b>Evidence paths</b> "
+                   f"<span class=sub>— {len(paths)} claim chains</span></summary>"
+                   f"<ul class=grounded-findings>{prows}</ul></details>")
     gf = H.get("go_forth") or {}
     if gf:
         out.append(f"<div style='{_PART}'><p class=h style='margin:0 0 2px'>Go-forth — value of "
@@ -1512,6 +1539,8 @@ def _render_target_profile_html(
     # the molecular-subtype signal is never buried. Shows convergent strata when present, else the honest
     # whole-cohort / no-convergence state. Verdict-inert.
     _sub = (target_rollup or {}).get("subtype") or {}
+    if not isinstance(_sub, dict):   # defensive: this fn is not _safe_panel-wrapped — a malformed
+        _sub = {}                    # subtype (non-dict) must not AttributeError the whole render.
     _sub_prom = _sub.get("prominence")
     _sub_cls = {"convergent": "subtype-banner subtype-hit", "evaluated_no_convergence": "subtype-banner",
                 "whole_cohort": "subtype-banner subtype-muted"}.get(_sub_prom, "subtype-banner subtype-muted")
@@ -1868,9 +1897,10 @@ def _render_target_profile_html(
 
     # --- Tension analysis (LLM) → "Conflicting signals & trade-offs" — closure.
     def _tension_html() -> list[str]:
-        # When the cross-evidence hypothesis replaces the synthesis, its own Tensions block covers
-        # this — suppress the original Tier-3 tension narrative to avoid a duplicate/stale section.
-        if hypothesis:
+        # When the cross-evidence hypothesis BODY replaces the synthesis, its own Tensions block covers
+        # this — suppress the original Tier-3 tension narrative. A bodyless hypothesis (exec-summary
+        # fallback) keeps the tension section (matches the synthesis swap + view-model predicate).
+        if isinstance(hypothesis, dict) and hypothesis.get("hypothesis"):
             return []
         return ["<div class=llm id=s-tension><span class=tag>AI-generated</span>"
                 "<h2>Conflicting signals &amp; trade-offs</h2>"
@@ -1907,7 +1937,9 @@ def _render_target_profile_html(
                 out.append("</table></details>")
             out.append("</section>")
         elif catalogue_rows:
-            out.append("<section class=det><h2>Data catalogue</h2>"
+            # id=s-matrix so the nav's Modality-fit link (emitted whenever ordinal_matrix OR
+            # catalogue_rows) resolves to this fallback section instead of a dead anchor.
+            out.append("<section id=s-matrix class=det><h2>Data catalogue</h2>"
                        "<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
             for cr in catalogue_rows:
                 out.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"

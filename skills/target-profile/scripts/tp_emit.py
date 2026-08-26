@@ -57,27 +57,39 @@ def expected_artifacts(args) -> frozenset:
     return frozenset(kinds)
 
 
-def write_artifact(out: Path, kind: str, text: str) -> Path:
+# Artifacts whose emitter is BEST-EFFORT (fail-open): the write-set guard requires everything ELSE, but
+# tolerates these being absent (e.g. the HTML render is wrapped try/except — a render failure must not
+# abort a run that already wrote its md/nomination/provenance).
+BEST_EFFORT_ARTIFACTS = frozenset({"html"})
+
+
+def write_artifact(out: Path, kind: str, text: str, written: Optional[set] = None) -> Path:
     """The ONE write path for a dashboard/spine artifact. Caller passes already-serialized text
-    (json.dumps / yaml.safe_dump / rendered md|html); this owns only the filename + the write."""
+    (json.dumps / yaml.safe_dump / rendered md|html); this owns only the filename + the write. When a
+    `written` set is passed, records this kind into it (so assert_write_set checks THIS RUN's writes,
+    not stale files in a reused --out)."""
     if kind not in ARTIFACT_FILENAMES:
         raise KeyError(f"unknown artifact kind {kind!r} (known: {sorted(ARTIFACT_FILENAMES)})")
     path = Path(out) / ARTIFACT_FILENAMES[kind]
     path.write_text(text)
+    if written is not None:
+        written.add(kind)
     return path
 
 
-def assert_write_set(out: Path, args, *, extra_present: Optional[set] = None) -> None:
-    """Post-run guard: the dashboard/spine artifacts on disk match `expected_artifacts(args)` exactly.
-    `extra_present` lets the caller include kinds written by their own emitter (e.g. evidence_package via
-    _write_evidence_package). Raises AssertionError on drift so a mode never silently gains/drops a file."""
-    on_disk = {k for k, fn in ARTIFACT_FILENAMES.items() if (Path(out) / fn).exists()}
-    on_disk |= (extra_present or set())
+def assert_write_set(args, written: set) -> None:
+    """Post-run guard: the artifacts WRITTEN THIS RUN match this mode's declared MODE_WRITE_SET. Keys on
+    the run-scoped `written` set (NOT filesystem existence — so a reused --out with stale artifacts from a
+    prior mode does NOT trigger a false failure). Required = expected minus BEST_EFFORT; a best-effort
+    artifact (html) may be absent. Raises AssertionError on genuine drift (a mode gained/dropped a write)."""
     want = set(expected_artifacts(args))
-    assert on_disk == want, (
-        f"artifact write-set drift for mode {run_mode(args)!r}: on_disk={sorted(on_disk)} "
-        f"expected={sorted(want)} (missing={sorted(want - on_disk)} unexpected={sorted(on_disk - want)})")
+    required = want - BEST_EFFORT_ARTIFACTS
+    extra = written - want
+    missing = required - written
+    assert not extra and not missing, (
+        f"artifact write-set drift for mode {run_mode(args)!r}: written={sorted(written)} "
+        f"expected={sorted(want)} (missing_required={sorted(missing)} unexpected={sorted(extra)})")
 
 
-__all__ = ["ARTIFACT_FILENAMES", "MODE_WRITE_SETS", "run_mode", "expected_artifacts",
-           "write_artifact", "assert_write_set"]
+__all__ = ["ARTIFACT_FILENAMES", "MODE_WRITE_SETS", "BEST_EFFORT_ARTIFACTS", "run_mode",
+           "expected_artifacts", "write_artifact", "assert_write_set"]

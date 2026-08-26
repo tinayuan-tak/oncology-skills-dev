@@ -652,6 +652,9 @@ def main() -> int:
     # (once, shared). ground_axis reads this envelope (synthesis.sub_verdicts + cards); the emit-mode
     # return path reuses the same file. When neither is requested, ep_path stays None → nothing written
     # → a default nomination run is byte-identical.
+    # Track the artifact kinds WRITTEN THIS RUN (not files on disk) so assert_write_set is robust to a
+    # reused --out with stale artifacts from a prior mode.
+    _written: set = set()
     ep_path = None
     if args.emit == "evidence-package" or args.ground or args.full_package:
         ep_path = _write_evidence_package(
@@ -671,6 +674,7 @@ def main() -> int:
             modality_fit_by_channel=modality_fit_by_channel, magnitude_borderline=magnitude_borderline,
             modality=args.modality,
         )
+        _written.add("evidence_package")
 
     # AUTO-GROUND (fanout-integration): PRODUCE the per-axis grounded substrate in one pass over the
     # just-written evidence package. VERDICT-INERT (reads the finished spine) + best-effort (any failure
@@ -697,7 +701,7 @@ def main() -> int:
     # skipping every nomination-oriented render (composite panel / md / html / nomination.json /
     # provenance). The spine it reads is byte-identical to a nomination run.
     if args.emit == "evidence-package":
-        assert_write_set(args.out, args, extra_present={"evidence_package"})   # envelope-only write-set
+        assert_write_set(args, _written)   # envelope-only write-set (evidence_package recorded above)
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
         print(f"Recommendation: {gate_action or '(no gate fired)'}")
         _restore_run_log()
@@ -720,7 +724,7 @@ def main() -> int:
         presence_facet=presence_facet,
         actionability_mode=actionability_mode,
     )
-    write_artifact(args.out, "markdown", md)
+    write_artifact(args.out, "markdown", md, _written)
 
     # 3c. Render + emit the static HTML governance artifact (self-contained; inlines the
     # composite SVG). Pure projection — never blocks emission on failure.
@@ -741,7 +745,7 @@ def main() -> int:
             target_rollup=target_rollup, target_coherence=target_coherence,
             full_package=getattr(args, "full_package", False),
         )
-        write_artifact(args.out, "html", htmldoc)
+        write_artifact(args.out, "html", htmldoc, _written)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
@@ -849,7 +853,7 @@ def main() -> int:
         "card_figures": card_figures,
         "llm_synthesis": llm_output,
     }
-    write_artifact(args.out, "nomination", json.dumps(nomination, indent=2, default=str))
+    write_artifact(args.out, "nomination", json.dumps(nomination, indent=2, default=str), _written)
 
     provenance = {
         "skill": SKILL_NAME,
@@ -882,10 +886,10 @@ def main() -> int:
         # Verdict-inert; feeds the inline render + downstream --substrate (risk_rollup + hypothesis).
         "grounded_axes": sorted(grounded_by_axis) if args.ground else [],
     }
-    write_artifact(args.out, "provenance", yaml.safe_dump(provenance, sort_keys=False))
-    # Guard: the dashboard/spine artifacts on disk match this mode's declared MODE_WRITE_SET
-    # (evidence_package is written by _write_evidence_package above when --ground/--full-package).
-    assert_write_set(args.out, args, extra_present={"evidence_package"} if ep_path else set())
+    write_artifact(args.out, "provenance", yaml.safe_dump(provenance, sort_keys=False), _written)
+    # Guard: the artifacts WRITTEN THIS RUN match this mode's declared MODE_WRITE_SET (html is
+    # best-effort; evidence_package was recorded above when --ground/--full-package).
+    assert_write_set(args, _written)
 
     # --full-package: additive REVIEW bundle — the evidence_package.json was already written above
     # (ep_path); here we add the per-sub-skill packages + a MANIFEST index tying every artifact together.

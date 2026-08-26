@@ -56,6 +56,19 @@ def test_data_package_block_only_under_full_package():
     assert "id=s-data-package" not in h2
 
 
+def test_hypothesis_edges_and_evidence_paths_render():
+    doc = {"hypothesis": {"causal_rationale": {"statement": "s", "citations": []}, "go_forth": {}},
+           "verdict": {"computed": "proposed"}, "uncertainty": {}, "defensibility": {},
+           "edges": [{"type": "contradicts", "from_dimension": "combinatorial_dependency",
+                      "to_dimension": "dependency", "rationale": "combo signal vs mono non-dependence"}],
+           "evidence_paths": [{"claim": "KRAS dependency is mutant-confined", "citations": ["123"],
+                               "path": ["genomic_alteration", "dependency"]}],
+           "provenance": {"model_id": "m"}}
+    hh = "".join(tph._render_hypothesis_html(doc))
+    assert "Cross-dimension edges" in hh and "combinatorial_dependency" in hh and "contradicts" in hh
+    assert "Evidence paths" in hh and "KRAS dependency is mutant-confined" in hh and "123" in hh
+
+
 def test_write_full_package_emits_subskills_and_manifest(tmp_path):
     sr = {"expression": {"skill_dir": "tumor-presence",
                          "cards": [{"card_id": "rna", "card_version": "1", "summary": {"_data_source": "x"}}],

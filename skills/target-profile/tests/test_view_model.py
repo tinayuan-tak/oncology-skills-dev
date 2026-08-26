@@ -40,20 +40,31 @@ def test_synthesis_leads_when_no_risk_rollup():
 
 
 def test_optional_blocks_gated_by_inputs():
-    ks = vm.present_kinds(_ctx())   # minimal: no scorecard/matrix/deciding/risk/lit
+    ks = vm.present_kinds(_ctx())   # minimal: no matrix/deciding/risk/lit inputs
     assert "risk_by_category" not in ks and "literature_risk" not in ks
-    assert "evidence_summary" not in ks and "modality_matrix" not in ks and "deciding_axis" not in ks
-    # always-present spine still there
-    for k in ("synthesis", "subskill_sections", "tension", "provenance_trace", "about"):
+    assert "modality_matrix" not in ks and "deciding_axis" not in ks
+    # evidence_summary is gated on sub_results (not scorecard) — present here (matches its emitter).
+    for k in ("synthesis", "evidence_summary", "subskill_sections", "tension", "provenance_trace", "about"):
         assert k in ks
 
 
-def test_hypothesis_replaces_exec_and_suppresses_tension():
-    ks = vm.present_kinds(_ctx(hypothesis={"headline": "h"}))
-    blocks = vm.build_view_model(_ctx(hypothesis={"headline": "h"}))
+def test_hypothesis_body_replaces_exec_and_suppresses_tension():
+    # a hypothesis with a BODY replaces the exec summary (nav → s-hypothesis) + suppresses tension.
+    hyp = {"headline": "h", "hypothesis": {"causal_rationale": {"statement": "x"}}}
+    blocks = vm.build_view_model(_ctx(hypothesis=hyp))
     syn = next(b for b in blocks if b.kind == "synthesis")
-    assert syn.id == "s-hypothesis"          # nav id switches to the hypothesis anchor
-    assert "tension" not in ks               # hypothesis carries its own tensions
+    assert syn.id == "s-hypothesis"
+    assert "tension" not in vm.present_kinds(_ctx(hypothesis=hyp))
+
+
+def test_bodyless_hypothesis_keeps_exec_and_tension():
+    # a hypothesis WITHOUT a body must NOT swap the nav (emitter falls back to exec) and must NOT
+    # suppress tension — else a dead #s-hypothesis anchor + a missing tension section.
+    hyp = {"headline": "h", "verdict": {"computed": "declined"}}   # no "hypothesis" body
+    blocks = vm.build_view_model(_ctx(hypothesis=hyp))
+    syn = next(b for b in blocks if b.kind == "synthesis")
+    assert syn.id == "s-exec"
+    assert "tension" in vm.present_kinds(_ctx(hypothesis=hyp))
 
 
 def test_presence_only_is_single_section():
