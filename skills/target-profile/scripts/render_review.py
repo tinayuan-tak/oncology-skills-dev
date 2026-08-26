@@ -203,39 +203,85 @@ def _cross_evidence_section(hyp: Optional[dict], ep: Optional[dict], nom: Option
     no_hyp = ("" if hyp else "<p class=muted>No hypothesis.json — leading with the composed Tier-3 "
               "synthesis. Run <code>cross-evidence-hypothesis</code> over the evidence package for the "
               "typed thesis + edges.</p>")
-    return f"""<details class="sec xev" open>
-      <summary>1 · Cross-evidence synthesis</summary>{no_hyp}
+    return f"""<section class=xev>
+      <h2>1 · Cross-evidence synthesis</h2>{no_hyp}
       <div class=thesis>{_esc(thesis)}</div>
       {verdict_line}
       <h3>Key input data used</h3>
       {_bullets(input_bullets) if input_bullets else '<p class=muted>No input summary available.</p>'}
       {f'<h3>Tension</h3><p class=prose>{_esc(tension)}</p>' if tension else ''}
       {edges_html}
-    </details>"""
+    </section>"""
 
 
 # ---------------------------------------------------------------- (2) risk (engine + literature)
 
-def _risk_section(ep: Optional[dict]) -> str:
+_RISK_RANK = {"LOW": 0, "LOW-MEDIUM": 1, "MEDIUM": 2, "MED": 2, "MEDIUM-HIGH": 3, "HIGH": 4}
+
+
+def _risk_section(ep: Optional[dict], run_dir: Path) -> str:
+    """Section 2 — the 6-dimension risk view as a DETERMINISTIC-vs-LITERATURE comparison, one row per
+    pillar. Left column: the reproducible reshape of THIS run's sub-verdicts (verdict-driving). Right
+    column: the PubMed-grounded LLM literature read (risk_assessment.json; context-tier, verdict-INERT).
+    A divergence flag (Δ) marks pillars where the two disagree — the interesting talking points."""
     if not ep:
         return ""
     sv = (ep.get("synthesis") or {}).get("sub_verdicts") or {}
     sub_results = {short: {"verdict": (d.get("verdict"), d.get("driving_rule_id"))}
                    for short, d in sv.items() if isinstance(d, dict)}
     triples = _risk_reshape(sub_results) if _risk_reshape else []
+    det = {cat: (level, driver) for cat, level, driver in triples}  # deterministic per pillar
+
+    ra = _load_json(run_dir / "risk_assessment.json")
+    lit = (ra or {}).get("dimensions") if isinstance(ra, dict) else None
+    lit = lit if isinstance(lit, dict) else {}
+
+    order = [c for c, _, _ in triples] + [k for k in _LIT_RISK_ORDER if k not in det]
+    order += [k for k in lit if k not in order]
     rows = []
-    for cat, level, driver in triples:
-        cls = RISK_LEVEL_CLASS.get(level, "r-na")
-        inputs = [f"{ax}={_esc(sv[ax].get('verdict'))}" for ax in RISK_INPUT_AXES.get(cat, [])
-                  if isinstance(sv.get(ax), dict) and sv[ax].get("verdict")]
-        rows.append(f"<tr><td class=dim>{_esc(cat)}</td>"
-                    f"<td class=risk><span class='rbadge {cls}'>{_esc(level)}</span></td>"
-                    f"<td>{_esc(driver)}</td><td class=inp>{'; '.join(inputs) or '—'}</td></tr>")
-    return (f"<details class=sec open><summary>2 · 6-dimension risk assessment</summary>"
-            f"<p class=sub>Deterministic reshape of THIS run's sub-verdicts. insufficient_evidence = "
-            f"the target-profile run has no wired coverage for that dimension.</p>"
-            f"<table class=risk6><tr><th>Dimension</th><th>Risk</th><th>What drove it</th>"
-            f"<th>Contributing sub-verdicts</th></tr>{''.join(rows)}</table></details>")
+    for cat in order:
+        dl, driver = det.get(cat, (None, None))
+        ld = lit.get(cat) if isinstance(lit.get(cat), dict) else {}
+        ll = str(ld.get("risk_level") or "").upper()
+        just = _esc(ld.get("justification") or ld.get("interpretation") or "")
+        pillar = _esc(ld.get("pillar") or "")
+        det_cell = (f"<span class='rbadge {RISK_LEVEL_CLASS.get(dl, 'r-na')}'>{_esc(dl)}</span>"
+                    f"<div class=prov>{_esc(driver) or '—'}</div>") if dl else "<span class=muted>—</span>"
+        lit_cell = (f"<span class='rbadge {_LIT_RISK_CLASS.get(ll, 'r-na')}'>{_esc(ll or 'n/a')}</span>"
+                    f"<div class=prose style='margin-top:3px'>{just}</div>") if ld else "<span class=muted>—</span>"
+        # divergence flag when both graded and rank differs
+        flag = ""
+        if dl in _RISK_RANK and ll in _RISK_RANK and _RISK_RANK[dl] != _RISK_RANK[ll]:
+            flag = " <span title='deterministic vs literature disagree' style='color:var(--accent);font-weight:700'>Δ</span>"
+        label = f"{_esc(cat)}{flag}" + (f"<div class=prov style='margin-top:2px'>{pillar}</div>" if pillar else "")
+        rows.append(f"<tr><td class=dim>{label}</td><td class=risk>{det_cell}</td><td>{lit_cell}</td></tr>")
+
+    prov = (ra or {}).get("provenance") or {}
+    model = _esc(prov.get("synthesis_model") or "")
+    pin = prov.get("corpus_pin") or {}
+    span = _esc(f"{pin.get('mindate','')}–{pin.get('maxdate','')}".strip("–"))
+    provline = ""
+    if lit and (model or span):
+        provline = (f"<div class=prov>Literature column: context tier · non-reproducible · "
+                    f"model {model} · corpus {_esc(pin.get('source') or 'PubMed')}"
+                    + (f" ({span})" if span else "") + " · never a verdict input</div>")
+    lit_hdr = ("Literature (LLM · <span class='rbadge r-na'>context</span>)" if lit
+               else "Literature (not generated)")
+    return (f"<section><h2>2 · 6-dimension risk assessment "
+            f"<span class=sub style='font-weight:400'>— deterministic vs literature</span></h2>"
+            f"<p class=sub>One row per pillar. <b>Deterministic</b> = reproducible reshape of this run's "
+            f"sub-verdicts (verdict-driving). <b>Literature</b> = PubMed-grounded LLM read "
+            f"(risk_assessment.json; display-only, verdict-INERT). <b>Δ</b> flags pillars where the two "
+            f"disagree. insufficient_evidence = no wired coverage for that dimension.</p>"
+            f"<table class=risk6><tr><th>Pillar</th><th>Deterministic risk</th><th>{lit_hdr}</th></tr>"
+            f"{''.join(rows)}</table>{provline}</section>")
+
+
+# The LLM literature risk read (risk_assessment.json) is now rendered INLINE beside the deterministic
+# reshape in _risk_section (section 2, deterministic-vs-literature comparison).
+
+_LIT_RISK_CLASS = {"LOW": "r-low", "MEDIUM": "r-med", "MED": "r-med", "HIGH": "r-high"}
+_LIT_RISK_ORDER = ["biological", "druggability", "translational", "clinical", "safety", "commercial"]
 
 
 # ---------------------------------------------------------------- (3) modality (grouped)
@@ -294,10 +340,10 @@ def _modality_section(nom: Optional[dict], grounded_dir: Optional[Path]) -> str:
                       f"<th>Grounded-agent</th></tr>{''.join(rows)}</table>")
     gnote = ("" if grounded_dir else " <span class=muted>(grounded-agent column empty — pass "
              "<code>--grounded-dir</code> from a <code>--ground</code> run)</span>")
-    return (f"<details class=sec open><summary>3 · Modality-fit summary</summary>"
+    return (f"<section><h2>3 · Modality-fit summary</h2>"
             f"<p class=sub>Deterministic engine fit per channel + grounded-agent{gnote}. Biologics is the "
             f"parent abstraction of ADC / bispecific-TCE / antibody; small-molecule and degrader are the "
-            f"intracellular channels.</p>{''.join(blocks)}</details>")
+            f"intracellular channels.</p>{''.join(blocks)}</section>")
 
 
 # ---------------------------------------------------------------- per-sub-skill
@@ -420,79 +466,6 @@ def _chain_html(pkg: dict) -> str:
             "those rules resolve to. ★ = the rung that drove the verdict.</p>" + table + vbox)
 
 
-def _why_verdict_html(short: str, nom: Optional[dict]) -> str:
-    """Render the per-verdict NARRATIVE for one axis from nomination.json.narrative_by_axis[short]:
-    what SET the verdict (movers), what pushed back and lost (dissenters), what would FLIP it
-    (flip_conditions), and the open GAPS. Pure projection — no recompute. The deterministic
-    counterpart to the LLM synthesis: it makes the abstract rule_ids/verdict tell their own story."""
-    nba = (nom or {}).get("narrative_by_axis") or {}
-    n = nba.get(short)
-    if not isinstance(n, dict):
-        return ("<p class=muted>No narrative for this axis (only resolver-backed sub-verdicts emit "
-                "one; re-run target-profile so nomination.json carries <code>narrative_by_axis</code>).</p>")
-    movers = n.get("movers") or []
-    dissenters = n.get("dissenters") or []
-    flips = n.get("flip_conditions") or []
-    gaps = n.get("gaps") or []
-    if not (movers or dissenters or flips or gaps):
-        return "<p class=muted>Narrative empty (no movers, dissenters, or flips for this verdict).</p>"
-
-    rows = []
-    # SET BY — the winning driver (★) + same-direction referenced movers
-    if movers:
-        chips = []
-        for m in movers:
-            star = " ★" if m.get("role") == "driver" else ""
-            chips.append(f"<abbr class=pol-sup title=\"{_esc(m.get('sentence') or '')}\">"
-                         f"<code>{_esc(m.get('rule_id'))}</code>{star}</abbr>")
-        rows.append(f"<div class=whyrow><span class=whytag>set by</span>"
-                    f"<span class=whyval>{' '.join(chips)}</span></div>")
-        drv = next((m for m in movers if m.get("role") == "driver"), None)
-        if drv and drv.get("sentence"):
-            rows.append(f"<div class=whysent>{_esc(drv['sentence'])}</div>")
-    # DESPITE — dissenters (fired rules opposing the resolved call), deduped per rule with channels
-    if dissenters:
-        by_rule: dict[str, list] = {}
-        sent: dict[str, str] = {}
-        for d in dissenters:
-            rid = d.get("rule_id")
-            by_rule.setdefault(rid, []).append(d.get("channel"))
-            sent.setdefault(rid, d.get("sentence") or "")
-        chips = [f"<abbr class=pol-opp title=\"{_esc(sent.get(rid) or '')}\"><code>{_esc(rid)}</code> "
-                 f"<span class=whych>({_esc(', '.join(c for c in chans if c))})</span></abbr>"
-                 for rid, chans in by_rule.items()]
-        rows.append(f"<div class=whyrow><span class=whytag>despite</span>"
-                    f"<span class=whyval>{' '.join(chips)}</span></div>")
-    # FLIPS IF — single-rule counterfactuals; ⚑ marks a Go/No-Go (recommendation) flip
-    if flips:
-        items = []
-        for f in flips:
-            rid, to = f.get("rule_id"), f.get("to_verdict")
-            cond = "without" if f.get("present") else "with"
-            flag = " <span class=whyflag title='crosses the Go/No-Go boundary'>⚑ rec</span>" \
-                if f.get("recommendation_flip") else ""
-            items.append(f"<span class=whyflip>{cond} <code>{_esc(rid)}</code> → "
-                         f"<b>{_esc(to)}</b>{flag}</span>")
-        rows.append(f"<div class=whyrow><span class=whytag>flips if</span>"
-                    f"<span class=whyval>{' '.join(items)}</span></div>")
-    # GAPS — acquire (held by ignorance) / strengthen (measured-but-underpowered)
-    if gaps:
-        labs = []
-        for g in gaps:
-            if g.get("kind") == "acquire":
-                cids = ", ".join(c.get("card_id") for c in (g.get("missing_cards") or []) if c.get("card_id"))
-                labs.append(f"acquire <code>{_esc(cids)}</code>" if cids else "acquire (missing data)")
-            elif g.get("kind") == "strengthen":
-                labs.append("strengthen (measured but underpowered)")
-        if labs:
-            rows.append(f"<div class=whyrow><span class=whytag>gaps</span>"
-                        f"<span class=whyval>{' · '.join(labs)}</span></div>")
-    return ("<p class=hint>Deterministic reasoning trace: what <b>set</b> the verdict, what fired "
-            "<b>against</b> it and lost, and the single rule-toggles that would <b>flip</b> it. Hover a "
-            "rule for its plain-English rationale.</p>"
-            f"<div class=why>{''.join(rows)}</div>")
-
-
 def _descriptive_facts_html(short: str, pkg: dict) -> str:
     spec = DESCRIPTIVE_FIELDS.get(short) or {}
     summ = {c.get("card_id"): (c.get("summary") or {}) for c in (pkg.get("cards") or [])}
@@ -525,9 +498,7 @@ def _subskill_section(short: str, pkg: dict, nom: Optional[dict]) -> str:
     else:
         body = (f"<h4>a · Interpretation (LLM synthesis — key findings)</h4>{_synthesis_html(pkg)}"
                 f"<h4>b · Key questions → outputs (data used)</h4>{_question_table_html(short, nom)}"
-                f"<h4>c · Cards → data → rules → verdict</h4>{_chain_html(pkg)}"
-                f"<h4>d · Why this verdict — movers, dissenters, what would flip it</h4>"
-                f"{_why_verdict_html(short, nom)}")
+                f"<h4>c · Cards → data → rules → verdict</h4>{_chain_html(pkg)}")
         vchip = _esc(pkg.get('verdict')) or 'verdict: none'
     return f"""
     <details class=subskill open>
@@ -549,7 +520,6 @@ _LEGEND = """<details class=howto><summary>How to read this review</summary><div
 <li><b>Risk badges:</b> <span class="rbadge r-low">LOW</span> <span class="rbadge r-med">MEDIUM</span>
 <span class="rbadge r-high">HIGH</span>; insufficient_evidence = that dimension has no wired data.</li>
 <li><b>Cross-dimension edges</b> show how one sub-skill's output conditions / corroborates / contradicts / tensions another (hover a relation for its meaning).</li>
-<li><b>Why this verdict (d)</b> is the deterministic reasoning trace: <b>set by</b> (the movers that produced the call, ★ = driver), <b>despite</b> (dissenting rules that fired but lost), and <b>flips if</b> (single rule-toggles that would change it; <span class=whyflag>⚑ rec</span> = crosses the Go/No-Go). Verdict-inert — it explains, never changes, the verdict.</li>
 <li>Tokens in <code>mono</code> are card IDs / rule IDs / raw class values — the audit trail; hover dotted terms for a gloss.</li>
 </ul></div></details>"""
 
@@ -560,12 +530,6 @@ _CSS = """
 .wrap{max-width:1060px;margin:0 auto;padding:28px 22px 80px}
 h1{font:600 26px/1.2 Georgia,serif;margin:0 0 2px}
 h2{font:600 19px/1.2 Georgia,serif;margin:34px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--rule)}
-/* Collapsible top-level sections (1-4) — summary is styled to match the old h2 heading. */
-details.sec{margin:34px 0 0}
-details.sec>summary{font:600 19px/1.2 Georgia,serif;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--rule);cursor:pointer;list-style:none}
-details.sec>summary::-webkit-details-marker{display:none}
-details.sec>summary::before{content:"▾ ";font-size:13px;color:var(--muted)}
-details.sec:not([open])>summary::before{content:"▸ "}
 h3{font:600 15px/1.2 Georgia,serif;margin:18px 0 6px;color:#333}
 h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:16px 0 6px}
 .sub{color:var(--muted);margin:0 0 8px;font-size:13px}.muted{color:var(--muted)}
@@ -618,16 +582,6 @@ details.howto{margin:10px 0;border:1px solid var(--rule);border-radius:6px;backg
 details.howto>summary{cursor:pointer;padding:8px 12px;font-weight:600;font-size:13px}
 .howto-body{padding:0 14px 10px;font-size:13px}.howto-body ul{margin:6px 0;padding-left:18px}.howto-body li{margin:4px 0}
 .foot{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--rule);padding-top:10px}
-/* "Why this verdict" narrative panel (d) — deterministic movers/dissenters/flips/gaps */
-.why{background:#fafbfc;border:1px solid var(--rule);border-radius:5px;padding:8px 12px;display:flex;flex-direction:column;gap:5px}
-.whyrow{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
-.whytag{flex:0 0 64px;text-transform:uppercase;letter-spacing:.05em;font-size:10px;font-weight:700;color:var(--muted);padding-top:2px}
-.whyval{flex:1;font-size:12.5px}.whyval abbr{margin-right:8px;text-decoration:none}
-.whyval code{background:#fff;border:1px solid var(--rule)}
-.whysent{color:#555;font-size:12px;padding-left:72px;font-style:italic}
-.whych{color:var(--muted);font-size:11px}
-.whyflip{display:inline-block;margin:0 10px 3px 0;font-size:12px}
-.whyflag{color:var(--veto);font-weight:600;font-size:11px}
 """
 
 
@@ -681,11 +635,11 @@ def build_html(run_dir: Path) -> str:
 · {_esc(len(sections))} sub-skills · {n_synth} with LLM synthesis</p>
 {_LEGEND}
 {_cross_evidence_section(hyp, ep, nom)}
-{_risk_section(ep)}
+{_risk_section(ep, run_dir)}
 {_modality_section(nom, grounded_dir)}
-<details class=sec open><summary>4 · Per-sub-skill</summary>
+<section><h2>4 · Per-sub-skill</h2>
 {''.join(sections) if sections else '<p class=muted>No subskills/ packages — run with --full-package.</p>'}
-</details>
+</section>
 <div class=foot>Generated by render_review.py from {_esc(run_dir.name)}. Development artifact for skill review.</div>
 </div></body></html>"""
 

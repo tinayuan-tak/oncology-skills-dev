@@ -1,8 +1,11 @@
-"""render_review.py — the 'Why this verdict' narrative panel (d).
+"""render_review.py — build_html smoke test.
 
-Hermetic: builds a tiny run dir (nomination.json with narrative_by_axis + one subskills/<short>/
-package.json) and asserts the deterministic narrative panel renders movers / dissenters / flip
-conditions (incl. the ⚑ recommendation-flip flag). No live run needed.
+Hermetic: builds a tiny run dir (nomination.json + evidence_package.json + one
+subskills/<short>/package.json) and asserts build_html renders the top-level
+sections as plain <section> blocks. The former per-axis "Why this verdict"
+narrative panel (d) was removed — its trace is superseded by the cross-evidence
+synthesis (section 1) and the deterministic-vs-literature risk comparison
+(section 2); this test guards that it stays gone. No live run needed.
 """
 from __future__ import annotations
 
@@ -26,17 +29,7 @@ def _run_dir(tmp_path: Path) -> Path:
             "movers": [{"rule_id": "highly-constrained-safety-warning", "card_id": "gnomad-lof-constraint",
                         "role": "driver", "signals": {"small_molecule": "opposing"},
                         "sentence": "Highly LoF-constrained in gnomAD.", "killer_message": None}],
-            "dissenters": [
-                {"rule_id": "clingen-recessive-only-safety-reassurance", "card_id": "clingen-dosage",
-                 "channel": "small_molecule", "signal": "supportive",
-                 "sentence": "Recessive-only reassurance.", "killer_message": None},
-                {"rule_id": "clingen-recessive-only-safety-reassurance", "card_id": "clingen-dosage",
-                 "channel": "degrader", "signal": "supportive",
-                 "sentence": "Recessive-only reassurance.", "killer_message": None}],
-            "flip_conditions": [{"rule_id": "highly-constrained-safety-warning", "present": True,
-                                 "to_verdict": "insufficient", "recommendation_flip": True, "sentence": ""}],
-            "gaps": [{"kind": "strengthen", "availability": "insufficient", "missing_cards": []}],
-            "rule_sentences": {}}}}
+            "dissenters": [], "flip_conditions": [], "gaps": [], "rule_sentences": {}}}}
     (tmp_path / "nomination.json").write_text(json.dumps(nom))
     (tmp_path / "evidence_package.json").write_text(
         json.dumps({"context": {"target": "BRAF", "indication": "COADREAD"}}))
@@ -51,21 +44,18 @@ def _run_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_why_verdict_panel_renders_movers_dissenters_flips(tmp_path):
+def test_build_html_renders_top_level_sections(tmp_path):
     html = rr.build_html(_run_dir(tmp_path))
-    assert "Why this verdict" in html
-    for row in ("set by", "despite", "flips if"):
-        assert row in html, f"missing row: {row}"
-    assert "highly-constrained-safety-warning" in html          # driver / mover
-    assert "clingen-recessive-only-safety-reassurance" in html  # dissenter
-    assert "→ <b>insufficient</b>" in html                      # flip target
-    assert "⚑ rec" in html                                      # recommendation-flip flag
+    # sections render as plain <section><h2> blocks (no longer collapsible <details class=sec>)
+    for heading in ("1 · Cross-evidence synthesis", "2 · 6-dimension risk assessment",
+                    "4 · Per-sub-skill"):
+        assert heading in html, f"missing section: {heading}"
+    assert "<section" in html
+    assert "details class=sec" not in html
 
 
-def test_why_verdict_absent_narrative_shows_muted_note(tmp_path):
-    d = _run_dir(tmp_path)
-    nom = json.loads((d / "nomination.json").read_text())
-    nom["narrative_by_axis"] = {}   # no narrative for safety
-    (d / "nomination.json").write_text(json.dumps(nom))
-    html = rr.build_html(d)
-    assert "No narrative for this axis" in html   # graceful fallback, panel header still present
+def test_why_verdict_panel_removed(tmp_path):
+    """The per-axis 'Why this verdict' narrative panel (d) is gone — guard the removal."""
+    html = rr.build_html(_run_dir(tmp_path))
+    assert "Why this verdict" not in html
+    assert "No narrative for this axis" not in html

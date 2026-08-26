@@ -157,7 +157,11 @@ def plan_substrate(*, no_substrate: bool, no_synthesis: bool, emit, ground,
     keeping those byte-identical. Grounding honors an explicit --ground value, else defaults to the
     engine axes when the chain is on and --no-ground isn't set. Each projection ([3A] risk, [3B]
     hypothesis) runs when the chain is on and its granular opt-out isn't set. Returns a plan dict."""
-    chain_on = (not no_substrate) and (not no_synthesis) and (emit is None)
+    # NOTE: gate on the machine-envelope mode explicitly, NOT `emit is None` — argparse defaults
+    # --emit to "nomination", so `emit is None` was never true and the DEFAULT-ON chain silently
+    # never fired on any normal run. The evidence-package mode also sets no_synthesis=True upstream,
+    # so this term only needs to exclude that one machine mode.
+    chain_on = (not no_substrate) and (not no_synthesis) and (emit != "evidence-package")
     return {
         "chain_on": chain_on,
         "run_ground": bool(ground) or (chain_on and not no_ground),
