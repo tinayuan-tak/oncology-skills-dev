@@ -29,9 +29,18 @@ from _skills_common.immune_context_claims import (
     immune_context_claim_vector, immune_context_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# Signals-first sub-group reader (VERDICT-INERT). Thesis: CD8/immune infiltration present (TCE effector
+# arm). The fleet-default heuristic tags these context values `absent`; default_classify is the fallback.
+_IMMUNE_VALUE_TIERS = {
+    "immune_hot": "strong", "immune_inflamed": "strong", "t_cell_inflamed": "strong",
+    "immune_intermediate": "moderate", "immune_excluded": "weak", "immune_cold": "weak",
+    "immune_desert": "absent", "caf_subset_detected": "moderate", "caf_dominant": "moderate",
+}
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.1.0"   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.2.0"   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
                           # headline hero — a verdict-INERT projection over the effector-context
                           # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -201,4 +210,6 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
+        # Signals-first: tuned sub-group reader for the immune-context vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_IMMUNE_VALUE_TIERS),
     ))

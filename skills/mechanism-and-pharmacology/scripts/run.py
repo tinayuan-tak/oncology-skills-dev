@@ -29,10 +29,21 @@ from _skills_common.claim_record import assemble_claim_record
 from _skills_common.mechanism_claims import mechanism_claim_vector, mechanism_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# Signals-first sub-group reader (VERDICT-INERT). Thesis: mechanistic characterization + MoA hooks
+# present. The fleet-default heuristic tags these values `absent`; default_classify is the fallback.
+_MECHANISM_VALUE_TIERS = {
+    "well_characterized": "strong", "moderately_characterized": "moderate",
+    "poorly_characterized": "weak", "uncharacterized": "absent",
+    "drug_suppressed": "strong", "drug_induced": "moderate", "no_perturbation_response": "absent",
+    "phospho_present": "moderate", "phospho_absent": "absent",
+    "relatively_high": "moderate", "relatively_low": "weak", "pathway_inactive": "absent",
+}
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.6.1"                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                                               #        facet (verdict-inert; SIGNOR cross-referenced)
                                               # 1.5.0: pathway-activity-context (PROGENy)
                                               # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -380,4 +391,6 @@ if __name__ == "__main__":
         isoform_check_target=True,          # warn on p95HER2 / AR-V7 / etc.
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
+        # Signals-first: tuned sub-group reader for the mechanism vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_MECHANISM_VALUE_TIERS),
     ))

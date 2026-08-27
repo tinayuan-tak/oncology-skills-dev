@@ -21,12 +21,25 @@ from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# Signals-first sub-group reader (VERDICT-INERT). Thesis: a differentiation signal exists (co-mutation
+# pattern / stemness node / prognostic association). default_classify is the fallback for unmapped values.
+_DIFFERENTIATION_VALUE_TIERS = {
+    "both_patterns_present": "moderate", "co_occurrence": "moderate", "mutual_exclusivity": "moderate",
+    "no_significant_pattern": "absent",
+    "stem_high": "strong", "stem_intermediate": "moderate", "stem_low": "weak",
+    "dominant_node": "strong", "intermediate_node": "moderate", "peripheral_node": "weak",
+    "expression_high_better_survival": "moderate", "expression_high_worse_survival": "moderate",
+    "no_prognostic_association": "absent", "no_survival_association": "absent",
+    "subtype_stratifies_survival": "strong",
+}
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
+SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
                           #        as an ADDITIVE, verdict-inert render facet; namespaced competitor_* headline
                           #        keys feed the target-profile deterministic modality cross-ref. Verdict byte-stable.
                           # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
@@ -379,4 +392,6 @@ if __name__ == "__main__":
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         partial_status_note=PARTIAL_STATUS_NOTE,
+        # Signals-first: tuned sub-group reader for the differentiation vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_DIFFERENTIATION_VALUE_TIERS),
     ))

@@ -27,10 +27,24 @@ from _skills_common.claim_record import assemble_claim_record
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# Signals-first sub-group reader (VERDICT-INERT). Thesis: cis locus→expression→dependency coherence.
+# default_classify is the fallback for unmapped values.
+_CIS_VALUE_TIERS = {
+    "cn_dosage_coupled_strong": "strong", "cn_dosage_coupled_moderate": "moderate",
+    "cn_dosage_uncoupled": "absent",
+    "amplified_overexpressed_strongly_dependent": "strong",
+    "amplified_overexpressed_moderately_dependent": "moderate",
+    "methylation_silenced": "strong", "methylation_variable": "moderate",
+    "methylation_invariant_panel": "absent",
+    "strong_negative": "strong", "moderate_negative": "moderate", "weak_negative": "weak",
+    "no_correlation": "absent",
+}
 
 
 SKILL_NAME = "cis-feature-coherence"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.1.0"   # 1.1.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.
 
 CARDS = [
     "cis-feature-expression-coherence",     # GoF leg-1: CN → own-expression cis-dosage (amplification)
@@ -292,4 +306,6 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
+        # Signals-first: tuned sub-group reader for the cis-coherence vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_CIS_VALUE_TIERS),
     ))

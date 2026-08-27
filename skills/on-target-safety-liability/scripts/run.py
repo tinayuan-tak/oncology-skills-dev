@@ -21,13 +21,31 @@ from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
 from _skills_common.safety_question_table import safety_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# Signals-first sub-group reader (VERDICT-INERT). Thesis: on-target safety LIABILITY — signal = strength
+# of the liability, so high constraint / broad normal expression / germline pathogenicity → strong. NOTE
+# the polarity INVERSION vs the dependency lens: a strongly_selective dependency is REASSURING for safety
+# (low broad-tox liability) → weak, whereas pan-essential/broad = strong liability. default_classify fallback.
+_SAFETY_VALUE_TIERS = {
+    "highly_constrained": "strong", "moderately_constrained": "moderate", "unconstrained": "absent",
+    "broadly_expressed_normal": "strong", "broad_normal_expression": "strong",
+    "selective_normal_expression": "moderate", "restricted_normal_expression": "weak",
+    "germline_pathogenic": "strong", "germline_likely_pathogenic": "moderate", "germline_benign": "absent",
+    "autosomal_dominant_loss": "strong", "haploinsufficient": "strong", "recessive_only": "weak",
+    "lof_risk_phenotype": "strong", "no_burden_signal": "absent",
+    "lethal": "strong", "developmental_only": "moderate", "no_ko_phenotype": "absent",
+    # pan-essentiality-as-safety: broadly essential = broad-tox liability; SELECTIVE = reassuring (low liability)
+    "broad_nonselective": "strong", "pan_essential": "strong",
+    "strongly_selective": "weak", "moderately_selective": "weak", "not_essential": "absent",
+}
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.modality_safety import safety_verdict_by_modality
 from _skills_common.narrative import build_narrative
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.13.0"  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
+SKILL_VERSION = "1.14.0"   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
                           # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
                           # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
                           # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
@@ -545,4 +563,7 @@ if __name__ == "__main__":
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         partial_status_note=PARTIAL_STATUS_NOTE,
+        # Signals-first: tuned sub-group reader for the safety-LIABILITY vocabulary (note the polarity
+        # inversion vs the dependency lens). Verdict-INERT.
+        subgroup_classify=make_value_classifier(_SAFETY_VALUE_TIERS),
     ))

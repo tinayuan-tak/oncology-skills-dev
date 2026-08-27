@@ -32,10 +32,23 @@ from _skills_common.target_intrinsic_claims import (
     target_intrinsic_claim_vector, target_intrinsic_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# Signals-first sub-group reader (VERDICT-INERT; this skill is descriptive, verdict=None). Thesis:
+# intrinsic target characterization + modality routing. default_classify is the fallback.
+_TARGET_INTRINSIC_VALUE_TIERS = {
+    "well_annotated": "strong", "partially_annotated": "moderate", "poorly_annotated": "weak",
+    "well_characterized": "strong", "moderately_characterized": "moderate",
+    "hub": "strong", "connector": "moderate", "peripheral": "weak",
+    "Tclin": "strong", "Tchem": "moderate", "Tbio": "weak", "Tdark": "absent",
+    "inhibitor_sufficient": "strong", "degrader_required": "moderate",
+    "curated_domain": "strong", "no_curated_domain": "absent",
+    "surface": "strong", "not_surface": "absent",
+}
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.2.1"   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.3.0"   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
@@ -246,4 +259,6 @@ if __name__ == "__main__":
         # Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive mode).
         # Additive / display-only; the descriptive dossier is byte-stable without it.
         skill_figures_fn=_emit_skill_figures,
+        # Signals-first: tuned sub-group reader for the target-intrinsic vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_TARGET_INTRINSIC_VALUE_TIERS),
     ))
