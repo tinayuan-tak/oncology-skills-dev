@@ -566,6 +566,21 @@ def _pres_unknown_mass(cards) -> float:
     return round(blind / len(_PRES_DECISION_CARDS), 4)
 
 
+# Continuous presence COMPOSITE (Phase 5): a monotone [0,1] portfolio-RANKING scalar the one-word
+# presence_verdict cannot provide (a categorical word cannot order 55 targets). It is a NAMED
+# projection — "certainty-discounted presence strength" — NOT a canonical single value: the peak signal
+# tier (strength) DISCOUNTED by the weakest-link certainty level. Non-substituting by design — certainty
+# is a MULTIPLIER, never averaged against signal, and a measured-negative floors to 0. Verdict-INERT:
+# additive sidecar field, never feeds presence_verdict; other weightings are legitimate other projections.
+_COMPOSITE_STRENGTH = {"strong_positive": 1.0, "moderate_positive": 0.66, "weak_positive": 0.33,
+                       "negative": 0.0, "none": 0.0}
+_COMPOSITE_CERTAINTY = {"high": 1.0, "medium": 0.75, "low": 0.5}
+
+
+def _presence_composite(strength: str, certainty_level: str) -> float:
+    return round(_COMPOSITE_STRENGTH.get(strength, 0.0) * _COMPOSITE_CERTAINTY.get(certainty_level, 0.5), 3)
+
+
 def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement/selectivity/genomic/surface."""
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
@@ -576,10 +591,16 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     level = min(components, key=lambda c: _PRES_ORD[c]) if components else "low"
     if v in _PRES_NONE:
         level = "low"
+    strength = _presence_strength(v)
     return {
-        "strength": _presence_strength(v),
+        "strength": strength,
         "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
                       "unknown_mass": _pres_unknown_mass(cards)},
+        # continuous ranking primitive (verdict-inert; a NAMED projection, not the canonical value)
+        "composite": _presence_composite(strength, level),
+        "composite_basis": ("certainty-discounted presence strength = peak signal tier × weakest-link "
+                            "certainty level; a NAMED [0,1] portfolio-ranking projection, NOT a canonical "
+                            "single verdict — other lens weightings are equally valid projections"),
         "provenance": {"rna_as_biomarker": rna_bm},
         "_model_ref": "CERTAINTY_MODEL.md#tumor_presence",
     }
