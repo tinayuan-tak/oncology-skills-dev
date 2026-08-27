@@ -101,3 +101,77 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: dict,
                    "sources": [{"card": s["card"], "tier": s["tier"], "n": s["n"], "label": s["label"],
                                 "conflict": s["conflict"], "value": s["value"]} for s in srcs]}
     return out
+
+
+# ── FIRST-CLASS SUBTYPE: generic per-stratum projection of each sub-group ──────────────────────────
+# Fleet version of tumor-presence's _attach_subtype_firstclass. Reads the `tier: subtype` cards'
+# per_subgroup_metrics for each sub-group and produces by_stratum {stratum: {signal, certainty, n,
+# powered}}. Certainty = sample-size, 1-tier multiplicity haircut (k strata >= 5), POWER-GATED
+# (evidence_state!=measured OR n<floor -> low/underpowered, never over-read). Subtype stays an
+# orthogonal CONDITIONER: this REFINES a sub-group per stratum, it never mints a new sub-group.
+_CERT = {"low": 0, "moderate": 1, "high": 2}
+_CERT_INV = {0: "low", 1: "moderate", 2: "high"}
+_STRATUM_ID_FIELDS = ("stratum_id", "stratum")
+_STRATUM_N_FIELDS = ("n_tumor_samples", "subgroup_n", "n_cell_lines", "n")
+_STRATUM_CLASS_FIELDS = ("tumor_expression_class", "protein_expression_class", "class", "expression_class")
+_SUBGROUP_N_FLOOR = 30
+
+
+def _multiplicity_haircut(cert: str, k: int) -> str:
+    if cert not in _CERT or not isinstance(k, int) or k < 5:
+        return cert
+    return _CERT_INV[max(0, _CERT[cert] - 1)]
+
+
+def _stratum_tier(row: dict, classify) -> str:
+    for f in _STRATUM_CLASS_FIELDS:
+        if row.get(f) is not None:
+            return classify(row.get(f))
+    med = row.get("median_log2tpm")
+    if isinstance(med, (int, float)):
+        return "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak" if med >= 1 else "absent"
+    return "absent"
+
+
+def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -> dict:
+    """{sub_group -> {stratum -> {signal, certainty, n, powered, multiplicity_strata_tested}}} from the
+    sub-group's `tier: subtype` cards. Empty when no subtype cards / no per_subgroup_metrics."""
+    type_sg = {}
+    for sg in hierarchy.get("sub_groups", []):
+        for q in sg.get("questions", []):
+            for mt in q.get("measurement_types", []):
+                type_sg.setdefault(mt, sg["id"])
+    sg_rows: dict = {}
+    for c in cards or []:
+        summ = c.get("summary") or {}
+        mt, tier = _card_meta(c.get("card_id"))
+        sg = type_sg.get(mt)
+        if not sg or tier != "subtype":
+            continue
+        rows = summ.get("per_subgroup_metrics")
+        if isinstance(rows, list):
+            sg_rows.setdefault(sg, []).extend(r for r in rows if isinstance(r, dict))
+
+    out: dict = {}
+    for sg, rows in sg_rows.items():
+        by: dict = {}
+        for r in rows:
+            sid = next((r.get(f) for f in _STRATUM_ID_FIELDS if r.get(f)), None)
+            if not sid:
+                continue
+            n = next((r.get(f) for f in _STRATUM_N_FIELDS if isinstance(r.get(f), (int, float))), None)
+            powered = (r.get("evidence_state") == "measured" and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR)
+            by.setdefault(sid, []).append({"tier": _stratum_tier(r, classify), "n": n, "powered": powered})
+        k = len(by)
+        strata = {}
+        for sid, reads in by.items():
+            best = max(reads, key=lambda x: _TIERV.get(x["tier"], -1))
+            n = best["n"]
+            base = "high" if isinstance(n, (int, float)) and n >= 100 else "moderate" if isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR else "low"
+            powered = any(x["powered"] for x in reads)
+            cert = _multiplicity_haircut(base, k) if powered else "low"   # underpowered stratum never over-read
+            strata[sid] = {"signal": best["tier"], "certainty": cert, "n": n, "powered": powered,
+                           "multiplicity_strata_tested": k}
+        if strata:
+            out[sg] = strata
+    return out
