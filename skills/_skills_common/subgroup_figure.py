@@ -32,7 +32,7 @@ def render_subgroup_svg(subgroup_signals: dict, target: str, indication: str) ->
     heights, bodies = [], []
     for name, sg in sgs:
         has_strat = bool(sg.get("by_stratum"))
-        h = 92 + (26 if has_strat else 0)
+        h = 92 + (46 if has_strat else 0)
         heights.append(h)
     H = header_h + sum(heights) + 12 * len(sgs) + 14
     x0 = 14
@@ -73,19 +73,26 @@ def render_subgroup_svg(subgroup_signals: dict, target: str, indication: str) ->
                 s.append(f'<circle cx="{cx}" cy="{my}" r="{r}" fill="{_FILL[st] if st else "#fff"}" '
                          + ('' if st else f'stroke="{_MUT}" stroke-dasharray="2 2"') + '/>')
             s.append(f'<text x="{cx}" y="{my+18}" font-size="8.5" text-anchor="middle" fill="{_INK}">{_esc(sc.get("label"))}</text>')
-        # first-class subtype row (by_stratum)
+        # FIRST-CLASS subtype: a per-stratum mini-BAR strip (signal conditioned on subtype), dimmed +
+        # hatched when underpowered. More prominent than a dot-row — subtype reads as its own signal band.
         if sg.get("by_stratum"):
             eps = (sg.get("subtype_axis") or {}).get("epsilon_squared")
-            sy = y + ph - 14
-            lbl = f'subtype (ε²={eps})' if eps is not None else 'subtype'
-            s.append(f'<text x="{x0+14}" y="{sy}" font-size="9" font-weight="600" fill="{_MUT}">{_esc(lbl)}:</text>')
-            sx = x0 + 110
-            for sid, st in list(sg["by_stratum"].items())[:6]:
+            sy = y + ph - 40
+            lbl = f'subtype signal per stratum (ε²={eps})' if eps is not None else 'subtype signal per stratum'
+            s.append(f'<text x="{x0+14}" y="{sy}" font-size="9" font-weight="600" fill="{_MUT}">{_esc(lbl)}</text>')
+            sx, bw = x0 + 14, 48
+            for sid, st in list(sg["by_stratum"].items())[:8]:
                 stier = _TIER.get(st.get("signal")); c = _FILL[stier] if stier is not None else _MUT
-                op = "1" if st.get("powered") else "0.4"
-                s.append(f'<circle cx="{sx}" cy="{sy-4}" r="4" fill="{c}" opacity="{op}"/>')
-                s.append(f'<text x="{sx+9}" y="{sy}" font-size="9" fill="{_INK}" opacity="{op}">{_esc(sid)}</text>')
-                sx += 22 + 7 * len(str(sid))
+                powered = st.get("powered"); op = "1" if powered else "0.45"
+                by2 = sy + 7
+                s.append(f'<rect x="{sx}" y="{by2}" width="{bw}" height="9" rx="2" fill="#f0f0ee"/>')
+                fillw = max(5, int((stier or 0) / 3 * bw))
+                s.append(f'<rect x="{sx}" y="{by2}" width="{fillw}" height="9" rx="2" fill="{c}" opacity="{op}"/>'
+                         + ('' if powered else f'<rect x="{sx}" y="{by2}" width="{bw}" height="9" rx="2" fill="url(#sgna)"/>'))
+                s.append(f'<text x="{sx}" y="{by2+21}" font-size="8" fill="{_INK}" opacity="{op}">{_esc(sid)}</text>')
+                if not powered:
+                    s.append(f'<text x="{sx}" y="{by2+30}" font-size="6.5" fill="{_MUT}">underpowered</text>')
+                sx += bw + 14 + 5 * max(0, len(str(sid)) - 5)
         y += ph + 12
     s.append("</svg>")
     return "\n".join(s)
