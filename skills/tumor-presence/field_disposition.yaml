@@ -1,0 +1,792 @@
+# AUTO-DRAFTED then reviewed; edit roles by hand as needed. Completeness (not tag-
+# correctness) is CI-enforced. See _meta.roles.
+_meta:
+  description: "Field-disposition ledger for tumor-presence \u2014 every emitted summary_field carries\
+    \ an explicit role so nothing is dropped SILENTLY. Enforced by tests/test_field_disposition_complete.py."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: "audit / identity / method token \u2014 surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+cellline-rna-distribution:
+  allgene_percentile:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_class:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+  control_negatives:
+    role: display
+    reason: human-facing detail / large container
+  control_position:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  control_position_class:
+    role: signal
+    reason: magnitude/categorical signal
+  control_position_context:
+    role: provenance
+    reason: provenance/audit token
+  control_positives:
+    role: display
+    reason: human-facing detail / large container
+  dominant_isoform:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  dominant_isoform_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+  fraction_expressed:
+    role: signal
+    reason: magnitude/categorical signal
+  fraction_highly_expressed:
+    role: signal
+    reason: magnitude/categorical signal
+  fraction_not_expressed:
+    role: signal
+    reason: magnitude/categorical signal
+  isoform_context:
+    role: provenance
+    reason: provenance/audit token
+  isoform_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+  isoform_n_models:
+    role: context
+    reason: power / statistical qualifier
+  log2tpm_iqr:
+    role: context
+    reason: power / statistical qualifier
+  median_log2tpm_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  n_cell_lines_evaluated:
+    role: context
+    reason: power / statistical qualifier
+  n_expressed_isoforms:
+    role: context
+    reason: power / statistical qualifier
+  n_lineage_restricted_lineages:
+    role: context
+    reason: power / statistical qualifier
+  n_lineages_evaluated:
+    role: context
+    reason: power / statistical qualifier
+  p25_log2tpm_panel:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  p5_log2tpm_panel:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  p75_log2tpm_panel:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  p95_log2tpm_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  per_lineage_stats:
+    role: display
+    reason: human-facing detail / large container
+tumor-rna-vs-adjacent:
+  adjacent_median_log2cpm:
+    role: signal
+    reason: magnitude/categorical signal
+  adjacent_median_log2tpm:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_class:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+  expression_call_class:
+    role: signal
+    reason: magnitude/categorical signal
+  gtex_log2_fc:
+    role: context
+    reason: vs-GTEx-normal contrast = SELECTIVITY axis; context pointer to tumor-selectivity, not a presence
+      signal
+  gtex_q_value:
+    role: context
+    reason: power / statistical qualifier
+  log2_fc:
+    role: signal
+    reason: magnitude/categorical signal
+  n_adjacent:
+    role: context
+    reason: power / statistical qualifier
+  n_tumor:
+    role: context
+    reason: power / statistical qualifier
+  q_value:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  tumor_median_log2cpm:
+    role: signal
+    reason: magnitude/categorical signal
+  tumor_median_log2tpm:
+    role: signal
+    reason: magnitude/categorical signal
+tumor-rna-distribution:
+  allgene_percentile:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_by_study:
+    role: provenance
+    reason: provenance/audit token
+  allgene_percentile_class:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+  coefficient_of_variation:
+    role: context
+    reason: power / statistical qualifier
+  control_negatives:
+    role: display
+    reason: human-facing detail / large container
+  control_negatives_excluded_lineage_conflict:
+    role: display
+    reason: human-facing detail / large container
+  control_position:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  control_position_class:
+    role: signal
+    reason: magnitude/categorical signal
+  control_position_context:
+    role: provenance
+    reason: provenance/audit token
+  control_positives:
+    role: display
+    reason: human-facing detail / large container
+  detectable_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  distribution_overlap_tumor_normal:
+    role: context
+    reason: power / statistical qualifier
+  distribution_pattern:
+    role: signal
+    reason: magnitude/categorical signal
+  dominant_event_splice_type:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  fraction_tumor_above_normal_p95:
+    role: context
+    reason: vs-normal window = SELECTIVITY axis (Gate B); surfaced as context pointing to tumor-selectivity,
+      NOT scored in presence
+  fraction_tumor_above_normal_p99:
+    role: context
+    reason: vs-normal window = SELECTIVITY axis (Gate B); context pointer to tumor-selectivity
+  high_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  matched_normal_tissue:
+    role: provenance
+    reason: identity/scope key
+  max_event_psi_std:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  median_event_psi_std:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  median_log2tpm:
+    role: signal
+    reason: magnitude/categorical signal
+  moderate_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  n_normal_samples:
+    role: context
+    reason: power / statistical qualifier
+  n_splice_events:
+    role: context
+    reason: power / statistical qualifier
+  n_tumor_samples:
+    role: context
+    reason: power / statistical qualifier
+  n_tumor_shifted_events:
+    role: context
+    reason: power / statistical qualifier
+  n_variable_events:
+    role: context
+    reason: power / statistical qualifier
+  p95_log2tpm:
+    role: signal
+    reason: magnitude/categorical signal
+  p99_log2tpm:
+    role: signal
+    reason: magnitude/categorical signal
+  splicing_context:
+    role: provenance
+    reason: provenance/audit token
+  splicing_dysregulation_class:
+    role: display
+    reason: "verdict-inert BY DESIGN \u2014 pan-cohort splicing, isoform-targets only; not a presence\
+      \ signal"
+  studies:
+    role: provenance
+    reason: identity/scope key
+  tumor_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+tumor-protein-abundance-cptac:
+  allgene_percentile:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_class:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+  n_normal_samples:
+    role: context
+    reason: power / statistical qualifier
+  n_tumor_samples:
+    role: context
+    reason: power / statistical qualifier
+  protein_bh_q_value:
+    role: context
+    reason: power / statistical qualifier
+  protein_effect_cohens_d:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_effect_size:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_effect_size_pooled_sd:
+    role: context
+    reason: power / statistical qualifier
+  protein_effect_size_se:
+    role: context
+    reason: power / statistical qualifier
+  protein_effect_standardized_class:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_effect_standardized_method:
+    role: provenance
+    reason: provenance/audit token
+  protein_effect_standardized_t:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_median_log2_normal:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_median_log2_tumor:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_p_value:
+    role: context
+    reason: power / statistical qualifier
+  stat_test_used:
+    role: provenance
+    reason: provenance/audit token
+cellline-protein-abundance:
+  allgene_percentile:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_class:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+  fraction_detected:
+    role: signal
+    reason: magnitude/categorical signal
+  log2_abundance_iqr:
+    role: context
+    reason: power / statistical qualifier
+  median_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+  n_cell_lines_evaluated:
+    role: context
+    reason: power / statistical qualifier
+  n_cell_lines_in_panel:
+    role: context
+    reason: power / statistical qualifier
+  n_lineage_restricted_lineages:
+    role: context
+    reason: power / statistical qualifier
+  n_lineages_evaluated:
+    role: context
+    reason: power / statistical qualifier
+  p25_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  p5_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  p75_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  p95_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  per_lineage_stats:
+    role: display
+    reason: human-facing detail / large container
+  protein_effect_size:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+tumor-elevation-breadth:
+  breadth_layer_concordance:
+    role: signal
+    reason: magnitude/categorical signal
+  cohorts_tested:
+    role: provenance
+    reason: identity/scope key
+  fraction_elevated:
+    role: signal
+    reason: magnitude/categorical signal
+  median_effect_across_elevated:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  most_elevated_cohorts:
+    role: display
+    reason: human-facing detail / large container
+  n_cohorts_elevated:
+    role: context
+    reason: power / statistical qualifier
+  n_cohorts_tested:
+    role: context
+    reason: power / statistical qualifier
+  rna_fraction_elevated:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  rna_median_max_log2fc_across_elevated:
+    role: signal
+    reason: magnitude/categorical signal
+  rna_most_elevated_indications:
+    role: display
+    reason: human-facing detail / large container
+  rna_n_indications_elevated:
+    role: context
+    reason: power / statistical qualifier
+  rna_n_indications_tested:
+    role: context
+    reason: power / statistical qualifier
+  rna_tumor_elevation_breadth_class:
+    role: signal
+    reason: magnitude/categorical signal
+  tumor_elevation_breadth_class:
+    role: signal
+    reason: magnitude/categorical signal
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k:
+    role: signal
+    reason: magnitude/categorical signal
+  caf_compartment_available:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  caf_detection_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  caf_vs_malignant_class:
+    role: signal
+    reason: magnitude/categorical signal
+  compartment_detection:
+    role: display
+    reason: human-facing detail / large container
+  fraction_donors_broadly_detecting:
+    role: signal
+    reason: magnitude/categorical signal
+  indication:
+    role: provenance
+    reason: identity/scope key
+  inter_donor_consistency_class:
+    role: signal
+    reason: magnitude/categorical signal
+  malignant_abundance_log1p_cp10k:
+    role: signal
+    reason: magnitude/categorical signal
+  malignant_compartment_available:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  malignant_detection_donor_iqr:
+    role: context
+    reason: power / statistical qualifier
+  malignant_detection_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  malignant_n_cells:
+    role: context
+    reason: power / statistical qualifier
+  malignant_n_donors:
+    role: context
+    reason: power / statistical qualifier
+  n_compartments_measured:
+    role: context
+    reason: power / statistical qualifier
+  n_datasets:
+    role: context
+    reason: power / statistical qualifier
+  n_donor_groups:
+    role: context
+    reason: power / statistical qualifier
+  per_compartment:
+    role: display
+    reason: human-facing detail / large container
+  product_id:
+    role: provenance
+    reason: provenance/audit token
+  sc_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+  tce_antigen_escape_class:
+    role: signal
+    reason: magnitude/categorical signal
+  tce_homogeneity_class:
+    role: signal
+    reason: magnitude/categorical signal
+  top_microenvironment_compartment:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  top_microenvironment_detection_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  within_tumor_coverage_class:
+    role: signal
+    reason: magnitude/categorical signal
+tumor-rna-distribution-by-subtype:
+  assignment_manifest:
+    role: provenance
+    reason: provenance/audit token
+  matched_normal_tissue:
+    role: provenance
+    reason: identity/scope key
+  n_subtypes_clearing_normal_window:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_clearing_proxy_window_by_tissue:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_enriched:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_measured:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_restricted:
+    role: context
+    reason: power / statistical qualifier
+  normal_comparator_type:
+    role: provenance
+    reason: identity/scope key
+  per_subgroup_metrics:
+    role: display
+    reason: human-facing detail / large container
+  proxy_normal_tissues:
+    role: provenance
+    reason: identity/scope key
+  purity_source:
+    role: provenance
+    reason: provenance/audit token
+  spotlight_subtype:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_axis_available:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_axis_quality:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_effect_size_class:
+    role: signal
+    reason: magnitude/categorical signal
+  subtype_omnibus_kruskal_h:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_omnibus_p:
+    role: context
+    reason: power / statistical qualifier
+  subtype_purity_spread:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_stratification_class:
+    role: signal
+    reason: magnitude/categorical signal
+  subtype_variance_explained:
+    role: context
+    reason: power / statistical qualifier
+  which_subtypes_separate:
+    role: display
+    reason: human-facing detail / large container
+cellline-rna-distribution-by-subtype:
+  cross_subgroup_delta_expression:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  max_subgroup_expression:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  min_subgroup_expression:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  n_subgroups_with_data:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_depleted:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_enriched:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_measured:
+    role: context
+    reason: power / statistical qualifier
+  per_subgroup_metrics:
+    role: display
+    reason: human-facing detail / large container
+  pooled_lineage_median_log2tpm:
+    role: signal
+    reason: magnitude/categorical signal
+  spotlight_subtype:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_axis_available:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_axis_quality:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_stratification_class:
+    role: signal
+    reason: magnitude/categorical signal
+tumor-protein-distribution-by-subtype:
+  n_subtypes_depleted:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_enriched:
+    role: context
+    reason: power / statistical qualifier
+  n_subtypes_measured:
+    role: context
+    reason: power / statistical qualifier
+  per_subgroup_metrics:
+    role: display
+    reason: human-facing detail / large container
+  pooled_cohort_median_log2_ratio:
+    role: signal
+    reason: magnitude/categorical signal
+  subtype_axis_available:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_axis_quality:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  subtype_stratification_class:
+    role: signal
+    reason: magnitude/categorical signal
+expression-purity-confound:
+  cellular_source:
+    role: provenance
+    reason: provenance/audit token
+  expression_purity_pearson_p:
+    role: context
+    reason: power / statistical qualifier
+  expression_purity_pearson_r:
+    role: context
+    reason: power / statistical qualifier
+  expression_purity_spearman_r:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  median_purity:
+    role: context
+    reason: power / statistical qualifier
+  n_expr_samples:
+    role: context
+    reason: power / statistical qualifier
+  n_paired_samples:
+    role: context
+    reason: power / statistical qualifier
+  purity_confound_class:
+    role: signal
+    reason: magnitude/categorical signal
+  purity_source:
+    role: provenance
+    reason: provenance/audit token
+cellline-rna-protein-concordance:
+  n_paired_models:
+    role: context
+    reason: power / statistical qualifier
+  protein_detection_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  release_pin:
+    role: provenance
+    reason: provenance/audit token
+  rna_as_biomarker:
+    role: signal
+    reason: magnitude/categorical signal
+  rna_expressed_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  rna_high_protein_low_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  rna_protein_r:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  rna_protein_spearman:
+    role: context
+    reason: power / statistical qualifier
+rna-protein-concordance-tumor:
+  cptac_cohort:
+    role: provenance
+    reason: identity/scope key
+  n_paired_tumors:
+    role: context
+    reason: power / statistical qualifier
+  rna_as_biomarker:
+    role: signal
+    reason: magnitude/categorical signal
+  rna_protein_r:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  rna_protein_spearman:
+    role: context
+    reason: power / statistical qualifier
+  substrate:
+    role: provenance
+    reason: identity/scope key
+cellline-protein-abundance-procan:
+  allgene_percentile:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_class:
+    role: signal
+    reason: magnitude/categorical signal
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+  fraction_detected:
+    role: signal
+    reason: magnitude/categorical signal
+  log2_abundance_iqr:
+    role: context
+    reason: power / statistical qualifier
+  median_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+  n_cell_lines_evaluated:
+    role: context
+    reason: power / statistical qualifier
+  n_cell_lines_in_panel:
+    role: context
+    reason: power / statistical qualifier
+  n_lineage_restricted_lineages:
+    role: context
+    reason: power / statistical qualifier
+  n_lineages_evaluated:
+    role: context
+    reason: power / statistical qualifier
+  p25_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  p5_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  p75_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  p95_log2_abundance_panel:
+    role: signal
+    reason: magnitude/categorical signal
+  per_lineage_stats:
+    role: display
+    reason: human-facing detail / large container
+  protein_effect_size:
+    role: signal
+    reason: magnitude/categorical signal
+  protein_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+normal-tissue-liability:
+  essential_tissue_flag:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  essential_tissues_flagged:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  hpa_tissue_distribution:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  hpa_tissue_specificity:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+  n_essential_tissues_with_expression:
+    role: context
+    reason: power / statistical qualifier
+  n_specific_tissues:
+    role: display
+    reason: human-facing detail / large container
+  normal_tissue_breadth_class:
+    role: signal
+    reason: magnitude/categorical signal
+  safety_tissue_flags:
+    role: display
+    reason: human-facing detail / large container
+  specific_tissues:
+    role: display
+    reason: human-facing detail / large container
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max:
+    role: context
+    reason: power / statistical qualifier
+  max_detection_cell_type:
+    role: display
+    reason: "unclassified by heuristic \u2014 REVIEW"
+  max_detection_fraction:
+    role: signal
+    reason: magnitude/categorical signal
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+  n_cell_types_above_20pct:
+    role: context
+    reason: power / statistical qualifier
+  safety_essential_flags:
+    role: display
+    reason: human-facing detail / large container
+  sc_normal_expression_class:
+    role: signal
+    reason: magnitude/categorical signal
+  sc_normal_safety_essential_class:
+    role: signal
+    reason: magnitude/categorical signal
+  tissues_queried:
+    role: provenance
+    reason: identity/scope key
