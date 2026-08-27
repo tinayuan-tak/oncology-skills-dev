@@ -24,6 +24,10 @@ DEFAULT_AWS_PROFILE = "cbg"
 CCLE_SOURCE_MANIFEST_ID = "depmap-consortium-ccle-2019"
 CCLE_RRBS_TSS1KB_FILE = "CCLE_RRBS_TSS1kb_20181022.txt.gz"
 
+# Precomputed per-(gene, CCLE-column) MEAN fractional-methylation product (methods/…/build_product.py).
+# The reader pushdown-reads ONE gene's rows (~kB) instead of streaming the whole 40 MB gzip each call.
+_DERIVED_PRODUCT_ID = "ccle-rrbs-promoter-methylation-mean-per-gene-v1"
+
 from methods.target_id_sidecar import ensure_aws_profile
 
 
@@ -128,6 +132,71 @@ def _load_ccle_methylation_for_gene(target: str, stripped_to_model: dict) -> tup
     return methyl_by_model, None
 
 
+def _load_methylation_from_product(target: str, stripped_to_model: dict, product_path=None):
+    """Per-gene MEAN methylation via predicate-pushdown on the precomputed product.
+
+    Returns, mirroring `_load_ccle_methylation_for_gene`'s contract EXACTLY:
+      * ({ModelID -> mean_beta}, None) when the gene has rows (dict may be empty if nothing mapped);
+      * ({}, "gene_not_in_ccle_rrbs") when the product is reachable but the gene is absent;
+      * None when the product is UNREACHABLE (manifest not registered / object absent) → caller falls
+        back to the live whole-gzip read (the intended redundancy).
+
+    Reconstructs the live loop byte-for-byte: iterate the gene's rows in original CCLE-column order
+    and map StrippedCellLineName -> ModelID with the CALLER's Model.csv (so the product stays
+    release-independent), the last column winning on a ModelID collision. `product_path` (a local
+    parquet) overrides S3 for tests.
+    """
+    cols = ["gene_symbol", "ccle_column", "col_index", "mean_beta"]
+    if product_path is not None:
+        import pandas as pd
+        try:
+            df = pd.read_parquet(product_path, columns=cols,
+                                 filters=[("gene_symbol", "=", target.upper())])
+        except (FileNotFoundError, OSError):
+            return None
+        rows = df.to_dict("records")
+    else:
+        try:
+            from methods.catalog_query.read import s3_uri_for
+            uri = s3_uri_for(_DERIVED_PRODUCT_ID)
+        except Exception:  # absence-discipline: exempt -- resolves a LOCAL data-catalog manifest (not an S3 read); an unregistered/unreadable manifest => product not available => live whole-gzip fallback, which enforces its own read discipline.
+            return None
+        try:
+            import pyarrow.fs as fs
+            import pyarrow.parquet as pq
+            path = uri.replace("s3://", "", 1)
+            tbl = pq.read_table(path, filesystem=fs.S3FileSystem(),
+                                columns=["ccle_column", "col_index", "mean_beta"],
+                                filters=[("gene_symbol", "=", target.upper())])
+        except Exception as e:  # noqa: BLE001
+            # Product object genuinely absent → None (live fallback). A transient/creds/broken-env
+            # error must NOT masquerade as "product absent" (the live read would hit the same infra)
+            # — re-raise so the caller records an honest _live_read_error.
+            from methods.target_id_sidecar import is_definitively_absent
+            if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+                return None
+            raise
+        rows = tbl.to_pylist()
+    if not rows:
+        return {}, "gene_not_in_ccle_rrbs"           # reachable, gene absent (live n_rows == 0)
+    rows.sort(key=lambda r: r["col_index"])          # original CCLE-column order → last-wins on map
+    methyl_by_model: dict = {}
+    for r in rows:
+        model_id = stripped_to_model.get(_ccle_col_to_stripped(r["ccle_column"]))
+        if model_id is not None:
+            methyl_by_model[model_id] = r["mean_beta"]
+    return methyl_by_model, None
+
+
+def _methylation_for_gene(target: str, stripped_to_model: dict):
+    """Prefer the precomputed per-gene MEAN product (pushdown, ~kB); fall back to streaming the whole
+    ~40 MB CCLE gzip when the product is unreachable. Byte-identical {ModelID: mean} either way."""
+    res = _load_methylation_from_product(target, stripped_to_model)
+    if res is not None:
+        return res
+    return _load_ccle_methylation_for_gene(target, stripped_to_model)
+
+
 def read_methylation_silencing(target: str, indication: Optional[str] = None,
                                release_pin: str = "26q1") -> dict:
     """Compute promoter-methylation → own-expression silencing for target across the DepMap panel.
@@ -155,7 +224,8 @@ def read_methylation_silencing(target: str, indication: Optional[str] = None,
         return _unavailable("no_stripped_cell_line_name_column")
 
     # 2. CCLE RRBS methylation for the target gene → {ModelID -> mean fractional methylation}
-    methyl_by_model, meth_err = _load_ccle_methylation_for_gene(target, stripped_to_model)
+    #    (per-gene product pushdown; live whole-gzip stream as fallback)
+    methyl_by_model, meth_err = _methylation_for_gene(target, stripped_to_model)
     if meth_err or not methyl_by_model:
         return _unavailable(meth_err or "no_methylation_for_target")
 

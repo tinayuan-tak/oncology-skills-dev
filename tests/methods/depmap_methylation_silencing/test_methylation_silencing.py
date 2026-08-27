@@ -91,3 +91,67 @@ def test_positive_correlation_not_mislabeled_silencing():
     s = compute_methylation_silencing(meth, tpm)
     assert s["methylation_silencing_class"] == "methylation_uncoupled"   # not silencing_coupled_*
     assert s["methyl_expr_spearman_r"] > 0
+
+
+# --- per-gene MEAN product read path (perf: pushdown vs whole-gzip stream) ---------------------------
+from methods.depmap_methylation_silencing import read as R  # noqa: E402
+
+
+def _write_product(tmp_path):
+    """Synthetic product [gene_symbol, ccle_column, col_index, mean_beta] for two genes."""
+    import pandas as pd
+    rows = [
+        # GENEA: two columns mapping to distinct models
+        {"gene_symbol": "GENEA", "ccle_column": "AAA_LUNG", "col_index": 0, "mean_beta": 0.10},
+        {"gene_symbol": "GENEA", "ccle_column": "BBB_SKIN", "col_index": 1, "mean_beta": 0.80},
+        # GENEA: two columns whose STRIPPED name collides (CCC) → last col_index (3) must win
+        {"gene_symbol": "GENEA", "ccle_column": "CCC_LUNG", "col_index": 2, "mean_beta": 0.20},
+        {"gene_symbol": "GENEA", "ccle_column": "CCC_BONE", "col_index": 3, "mean_beta": 0.95},
+        {"gene_symbol": "GENEB", "ccle_column": "AAA_LUNG", "col_index": 0, "mean_beta": 0.33},
+    ]
+    p = tmp_path / "prod.parquet"
+    pd.DataFrame(rows).to_parquet(p, index=False)
+    return str(p)
+
+
+def test_product_reconstructs_last_column_wins(tmp_path):
+    p = _write_product(tmp_path)
+    s2m = {"AAA": "ACH-A", "BBB": "ACH-B", "CCC": "ACH-C"}   # stripped -> ModelID
+    out = R._load_methylation_from_product("GENEA", s2m, product_path=p)
+    assert out is not None
+    methyl, err = out
+    assert err is None
+    assert methyl["ACH-A"] == 0.10 and methyl["ACH-B"] == 0.80
+    assert methyl["ACH-C"] == 0.95        # col_index 3 (CCC_BONE) wins over col_index 2 (CCC_LUNG)
+
+
+def test_product_unmapped_column_skipped(tmp_path):
+    p = _write_product(tmp_path)
+    s2m = {"AAA": "ACH-A"}                 # BBB / CCC unmapped -> skipped (mirrors live n_unmapped)
+    methyl, err = R._load_methylation_from_product("GENEA", s2m, product_path=p)
+    assert err is None
+    assert set(methyl) == {"ACH-A"} and methyl["ACH-A"] == 0.10
+
+
+def test_product_absent_gene_returns_gene_not_in_ccle(tmp_path):
+    p = _write_product(tmp_path)
+    methyl, err = R._load_methylation_from_product("NOSUCHGENE", {"AAA": "ACH-A"}, product_path=p)
+    assert methyl == {} and err == "gene_not_in_ccle_rrbs"
+
+
+def test_product_unreachable_returns_none(tmp_path):
+    # nonexistent local path → unreachable → None (caller falls back to the live whole-gzip read)
+    assert R._load_methylation_from_product("GENEA", {"AAA": "ACH-A"},
+                                            product_path=str(tmp_path / "nope.parquet")) is None
+
+
+def test_methylation_for_gene_falls_back_to_live_when_product_unreachable(monkeypatch):
+    monkeypatch.setattr(R, "_load_methylation_from_product", lambda *a, **k: None)
+    calls = {"n": 0}
+
+    def _fake_live(target, s2m):
+        calls["n"] += 1
+        return {"ACH-X": 0.5}, None
+    monkeypatch.setattr(R, "_load_ccle_methylation_for_gene", _fake_live)
+    methyl, err = R._methylation_for_gene("GENEA", {"AAA": "ACH-A"})
+    assert calls["n"] == 1 and methyl == {"ACH-X": 0.5} and err is None
