@@ -634,6 +634,21 @@ def run_wired_skill(
             "driving_rule_id": verdict_pair[1] if verdict_pair else None,
         }
 
+    # CENTRAL signals-first wiring: fold hierarchy-derived sub-group signals into ANY skill that has a
+    # question_hierarchy.yaml (sources bound by measurement_type, confidence = agreement × sample-size,
+    # first-class per-stratum by_stratum). setdefault so a skill that emits its own (tumor-presence's
+    # explicit-reader version) wins. VERDICT-INERT, best-effort — one edit wires the whole fleet.
+    if isinstance(headline, dict):
+        try:
+            from _skills_common.subgroup_derivation import subgroup_signals_for
+            _skill_dir = Path(__file__).resolve().parent.parent / skill_name
+            if (_skill_dir / "question_hierarchy.yaml").exists():
+                _sg = subgroup_signals_for(_skill_dir, card_outputs)
+                if _sg:
+                    headline.setdefault("subgroup_signals", _sg)
+        except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
+            pass
+
     # Attach dependency-status provenance + isoform-selective flags uniformly
     headline["cards_available"] = sum(1 for c in card_outputs
                                        if not c.get("_missing"))
@@ -772,6 +787,14 @@ def run_wired_skill(
     if args.figures:
         _n_figs = _emit_card_figures(emitted_cards, args.out, args.target, _indication)
         print(f"  --figures: emitted {_n_figs} figure(s) → {Path(args.out) / 'figures'}")
+        # CENTRAL per-sub-group signals-first figure (any skill with subgroup_signals). Best-effort.
+        try:
+            from _skills_common.subgroup_figure import emit_subgroup_figure
+            _sgf = emit_subgroup_figure(decision, Path(args.out) / "figures")
+            if _sgf:
+                print(f"  --figures: emitted {len(_sgf)} sub-group signal figure(s)")
+        except Exception:  # noqa: BLE001 — display-only; never break the run
+            pass
         # OPT-IN skill-level AGGREGATE figure (--figures): a skill may supply skill_figures_fn to
         # emit a hero graphic that reads the already-computed `decision` (e.g. tumor-presence's
         # Presence × Context matrix over headline.presence_verdict_by_modality). PURELY ADDITIVE and
