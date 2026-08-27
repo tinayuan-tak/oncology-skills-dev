@@ -939,6 +939,30 @@ def _protein_confirmation_state(per_modality: dict, collapsed_verdict: str | Non
     return "untested"
 
 
+# Hierarchy-derived sub-group signals (signals-first spec) — sources bound by measurement_type from
+# question_hierarchy.yaml; confidence = agreement × sample-size. ADDITIVE + verdict-INERT; the hand-
+# wired claim_vector stays until consumers migrate (strangler). Best-effort (degrades to {} off-contract).
+_PRESENCE_READER = {
+    "tumor_expression_distribution": {"class": "tumor_expression_class", "n": ["n_tumor_samples"], "label": "tumor RNA"},
+    "cell_line_rna_expression": {"class": "expression_class", "n": ["n_cell_lines_evaluated"], "label": "cell-line RNA"},
+    "tumor_protein_abundance": {"class": "protein_expression_class", "n": ["n_tumor_samples"], "label": "tumor protein",
+                                "present_synonyms": ("ns", "not_significant", "small_effect")},
+    "cell_line_protein_abundance": {"class": "protein_expression_class", "n": ["n_cell_lines_evaluated"], "label": "cell-line protein"},
+    "rna_protein_concordance": {"class": "rna_as_biomarker", "n": ["n_paired_models", "n_paired_tumors"], "label": "RNA↔protein"},
+    "sc_tumor_celltype_expression": {"class": "sc_expression_class", "n": ["malignant_n_cells", "n_donor_groups"], "label": "single-cell"},
+    "tumor_elevation_breadth": {"class": "tumor_elevation_breadth_class", "n": ["n_cohorts_tested"], "label": "breadth"},
+}
+
+
+def _presence_subgroup_signals(cards):
+    """Derive per-sub-group {signal, confidence, sources} from question_hierarchy.yaml + resolved cards."""
+    import yaml
+    from _skills_common.subgroup_derivation import derive_subgroups
+    hp = Path(__file__).resolve().parent.parent / "question_hierarchy.yaml"
+    hier = yaml.safe_load(hp.read_text())
+    return derive_subgroups(hier, cards, _PRESENCE_READER)
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
@@ -1143,6 +1167,8 @@ def _headline(cards, fired, verdict_pair):
     # headline message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
     # projection over the claim_vector / key_signals just built; best-effort (same degrade discipline).
     hl["headline_block"] = _enrich("headline_block", _presence_headline_block, hl)
+    # Hierarchy-derived sub-group signals (verdict-inert; sources bound by measurement_type, not hand-wired).
+    hl["subgroup_signals"] = _enrich("subgroup_signals", _presence_subgroup_signals, cards)
     return hl
 
 
@@ -1190,6 +1216,8 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # hierarchy-derived per-sub-group signals (sources bound by measurement_type; confidence=agreement×n)
+    "subgroup_signals",
 )
 
 
