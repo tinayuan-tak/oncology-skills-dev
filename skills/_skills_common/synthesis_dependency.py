@@ -204,11 +204,16 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     lineage = cards.get("dependency-lineage-selectivity", {})
     organoid = cards.get("organoid-crispr-dependency", {})
 
+    from _skills_common.signals_first import render_signal_vector
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "DETERMINISTIC VERDICT (fixed — narrate, do not change):",
-        f"  dependency_verdict: {h.get('dependency_verdict')}  (driving_rule: {h.get('driving_rule_id')})",
+        "SIGNAL VECTOR (pre-computed deterministic within-lens integration — LEAD your narration with "
+        "THIS: let the strongest, best-corroborated signals carry the story; the collapsed verdict below "
+        "is a compressed label, not the headline):",
+        render_signal_vector(h.get("claim_vector"),
+                             {"DEP": "genetic dependency", "SEL": "context-selectivity",
+                              "COND": "conditional/SL", "CHEM": "chemical-genetic"}),
         "",
         "GENETIC EVIDENCE — the full gathered read (cite measured values; a null is decision-useful):",
         f"  CRISPR call:  {h.get('crispr_call')}   "
@@ -301,6 +306,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
            "— PREFER this lineage read over the pan-organoid fraction; a driver dependency concentrated in "
            "the indication's lineage reads stronger here than in the pooled cohort"
            if organoid.get('organoid_lineage') else ""),
+        "",
+        "COLLAPSED VERDICT (a compressed label derived from the signals above — state it LAST, never "
+        "leading; never let it mask a disagreeing signal. Fixed upstream — narrate, do not change):",
+        f"  dependency_verdict: {h.get('dependency_verdict')}  (driving_rule: {h.get('driving_rule_id')})",
         "",
         "TASK: using emit_dependency_synthesis, judge how much the DEPENDENCY lens informs whether "
         f"{target} is worth pursuing in {indication}. Reason ACROSS the evidence — do not just restate "

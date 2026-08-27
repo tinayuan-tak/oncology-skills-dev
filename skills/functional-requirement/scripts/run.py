@@ -484,10 +484,16 @@ def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> di
     level = min(components, key=lambda c: _ORD[c])   # weakest-link over MEASURED components
     if verdict in _DEP_INSUFF:
         level = "low"
+    from _skills_common.signals_first import certainty_composite
+    strength = _dependency_strength(verdict)
     return {
-        "strength": _dependency_strength(verdict),
+        "strength": strength,
         "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
                       "unknown_mass": _unknown_mass(cards)},
+        # continuous portfolio-ranking primitive (verdict-inert; a NAMED projection, not canonical)
+        "composite": certainty_composite(strength, level),
+        "composite_basis": ("certainty-discounted dependency strength = peak signal tier × weakest-link "
+                            "certainty; a NAMED [0,1] portfolio-ranking projection, not a canonical verdict"),
         "provenance": {"n_cell_lines_evaluated": n, "fraction_strongly_dependent": frac,
                        "cross_consortium_class": cross_consortium_class},
         "_model_ref": "CERTAINTY_MODEL.md#dependency",
