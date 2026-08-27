@@ -89,6 +89,9 @@ caveats:
   - "COADREAD-only (2026-08-21): cptac-subgroup-assignments-coadread-v1 (MSI_H/MSS from MMR-IHC) is the only landed CPTAC assignment shard. MSI is an MMR-IHC surrogate; ~43% of aliquots are is_member=null (not tested). Other indications return subtype_axis_available:false until their shards land."
   - "CPTAC whole-cell-lysate TMT measures PRODUCED protein (tumor-vs-reference log2 ratio), NOT surface-accessible antigen; small per-stratum n means MSI_H is frequently underpowered (see subtype_axis_quality)."
 
+measurement: bulk_protein_ms
+sample_context: tumor         # patient tumor (CPTAC per-cohort, per-subtype strata) — orthogonal to measurement
+
 measurement_type: tumor_protein_abundance
 entity_grains: [target_subtype]
 schema_version: 1
