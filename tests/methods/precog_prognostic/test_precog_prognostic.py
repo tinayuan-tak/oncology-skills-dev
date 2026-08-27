@@ -109,3 +109,24 @@ def test_crosswalk_columns_are_unique_and_flagged():
     # exact anchors
     assert cli.INDICATION_TO_PRECOG["LUAD"] == ("Lung_cancer_ADENO", False)
     assert cli.INDICATION_TO_PRECOG["OV"] == ("Ovarian_cancer", False)
+
+
+def test_product_loaded_once_and_cached(monkeypatch):
+    """The materialized product (single ~2.5 MB row group) must be fetched ONCE per process and
+    reused — the fix's point (was re-downloaded on every read_precog_prognostic call)."""
+    import methods.derived_product as dp
+    calls = {"n": 0}
+
+    def _counting(uri, dev_build=None, **k):
+        calls["n"] += 1
+        return _fake_product()
+
+    monkeypatch.setattr(dp, "load_materialized_product", _counting)
+    monkeypatch.setattr(precog_read, "ensure_aws_profile", lambda *a, **k: None)
+    precog_read._load_product.cache_clear()
+    try:
+        for _ in range(3):
+            precog_read.read_precog_prognostic("BIRC5", "BRCA")
+        assert calls["n"] == 1                 # one download, then cache hits
+    finally:
+        precog_read._load_product.cache_clear()   # don't leak the cached frame to other tests

@@ -11,6 +11,7 @@ single-cohort expression-clinical-association card.
 """
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Optional
 
 from . import cli as _cli
@@ -25,7 +26,13 @@ _XWALK = _cli.INDICATION_TO_PRECOG
 from methods.target_id_sidecar import ensure_aws_profile
 
 
+@lru_cache(maxsize=1)
 def _load_product():
+    """Load the whole per-(gene x indication) PRECOG meta-Z table (a single small ~2.5 MB object,
+    one row group), cached per process. Previously re-downloaded on EVERY read_precog_prognostic
+    call; the product is a single row group so per-gene pyarrow pushdown cannot prune it — the
+    correct fix is to fetch it once and reuse (mirrors the sibling small-product readers). Byte-
+    identical. Falls back to rebuilding from the source matrix when the product is unreachable."""
     from methods.derived_product import load_materialized_product
     ensure_aws_profile()
     # dev fallback (re-reads the source matrix) if the materialized product is unreachable
