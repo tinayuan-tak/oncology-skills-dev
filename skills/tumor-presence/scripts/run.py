@@ -51,6 +51,7 @@ from _skills_common.presence_claims import (presence_claim_vector, presence_clai
 from _skills_common.presence_question_table import presence_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_figure import emit_subgroup_figure
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
 from _skills_common.presence_cardboard_figure import emit_card_board_figure
@@ -167,7 +168,8 @@ def _emit_skill_figures(decision, figures_root):
             + emit_presence_matrix(decision, figures_root)
             + emit_claim_vector_figure(decision, figures_root)
             + emit_card_board_figure(decision, figures_root)
-            + emit_subtype_refinement_figure(decision, figures_root))
+            + emit_subtype_refinement_figure(decision, figures_root)
+            + emit_subgroup_figure(decision, figures_root))
 
 
 # ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
