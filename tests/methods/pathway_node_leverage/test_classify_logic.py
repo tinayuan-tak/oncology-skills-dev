@@ -154,3 +154,84 @@ def test_buffering_flag_fails_soft_on_reader_error(monkeypatch):
     assert out["paralog_buffering_class"] == "data_unavailable"
     assert out["single_ko_leverage_understated"] is False
     assert out["strongest_buffering_paralog"] == ""
+
+
+# --- Chronos column-projection (perf: no 563 MB whole-CSV download) ---------------------------------
+def _install_fake_chronos_parquet(monkeypatch, values):
+    """Install a fake CRISPRGeneEffect.parquet: columns are 'GENE (entrez)', rows are ModelIDs.
+    `values`: {bare_symbol: {ModelID: score}}. Returns a list that captures each `columns` projection
+    passed to _stream_table, so a test can assert ONLY the requested genes (not the ~18k-col matrix)
+    transit the wire."""
+    import pyarrow as pa
+    entrez = {g: 1000 + i for i, g in enumerate(values)}
+    parquet_cols = {f"{g} ({entrez[g]})": col for g, col in values.items()}
+    model_ids = sorted({m for col in values.values() for m in col})
+    schema = ("ModelID", *parquet_cols.keys())
+    requested = []
+
+    def fake_stream_table(uri, columns=None, filters=None):
+        requested.append(tuple(columns) if columns else None)
+        data = {"ModelID": model_ids}
+        for c in columns:
+            if c != "ModelID":
+                data[c] = [parquet_cols[c].get(m) for m in model_ids]
+        return pa.Table.from_pydict(data)
+
+    monkeypatch.setattr(C, "_remote_uri", lambda *a, **k: "onc-compbio/x/CRISPRGeneEffect.parquet")
+    monkeypatch.setattr(C, "_remote_schema_names", lambda uri: schema)
+    monkeypatch.setattr(C, "_stream_table", fake_stream_table)
+    C._chronos_parquet_meta.cache_clear()
+    return requested
+
+
+def test_chronos_subframe_column_projects_and_returns_bare_symbols(monkeypatch):
+    requested = _install_fake_chronos_parquet(monkeypatch, {
+        "TGT": {"ACH-1": -1.0, "ACH-2": -0.9},
+        "NBR": {"ACH-1": -0.2, "ACH-2": -0.3},
+        "OFF": {"ACH-1": 0.1, "ACH-2": 0.0},               # never requested -> must not transit
+    })
+    sub = C._chronos_subframe({"TGT", "NBR"})
+    assert set(sub.columns) == {"TGT", "NBR"}              # bare symbols, only requested genes
+    assert sub.index.name == "ModelID"
+    assert sub.loc["ACH-1", "TGT"] == -1.0
+    cols = requested[0]                                     # exactly ModelID + the two requested genes
+    assert cols is not None and "ModelID" in cols
+    assert not any("OFF" in c for c in cols)
+    assert len([c for c in cols if c != "ModelID"]) == 2
+
+
+def test_chronos_subframe_falls_back_to_csv_on_parquet_error(monkeypatch):
+    monkeypatch.setattr(C, "_remote_uri", lambda *a, **k: "onc-compbio/x/CRISPRGeneEffect.parquet")
+    monkeypatch.setattr(C, "_remote_schema_names", lambda uri: ("ModelID", "TGT (1)", "NBR (2)"))
+    C._chronos_parquet_meta.cache_clear()
+
+    def _boom(*a, **k):
+        raise RuntimeError("parquet product unreachable")
+    monkeypatch.setattr(C, "_stream_table", _boom)
+    csv = pd.DataFrame({"TGT": [-1.0, -0.9], "NBR": [-0.2, -0.3]}, index=["ACH-1", "ACH-2"])
+    monkeypatch.setattr(C, "_chronos", lambda: csv)
+    sub = C._chronos_subframe({"TGT", "NBR"})              # parquet error -> whole-CSV slice
+    assert set(sub.columns) == {"TGT", "NBR"}
+    assert sub.loc["ACH-2", "NBR"] == -0.3
+
+
+def test_stats_identical_parquet_vs_csv_fallback(monkeypatch):
+    # The pushdown read must produce byte-identical _stats to the whole-CSV slice it replaces.
+    models = [f"ACH-{i}" for i in range(8)]
+    tgt = {m: -1.0 - 0.01 * i for i, m in enumerate(models)}
+    nbr = {m: -0.3 + 0.01 * i for i, m in enumerate(models)}
+    monkeypatch.setattr(C, "_tdl", lambda: {})             # deterministic offline (no live TDL/common-ess)
+    monkeypatch.setattr(C, "_common_essentials", lambda: frozenset())
+
+    _install_fake_chronos_parquet(monkeypatch, {"TGT": tgt, "NBR": nbr})
+    via_parquet = C._stats(["NBR"], "TGT", None).reset_index(drop=True)
+
+    def _boom(*a, **k):
+        raise RuntimeError("force CSV path")
+    monkeypatch.setattr(C, "_stream_table", _boom)
+    C._chronos_parquet_meta.cache_clear()
+    csv = pd.DataFrame({"TGT": [tgt[m] for m in models], "NBR": [nbr[m] for m in models]}, index=models)
+    monkeypatch.setattr(C, "_chronos", lambda: csv)
+    via_csv = C._stats(["NBR"], "TGT", None).reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(via_parquet, via_csv)

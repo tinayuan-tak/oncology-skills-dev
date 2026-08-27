@@ -48,6 +48,9 @@ import pandas as pd
 from methods.target_id_sidecar import s3_client
 from methods.depmap_chronos.cli import INDICATION_LINEAGE
 from methods.depmap_paralog_aggregator.read import read_target_summary as _read_paralog_buffering
+from methods.depmap_common.parquet import (
+    _find_gene_column, _remote_schema_names, _remote_uri, _stream_table,
+)
 
 METHOD_VERSION = "0.1.0"
 
@@ -102,6 +105,43 @@ def _chronos() -> pd.DataFrame:
     df = pd.read_csv(io.BytesIO(_get(_SRC_CHRONOS)), index_col=0)
     df.columns = [c.split(" ")[0] for c in df.columns]       # 'GENE (id)' -> 'GENE'
     return df
+
+
+@lru_cache(maxsize=1)
+def _chronos_parquet_meta() -> tuple:
+    """(uri, schema_names) of the gene-sorted CRISPRGeneEffect parquet product. Footer read once."""
+    uri = _remote_uri("CRISPRGeneEffect.parquet")
+    return uri, _remote_schema_names(uri)
+
+
+def _chronos_subframe(genes) -> pd.DataFrame:
+    """Chronos scores for `genes`, indexed by ModelID, with BARE-symbol columns (matching the
+    whole-CSV loader's column labels).
+
+    Column-projected read of the CRISPRGeneEffect parquet product: only the requested genes'
+    column-chunks transit the wire, replacing the 563 MB whole-CSV download for a node set of
+    ~15-200 genes (`get_chronos_column`-style pushdown, generalized to many columns). Falls back
+    to slicing the whole-CSV loader when the parquet product is unreachable — preserving the
+    sibling parquet-primary / CSV-fallback discipline (a transient/creds error there still routes
+    to the CSV path, byte-identical to the old behavior)."""
+    genes = set(genes)
+    try:
+        uri, schema = _chronos_parquet_meta()
+        id_col = "ModelID" if "ModelID" in schema else schema[0]
+        colmap = {}                                          # parquet 'GENE (id)' col -> bare 'GENE'
+        for g in genes:
+            c = _find_gene_column(schema, g)
+            if c is not None and c not in colmap:
+                colmap[c] = g
+        if not colmap:
+            return pd.DataFrame()
+        tbl = _stream_table(uri, columns=[id_col, *colmap]).to_pandas()
+        return tbl.set_index(id_col).rename(columns=colmap)
+    except ImportError:
+        raise
+    except Exception:                                        # parquet product unreachable -> CSV fallback
+        df = _chronos()
+        return df[[g for g in genes if g in df.columns]]
 
 
 @lru_cache(maxsize=1)
@@ -224,13 +264,11 @@ def _model_ids_for_lineage(lineage: Optional[str]) -> Optional[list]:
 
 
 def _stats(genes: list, target: str, model_ids: Optional[list]) -> pd.DataFrame:
-    df = _chronos()
-    cols = [g for g in (set(genes) | {target}) if g in df.columns]
-    sub = df[cols]
+    sub = _chronos_subframe(set(genes) | {target})           # column-projected (only these genes)
     if model_ids:
         sub = sub.loc[sub.index.isin(model_ids)]
     rows = []
-    for g in cols:
+    for g in sub.columns:
         v = sub[g].dropna()
         if len(v) < 5:
             continue
