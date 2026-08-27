@@ -1,0 +1,42 @@
+skill: genomic-alteration-profile
+sub_groups:
+- id: SNV
+  questions:
+  - id: snv_read
+    measurement_types:
+    - mutation_variant_class_spectrum
+    - mutation_hotspot_frequency
+    - mutation_clonality
+    - variant_level_interpretation
+    - variant_functional_effect_mave
+    - functional_gene_state
+    - alteration_role
+    - oncogenic_pathway_alteration
+  context_types:
+  - genomic_instability_state
+  - ddr_deficiency_context
+  - mutational_signature_context
+- id: CN
+  questions:
+  - id: cn_read
+    measurement_types:
+    - copy_number_alteration
+    - amp_expr_stratified_dependency
+    - cn_stratified_dependency
+- id: FUS
+  questions:
+  - id: fus_read
+    measurement_types:
+    - fusion_rearrangement
+    - fusion_stratified_dependency
+    - tumor_splice_dysregulation
+    - tumor_splice_expression
+- id: DEP
+  questions:
+  - id: dep_read
+    measurement_types:
+    - mutation_stratified_dependency
+    - mutation_drug_response
+    - cross_consortium_dependency
+    - dependency_predictability
+    - genomic_event_model_match

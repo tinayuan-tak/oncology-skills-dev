@@ -1,0 +1,28 @@
+skill: differentiation-landscape
+sub_groups:
+- id: COMUT
+  questions:
+  - id: comut_read
+    measurement_types:
+    - mutation_cooccurrence
+  context_types:
+  - clinical_precedent
+  - competitor_landscape
+- id: SURVIVAL
+  questions:
+  - id: survival_read
+    measurement_types:
+    - subtype_survival_association
+- id: PROGNOSIS
+  questions:
+  - id: prognosis_read
+    measurement_types:
+    - precog_prognostic_association
+    - expression_clinical_association
+    - alteration_clinical_association
+- id: NODE
+  questions:
+  - id: node_read
+    measurement_types:
+    - pathway_node_leverage
+    - stemness_context

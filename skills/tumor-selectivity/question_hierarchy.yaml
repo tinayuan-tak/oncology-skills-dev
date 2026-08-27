@@ -1,0 +1,32 @@
+skill: tumor-selectivity
+sub_groups:
+- id: WIN
+  questions:
+  - id: win_read
+    measurement_types:
+    - tumor_vs_normal_selectivity
+    - tumor_vs_normal_percentile_crossing
+    - tumor_vs_normal_protein_abundance
+    - modality_window
+    - tumor_protein_abundance
+  context_types:
+  - expression_purity_confound
+- id: DIST
+  questions:
+  - id: dist_read
+    measurement_types:
+    - normal_tissue_protein_abundance
+- id: INT
+  questions:
+  - id: int_read
+    measurement_types:
+    - sc_tumor_celltype_expression
+    - spatial_colocalization
+    - spatial_region_rna
+    - spatial_surface_protein
+    - surface_density
+- id: SAFE
+  questions:
+  - id: safe_read
+    measurement_types:
+    - sc_normal_celltype_expression

@@ -1,0 +1,14 @@
+skill: immune-context
+sub_groups:
+- id: IMMUNE
+  questions:
+  - id: infiltration
+    measurement_types:
+    - immune_context
+  - id: ici_response
+    measurement_types:
+    - ici_response_expression
+  - id: microenvironment
+    measurement_types:
+    - sc_tumor_caf_state_expression
+    - sc_tumor_myeloid_state_expression

@@ -1,0 +1,30 @@
+skill: target-intrinsic
+sub_groups:
+- id: MODALITY_ROUTING
+  questions:
+  - id: modality_routing_read
+    measurement_types:
+    - domain_modality_relevance
+    - surfaceome_family
+    - structure_druggability
+    - protein_domains_class
+    - gene_ontology_annotation
+    - reactome_pathway_membership
+    - ppi_interactome
+    - signaling_network_mechanism
+    - shed_ectodomain_liability
+    - target_identity
+  context_types:
+  - paralog_buffering
+  - gnomad_lof_constraint
+  - dosage_sensitivity_safety
+  - clinvar_germline_pathogenicity_safety
+  - human_genetic_safety
+  - mouse_ko_phenotype_safety
+  - normal_tissue_protein_breadth
+  - target_safety_prioritisation
+- id: TRACTABILITY_PRECEDENT
+  questions:
+  - id: tractability_precedent_read
+    measurement_types:
+    - target_development_level

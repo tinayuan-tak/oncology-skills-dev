@@ -1,0 +1,30 @@
+skill: tractability-small-molecule
+sub_groups:
+- id: POTENCY
+  questions:
+  - id: potency_read
+    measurement_types:
+    - measured_potency_tractability
+  context_types:
+  - dependency_predictability
+- id: ACTIVITY
+  questions:
+  - id: activity_read
+    measurement_types:
+    - prism_compound_activity
+    - chemical_genetic_concordance
+- id: STRUCT
+  questions:
+  - id: struct_read
+    measurement_types:
+    - structure_druggability
+- id: DRUG
+  questions:
+  - id: drug_read
+    measurement_types:
+    - known_drug_tractability
+- id: DEGRADER
+  questions:
+  - id: degrader_read
+    measurement_types:
+    - degradation_feasibility

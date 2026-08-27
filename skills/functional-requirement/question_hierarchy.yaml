@@ -1,0 +1,32 @@
+skill: functional-requirement
+sub_groups:
+- id: DEP
+  questions:
+  - id: dep_read
+    measurement_types:
+    - crispr_lof_dependency
+    - rnai_lof_dependency
+    - crispr_rnai_concordance
+    - paralog_buffering
+    - cross_consortium_dependency
+  context_types:
+  - dependency_predictability
+  - coessential_module
+- id: SEL
+  questions:
+  - id: sel_read
+    measurement_types:
+    - expression_dependency_correlation
+    - abundance_dependency_correlation
+    - patient_model_correspondence
+    - genomic_event_model_match
+- id: COND
+  questions:
+  - id: cond_read
+    measurement_types:
+    - partner_conditional_dependency
+- id: CHEM
+  questions:
+  - id: chem_read
+    measurement_types:
+    - chemical_genetic_concordance

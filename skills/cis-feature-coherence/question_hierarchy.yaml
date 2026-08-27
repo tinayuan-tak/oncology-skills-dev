@@ -1,0 +1,26 @@
+skill: cis-feature-coherence
+sub_groups:
+- id: CIS_DOSAGE
+  questions:
+  - id: cis_dosage_read
+    measurement_types:
+    - cis_dosage_coupling
+    - amp_expr_stratified_dependency
+  context_types:
+  - cell_line_isoform_dominance
+  - cellline_isoform_expression
+- id: SILENCING
+  questions:
+  - id: silencing_read
+    measurement_types:
+    - methylation_silencing_coupling
+- id: EXPR_DEP
+  questions:
+  - id: expr_dep_read
+    measurement_types:
+    - expression_dependency_correlation
+- id: CONJOINT
+  questions:
+  - id: conjoint_read
+    measurement_types:
+    - patient_cis_coherence

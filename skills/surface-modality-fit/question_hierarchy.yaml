@@ -1,0 +1,49 @@
+skill: surface-modality-fit
+sub_groups:
+- id: FIT
+  questions:
+  - id: core_modality_fit
+    measurement_types:
+    - adc_tce_modality_fit
+    - cd_antigen_backbone
+    - surfaceome_family
+    - modality_window
+    - exon_window
+  - id: immuno_presentation
+    measurement_types:
+    - pmhc_epitope_evidence
+    - pmhc_presentation
+  - id: antigen_pair
+    measurement_types:
+    - antigen_pair_coexpression
+    - antigen_pair_selectivity
+  context_types:
+  - mutation_stratified_surface
+  - pathway_stratified_surface
+  - copy_number_alteration
+- id: TOPOLOGY
+  questions:
+  - id: topology_read
+    measurement_types:
+    - surface_topology
+    - structure_druggability
+- id: DENSITY
+  questions:
+  - id: density_read
+    measurement_types:
+    - surface_density
+    - surface_confirmation
+    - rna_protein_concordance
+    - sc_tumor_celltype_expression
+- id: SAFETY
+  questions:
+  - id: safety_read
+    measurement_types:
+    - normal_tissue_protein_breadth
+    - sc_normal_celltype_expression
+    - sc_normal_surface_protein
+- id: SHED
+  questions:
+  - id: shed_read
+    measurement_types:
+    - shed_ectodomain_liability

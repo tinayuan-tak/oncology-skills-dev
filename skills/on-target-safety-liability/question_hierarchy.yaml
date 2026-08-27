@@ -1,0 +1,45 @@
+skill: on-target-safety-liability
+sub_groups:
+- id: CONSTRAINT
+  questions:
+  - id: constraint_read
+    measurement_types:
+    - gnomad_lof_constraint
+  context_types:
+  - alteration_role
+  - copy_number_alteration
+  - functional_gene_state
+  - drug_warning_safety
+  - onsides_adverse_event_safety
+  - target_safety_prioritisation
+- id: BURDEN
+  questions:
+  - id: burden_read
+    measurement_types:
+    - human_genetic_safety
+- id: DOSAGE
+  questions:
+  - id: dosage_read
+    measurement_types:
+    - dosage_sensitivity_safety
+- id: CLINVAR
+  questions:
+  - id: clinvar_read
+    measurement_types:
+    - clinvar_germline_pathogenicity_safety
+- id: MOUSE_KO
+  questions:
+  - id: mouse_ko_read
+    measurement_types:
+    - mouse_ko_phenotype_safety
+- id: PAN_ESSENTIAL
+  questions:
+  - id: pan_essential_read
+    measurement_types:
+    - crispr_lof_dependency
+- id: NORMAL_TISSUE
+  questions:
+  - id: normal_tissue_read
+    measurement_types:
+    - normal_tissue_protein_breadth
+    - normal_tissue_rna_breadth

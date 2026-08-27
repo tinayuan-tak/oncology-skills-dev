@@ -1,0 +1,27 @@
+skill: mechanism-and-pharmacology
+sub_groups:
+- id: NETWORK
+  questions:
+  - id: network_read
+    measurement_types:
+    - signaling_network_mechanism
+- id: PHOSPHO
+  questions:
+  - id: phospho_read
+    measurement_types:
+    - phospho_pathway_activity
+- id: PATHWAY
+  questions:
+  - id: pathway_read
+    measurement_types:
+    - pathway_activity_context
+- id: PERTURBATION
+  questions:
+  - id: perturbation_read
+    measurement_types:
+    - tahoe_drug_perturbation
+- id: PREDICTABILITY
+  questions:
+  - id: predictability_read
+    measurement_types:
+    - dependency_predictability
