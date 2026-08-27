@@ -130,7 +130,11 @@ _SYSTEM = (
     "SCOPE DISCIPLINE: do NOT discuss therapeutic MODALITY (small-molecule / degrader / ADC / "
     "T-cell-engager / antibody / CAR) or surface accessibility. Modality reasoning requires holding "
     "multiple evidence lenses together and belongs to the composed target-profile synthesis, not to "
-    "this single-lens presence skill. The control benchmarks are only an ABUNDANCE yardstick."
+    "this single-lens presence skill. The control benchmarks are only an ABUNDANCE yardstick. "
+    "NARRATION ORDER: LEAD with the ranked SIGNAL VECTOR (the A/B/C/D signal×corroboration claims) — "
+    "let the strongest, best-corroborated signals carry the story. The collapsed presence_verdict is a "
+    "COMPRESSED label: state it LAST as a summary tag, never as the headline, and never let it override "
+    "or mask a signal that disagrees with it."
     + _EVIDENCE_ONLY_DIRECTIVE
 )
 
@@ -214,7 +218,7 @@ def _claim_vector_block(cv: Optional[dict]) -> str:
     than the LLM re-deriving them. Additive / backward-compatible: a no-op note when the decision
     predates claim_vector (spine byte-stable either way)."""
     if not isinstance(cv, dict):
-        return "  (claim vector not present in this decision — narrate from the fields above.)"
+        return "  (claim vector not present in this decision — narrate from the fields below.)"
     rows = []
     for k, name in (("A", "abundance"), ("B", "tumor-elevation"),
                     ("C", "malignant-intrinsic"), ("D", "generality")):
@@ -254,8 +258,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "DETERMINISTIC VERDICT (fixed — narrate, do not change):",
-        f"  presence_verdict: {h.get('presence_verdict')}  (driving_rule: {h.get('driving_rule_id')})",
+        "SIGNAL VECTOR (pre-computed deterministic within-lens integration — LEAD your narration with "
+        "THIS: let the strongest, best-corroborated signals carry the story; treat it as ground truth "
+        "and obey its DIRECTIVE on confidence + relevance):",
+        _claim_vector_block(h.get("claim_vector")),
         "",
         "GRAIN GOVERNANCE (narrate each grain ONLY where data exists; never invent a grain):",
         f"  indication anchor: {indication} (the run grain — always the primary read)",
@@ -372,9 +378,11 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"median_log2tpm: {_fmt(tumor_rna.get('median_log2tpm'), 2)}",
         f"  purity_confound_class: {h.get('purity_confound_class')}",
         "",
-        "DETERMINISTIC CLAIM VECTOR (pre-computed within-lens integration; treat as ground truth — "
-        "obey its DIRECTIVE on confidence + relevance):",
-        _claim_vector_block(h.get("claim_vector")),
+        "COLLAPSED VERDICT (a COMPRESSED label DERIVED from the signal vector above — state it LAST as "
+        "a one-word summary tag; do NOT lead with it, and never let it mask a signal that disagrees "
+        "with it: a present verdict alongside a weak/absent tumor-elevation signal reads as 'present but "
+        "uninformative for relevance', not as support. Fixed upstream — narrate, do not change):",
+        f"  presence_verdict: {h.get('presence_verdict')}  (driving_rule: {h.get('driving_rule_id')})",
         "",
         "TASK: using emit_presence_synthesis, judge how much this EXPRESSION lens informs whether "
         f"{target} is a relevant drug target for {indication} (and, where measured, which subtype). "
