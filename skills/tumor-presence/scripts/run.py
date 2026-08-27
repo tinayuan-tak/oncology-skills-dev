@@ -956,13 +956,19 @@ _PRESENCE_READER = {
 }
 
 
-def _presence_subgroup_signals(cards):
-    """Derive per-sub-group {signal, confidence, sources} from question_hierarchy.yaml + resolved cards."""
+def _presence_subgroup_signals(cards, claim_vector=None):
+    """Derive per-sub-group {signal, confidence, sources} from question_hierarchy.yaml + resolved cards.
+    When the claim_vector is passed, the sub-group SIGNAL is overlaid from the tuned claim (A→abundance,
+    C→malignant_intrinsic, D→generality via each sub-group's `claim_axes`), carrying the claim's
+    evidence-atom trace; the cards supply the corroborating sources + sample-size confidence."""
     import yaml
-    from _skills_common.subgroup_derivation import derive_subgroups
+    from _skills_common.subgroup_derivation import derive_subgroups, overlay_claim_signals
     hp = Path(__file__).resolve().parent.parent / "question_hierarchy.yaml"
     hier = yaml.safe_load(hp.read_text())
-    return derive_subgroups(hier, cards, _PRESENCE_READER)
+    sg = derive_subgroups(hier, cards, _PRESENCE_READER)
+    if isinstance(claim_vector, dict):
+        overlay_claim_signals(sg, claim_vector, hier)
+    return sg
 
 
 def _attach_subtype_firstclass(subgroup_signals, claim_vector_by_subtype):
@@ -1193,7 +1199,9 @@ def _headline(cards, fired, verdict_pair):
     # projection over the claim_vector / key_signals just built; best-effort (same degrade discipline).
     hl["headline_block"] = _enrich("headline_block", _presence_headline_block, hl)
     # Hierarchy-derived sub-group signals (verdict-inert; sources bound by measurement_type, not hand-wired).
-    hl["subgroup_signals"] = _enrich("subgroup_signals", _presence_subgroup_signals, cards)
+    # Signal overlaid from the just-built claim_vector (A/C/D); cards supply corroborating sources.
+    hl["subgroup_signals"] = _enrich("subgroup_signals", _presence_subgroup_signals, cards,
+                                     hl.get("claim_vector"))
     # First-class subtype: fold the per-stratum reads into the sub-group structure (default-surfaced).
     _enrich("subtype_firstclass", _attach_subtype_firstclass, hl.get("subgroup_signals"), hl.get("claim_vector_by_subtype"))
     return hl

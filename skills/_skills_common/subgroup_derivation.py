@@ -199,11 +199,65 @@ def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -
     return out
 
 
-def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_classify) -> dict:
+# ── UNIFICATION: sub-group SIGNAL from the claim_vector (not the coarse heuristic re-read) ──────────
+# claim_vector_core is the mature, verdict-inert (signal × corroboration) contract: per-skill TUNED
+# signal_fn, gap≠absent discipline, and citable evidence ATOMS (the rules→data trace). Its axes ARE the
+# hierarchy sub-groups (ClaimSpec axis_key == sub_group id; presence maps A/C/D via a sub-group's
+# `claim_axes`). So the AUTHORITATIVE sub-group signal is the claim's — the heuristic reader only
+# supplies the corroborating CARD sources + sample-size confidence. This overlay makes the two views ONE
+# hierarchy: sub-group signal + evidence atoms from the claim, cross-card corroboration + subtype from
+# the cards. Ordinal, gap-honest (all-unmeasured claims -> `unmeasured`, which the heuristic cannot say).
+_SIGNAL_ORD = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0, "unmeasured": None}
+_ORD_SIGNAL = {3: "strong", 2: "moderate", 1: "weak", 0: "absent"}
+
+
+def _claim_axes_for(sg: dict) -> list:
+    """Which claim_vector axis_keys roll into this sub-group. Declared per sub-group via `claim_axes`
+    (presence: A/C/D); defaults to the sub-group id (the ClaimSpec fleet, where axis_key == sub_group)."""
+    ax = sg.get("claim_axes")
+    return list(ax) if isinstance(ax, list) and ax else [sg["id"]]
+
+
+def overlay_claim_signals(subgroup_signals: dict, claim_vector: dict, hierarchy: dict) -> dict:
+    """Set each sub-group's SIGNAL from its mapped claim_vector axis/axes (the tuned, discipline-respecting
+    tier), carrying the claim's evidence_atom trace, and merge the claim's conflict. Keeps the card-derived
+    `sources`, `confidence`, and `by_stratum` untouched (corroboration + sample-size + subtype stay). A
+    sub-group with a mapped claim but no card source is CREATED (signal-only). Verdict-inert, in-place +
+    returned; no-op when claim_vector/hierarchy missing. Mutates `subgroup_signals`."""
+    if not (isinstance(subgroup_signals, dict) and isinstance(claim_vector, dict)
+            and isinstance(hierarchy, dict)):
+        return subgroup_signals
+    for sg in hierarchy.get("sub_groups", []):
+        sgid = sg.get("id")
+        mapped = [(ax, claim_vector[ax]) for ax in _claim_axes_for(sg)
+                  if isinstance(claim_vector.get(ax), dict)]
+        if not mapped:
+            continue                                   # no claim for this axis — leave heuristic signal
+        measured = [(ax, cl) for ax, cl in mapped if _SIGNAL_ORD.get(cl.get("signal")) is not None]
+        if measured:
+            best = max(_SIGNAL_ORD[cl["signal"]] for _, cl in measured)
+            claim_signal = _ORD_SIGNAL[best]
+        else:
+            claim_signal = "unmeasured"                # gap≠absent — the heuristic could not express this
+        entry = subgroup_signals.setdefault(sgid, {"confidence": "low", "n_sources": 0, "n_agree": 0,
+                                                    "power": "low", "conflict": False, "sources": []})
+        entry["signal"] = claim_signal
+        entry["signal_source"] = "claim_vector"
+        entry["claims"] = [{k: v for k, v in {
+            "axis": ax, "signal": cl.get("signal"), "corroboration": cl.get("corroboration"),
+            "conflict": cl.get("conflict"), "evidence": cl.get("evidence"),
+            "evidence_atom": cl.get("evidence_atom")}.items() if v is not None} for ax, cl in mapped]
+        entry["conflict"] = bool(entry.get("conflict")) or any(cl.get("conflict") for _, cl in mapped)
+    return subgroup_signals
+
+
+def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_classify,
+                         claim_vector=None) -> dict:
     """One-call wiring for a skill's run.py: load <skill_dir>/question_hierarchy.yaml, derive the pooled
-    sub-group signals, and fold in the first-class per-stratum by_stratum. Uses the default heuristic
-    reader unless a per-skill reader_spec is given. Best-effort — returns {} on any fault (verdict-inert;
-    never breaks the spine)."""
+    sub-group signals, fold in the first-class per-stratum by_stratum, and (when a `claim_vector` is
+    given) OVERLAY the authoritative claim signal + evidence atoms over each sub-group. Uses the default
+    heuristic reader unless a per-skill reader_spec is given. Best-effort — returns {} on any fault
+    (verdict-inert; never breaks the spine)."""
     try:
         import yaml
         from pathlib import Path as _P
@@ -212,6 +266,8 @@ def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_cl
         for name, by in derive_stratified(hier, cards, classify).items():
             if name in sg:
                 sg[name]["by_stratum"] = by
+        if isinstance(claim_vector, dict):
+            overlay_claim_signals(sg, claim_vector, hier)
         return sg
     except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
         return {}

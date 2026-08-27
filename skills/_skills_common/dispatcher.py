@@ -636,14 +636,17 @@ def run_wired_skill(
 
     # CENTRAL signals-first wiring: fold hierarchy-derived sub-group signals into ANY skill that has a
     # question_hierarchy.yaml (sources bound by measurement_type, confidence = agreement × sample-size,
-    # first-class per-stratum by_stratum). setdefault so a skill that emits its own (tumor-presence's
+    # first-class per-stratum by_stratum). The sub-group SIGNAL is overlaid from the skill's claim_vector
+    # (the tuned per-axis tier + evidence-atom trace) when present — the heuristic reader supplies only
+    # the corroborating card sources. setdefault so a skill that emits its own (tumor-presence's
     # explicit-reader version) wins. VERDICT-INERT, best-effort — one edit wires the whole fleet.
     if isinstance(headline, dict):
         try:
             from _skills_common.subgroup_derivation import subgroup_signals_for
             _skill_dir = Path(__file__).resolve().parent.parent / skill_name
             if (_skill_dir / "question_hierarchy.yaml").exists():
-                _sg = subgroup_signals_for(_skill_dir, card_outputs)
+                _sg = subgroup_signals_for(_skill_dir, card_outputs,
+                                           claim_vector=headline.get("claim_vector"))
                 if _sg:
                     headline.setdefault("subgroup_signals", _sg)
         except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine

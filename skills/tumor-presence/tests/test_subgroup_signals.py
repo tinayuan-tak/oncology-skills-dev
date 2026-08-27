@@ -77,6 +77,22 @@ def test_subgroups_derived_from_hierarchy(_headline):
     assert sg["malignant_intrinsic"]["confidence"] == "high"
 
 
+@pytest.mark.skipif(_contracts_absent(), reason="target-contracts absent (measurement_type lookup)")
+def test_signal_unified_from_claim_vector(_headline):
+    """UNIFICATION: the sub-group SIGNAL is overlaid from the tuned claim (A→abundance, C→malignant,
+    D→generality) carrying its evidence-atom trace; cards still supply the corroborating sources."""
+    sg = _headline.get("subgroup_signals") or {}
+    cv = _headline.get("claim_vector") or {}
+    ab = sg["abundance"]
+    assert ab["signal_source"] == "claim_vector"
+    assert ab["signal"] == cv["A"]["signal"]                       # not the coarse heuristic re-read
+    claims = {c["axis"]: c for c in ab.get("claims", [])}
+    assert "A" in claims and "evidence_atom" in claims["A"]        # rules→data trace carried through
+    assert len(ab["sources"]) >= 2                                 # cards still corroborate the signal
+    assert sg["malignant_intrinsic"]["claims"][0]["axis"] == "C"
+    assert sg["generality"]["claims"][0]["axis"] == "D"
+
+
 @pytest.mark.skipif(_contracts_absent(), reason="target-contracts absent")
 def test_subtype_grain_cards_excluded(_headline):
     """entity_grain=subtype cards are conditioners, not whole-cohort sources."""

@@ -1,6 +1,10 @@
 skill: tumor-presence            # profiling axis: Expressed
 sub_groups:
+  # claim_axes: which claim_vector axis/axes supply this sub-group's authoritative signal. presence
+  # builds A/B/C/D manually (claim B tumor-elevation informs the SELECTIVITY lens, so it is NOT a
+  # presence sub-group — it routes via other_lenses below).
   - id: abundance
+    claim_axes: [A]
     questions:
       - id: how_much_present
         measurement_types: [tumor_expression_distribution, cell_line_rna_expression,
@@ -10,11 +14,13 @@ sub_groups:
         measurement_types: [rna_protein_concordance]
     context_types: [expression_purity_confound]
   - id: malignant_intrinsic
+    claim_axes: [C]
     questions:
       - id: in_cancer_cells
         measurement_types: [sc_tumor_celltype_expression]
     context_types: [expression_purity_confound]
   - id: generality
+    claim_axes: [D]
     questions:
       - id: broad_across_cancers
         measurement_types: [tumor_elevation_breadth]
