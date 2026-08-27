@@ -12,6 +12,7 @@ if target-contracts is unavailable (no measurement_type lookup), returns {} (spi
 from __future__ import annotations
 import functools
 import os
+import re
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -53,7 +54,26 @@ def _nbucket(n) -> str:
     return "very high" if n >= 1e5 else "high" if n >= 100 else "moderate" if n >= 20 else "low"
 
 
-def derive_subgroups(hierarchy: dict, cards: list, reader_spec: dict,
+# DEFAULT heuristic reader — so fleet wiring needs no per-skill reader spec. Picks the primary signal
+# field (a `*_class`, else a signal-keyword string field) + the sample-size field(s) from a card summary.
+_SIGNAL_KEY = re.compile(r"(expression|dependency|abundance|selectivity|breadth|role|state|fit|density|"
+                         r"score|concordance|biomarker|activity|druggability|homogeneity|coverage)")
+_N_KEY = re.compile(r"(^n_|_n$|_samples$|_cells$|_cells_total$|_donors$|_lines$|_evaluated$|subgroup_n|"
+                    r"_paired|cells_ran|n_cohorts)")
+
+
+def _heuristic_reader(summary: dict) -> "dict | None":
+    if not isinstance(summary, dict):
+        return None
+    cls = next((k for k in summary if k.endswith("_class") and isinstance(summary[k], str)), None) \
+        or next((k for k in summary if _SIGNAL_KEY.search(k) and isinstance(summary[k], str)), None)
+    if not cls:
+        return None
+    ns = [k for k in summary if _N_KEY.search(k) and isinstance(summary[k], (int, float))]
+    return {"class": cls, "n": ns, "label": cls.replace("_class", "").replace("_", " ")}
+
+
+def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = None,
                      classify: Callable = default_classify) -> dict:
     """{sub_group -> {signal, confidence, n_sources, n_agree, power, conflict, sources[]}}.
 
@@ -72,9 +92,11 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: dict,
         summ = c.get("summary") or {}
         mt, tier = _card_meta(cid)
         sg = type_sg.get(mt)
-        if not sg or mt not in reader_spec or tier == "subtype":
+        if not sg or tier == "subtype":
             continue                      # not a source for a whole-cohort sub-group signal
-        spec = reader_spec[mt]
+        spec = (reader_spec or {}).get(mt) or _heuristic_reader(summ)   # per-skill spec, else heuristic
+        if not spec:
+            continue
         raw = summ.get(spec["class"])
         if raw in spec.get("present_synonyms", ()):   # e.g. protein ns = quantified/present, not low
             raw = "__present__"
@@ -175,3 +197,21 @@ def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -
         if strata:
             out[sg] = strata
     return out
+
+
+def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_classify) -> dict:
+    """One-call wiring for a skill's run.py: load <skill_dir>/question_hierarchy.yaml, derive the pooled
+    sub-group signals, and fold in the first-class per-stratum by_stratum. Uses the default heuristic
+    reader unless a per-skill reader_spec is given. Best-effort — returns {} on any fault (verdict-inert;
+    never breaks the spine)."""
+    try:
+        import yaml
+        from pathlib import Path as _P
+        hier = yaml.safe_load((_P(skill_dir) / "question_hierarchy.yaml").read_text()) or {}
+        sg = derive_subgroups(hier, cards, reader_spec, classify)
+        for name, by in derive_stratified(hier, cards, classify).items():
+            if name in sg:
+                sg[name]["by_stratum"] = by
+        return sg
+    except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
+        return {}
