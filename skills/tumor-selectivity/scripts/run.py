@@ -356,10 +356,16 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     level = min(components, key=lambda c: _ORD[c]) if components else "low"
     if v in _SEL_NONE:
         level = "low"
+    from _skills_common.signals_first import certainty_composite
+    strength = _selectivity_strength(v)
     return {
-        "strength": _selectivity_strength(v),
+        "strength": strength,
         "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
                       "unknown_mass": _sel_unknown_mass(cards)},
+        # continuous portfolio-ranking primitive (verdict-inert; a NAMED projection, not canonical)
+        "composite": certainty_composite(strength, level),
+        "composite_basis": ("certainty-discounted selectivity strength = peak signal tier × weakest-link "
+                            "certainty; a NAMED [0,1] portfolio-ranking projection, not a canonical verdict"),
         "provenance": {"cells_ran": cells_ran, "n_tumor": n_tumor, "rna_protein_tvn_concordance": concordance},
         "_model_ref": "CERTAINTY_MODEL.md#selectivity",
     }
