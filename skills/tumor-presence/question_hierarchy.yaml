@@ -1,0 +1,24 @@
+skill: tumor-presence            # profiling axis: Expressed
+sub_groups:
+  - id: abundance
+    questions:
+      - id: how_much_present
+        measurement_types: [tumor_expression_distribution, cell_line_rna_expression,
+                            tumor_protein_abundance, cell_line_protein_abundance]
+      - id: rna_protein_proxy
+        role: corroboration
+        measurement_types: [rna_protein_concordance]
+    context_types: [expression_purity_confound]
+  - id: malignant_intrinsic
+    questions:
+      - id: in_cancer_cells
+        measurement_types: [sc_tumor_celltype_expression]
+    context_types: [expression_purity_confound]
+  - id: generality
+    questions:
+      - id: broad_across_cancers
+        measurement_types: [tumor_elevation_breadth]
+other_lenses:
+  - {measurement_types: [tumor_vs_adjacent_expression], lens: tumor-selectivity}
+  - {measurement_types: [normal_tissue_protein_breadth], lens: tumor-selectivity}
+  - {measurement_types: [sc_normal_celltype_expression], lens: on-target-safety}
