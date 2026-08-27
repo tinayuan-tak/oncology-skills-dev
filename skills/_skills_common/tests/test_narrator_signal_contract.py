@@ -14,7 +14,7 @@ SKILLS_ROOT = Path(__file__).resolve().parents[2]
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
-from _skills_common.signals_first import render_narrator_signals  # noqa: E402
+from _skills_common.signals_first import render_narrator_signals, render_signal_summary  # noqa: E402
 from _skills_common import synthesis as SYN  # noqa: E402
 
 
@@ -133,3 +133,25 @@ def test_presence_prompt_leads_with_subgroup_signals():
     assert "SUB-GROUP SIGNALS" in p
     assert p.index("SUB-GROUP SIGNALS") < p.index("COLLAPSED VERDICT")   # signals still lead
     assert "PRESENCE RULE:" in p                                          # lens directive threaded through
+
+
+# 10. render_signal_summary — SECTION-context content (no lead/directive framing) for the composed facet
+def test_signal_summary_is_section_register_no_lead_no_directive():
+    p = render_signal_summary(_subgroup_headline())
+    assert "SUB-GROUP SIGNALS" in p
+    assert "abundance: signal=strong confidence=high" in p
+    assert "LEAD your narration" not in p          # section register, not the single-lens lead framing
+    assert "DIRECTIVE" not in p                     # no confidence directive in a facet section
+    # question_table also rendered
+    h = _subgroup_headline()
+    h["question_table"] = [{"id": "Q1", "question": "Expressed?", "signal": {"tier": "strong"},
+                            "confidence": {"tier": "high"}}]
+    assert "PER-QUESTION DECOMPOSITION" in render_signal_summary(h)
+
+
+def test_signal_summary_empty_when_no_structural_signals():
+    # a headline with only a claim_vector (no subgroup_signals/question_table) yields '' — the composed
+    # facet renders nothing rather than duplicating the claim vector it already surfaces elsewhere.
+    assert render_signal_summary(_claim_only_headline()) == ""
+    assert render_signal_summary({}) == ""
+    assert render_signal_summary(None) == ""

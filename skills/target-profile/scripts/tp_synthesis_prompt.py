@@ -21,6 +21,7 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from _skills_common import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE, resolve_cards, fired_rules, ordinal_view
+from _skills_common.signals_first import render_signal_summary
 
 
 
@@ -572,6 +573,16 @@ def _build_user_prompt(
                      f"scRNA-normal `{pf.get('sc_normal_expression_class')}` "
                      f"(max in {pf.get('sc_normal_max_det_cell_type')} @ "
                      f"{pf.get('sc_normal_max_det_fraction')}).")
+        # Hierarchy-derived sub-group + per-question signal decomposition (the narrator-input contract's
+        # structural signals, read from the SAME facet keys the single-lens presence narrator uses). Flows
+        # STRUCTURALLY off presence_facet — no fields hand-picked here. VERDICT-INERT. Empty → skipped.
+        _sig_summary = render_signal_summary(pf)
+        if _sig_summary:
+            lines.append("")
+            lines.append("Presence signal decomposition (deterministic; hierarchy-derived sub-group "
+                         "signals + per-question read behind the collapsed presence verdict — read it to "
+                         "see WHICH sub-group/question carries or contradicts the presence call):")
+            lines.append(_sig_summary)
         lines.append("  NOTE: presence is VERDICT-INERT to the nomination gate — this facet does NOT "
                      "move the recommendation. Its role is to surface cross-modal tension the "
                      "one-word presence verdict hides, and to frame tumor presence AGAINST the "

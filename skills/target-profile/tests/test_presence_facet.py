@@ -83,3 +83,36 @@ def test_prompt_renders_the_reconciliation_block_when_facet_present():
 def test_prompt_omits_the_block_when_no_facet():
     prompt = _build_user_prompt("CEACAM5", "COADREAD", _min_sub_results(), presence_facet=None)
     assert "Presence cross-modal reconciliation facet" not in prompt
+
+
+def test_prompt_renders_hierarchy_signal_decomposition_when_carried():
+    # Stage 3: the composed prompt surfaces the hierarchy-derived sub-group + per-question signals that
+    # the facet already carries (narrator-input contract) — read structurally off presence_facet, not
+    # hand-picked. It is rendered in a SECTION register (no single-lens 'LEAD your narration' framing).
+    facet = _facet()
+    facet["subgroup_signals"] = {
+        "abundance": {"signal": "strong", "confidence": "high", "n_sources": 2, "n_agree": 2,
+                      "power": "high", "conflict": False,
+                      "sources": [{"card": "tumor-rna-distribution", "tier": "strong", "n": 600,
+                                   "label": "tumor RNA", "conflict": False, "value": "broadly_high"}]},
+        "tumor_elevation": {"signal": "weak", "confidence": "low", "n_sources": 1, "n_agree": 0,
+                            "power": "moderate", "conflict": True, "sources": []},
+    }
+    facet["question_table"] = [{"id": "Q3", "question": "Elevated vs normals?",
+                                "signal": {"tier": "weak"}, "confidence": {"tier": "low"}}]
+    prompt = _build_user_prompt("CEACAM5", "COADREAD", _min_sub_results(), presence_facet=facet)
+    assert "Presence signal decomposition" in prompt
+    assert "SUB-GROUP SIGNALS" in prompt
+    assert "abundance: signal=strong confidence=high" in prompt
+    assert "tumor_elevation: signal=weak confidence=low" in prompt
+    assert "PER-QUESTION DECOMPOSITION" in prompt and "Q3 Elevated vs normals?" in prompt
+    # section register — NOT the single-lens narrator's 'LEAD your narration' framing
+    assert "LEAD your narration" not in prompt
+
+
+def test_prompt_omits_signal_decomposition_when_facet_lacks_signals():
+    # backward-compatible: a facet without subgroup_signals/question_table (older presence run) renders
+    # the reconciliation block but no decomposition sub-block.
+    prompt = _build_user_prompt("CEACAM5", "COADREAD", _min_sub_results(), presence_facet=_facet())
+    assert "Presence cross-modal reconciliation facet" in prompt
+    assert "Presence signal decomposition" not in prompt

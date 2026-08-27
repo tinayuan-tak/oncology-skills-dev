@@ -62,14 +62,20 @@ def certainty_composite(strength: str, certainty_level: str) -> float:
 # not yet migrated to sub-group signals).
 
 
-def _render_subgroup_signals(sg) -> list:
+def _render_subgroup_signals(sg, lead: bool = True) -> list:
     """Lines for headline['subgroup_signals'] — the hierarchy-derived, measurement_type-bound per-sub-
     group signals (PRIMARY): each sub-group's peak signal × agreement-and-power confidence, its binding
-    sources, and (first-class subtype) any per-stratum `by_stratum` conditioning. [] when absent/empty."""
+    sources, and (first-class subtype) any per-stratum `by_stratum` conditioning. [] when absent/empty.
+    `lead=False` drops the single-lens 'LEAD your narration' framing for a SECTION context (e.g. the
+    composed target-profile presence facet, where presence is one facet among many, not the lead)."""
     if not isinstance(sg, dict) or not sg:
         return []
-    out = ["SUB-GROUP SIGNALS (hierarchy-derived; sources bound by measurement_type — LEAD your "
-           "narration with THIS: the strongest, best-corroborated sub-group signals carry the story):"]
+    hdr = ("SUB-GROUP SIGNALS (hierarchy-derived; sources bound by measurement_type — LEAD your "
+           "narration with THIS: the strongest, best-corroborated sub-group signals carry the story):"
+           if lead else
+           "SUB-GROUP SIGNALS (hierarchy-derived; sources bound by measurement_type — the within-lens "
+           "signal decomposition behind this facet):")
+    out = [hdr]
     for name, s in sg.items():
         if not isinstance(s, dict):
             continue
@@ -150,4 +156,21 @@ def render_narrator_signals(headline, axis_labels: Optional[dict] = None,
     if extra_directive:
         directive += "\n  " + extra_directive.strip()
     blocks.append(directive)
+    return "\n\n".join(blocks)
+
+
+def render_signal_summary(headline) -> str:
+    """Register-neutral signal CONTENT (NO lead / directive framing) for a SECTION context — e.g. the
+    composed target-profile presence facet, where a lens's signals are one facet among many rather than
+    the whole narration's lead. Reads the SAME declared headline slice as render_narrator_signals
+    (subgroup_signals + question_table), so the narrator-input contract still holds: signals flow
+    STRUCTURALLY off the headline, no per-facet field-picking. '' when neither signal is present."""
+    h = headline if isinstance(headline, dict) else {}
+    blocks = []
+    sg = _render_subgroup_signals(h.get("subgroup_signals"), lead=False)
+    if sg:
+        blocks.append("\n".join(sg))
+    qt = _render_question_table(h.get("question_table"))
+    if qt:
+        blocks.append("\n".join(qt))
     return "\n\n".join(blocks)
