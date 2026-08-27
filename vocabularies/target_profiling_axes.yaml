@@ -26,7 +26,7 @@
 # VERDICT-NEUTRAL: taxonomy + routing metadata only. No resolver / nomination-gate logic changes.
 
 enum_id: target_profiling_axes
-version: 1.0.0
+version: 1.1.0
 supersedes:
   - {artifact: docs/design/CARD_ARCHITECTURE_DECISION.md, scheme: "8-gate scaffold (A–H)"}
   - {artifact: vocabularies/gate_coverage.yaml, scheme: "gate-model v2 (biology_gates A–E + named modality_fit)", relation: content_ported}
@@ -679,3 +679,463 @@ relational_consolidation:
     - "final skill name (combination-and-vulnerability vs interaction-genomics vs co-dependency-and-combination)"
     - "does the relational annex fold into the target-profile fan-out as a gateless peer, or stay standalone + linked?"
     - "SL: keep the dependency veto-suppressor facet in functional-requirement while moving DISCOVERY output to the new skill (dual-role split)."
+
+# ===========================================================================
+# QUESTION HIERARCHIES (v1.1.0) — the MIDDLE levels of the governed decomposition:
+#   objective -> axis (above) -> SUB-GROUP -> QUESTION -> measurement_type -> card.
+#
+# WHY HERE: the sub-group/question layer is ontology, not skill-implementation — it is
+# the same governed knowledge as the axes it extends, and its card binding depends on
+# measurement_types.yaml. Keeping it in each skill repo's question_hierarchy.yaml let the two
+# drift: a renamed/retired measurement_type could silently orphan a question. This section is the
+# SINGLE SOURCE OF TRUTH; each skill's question_hierarchy.yaml is GENERATED from it and a skills-repo
+# drift-CI test fails if they diverge (see skills/tools/sync_question_hierarchies.py).
+#
+# BINDING RULE (unchanged): a card binds to a question by its measurement_type (governed in
+# measurement_types.yaml), NOT card-id. A question declares a SET of measurement_types; every consumed
+# card of those types is automatically a SOURCE. `claim_axes` (optional) names the claim_vector
+# axis/axes whose tuned signal a consumer overlays onto the sub-group (defaults to the sub_group id).
+#
+# `axis` cross-links each skill to its canonical `questions[].short` above; null for AUXILIARY skills
+# (immune-context, target-intrinsic, cis-feature-coherence) that are not in the nomination fan-out — like
+# the `translational` axis, they carry a hierarchy without a necessity/sufficiency question slot.
+#
+# VERDICT-NEUTRAL: taxonomy only; no resolver/gate logic. CONNECTIVITY is validated by
+# validators/validate_question_hierarchies.py (every question sources >=1 measurement_type that EXISTS
+# in measurement_types.yaml; every sub-group has >=1 question).
+# ===========================================================================
+question_hierarchies:
+  cis-feature-coherence:
+    axis: null
+    sub_groups:
+    - id: CIS_DOSAGE
+      questions:
+      - id: cis_dosage_read
+        measurement_types:
+        - cis_dosage_coupling
+        - amp_expr_stratified_dependency
+      context_types:
+      - cell_line_isoform_dominance
+      - cellline_isoform_expression
+    - id: SILENCING
+      questions:
+      - id: silencing_read
+        measurement_types:
+        - methylation_silencing_coupling
+    - id: EXPR_DEP
+      questions:
+      - id: expr_dep_read
+        measurement_types:
+        - expression_dependency_correlation
+    - id: CONJOINT
+      questions:
+      - id: conjoint_read
+        measurement_types:
+        - patient_cis_coherence
+  combination-and-vulnerability:
+    axis: combination_vulnerability
+    sub_groups:
+    - id: SL
+      questions:
+      - id: sl_read
+        measurement_types:
+        - synthetic_lethal_partner
+    - id: CODEP
+      questions:
+      - id: codep_read
+        measurement_types:
+        - combinatorial_ko_dependency
+    - id: COMBO
+      questions:
+      - id: combo_read
+        measurement_types:
+        - drug_anchored_combination
+    - id: RESISTANCE
+      questions:
+      - id: resistance_read
+        measurement_types:
+        - drug_anchored_resistance
+  differentiation-landscape:
+    axis: differentiation
+    sub_groups:
+    - id: COMUT
+      questions:
+      - id: comut_read
+        measurement_types:
+        - mutation_cooccurrence
+      context_types:
+      - clinical_precedent
+      - competitor_landscape
+    - id: SURVIVAL
+      questions:
+      - id: survival_read
+        measurement_types:
+        - subtype_survival_association
+    - id: PROGNOSIS
+      questions:
+      - id: prognosis_read
+        measurement_types:
+        - precog_prognostic_association
+        - expression_clinical_association
+        - alteration_clinical_association
+    - id: NODE
+      questions:
+      - id: node_read
+        measurement_types:
+        - pathway_node_leverage
+        - stemness_context
+  functional-requirement:
+    axis: dependency
+    sub_groups:
+    - id: DEP
+      questions:
+      - id: dep_read
+        measurement_types:
+        - crispr_lof_dependency
+        - rnai_lof_dependency
+        - crispr_rnai_concordance
+        - paralog_buffering
+        - cross_consortium_dependency
+      context_types:
+      - dependency_predictability
+      - coessential_module
+    - id: SEL
+      questions:
+      - id: sel_read
+        measurement_types:
+        - expression_dependency_correlation
+        - abundance_dependency_correlation
+        - patient_model_correspondence
+        - genomic_event_model_match
+    - id: COND
+      questions:
+      - id: cond_read
+        measurement_types:
+        - partner_conditional_dependency
+    - id: CHEM
+      questions:
+      - id: chem_read
+        measurement_types:
+        - chemical_genetic_concordance
+  genomic-alteration-profile:
+    axis: genomic_alteration
+    sub_groups:
+    - id: SNV
+      questions:
+      - id: snv_read
+        measurement_types:
+        - mutation_variant_class_spectrum
+        - mutation_hotspot_frequency
+        - mutation_clonality
+        - variant_level_interpretation
+        - variant_functional_effect_mave
+        - functional_gene_state
+        - alteration_role
+        - oncogenic_pathway_alteration
+      context_types:
+      - genomic_instability_state
+      - ddr_deficiency_context
+      - mutational_signature_context
+    - id: CN
+      questions:
+      - id: cn_read
+        measurement_types:
+        - copy_number_alteration
+        - amp_expr_stratified_dependency
+        - cn_stratified_dependency
+    - id: FUS
+      questions:
+      - id: fus_read
+        measurement_types:
+        - fusion_rearrangement
+        - fusion_stratified_dependency
+        - tumor_splice_dysregulation
+        - tumor_splice_expression
+    - id: DEP
+      questions:
+      - id: dep_read
+        measurement_types:
+        - mutation_stratified_dependency
+        - mutation_drug_response
+        - cross_consortium_dependency
+        - dependency_predictability
+        - genomic_event_model_match
+  immune-context:
+    axis: null
+    sub_groups:
+    - id: IMMUNE
+      questions:
+      - id: infiltration
+        measurement_types:
+        - immune_context
+      - id: ici_response
+        measurement_types:
+        - ici_response_expression
+      - id: microenvironment
+        measurement_types:
+        - sc_tumor_caf_state_expression
+        - sc_tumor_myeloid_state_expression
+  mechanism-and-pharmacology:
+    axis: mechanism
+    sub_groups:
+    - id: NETWORK
+      questions:
+      - id: network_read
+        measurement_types:
+        - signaling_network_mechanism
+    - id: PHOSPHO
+      questions:
+      - id: phospho_read
+        measurement_types:
+        - phospho_pathway_activity
+    - id: PATHWAY
+      questions:
+      - id: pathway_read
+        measurement_types:
+        - pathway_activity_context
+    - id: PERTURBATION
+      questions:
+      - id: perturbation_read
+        measurement_types:
+        - tahoe_drug_perturbation
+    - id: PREDICTABILITY
+      questions:
+      - id: predictability_read
+        measurement_types:
+        - dependency_predictability
+  on-target-safety-liability:
+    axis: safety
+    sub_groups:
+    - id: CONSTRAINT
+      questions:
+      - id: constraint_read
+        measurement_types:
+        - gnomad_lof_constraint
+      context_types:
+      - alteration_role
+      - copy_number_alteration
+      - functional_gene_state
+      - drug_warning_safety
+      - onsides_adverse_event_safety
+      - target_safety_prioritisation
+    - id: BURDEN
+      questions:
+      - id: burden_read
+        measurement_types:
+        - human_genetic_safety
+    - id: DOSAGE
+      questions:
+      - id: dosage_read
+        measurement_types:
+        - dosage_sensitivity_safety
+    - id: CLINVAR
+      questions:
+      - id: clinvar_read
+        measurement_types:
+        - clinvar_germline_pathogenicity_safety
+    - id: MOUSE_KO
+      questions:
+      - id: mouse_ko_read
+        measurement_types:
+        - mouse_ko_phenotype_safety
+    - id: PAN_ESSENTIAL
+      questions:
+      - id: pan_essential_read
+        measurement_types:
+        - crispr_lof_dependency
+    - id: NORMAL_TISSUE
+      questions:
+      - id: normal_tissue_read
+        measurement_types:
+        - normal_tissue_protein_breadth
+        - normal_tissue_rna_breadth
+  surface-modality-fit:
+    axis: surface_modality
+    sub_groups:
+    - id: FIT
+      questions:
+      - id: core_modality_fit
+        measurement_types:
+        - adc_tce_modality_fit
+        - cd_antigen_backbone
+        - surfaceome_family
+        - modality_window
+        - exon_window
+      - id: immuno_presentation
+        measurement_types:
+        - pmhc_epitope_evidence
+        - pmhc_presentation
+      - id: antigen_pair
+        measurement_types:
+        - antigen_pair_coexpression
+        - antigen_pair_selectivity
+      context_types:
+      - mutation_stratified_surface
+      - pathway_stratified_surface
+      - copy_number_alteration
+    - id: TOPOLOGY
+      questions:
+      - id: topology_read
+        measurement_types:
+        - surface_topology
+        - structure_druggability
+    - id: DENSITY
+      questions:
+      - id: density_read
+        measurement_types:
+        - surface_density
+        - surface_confirmation
+        - rna_protein_concordance
+        - sc_tumor_celltype_expression
+    - id: SAFETY
+      questions:
+      - id: safety_read
+        measurement_types:
+        - normal_tissue_protein_breadth
+        - sc_normal_celltype_expression
+        - sc_normal_surface_protein
+    - id: SHED
+      questions:
+      - id: shed_read
+        measurement_types:
+        - shed_ectodomain_liability
+  target-intrinsic:
+    axis: null
+    sub_groups:
+    - id: MODALITY_ROUTING
+      questions:
+      - id: modality_routing_read
+        measurement_types:
+        - domain_modality_relevance
+        - surfaceome_family
+        - structure_druggability
+        - protein_domains_class
+        - gene_ontology_annotation
+        - reactome_pathway_membership
+        - ppi_interactome
+        - signaling_network_mechanism
+        - shed_ectodomain_liability
+        - target_identity
+      context_types:
+      - paralog_buffering
+      - gnomad_lof_constraint
+      - dosage_sensitivity_safety
+      - clinvar_germline_pathogenicity_safety
+      - human_genetic_safety
+      - mouse_ko_phenotype_safety
+      - normal_tissue_protein_breadth
+      - target_safety_prioritisation
+    - id: TRACTABILITY_PRECEDENT
+      questions:
+      - id: tractability_precedent_read
+        measurement_types:
+        - target_development_level
+  tractability-small-molecule:
+    axis: tractability_sm
+    sub_groups:
+    - id: POTENCY
+      questions:
+      - id: potency_read
+        measurement_types:
+        - measured_potency_tractability
+      context_types:
+      - dependency_predictability
+    - id: ACTIVITY
+      questions:
+      - id: activity_read
+        measurement_types:
+        - prism_compound_activity
+        - chemical_genetic_concordance
+    - id: STRUCT
+      questions:
+      - id: struct_read
+        measurement_types:
+        - structure_druggability
+    - id: DRUG
+      questions:
+      - id: drug_read
+        measurement_types:
+        - known_drug_tractability
+    - id: DEGRADER
+      questions:
+      - id: degrader_read
+        measurement_types:
+        - degradation_feasibility
+  tumor-presence:
+    axis: expression
+    sub_groups:
+    - id: abundance
+      claim_axes:
+      - A
+      questions:
+      - id: how_much_present
+        measurement_types:
+        - tumor_expression_distribution
+        - cell_line_rna_expression
+        - tumor_protein_abundance
+        - cell_line_protein_abundance
+      - id: rna_protein_proxy
+        role: corroboration
+        measurement_types:
+        - rna_protein_concordance
+      context_types:
+      - expression_purity_confound
+    - id: malignant_intrinsic
+      claim_axes:
+      - C
+      questions:
+      - id: in_cancer_cells
+        measurement_types:
+        - sc_tumor_celltype_expression
+      context_types:
+      - expression_purity_confound
+    - id: generality
+      claim_axes:
+      - D
+      questions:
+      - id: broad_across_cancers
+        measurement_types:
+        - tumor_elevation_breadth
+    other_lenses:
+    - measurement_types:
+      - tumor_vs_adjacent_expression
+      lens: tumor-selectivity
+    - measurement_types:
+      - normal_tissue_protein_breadth
+      lens: tumor-selectivity
+    - measurement_types:
+      - sc_normal_celltype_expression
+      lens: on-target-safety
+  tumor-selectivity:
+    axis: selectivity
+    sub_groups:
+    - id: WIN
+      questions:
+      - id: win_read
+        measurement_types:
+        - tumor_vs_normal_selectivity
+        - tumor_vs_normal_percentile_crossing
+        - tumor_vs_normal_protein_abundance
+        - modality_window
+        - tumor_protein_abundance
+      context_types:
+      - expression_purity_confound
+    - id: DIST
+      questions:
+      - id: dist_read
+        measurement_types:
+        - normal_tissue_protein_abundance
+    - id: INT
+      questions:
+      - id: int_read
+        measurement_types:
+        - sc_tumor_celltype_expression
+        - spatial_colocalization
+        - spatial_region_rna
+        - spatial_surface_protein
+        - surface_density
+    - id: SAFE
+      questions:
+      - id: safe_read
+        measurement_types:
+        - sc_normal_celltype_expression

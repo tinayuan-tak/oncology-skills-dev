@@ -161,4 +161,4 @@ jobs:
       # pointing at an UNREGISTERED cis_coherence axis, and the test file went red on trunk for weeks with
       # a green pipeline (fixed in #491). Gate it explicitly so ontology drift fails a PR instead.
       - name: Target-profiling-axes ontology contract
-        run: python -m pytest tests/vocabularies/test_target_profiling_axes.py -q
+        run: python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q

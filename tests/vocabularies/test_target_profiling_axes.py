@@ -53,7 +53,7 @@ def _gate_coverage_coverage():
 
 def test_wellformed_and_versioned():
     assert AX["enum_id"] == "target_profiling_axes"
-    assert str(AX["version"]) == "1.0.0"
+    assert str(AX["version"]) == "1.1.0"
     for key in ("questions", "conditioner_axes", "biomarker_facets", "coverage_vocab",
                 "bands", "homing_rule", "scientific_gaps", "supersedes"):
         assert AX[key], f"{key} must be present + non-empty"
