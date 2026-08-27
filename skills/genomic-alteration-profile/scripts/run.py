@@ -728,10 +728,16 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     level = min(components, key=lambda c: _GA_ORD[c]) if components else "low"
     if v in _GA_NONE:
         level = "low"
+    from _skills_common.signals_first import certainty_composite
+    strength = _genomic_strength(v)
     return {
-        "strength": _genomic_strength(v),
+        "strength": strength,
         "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
                       "unknown_mass": _ga_unknown_mass(cards)},
+        # continuous portfolio-ranking primitive (verdict-inert; a NAMED projection, not canonical)
+        "composite": certainty_composite(strength, level),
+        "composite_basis": ("certainty-discounted genomic-alteration strength = peak signal tier × "
+                            "weakest-link certainty; a NAMED [0,1] portfolio-ranking projection, not a verdict"),
         "provenance": {"civic_variant_class": civic},
         "_model_ref": "CERTAINTY_MODEL.md#genomic_alteration",
     }

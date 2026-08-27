@@ -178,10 +178,17 @@ def build_user_prompt(decision: dict) -> str:
     h = decision.get("headline", {}) or {}
     target = decision.get("target"); indication = decision.get("indication")
 
+    from _skills_common.signals_first import render_signal_vector
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "DETERMINISTIC VERDICT (fixed — narrate, do not change):",
+        "SIGNAL VECTOR (pre-computed within-lens integration — LEAD your narration with THIS; the "
+        "collapsed verdict below is a compressed label, not the headline):",
+        render_signal_vector(h.get("claim_vector"),
+                             {"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion", "DEP": "dependency"}),
+        "",
+        "COLLAPSED VERDICT (a compressed label — do NOT lead with it or let it mask a disagreeing signal "
+        "above; fixed upstream, narrate not change):",
         f"  genomic_alteration_profile: {h.get('genomic_alteration_profile')}  "
         f"(driving_rule: {h.get('driving_rule_id')})",
         "",
