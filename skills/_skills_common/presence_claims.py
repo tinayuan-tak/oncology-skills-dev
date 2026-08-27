@@ -306,6 +306,22 @@ def _tier_from_fraction_above_normal(fa):
     return "strong" if fa >= 0.5 else "moderate" if fa >= 0.2 else "weak" if fa >= 0.05 else "absent"
 
 
+# Multiplicity-aware certainty (Phase 3): a per-stratum signal is one of k strata scanned, so the
+# false-positive surface grows with k. Apply a conservative 1-tier certainty HAIRCUT when several
+# strata are tested (k >= 5). This is the honest calibration that lets the per-stratum vector surface
+# subtype-conditional POSITIVES (e.g. CD274/MSI-H) instead of the old never-mint-positive suppression:
+# the burden moves from "suppress the signal" to "discount its certainty". NOT a p-value correction — a
+# certainty discount, and it composes with the n-based power tier (a small-n stratum already reads low).
+_CERT3 = {"low": 0, "moderate": 1, "high": 2}
+_CERT3_INV = {0: "low", 1: "moderate", 2: "high"}
+
+
+def _multiplicity_discount(rel: str, k) -> str:
+    if rel not in _CERT3 or not isinstance(k, int) or k < 5:
+        return rel
+    return _CERT3_INV[max(0, _CERT3[rel] - 1)]
+
+
 def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
     """Per-stratum claim vector (A abundance + distributional B) from per_subgroup_metrics. Returns
     None when the indication has no subtype axis. C / protein remain indication-grain (flagged)."""
@@ -314,6 +330,11 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
     if not isinstance(s, dict) or not s.get("subtype_axis_available"):
         return None
     strata = {}
+    # k = strata scanned (multiple-testing surface) — the tested count, else the count with data.
+    k_tested = s.get("n_subtypes_measured")
+    if not isinstance(k_tested, int):
+        k_tested = sum(1 for r in (s.get("per_subgroup_metrics") or [])
+                       if isinstance(r, dict) and r.get("stratum_id"))
     for r in (s.get("per_subgroup_metrics") or []):
         if not isinstance(r, dict):   # tolerate simplified/frozen fixtures where rows aren't full dicts
             continue
@@ -321,11 +342,14 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         if not sid:
             continue
         med, fa, n = r.get("median_log2tpm"), r.get("fraction_tumor_above_normal_p95"), r.get("n_tumor_samples")
-        rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
+        rel_base = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
+        rel = _multiplicity_discount(rel_base, k_tested)                       # multiplicity haircut
+        fb = "moderate" if isinstance(fa, (int, float)) else "unmeasured"
         strata[sid] = {
             "A": {"signal": _tier_from_median(med), "corroboration": rel,
-                  "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"},
-            "B": {"signal": _tier_from_fraction_above_normal(fa), "corroboration": "moderate" if isinstance(fa, (int, float)) else "unmeasured",
+                  "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"
+                              + (f" (certainty {rel_base}→{rel}: 1 of {k_tested} strata scanned)" if rel != rel_base else "")},
+            "B": {"signal": _tier_from_fraction_above_normal(fa), "corroboration": _multiplicity_discount(fb, k_tested),
                   "evidence": (f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
                                if isinstance(fa, (int, float)) else "no per-stratum normal window")},
             "n_tumor_samples": n,
@@ -336,13 +360,17 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         "subtype_effect_size_class": s.get("subtype_effect_size_class"),
         "which_subtypes_separate": s.get("which_subtypes_separate"),
         "n_subtypes_measured": s.get("n_subtypes_measured"),
+        "multiplicity_strata_tested": k_tested,
         "strata": strata,
         "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified "
                                     "(single-cell pooled; CPTAC whole-cohort) — read them from the pooled claim_vector.",
-        "_disclaimer": ("Per-stratum claim vector — verdict-INERT. Only claims A (abundance) and a distributional "
-                        "B (fraction > GTEx-normal p95) are live per subtype (from per_subgroup_metrics); a pooled "
-                        "indication read can flatten a subtype-concentrated signal (cf. CD274/MSI-H). ε² negligible "
-                        "→ subtype is NOT a useful selection axis; small-n strata are underpowered."),
+        "_disclaimer": ("Per-stratum claim vector — verdict-INERT (the pooled presence_verdict is byte-stable). "
+                        "Only claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per "
+                        "subtype (from per_subgroup_metrics); a pooled indication read can flatten a subtype-"
+                        "concentrated signal (cf. CD274/MSI-H), so a per-stratum POSITIVE is surfaced here rather "
+                        f"than suppressed. Certainty is MULTIPLICITY-AWARE: with {k_tested} strata scanned, each "
+                        "per-stratum corroboration takes a 1-tier haircut (k>=5) so a single stratum is not over-"
+                        "trusted; small-n strata are additionally low by power. Read certainty, not just signal."),
     }
 
 
