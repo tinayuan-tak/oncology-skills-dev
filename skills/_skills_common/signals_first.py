@@ -50,3 +50,104 @@ def certainty_composite(strength: str, certainty_level: str) -> float:
     valid. Non-substituting: certainty multiplies, never averages against signal. Unknown strength → 0.0;
     unknown level → 0.5."""
     return round(_COMPOSITE_STRENGTH.get(strength, 0.0) * _COMPOSITE_CERTAINTY.get(certainty_level, 0.5), 3)
+
+
+# ─── Narrator-input CONTRACT (v1) ─────────────────────────────────────────────────────────────────
+# The single leading SIGNAL block every lens narrator (synthesis*.py) leads with, composed from a
+# DECLARED slice of the deterministic headline. The point of the contract: a narrator's signal lead is
+# derived SOLELY from these three headline keys, so ANY skill that populates them is narrated with NO
+# per-builder edit — signals flow STRUCTURALLY, not by hand-wiring each prompt. Verdict-INERT: reads the
+# headline, never writes it. Precedence (strangler): the hierarchy-derived sub-group signals are PRIMARY;
+# the legacy per-axis claim_vector is the supporting evidence detail (and the FALLBACK lead for lenses
+# not yet migrated to sub-group signals).
+
+
+def _render_subgroup_signals(sg) -> list:
+    """Lines for headline['subgroup_signals'] — the hierarchy-derived, measurement_type-bound per-sub-
+    group signals (PRIMARY): each sub-group's peak signal × agreement-and-power confidence, its binding
+    sources, and (first-class subtype) any per-stratum `by_stratum` conditioning. [] when absent/empty."""
+    if not isinstance(sg, dict) or not sg:
+        return []
+    out = ["SUB-GROUP SIGNALS (hierarchy-derived; sources bound by measurement_type — LEAD your "
+           "narration with THIS: the strongest, best-corroborated sub-group signals carry the story):"]
+    for name, s in sg.items():
+        if not isinstance(s, dict):
+            continue
+        flag = "  CONFLICT (level vs breadth disagree)" if s.get("conflict") else ""
+        out.append(f"    {name}: signal={s.get('signal')} confidence={s.get('confidence')} "
+                   f"({s.get('n_agree')}/{s.get('n_sources')} sources agree, power={s.get('power')}){flag}")
+        for src in (s.get("sources") or []):
+            if isinstance(src, dict):
+                sc = "  CONFLICT" if src.get("conflict") else ""
+                out.append(f"        - {src.get('label')}: {src.get('tier')} "
+                           f"(value={src.get('value')}, n={src.get('n')}){sc}")
+        by_stratum = s.get("by_stratum")
+        if isinstance(by_stratum, dict) and by_stratum:
+            axis = s.get("subtype_axis") or {}
+            out.append(f"        by stratum (subtype is an ORTHOGONAL conditioner, not a new sub-group; "
+                       f"stratification={axis.get('stratification_class')}, ε²={axis.get('epsilon_squared')}):")
+            for sid, st in by_stratum.items():
+                if isinstance(st, dict):
+                    out.append(f"            {sid}: signal={st.get('signal')} "
+                               f"certainty={st.get('certainty')} (n={st.get('n')})")
+    return out
+
+
+def _render_question_table(qt) -> list:
+    """Lines for headline['question_table'] — the per-governed-question decomposition (data · signal ·
+    confidence). Tolerant of both the {tier,...} cell shape and a bare tier string. [] when absent."""
+    if not isinstance(qt, list) or not qt:
+        return []
+    out = ["PER-QUESTION DECOMPOSITION (each governed question's signal × confidence — the question-grain "
+           "view of the SAME evidence; do not double-count it against the sub-group signals above):"]
+    for r in qt:
+        if not isinstance(r, dict):
+            continue
+        sig, cf = r.get("signal"), r.get("confidence")
+        stier = sig.get("tier") if isinstance(sig, dict) else sig
+        ctier = cf.get("tier") if isinstance(cf, dict) else cf
+        out.append(f"    {r.get('id')} {r.get('question')}: signal={stier} confidence={ctier}"
+                   + (f" — {r.get('primary')}" if r.get("primary") else ""))
+    return out
+
+
+def render_narrator_signals(headline, axis_labels: Optional[dict] = None,
+                            extra_directive: Optional[str] = None) -> str:
+    """NARRATOR-INPUT CONTRACT (v1). Compose the leading SIGNAL block from the DECLARED headline slice:
+    headline['subgroup_signals'] (PRIMARY; hierarchy-derived, measurement_type-bound),
+    headline['question_table'] (per-question decomposition), and headline['claim_vector'] (LEGACY
+    per-axis evidence, and the FALLBACK lead for lenses not yet migrated). Any skill that populates these
+    keys is narrated with no per-builder edit. `axis_labels` names the claim-vector axes; `extra_directive`
+    appends a lens-specific instruction (e.g. presence's abundance∧elevation rule). Verdict-INERT."""
+    h = headline if isinstance(headline, dict) else {}
+    sg_lines = _render_subgroup_signals(h.get("subgroup_signals"))
+    qt_lines = _render_question_table(h.get("question_table"))
+    cv_block = render_signal_vector(h.get("claim_vector"), axis_labels)
+    have_structural = bool(sg_lines)
+
+    blocks = []
+    if sg_lines:
+        blocks.append("\n".join(sg_lines))
+    if qt_lines:
+        blocks.append("\n".join(qt_lines))
+    # claim vector: supporting axis detail when structural signals exist; the PRIMARY lead when they don't.
+    # NOTE the literal 'SIGNAL VECTOR' header is retained on the fallback lead so the invert-primacy
+    # ordering contract (signals lead, verdict trails) holds for un-migrated lenses.
+    cv_header = ("PER-AXIS EVIDENCE (claim vector — the within-lens axis detail backing the signals above):"
+                 if have_structural else
+                 "SIGNAL VECTOR (per-axis claim vector — no hierarchy-derived sub-group signals in this "
+                 "decision, so LEAD your narration with THIS):")
+    blocks.append(cv_header + "\n" + cv_block)
+
+    directive = ("  DIRECTIVE: LEAD with the sub-group signals; your confidence read MUST track each "
+                 "sub-group's `confidence` and DOWNGRADE where `conflict` is set — never over-read a "
+                 "low/underpowered sub-group. The per-axis claim vector is supporting evidence, not a "
+                 "second vote. Signals are ORTHOGONAL — never average across sub-groups or axes."
+                 if have_structural else
+                 "  DIRECTIVE: your confidence read MUST track the claim corroboration tiers — a "
+                 "decision-critical claim of corroboration=low/insufficient cannot yield a well-supported "
+                 "read. Claims are ORTHOGONAL — never average across axes.")
+    if extra_directive:
+        directive += "\n  " + extra_directive.strip()
+    blocks.append(directive)
+    return "\n\n".join(blocks)

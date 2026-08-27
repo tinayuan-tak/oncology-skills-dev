@@ -31,8 +31,20 @@ exclude the `run_health` sibling (and, when present, `llm_synthesis`); both are 
 from __future__ import annotations
 
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+from _skills_common.signals_first import render_narrator_signals as _render_narrator_signals
 
 from typing import Optional
+
+# Presence claim-vector axis labels + the lens-specific narration rule, passed into the shared
+# narrator-input contract (signals_first.render_narrator_signals) so the presence lead renders through
+# the same structural path as every other lens while keeping its abundance∧elevation semantics.
+_PRESENCE_AXIS_LABELS = {"A": "abundance", "B": "tumor-elevation",
+                         "C": "malignant-intrinsic", "D": "generality"}
+_PRESENCE_DIRECTIVE = (
+    "PRESENCE RULE: expression_relevance_for_target MUST reflect the abundance AND tumor-elevation "
+    "signals TOGETHER — a strong tumor-elevation with a weak/mid abundance is NOT strongly_supports; "
+    "do NOT upgrade on fold-change alone. A weak malignant-intrinsic signal does not degrade a strong "
+    "tumor-elevation. confidence_qualifier tracks the sub-group / claim confidence tiers.")
 
 # The structured-output contract. Categorical fields use fixed enums so the narration
 # stays validatable; free-text fields are bounded. The LLM must call THIS tool.
@@ -212,30 +224,6 @@ def _card_line(cards: dict, missing: set, present_ids: set, card_id: str, fields
     return f"  {card_id}: {shown if shown else '(no listed fields present)'}"
 
 
-def _claim_vector_block(cv: Optional[dict]) -> str:
-    """Render the pre-computed presence CLAIM VECTOR as grounding substrate for the narration, so the
-    relevance enum + confidence derive from the deterministic (signal × corroboration) per claim rather
-    than the LLM re-deriving them. Additive / backward-compatible: a no-op note when the decision
-    predates claim_vector (spine byte-stable either way)."""
-    if not isinstance(cv, dict):
-        return "  (claim vector not present in this decision — narrate from the fields below.)"
-    rows = []
-    for k, name in (("A", "abundance"), ("B", "tumor-elevation"),
-                    ("C", "malignant-intrinsic"), ("D", "generality")):
-        cl = cv.get(k) or {}
-        rows.append(f"    {k} {name}: signal={cl.get('signal')} corroboration={cl.get('corroboration')} "
-                    f"— {cl.get('evidence')}" + (f"  CONFLICT: {cl['conflict']}" if cl.get("conflict") else ""))
-    if cv.get("homogeneity") and cv.get("homogeneity") != "unmeasured":
-        rows.append(f"    homogeneity: {cv.get('homogeneity')}")
-    rows.append(
-        "  DIRECTIVE: your confidence_qualifier MUST track the claim corroboration tiers (a decision-critical "
-        "claim of corroboration=low/insufficient cannot yield well_supported). expression_relevance_for_target "
-        "MUST reflect claims A (abundance) AND B (tumor-elevation) TOGETHER — a strong B with a weak/mid A is "
-        "NOT strongly_supports; do NOT upgrade on fold-change alone. Claims are ORTHOGONAL — a weak C does not "
-        "degrade a strong B; never average them.")
-    return "\n".join(rows)
-
-
 def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> str:
     """Assemble the LLM input from the DETERMINISTIC decision spine. Narrates the computed
     interpretation (contextualized axes) grounded in the FULL gathered evidence — the verdict-
@@ -258,10 +246,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "SIGNAL VECTOR (pre-computed deterministic within-lens integration — LEAD your narration with "
-        "THIS: let the strongest, best-corroborated signals carry the story; treat it as ground truth "
-        "and obey its DIRECTIVE on confidence + relevance):",
-        _claim_vector_block(h.get("claim_vector")),
+        # LEAD block — the shared narrator-input contract (signals_first.render_narrator_signals): the
+        # hierarchy-derived sub-group signals + per-question decomposition when present, else the legacy
+        # per-axis claim vector. Signals flow STRUCTURALLY off the headline — no fields hand-picked here.
+        _render_narrator_signals(h, axis_labels=_PRESENCE_AXIS_LABELS, extra_directive=_PRESENCE_DIRECTIVE),
         "",
         "GRAIN GOVERNANCE (narrate each grain ONLY where data exists; never invent a grain):",
         f"  indication anchor: {indication} (the run grain — always the primary read)",
