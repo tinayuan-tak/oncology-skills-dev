@@ -64,7 +64,16 @@ def _claim_A(h, c):
         if npos == mpos and mpos:
             band, sig = "at/above ALL positive antigens", "strong"
         elif npos > 0:
-            band, sig = f"within positives ({npos}/{mpos})", "moderate"
+            # B3 DE-CAP / Delta-2: `within positives` is a conservative control-anchor FLOOR, not a
+            # ceiling. A top-percentile antigen that lands here sits below only the very highest curated
+            # antigen — that is still STRONG abundance, and the old flat `moderate` understated every
+            # top-pct within-positives target (e.g. EPCAM: 99.7th all-gene pct → was capped at moderate).
+            # Let the calibrated all-gene percentile LEAD when it is stronger than the anchor; the anchor
+            # remains the floor for mid/low percentiles. VERDICT-INERT (claim_vector never feeds the spine).
+            if isinstance(pct, (int, float)) and pct >= 95:
+                band, sig = f"within positives ({npos}/{mpos}); {pct:.0f}th all-gene pct (percentile-led)", "strong"
+            else:
+                band, sig = f"within positives ({npos}/{mpos})", "moderate"
         elif isinstance(pct, (int, float)) and pct >= 60:
             band, sig = "mid (above negatives, below positives)", "weak"
         else:
