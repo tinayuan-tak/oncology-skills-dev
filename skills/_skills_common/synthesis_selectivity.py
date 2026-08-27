@@ -154,15 +154,14 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         return "DATA_UNAVAILABLE (measured, no usable value)" if \
             "tumor-vs-normal-selectivity" in missing else "measured"
 
-    from _skills_common.signals_first import render_signal_vector
+    from _skills_common.signals_first import render_narrator_signals
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "SIGNAL VECTOR (pre-computed within-lens integration — LEAD your narration with THIS; the "
-        "collapsed verdict below is a compressed label, not the headline):",
-        render_signal_vector(h.get("claim_vector"),
-                             {"WIN": "therapeutic window", "DIST": "normal-tissue distribution",
-                              "INT": "tumor-intrinsic", "SAFE": "safety"}),
+        # LEAD block via the shared narrator-input contract (see synthesis_dependency for the rationale):
+        # sub-group / per-question signals when present, else the legacy per-axis claim vector.
+        render_narrator_signals(h, axis_labels={"WIN": "therapeutic window", "DIST": "normal-tissue distribution",
+                                                "INT": "tumor-intrinsic", "SAFE": "safety"}),
         "",
         "COLLAPSED VERDICT + evidence (the verdict is a compressed label — do NOT lead with it or let it "
         "mask a disagreeing signal above; fixed upstream, narrate not change):",

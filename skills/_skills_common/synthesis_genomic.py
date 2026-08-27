@@ -178,14 +178,14 @@ def build_user_prompt(decision: dict) -> str:
     h = decision.get("headline", {}) or {}
     target = decision.get("target"); indication = decision.get("indication")
 
-    from _skills_common.signals_first import render_signal_vector
+    from _skills_common.signals_first import render_narrator_signals
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "SIGNAL VECTOR (pre-computed within-lens integration — LEAD your narration with THIS; the "
-        "collapsed verdict below is a compressed label, not the headline):",
-        render_signal_vector(h.get("claim_vector"),
-                             {"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion", "DEP": "dependency"}),
+        # LEAD block via the shared narrator-input contract (see synthesis_dependency for the rationale):
+        # sub-group / per-question signals when present, else the legacy per-axis claim vector.
+        render_narrator_signals(h, axis_labels={"SNV": "SNV/indel", "CN": "copy-number",
+                                                "FUS": "fusion", "DEP": "dependency"}),
         "",
         "COLLAPSED VERDICT (a compressed label — do NOT lead with it or let it mask a disagreeing signal "
         "above; fixed upstream, narrate not change):",

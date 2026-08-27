@@ -190,16 +190,15 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
 
     _card_state = make_card_state(present_ids, missing)
 
-    from _skills_common.signals_first import render_signal_vector
+    from _skills_common.signals_first import render_narrator_signals
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "SIGNAL VECTOR (pre-computed within-lens integration — LEAD your narration with THIS; the "
-        "collapsed verdicts below are compressed labels, not the headline):",
-        render_signal_vector(h.get("claim_vector"),
-                             {"POTENCY": "binding potency", "ACTIVITY": "cellular activity",
-                              "STRUCT": "structural ligandability", "DRUG": "drug/tool compound",
-                              "DEGRADER": "degrader handle"}),
+        # LEAD block via the shared narrator-input contract (see synthesis_dependency for the rationale):
+        # sub-group / per-question signals when present, else the legacy per-axis claim vector.
+        render_narrator_signals(h, axis_labels={"POTENCY": "binding potency", "ACTIVITY": "cellular activity",
+                                                "STRUCT": "structural ligandability", "DRUG": "drug/tool compound",
+                                                "DEGRADER": "degrader handle"}),
         "",
         "COLLAPSED VERDICTS (compressed labels — do NOT lead with them or let them mask a disagreeing "
         "signal above; fixed upstream, narrate not change):",

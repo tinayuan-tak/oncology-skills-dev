@@ -204,16 +204,15 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     lineage = cards.get("dependency-lineage-selectivity", {})
     organoid = cards.get("organoid-crispr-dependency", {})
 
-    from _skills_common.signals_first import render_signal_vector
+    from _skills_common.signals_first import render_narrator_signals
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",
         "",
-        "SIGNAL VECTOR (pre-computed deterministic within-lens integration — LEAD your narration with "
-        "THIS: let the strongest, best-corroborated signals carry the story; the collapsed verdict below "
-        "is a compressed label, not the headline):",
-        render_signal_vector(h.get("claim_vector"),
-                             {"DEP": "genetic dependency", "SEL": "context-selectivity",
-                              "COND": "conditional/SL", "CHEM": "chemical-genetic"}),
+        # LEAD block via the shared narrator-input contract: hierarchy-derived sub-group / per-question
+        # signals when present, else the legacy per-axis claim vector. Signals flow STRUCTURALLY off the
+        # headline — no fields hand-picked here (see signals_first.render_narrator_signals).
+        render_narrator_signals(h, axis_labels={"DEP": "genetic dependency", "SEL": "context-selectivity",
+                                                "COND": "conditional/SL", "CHEM": "chemical-genetic"}),
         "",
         "GENETIC EVIDENCE — the full gathered read (cite measured values; a null is decision-useful):",
         f"  CRISPR call:  {h.get('crispr_call')}   "
