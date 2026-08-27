@@ -40,7 +40,7 @@ PATHWAYS_RELATION_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathwaysRelation.txt"
 CACHE_DIR = Path.home() / ".cache" / "framework-reactome"
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac
+from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac, ensure_aws_profile
 
 
 def _ensure_cached(s3_key: str, cache_filename: str) -> Path:
@@ -180,6 +180,56 @@ def _hgnc_symbol_to_uniprot_ac_cached(symbol: str, sidecar_path: Optional[str] =
     return _load_hgnc_uniprot_crosswalk(sidecar_path).get(symbol.upper())
 
 
+_DERIVED_PRODUCT_ID = "reactome-pathway-per-uniprot-v1"
+
+
+def _load_pathways_from_product(uac: str, product_path=None):
+    """(pathways, top_level_names) for the accession via predicate-pushdown on the per-AC product,
+    else None when the product is UNREACHABLE (→ caller falls back to the live UniProt2Reactome read).
+
+      * pathways : ordered [{pathway_id, pathway_name, evidence_code, url}] in the SAME source order the
+        live map yields (row_order), so `pathways[:20]` is identical;
+      * top_level_names : set of top-level pathway NAMES (the hierarchy walk baked at build time).
+
+    Empty result (AC absent) returns ([], set()) so the caller emits target_not_in_reactome_human,
+    mirroring the live uniprot_map.get(uac, []) miss. `product_path` overrides S3 (tests).
+    """
+    cols = ["uniprot_ac", "row_order", "pathway_id", "pathway_name", "evidence_code", "url",
+            "top_level_pathway_name"]
+    if product_path is not None:
+        import pandas as pd
+        try:
+            df = pd.read_parquet(product_path, columns=cols, filters=[("uniprot_ac", "=", uac)])
+        except (FileNotFoundError, OSError):
+            return None
+        recs = df.to_dict("records")
+    else:
+        try:
+            from methods.catalog_query.read import s3_uri_for
+            uri = s3_uri_for(_DERIVED_PRODUCT_ID)
+        except Exception:  # absence-discipline: exempt -- resolves a LOCAL data-catalog manifest (not an S3 read); an unregistered/unreadable manifest => product not available => live UniProt2Reactome fallback, which enforces its own read discipline.
+            return None
+        try:
+            import pyarrow.fs as fs
+            import pyarrow.parquet as pq
+            ensure_aws_profile()
+            tbl = pq.read_table(uri.replace("s3://", "", 1), filesystem=fs.S3FileSystem(),
+                                columns=["row_order", "pathway_id", "pathway_name", "evidence_code",
+                                         "url", "top_level_pathway_name"],
+                                filters=[("uniprot_ac", "=", uac)])
+        except Exception as e:  # noqa: BLE001
+            from methods.target_id_sidecar import is_definitively_absent
+            if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+                return None                              # object genuinely absent → live fallback
+            raise                                        # transient/creds → honest _live_read_error
+        recs = tbl.to_pylist()
+    recs.sort(key=lambda r: r["row_order"])              # restore source order for specific_pathways[:20]
+    pathways = [{"pathway_id": r["pathway_id"], "pathway_name": r["pathway_name"],
+                 "evidence_code": r["evidence_code"], "url": r["url"]} for r in recs]
+    top_level_names = {r["top_level_pathway_name"] for r in recs}
+    return pathways, top_level_names
+
+
 def read_target_summary(target: str, indication: str = None, *,
                         uniprot2reactome_path: Optional[str] = None,
                         pathways_path: Optional[str] = None,
@@ -208,22 +258,27 @@ def read_target_summary(target: str, indication: str = None, *,
         return _empty_result("target_symbol_not_resolvable")
 
     try:
-        uniprot_map = _load_uniprot_to_reactome(uniprot2reactome_path)
-        pathways = uniprot_map.get(uac, [])
+        # Prefer the precomputed per-AC product (pushdown, ~kB — no whole 117 MB UniProt2Reactome +
+        # hierarchy cold-start read); the fixture-path test seam forces the live path.
+        _fixture = (uniprot2reactome_path is not None or pathways_path is not None
+                    or relations_path is not None)
+        prod = _load_pathways_from_product(uac) if not _fixture else None
+        if prod is not None:
+            pathways, top_level_names = prod             # ordered pathways + top-level name set (baked)
+        else:
+            uniprot_map = _load_uniprot_to_reactome(uniprot2reactome_path)
+            pathways = uniprot_map.get(uac, [])
+            if not pathways:
+                return _empty_result("target_not_in_reactome_human")
+            id_to_name, child_to_parent = _load_pathway_hierarchy(pathways_path, relations_path)
+            top_level_names = {                          # top-level rollup per pathway (walk to root)
+                id_to_name.get(_walk_to_top(p["pathway_id"], child_to_parent),
+                               _walk_to_top(p["pathway_id"], child_to_parent))
+                for p in pathways
+            }
         if not pathways:
             return _empty_result("target_not_in_reactome_human")
 
-        id_to_name, child_to_parent = _load_pathway_hierarchy(pathways_path, relations_path)
-
-        # Compute top-level rollup per pathway
-        top_level_ids: set[str] = set()
-        for p in pathways:
-            top_pid = _walk_to_top(p["pathway_id"], child_to_parent)
-            top_level_ids.add(top_pid)
-
-        top_level_names = sorted({
-            id_to_name.get(pid, pid) for pid in top_level_ids
-        })
         top_level_classified = sorted({
             n.strip() for n in top_level_names
         })

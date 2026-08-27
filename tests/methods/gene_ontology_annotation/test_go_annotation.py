@@ -64,3 +64,22 @@ def test_live_egfr_well_annotated():
         pytest.skip("GO source unreachable (no S3)")
     assert s["annotation_class"] == "well_annotated"
     assert s["n_molecular_function"] > 0 and s["n_cellular_component"] > 0
+
+
+# --- per-AC product read path (perf: pushdown vs whole GAF+OBO cold-start) ---------------------------
+def test_product_path_reconstructs_terms_and_names(tmp_path):
+    import pandas as pd
+    import methods.gene_ontology_annotation.read as GO
+    p = tmp_path / "go.parquet"
+    pd.DataFrame([
+        {"uniprot_ac": "P1", "go_id": "GO:1", "namespace": "biological_process", "evidence": "IDA", "go_name": "apoptosis"},
+        {"uniprot_ac": "P1", "go_id": "GO:2", "namespace": "molecular_function", "evidence": "IEA", "go_name": "binding"},
+        {"uniprot_ac": "P2", "go_id": "GO:9", "namespace": "cellular_component", "evidence": "IDA", "go_name": "nucleus"},
+    ]).to_parquet(p, index=False)
+    terms, names = GO._load_annotation_from_product("P1", product_path=str(p))
+    assert {t["go_id"] for t in terms} == {"GO:1", "GO:2"}
+    assert names["GO:1"] == "apoptosis" and names["GO:2"] == "binding"
+    # absent AC → ([], {}) so the caller emits target_not_in_goa_human (mirrors live gaf miss)
+    assert GO._load_annotation_from_product("PZZZ", product_path=str(p)) == ([], {})
+    # unreachable product → None (caller falls back to the live GAF+OBO read)
+    assert GO._load_annotation_from_product("P1", product_path=str(tmp_path / "nope.parquet")) is None

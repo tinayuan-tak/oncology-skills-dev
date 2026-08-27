@@ -117,6 +117,51 @@ def _load_symbol_to_ac(sidecar_path: Optional[str] = None) -> dict:
         local_path=sidecar_path)
 
 
+_DERIVED_PRODUCT_ID = "go-annotation-per-uniprot-v1"
+
+
+def _load_annotation_from_product(ac: str, product_path=None):
+    """(terms, names) for the accession via predicate-pushdown on the per-AC product, else None when
+    the product is UNREACHABLE (→ caller falls back to the live GAF+OBO read).
+
+      * terms : [{go_id, namespace, evidence}] — the SAME deduped set _load_gaf yields for the AC;
+      * names : {go_id: go_name} — the OBO-name join baked at build time (== names.get(go_id, go_id)).
+
+    Empty result (AC absent from the product) returns ([], {}) so the caller emits
+    target_not_in_goa_human, mirroring the live gaf.get(ac, []) miss. `product_path` overrides S3 (tests).
+    """
+    cols = ["uniprot_ac", "go_id", "namespace", "evidence", "go_name"]
+    if product_path is not None:
+        import pandas as pd
+        try:
+            df = pd.read_parquet(product_path, columns=cols, filters=[("uniprot_ac", "=", ac)])
+        except (FileNotFoundError, OSError):
+            return None
+        recs = df.to_dict("records")
+    else:
+        try:
+            from methods.catalog_query.read import s3_uri_for
+            uri = s3_uri_for(_DERIVED_PRODUCT_ID)
+        except Exception:  # absence-discipline: exempt -- resolves a LOCAL data-catalog manifest (not an S3 read); an unregistered/unreadable manifest => product not available => live GAF+OBO fallback, which enforces its own read discipline.
+            return None
+        try:
+            import pyarrow.fs as fs
+            import pyarrow.parquet as pq
+            ensure_aws_profile()
+            tbl = pq.read_table(uri.replace("s3://", "", 1), filesystem=fs.S3FileSystem(),
+                                columns=["go_id", "namespace", "evidence", "go_name"],
+                                filters=[("uniprot_ac", "=", ac)])
+        except Exception as e:  # noqa: BLE001
+            from methods.target_id_sidecar import is_definitively_absent
+            if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+                return None                              # object genuinely absent → live fallback
+            raise                                        # transient/creds → honest _live_read_error
+        recs = tbl.to_pylist()
+    terms = [{"go_id": r["go_id"], "namespace": r["namespace"], "evidence": r["evidence"]} for r in recs]
+    names = {r["go_id"]: r["go_name"] for r in recs}
+    return terms, names
+
+
 def read_target_summary(target: str, indication: str = None,
                         gaf_path: Optional[str] = None, obo_path: Optional[str] = None,
                         sidecar_path: Optional[str] = None) -> dict:
@@ -127,11 +172,19 @@ def read_target_summary(target: str, indication: str = None,
     if not ac:
         return _empty("target_symbol_not_resolvable")
     try:
-        gaf = _load_gaf(gaf_path)
-        terms = gaf.get(ac, [])
+        # Prefer the precomputed per-AC product (pushdown, ~kB — no whole GAF+OBO cold-start read);
+        # the fixture-path test seam (gaf_path/obo_path) forces the live GAF+OBO path.
+        prod = _load_annotation_from_product(ac) if (gaf_path is None and obo_path is None) else None
+        if prod is not None:
+            terms, names = prod                          # terms + {go_id: name}, name-join baked in
+        else:
+            gaf = _load_gaf(gaf_path)
+            terms = gaf.get(ac, [])
+            names = None                                 # loaded lazily below (only if terms exist)
         if not terms:
             return _empty("target_not_in_goa_human")
-        names = _load_obo_names(obo_path)
+        if names is None:
+            names = _load_obo_names(obo_path)
         by_ns: dict[str, list] = {"biological_process": [], "molecular_function": [], "cellular_component": []}
         for t in terms:
             by_ns[t["namespace"]].append(t)

@@ -98,3 +98,23 @@ def test_non_inline_targets_now_resolve(target):
     if not xwalk:
         pytest.skip("resolver sidecar unreachable (no S3)")
     assert target in xwalk, f"{target} should resolve to a UniProt AC via the sidecar"
+
+
+# --- per-AC product read path (perf: pushdown vs whole UniProt2Reactome+hierarchy cold-start) --------
+def test_product_path_reconstructs_ordered_pathways_and_toplevels(tmp_path):
+    import pandas as pd
+    import methods.reactome_pathway_context.read as RE
+    p = tmp_path / "re.parquet"
+    pd.DataFrame([  # deliberately out of row_order to prove the reader restores source order
+        {"uniprot_ac": "P1", "row_order": 1, "pathway_id": "R-2", "pathway_name": "B",
+         "evidence_code": "IEA", "url": "u2", "top_level_pathway_name": "Signal Transduction"},
+        {"uniprot_ac": "P1", "row_order": 0, "pathway_id": "R-1", "pathway_name": "A",
+         "evidence_code": "TAS", "url": "u1", "top_level_pathway_name": "Metabolism"},
+    ]).to_parquet(p, index=False)
+    pathways, tops = RE._load_pathways_from_product("P1", product_path=str(p))
+    assert [x["pathway_id"] for x in pathways] == ["R-1", "R-2"]         # restored to row_order
+    assert tops == {"Signal Transduction", "Metabolism"}
+    # absent AC → ([], set()) → caller emits target_not_in_reactome_human
+    assert RE._load_pathways_from_product("PZZ", product_path=str(p)) == ([], set())
+    # unreachable product → None (caller falls back to the live UniProt2Reactome read)
+    assert RE._load_pathways_from_product("P1", product_path=str(tmp_path / "nope.parquet")) is None
