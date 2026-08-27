@@ -963,6 +963,29 @@ def _presence_subgroup_signals(cards):
     return derive_subgroups(hier, cards, _PRESENCE_READER)
 
 
+def _attach_subtype_firstclass(subgroup_signals, claim_vector_by_subtype):
+    """FIRST-CLASS SUBTYPE: elevate the per-stratum reads (presence_claim_vector_by_subtype — multiplicity-
+    aware, #798) INTO the sub-group structure as `by_stratum`, so subtype is surfaced BY DEFAULT rather
+    than only in the opt-in --subtypes panorama. Subtype stays an orthogonal CONDITIONER (it refines a
+    sub-group's signal per stratum; it is not a new sub-group). Attaches to the abundance sub-group (the
+    presence sub-group the by-subtype cards measure). Verdict-INERT, best-effort, no-op when no strata."""
+    if not (isinstance(subgroup_signals, dict) and isinstance(claim_vector_by_subtype, dict)):
+        return subgroup_signals
+    strata = claim_vector_by_subtype.get("strata") or {}
+    ab = subgroup_signals.get("abundance")
+    if strata and isinstance(ab, dict):
+        ab["by_stratum"] = {sid: {"signal": (st.get("A") or {}).get("signal"),
+                                  "certainty": (st.get("A") or {}).get("corroboration"),
+                                  "n": st.get("n_tumor_samples"),
+                                  "evidence": (st.get("A") or {}).get("evidence")}
+                            for sid, st in strata.items()}
+        ab["subtype_axis"] = {"stratification_class": claim_vector_by_subtype.get("stratification_class"),
+                              "epsilon_squared": claim_vector_by_subtype.get("subtype_variance_explained"),
+                              "multiplicity_strata_tested": claim_vector_by_subtype.get("multiplicity_strata_tested"),
+                              "which_separate": claim_vector_by_subtype.get("which_subtypes_separate")}
+    return subgroup_signals
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
@@ -1169,6 +1192,8 @@ def _headline(cards, fired, verdict_pair):
     hl["headline_block"] = _enrich("headline_block", _presence_headline_block, hl)
     # Hierarchy-derived sub-group signals (verdict-inert; sources bound by measurement_type, not hand-wired).
     hl["subgroup_signals"] = _enrich("subgroup_signals", _presence_subgroup_signals, cards)
+    # First-class subtype: fold the per-stratum reads into the sub-group structure (default-surfaced).
+    _enrich("subtype_firstclass", _attach_subtype_firstclass, hl.get("subgroup_signals"), hl.get("claim_vector_by_subtype"))
     return hl
 
 
