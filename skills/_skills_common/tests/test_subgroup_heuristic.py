@@ -14,7 +14,8 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.subgroup_derivation import _heuristic_reader, subgroup_signals_for  # noqa: E402
+from _skills_common.subgroup_derivation import (  # noqa: E402
+    _heuristic_reader, subgroup_signals_for, make_value_classifier, derive_subgroups, default_classify)
 
 
 def _contracts_absent():
@@ -36,6 +37,52 @@ def test_heuristic_picks_keyword_field_when_no_class():
 
 def test_heuristic_none_when_no_signal_field():
     assert _heuristic_reader({"method_version": "1.0", "target": "X"}) is None
+
+
+# ── make_value_classifier: per-skill value→tier map (fixes lens-blind default polarity) ──────────────
+def test_value_classifier_maps_explicit_tiers():
+    clf = make_value_classifier({"concordant_dependent": "strong", "broad_organoid_dependency": "strong",
+                                 "moderately_concordant_non_dependent": "weak"})
+    # default_classify flips these positives to 'absent'; the map restores correct polarity
+    assert default_classify("concordant_dependent") == "absent"
+    assert clf("concordant_dependent") == "strong"
+    assert clf("broad_organoid_dependency") == "strong"
+    assert clf("moderately_concordant_non_dependent") == "weak"
+
+
+def test_value_classifier_falls_back_to_default_for_unmapped():
+    clf = make_value_classifier({"concordant_dependent": "strong"})
+    # an unmapped value degrades to the token heuristic, NOT silently to 'absent'
+    assert clf("broadly_high") == default_classify("broadly_high") == "strong"
+    assert clf("sparse") == "weak"
+    assert clf(None) == "absent"          # empty degrades to default's absent
+
+
+def test_value_classifier_case_insensitive_and_bad_tier_ignored():
+    clf = make_value_classifier({"Strongly_Selective": "strong", "x": "bogus_tier"})
+    assert clf("strongly_selective") == "strong"       # case-normalized
+    assert clf("x") == default_classify("x")           # unknown tier ignored → default
+
+
+# ── confidence-only skip sentinel: a falsy reader_spec entry drops a caveat card from the signal ─────
+def _cards_two_mts():
+    # two cards; the heuristic would read both — one is a magnitude source, one a caveat.
+    return [{"card_id": "dep", "summary": {"dependency_class": "strongly_selective", "n_cell_lines": 900}},
+            {"card_id": "buf", "summary": {"buffering_class": "strong", "n": 12}}]
+
+
+def test_confidence_only_card_skipped_via_falsy_spec(monkeypatch):
+    import _skills_common.subgroup_derivation as SD
+    monkeypatch.setattr(SD, "_card_meta",
+                        lambda cid: {"dep": ("dep_mt", None), "buf": ("buf_mt", "target")}.get(cid, (None, None)))
+    hier = {"sub_groups": [{"id": "DEP", "questions": [
+        {"measurement_types": ["dep_mt", "buf_mt"]}]}]}
+    clf = make_value_classifier({"strongly_selective": "strong"})
+    # buf_mt marked confidence-only (None) → not a source; dep_mt reads via heuristic
+    out = derive_subgroups(hier, _cards_two_mts(), {"buf_mt": None}, clf)
+    cards_in = {s["card"] for s in out["DEP"]["sources"]}
+    assert cards_in == {"dep"}, f"buffering caveat should be skipped, got {cards_in}"
+    assert out["DEP"]["signal"] == "strong"
 
 
 @pytest.mark.skipif(_contracts_absent(), reason="target-contracts absent")

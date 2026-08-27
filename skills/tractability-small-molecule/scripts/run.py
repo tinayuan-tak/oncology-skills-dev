@@ -44,6 +44,24 @@ from _skills_common.claim_record import assemble_claim_record
 from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
+# The fleet-default heuristic tags this lens's clearest POSITIVE druggability signals
+# (approved_drug_tractable, potent_measured_ligand, ubiquitination_substrate) as `absent`.
+# _TRACT_VALUE_TIERS states the tier for the small-molecule-tractability vocabulary (signal = strength
+# of evidence FOR small-molecule druggability). default_classify is the fallback. VERDICT-INERT.
+_TRACT_VALUE_TIERS = {
+    "approved_drug_tractable": "strong", "clinical_drug_tractable": "strong",
+    "tool_compound_tractable": "moderate", "no_known_drug": "absent",
+    "potent_measured_ligand": "strong", "moderate_measured_ligand": "moderate",
+    "weak_measured_ligand": "weak", "no_measured_ligand": "absent",
+    "clinical_precedent_only": "moderate",
+    "triangulated_target_engaged": "strong", "mixed_engagement": "weak", "no_engagement": "absent",
+    "strong_activity": "strong", "moderate_activity": "moderate", "weak_activity": "weak",
+    "no_activity": "absent",
+    "ubiquitination_substrate": "moderate", "no_e3_handle": "absent",
+}
 
 
 def _emit_skill_figures(decision, figures_root):
@@ -231,7 +249,8 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.5.0"     # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
+SKILL_VERSION = "3.6.0"     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+                            # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
                             # 3.0.0: split from tractability-and-modality 2.1.0.
@@ -511,4 +530,6 @@ if __name__ == "__main__":
         # structurally impossible for the narration to alter druggability_snapshot. Without this
         # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
         synthesize_fn=synthesize_tractability_sm,
+        # Signals-first: tuned sub-group reader for the tractability vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_TRACT_VALUE_TIERS),
     ))

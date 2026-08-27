@@ -43,11 +43,43 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 )
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
 from _skills_common.genomic_question_table import genomic_question_table
+from _skills_common.subgroup_derivation import make_value_classifier, subgroup_signals_for
+
+# ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
+# This skill hand-rolls main() (no run_wired_skill), so it wires the fleet sub-group derivation itself
+# (see _headline). The fleet-default heuristic is lens-blind — it tags this lens's POSITIVE signals
+# (direct_driver_gof, likely_oncogenic, predominantly_clonal, concordant_dependent, top_1pct recurrence)
+# as `absent`. _GENOMIC_VALUE_TIERS states the tier for the alteration vocabulary (signal = strength of
+# evidence that the target IS genomically altered / the class drives). default_classify is the fallback.
+_GENOMIC_VALUE_TIERS = {
+    # driver role / recurrence / oncogenicity / pathway
+    "direct_driver_gof": "strong", "direct_driver_lof": "strong", "likely_driver": "moderate",
+    "passenger": "absent", "no_established_role": "absent",
+    "top_1pct": "strong", "top_5pct": "strong", "top_decile": "moderate", "recurrent": "strong",
+    "frequently_altered": "strong", "occasionally_altered": "moderate", "rarely_altered": "weak",
+    "likely_oncogenic": "strong", "oncogenic": "strong", "likely_benign": "absent", "benign": "absent",
+    # mutation type / clonality / functional state
+    "missense": "moderate", "truncating": "strong", "inframe": "moderate", "silent": "absent",
+    "predominantly_clonal": "strong", "subclonal": "moderate",
+    "biallelic_inactivation": "strong", "sporadic_biallelic_inactivation": "moderate",
+    "functionally_abnormal": "strong", "mave_unmapped_target": "absent",
+    # mutation/CN/fusion-stratified dependency + drug response + cross-consortium
+    "mutant_strongly_dependent": "strong", "mutant_moderately_dependent": "moderate",
+    "mutant_strongly_drug_sensitive": "strong", "mutant_moderately_drug_sensitive": "moderate",
+    "concordant_dependent": "strong", "own_mut_hotspot": "moderate",
+    "broadly_neutral": "absent", "recurrently_amplified": "strong", "recurrently_deleted": "strong",
+    "amplified_moderately_dependent": "moderate", "amplified_strongly_dependent": "strong",
+    "amplified_overexpressed_moderately_dependent": "moderate",
+    "amplified_overexpressed_strongly_dependent": "strong",
+    "fusion_positive_moderately_dependent": "moderate", "fusion_positive_strongly_dependent": "strong",
+    "no_recurrent_fusion": "absent", "tumor_shifted": "moderate", "no_splice_shift": "absent",
+}
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.8.0"
+SKILL_VERSION = "2.9.0"   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+                          #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
 # cards tagged "verdict-driving" fire rules the resolver references, "signal-only" cards feed
@@ -627,6 +659,17 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         headline.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         headline["question_table"] = None
+    # Hierarchy-derived sub-group signals (signals-first). Wired HERE because this skill hand-rolls
+    # main() and so bypasses the run_wired_skill fleet subgroup wiring; the tuned value→tier map gives
+    # the alteration vocabulary correct polarity. Verdict-INERT, best-effort (never abort the spine).
+    try:
+        _sg = subgroup_signals_for(Path(__file__).resolve().parent.parent, cards,
+                                   classify=make_value_classifier(_GENOMIC_VALUE_TIERS),
+                                   claim_vector=headline.get("claim_vector"))
+        if _sg:
+            headline["subgroup_signals"] = _sg
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["subgroup_signals"] = f"{type(exc).__name__}: {exc}"
     return headline
 
 
@@ -645,6 +688,8 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # hierarchy-derived per-sub-group signals (SNV/CN/FUS/DEP; sources bound by measurement_type)
+    "subgroup_signals",
 )
 
 

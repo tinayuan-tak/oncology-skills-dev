@@ -31,6 +31,26 @@ from _skills_common.selectivity_hero import emit_selectivity_hero
 # offline figure_headline_hero.* twin (COMPLEMENTS emit_selectivity_hero — both fire under --figures).
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
+# The fleet-default token heuristic is lens-blind — it tags this lens's POSITIVE selectivity signals
+# (strongly_tumor_enriched, tumour_enriched_rna, malignant_broadly_detected, high density) as `absent`.
+# _SELECTIVITY_VALUE_TIERS states the tier for the selectivity vocabulary (signal = strength of evidence
+# FOR tumour-selectivity); normal-tissue liability / breadth are NEGATIVE evidence → `absent` (they lend
+# no positive selectivity signal; the value string + narrator carry the caveat). default_classify remains
+# the fallback for any unmapped value. VERDICT-INERT — the selectivity spine is untouched.
+_SELECTIVITY_VALUE_TIERS = {
+    "strongly_tumor_enriched": "strong", "moderately_tumor_enriched": "moderate",
+    "weakly_tumor_enriched": "weak", "not_tumor_enriched": "absent", "tumor_depleted": "absent",
+    "tumour_enriched_rna": "strong",
+    "strongly_up": "strong", "modest_up": "weak", "unchanged": "absent", "down": "absent",
+    "malignant_broadly_detected": "strong", "malignant_focally_detected": "moderate", "sparse": "weak",
+    "high": "strong", "moderate": "moderate", "low": "weak",
+    # normal-tissue liability / breadth = NEGATIVE evidence for a tumour-selectivity thesis
+    "essential_tissue_liability": "absent", "high_liability": "absent",
+    "broad_normal_protein": "absent", "broad_normal_expression": "absent", "immune_excluded": "absent",
+}
 # The normal-breadth VETO clamp is single-sourced in _skills_common.selectivity_veto so that BOTH
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
 # identical clamp. The names are re-exported here for this skill's own tests + local readability.
@@ -43,7 +63,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.14.0"
+SKILL_VERSION = "1.15.0"   # 1.15.0 (2026-08-27): tuned signals-first sub-group reader (selectivity vocab). Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -737,4 +757,7 @@ if __name__ == "__main__":
         # Opt-in --subtypes: a DESCRIPTIVE per-subtype percentile-crossing panorama (Phase B). Its
         # cards/panorama are appended; NEVER enter `fired` → selectivity_class spine byte-identical.
         subtype_panorama_fn=_resolve_selectivity_subtype_panorama,
+        # Signals-first: tuned sub-group reader for the selectivity vocabulary (correct polarity).
+        # Verdict-INERT — feeds subgroup_signals / the narrator.
+        subgroup_classify=make_value_classifier(_SELECTIVITY_VALUE_TIERS),
     ))

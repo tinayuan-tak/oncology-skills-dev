@@ -33,6 +33,29 @@ from _skills_common.surface_claims import surface_claim_vector, surface_key_sign
 from _skills_common.surface_modality_question_table import surface_modality_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
+
+# ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
+# The fleet-default heuristic tags this lens's strongest POSITIVE fit signals (both_viable, high /
+# confirmed_high density, tcell_validated, selective_and_pair, single-pass topology) as `absent`.
+# _SURFACE_VALUE_TIERS states the tier for the surface-modality vocabulary (signal = strength of
+# evidence FOR a viable biologics modality); intracellular topology, normal-tissue / exon liability
+# and shedding are NEGATIVE evidence → `absent`. default_classify is the fallback. VERDICT-INERT.
+_SURFACE_VALUE_TIERS = {
+    "both_viable": "strong", "adc_preferred": "strong", "tce_preferred": "strong",
+    "pmhc_tce_supported": "strong", "one_viable": "moderate", "neither_viable": "absent",
+    "insufficient": "absent",
+    "single_pass": "strong", "gpi_anchored": "strong", "multi_pass": "moderate",
+    "no_transmembrane": "absent", "intracellular": "absent",
+    "high": "strong", "confirmed_high": "strong", "adequate_proxy": "strong",
+    "malignant_broadly_detected": "strong", "moderate": "moderate", "low": "weak",
+    "tcell_validated": "strong", "selective_and_pair": "strong", "broadly_presented_normal": "absent",
+    "transporter": "moderate", "receptor": "moderate", "adhesion": "moderate", "enzyme": "moderate",
+    # normal-tissue / exon liability + shedding = NEGATIVE evidence for a clean surface modality
+    "essential_tissue_liability": "absent", "essential_exon_liability": "absent",
+    "high_liability": "absent", "moderate_normal_expression": "weak",
+    "clinically_shed": "absent", "not_cd_antigen": "absent",
+}
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -142,7 +165,8 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
+SKILL_VERSION = "1.5.0"   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+                          # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
 # cards reachability.verdict_relevant_cards("surface_modality") derives — adc-tce-modality-fit
@@ -763,6 +787,8 @@ if __name__ == "__main__":
         # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
         # top tension). Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
+        # Signals-first: tuned sub-group reader for the surface-modality vocabulary. Verdict-INERT.
+        subgroup_classify=make_value_classifier(_SURFACE_VALUE_TIERS),
         partial_status_note=("Most surface derived products (structure-features, "
                              "surfaceome-family, cohort-ranking) are not yet on S3; "
                              "verdict is honest-insufficient until they land."),

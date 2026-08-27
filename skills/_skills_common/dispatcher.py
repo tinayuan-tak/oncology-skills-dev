@@ -401,6 +401,8 @@ def run_wired_skill(
     extra_axes: Optional[list[str]] = None,
     verdict_cards: Optional[list[str]] = None,
     skill_figures_fn: Optional[Callable[[dict, Path], list]] = None,
+    subgroup_reader_spec: Optional[dict] = None,
+    subgroup_classify: Optional[Callable] = None,
     argv: Optional[list[str]] = None,
 ) -> int:
     """Run a wired compositional skill end-to-end.
@@ -642,10 +644,16 @@ def run_wired_skill(
     # explicit-reader version) wins. VERDICT-INERT, best-effort — one edit wires the whole fleet.
     if isinstance(headline, dict):
         try:
-            from _skills_common.subgroup_derivation import subgroup_signals_for
+            from _skills_common.subgroup_derivation import subgroup_signals_for, default_classify
             _skill_dir = Path(__file__).resolve().parent.parent / skill_name
             if (_skill_dir / "question_hierarchy.yaml").exists():
+                # A skill may pass a tuned reader_spec / value→tier classify (run_wired_skill kwargs) so its
+                # OWN card vocabulary is read with correct polarity + card roles; else the default heuristic.
+                # The claim_vector overlays the authoritative per-axis signal; the tuned classify fixes the
+                # corroborating SOURCE tiers + agreement/confidence the overlay does not set.
                 _sg = subgroup_signals_for(_skill_dir, card_outputs,
+                                           reader_spec=subgroup_reader_spec,
+                                           classify=subgroup_classify or default_classify,
                                            claim_vector=headline.get("claim_vector"))
                 if _sg:
                     headline.setdefault("subgroup_signals", _sg)

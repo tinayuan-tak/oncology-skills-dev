@@ -30,12 +30,15 @@ from _skills_common.dependency_claims import dependency_claim_vector, dependency
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.subgroup_derivation import make_value_classifier
 # Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
 from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.5.0"   # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
+SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+                          #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
+                          # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
                           # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
                           #        guard (test_functional_requirement_replay.py) + SKILL.md parity
                           #        (rules_scope: -dependency-predictability [verdict-inert], +partner-conditional-
@@ -1004,6 +1007,43 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     return synthesize_dependency(decision, model_id, subtype)
 
 
+# ─── Signals-first sub-group reader (verdict-INERT) ───────────────────────────────────────────────
+# Tunes the fleet-default sub-group derivation for the DEPENDENCY lens vocabulary. The default token
+# heuristic tags this lens's POSITIVE signals (`lineage_selective`, `concordant_dependent`,
+# `broad_organoid_dependency`, `triangulated_target_engaged`) as `absent` — flipping their polarity.
+# _FR_VALUE_TIERS states the tier for the lens's own card values (default_classify remains the fallback).
+# _FR_SUBGROUP_READER marks paralog-buffering as confidence-only (a caveat that a paralog masks a
+# single-gene KO — NOT a dependency-magnitude source), so it does not pollute the DEP signal. Both are
+# passed to the dispatcher's central subgroup wiring; VERDICT-INERT (the dependency spine is untouched).
+_FR_VALUE_TIERS = {
+    # CRISPR / RNAi loss-of-function dependency magnitude (crispr_lof / rnai_lof / organoid)
+    "strongly_selective": "strong", "moderately_selective": "moderate", "weakly_selective": "weak",
+    "lineage_selective": "strong",            # selective essentiality in the lineage = strong within-indication
+    "broad_nonselective": "strong", "pan_essential": "strong",   # pan-essential = strong dependency (selectivity is a separate axis)
+    "not_selective": "absent", "non_dependent": "absent", "not_dependent": "absent",
+    "broad_organoid_dependency": "strong", "selective_organoid_dependency": "moderate",
+    "lineage_organoid_dependency": "moderate", "no_organoid_dependency": "absent",
+    # CRISPR↔RNAi + cross-consortium concordance (agreement × dependency)
+    "concordant_dependent": "strong", "moderately_concordant_dependent": "moderate",
+    "moderately_concordant_non_dependent": "weak", "concordant_non_dependent": "absent",
+    "discordant": "weak", "discordant_non_dependent": "weak",
+    # Chemical-genetic confirmation (PRISM × CRISPR)
+    "triangulated_target_engaged": "strong", "partially_triangulated": "moderate",
+    "not_triangulated": "absent", "no_chemical_confirmation": "absent",
+    # Conditional / synthetic-lethal partner
+    "partner_conditional_dependency": "strong", "no_partner_mapped": "absent",
+    # SEL — context-selectivity biomarker facets (expression/abundance↔dependency, model correspondence)
+    "strong_negative": "strong", "moderate_negative": "moderate", "weak_negative": "weak",
+    "strong_protein_dependency_link": "strong", "moderate_protein_dependency_link": "moderate",
+    "weak_protein_dependency_link": "weak", "no_protein_dependency_link": "absent",
+    "well_modeled_in_lineage": "strong", "partially_modeled_in_lineage": "moderate",
+    "poorly_modeled_in_lineage": "weak", "no_model_in_lineage": "absent",
+}
+# paralog-buffering (mt: paralog_buffering) is a CONFIDENCE caveat, not a dependency-magnitude source.
+# A falsy spec marks a measurement_type confidence-only so derive_subgroups skips it from the signal.
+_FR_SUBGROUP_READER = {"paralog_buffering": None}
+
+
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,
@@ -1025,4 +1065,8 @@ if __name__ == "__main__":
         subtype_panorama_fn=_resolve_dependency_subtype_panorama,
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
+        # Signals-first: tuned sub-group reader for the dependency vocabulary (correct polarity +
+        # paralog-buffering as confidence-only). Verdict-INERT — feeds subgroup_signals / the narrator.
+        subgroup_reader_spec=_FR_SUBGROUP_READER,
+        subgroup_classify=make_value_classifier(_FR_VALUE_TIERS),
     ))

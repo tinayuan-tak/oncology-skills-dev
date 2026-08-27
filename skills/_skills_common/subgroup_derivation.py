@@ -48,6 +48,22 @@ def default_classify(v) -> str:
     return "absent"
 
 
+def make_value_classifier(value_tiers: dict, default: Callable = default_classify) -> Callable:
+    """Build an auditable per-skill classify(v) from an explicit {card_value: tier} map. The default
+    token heuristic (default_classify) is lens-blind — it tags oncology signals it doesn't recognise
+    (`concordant_dependent`, `broad_organoid_dependency`, `lineage_selective`, `triangulated_target_engaged`)
+    as `absent`, i.e. flips a POSITIVE signal to a negative one. This lets a skill state the tier for its
+    OWN card vocabulary explicitly (data, not code), with default_classify as the fallback for any value
+    the map omits — so an unseen value degrades to the heuristic rather than silently to `absent`.
+    `tier` must be one of strong/moderate/weak/absent (unknown tiers fall through to the default)."""
+    norm = {str(k).lower(): v for k, v in (value_tiers or {}).items()}
+
+    def classify(v) -> str:
+        t = norm.get(str("" if v is None else v).lower())
+        return t if t in _TIERV else default(v)
+    return classify
+
+
 def _nbucket(n) -> str:
     if not isinstance(n, (int, float)):
         return "low"
@@ -94,7 +110,12 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = 
         sg = type_sg.get(mt)
         if not sg or tier == "subtype":
             continue                      # not a source for a whole-cohort sub-group signal
-        spec = (reader_spec or {}).get(mt) or _heuristic_reader(summ)   # per-skill spec, else heuristic
+        if reader_spec and mt in reader_spec:
+            spec = reader_spec[mt]          # explicit per-skill spec; a FALSY value = confidence-only card,
+            if not spec:                    # not a signal source (e.g. FR's paralog-buffering caveat) → skip
+                continue
+        else:
+            spec = _heuristic_reader(summ)  # no per-skill spec for this measurement_type → default heuristic
         if not spec:
             continue
         raw = summ.get(spec["class"])
