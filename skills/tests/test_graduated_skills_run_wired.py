@@ -124,7 +124,11 @@ def test_run_py_dispatcher_emits_matching_status(skill_name: str, tmp_path):
             "--out", str(out_dir),
         ]
 
-    result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    # 180s (was 60s): the large multi-card dossiers (e.g. target-intrinsic, 19 cards; surface-modality-fit)
+    # run a live KRAS/COADREAD dispatch and intermittently exceeded 60s under CI load / Actions cache-
+    # service degradation, flaking otherwise-green PRs. The guard asserts the run SUCCEEDS + emits the
+    # wired shape, not latency — so a generous cap removes the flake without weakening the check.
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=180)
 
     assert result.returncode == 0, (
         f"{skill_name}: run.py exited {result.returncode} "
