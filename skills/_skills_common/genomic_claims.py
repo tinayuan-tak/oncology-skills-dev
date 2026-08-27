@@ -119,8 +119,15 @@ def _cn_signal(h, c):
     cls = bc.get("verdict")   # copy_number_class (cell-line)
     sig = _CN_SIGNAL.get(cls, "unmeasured")
     focal = h.get("patient_focal_cn_class")
-    if sig_ge(sig, "moderate") and focal in _CN_FOCAL_POS:
-        sig = "strong"        # patient-tumour focal CN confirms the cell-line recurrence → strong
+    if focal in _CN_FOCAL_POS:
+        # Patient-tumour focal CN is the clinically-relevant driver event and drives the signal
+        # INDEPENDENTLY of the cell-line arm. HER2/CCND1 are recurrently focally amplified in patient
+        # tumours but read broadly_neutral in the DepMap cell-line panel; keying the signal off the
+        # cell-line arm alone (the prior `sig_ge(sig,"moderate")` gate) silently discarded the focal
+        # amplification and mis-read them as CN-`absent`. Now: cell-line + patient agree -> strong;
+        # patient-focal alone (cell-line neutral) -> moderate. Mirrors the tumor-presence de-differentiation
+        # fix (a measured tumour-tissue positive is not vetoed by a neutral cell-line proxy).
+        sig = "strong" if sig_ge(sig, "moderate") else "moderate"
     ev = f"CN: cell-line {cls or 'data_unavailable'}, patient-focal {focal or 'data_unavailable'}"
     return sig, ev, None
 

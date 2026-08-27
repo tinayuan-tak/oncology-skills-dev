@@ -81,6 +81,25 @@ def test_amplification_driven_is_not_read_as_not_a_driver():
     assert ks["headline"].startswith("Copy-number-driven alteration")
 
 
+def test_patient_focal_amp_drives_cn_signal_when_cellline_neutral():
+    """Regression: HER2/CCND1 reality — recurrently focally amplified in PATIENT tumours but
+    broadly_neutral in the DepMap cell-line panel. The CN claim must read the patient-focal amplification
+    (signal `moderate`), NOT `absent` off the neutral cell-line arm. (Prior bug: focal only upgraded an
+    already-≥moderate cell-line signal, so cell-line-neutral+patient-focal-amp silently read `absent`.)"""
+    h = {
+        "genomic_alteration_by_class": _by_class(
+            snv_landscape="no_mutations", cn="broadly_neutral", fusion="no_recurrent_fusion"),
+        "patient_focal_cn_class": "recurrent_focal_amplification",
+        "drug_response_stratification_class": "not_drug_response_stratified",
+    }
+    vec = genomic_claim_vector(h, [])
+    assert vec["CN"]["signal"] == "moderate"   # patient-focal amp drives it (was 'absent' pre-fix)
+    # and when the cell-line arm ALSO agrees, it strengthens to 'strong' (unchanged behaviour):
+    h2 = dict(h); h2["genomic_alteration_by_class"] = _by_class(
+        snv_landscape="no_mutations", cn="recurrently_amplified", fusion="no_recurrent_fusion")
+    assert genomic_claim_vector(h2, [])["CN"]["signal"] == "strong"
+
+
 def test_fusion_driven():
     h = {
         "genomic_alteration_by_class": _by_class(
