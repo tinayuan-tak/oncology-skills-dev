@@ -225,7 +225,7 @@ def _claim_vector_block(cv: Optional[dict]) -> str:
         cl = cv.get(k) or {}
         rows.append(f"    {k} {name}: signal={cl.get('signal')} corroboration={cl.get('corroboration')} "
                     f"— {cl.get('evidence')}" + (f"  CONFLICT: {cl['conflict']}" if cl.get("conflict") else ""))
-    if cv.get("homogeneity"):
+    if cv.get("homogeneity") and cv.get("homogeneity") != "unmeasured":
         rows.append(f"    homogeneity: {cv.get('homogeneity')}")
     rows.append(
         "  DIRECTIVE: your confidence_qualifier MUST track the claim corroboration tiers (a decision-critical "

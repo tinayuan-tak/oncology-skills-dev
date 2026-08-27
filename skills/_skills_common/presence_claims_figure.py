@@ -55,7 +55,7 @@ def render_claim_vector_svg(claim_vector: dict, target: str, indication: str) ->
         y += rowh
     hom = (claim_vector or {}).get("homogeneity")
     s.append(f'<text x="{x0}" y="{y+14}" font-size="9.5" fill="#6b6f76">homogeneity (TCE lens): '
-             f'{_esc(hom) if hom else "n/a"}  ·  claims are orthogonal — not additive</text>')
+             f'{_esc(hom) if hom and hom != "unmeasured" else "n/a"}  ·  claims are orthogonal — not additive</text>')
     s.append("</svg>")
     return "\n".join(s)
 

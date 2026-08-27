@@ -201,8 +201,12 @@ def _claim_D(h, c):
 
 
 def _homogeneity(h, c):
+    # Emit the string sentinel "unmeasured" (NOT null) when the indication has no single-cell card
+    # (SCLC/BRCA-pair scRNA = data_unavailable). null fails the evidence_package claim_vector schema
+    # (oneOf[string, object]) and aborts the envelope emit for every scRNA-less indication; "unmeasured"
+    # is schema-valid and honest (unmeasured != null). Consumers below treat it as absent.
     hc = h.get("sc_tce_homogeneity_class") or c.get("tumor-scrna-celltype-expression", {}).get("tce_homogeneity_class")
-    return hc if hc and hc != "data_unavailable" else None
+    return hc if hc and hc != "data_unavailable" else "unmeasured"
 
 
 def presence_claim_vector(headline: dict, cards: list) -> dict:

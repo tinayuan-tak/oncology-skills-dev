@@ -57,3 +57,16 @@ def test_presence_atoms_omitted_without_cards():
     vec = presence_claim_vector(_headline(), [])
     for ax in ("A", "B", "C", "D"):
         assert "evidence_atom" not in vec[ax], f"{ax} carries an atom with no source card"
+
+
+def test_homogeneity_unmeasured_not_null_without_scrna():
+    # No single-cell card (SCLC / NECTIN4-BRCA-pair scRNA = data_unavailable) → homogeneity must be
+    # the STRING sentinel "unmeasured", never null. null fails the evidence_package claim_vector schema
+    # (oneOf[string, object]) and aborts the envelope emit for every scRNA-less indication.
+    hl = {k: v for k, v in _headline().items() if not k.startswith("sc_")}
+    vec = presence_claim_vector(hl, [])
+    assert vec["homogeneity"] == "unmeasured"
+    assert vec["homogeneity"] is not None
+    # a real single-cell homogeneity class still passes through verbatim
+    vec2 = presence_claim_vector({**hl, "sc_tce_homogeneity_class": "homogeneous"}, [])
+    assert vec2["homogeneity"] == "homogeneous"
