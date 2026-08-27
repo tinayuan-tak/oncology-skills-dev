@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+METHODS_REPO = Path(__file__).resolve().parents[3]   # repo root (co-located code, not a hard-coded path)
 sys.path.insert(0, str(METHODS_REPO))
 from methods.topology_predictions_tmbed import classify as tc  # noqa: E402
 from methods.topology_predictions_tmbed import read as tr      # noqa: E402
@@ -122,3 +122,34 @@ def test_read_graceful_on_parquet_failure(tmp_path):
                                  sidecar_path=sidecar)
     assert out["topology_class"] == "data_unavailable"
     assert out["_live_read_error"] == "topology_parquet_read_failed"
+
+
+def test_s3_read_is_cached_once_per_key(tmp_path, monkeypatch):
+    """The S3 loader must read each object (payload, sidecar) at most ONCE per process and reuse it
+    across targets — the fix's whole point (previously re-downloaded the whole object every call).
+    Local parquet_path/sidecar_path overrides bypass the cache (so the other tests are unaffected)."""
+    import boto3
+    payload, sidecar = _write_products(tmp_path)
+    blobs = {("BKT", "topo.parquet"): Path(payload).read_bytes(),
+             ("BKT", "sidecar.parquet"): Path(sidecar).read_bytes()}
+    calls: dict = {}
+
+    class _Body:
+        def __init__(self, b): self._b = b
+        def read(self): return self._b
+
+    class _Client:
+        def get_object(self, Bucket, Key):
+            calls[(Bucket, Key)] = calls.get((Bucket, Key), 0) + 1
+            return {"Body": _Body(blobs[(Bucket, Key)])}
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: _Client())
+    tc._read_parquet_s3.cache_clear()
+    try:
+        for _ in range(3):                                    # many "targets" in one process
+            tc._read_parquet(None, "BKT", "topo.parquet")
+            tc._read_parquet(None, "BKT", "sidecar.parquet")
+        assert calls[("BKT", "topo.parquet")] == 1            # downloaded once, then cache hits
+        assert calls[("BKT", "sidecar.parquet")] == 1
+    finally:
+        tc._read_parquet_s3.cache_clear()                     # don't leak cached frames to other tests

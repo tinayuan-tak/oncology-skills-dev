@@ -12,6 +12,7 @@ topology_class vocabulary (target-contracts/cards/surface-topology-and-ptm.card.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Optional
 
 
@@ -137,12 +138,25 @@ def compute_summary(row: dict, ptm_fields: dict, method_version: str) -> dict:
 # --- loaders (S3 read-through; parquet_path/sidecar_path override for tests) ---
 
 def _read_parquet(path_or_none, bucket, key):
-    """Read a parquet from a local path if given, else stream from S3."""
+    """Read a parquet from a local path if given, else stream from S3 (cached per (bucket, key))."""
     import pandas as pd
     if path_or_none is not None:
-        return pd.read_parquet(path_or_none)
+        return pd.read_parquet(path_or_none)   # test override — never cached
+    return _read_parquet_s3(bucket, key)
+
+
+@lru_cache(maxsize=8)
+def _read_parquet_s3(bucket, key):
+    """Whole-object S3 parquet read, cached per (bucket, key).
+
+    The payload and the resolver sidecar are each a small per-protein reference table (~20k rows);
+    they are read ONCE per process and reused across every target (mirrors the sibling surface
+    readers, e.g. surfaceome_family_fusion's lru-cached whole-index). Previously this re-downloaded
+    the ENTIRE payload AND sidecar on every read_target_summary call — the one in-family reader
+    paying the whole-object cost repeatedly."""
     import io
     import boto3
+    import pandas as pd
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
