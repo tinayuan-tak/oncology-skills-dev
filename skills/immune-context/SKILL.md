@@ -25,7 +25,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -42,11 +42,13 @@ composition:
     - myeloid-compartment-expression-cheng   # pan-cancer tumour-infiltrating myeloid states (suppressive-TME / myeloid-target lens)
     - caf-compartment-expression-luo         # pan-cancer CAF states (stromal lens; stroma-vs-malignant denominator)
     - ici-response-association               # per-gene ICI (anti-PD-1) responder-vs-non-responder association (melanoma-scoped)
+    - tcga-til-fraction-saltz                # absolute H&E-DL TIL corroborator of the CIBERSORT CD8 call (Saltz 2018); DISPLAY-ONLY / verdict-inert
   measurement_types_pulled:
     - immune_context
     - sc_tumor_myeloid_state_expression      # DISPLAY-ONLY
     - sc_tumor_caf_state_expression          # DISPLAY-ONLY
     - ici_response_expression                # DISPLAY-ONLY
+    - spatial_til_fraction                   # tcga-til-fraction-saltz (absolute H&E-DL TIL); DISPLAY-ONLY corroborator
   rules_scope:
     - surface_intrinsic       # the immune-context rules live on the surface_intrinsic axis (bite_tce)
   synthesis:

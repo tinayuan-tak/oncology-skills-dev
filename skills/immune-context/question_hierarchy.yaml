@@ -1,3 +1,6 @@
+# GENERATED from target-contracts vocabularies/target_profiling_axes.yaml (question_hierarchies).
+# Do NOT hand-edit: edit the governed source there and run skills/tools/sync_question_hierarchies.py --write.
+# The paired drift test (skills/tests/test_question_hierarchy_drift.py) fails CI on divergence.
 skill: immune-context
 sub_groups:
 - id: IMMUNE
@@ -5,6 +8,7 @@ sub_groups:
   - id: infiltration
     measurement_types:
     - immune_context
+    - spatial_til_fraction
   - id: ici_response
     measurement_types:
     - ici_response_expression

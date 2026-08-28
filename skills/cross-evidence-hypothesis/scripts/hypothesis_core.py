@@ -159,7 +159,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
                                 # TME/immune display cards wired 2026-08-25 (spine-parity guard).
                                 "myeloid-compartment-expression-cheng",
                                 "caf-compartment-expression-luo",
-                                "ici-response-association"}),
+                                "ici-response-association", "tcga-til-fraction-saltz"}),
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
         "protein-domains-class", "reactome-pathway-membership", "target-development-level",

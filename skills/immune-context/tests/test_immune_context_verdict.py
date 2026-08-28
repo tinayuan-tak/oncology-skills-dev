@@ -57,4 +57,5 @@ def test_cards_list_includes_immune_context_and_tme_display_cards():
         "myeloid-compartment-expression-cheng",
         "caf-compartment-expression-luo",
         "ici-response-association",
+        "tcga-til-fraction-saltz",   # 2026-08-28 — absolute H&E-DL TIL corroborator (verdict-inert)
     }

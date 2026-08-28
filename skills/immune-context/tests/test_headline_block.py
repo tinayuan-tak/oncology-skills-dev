@@ -43,6 +43,10 @@ def _immune_hot_cards():
             "n_samples": 512,
             "tumor_studies": ["TCGA-SKCM"],
         },
+    }, {
+        # Saltz H&E-DL TIL corroborator (verdict-inert; _headline reads it via strict get_card_field).
+        "card_id": "tcga-til-fraction-saltz",
+        "summary": {"til_fraction_class": "til_high", "median_til_percentage": 5.6, "n_samples": 384},
     }]
 
 
@@ -89,7 +93,9 @@ def test_immune_cold_is_negative_with_efficacy_risk_tension():
     TCE-efficacy-risk tension (a MEASURED CD8 effector-absence, NOT a target veto)."""
     cards = [{"card_id": "immune-context",
               "summary": {"immune_context_class": "immune_cold", "median_cd8_fraction": 0.01,
-                          "median_total_t_cell_fraction": 0.04, "n_samples": 300}}]
+                          "median_total_t_cell_fraction": 0.04, "n_samples": 300}},
+             {"card_id": "tcga-til-fraction-saltz",
+              "summary": {"til_fraction_class": "til_low", "median_til_percentage": 1.1, "n_samples": 300}}]
     verdict_pair = ic._verdict([{"rule_id": "immune-context-cold-tce-opposing"}])
     hl = ic._headline(cards, [], verdict_pair)
     block = hl["headline_block"]

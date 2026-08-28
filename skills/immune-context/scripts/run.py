@@ -42,7 +42,7 @@ _IMMUNE_VALUE_TIERS = {
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.3.0"   # 1.3.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
                           # headline hero — a verdict-INERT projection over the effector-context
                           # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -55,6 +55,9 @@ CARDS = [
     "myeloid-compartment-expression-cheng",   # pan-cancer tumour-infiltrating myeloid states (suppressive-TME / myeloid-target)
     "caf-compartment-expression-luo",         # pan-cancer CAF states (stromal lens; stroma-vs-malignant denominator)
     "ici-response-association",               # per-gene ICI (anti-PD-1) responder-vs-non-responder association (melanoma-scoped)
+    "tcga-til-fraction-saltz",                # absolute H&E-DL TIL fraction (Saltz 2018) — VERDICT-INERT
+                                              # corroborator of the CIBERSORT CD8 hot/cold call (morphology vs
+                                              # RNA deconvolution, same TCGA participants); fires no rule.
 ]
 
 QUESTION = ("For {indication}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell "
@@ -164,7 +167,30 @@ def _headline(cards, fired, verdict_pair):
         "median_total_t_cell_fraction":  get_card_field(cards, "immune-context", "median_total_t_cell_fraction"),
         "n_samples":                     get_card_field(cards, "immune-context", "n_samples"),
         "tumor_studies":                 get_card_field(cards, "immune-context", "tumor_studies"),
+        # Saltz H&E-DL absolute TIL corroborator (2026-08-28) — VERDICT-INERT. An orthogonal (morphology,
+        # not RNA-deconvolution) TIL read on the SAME TCGA participants; til_cibersort_agreement HARDENS
+        # confidence in the CD8 hot/cold call (never creates/overrides it).
+        "til_fraction_class":            get_card_field(cards, "tcga-til-fraction-saltz", "til_fraction_class"),
+        "median_til_percentage":         get_card_field(cards, "tcga-til-fraction-saltz", "median_til_percentage"),
+        "til_n_samples":                 get_card_field(cards, "tcga-til-fraction-saltz", "n_samples"),
     }
+    # coarse cross-modality agreement: do the H&E-DL TIL bin and the CIBERSORT CD8 hot/cold call point the
+    # same way? None when either is unmeasured. Directional only (different scales).
+    _icls = hl["immune_context_class"]
+    _tcls = hl["til_fraction_class"]
+    _hot = {"immune_hot", "immune_inflamed", "t_cell_inflamed"}
+    _cold = {"immune_cold", "immune_desert", "cold"}
+    if _tcls in ("til_high", "til_intermediate", "til_low") and _icls:
+        _til_hi = _tcls == "til_high"
+        _til_lo = _tcls == "til_low"
+        if _icls in _hot:
+            hl["til_cibersort_agreement"] = True if _til_hi else (False if _til_lo else None)
+        elif _icls in _cold:
+            hl["til_cibersort_agreement"] = True if _til_lo else (False if _til_hi else None)
+        else:
+            hl["til_cibersort_agreement"] = None
+    else:
+        hl["til_cibersort_agreement"] = None
     # verdict-INERT claim-vector projection (TCE effector axis) + citable CD8-fraction atom for the
     # cross-evidence reasoner. immune-context is gateless (absent from _SHORT_TO_GATE); verdict-inert.
     hl["claim_vector"] = immune_context_claim_vector(hl, cards)
@@ -184,7 +210,9 @@ def _headline(cards, fired, verdict_pair):
 
 _SYNTHESIS_FACET_KEYS = (
     "immune_context_verdict", "driving_rule_id", "immune_context_class", "median_cd8_fraction",
-    "median_total_t_cell_fraction", "n_samples", "claim_vector", "key_signals",
+    "median_total_t_cell_fraction", "n_samples",
+    "til_fraction_class", "median_til_percentage", "til_cibersort_agreement",
+    "claim_vector", "key_signals",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )
