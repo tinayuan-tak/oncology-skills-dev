@@ -113,6 +113,43 @@ def compute() -> dict:
     }
 
 
+class _Report:
+    """Minimal .errors/.warnings surface so aggregators (e.g. the living-doc gaps tab) can
+    call this validator in-process, matching the other validators' report shape."""
+    def __init__(self):
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+
+    @property
+    def ok(self) -> bool:
+        return not self.errors
+
+
+def report() -> "_Report":
+    """Non-printing, in-process form of main()'s checks: unknown consumed card_ids +
+    drift-from-committed-snapshot. Returns a report; never raises / never exits."""
+    rep = _Report()
+    try:
+        current = compute()
+        known = card_ids()
+        unknown = [c for c in current["resolver_consumed_cards"] if c not in known]
+        for c in unknown:
+            rep.errors.append(f"resolver consumes rules keyed on unknown card_id: {c}")
+        if not SNAPSHOT.exists():
+            rep.warnings.append(f"snapshot missing at {SNAPSHOT} — run with --write")
+            return rep
+        committed = _load(SNAPSHOT) or {}
+        cur_set = set(current["resolver_consumed_cards"])
+        com_set = set(committed.get("resolver_consumed_cards") or [])
+        for c in sorted(cur_set - com_set):
+            rep.errors.append(f"card became verdict-bearing but not in snapshot: {c}")
+        for c in sorted(com_set - cur_set):
+            rep.errors.append(f"card no longer resolver-consumed but still in snapshot: {c}")
+    except Exception as e:  # keep aggregators resilient
+        rep.warnings.append(f"validate_card_resolver_consumption.report() could not complete: {e}")
+    return rep
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--write", action="store_true", help="regenerate the committed snapshot")

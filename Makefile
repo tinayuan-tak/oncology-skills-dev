@@ -12,7 +12,18 @@
 STAMP ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AWS_PROFILE ?= cbg
 
-.PHONY: dashboard dashboard-dry promote-list profile
+.PHONY: dashboard dashboard-dry promote-list profile living-doc living-doc-check
+# living-doc : regenerate the Living Architecture Document (superset of the unified dashboard:
+#              + Gaps / Concepts / Docs tabs + the glossary legibility layer). Writes the
+#              committed feed health/living_doc.{json,html}. Needs the sibling checkouts.
+#   make living-doc          # regenerate the committed json + html
+#   make living-doc-check    # local drift-guard: fail if the committed json is stale
+living-doc:
+	python3 -m validators.architecture_dashboard.living.build_living_doc
+
+living-doc-check:
+	python3 -m validators.architecture_dashboard.living.build_living_doc --check
+
 dashboard:
 	AWS_PROFILE=$(AWS_PROFILE) python3 -m validators.output_registry.publish_dashboard --generated-at $(STAMP)
 

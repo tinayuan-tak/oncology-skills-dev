@@ -162,3 +162,14 @@ jobs:
       # a green pipeline (fixed in #491). Gate it explicitly so ontology drift fails a PR instead.
       - name: Target-profiling-axes ontology contract
         run: python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q
+
+      # Living Architecture Document (validators/architecture_dashboard/living/): a superset of the
+      # unified dashboard adding Gaps / Concepts / Docs tabs + the glossary LEGIBILITY layer. Like
+      # framework-health, only the CI-SAFE self-check runs here (checkout-only runner has no siblings):
+      # it validates the committed health/living_doc.json's internal consistency — concepts resolved,
+      # gaps tally == list, and EVERY surfaced machine token is glossed (the legibility contract fails
+      # the build on an unglossed token). Full regenerate / --check is a local guard (needs siblings).
+      - name: Living doc self-check + unit tests (incl. glossary coverage)
+        run: |
+          python validators/architecture_dashboard/living/build_living_doc.py --self-check
+          python -m pytest validators/architecture_dashboard/living/tests/ -q
