@@ -80,7 +80,7 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.10.0"   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.11.0"   # +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -541,6 +541,7 @@ _GENOMIC_VERDICT_PHRASE = {
     "recurrent_deletion_driver":       "Recurrent deletion driver",
     "recurrent_fusion_driver":         "Recurrent fusion driver",
     "recurrent_snv_driver":            "Recurrent SNV/indel driver",
+    "recurrent_snv_subclonal_uncertain": "Recurrent SNV — subclonal, uncertain driver",
     # variant-class spectrum shape
     "lof_dominant_pattern":            "LoF-dominant mutation pattern",
     "missense_dominant_pattern":       "Missense-dominant mutation pattern",
