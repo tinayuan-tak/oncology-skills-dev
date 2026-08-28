@@ -1596,6 +1596,22 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [copy_number_alteration, cell_line_rna_expression], method: correlation, evidence_tier: measured}
 
+  cis_protein_dosage_coupling:
+    # cis-feature-coherence PROTEIN leg (2026-08-28): the protein analog of cis_dosage_coupling. Does the
+    # target's own relative copy-number predict its own Gygi-MS protein abundance across the DepMap panel?
+    # DISTINCT from cis_dosage_coupling (CN->mRNA — this is CN->protein) and from
+    # abundance_dependency_correlation (protein->DEPENDENCY, CN-blind). The intended read is the SLOPE
+    # RATIO against the mRNA leg: coupled at both = dosage-sensitive cis-driver (ERBB2/MYC/MDM2); coupled
+    # at mRNA but uncoupled at protein = post-transcriptionally dosage-BUFFERED. Gygi-only (no Olink
+    # scale-mix). VERDICT-INERT — fires no cis_coherence rung. No evidence_substrate (CN + protein join,
+    # no single dominant substrate; mirrors cis_dosage_coupling).
+    modality_relevance: [small_molecule, degrader]
+    claim: "Does the target's own copy-number predict its own protein abundance (protein cis-dosage coupling / amplification dosage preserved at the protein level)?"
+    entity_grains: [target]
+    cards: [cis-feature-protein-coherence]
+    providers:
+      - {kind: derived_from, inputs: [copy_number_alteration, cell_line_protein_abundance], method: correlation, evidence_tier: measured}
+
   promoter_methylation:
     # cis-coherence silencing arm (2026-08-20): the raw per-(cell-line, TSS-1kb) fractional promoter
     # methylation substrate (CCLE RRBS TSS-1kb). Dataset-kind — asserts its own raw substrate; consumed

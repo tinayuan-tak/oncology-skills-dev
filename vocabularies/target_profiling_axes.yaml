@@ -577,8 +577,9 @@ skill_objectives:
     role_note: "GATELESS coherence owner (the verdict is a 2×2 leg interaction); CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT claim_vector with cross-grain TCGA-patient corroboration."
     questions:
       - {q: "GoF leg-1: does copy-number drive the target's OWN expression (cis-dosage coupling)?", answered_by: [cis-feature-expression-coherence]}
+      - {q: "GoF leg-1 (protein): is the CN dosage-effect preserved at the target's OWN protein level, or post-transcriptionally buffered (mRNA-vs-protein slope ratio)?", answered_by: [cis-feature-protein-coherence]}
       - {q: "LoF leg-1: does promoter methylation drive the target's LOW expression (epigenetic silencing)?", answered_by: [cellline-methylation-expression-coherence]}
-      - {q: "Leg-2: does the target's expression predict its OWN dependency (correlation + amp∩overexpr conjoint addiction)?", answered_by: [expression-dependency-correlation, amp-expr-stratified-dependency]}
+      - {q: "Leg-2: does the target's expression / protein abundance predict its OWN dependency (correlation + amp∩overexpr conjoint addiction)?", answered_by: [expression-dependency-correlation, amp-expr-stratified-dependency, abundance-dependency]}
       - {q: "Does the TCGA patient arm replicate the cell-line cis call (cross-grain corroboration)?", answered_by: [patient-cis-coherence]}
       - {q: "Which transcript / isoform is expressed (molecular-form context for the cis read)?", answered_by: [cellline-isoform-dominance, cellline-isoform-expression]}
 

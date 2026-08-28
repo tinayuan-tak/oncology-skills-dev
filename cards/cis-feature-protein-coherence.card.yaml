@@ -1,0 +1,119 @@
+# Card — CIS-FEATURE → OWN-PROTEIN COHERENCE  (pure-data, target-only, v1)
+#
+# THE PROTEIN LEG. The sibling cis-feature-expression-coherence card tests whether the target's own
+# relative copy-number predicts its own mRNA. But mRNA is not the therapeutic species — protein is.
+# A gene whose amplification raises mRNA but NOT protein (post-transcriptional / degradation buffering)
+# is a weaker cis-driver than the mRNA leg alone implies. This card measures the CN→own-PROTEIN step
+# directly (Gygi-MS whole-cell-lysate abundance across the DepMap panel), so the cis-coherence read can
+# compare the protein dosage slope against the mRNA slope: a coupled-at-mRNA / uncoupled-at-protein
+# target is dosage-BUFFERED (ERBB2/MYC/MDM2 stay coupled at BOTH; a buffered passenger does not).
+#
+# This is the PROTEIN analog of cis-feature-expression-coherence, NOT abundance-dependency: that card
+# asks whether protein predicts DEPENDENCY (protein→Chronos); this card asks whether copy-number
+# predicts PROTEIN (CN→protein) — the feature→abundance leg, not the abundance→dependency leg.
+#
+# DECOUPLED FROM INDICATION (mirrors the mRNA sibling): evaluates the FULL DepMap panel; per-indication
+# protein cis-dosage is rarely powered (few Gygi lines per lineage). VERDICT-INERT coherence dimension —
+# fires NO cis_coherence.rules.yaml rule; the composed cis_coherence verdict stays byte-stable.
+#
+# Expected demonstration cases (live-verify at calibration — Stage-0 gate):
+#   - ERBB2 : amplified lines strongly over-abundant at protein (live: delta +2.1 log2 over 28 amplified
+#             lines; pan-panel Spearman is focal-tail-modest, so read alongside the delta + slope)
+#   - a dosage-buffered passenger : CN varies but protein flat → prot_dosage_uncoupled (the negative)
+#   - near-diploid-panel target   : no CN variance          → cn_invariant_panel (untestable)
+#
+# Inputs (DepMap 26Q1 + the derived Gygi product — ZERO new ingest; both co-resident):
+#   - OmicsCNGeneMC_WES.csv (relative CN, primary; WGS fallback) — the cis feature term
+#   - depmap-gygi-protein-abundance-per-protein-v1 (Gygi TMT-MS log2 abundance) — the own-protein term
+#   - Model.csv — lineage metadata
+
+card_id: cis-feature-protein-coherence
+version: 1.0.0
+question: "Across DepMap cell lines, does {target.symbol}'s own relative copy-number predict its own Gygi-MS protein abundance (protein cis-dosage coupling)? — i.e. is the amplification dosage-effect preserved at the protein level, or post-transcriptionally buffered?"
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  - product_id: depmap-gygi-protein-abundance-per-protein-v1
+
+methods:
+  - call: depmap-cis-protein-dosage
+    module: depmap_cis_protein_dosage
+    entrypoint: read_cis_protein_dosage
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel context (target-only) ===
+    - n_paired_models_cn_protein                 # cells with BOTH relative CN AND Gygi protein coverage
+    - n_protein_detected_models                  # cells with Gygi protein detection for the target
+    - protein_panel_size                         # total Gygi MS lines (detection denominator)
+    - abundance_layer                            # protein_gygi_ms (provenance; Gygi-only, no Olink fallback)
+    # === protein cis-dosage primary metrics (CN → own-protein) ===
+    - cn_prot_spearman_r                         # rank correlation CN vs log2 protein (primary; robust to outliers)
+    - cn_prot_spearman_p
+    - cn_prot_pearson_r
+    - cn_prot_pearson_p
+    - cn_prot_slope_log2abundance_per_cn         # OLS slope: log2 abundance change per unit relative CN (the ratio numerator)
+    # === Variance context — cis-dosage is untestable without CN variation ===
+    - relative_cn_p10_p90_spread                 # p90-p10 CN spread; the invariant-panel GATE (tail-sensitive)
+    - relative_cn_iqr                            # middle-50% CN spread — provenance ONLY (blind to the amplified tail)
+    - log2abundance_iqr
+    - median_relative_cn
+    - median_log2abundance
+    # === Amplified-vs-neutral abundance contrast (interpretability aid; not the class driver) ===
+    - n_amplified                                # relative CN > amplification_threshold
+    - mean_log2abundance_amplified
+    - mean_log2abundance_neutral
+    - delta_log2abundance_amplified_vs_neutral   # positive = amplified cells over-abundant at protein (dosage effect)
+    - amplification_threshold_relative_cn        # FOCAL_AMP cutoff used (provenance)
+    # === Categorical (Tier-2 vocabulary; VERDICT-INERT — drives NO resolver rung) ===
+    - cis_protein_dosage_class
+    # === Cross-leg comparison hook ===
+    - mrna_arm_card                              # cis-feature-expression-coherence — the skill divides slopes for the buffering ratio
+    - evidence_scope                             # pan_no_indication (protein cis-dosage is pan-panel)
+
+  summary_fields_vocabulary:
+    cis_protein_dosage_class:
+      - prot_dosage_coupled_strong               # spearman r >= 0.4 AND p <= 0.01 — amplification strongly drives protein
+      - prot_dosage_coupled_moderate             # spearman r >= 0.25 AND p <= 0.01 — moderate protein cis-dosage
+      - prot_dosage_uncoupled                    # CN varies but does NOT predict protein (dosage-BUFFERED — the informative negative)
+      - cn_invariant_panel                       # relative_cn_p10_p90_spread < min — no CN variation to test (untestable, honest)
+      - data_unavailable                         # too few paired lines, or target undetected in the Gygi MS panel
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]
+
+thresholds:
+  strong_dosage_spearman_r: 0.4                  # prot_dosage_coupled_strong
+  moderate_dosage_spearman_r: 0.25               # prot_dosage_coupled_moderate
+  significance_alpha: 0.01
+  min_cell_lines_for_correlation: 30             # LOWER than the mRNA leg's 50 — Gygi protein detection is sparser
+  min_relative_cn_p10_p90_spread: 0.2            # p90-p10 CN spread floor (tail-sensitive; focal-amp oncogenes stay testable)
+  amplification_threshold: 1.5                   # FOCAL_AMP — reused from depmap_cn_distribution (relative CN; diploid ~ 1.0)
+
+warning_predicates:
+  - warning_id: low_n_paired_models
+    if: "n_paired_models_cn_protein < THRESHOLD.min_cell_lines_for_correlation"
+    message: "Fewer than 30 cell lines with both CN + Gygi protein; protein cis-dosage correlation has a wide CI (or the target is undetected in the MS panel). Read alongside the amplified-vs-neutral delta."
+  - warning_id: near_diploid_panel
+    if: "relative_cn_p10_p90_spread < THRESHOLD.min_relative_cn_p10_p90_spread"
+    message: "Relative-CN p90-p10 spread is narrow (< 0.2); protein cis-dosage is untestable when CN does not vary → cn_invariant_panel (honest untestable, NOT uncoupled)."
+
+caveats:
+  - "PROTEIN analog of cis-feature-expression-coherence (CN->mRNA). The intended read is the SLOPE RATIO against the mRNA leg: coupled at BOTH mRNA and protein = a genuine dosage-sensitive cis-driver (ERBB2/MYC/MDM2); coupled at mRNA but uncoupled at protein = post-transcriptionally dosage-BUFFERED. The skill computes mrna_vs_protein_dosage_slope_ratio in its headline."
+  - "Class thresholds are IDENTICAL to the mRNA leg (spearman 0.4/0.25) for like-for-like comparability. Protein rank-correlations are noisier (MS noise), so focal-amp genes can land prot_dosage_uncoupled by rank even with a large amplified-vs-neutral delta (ERBB2 live: r=0.21, delta +2.1 log2). The delta + slope carry the focal-tail signal; protein-specific threshold calibration is a follow-up. Verdict-inert, so the class boundary gates nothing."
+  - "cn_dosage coupling is CORRELATIONAL, not a mediation test: a co-amplified neighbour or shared trans-regulator can produce the same CN->protein signal. It establishes the feature->protein LEG, not sole causality."
+  - "Gygi-MS ONLY — no Olink NPX fallback (unlike abundance-dependency): Olink is a different relative-NPX scale that would corrupt the CN->abundance slope. A target absent from the Gygi panel is honest data_unavailable, NOT a buffering call. relative CN is focal-amp convention (diploid ~ 1.0, NOT log2)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `cis_protein_dosage_coupling` claim (does the
+# target's own copy-number predict its own PROTEIN abundance?), derived_from [copy_number_alteration,
+# cell_line_protein_abundance]. Comparison-is-the-claim → derived even though both terms are DepMap-
+# co-resident (mirrors cis_dosage_coupling's derived-from-co-resident case).
+measurement_type: cis_protein_dosage_coupling
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
