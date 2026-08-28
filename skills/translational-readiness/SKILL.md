@@ -11,15 +11,17 @@ description: |
   DESCRIPTIVE (emits no verdict — like target-intrinsic): model availability is translational CONTEXT
   that informs confidence, not a nomination gate.
 
-  Also composes two more public translational legs: the HCMI genotype-MATCHED-model card (does an
-  available patient-derived model carry THIS target's alteration?) and the PDXE in-vivo drug-response
-  card (does the target's tractability reproduce in Novartis PDXE PDX population trials?).
+  Also composes three more public translational legs: the HCMI genotype-MATCHED-model card (does an
+  available patient-derived model carry THIS target's alteration?), the organoid ex-vivo dependency card
+  (does the target's dependency reproduce in patient-derived 3D CRISPR organoids — borrowed from the
+  dependency axis), and the PDXE in-vivo drug-response card (does the target's tractability reproduce in
+  Novartis PDXE PDX population trials?).
 
   STILL PARTIAL: the PD-assay, imaging-tracer, and INTERNAL Takeda models (PDX/organoid/GEMM) legs
   remain un-wired (those catalogs are not in data-catalog).
 
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -35,10 +37,13 @@ composition:
                                   # target's alteration? (gene x indication, HCMI WXS MAF join); VERDICT-INERT
     - target-pdx-drug-response    # in-vivo tractability corroboration (Novartis PDXE, Gao 2015); target-grain;
                                   # VERDICT-INERT translational display facet
+    - organoid-crispr-dependency  # ex-vivo dependency reproduction (DepMap 3D CRISPR organoids); BORROWED from
+                                  # the dependency axis, read as translational validation-readiness; VERDICT-INERT
   measurement_types_pulled:
     - model_availability          # target-model-availability (cohort-grain, HCMI-CMDC-DR45 derived)
     - genotype_matched_model      # target-genotype-matched-model (target_indication-grain, HCMI WXS MAF join)
     - pdx_drug_response           # target-pdx-drug-response (target-grain, PDXE-Gao-2015 derived)
+    - crispr_lof_dependency       # organoid-crispr-dependency (target-grain, DepMap 26Q1 OrganoidGeneEffect)
   rules_scope:
     - none                        # DESCRIPTIVE skill (verdict_fn=None) — no resolver rung
   synthesis:
@@ -72,6 +77,13 @@ When invoked, it emits `decision.json` with:
     `pdx_response_unavailable` / `data_unavailable` — does the target's tractability reproduce in vivo (PDXE)?
   - `pdx_responder_fraction`: objective-response rate (mRECIST CR/PR) across PDX models + treatments
   - `pdx_most_active_treatment`: the best single agent/combo naming the target in PDXE
+  - `organoid_dependency_class`: `pan_organoid_essential` / `broad_organoid_dependency` /
+    `selective_organoid_dependency` / `rare_organoid_dependency` / `not_organoid_dependent` /
+    `data_unavailable` — does the target's dependency reproduce EX VIVO in patient-derived 3D CRISPR organoids?
+  - `organoid_frac_dependent`: pan-organoid dependent fraction (fallback context)
+  - `organoid_lineage` / `organoid_lineage_frac_dependent` / `organoid_lineage_class`: the
+    indication-matched organoid lineage read (the strongest translational signal; `null` when the
+    indication has no mapped organoid lineage)
 - `partial_status_note`: the still-un-wired legs.
 
 ## What this skill wires
@@ -89,6 +101,12 @@ When invoked, it emits `decision.json` with:
   Backed by `pdxe-drug-response-per-gene-v1` (Novartis PDXE, Gao et al. 2015 Nat Med; the only large
   public in-vivo genotype -> drug-response resource). TARGET-grain (no per-indication split); a
   RESEARCH-ONLY source. VERDICT-INERT translational display facet.
+- **organoid-crispr-dependency** (ex-vivo dependency reproduction): "does the target's dependency
+  REPRODUCE EX VIVO in patient-derived 3D CRISPR organoid models — the ex-vivo complement of the PDX
+  in-vivo leg?" Backed by `organoid-crispr-dependency-26q1-v1` (+ `-by-lineage`) — the DepMap 26Q1
+  OrganoidGeneEffect Chronos run over 114 patient-derived organoid models (GI-dominated). BORROWED from
+  the dependency axis (home skill: functional-requirement) and read here with a TRANSLATIONAL framing;
+  the indication-matched `organoid_lineage_frac_dependent` is the primary read. VERDICT-INERT.
 
 ## Still un-wired (honest coverage gaps)
 
