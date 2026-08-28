@@ -42,7 +42,7 @@ def test_both_lanes_present_verdict_inert():
     assert card["verdict"] is None and card["verdict_inert"] is True
     assert "verdict_key" not in card and "gate" not in card
     assert card["status"] == "ok"
-    assert card["literature_evidence"]["total_papers"] == 42
+    assert card["literature_evidence"]["paper_disease_mentions"] == 42   # summed mentions, relabeled
     assert card["literature_evidence"]["indication_scope"] == "indication"
     assert card["relation_direction"]["relations"][0]["relation_type"] == "associate"
     assert card["relation_direction"]["mesh_id_source"] == "crosswalk_mesh_ids"
@@ -64,10 +64,29 @@ def test_pubtator_absent_lane_is_none_with_note():
     assert card["status"] == "ok"                          # one lane present -> ok
 
 
-def test_non_ok_status_treated_as_absent():
+def test_english_preferred_in_top_cited():
     ce = _load()
-    card = ce.build_cited_evidence_card("X", "Y", _epmc(status="no_evidence"), _rel(status="insufficient"))
+    e = _epmc(n=0)
+    e["top_papers"] = [{"pmid": "1", "cooccur": 99, "sentence": "分子靶向治疗 c-MET NSCLC"},   # non-English, highest cooccur
+                       {"pmid": "2", "cooccur": 50, "sentence": "MET amplification drives resistance in lung cancer"},
+                       {"pmid": "3", "cooccur": 10, "sentence": "c-MET exon 14 skipping is oncogenic"}]
+    card = ce.build_cited_evidence_card("MET", "LUAD", e, None, top_cited=2)
+    tops = card["literature_evidence"]["top_cited"]
+    assert [t["pmid"] for t in tops] == ["2", "3"]     # English surface first; non-English (1) deprioritized
+
+
+def test_bad_symbol_is_insufficient_not_no_evidence():
+    ce = _load()
+    # both readers report 'insufficient' when the symbol doesn't resolve -> card must say insufficient
+    card = ce.build_cited_evidence_card("ZZZ", "BRCA",
+                                        {"status": "insufficient"}, {"status": "insufficient"})
+    assert card["status"] == "insufficient"
     assert card["literature_evidence"] is None and card["relation_direction"] is None
+
+
+def test_genuine_absence_is_no_evidence():
+    ce = _load()
+    card = ce.build_cited_evidence_card("X", "Y", _epmc(status="no_evidence"), _rel(status="no_relations"))
     assert card["status"] == "no_evidence"
     assert card["verdict"] is None
 

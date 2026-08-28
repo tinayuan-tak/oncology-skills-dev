@@ -17,8 +17,27 @@ from __future__ import annotations
 
 from typing import Optional
 
-CARD_VERSION = "0.1.0"
+CARD_VERSION = "0.2.0"
 DEFAULT_TOP_CITED = 8
+
+
+def _looks_english(sentence) -> bool:
+    """Heuristic: is the text-mined sentence English (Latin-script)? True when >=90% of its alphabetic
+    characters are ASCII. Used to prefer English sentences for DISPLAY (the OT europepmc corpus carries
+    multilingual sentences; the top-by-co-occurrence sentence is sometimes non-English)."""
+    s = str(sentence or "")
+    letters = [c for c in s if c.isalpha()]
+    if not letters:
+        return True   # no alphabetic content (e.g. all-numeric) — don't penalize
+    return sum(1 for c in letters if ord(c) < 128) / len(letters) >= 0.9
+
+
+def _prefer_english(papers: list, k: int) -> list:
+    """Stable top-k that surfaces English-looking sentences FIRST (each group keeps its incoming
+    co-occurrence order), so the displayed citations are readable without dropping the ranking."""
+    eng = [p for p in papers if _looks_english(p.get("sentence"))]
+    other = [p for p in papers if not _looks_english(p.get("sentence"))]
+    return (eng + other)[:k]
 
 
 def build_cited_evidence_card(target: str, indication: str, epmc: Optional[dict],
@@ -33,12 +52,18 @@ def build_cited_evidence_card(target: str, indication: str, epmc: Optional[dict]
     if isinstance(epmc, dict) and epmc.get("status") == "ok":
         card["literature_evidence"] = {
             "indication_scope": epmc.get("europepmc_scope") or epmc.get("indication_scope"),
-            "total_papers": epmc.get("total_papers"),
-            "n_papers_recent": epmc.get("n_papers_recent"),
+            # NOTE: these are SUMMED over the indication's disease subtypes — a paper co-occurring with
+            # N subtypes counts N times. They are paper×disease MENTIONS, NOT distinct papers (the
+            # product carries per-(gene,disease) counts, so a distinct-across-subtypes count isn't
+            # available). n_diseases is surfaced so the inflation is visible.
+            "paper_disease_mentions": epmc.get("total_papers"),
+            "recent_mentions": epmc.get("n_papers_recent"),
+            "n_diseases": epmc.get("n_diseases"),
             "earliest_year": epmc.get("earliest_year"),
             "latest_year": epmc.get("latest_year"),
-            "n_diseases": epmc.get("n_diseases"),
-            "top_cited": list(epmc.get("top_papers") or [])[:top_cited],
+            "top_cited": _prefer_english(list(epmc.get("top_papers") or []), top_cited),
+            "_metric_note": "paper_disease_mentions/recent_mentions are summed over disease subtypes "
+                            "(mentions, not distinct papers); see n_diseases",
         }
         card["sources"]["europepmc_evidence"] = epmc.get("source")
     else:
@@ -64,7 +89,13 @@ def build_cited_evidence_card(target: str, indication: str, epmc: Optional[dict]
         else:
             card["notes"].append("pubtator: reader unavailable")
 
-    card["status"] = "ok" if (card["literature_evidence"] or card["relation_direction"]) else "no_evidence"
+    if card["literature_evidence"] or card["relation_direction"]:
+        card["status"] = "ok"
+    else:
+        # distinguish a bad/unresolvable input ('insufficient' from a reader) from a genuine coverage
+        # gap ('no_evidence'): if the gene didn't resolve, BOTH readers report 'insufficient'.
+        reader_statuses = {d.get("status") for d in (epmc, relations) if isinstance(d, dict)}
+        card["status"] = "insufficient" if "insufficient" in reader_statuses else "no_evidence"
     return card
 
 
