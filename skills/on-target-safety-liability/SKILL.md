@@ -24,7 +24,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.15.0
+  version: 1.16.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -33,6 +33,7 @@ composition:
   phase: [G]
   cards_used:                          # synced to run.py CARDS 2026-08-05 (P5 human-genetics axis grew this 2→8)
     - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
+    - shet-lof-intolerance             # 2026-08-28 — continuous GeneBayes s_het; VERDICT-INERT complement to gnomAD constraint
     - target-safety-prioritisation     # P5 composite safety-prioritisation
     - normal-tissue-liability-gtex     # P5: GTEx normal-tissue liability (re-scoped from the HPA-IHC normal-tissue-liability card, which was re-homed to surface-modality-fit/tumor-presence)
     - alteration-role                  # 2026-07-23 — mechanism CONTEXT for mutant-selective
@@ -76,6 +77,7 @@ composition:
   # every used card's type is declared so this cannot silently re-drift.
   measurement_types_pulled:
     - gnomad_lof_constraint                    # gnomad-lof-constraint
+    - shet_lof_selection                       # shet-lof-intolerance (continuous GeneBayes s_het)
     - target_safety_prioritisation             # target-safety-prioritisation
     - normal_tissue_rna_breadth                # normal-tissue-liability-gtex (GTEx = RNA)
     - alteration_role                          # alteration-role — mechanism-conditioning (mutant-selective downgrade)

@@ -47,7 +47,7 @@ from _skills_common.narrative import build_narrative
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.15.0"   # 1.15.0 (2026-08-28): NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
+SKILL_VERSION = "1.16.0"   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
                           # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
                           # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
                           # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
@@ -75,6 +75,12 @@ SKILL_VERSION = "1.15.0"   # 1.15.0 (2026-08-28): NET-NEW capsule-driven narrato
 
 CARDS = [
     "gnomad-lof-constraint",
+    "shet-lof-intolerance",           # (2026-08-28) — CONTINUOUS dominant-LoF selection coefficient
+                                      # (GeneBayes s_het, Zeng 2024). The continuous complement to the
+                                      # binary gnomAD pLI/LOEUF constraint call — catches dosage-sensitive
+                                      # small genes constraint misses. VERDICT-INERT (fires no rule, not in
+                                      # the safety resolver) → spine byte-stable; a corroboration/confidence
+                                      # annotation. Verdict-bearing rung is a deferred backtest-gated follow-up.
     "target-safety-prioritisation",   # (2026-07-24) — OT 26.06 engineered target-priority
                                       # scores as safety-orienting CONTEXT (safety-event / genetic-
                                       # constraint / mouse-KO bands). VERDICT-INERT: no warning, no
@@ -419,6 +425,13 @@ def _headline(cards, fired, verdict_pair):
         "syn_z_score":      get_card_field(cards, "gnomad-lof-constraint", "syn_z_score"),
         "obs_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "obs_lof_count"),
         "exp_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "exp_lof_count"),
+        # Continuous dominant-LoF selection (GeneBayes s_het, 2026-08-28) — the continuous complement to
+        # the binary constraint_class; catches dosage-sensitive small genes pLI/LOEUF miss. VERDICT-INERT
+        # (fires no rule); surfaced for LLM/reviewer as corroboration of the constraint call.
+        "shet_class":       get_card_field(cards, "shet-lof-intolerance", "shet_class"),
+        "shet_score":       get_card_field(cards, "shet-lof-intolerance", "shet_score"),
+        "shet_lower_95":    get_card_field(cards, "shet-lof-intolerance", "shet_lower_95"),
+        "shet_upper_95":    get_card_field(cards, "shet-lof-intolerance", "shet_upper_95"),
         # Human OBSERVED-KO (2026-08-07) — the DIRECT-observation complement to
         # constraint: obs_hom_lof counts healthy humans HOMOZYGOUS for a predicted-LoF variant
         # (natural knockouts). natural_ko_observed = full loss tolerated in the population →

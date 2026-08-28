@@ -706,6 +706,8 @@ SUB_SKILL_CARDS = {
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",
+        "shet-lof-intolerance",           # 2026-08-28 — continuous GeneBayes s_het (VERDICT-INERT complement
+                                          # to gnomAD constraint); added to CARDS + this map together.
         "alteration-role",                # 2026-07-24 BUGFIX — REQUIRED for the mutant-selective safety
                                           # downgrade to fire IN COMPOSITION. The fan-out scopes each
                                           # sub-skill to ITS OWN SUB_SKILL_CARDS entry (card_id_filter),

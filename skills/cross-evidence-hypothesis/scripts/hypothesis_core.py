@@ -107,7 +107,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "dependency-predictability"}),
     "safety": frozenset({
         "alteration-role", "clingen-dosage", "clinvar-pathogenicity-safety", "copy-number-distribution",
-        "gene-burden-safety", "gnomad-lof-constraint", "mouse-ko-phenotype",
+        "gene-burden-safety", "gnomad-lof-constraint", "shet-lof-intolerance", "mouse-ko-phenotype",
         "normal-tissue-liability-gtex", "target-safety-prioritisation", "drug-warning-safety",
         # data-util expansion 2026-08-21 — added to SUB_SKILL_CARDS[on-target-safety-liability]
         # (pan-essential broad-tox + HPA-IHC essential-tissue protein HOLD legs); mirror must carry them.

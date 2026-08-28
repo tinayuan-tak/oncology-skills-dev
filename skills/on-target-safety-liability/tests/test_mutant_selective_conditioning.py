@@ -39,7 +39,8 @@ _ALL_SAFETY_CARD_IDS = ["gnomad-lof-constraint", "alteration-role", "gene-burden
                         "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
                         "drug-warning-safety",
                         "functional-gene-state",   # PR-4c — rarely-altered guard card
-                        "onsides-adverse-event-safety"]   # 2026-08-25 — OnSIDES drug-label ADE context (verdict-inert display)
+                        "onsides-adverse-event-safety",   # 2026-08-25 — OnSIDES drug-label ADE context (verdict-inert display)
+                        "shet-lof-intolerance"]   # 2026-08-28 — continuous GeneBayes s_het (verdict-inert); _headline reads it
 
 
 def _safety_cards(**summaries):

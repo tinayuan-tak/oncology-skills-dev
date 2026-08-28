@@ -1,3 +1,6 @@
+# GENERATED from target-contracts vocabularies/target_profiling_axes.yaml (question_hierarchies).
+# Do NOT hand-edit: edit the governed source there and run skills/tools/sync_question_hierarchies.py --write.
+# The paired drift test (skills/tests/test_question_hierarchy_drift.py) fails CI on divergence.
 skill: on-target-safety-liability
 sub_groups:
 - id: CONSTRAINT
@@ -5,6 +8,7 @@ sub_groups:
   - id: constraint_read
     measurement_types:
     - gnomad_lof_constraint
+    - shet_lof_selection
   context_types:
   - alteration_role
   - copy_number_alteration
