@@ -1729,6 +1729,17 @@ measurement_types:
     providers:
       - {kind: dataset, source: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08, method: cd_antigen_backbone, evidence_tier: measured}
 
+  spatial_til_fraction:
+    # immune-context corroborator (2026-08-28): ABSOLUTE H&E deep-learning tumor-infiltrating-lymphocyte
+    # fraction (Saltz et al. 2018). Orthogonal to immune_context (CIBERSORT RNA deconvolution) — morphology
+    # vs RNA, same TCGA participants. VERDICT-INERT display corroborator; 13-study coverage. Dataset-kind.
+    modality_relevance: [bite_tce]
+    claim: "What is the absolute H&E deep-learning tumor-infiltrating-lymphocyte fraction in the indication (Saltz 2018), corroborating the CIBERSORT CD8 call?"
+    entity_grains: [target_indication]
+    cards: [tcga-til-fraction-saltz]
+    providers:
+      - {kind: dataset, source: tcga-til-fraction-saltz-per-sample-v1, evidence_tier: measured}
+
   immune_context:
     # biologics-augment effector arm (2026-08-06): tumor T-cell infiltration (immune-hot vs cold) from
     # CIBERSORT LM22 per-sample leukocyte composition. The EFFECTOR half of the TCE story — orthogonal

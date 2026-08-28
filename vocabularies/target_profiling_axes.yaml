@@ -561,6 +561,7 @@ skill_objectives:
     role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2). The 3 TME/immune facet cards below (myeloid / CAF / ICI-response) are VERDICT-INERT display context wired 2026-08-25; they add TME composition + outcome-anchored ICI-response direction alongside the CD8 effector call, moving no verdict."
     questions:
       - {q: "Is there a CD8 effector T-cell population (immune-hot vs cold) for a TCE to redirect?", answered_by: [immune-context]}
+      - {q: "Does an ABSOLUTE H&E deep-learning TIL fraction (Saltz 2018) corroborate the CIBERSORT CD8 hot/cold call? (display-only)", answered_by: [tcga-til-fraction-saltz]}
       - {q: "Does the target sit on tumour-infiltrating MYELOID cells — is it a myeloid-target / suppressive-TAM antigen (CSF1R-axis / TREM2 / SPP1 / SIRPA)? (display-only)", answered_by: [myeloid-compartment-expression-cheng]}
       - {q: "Does the target sit on tumour cancer-associated fibroblasts, and in which CAF state (myCAF / iCAF / apCAF / ...)? (display-only, stroma-vs-malignant denominator)", answered_by: [caf-compartment-expression-luo]}
       - {q: "Is baseline target expression higher in melanoma ICI (anti-PD-1) responders than non-responders? (display-only, melanoma-scoped)", answered_by: [ici-response-association]}
@@ -879,6 +880,7 @@ question_hierarchies:
       - id: infiltration
         measurement_types:
         - immune_context
+        - spatial_til_fraction
       - id: ici_response
         measurement_types:
         - ici_response_expression

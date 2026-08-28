@@ -1,0 +1,68 @@
+# Card — TCGA TIL FRACTION (Saltz 2018 H&E deep-learning)
+#
+# The ABSOLUTE, morphology-derived tumor-infiltrating-lymphocyte fraction — an orthogonal corroborator of
+# the immune-context CIBERSORT CD8 hot/cold call (H&E deep-learning vs RNA deconvolution, on the SAME TCGA
+# participants). Backed by tcga-til-fraction-saltz-per-sample-v1 + reader til_fraction_saltz.
+#
+# VERDICT-INERT DISPLAY (like cellline-protein-abundance-procan is the 2nd-platform corroborator of the
+# Gygi protein card): fires NO rule, moves no verdict. It HARDENS confidence in the CD8 call — a different
+# modality (H&E morphology) agreeing with the deconvolution call is stronger evidence than either alone.
+# The skill compares this card's til_fraction_class to the CIBERSORT immune-context class (agreement flag).
+#
+# COVERAGE: 13 TCGA studies ONLY (BLCA BRCA CESC COAD LUAD LUSC PAAD PRAD READ SKCM STAD UCEC UVM). Any
+# other indication → data_unavailable (fail-closed, never imputed).
+
+card_id: tcga-til-fraction-saltz
+version: 1.0.0
+question: "By H&E deep-learning (Saltz 2018), what is the absolute tumor-infiltrating-lymphocyte fraction in {indication}, and does it corroborate the CIBERSORT CD8 hot/cold call?"
+
+tier: indication   # per-TCGA-study absolute TIL fraction; indication-scoped (target-independent)
+
+applies_when:
+  - "context.indication in ['BLCA','BRCA','CESC','COAD','COADREAD','READ','LUAD','LUSC','NSCLC','PAAD','PRAD','SKCM','STAD','UCEC','UVM']"
+
+required_inputs:
+  - product_id: tcga-til-fraction-saltz-per-sample-v1
+
+methods:
+  - call: til-fraction-saltz
+    module: til_fraction_saltz          # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - til_fraction_class                 # PRIMARY categorical (verdict-inert)
+    - median_til_percentage              # absolute DL TIL fraction (median across the indication's participants)
+    - median_number_of_clusters          # spatial-aggregation statistic
+    - n_samples                          # participants scored
+    - tcga_studies                       # the TCGA study code(s) resolved
+    - til_context                        # narrative summary (audit)
+    - method_version
+
+  summary_fields_vocabulary:
+    til_fraction_class:
+      - til_high                         # median til_percentage >= 5 — strongly infiltrated
+      - til_intermediate                 # 2 <= median < 5
+      - til_low                          # median < 2 — sparsely infiltrated
+      - data_unavailable                 # indication not in the 13 Saltz studies / < n floor / read failure
+
+thresholds:
+  til_high_percentage: 5.0
+  til_intermediate_percentage: 2.0
+  min_participants: 30
+
+caveats:
+  - "VERDICT-INERT display corroborator (like cellline-protein-abundance-procan): fires no rule, moves no verdict. An ABSOLUTE H&E deep-learning TIL fraction that orthogonally corroborates the immune-context relative CIBERSORT CD8 hot/cold call (same TCGA participants, different modality). Agreement HARDENS confidence; it does not create or override the CD8 call."
+  - "COVERAGE: 13 TCGA studies ONLY (BLCA BRCA CESC COAD LUAD LUSC PAAD PRAD READ SKCM STAD UCEC UVM); any other indication → data_unavailable (fail-closed, never imputed). Absolute-threshold bins on the per-indication median til_percentage are COARSE — read median_til_percentage + n_samples, not the class alone."
+  - "til_percentage = fraction of H&E image patches classified TIL-positive by a deep-learning model (Saltz et al. 2018); morphology-based, antibody-independent. Join key is the 12-char TCGA ParticipantBarcode. CC-BY-3.0/TCIA — cite Saltz et al. 2018 + TCIA DOI 10.7937/K9/TCIA.2018.Y75F9W1."
+
+# DATA_TO_SKILL_CONTRACT — a view of the spatial_til_fraction measurement (absolute H&E DL TIL fraction
+# per TCGA study). Dataset-kind (single Saltz source), NOT a derived comparison.
+sample_context: tumor
+measurement_type: spatial_til_fraction
+modality_relevance: [bite_tce]
+entity_grains: [target_indication]
+schema_version: 1
