@@ -79,6 +79,7 @@ caveats:
 # DATA_TO_SKILL_CONTRACT — a DIRECT view of the tumor_protein_ihc_presence measurement (HPA antibody
 # staining fraction per gene x cancer type). Dataset-kind (single-source raw HPA IHC), NOT a derived
 # comparison.
+measurement: protein_ihc   # coarse layer (matches normal-tissue-liability); the tumor-presence CARD_CONTEXT drift guard mirrors this + sample_context
 measurement_type: tumor_protein_ihc_presence
 sample_context: tumor
 modality_relevance: [antibody, adc, bite_tce, small_molecule, degrader]
