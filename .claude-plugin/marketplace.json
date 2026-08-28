@@ -34,6 +34,7 @@
         "./skills/surface-modality-fit",
         "./skills/surfaceome-cohort-ranking",
         "./skills/synthetic-lethal-partners",
+        "./skills/target-archetype",
         "./skills/target-intrinsic",
         "./skills/target-profile",
         "./skills/tractability-small-molecule",

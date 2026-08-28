@@ -556,6 +556,23 @@ def main() -> int:
     # consumed by the dashboard 'why this verdict' panel + the Tier-3 synthesis, never the spine.
     narrative_by_axis = _narrative_by_axis(sub_results, fragility, modality=args.modality)
 
+    # Target-archetype COMPANION (2026-08-28): a verdict-INERT reduction-stage facet — the cross-skill
+    # nearest-reference layer. Positions this target against the frozen reference atlas: nearest analogs +
+    # soft archetype membership (distance-weighted kNN, NOT a hard label) + rule-fingerprint precedent +
+    # a missingness map. DESCRIPTIVE only — never a gate, never in _SHORT_TO_GATE / sub_verdicts / the
+    # resolver; emitted in nomination.json for the reader + Tier-3 synthesis. Best-effort: a missing or
+    # unreadable atlas degrades to None so the deterministic nomination spine is NEVER affected. See
+    # skills/target-archetype/SKILL.md + _skills_common/archetype_core.py for the governance contract.
+    archetype_companion = None
+    try:
+        from _skills_common import archetype_core
+        _atlas_path = Path(__file__).resolve().parents[2] / "target-archetype" / "atlas" / "atlas.json"
+        if _atlas_path.exists():
+            archetype_companion = archetype_core.companion_from_sub_results(
+                sub_results, archetype_core.Atlas.load(_atlas_path))
+    except Exception:
+        archetype_companion = None   # verdict-inert facet — never fail the flagship on a companion error
+
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
     # deterministic verdict + gate recommendation are untouched.
@@ -932,6 +949,12 @@ def main() -> int:
         # flip_conditions / gaps / rule_sentences per decision-relevant verdict. ADDITIVE / verdict-inert
         # — the citeable substrate for the dashboard 'why this verdict' panel + Tier-3 synthesis.
         "narrative_by_axis": narrative_by_axis,
+        # Target-archetype COMPANION (2026-08-28): the verdict-INERT cross-skill nearest-reference facet
+        # — soft archetype membership (kNN, not a label) + nearest reference analogs + rule-fingerprint
+        # precedent + a missingness map, against the frozen reference atlas. DESCRIPTIVE; archetype ∉
+        # _SHORT_TO_GATE and this never touches the recommendation/gate/confidence. None when the atlas is
+        # absent or the companion could not be computed (best-effort — see the computation site above).
+        "archetype_companion": archetype_companion,
         # M4 per-channel modality favorability rolled up from the records' modality_scope (worst-case
         # conjunction). ADDITIVE / verdict-inert — the per-modality view the scalar verdict couldn't hold.
         "modality_fit_by_channel": modality_fit_by_channel,
