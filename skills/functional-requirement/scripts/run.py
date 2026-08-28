@@ -25,7 +25,8 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, resolve_cards, _summary_is_unavailable
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.synthesis_dependency import synthesize_dependency
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -36,7 +37,7 @@ from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
                           #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
                           # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
                           # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
@@ -1058,7 +1059,10 @@ if __name__ == "__main__":
         # dispatcher attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed,
         # so it is structurally impossible for the narration to alter dependency_verdict. Without this
         # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens).
-        synthesize_fn=synthesize_dependency,
+        # MIGRATED to the generic capsule-driven narrator engine + the dependency LensConfig (was the
+        # bespoke synthesize_dependency). Same two-slot / verdict-inert contract; now reads the evidence
+        # capsules (bounded raw data) alongside the signal vector.
+        synthesize_fn=make_synthesize_fn(_FR_LENS),
         # Opt-in --subtypes resolves the DESCRIPTIVE dependency-by-molecular-subgroup panorama
         # (subgroup-stratified-dependency; e.g. MSI_H vs MSS). Verdict-inert: its cards touch no
         # resolver rung, so the dependency verdict is byte-identical without --subtypes.

@@ -660,6 +660,19 @@ def run_wired_skill(
         except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
             pass
 
+    # CENTRAL evidence-capsule wiring: the complete-but-limited per-card data package (signal + 5 bounded
+    # raw selector shapes + card-floor manifest). Attached to EVERY decision so it flows to BOTH LLM
+    # consumers — each skill's single-lens narrator (narrator_engine reads decision['evidence_capsules'])
+    # AND, via the target-profile fan-out's evidence_package, the retrieve-don't-recall cross-evidence
+    # agent (each capsule row is a citable atom, satisfying the card floor). Pure selection, hash-stable,
+    # VERDICT-INERT, best-effort — one edit feeds the whole fleet.
+    if isinstance(headline, dict):
+        try:
+            from _skills_common.evidence_capsule import emit_capsules
+            headline["evidence_capsules"] = emit_capsules(card_outputs, _indication)
+        except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
+            pass
+
     # Attach dependency-status provenance + isoform-selective flags uniformly
     headline["cards_available"] = sum(1 for c in card_outputs
                                        if not c.get("_missing"))
