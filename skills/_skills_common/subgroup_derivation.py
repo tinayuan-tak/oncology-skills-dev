@@ -75,7 +75,20 @@ def _nbucket(n) -> str:
 _SIGNAL_KEY = re.compile(r"(expression|dependency|abundance|selectivity|breadth|role|state|fit|density|"
                          r"score|concordance|biomarker|activity|druggability|homogeneity|coverage)")
 _N_KEY = re.compile(r"(^n_|_n$|_samples$|_cells$|_cells_total$|_donors$|_lines$|_evaluated$|subgroup_n|"
-                    r"_paired|cells_ran|n_cohorts)")
+                    r"_paired|cells_ran|n_cohorts|_ligands$|_patients$|_models$|_compounds$)")
+# FEATURE / QUALITY counts that superficially match _N_KEY but are NOT a sample size — binding them as
+# `n` mis-reads power (n_domains_low_plddt=6 as PDB coverage; n_admissible_strata=14 as patient count).
+_N_DENY = re.compile(r"(_low_plddt$|_axes$|_strata$|_domains$|_classes$|_flags$|_bins$|_categories$|"
+                     r"_features$|_complexes$|_paralogs.*$|_partners$|_interactors$)")
+# Prefer a genuine SAMPLE-SIZE field over any other n-match (the reader takes the FIRST present n, so
+# ordering decides): patients/samples/lines/cells/donors/models/ligands rank ahead of generic counts.
+_N_PRIORITY = ("patient", "sample", "cell_line", "_lines", "cell", "donor", "model", "screen",
+               "ligand", "tumor", "compound", "pair", "cohort")
+
+
+def _n_rank(k: str) -> int:
+    kl = k.lower()
+    return next((i for i, t in enumerate(_N_PRIORITY) if t in kl), len(_N_PRIORITY))
 
 
 def _heuristic_reader(summary: dict) -> "dict | None":
@@ -85,7 +98,9 @@ def _heuristic_reader(summary: dict) -> "dict | None":
         or next((k for k in summary if _SIGNAL_KEY.search(k) and isinstance(summary[k], str)), None)
     if not cls:
         return None
-    ns = [k for k in summary if _N_KEY.search(k) and isinstance(summary[k], (int, float))]
+    ns = [k for k in summary if _N_KEY.search(k) and isinstance(summary[k], (int, float))
+          and not _N_DENY.search(k)]
+    ns = sorted(ns, key=lambda k: (_n_rank(k), k))    # true sample-size fields first; deterministic tie-break
     return {"class": cls, "n": ns, "label": cls.replace("_class", "").replace("_", " ")}
 
 
@@ -103,6 +118,7 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = 
                 type_sg.setdefault(mt, sg["id"])
 
     per: dict = {}
+    _seen: set = set()                    # (sub_group, _data_source, value) — dedup byte-identical sources
     for c in cards or []:
         cid = c.get("card_id")
         summ = c.get("summary") or {}
@@ -122,6 +138,14 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = 
         if raw in spec.get("present_synonyms", ()):   # e.g. protein ns = quantified/present, not low
             raw = "__present__"
         t = classify(raw)
+        # Dedup byte-identical sources: two cards from the SAME provenance with the SAME measured value are
+        # ONE measurement, not independent corroboration (e.g. genomic FUS's two tcga-spliceseq splice cards).
+        _ds = summ.get("_data_source")
+        if _ds is not None:
+            _key = (sg, _ds, summ.get(spec["class"]))
+            if _key in _seen:
+                continue
+            _seen.add(_key)
         n = next((summ.get(f) for f in spec.get("n", []) if isinstance(summ.get(f), (int, float))), None)
         conflict = summ.get("allgene_percentile_class") == "bottom_decile"   # level != breadth
         per.setdefault(sg, []).append({"card": cid, "tier": t, "n": n, "power": _nbucket(n),

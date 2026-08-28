@@ -85,6 +85,40 @@ def test_confidence_only_card_skipped_via_falsy_spec(monkeypatch):
     assert out["DEP"]["signal"] == "strong"
 
 
+# ── n-selection mis-bind fixes (bugs 2/3/4): prefer sample-size, deny feature counts, catch ligands ──
+def test_n_selection_prefers_sample_size_over_strata_count():
+    # bug 4: n_admissible_strata(=14) must NOT outrank n_patients(=1796)
+    r = _heuristic_reader({"subtype_survival_association_class": "subtype_stratifies_survival",
+                           "n_admissible_strata": 14, "n_events": 319, "n_patients": 1796})
+    assert r["n"][0] == "n_patients"                    # true cohort size chosen first
+    assert "n_admissible_strata" not in r["n"]          # feature count denied entirely
+
+
+def test_n_selection_denies_alphafold_disorder_metric():
+    # bug 3: n_domains_low_plddt(=6) is an AlphaFold disorder count, not PDB coverage — never a sample size
+    r = _heuristic_reader({"structure_features_class": "high", "n_domains_low_plddt": 6, "n_ligandability_axes": 4})
+    assert r["n"] == []                                 # both denied → honest n=None downstream
+
+
+def test_n_selection_catches_ligand_count():
+    # bug 2: chembl_n_potent_ligands has a mid-token _n_ that the old regex missed
+    r = _heuristic_reader({"potency_class": "potent_measured_ligand",
+                           "chembl_n_potent_ligands": 8619, "bindingdb_n_potent_ligands": 11644})
+    assert set(r["n"]) == {"chembl_n_potent_ligands", "bindingdb_n_potent_ligands"}
+
+
+def test_dedup_byte_identical_provenance(monkeypatch):
+    # bug 7: two cards, same _data_source + same value = ONE measurement, not two agreeing sources
+    import _skills_common.subgroup_derivation as SD
+    monkeypatch.setattr(SD, "_card_meta",
+                        lambda cid: {"a": ("mt_a", None), "b": ("mt_b", None)}.get(cid, (None, None)))
+    hier = {"sub_groups": [{"id": "FUS", "questions": [{"measurement_types": ["mt_a", "mt_b"]}]}]}
+    cards = [{"card_id": "a", "summary": {"x_class": "tumor_shifted", "_data_source": "tcga-spliceseq"}},
+             {"card_id": "b", "summary": {"x_class": "tumor_shifted", "_data_source": "tcga-spliceseq"}}]
+    out = derive_subgroups(hier, cards, None)
+    assert out["FUS"]["n_sources"] == 1                 # deduped (byte-identical provenance+value)
+
+
 @pytest.mark.skipif(_contracts_absent(), reason="target-contracts absent")
 def test_signals_for_derives_reader_spec_free():
     """subgroup_signals_for on presence's hierarchy + EPCAM cards, WITHOUT an explicit reader spec
