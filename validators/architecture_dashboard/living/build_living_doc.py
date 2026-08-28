@@ -34,7 +34,8 @@ import build_unified_dashboard as UD  # noqa: E402
 
 # living modules — work both as a package (-m) and as bare imports
 try:
-    from . import concepts as _concepts, gaps as _gaps, narrative as _narrative, glossary as _glossary
+    from . import (concepts as _concepts, gaps as _gaps, narrative as _narrative,
+                   glossary as _glossary, flow as _flow)
     from .render_living import render_html
 except Exception:  # pragma: no cover - bare-path fallback
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -42,6 +43,7 @@ except Exception:  # pragma: no cover - bare-path fallback
     import gaps as _gaps  # type: ignore
     import narrative as _narrative  # type: ignore
     import glossary as _glossary  # type: ignore
+    import flow as _flow  # type: ignore
     from render_living import render_html  # type: ignore
 
 HOME = Path.home()
@@ -63,6 +65,7 @@ def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path,
     # order matters: glossary needs the wiring; concepts/gaps/narrative are independent
     graph["glossary"] = _glossary.build_glossary(graph, roots)
     graph["concepts"] = _concepts.build_concepts(graph, roots)
+    graph["flow"] = _flow.build_flow(graph)          # needs concepts + glossary
     graph["gaps"] = _gaps.build_gaps(graph, roots)
     graph["narrative"] = _narrative.build_narrative(roots)
     graph["living_doc_version"] = "1.0.0"
@@ -113,6 +116,31 @@ def self_check(graph: dict) -> list[str]:
     for sev, n in tally.items():
         if s.get(f"n_{sev}") != n:
             errs.append(f"gaps n_{sev}={s.get(f'n_{sev}')} != counted {n}")
+    # flow: levels present + worked-example tokens still exist in the contracts
+    flow = graph.get("flow") or {}
+    levels = flow.get("levels") or []
+    if not levels:
+        errs.append("no flow levels present")
+    n_schem = 0
+    for lv in levels:
+        if not (lv.get("stages") or lv.get("center")):
+            errs.append(f"flow level {lv.get('id')} has no stages/center")
+        sc = lv.get("schematic")
+        if sc:
+            n_schem += 1
+            if "«" in sc or "»" in sc:
+                errs.append(f"flow level {lv.get('id')} schematic has unfilled «token» placeholder")
+    if levels and n_schem < 5:
+        errs.append(f"expected >=5 wire schematics, found {n_schem}")
+    try:  # flow_token_errors is defined in flow.py; import lazily to keep self-check standalone
+        try:
+            from . import flow as _fl
+        except Exception:
+            import flow as _fl  # type: ignore
+        errs += _fl.flow_token_errors(graph)
+    except Exception as e:
+        errs.append(f"flow token check unavailable: {e}")
+
     # glossary: coverage over the graph-derived token sets (legibility contract)
     errs += glossary_coverage_errors(graph)
     return errs

@@ -219,6 +219,128 @@ def _narrative(graph):
 
 
 # --------------------------------------------------------------------------- #
+# FLOW — the workflow schema diagrams at multiple altitudes
+# --------------------------------------------------------------------------- #
+_KIND_COLOR = {"source_manifest": TEAL, "derived_manifest": TEAL, "method": "#199e70",
+               "card": PURPLE, "interpretation_rule": AMBER, "resolver": RED,
+               "skill": "#2b6cb0", "evidence_package": GREY}
+
+
+def _pnode(graph, st):
+    kc = _KIND_COLOR.get(st.get("kind"), GREY)
+    badge = st.get("component_label") or st.get("kind") or ""
+    jump = (f" onclick=\"event.stopPropagation();showTab('concepts')\" "
+            f"title=\"see this component in Concepts\""
+            if st.get("concept_present") else "")
+    tokchip = ""
+    if st.get("token") and st.get("token_gloss"):
+        tg = st["token_gloss"]
+        tokchip = (f'<div class="ptok" title="{_esc(tg.get("plain_english"))}">'
+                   f'{_esc(tg.get("label"))}<code class="rawid">{_esc(st["token"])}</code></div>')
+    ex = f'<div class="pex">{_esc(st["example"])}</div>' if st.get("example") else ""
+    art = f'<div class="part">▸ {_esc(st["artifact"])}</div>' if st.get("artifact") else ""
+    # zoom-in: a stage that expands into another level is clickable
+    drill = st.get("drill_idx")
+    zoom, cls, onclick = "", "pnode", ""
+    if drill is not None:
+        zoom = '<div class="pzoom">⤢ zoom in</div>'
+        cls = "pnode drillable"
+        onclick = f' onclick="selFlow({drill})" title="zoom into this abstraction"'
+    return (f'<div class="{cls}" style="border-top:3px solid {kc}"{onclick}>'
+            f'<div class="pbadge" style="color:{kc}"{jump}>{_esc(badge)}</div>'
+            f'<div class="ptitle">{_esc(st["label"])}</div>'
+            f'<div class="pplain">{_esc(st["plain"])}</div>'
+            f'{tokchip}{ex}{art}{zoom}</div>')
+
+
+def _lane(lane):
+    if not lane:
+        return ""
+    steps = "".join(f"<li>{_esc(s)}</li>" for s in lane.get("steps", []))
+    di = lane.get("drill_idx")
+    zoom = (f'<button class="lanezoom" onclick="selFlow({di})">⤢ zoom into this lane</button>'
+            if di is not None else "")
+    return (f'<div class="lane"><div class="laneup">▲ from <b>{_esc(lane.get("from"))}</b></div>'
+            f'<div class="lanehd">{_esc(lane.get("label"))}{zoom}</div>'
+            f'<ul class="lanesteps">{steps}</ul>'
+            f'<div class="laneinv">{_esc(lane.get("invariant"))}</div></div>')
+
+
+def _pipeline(graph, lv):
+    nodes = f'<span class="parrow">▸</span>'.join(_pnode(graph, st) for st in lv["stages"])
+    return f'<div class="pipe">{nodes}</div>' + _lane(lv.get("lane"))
+
+
+def _hub(graph, lv):
+    c = lv["center"]
+    kc = _KIND_COLOR.get(c.get("kind"), PURPLE)
+    vb = _chip("verdict-bearing" if lv.get("verdict_bearing") else "verdict-inert",
+               PURPLE if lv.get("verdict_bearing") else GREY)
+    center = (f'<div class="hubcenter" style="border:2px solid {kc}">'
+              f'<div class="pbadge" style="color:{kc}" onclick="showTab(\'concepts\')">'
+              f'{_esc(c.get("component_label"))}</div>'
+              f'<div class="ptitle">{_esc(c["label"])}</div>'
+              f'<div class="pplain">{_esc(c["plain"])}</div>{vb}</div>')
+    sats = ""
+    for s in lv["satellites"]:
+        kc2 = _KIND_COLOR.get(s.get("kind"), GREY)
+        items = "".join(f'<li><code>{_esc(i)}</code></li>' for i in s["items"])
+        sats += (f'<div class="hubsat" style="border-left:3px solid {kc2}">'
+                 f'<div class="satrole">{_esc(s["role"])}</div><ul>{items}</ul></div>')
+    return f'<div class="hub">{center}<div class="hubsats">{sats}</div></div>'
+
+
+def _flow(graph):
+    F = graph.get("flow") or {}
+    levels = F.get("levels") or []
+    if not levels:
+        return '<div class="empty">no flow model</div>'
+    w = F.get("worked") or {}
+    intro = ('<p class="muted">The framework at different zoom levels — pick an altitude. The '
+             f'concrete values trace one real slice (<b>{_esc(w.get("target"))}</b> in '
+             f'<b>{_esc(w.get("indication"))}</b>, {_esc(w.get("gate"))} gate); the tokens are real '
+             'contract ids (a self-check fails if any goes stale). Click a component badge to open '
+             'it in Concepts.</p>')
+    pick = '<div class="flowpick">' + "".join(
+        f'<button class="flowbtn{" active" if i == 0 else ""}" id="flowbtn-{i}" '
+        f'onclick="selFlow({i})">{_esc(lv["title"])}</button>' for i, lv in enumerate(levels)) + '</div>'
+    panes = ""
+    for i, lv in enumerate(levels):
+        body = _hub(graph, lv) if lv.get("layout") == "hub" else _pipeline(graph, lv)
+        # breadcrumb: zoom OUT to parent + the child levels this one drills INTO
+        crumb = ""
+        if lv.get("parent_idx") is not None:
+            pt = levels[lv["parent_idx"]]["title"]
+            crumb += (f'<button class="crumb up" onclick="selFlow({lv["parent_idx"]})">'
+                      f'↑ zoom out · {_esc(pt)}</button>')
+        for ch in lv.get("child_idx") or []:
+            crumb += (f'<button class="crumb down" onclick="selFlow({ch["idx"]})">'
+                      f'⤢ {_esc(ch["title"])}</button>')
+        crumb_html = f'<div class="crumbs">{crumb}</div>' if crumb else ""
+        # a level with a wire schematic gets a schematic ⇄ boxes toggle (schematic leads on card level)
+        if lv.get("schematic"):
+            lead = bool(lv.get("default_schem"))
+            tog = (f'<div class="viewtog">'
+                   f'<button class="vbtn{" active" if lead else ""}" id="vbtn-schem-{i}" '
+                   f'onclick="flowView({i},\'schem\')">◫ schematic</button>'
+                   f'<button class="vbtn{"" if lead else " active"}" id="vbtn-boxes-{i}" '
+                   f'onclick="flowView({i},\'boxes\')">▤ boxes</button></div>')
+            content = (tog
+                       + f'<div class="fv fv-schem{" on" if lead else ""}" id="fvs-{i}">'
+                       + _schematic_pre(lv["schematic"]) + '</div>'
+                       + f'<div class="fv fv-boxes{"" if lead else " on"}" id="fvb-{i}">{body}</div>')
+        else:
+            content = body
+        panes += (f'<div class="flvl{" active" if i == 0 else ""}" id="flvl-{i}">'
+                  f'{crumb_html}<div class="flsub">{_esc(lv.get("subtitle"))}</div>{content}</div>')
+    return intro + pick + panes
+
+
+def _schematic_pre(art):
+    return f'<pre class="schem">{_esc(art)}</pre>'
+
+
+# --------------------------------------------------------------------------- #
 # CSS + shell
 # --------------------------------------------------------------------------- #
 _LIVING_CSS = """
@@ -248,6 +370,51 @@ body.showraw .tok .rawid,body.showraw .rawid{display:inline}
 .docttl{font-weight:700;font-size:12.5px;margin-bottom:3px}
 .docsum{font-size:11.5px;line-height:1.5}
 @media(max-width:900px){.doclist{grid-template-columns:1fr}}
+/* flow diagrams */
+.flowpick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.flowbtn{padding:6px 12px;border:1px solid var(--line);border-radius:16px;background:var(--card);
+  font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.flowbtn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.flvl{display:none}.flvl.active{display:block}
+.flsub{background:#161616;color:#e8e8e8;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:12.5px;line-height:1.55}
+.pipe{display:flex;flex-wrap:wrap;align-items:stretch;gap:0}
+.pnode{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  width:210px;min-width:210px;flex:0 0 auto;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.parrow{display:flex;align-items:center;color:var(--purple);font-size:22px;font-weight:700;padding:0 6px}
+.pbadge{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.ptitle{font-weight:700;font-size:13px;margin:2px 0 4px}
+.pplain{font-size:11px;color:var(--muted);line-height:1.45}
+.ptok{margin-top:6px;font-size:11px;background:#f3f0fa;border:1px solid #e0d8f2;border-radius:4px;padding:2px 6px}
+.pex{margin-top:6px;font-size:11px;font-family:ui-monospace,Menlo,monospace;background:#f5f4ef;border-radius:4px;padding:3px 6px;word-break:break-word}
+.part{margin-top:5px;font-size:11px;font-family:ui-monospace,Menlo,monospace;color:#199e70;font-weight:600}
+.lane{margin:14px 0 0;background:#fbfaf6;border:1px dashed var(--purple);border-radius:8px;padding:10px 14px}
+.laneup{font-size:11px;color:var(--purple);font-weight:700;margin-bottom:2px}
+.lanehd{font-weight:700;font-size:12.5px}
+.lanesteps{margin:5px 0;padding-left:18px;font-size:11.5px;color:var(--muted);line-height:1.5}
+.laneinv{font-size:12px;font-weight:700;margin-top:4px}
+.hub{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
+.hubcenter{background:var(--card);border-radius:10px;padding:14px}
+.hubsats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hubsat{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.satrole{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.hubsat ul{margin:0;padding-left:16px;font-size:11px;line-height:1.5}
+.pnode.drillable{cursor:pointer;transition:.1s}
+.pnode.drillable:hover{border-color:var(--purple);box-shadow:0 3px 12px rgba(108,90,168,.2);transform:translateY(-1px)}
+.pzoom{margin-top:7px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.04em}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.crumb{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:14px;padding:4px 11px;cursor:pointer;background:var(--card)}
+.crumb.up{color:#2b6cb0;border-color:#bcd0ea}
+.crumb.down{color:var(--purple);border-color:#e0d8f2}
+.crumb:hover{filter:brightness(.97)}
+.lanezoom{margin-left:10px;font-size:10.5px;font-weight:700;color:var(--purple);background:none;border:1px solid #e0d8f2;border-radius:12px;padding:2px 9px;cursor:pointer}
+.viewtog{display:flex;gap:4px;margin:0 0 10px}
+.vbtn{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:6px;padding:4px 12px;cursor:pointer;background:var(--card);color:var(--muted)}
+.vbtn.active{background:#161616;color:#fff;border-color:#161616}
+.fv{display:none}.fv.on{display:block}
+pre.schem{background:#161616;color:#e8e8e8;border-radius:8px;padding:14px 16px;overflow-x:auto;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;white-space:pre;margin:0}
+@media(max-width:900px){.pnode{width:100%;min-width:0}.parrow{transform:rotate(90deg);padding:2px 0}
+  .pipe{flex-direction:column}.hub{grid-template-columns:1fr}.hubsats{grid-template-columns:1fr}}
 """
 
 
@@ -278,6 +445,7 @@ def render_html(graph: dict) -> str:
 </header>
 <div class="utabs">
   <div class="utab active" id="utab-overview" onclick="showTab('overview')">Overview</div>
+  <div class="utab" id="utab-flow" onclick="showTab('flow')">Flow</div>
   <div class="utab" id="utab-gaps" onclick="showTab('gaps')">Gaps{gaps_badge}</div>
   <div class="utab" id="utab-concepts" onclick="showTab('concepts')">Concepts</div>
   <div class="utab" id="utab-explorer" onclick="showTab('explorer')">Explorer</div>
@@ -291,6 +459,7 @@ def render_html(graph: dict) -> str:
 </div>
 
 <div class="upane active" id="pane-overview"><main>{U._overview(graph)}</main></div>
+<div class="upane" id="pane-flow"><main><h2>Flow — the framework at every altitude</h2>{_flow(graph)}</main></div>
 <div class="upane" id="pane-gaps"><main><h2>Gaps — every missing or broken piece, ranked</h2>{_gaps(graph)}</main></div>
 <div class="upane" id="pane-concepts"><main><h2>Concepts &amp; schemas — the building blocks</h2>{_concepts(graph)}</main></div>
 
@@ -321,6 +490,23 @@ function showTab(id){{
   document.querySelectorAll('.utab').forEach(t=>t.classList.remove('active'));
   document.getElementById('pane-'+id).classList.add('active');
   document.getElementById('utab-'+id).classList.add('active');
+}}
+function selFlow(i){{
+  showTab('flow');
+  document.querySelectorAll('.flvl').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.flowbtn').forEach(b=>b.classList.remove('active'));
+  var pane=document.getElementById('flvl-'+i), btn=document.getElementById('flowbtn-'+i);
+  if(pane) pane.classList.add('active');
+  if(btn){{ btn.classList.add('active'); btn.scrollIntoView({{block:'nearest',inline:'center'}}); }}
+  window.scrollTo({{top:0,behavior:'smooth'}});
+}}
+function flowView(i,mode){{
+  var b=document.getElementById('fvb-'+i), s=document.getElementById('fvs-'+i);
+  if(b) b.classList.toggle('on', mode==='boxes');
+  if(s) s.classList.toggle('on', mode==='schem');
+  ['schem','boxes'].forEach(function(m){{
+    var x=document.getElementById('vbtn-'+m+'-'+i); if(x) x.classList.toggle('active', m===mode);
+  }});
 }}
 </script>
 </body></html>"""
