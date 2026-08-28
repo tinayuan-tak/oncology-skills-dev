@@ -1,3 +1,6 @@
+# GENERATED from target-contracts vocabularies/target_profiling_axes.yaml (question_hierarchies).
+# Do NOT hand-edit: edit the governed source there and run skills/tools/sync_question_hierarchies.py --write.
+# The paired drift test (skills/tests/test_question_hierarchy_drift.py) fails CI on divergence.
 skill: cis-feature-coherence
 sub_groups:
 - id: CIS_DOSAGE
@@ -5,6 +8,7 @@ sub_groups:
   - id: cis_dosage_read
     measurement_types:
     - cis_dosage_coupling
+    - cis_protein_dosage_coupling
     - amp_expr_stratified_dependency
   context_types:
   - cell_line_isoform_dominance
@@ -19,6 +23,7 @@ sub_groups:
   - id: expr_dep_read
     measurement_types:
     - expression_dependency_correlation
+    - abundance_dependency_correlation
 - id: CONJOINT
   questions:
   - id: conjoint_read

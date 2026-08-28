@@ -497,9 +497,12 @@ SUB_SKILL_CARDS = {
                                          # relational claim_vector axes read these; byte-stable on the spine.
     ],
     "cis-feature-coherence": [
-        "cis-feature-expression-coherence",  # GoF leg-1: CN -> own-expression cis-dosage (amplification)
+        "cis-feature-expression-coherence",  # GoF leg-1: CN -> own-expression cis-dosage (amplification, mRNA)
+        "cis-feature-protein-coherence",     # GoF leg-1 (PROTEIN): CN -> own-protein cis-dosage; slope RATIO vs
+                                             # mRNA leg = dosage-buffering fingerprint. VERDICT-INERT (fires no rule).
         "cellline-methylation-expression-coherence",  # LoF leg-1: promoter methylation -> own LOW expression (silencing)
         "expression-dependency-correlation", # leg-2 (reused; also composed under functional-requirement)
+        "abundance-dependency",              # leg-2 (PROTEIN, reused from the dependency axis); VERDICT-INERT here
         "amp-expr-stratified-dependency",    # leg-2 (reused; also composed under genomic-alteration-profile)
         "patient-cis-coherence",             # VERDICT-INERT patient (TCGA) corroboration facet (fires no rule)
                                              # Matches cis-feature-coherence SKILL.md cards_used. The two leg-2

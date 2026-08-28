@@ -52,8 +52,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "synthetic-lethal-partners", "combinatorial-dependency",
         "combo-crispr-screen", "resistance-emergence-signature"}),  # CONSOLIDATED relational annex (gateless)
     "cis_coherence": frozenset({
-        "cis-feature-expression-coherence", "cellline-methylation-expression-coherence",
-        "expression-dependency-correlation",
+        "cis-feature-expression-coherence", "cis-feature-protein-coherence",  # mRNA + PROTEIN GoF leg-1
+        "cellline-methylation-expression-coherence",
+        "expression-dependency-correlation", "abundance-dependency",  # mRNA + PROTEIN leg-2
         "amp-expr-stratified-dependency", "patient-cis-coherence",
         "cellline-isoform-dominance", "cellline-isoform-expression"}),   # +R10 molecular-form facets; mirrors SUB_SKILL_CARDS[cis-feature-coherence]
     "dependency": frozenset({

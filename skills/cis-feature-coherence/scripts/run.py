@@ -46,12 +46,19 @@ _CIS_VALUE_TIERS = {
 
 
 SKILL_NAME = "cis-feature-coherence"
-SKILL_VERSION = "1.2.0"   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.1.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.
+SKILL_VERSION = "1.3.0"   # 1.3.0 (2026-08-28): PROTEIN legs (cis-feature-protein-coherence CN→protein + abundance-dependency protein→dep) + mRNA-vs-protein dosage slope ratio. VERDICT-INERT.   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine.
 
 CARDS = [
-    "cis-feature-expression-coherence",     # GoF leg-1: CN → own-expression cis-dosage (amplification)
+    "cis-feature-expression-coherence",     # GoF leg-1: CN → own-expression cis-dosage (amplification, mRNA)
+    "cis-feature-protein-coherence",         # GoF leg-1 (PROTEIN): CN → own-PROTEIN cis-dosage. The slope
+                                              # RATIO vs the mRNA leg separates dosage-SENSITIVE cis-drivers
+                                              # (ERBB2/MYC/MDM2) from dosage-BUFFERED passengers. VERDICT-INERT
+                                              # (fires no cis_coherence rule → verdict byte-stable).
     "cellline-methylation-expression-coherence",  # LoF leg-1: promoter methylation → own LOW expression (silencing)
     "expression-dependency-correlation",     # leg-2 (reuse): expression → dependency
+    "abundance-dependency",                   # leg-2 (PROTEIN reuse): protein abundance → dependency. Borrowed
+                                              # from the dependency axis; the protein sibling of the RNA leg-2.
+                                              # VERDICT-INERT here (fires no cis_coherence rule).
     "amp-expr-stratified-dependency",         # leg-2 (reuse): conjoint amp∩overexpr dependency
     "patient-cis-coherence",                  # VERDICT-INERT patient (TCGA) corroboration facet — fires NO
                                               # cis_coherence rule (verdict byte-stable); surfaced in the headline
@@ -200,12 +207,27 @@ def _emit_skill_figures(decision, figures_root):
     return emit_headline_hero(decision, figures_root)
 
 
+def _slope_ratio(protein_slope, mrna_slope):
+    """mRNA-vs-protein dosage-buffering ratio = protein_slope / mrna_slope (VERDICT-INERT fingerprint).
+
+    ~1 → the CN dosage-effect is preserved at the protein level = a genuinely dosage-sensitive cis-driver
+    (ERBB2/MYC/MDM2); ≪1 → protein is post-transcriptionally BUFFERED (mRNA rises with CN, protein does
+    not). None when either slope is missing or the mRNA slope is ~0 (ratio undefined / uninformative)."""
+    if protein_slope is None or mrna_slope is None:
+        return None
+    if abs(mrna_slope) < 1e-6:
+        return None
+    return round(float(protein_slope) / float(mrna_slope), 4)
+
+
 def _headline(cards, fired, verdict_pair):
     def _s(cid):
         return card_summary(cards, cid)
-    cis = _s("cis-feature-expression-coherence")   # GoF leg-1
+    cis = _s("cis-feature-expression-coherence")   # GoF leg-1 (mRNA)
+    prot = _s("cis-feature-protein-coherence")      # GoF leg-1 (PROTEIN) — verdict-inert
     meth = _s("cellline-methylation-expression-coherence")  # LoF leg-1
     corr = _s("expression-dependency-correlation")  # leg-2 (correlation)
+    abdep = _s("abundance-dependency")              # leg-2 (PROTEIN) — verdict-inert
     ampx = _s("amp-expr-stratified-dependency")     # leg-2 (conjoint)
     pat = _s("patient-cis-coherence")               # VERDICT-INERT patient (TCGA) corroboration
 
@@ -241,9 +263,22 @@ def _headline(cards, fired, verdict_pair):
         "delta_log2tpm_amplified_vs_neutral": cis.get("delta_log2tpm_amplified_vs_neutral"),
         "n_amplified": cis.get("n_amplified"),
         "cis_dosage_evidence_scope": cis.get("evidence_scope"),
+        # GoF leg-1 (PROTEIN): CN → own-PROTEIN cis-dosage (VERDICT-INERT). The mRNA-vs-protein slope
+        # RATIO is the dosage-buffering fingerprint: ~1 = dosage-sensitive cis-driver (CN raises both
+        # mRNA and protein, ERBB2/MYC/MDM2); ≪1 = post-transcriptionally BUFFERED passenger.
+        "cis_protein_dosage_class": prot.get("cis_protein_dosage_class"),
+        "cn_prot_spearman_r": prot.get("cn_prot_spearman_r"),
+        "cn_prot_slope_log2abundance_per_cn": prot.get("cn_prot_slope_log2abundance_per_cn"),
+        "delta_log2abundance_amplified_vs_neutral": prot.get("delta_log2abundance_amplified_vs_neutral"),
+        "n_paired_models_cn_protein": prot.get("n_paired_models_cn_protein"),
+        "mrna_vs_protein_dosage_slope_ratio": _slope_ratio(
+            prot.get("cn_prot_slope_log2abundance_per_cn"), cis.get("cn_expr_slope_log2tpm_per_cn")),
         # leg-2: expression/feature → own-dependency (reused)
         "expression_dependency_correlation_class": corr.get("correlation_class"),
         "expression_dependency_pearson_r": corr.get("pearson_r"),
+        # leg-2 (PROTEIN reuse): protein abundance → dependency (VERDICT-INERT)
+        "abundance_dependency_class": abdep.get("abundance_dependency_class"),
+        "protein_dependency_pearson_r": abdep.get("protein_dependency_pearson_r"),
         "amp_expr_stratification_class": ampx.get("amp_expr_stratification_class"),
         "amp_expr_delta_chronos": ampx.get("delta_chronos_amp_expr_vs_rest"),
         # PATIENT (TCGA) cross-grain corroboration — VERDICT-INERT confidence signal
@@ -277,6 +312,8 @@ def _headline(cards, fired, verdict_pair):
 _SYNTHESIS_FACET_KEYS = (
     "cis_coherence_verdict", "driving_rule_id", "cis_dosage_class", "methylation_silencing_class",
     "expression_dependency_correlation_class", "amp_expr_stratification_class",
+    # protein legs (VERDICT-INERT): CN→protein dosage + the mRNA-vs-protein buffering ratio, and protein→dep
+    "cis_protein_dosage_class", "mrna_vs_protein_dosage_slope_ratio", "abundance_dependency_class",
     "patient_dosage_agrees_with_cellline", "patient_silencing_agrees_with_cellline",
     "claim_vector", "key_signals",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer

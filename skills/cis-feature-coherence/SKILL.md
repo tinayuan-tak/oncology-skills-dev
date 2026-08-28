@@ -31,7 +31,7 @@ description: |
   contradiction) is a later, CALIBRATED stage.
 
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -39,9 +39,12 @@ composition:
   data_mode: derived_read
   phase: [A, C]                        # cross-axis coherence: leg-1 = expression (A), leg-2 = dependency (C)
   cards_used:
-    - cis-feature-expression-coherence     # GoF leg-1: CN → own-expression cis-dosage (amplification)
+    - cis-feature-expression-coherence     # GoF leg-1: CN → own-expression cis-dosage (amplification, mRNA)
+    - cis-feature-protein-coherence          # GoF leg-1 (PROTEIN): CN → own-protein cis-dosage; slope RATIO vs
+                                             # mRNA leg = dosage-buffering fingerprint. VERDICT-INERT (fires no rule)
     - cellline-methylation-expression-coherence  # LoF leg-1: promoter methylation → own LOW expression (silencing)
     - expression-dependency-correlation     # leg-2 (reuse): expression → dependency
+    - abundance-dependency                   # leg-2 (PROTEIN, reuse from dependency axis): protein → dependency; VERDICT-INERT here
     - amp-expr-stratified-dependency         # leg-2 (reuse): conjoint amp∩overexpr dependency
     - patient-cis-coherence                  # VERDICT-INERT patient (TCGA) corroboration facet (fires no rule)
     - cellline-isoform-dominance             # R10 molecular-form facet (verdict-inert display)
@@ -49,8 +52,10 @@ composition:
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims this skill PULLs.
   measurement_types_pulled:
     - cis_dosage_coupling
+    - cis_protein_dosage_coupling
     - methylation_silencing_coupling
     - expression_dependency_correlation
+    - abundance_dependency_correlation
     - amp_expr_stratified_dependency
     - patient_cis_coherence
     - cell_line_isoform_dominance
