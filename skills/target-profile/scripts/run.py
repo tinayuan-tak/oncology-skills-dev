@@ -571,6 +571,12 @@ def main() -> int:
     # verdict-inert (never a gate), same governance as the companion. D1 only — the outcome-trained
     # predictive score (D2) stays in the validation harness pending separate productionization approval.
     nomination_scorecard_facet = None
+    # D2 PREDICTIVE SCORE (+ D3 attribution) (2026-08-28): the OUTCOME-TRAINED nomination companion — a
+    # frozen de-FAMEd logistic (coefficients shipped in the atlas; pure-numpy, deterministic) that emits a
+    # biology-predicted clinical-advancement PROPENSITY + exact per-axis (D3) attribution. Validated
+    # held-out (P3 AUC 0.91) + out-of-distribution (OOD AUC 0.90/de-FAMEd 0.74). DESCRIPTIVE / verdict-inert
+    # — NOT P(success), NOT a gate; same governance as D1. None when the atlas carries no d2_model.
+    nomination_predictive_score = None
     try:
         from _skills_common import archetype_core
         _atlas_path = Path(__file__).resolve().parents[2] / "target-archetype" / "atlas" / "atlas.json"
@@ -579,9 +585,11 @@ def main() -> int:
             archetype_companion = archetype_core.companion_from_sub_results(sub_results, _atlas)
             nomination_scorecard_facet = archetype_core.scorecard_from_sub_results(
                 sub_results, _atlas, companion=archetype_companion)
+            nomination_predictive_score = archetype_core.predictive_score_from_sub_results(sub_results, _atlas)
     except Exception:
         archetype_companion = None            # verdict-inert facets — never fail the flagship on an error
         nomination_scorecard_facet = None
+        nomination_predictive_score = None
 
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
@@ -970,6 +978,10 @@ def main() -> int:
         # touches the recommendation/gate/confidence. None when the atlas is absent or it could not be
         # computed (best-effort — see the computation site above).
         "nomination_scorecard": nomination_scorecard_facet,
+        # D2 predictive score + D3 attribution (2026-08-28): outcome-trained (frozen de-FAMEd logistic)
+        # clinical-advancement PROPENSITY + exact per-axis attribution. DESCRIPTIVE / verdict-inert — NOT
+        # P(success), NOT a gate; never touches the recommendation/confidence. None when no d2_model.
+        "nomination_predictive_score": nomination_predictive_score,
         # M4 per-channel modality favorability rolled up from the records' modality_scope (worst-case
         # conjunction). ADDITIVE / verdict-inert — the per-modality view the scalar verdict couldn't hold.
         "modality_fit_by_channel": modality_fit_by_channel,

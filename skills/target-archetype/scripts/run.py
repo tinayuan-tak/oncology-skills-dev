@@ -29,7 +29,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.archetype_core import Atlas, claim_features  # noqa: E402
 
 SKILL_NAME = "target-archetype"
-SKILL_VERSION = "0.2.0"    # DESCRIPTIVE companion, verdict-INERT. MUST equal SKILL.md metadata.version.
+SKILL_VERSION = "0.3.0"    # DESCRIPTIVE companion, verdict-INERT. MUST equal SKILL.md metadata.version.
 
 _DEFAULT_ATLAS = SKILLS_DIR / "target-archetype" / "atlas" / "atlas.json"
 

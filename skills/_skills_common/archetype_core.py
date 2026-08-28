@@ -131,6 +131,7 @@ class Atlas:
         self.labels: list = list(doc["labels"])
         self.rule_fingerprints: list = doc.get("rule_fingerprints", [[] for _ in self.targets])
         self.axis_ref: dict = doc.get("axis_ref", {})        # {axis: {mean, std}} of axis_score (D1 z-ref)
+        self.d2_model: dict = doc.get("d2_model") or {}      # frozen de-FAMEd logistic (D2 score + D3 attr)
         self.meta: dict = doc.get("meta", {})
         # pre-z-score the reference matrix once (same mu/sd applied to the query at call time)
         self._Z = [self._z(row) for row in self.X]
@@ -378,3 +379,53 @@ def scorecard_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT
     if membership is None:
         membership = atlas.companion(feat, k=k).get("soft_membership")
     return nomination_scorecard(feat, membership, atlas)
+
+
+# =============================================================================================
+# D2 PREDICTIVE SCORE (+ D3 attribution) — the OUTCOME-TRAINED nomination companion. VERDICT-INERT.
+# The model is a FROZEN de-FAMEd logistic shipped as COEFFICIENTS in the atlas (data, not a pickle), so
+# this is pure-numpy + deterministic. The linear model's additive structure yields the D2 probability AND
+# the D3 per-axis attribution in one pass. Trained on OT approval outcome (external, NOT card-derived) with
+# the target_intrinsic axis EXCLUDED (notoriety proxy). Report as biology-predicted clinical-ADVANCEMENT
+# PROPENSITY, never P(success), never a gate. See build_atlas._train_d2 + the validation gates (P3/D2/OOD).
+# =============================================================================================
+def predictive_score(feat: dict, atlas: Atlas) -> dict:
+    """Frozen-logistic D2 propensity + D3 per-axis attribution for a query feature dict. VERDICT-INERT."""
+    m = atlas.d2_model
+    if not m:
+        return {"verdict": None, "score": None, "note": "atlas has no d2_model (rebuild with --outcome-labels)"}
+    fo, coef, mean, std = m["feature_order"], m["coef"], m["mean"], m["std"]
+    logit = float(m["intercept"])
+    measured = 0
+    axis_contrib: dict = {}
+    for i, k in enumerate(fo):
+        v = feat.get(k)
+        z = 0.0 if v is None else (v - mean[i]) / (std[i] or 1.0)   # mean-impute -> z=0 (no contribution)
+        c = coef[i] * z
+        logit += c
+        if v is not None:
+            measured += 1
+        axis_contrib[k.split("::")[0]] = axis_contrib.get(k.split("::")[0], 0.0) + c
+    prob = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, logit))))
+    ordered = sorted(axis_contrib.items(), key=lambda x: -x[1])
+    return {
+        "verdict": None,                                          # governance: predictive companion, never a call
+        "score": round(prob, 3),
+        "score_kind": "clinical_advancement_propensity_de_famed",
+        "coverage": round(measured / len(fo), 3),
+        "axis_attribution": {ax: round(c, 3) for ax, c in ordered},   # D3 — exact additive log-odds by axis
+        "driving_axes": [{"axis": ax, "contribution": round(c, 3)} for ax, c in ordered[:3] if c > 0],
+        "limiting_axis": ({"axis": ordered[-1][0], "contribution": round(ordered[-1][1], 3)}
+                          if ordered else None),
+        "provenance": m.get("provenance", {}),
+        "disclaimer": ("OUTCOME-TRAINED, verdict-inert predictive companion (frozen de-FAMEd logistic; "
+                       "coefficients are DATA, not a model pickle). Biology-predicted clinical-ADVANCEMENT "
+                       "propensity — NOT P(success), NOT a gate. Enrichment/FAME confound bounded "
+                       "(target_intrinsic excluded); validated held-out (P3 AUC 0.91) and out-of-distribution "
+                       "(OOD AUC 0.90, de-FAMEd 0.74). Report the propensity with its axis attribution."),
+    }
+
+
+def predictive_score_from_sub_results(sub_results: dict, atlas: Atlas) -> dict:
+    """Convenience: in-process fan-out results -> D2 predictive score + D3 attribution."""
+    return predictive_score(vector_from_sub_results(sub_results), atlas)

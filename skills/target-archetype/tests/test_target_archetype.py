@@ -236,3 +236,43 @@ def test_scorecard_from_sub_results_reuses_companion(atlas: Atlas):
     sc = ac.scorecard_from_sub_results(sr, atlas, companion=comp)
     assert sc["verdict"] is None and sc["score"] is not None
     assert sc["dominant_archetype_soft"] == max(comp["soft_membership"], key=comp["soft_membership"].get)
+
+
+# ---- D2 predictive score + D3 attribution (outcome-trained, frozen logistic, verdict-inert) --------
+def test_atlas_carries_d2_model(atlas: Atlas):
+    m = atlas.d2_model
+    assert m and len(m["coef"]) == len(m["feature_order"]) == len(m["mean"]) == len(m["std"])
+    assert m["de_famed"] is True
+    assert not any(k.startswith("target_intrinsic::") for k in m["feature_order"])   # DE-FAMEd
+    assert 0.5 < m["provenance"]["loto_auc"] <= 1.0                                   # a real signal
+
+
+def test_predictive_score_is_verdict_inert_and_bounded(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    p = ac.predictive_score(feat, atlas)
+    assert p["verdict"] is None
+    assert 0.0 <= p["score"] <= 1.0
+    assert p["score_kind"] == "clinical_advancement_propensity_de_famed"
+    assert "axis_attribution" in p and p["limiting_axis"] and "verdict-inert" in p["disclaimer"].lower()
+    assert "propensity" in p["score_kind"] and "success" not in p["score_kind"]   # framed as propensity, not P(success)
+
+
+def test_predictive_score_matches_frozen_logistic(atlas: Atlas):
+    # the pure-numpy runtime must reproduce the shipped coefficients: full-vector query -> exact sigmoid
+    m = atlas.d2_model
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    logit = m["intercept"]
+    for i, k in enumerate(m["feature_order"]):
+        v = feat.get(k)
+        z = 0.0 if v is None else (v - m["mean"][i]) / (m["std"][i] or 1.0)
+        logit += m["coef"][i] * z
+    expect = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, logit))))
+    assert ac.predictive_score(feat, atlas)["score"] == pytest.approx(round(expect, 3), abs=1e-3)
+
+
+def test_predictive_score_from_sub_results(atlas: Atlas):
+    sr = _sub_results_from_atlas_row(atlas, 5)
+    p = ac.predictive_score_from_sub_results(sr, atlas)
+    assert p["verdict"] is None and 0.0 <= p["score"] <= 1.0
+    # D3 attribution sums (with intercept) recover the score's logit — additive-decomposition invariant
+    assert isinstance(p["axis_attribution"], dict) and p["driving_axes"] is not None

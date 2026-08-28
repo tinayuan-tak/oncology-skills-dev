@@ -48,7 +48,49 @@ def _git_sha() -> str:
         return "unknown"
 
 
-def build(runs: Path, panel_path: Path, build_date: str) -> dict:
+def _train_d2(feats, targets, feature_order, outcome_labels_path) -> dict:
+    """Train the FROZEN D2 predictive-score model = a de-FAMEd logistic on OT approval outcome. We ship the
+    COEFFICIENTS (data, not a pickle) so the runtime is pure-numpy + deterministic; the linear model's
+    additive structure gives the D2 score AND the D3 per-axis attribution in one computation. De-FAMEd:
+    the target_intrinsic axis (a notoriety/centrality proxy — see the FAME-confound ablation) is EXCLUDED,
+    so the shipped score reflects disease biology, not gene fame."""
+    import pandas as pd
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import LeaveOneGroupOut, cross_val_predict
+    from sklearn.metrics import roc_auc_score, brier_score_loss
+
+    lab = pd.read_csv(outcome_labels_path)
+    appr = {t: bool(a) for t, a in zip(lab["target"], lab["ot_is_approved"].fillna(False))}
+    d2_feats = [k for k in feature_order if not k.startswith("target_intrinsic::")]   # DE-FAME
+    Xn = np.array([[np.nan if f.get(k) is None else f.get(k) for k in d2_feats] for f in feats], float)
+    y = np.array([1 if appr.get(t) else 0 for t in targets], int)
+    mean = np.nanmean(Xn, axis=0); std = np.nanstd(Xn, axis=0); std = np.where(std == 0, 1.0, std)
+    Z = (np.where(np.isnan(Xn), mean, Xn) - mean) / std      # mean-impute then z (missing -> z=0)
+    clf = LogisticRegression(max_iter=2000, C=0.5).fit(Z, y)
+    groups = np.array(targets)
+    oof = cross_val_predict(LogisticRegression(max_iter=2000, C=0.5), Z, y,
+                            cv=LeaveOneGroupOut(), groups=groups, method="predict_proba")[:, 1]
+    return {
+        "feature_order": d2_feats,
+        "coef": [round(float(c), 6) for c in clf.coef_[0]],
+        "intercept": round(float(clf.intercept_[0]), 6),
+        "mean": [round(float(m), 6) for m in mean],
+        "std": [round(float(s), 6) for s in std],
+        "target_label": "ot_is_approved",
+        "de_famed": True,
+        "provenance": {
+            "model": "logistic C=0.5, de-FAMEd (target_intrinsic axis excluded)",
+            "loto_auc": round(float(roc_auc_score(y, oof)), 3),
+            "loto_brier": round(float(brier_score_loss(y, oof)), 3),
+            "n_train": int(len(y)), "n_positive": int(y.sum()),
+            "note": ("outcome-trained predictive companion; VERDICT-INERT; report as biology-predicted "
+                     "clinical-advancement PROPENSITY, not P(success). FAME confound bounded (target_intrinsic "
+                     "excluded). Coefficients are DATA (no pickle); runtime is pure-numpy + deterministic."),
+        },
+    }
+
+
+def build(runs: Path, panel_path: Path, build_date: str, outcome_labels: Path = None) -> dict:
     panel = _load_panel(panel_path)
     feats, targets, indications, labels, fingerprints = [], [], [], [], []
     for sub_dir in sorted(glob.glob(f"{runs}/*/subskills")):
@@ -120,6 +162,7 @@ def build(runs: Path, panel_path: Path, build_date: str) -> dict:
         "labels": labels,
         "rule_fingerprints": fingerprints,
         "axis_ref": axis_ref,               # per-axis corpus mean/std of axis_score (D1 scorecard z-ref)
+        "d2_model": (_train_d2(feats, targets, feature_order, outcome_labels) if outcome_labels else None),
         "meta": {
             "n_targets": len(targets),
             "n_features": len(feature_order),
@@ -143,8 +186,11 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--build-date", default=os.environ.get("ATLAS_BUILD_DATE", "unknown"),
                     help="stamp explicitly (Date.now is unavailable in some harnesses)")
+    ap.add_argument("--outcome-labels", default=None,
+                    help="CSV with target,ot_is_approved to train + embed the frozen D2 logistic (optional)")
     a = ap.parse_args()
-    doc = build(Path(a.runs).expanduser(), Path(a.panel).expanduser(), a.build_date)
+    doc = build(Path(a.runs).expanduser(), Path(a.panel).expanduser(), a.build_date,
+                outcome_labels=Path(a.outcome_labels).expanduser() if a.outcome_labels else None)
     out = Path(a.out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, separators=(",", ":"), sort_keys=False))

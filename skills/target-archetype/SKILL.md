@@ -20,7 +20,7 @@ description: |
   nearest-analog nomination companion, not a call.
 
 metadata:
-  version: 0.2.0            # MUST equal SKILL_VERSION in scripts/run.py
+  version: 0.3.0            # MUST equal SKILL_VERSION in scripts/run.py
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -64,8 +64,14 @@ caveat, because it makes no classification claim.
    per-archetype weight profiles (ILLUSTRATIVE + SHOWN, not learned), so a surface antigen is scored on its
    OWN route (expression/selectivity/surface/safety) rather than penalised for "not being a driver". Emits
    the per-axis contributions + driving axes + a **route-conditioned counterfactual gap** ("closest to
-   nominatable except axis X"). This is the interpretable **D1** layer only — the outcome-trained predictive
-   score (D2) and its SHAP attribution (D3) stay in the validation harness pending separate approval.
+   nominatable except axis X"). This is the interpretable **D1** layer.
+5. And a **D2 predictive score + D3 attribution** (`nomination_predictive_score`): an OUTCOME-TRAINED
+   companion — a FROZEN de-FAMEd logistic (coefficients shipped in the atlas; pure-numpy, deterministic, no
+   pickle) emitting a biology-predicted clinical-ADVANCEMENT **propensity** + exact per-axis (D3) attribution
+   (the linear model's additive log-odds by axis). Trained on OT approval with the `target_intrinsic` axis
+   EXCLUDED (a notoriety proxy — the FAME-confound ablation). Validated held-out (P3 blind oncogene/TSG AUC
+   0.91) + out-of-distribution (36 new genes: AUC 0.90, de-FAMEd 0.74). **Not P(success), not a gate** — a
+   v0 BASELINE ahead of the systematic multi-factor nomination-readiness build.
 
 ## Governance (non-negotiable)
 DESCRIPTIVE, `verdict=None`, **out of `_SHORT_TO_GATE`**, never wired into a resolver `when.card_id` or
