@@ -7,3 +7,6 @@ dosage-SENSITIVE cis-drivers (ERBB2/MYC/MDM2 — CN raises both mRNA and protein
 passengers (mRNA rises with CN but protein is post-transcriptionally buffered). Verdict-inert coherence
 dimension for the cis-feature-coherence skill.
 """
+from .read import read_cis_protein_dosage, METHOD_VERSION  # noqa: F401 — re-export for the card's
+# generic dispatch (module: depmap_cis_protein_dosage, entrypoint: read_cis_protein_dosage), mirroring
+# the depmap_cis_dosage sibling.
