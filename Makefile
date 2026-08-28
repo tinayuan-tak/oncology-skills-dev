@@ -13,17 +13,17 @@
 STAMP ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AWS_PROFILE ?= cbg
 
-.PHONY: dashboard dashboard-dry promote-list profile living-doc living-doc-check
-# living-doc : regenerate the Living Architecture Document LOCALLY — the SAME single dashboard
+.PHONY: dashboard dashboard-dry promote-list profile atlas atlas-check
+# atlas : regenerate the Framework Atlas LOCALLY — the SAME single dashboard
 #              `make dashboard` publishes (Overview/Explorer/Health/Cards/Datasets/Coverage +
 #              Flow / Gaps / Concepts / Docs + the glossary legibility layer). Writes the
-#              committed feed health/living_doc.{json,html}. Needs the sibling checkouts.
-#   make living-doc          # regenerate the committed json + html
-#   make living-doc-check    # local drift-guard: fail if the committed json is stale
-living-doc:
+#              committed feed health/framework_atlas.{json,html}. Needs the sibling checkouts.
+#   make atlas          # regenerate the committed json + html
+#   make atlas-check    # local drift-guard: fail if the committed json is stale
+atlas:
 	python3 -m validators.architecture_dashboard.living.build_living_doc
 
-living-doc-check:
+atlas-check:
 	python3 -m validators.architecture_dashboard.living.build_living_doc --check
 
 dashboard:

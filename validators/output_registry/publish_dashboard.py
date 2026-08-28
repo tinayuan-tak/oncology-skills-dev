@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""publish_dashboard.py — on-demand publisher for the Living Architecture Document + output registry.
+"""publish_dashboard.py — on-demand publisher for the Framework Atlas + output registry.
 
 CONSOLIDATED (2026-08-28): this publishes the SINGLE canonical framework dashboard — the Living
 Architecture Document (validators/architecture_dashboard/living), a superset of the former unified
@@ -90,13 +90,13 @@ def compute_health(roots: dict, out_dir: Path, stamp: str) -> Path | None:
 
 
 def build_dashboard(roots: dict, out_dir: Path) -> tuple[Path, Path]:
-    """Build the Living Architecture Document (the single canonical dashboard) → HTML + JSON.
+    """Build the Framework Atlas (the single canonical dashboard) → HTML + JSON.
 
     It supersets the former unified dashboard, so its JSON carries the same summary/health/coverage
     keys build_manifest reads. Health was already computed into out_dir/health_current.json, so we
     pass --no-compute-health (the living builder loads it from out_dir)."""
-    html = out_dir / "living_doc.html"
-    js = out_dir / "living_doc.json"
+    html = out_dir / "framework_atlas.html"
+    js = out_dir / "framework_atlas.json"
     r = _run([sys.executable, "-m", "validators.architecture_dashboard.living.build_living_doc",
               "--tc", str(roots["contracts"]), "--sk", str(roots["skills"]),
               "--dc", str(roots["catalog"]), "--dp", str(roots["products"]),
@@ -104,7 +104,7 @@ def build_dashboard(roots: dict, out_dir: Path) -> tuple[Path, Path]:
               "--out", str(html), "--json", str(js)], cwd=str(roots["contracts"]))
     print(r.stdout.strip() or r.stderr.strip())
     if not html.exists():
-        raise RuntimeError(f"living-document build failed: {r.stderr[-400:]}")
+        raise RuntimeError(f"atlasument build failed: {r.stderr[-400:]}")
     return html, js
 
 
@@ -153,10 +153,10 @@ def publish_s3(files, bucket: str, prefix: str, date: str, presign_days: int,
 
 
 def publish_gh_release(html: Path, repo: str, date: str, manifest: dict, dry: bool) -> str | None:
-    tag = f"dashboard-{date}"
-    title = f"Living Architecture Document — {date}"
+    tag = f"atlas-{date}"
+    title = f"Framework Atlas — {date}"
     o = manifest["outputs"]
-    notes = (f"Auto-published Living Architecture Document (single framework dashboard).\n\n"
+    notes = (f"Auto-published Framework Atlas (single framework dashboard).\n\n"
              f"- skills {manifest['framework'].get('n_skills')} · cards {manifest['framework'].get('n_cards')}\n"
              f"- health drift {manifest['health'].get('n_drift_flags')} ({manifest['health'].get('n_error_drift')} error)\n"
              f"- outputs {o.get('n_entries')} across {o.get('n_cells')} cells; "
@@ -179,7 +179,7 @@ def main():
     for k in _ROOT_KEYS:
         ap.add_argument(f"--{k}", default=dr[k])
     ap.add_argument("--bucket", default="onc-compbio")
-    ap.add_argument("--prefix", default="framework-dashboard")
+    ap.add_argument("--prefix", default="framework-atlas")
     ap.add_argument("--repo", default="oneTakeda/rnd-computational-biology-oncology-target-contracts")
     ap.add_argument("--generated-at", required=True, help="ISO stamp (reproducible; no wall-clock)")
     ap.add_argument("--presign-days", type=int, default=7)
@@ -202,7 +202,7 @@ def main():
         manifest = build_manifest(js, roots, stamp)
         manifest_path = out_dir / "manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2, default=str))
-        keep = HOME / "dev/framework-runs/framework-dashboard"
+        keep = HOME / "dev/framework-runs/framework-atlas"
         keep.mkdir(parents=True, exist_ok=True)
         for f in (html, js, manifest_path):
             (keep / f.name).write_bytes(f.read_bytes())

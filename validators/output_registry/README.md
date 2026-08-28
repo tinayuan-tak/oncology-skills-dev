@@ -61,7 +61,7 @@ It (1) regenerates `catalog.json` into the data-products root, (2) computes fres
 `manifest.json` (root SHAs + health tallies + coverage/firing counts — the trend signal), then
 publishes to **both**:
 
-- **S3** — `s3://onc-compbio/framework-dashboard/` (live) + `history/<date>/` snapshots; prints a
+- **S3** — `s3://onc-compbio/framework-atlas/` (live) + `history/<date>/` snapshots; prints a
   time-boxed **presigned URL** to share.
 - **GitHub** — the rendered HTML as a dated **`gh release`** asset (`dashboard-<date>`), so the repo
   keeps a versioned copy without committing a ~1.3 MB artifact into history.

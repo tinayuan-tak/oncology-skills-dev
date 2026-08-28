@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""build_living_doc.py — generate the Living Architecture Document.
+"""build_living_doc.py — generate the Framework Atlas.
 
 A SUPERSET of the unified dashboard: composes the existing wiring graph
 (build_architecture_explorer.build) + health + output-registry coverage
@@ -7,7 +7,7 @@ A SUPERSET of the unified dashboard: composes the existing wiring graph
 glossary (the legibility layer). Renders one self-contained HTML with three new tabs, and
 writes a committed JSON feed guarded two ways:
 
-  generate (default) : write health/living_doc.{json,html}
+  generate (default) : write health/framework_atlas.{json,html}
   --check            : local guard (siblings present) — recompute, fail if committed JSON is
                        stale on WIRING+CONCEPTS structure (gaps/health/coverage are snapshots).
   --self-check       : CI-safe (no siblings) — validate the committed JSON's internal
@@ -47,8 +47,8 @@ except Exception:  # pragma: no cover - bare-path fallback
     from render_living import render_html  # type: ignore
 
 HOME = Path.home()
-DEFAULT_JSON = _ARCH.parent.parent / "health" / "living_doc.json"   # <tc>/health/living_doc.json
-DEFAULT_HTML = _ARCH.parent.parent / "health" / "living_doc.html"
+DEFAULT_JSON = _ARCH.parent.parent / "health" / "framework_atlas.json"   # <tc>/health/framework_atlas.json
+DEFAULT_HTML = _ARCH.parent.parent / "health" / "framework_atlas.html"
 
 
 def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path,
@@ -68,7 +68,7 @@ def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path,
     graph["flow"] = _flow.build_flow(graph)          # needs concepts + glossary
     graph["gaps"] = _gaps.build_gaps(graph, roots)
     graph["narrative"] = _narrative.build_narrative(roots)
-    graph["living_doc_version"] = "1.0.0"
+    graph["framework_atlas_version"] = "1.0.0"
     return graph
 
 
@@ -183,7 +183,7 @@ def glossary_coverage_errors(graph: dict) -> list[str]:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Generate the Living Architecture Document.")
+    ap = argparse.ArgumentParser(description="Generate the Framework Atlas.")
     ap.add_argument("--tc", default=str(A.DEFAULTS["tc"]))
     ap.add_argument("--sk", default=str(A.DEFAULTS["sk"]))
     ap.add_argument("--dc", default=str(A.DEFAULTS["dc"]))
@@ -246,7 +246,7 @@ def main(argv=None) -> int:
     Path(args.json).write_text(json.dumps(graph, separators=(",", ":")))
     Path(args.out).write_text(render_html(graph))
     g = graph["gaps"]["summary"]
-    print(f"\n✓ Living doc: {len(graph['concepts'])} component types · "
+    print(f"\n✓ Framework Atlas: {len(graph['concepts'])} component types · "
           f"{g['n_gaps']} gaps ({g['n_error']} error / {g['n_warn']} warn / {g['n_info']} info) · "
           f"{graph['narrative']['n_docs']} docs · glossary "
           f"{sum(len(v) for v in graph['glossary'].values())} tokens")

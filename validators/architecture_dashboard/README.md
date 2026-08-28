@@ -1,7 +1,7 @@
 # architecture_dashboard — the framework's wiring + health
 
 > **Consolidated (2026-08-28):** the single canonical published dashboard is now the
-> **Living Architecture Document** in [`living/`](living/), which SUPERSETS this one —
+> **Framework Atlas** in [`living/`](living/), which SUPERSETS this one —
 > it renders the same Overview/Explorer/Health/Cards/Datasets/Coverage tabs PLUS Flow /
 > Gaps / Concepts / Docs and the glossary legibility layer. `make dashboard` publishes the
 > living document. `build_unified_dashboard` here remains the composition **engine** (the

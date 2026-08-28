@@ -435,11 +435,11 @@ def render_html(graph: dict) -> str:
 
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Living Architecture Document</title>
+<title>Framework Atlas</title>
 <style>{MILLER_CSS}{_UNIFIED_CSS}{_LIVING_CSS}
 .tabbadge{{color:#fff;border-radius:9px;padding:0 6px;font-size:10px;font-weight:700}}
 </style></head><body>
-<header><h1>Living Architecture Document</h1>
+<header><h1>Framework Atlas</h1>
 <span class="meta">{s['n_skills']} skills · {s['n_cards']} cards · {s['n_datasets']} datasets · {s['n_resolvers']} resolvers/{s['n_verdicts']} verdicts</span>
 <div class="orient">Auto-generated from the contracts. <b>Gaps</b> = missing/broken pieces · <b>Concepts</b> = the building blocks + schemas + real examples · <b>Explorer</b> = the wiring · <b>Docs</b> = the prose. Generated {agen} · health {hgen} · {shas}</div>
 </header>

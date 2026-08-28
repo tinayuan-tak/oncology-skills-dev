@@ -1,4 +1,4 @@
-"""Shared test helpers: locate + load the committed living_doc.json and import the builder."""
+"""Shared test helpers: locate + load the committed framework_atlas.json and import the builder."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,7 @@ import pytest
 _LIVING = Path(__file__).resolve().parent.parent           # .../living
 _ARCH = _LIVING.parent                                     # .../architecture_dashboard
 _REPO = _ARCH.parent.parent                                # target-contracts repo root
-COMMITTED_JSON = _REPO / "health" / "living_doc.json"
+COMMITTED_JSON = _REPO / "health" / "framework_atlas.json"
 
 for p in (str(_ARCH), str(_LIVING)):
     if p not in sys.path:
@@ -19,7 +19,7 @@ for p in (str(_ARCH), str(_LIVING)):
 
 def load_committed() -> dict:
     if not COMMITTED_JSON.exists():
-        pytest.skip(f"no committed living_doc.json at {COMMITTED_JSON} — run build_living_doc first")
+        pytest.skip(f"no committed framework_atlas.json at {COMMITTED_JSON} — run build_living_doc first")
     return json.loads(COMMITTED_JSON.read_text())
 
 

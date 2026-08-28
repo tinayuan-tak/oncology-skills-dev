@@ -155,10 +155,10 @@ make dashboard AWS_PROFILE=cbg           # full regenerate → S3 + presigned UR
 
 1. regenerates the output-registry `catalog.json` (reads `s3://onc-compbio/skill-runs/`),
 2. computes fresh `framework_health`,
-3. builds the **Living Architecture Document** `living_doc.{html,json}` — the single canonical
+3. builds the **Framework Atlas** `framework_atlas.{html,json}` — the single canonical
    dashboard (supersets the old unified dashboard: adds Flow / Gaps / Concepts / Docs tabs +
-   the glossary legibility layer). Run `make living-doc` to regenerate it locally,
-4. uploads to `s3://onc-compbio/framework-dashboard/` — a live copy plus a `history/<date>/` snapshot
+   the glossary legibility layer). Run `make atlas` to regenerate it locally,
+4. uploads to `s3://onc-compbio/framework-atlas/` — a live copy plus a `history/<date>/` snapshot
    and a diffable `manifest.json` (SHAs + tallies),
 5. prints a **presigned URL** (default 7-day expiry; override with `--presign-days N`), and
 6. cuts a `dashboard-<date>` GitHub release with the HTML as an asset — the durable, no-expiry copy for
