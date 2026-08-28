@@ -36,6 +36,26 @@ def _card_meta(card_id: str) -> tuple:
     return (y.get("measurement_type"), y.get("tier"))
 
 
+@functools.lru_cache(maxsize=1024)
+def _card_capsule_contract(card_id: str) -> tuple:
+    """(primary_class, categorical_fields) from the card contract's optional `capsule:` block; (None, ())
+    when the card declares none. This is the contracts-first source the evidence-capsule emitter consumes
+    to (a) pick the verdict-driving *_class instead of the alphabetical-first heuristic and (b) surface the
+    card's salient non-numeric fields — replacing the emitter's central config / hint guessing for any card
+    that has declared. Cached; verdict-inert; never raises."""
+    p = _CT / "cards" / f"{card_id}.card.yaml"
+    if not p.exists():
+        return (None, ())
+    try:
+        import yaml
+        y = yaml.safe_load(p.read_text()) or {}
+    except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
+        return (None, ())
+    cap = y.get("capsule") or {}
+    fields = cap.get("categorical_fields") or []
+    return (cap.get("primary_class"), tuple(f for f in fields if isinstance(f, str)))
+
+
 def default_classify(v) -> str:
     """Ordinal presence tier from a categorical card value (token heuristic; a skill may pass its own)."""
     s = str(v or "").lower()

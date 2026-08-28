@@ -76,6 +76,31 @@ def test_categorical_anchors_list_capped():
     assert len(ca[0]["value"]) == 6                                   # top-k capped for token budget
 
 
+def test_capsule_contract_primary_class_beats_alphabetical(monkeypatch):
+    # Multi-class card: alphabetical-first picks 'alphafold_confidence_class'; the declared primary is the
+    # verdict-driving 'structural_ligandability_class'. Contract must win.
+    monkeypatch.setattr(EC, "_card_capsule_contract",
+                        lambda cid: ("structural_ligandability_class",
+                                     ("structural_ligandability_class", "has_experimental_cocrystal")))
+    cards = [{"card_id": "structure-features-static", "summary": {
+        "alphafold_confidence_class": "high", "structural_ligandability_class": "experimental_ligandable",
+        "has_experimental_cocrystal": True, "method_version": "0.1.0"}}]
+    cap = EC.emit_capsules(cards, "COADREAD")["capsules"]["structure-features-static"]
+    assert cap["class"] == "experimental_ligandable"                 # declared primary, NOT 'high'
+    got = {a["field"]: a["value"] for a in cap["categorical_anchors"]}
+    assert got == {"structural_ligandability_class": "experimental_ligandable", "has_experimental_cocrystal": True}
+
+
+def test_echo_denylist_excludes_provenance_from_heuristics():
+    # method_version / target / indication are request-echo — must not leak into caveat/anchor heuristics.
+    cards = [{"card_id": "z", "summary": {
+        "coverage": "partial", "method_version": "1.2.3", "target": "KRAS", "indication": "COADREAD"}}]
+    caps = EC.emit_capsules(cards, "COADREAD")["capsules"]["z"]
+    sib = caps.get("sibling_caveats") or {}
+    assert "coverage" in sib                                          # real caveat-hint field kept
+    assert "method_version" not in sib and "target" not in sib       # echo fields denied
+
+
 def test_conflict_pair_across_same_measurement_type(monkeypatch):
     import _skills_common.evidence_capsule as M
     monkeypatch.setattr(M, "_card_meta", lambda cid: {"hi": ("mt_x", None), "lo": ("mt_x", None)}.get(cid, (None, None)))

@@ -25,7 +25,8 @@ plus data_quality_flags — generic mis-bind / direction-inversion contradiction
 """
 from __future__ import annotations
 
-from _skills_common.subgroup_derivation import _card_meta, default_classify, _TIERV
+from _skills_common.subgroup_derivation import (
+    _card_capsule_contract, _card_meta, default_classify, _TIERV)
 
 _R = 4                               # float precision (hash-stability)
 _STRATUM_LABELS = ("oncotree_code", "lineage", "stratum_id", "stratum", "subgroup", "cohort", "subtype")
@@ -40,6 +41,17 @@ _N_HINTS = ("n_", "_n", "_samples", "_lines", "_cells", "_donors", "_models", "_
 _CAVEAT_HINTS = ("escape", "variability", "consistency", "coverage", "buffering", "shed", "fragile",
                  "heterogen", "purity", "confound", "conflict", "underpowered", "instability")
 _PROV_HINTS = ("_source", "_data_source", "screens_contributing", "consortium", "product_id", "release_pin")
+# Tier-3 echo/provenance denylist — request-echo + housekeeping fields that carry no evidence and must
+# never masquerade as an anchor/caveat/categorical. Applied to the HEURISTIC selector branches only; a
+# card that explicitly DECLARES a field (config / capsule contract) is honored verbatim.
+_ECHO_DENYLIST = ("target", "indication", "method_version", "_method_version", "uniprot_ac",
+                  "uniprot_ac_resolved", "ensembl_gene_id", "entrez_gene_id", "source", "_source",
+                  "_data_source", "release_pin", "schema_version", "vocabulary_phase")
+
+
+def _denied(k):
+    kl = k.lower()
+    return kl in _ECHO_DENYLIST or kl.startswith("_")
 
 
 def _num(v):
@@ -89,33 +101,35 @@ def _top_k_strata(summary, indication, cfg):
 def _numeric_anchors(summary, cfg):
     fields = (cfg or {}).get("anchor_fields")
     if fields:
-        picked = [f for f in fields if f in summary]
+        picked = [f for f in fields if f in summary]                # declared → honored verbatim
     else:
         picked = sorted(k for k, v in summary.items()
-                        if isinstance(v, (int, float)) and any(h in k.lower() for h in _ANCHOR_HINTS))[:4]
+                        if isinstance(v, (int, float)) and not _denied(k)
+                        and any(h in k.lower() for h in _ANCHOR_HINTS))[:4]
     return [{"metric": f, "value": _num(summary.get(f))} for f in picked]
 
 
 def _n_basis(summary):
     ns = sorted(k for k, v in summary.items()
-                if isinstance(v, (int, float)) and any(h in k.lower() for h in _N_HINTS))
+                if isinstance(v, (int, float)) and not _denied(k)
+                and any(h in k.lower() for h in _N_HINTS))
     return {k: summary[k] for k in ns[:3]}
 
 
-def _categorical_anchors(summary, cfg):
-    """Emit config-DECLARED salient non-numeric fields (stage labels, class enums, agent lists) verbatim.
+def _categorical_anchors(summary, fields):
+    """Emit the DECLARED salient non-numeric fields (stage labels, class enums, agent lists) verbatim.
     The numeric-anchor / n_basis shapes only surface floats/ints, so a card whose decision-relevant datum
     is a STRING (e.g. clinical-precedent.highest_clinical_stage='approved') or a LIST (approved_agents)
-    was invisible to the capsule DATA layer. This shape closes that gap for cards that opt in via
-    `config[card_id]['categorical_fields']`; it stays None (byte-stable) for every card that does not.
-    List values are top-k capped for token budget; scalars pass through unchanged."""
-    fields = (cfg or {}).get("categorical_fields")
+    was invisible to the capsule DATA layer. `fields` is the union of the card contract's `capsule.
+    categorical_fields` (contracts-first) and any legacy config override; None/empty → None (byte-stable
+    for every card that has not declared). List values are top-k capped for token budget; order preserved."""
     if not fields:
         return None
-    out = []
+    out, seen = [], set()
     for f in fields:
-        if f not in summary:
+        if f in seen or f not in summary:
             continue
+        seen.add(f)
         v = summary[f]
         if isinstance(v, list):
             v = v[:6]
@@ -127,7 +141,7 @@ def _sibling_caveats(summary, cfg):
     allow = (cfg or {}).get("caveat_fields")
     out = {}
     for k, v in sorted(summary.items()):
-        if k.startswith("_") or v is None or isinstance(v, (list, dict)):
+        if _denied(k) or v is None or isinstance(v, (list, dict)):
             continue
         hit = (k in allow) if allow else any(h in k.lower() for h in _CAVEAT_HINTS)
         if hit:
@@ -185,9 +199,12 @@ def _conflict_pairs(cards, classify):
 
 
 def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, classify=default_classify):
-    """Return {'capsules': {card_id: capsule}, 'manifest': [...]}. `config` maps card_id -> per-card
-    selector overrides (strata_array/label/metric, anchor_fields, caveat_fields, dq_checks). `verdict_card_ids`
-    (set) get FULL capsules; others get THIN (signal + one anchor). Deterministic + hash-stable."""
+    """Return {'capsules': {card_id: capsule}, 'manifest': [...]}. Field selection is CONTRACTS-FIRST: a
+    card's optional `capsule:` block (primary_class + categorical_fields, read via _card_capsule_contract)
+    drives the class-pick and categorical_anchors; the hint heuristics + `config` overrides are the fallback
+    for un-migrated cards. `config` maps card_id -> per-card selector overrides (strata_array/label/metric,
+    anchor_fields, caveat_fields, categorical_fields, dq_checks). `verdict_card_ids` (set) get FULL capsules;
+    others get THIN (signal + one anchor). Deterministic + hash-stable."""
     config = config or {}
     cards_sorted = sorted((c for c in cards if isinstance(c, dict)), key=lambda c: c.get("card_id") or "")
     conflicts = _conflict_pairs(cards_sorted, classify)
@@ -203,14 +220,27 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             capsules[cid] = {"card_id": cid, "measurement_type": mt, "evidence_state": "data_unavailable",
                              "_complete": True}
             continue
-        cls = next((summ.get(k) for k in sorted(summ) if k.endswith("_class") and isinstance(summ.get(k), str)), None)
         cfg = config.get(cid, {})
+        # Contracts-first field selection: the card's optional `capsule:` block declares its verdict-driving
+        # primary_class + salient categorical_fields. `primary_class` OVERRIDES the alphabetical-first *_class
+        # heuristic (which mis-picks on multi-class cards — e.g. structure-features-static's
+        # alphafold_confidence_class over structural_ligandability_class); the heuristic remains the fallback
+        # for un-migrated cards. categorical_fields unions with any legacy config override (contract first).
+        primary_class, contract_cat = _card_capsule_contract(cid)
+        cls = None
+        if primary_class and isinstance(summ.get(primary_class), str):
+            cls = summ[primary_class]
+        else:
+            cls = next((summ.get(k) for k in sorted(summ)
+                        if k.endswith("_class") and isinstance(summ.get(k), str)), None)
+        cat_fields = list(contract_cat) + [f for f in (cfg.get("categorical_fields") or [])
+                                           if f not in contract_cat]
         full = verdict_card_ids is None or cid in verdict_card_ids
         cap = {
             "card_id": cid, "measurement_type": mt, "tier": tier, "evidence_state": "measured",
             "class": cls,
             "numeric_anchors": (_numeric_anchors(summ, cfg) or None),
-            "categorical_anchors": _categorical_anchors(summ, cfg),
+            "categorical_anchors": _categorical_anchors(summ, cat_fields),
             "n_basis": (_n_basis(summ) or None),
             "_complete": True,
         }
