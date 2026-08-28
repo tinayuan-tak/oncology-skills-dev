@@ -193,3 +193,46 @@ def test_rule_precedent_overlay_present_only_when_rules_given(atlas: Atlas):
     c = atlas.companion(feat, k=3, query_rules=real)
     assert "rule_precedent" in c
     assert all(0.0 < p["jaccard"] <= 1.0 for p in c["rule_precedent"])
+
+
+# ---- D1 nomination scorecard (interpretable, archetype-conditioned, verdict-inert) ----------------
+def test_atlas_carries_axis_ref(atlas: Atlas):
+    assert atlas.axis_ref and all({"mean", "std"} <= set(v) for v in atlas.axis_ref.values())
+    assert all(v["std"] != 0 for v in atlas.axis_ref.values())     # zero-std guarded at build
+
+
+def test_scorecard_is_verdict_inert_and_bounded(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    m = atlas.companion(feat, k=6)["soft_membership"]
+    sc = ac.nomination_scorecard(feat, m, atlas)
+    assert sc["verdict"] is None
+    assert 0.0 <= sc["score"] <= 1.0 and 0.0 <= sc["coverage"] <= 1.0
+    assert "archetype" not in sc and "recommendation" not in sc      # no hard call
+    assert sc["driving_axes"] and sc["limiting_axis"]
+    assert "verdict-inert" in sc["disclaimer"].lower()
+
+
+def test_scorecard_counterfactual_is_route_conditioned(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    m = atlas.companion(feat, k=6)["soft_membership"]
+    sc = ac.nomination_scorecard(feat, m, atlas)
+    cf = sc["counterfactual_gap"]
+    assert cf is not None and cf["route_conditioned"] is True and cf["limiting_axis"] in ac.SCORECARD_AXES
+
+
+def test_scorecard_weights_are_archetype_conditioned():
+    # a pure surface-antigen membership must weight surface/expression ABOVE genomic/dependency
+    surf = ac.ARCH_W["expression_surface"]
+    assert surf["surface_modality"] > surf["genomic_alteration"]
+    assert surf["expression"] > surf["dependency"]
+    # and a pure snv-driver must do the opposite
+    snv = ac.ARCH_W["snv_driver"]
+    assert snv["genomic_alteration"] > snv["surface_modality"]
+
+
+def test_scorecard_from_sub_results_reuses_companion(atlas: Atlas):
+    sr = _sub_results_from_atlas_row(atlas, 3)
+    comp = ac.companion_from_sub_results(sr, atlas, k=6)
+    sc = ac.scorecard_from_sub_results(sr, atlas, companion=comp)
+    assert sc["verdict"] is None and sc["score"] is not None
+    assert sc["dominant_archetype_soft"] == max(comp["soft_membership"], key=comp["soft_membership"].get)

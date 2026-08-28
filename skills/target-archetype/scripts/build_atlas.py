@@ -91,6 +91,25 @@ def build(runs: Path, panel_path: Path, build_date: str) -> dict:
     mu = np.nanmean(Xn, axis=0)
     sd = np.nanstd(Xn, axis=0)
     sd = np.where(sd == 0, 1.0, sd)
+
+    # AXIS reference stats for the D1 nomination scorecard: per target, axis_score = nan-mean of that
+    # axis's ::signal claim features; then store the corpus mean/std of axis_score per axis (for z-scoring
+    # a query's axis position at runtime). SIGNAL tiers only (not corrob) — the decision-relevant signal.
+    sig_idx = [i for i, k in enumerate(feature_order) if k.endswith("::signal")]
+    axis_of = {i: feature_order[i].split("::")[0] for i in sig_idx}
+    axes = sorted(set(axis_of.values()))
+    axis_scores = np.full((len(feats), len(axes)), np.nan)
+    for r in range(len(feats)):
+        for a_i, ax in enumerate(axes):
+            vals = [Xn[r, i] for i in sig_idx if axis_of[i] == ax and not np.isnan(Xn[r, i])]
+            if vals:
+                axis_scores[r, a_i] = float(np.mean(vals))
+    ax_mean = np.nanmean(axis_scores, axis=0)
+    ax_std = np.nanstd(axis_scores, axis=0)
+    ax_std = np.where((ax_std == 0) | np.isnan(ax_std), 1.0, ax_std)
+    axis_ref = {axes[j]: {"mean": round(float(ax_mean[j]), 6), "std": round(float(ax_std[j]), 6)}
+                for j in range(len(axes))}
+
     return {
         "feature_order": feature_order,
         "mu": [round(float(x), 6) for x in mu],
@@ -100,6 +119,7 @@ def build(runs: Path, panel_path: Path, build_date: str) -> dict:
         "indications": indications,
         "labels": labels,
         "rule_fingerprints": fingerprints,
+        "axis_ref": axis_ref,               # per-axis corpus mean/std of axis_score (D1 scorecard z-ref)
         "meta": {
             "n_targets": len(targets),
             "n_features": len(feature_order),

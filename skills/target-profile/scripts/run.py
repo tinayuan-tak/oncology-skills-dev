@@ -564,14 +564,24 @@ def main() -> int:
     # unreadable atlas degrades to None so the deterministic nomination spine is NEVER affected. See
     # skills/target-archetype/SKILL.md + _skills_common/archetype_core.py for the governance contract.
     archetype_companion = None
+    # D1 NOMINATION SCORECARD (2026-08-28): the interpretable, glass-box, ARCHETYPE-CONDITIONED
+    # nomination-readiness companion — per-axis z-scored position (vs the frozen corpus) × soft-membership-
+    # blended per-archetype weights → score + driving/limiting axes + a route-conditioned counterfactual
+    # gap ("closest to nominatable except axis X"). Reuses the companion's soft_membership. DESCRIPTIVE /
+    # verdict-inert (never a gate), same governance as the companion. D1 only — the outcome-trained
+    # predictive score (D2) stays in the validation harness pending separate productionization approval.
+    nomination_scorecard_facet = None
     try:
         from _skills_common import archetype_core
         _atlas_path = Path(__file__).resolve().parents[2] / "target-archetype" / "atlas" / "atlas.json"
         if _atlas_path.exists():
-            archetype_companion = archetype_core.companion_from_sub_results(
-                sub_results, archetype_core.Atlas.load(_atlas_path))
+            _atlas = archetype_core.Atlas.load(_atlas_path)
+            archetype_companion = archetype_core.companion_from_sub_results(sub_results, _atlas)
+            nomination_scorecard_facet = archetype_core.scorecard_from_sub_results(
+                sub_results, _atlas, companion=archetype_companion)
     except Exception:
-        archetype_companion = None   # verdict-inert facet — never fail the flagship on a companion error
+        archetype_companion = None            # verdict-inert facets — never fail the flagship on an error
+        nomination_scorecard_facet = None
 
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
@@ -955,6 +965,11 @@ def main() -> int:
         # _SHORT_TO_GATE and this never touches the recommendation/gate/confidence. None when the atlas is
         # absent or the companion could not be computed (best-effort — see the computation site above).
         "archetype_companion": archetype_companion,
+        # D1 nomination-readiness SCORECARD (2026-08-28): glass-box, archetype-conditioned per-axis score +
+        # driving/limiting axes + route-conditioned counterfactual gap. DESCRIPTIVE / verdict-inert — never
+        # touches the recommendation/gate/confidence. None when the atlas is absent or it could not be
+        # computed (best-effort — see the computation site above).
+        "nomination_scorecard": nomination_scorecard_facet,
         # M4 per-channel modality favorability rolled up from the records' modality_scope (worst-case
         # conjunction). ADDITIVE / verdict-inert — the per-modality view the scalar verdict couldn't hold.
         "modality_fit_by_channel": modality_fit_by_channel,

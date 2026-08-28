@@ -130,6 +130,7 @@ class Atlas:
         self.indications: list = list(doc.get("indications", [""] * len(self.targets)))
         self.labels: list = list(doc["labels"])
         self.rule_fingerprints: list = doc.get("rule_fingerprints", [[] for _ in self.targets])
+        self.axis_ref: dict = doc.get("axis_ref", {})        # {axis: {mean, std}} of axis_score (D1 z-ref)
         self.meta: dict = doc.get("meta", {})
         # pre-z-score the reference matrix once (same mu/sd applied to the query at call time)
         self._Z = [self._z(row) for row in self.X]
@@ -246,3 +247,134 @@ def companion_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT
     feat = vector_from_sub_results(sub_results)
     rules = fired_rule_ids_from_sub_results(sub_results)
     return atlas.companion(feat, k=k, query_rules=rules)
+
+
+# =============================================================================================
+# D1 NOMINATION SCORECARD — the interpretable, glass-box, ARCHETYPE-CONDITIONED nomination-readiness
+# companion. VERDICT-INERT (no verdict, never a gate). Weights are ILLUSTRATIVE + SHOWN, not learned:
+# each axis's z-scored position (vs the frozen corpus axis_ref) is signed (+favorable / −liability) and
+# weighted by a SOFT-MEMBERSHIP blend of per-archetype weight profiles, so a surface antigen is scored on
+# its OWN route (expression/selectivity/surface/safety) instead of being penalised for "not being a
+# driver". The per-axis contributions are emitted for audit; the route-conditioned limiting axis feeds a
+# counterfactual ("closest to nominatable except axis X"). This is D1 only — NOT the outcome-trained
+# predictive score (D2, which needs a frozen model + external-outcome calibration); D2/D3 stay in the
+# validation harness until their productionization is separately approved.
+# =============================================================================================
+SCORECARD_AXES = ["expression", "selectivity", "surface_modality", "genomic_alteration", "dependency",
+                  "tractability_sm", "differentiation", "mechanism", "cis_coherence", "immune_context",
+                  "combination_vulnerability", "target_intrinsic", "safety"]
+AX_SIGN = {a: 1 for a in SCORECARD_AXES}
+AX_SIGN["safety"] = -1          # safety = LoF-constraint LIABILITY: more constraint is worse for full-KO
+DEFAULT_AX_W = 0.2              # off-route axes contribute as low-weight context, never a penalty
+# per-ARCHETYPE axis-weight profiles (ILLUSTRATIVE, expert-set, SHOWN in the emitted payload)
+ARCH_W = {
+    "expression_surface": {"expression": 1.2, "selectivity": 1.3, "surface_modality": 1.4, "safety": 1.0,
+                           "immune_context": 0.6, "differentiation": 0.4, "genomic_alteration": 0.2,
+                           "dependency": 0.2, "tractability_sm": 0.2, "mechanism": 0.3},
+    "snv_driver": {"genomic_alteration": 1.3, "tractability_sm": 1.2, "dependency": 1.0, "mechanism": 0.9,
+                   "safety": 0.9, "differentiation": 0.6, "expression": 0.3, "selectivity": 0.3,
+                   "surface_modality": 0.2},
+    "amp_driver": {"genomic_alteration": 1.3, "dependency": 1.0, "tractability_sm": 1.0, "expression": 0.9,
+                   "surface_modality": 0.5, "safety": 0.8, "mechanism": 0.7, "selectivity": 0.4},
+    "tsg_loss": {"genomic_alteration": 1.1, "combination_vulnerability": 1.2, "differentiation": 0.7,
+                 "mechanism": 0.6, "dependency": 0.5, "tractability_sm": 0.4, "safety": 0.6,
+                 "expression": 0.2, "surface_modality": 0.2},
+    "dependency_essential": {"dependency": 1.4, "tractability_sm": 1.1, "mechanism": 0.9, "safety": 1.0,
+                             "differentiation": 0.5, "combination_vulnerability": 0.6, "expression": 0.3,
+                             "genomic_alteration": 0.4},
+    "control_absent": {a: 0.3 for a in SCORECARD_AXES},
+    "control_housekeeping": {**{a: 0.3 for a in SCORECARD_AXES}, "safety": 1.2, "dependency": 0.5},
+}
+# fill each profile's missing axes with the low-weight default
+ARCH_W = {k: {ax: v.get(ax, DEFAULT_AX_W) for ax in SCORECARD_AXES} for k, v in ARCH_W.items()}
+
+
+def _axis_scores(feat: dict) -> dict:
+    """Per-axis position = mean of that axis's measured ::signal claim tiers (None if the axis is unmeasured)."""
+    acc: dict = {}
+    for kk, v in feat.items():
+        if v is None or not kk.endswith("::signal"):
+            continue
+        acc.setdefault(kk.split("::")[0], []).append(v)
+    return {ax: (sum(vs) / len(vs)) for ax, vs in acc.items()}
+
+
+def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
+    """Glass-box, archetype-conditioned nomination-readiness score. VERDICT-INERT.
+
+    membership = the companion's soft archetype membership (used to BLEND the per-archetype weight
+    profiles — no hard label). Returns score(0-1) + coverage + per-axis contributions + driving/limiting
+    axes + a route-conditioned counterfactual. Illustrative weights are echoed in the payload."""
+    if not atlas.axis_ref:
+        return {"verdict": None, "score": None, "note": "atlas has no axis_ref (rebuild atlas)"}
+    ascore = _axis_scores(feat)
+    # z-score each axis position vs the frozen corpus reference, apply favorable/liability sign
+    z = {}
+    for ax in SCORECARD_AXES:
+        ref = atlas.axis_ref.get(ax)
+        if ref and ax in ascore:
+            z[ax] = ((ascore[ax] - ref["mean"]) / (ref["std"] or 1.0)) * AX_SIGN[ax]
+    # effective per-axis weight = soft-membership-weighted blend of the archetype profiles (no hard label)
+    m = membership or {}
+    mtot = sum(m.values()) or 1.0
+    eff_w = {}
+    for ax in SCORECARD_AXES:
+        eff_w[ax] = sum((m.get(k, 0.0) / mtot) * ARCH_W.get(k, {}).get(ax, DEFAULT_AX_W) for k in m) \
+            if m else DEFAULT_AX_W
+    contrib = {ax: z[ax] * eff_w[ax] for ax in z}                 # per-axis weighted contribution (measured)
+    wsum = sum(eff_w[ax] for ax in z) or 1.0
+    raw = sum(contrib.values()) / wsum                            # measured-weighted mean
+    score01 = 1.0 / (1.0 + math.exp(-raw))                       # squashed to 0-1 for readability (logistic)
+    coverage = len(z) / len(SCORECARD_AXES)
+
+    ordered = sorted(contrib.items(), key=lambda x: -x[1])
+    driving = [{"axis": ax, "contribution": round(c, 3)} for ax, c in ordered[:3] if c > 0]
+    dom = max(m, key=m.get) if m else None
+    route = {ax for ax, w in ARCH_W.get(dom, {}).items() if w >= 0.8} if dom else set(SCORECARD_AXES)
+    # limiting axis = lowest contribution; route-conditioned limiting = lowest among the dominant route's axes
+    limiting = ordered[-1] if ordered else (None, None)
+    rel = [(ax, c) for ax, c in ordered if ax in route] or ordered
+    cond_limiting = min(rel, key=lambda x: x[1]) if rel else (None, None)
+    cl_ax, cl_c = cond_limiting
+    counterfactual = None
+    if cl_ax is not None:
+        gap = atlas.axis_ref.get(cl_ax, {})
+        measured = cl_ax in ascore
+        counterfactual = {
+            "limiting_axis": cl_ax,
+            "limiting_contribution": round(cl_c, 3),
+            "route_conditioned": True,
+            "statement": (
+                f"Route-limiting axis for the {dom} route is '{cl_ax}'"
+                + (f" (below the corpus mean {gap.get('mean')})." if measured
+                   else " — UNMEASURED; acquiring this axis's evidence would resolve the gap.")
+            ),
+            "axis_measured": measured,
+        }
+    return {
+        "verdict": None,                                         # governance: companion score, never a call
+        "score": round(score01, 3),
+        "coverage": round(coverage, 3),
+        "dominant_archetype_soft": dom,
+        "axis_contributions": {ax: round(c, 3) for ax, c in ordered},
+        "driving_axes": driving,
+        "limiting_axis": {"axis": limiting[0], "contribution": round(limiting[1], 3)} if limiting[0] else None,
+        "counterfactual_gap": counterfactual,
+        "weights_note": ("ILLUSTRATIVE expert-set weights, soft-membership-blended per-archetype (SHOWN, "
+                         "not learned). Interpretable D1 layer; safety is a liability axis (sign −1)."),
+        "disclaimer": ("DESCRIPTIVE, verdict-inert nomination-READINESS score. Glass-box: score = "
+                       "archetype-conditioned weighted mean of z-scored axis positions vs the frozen "
+                       "corpus. NOT a gate, NOT the outcome-trained predictive score, never mints a "
+                       "recommendation."),
+    }
+
+
+def scorecard_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT_K,
+                               companion: Optional[dict] = None) -> dict:
+    """Convenience: in-process fan-out results -> D1 scorecard. Reuses a precomputed companion's
+    soft_membership if given (avoids recomputing), else derives it."""
+    feat = vector_from_sub_results(sub_results)
+    membership = (companion or {}).get("soft_membership")
+    if membership is None:
+        membership = atlas.companion(feat, k=k).get("soft_membership")
+    return nomination_scorecard(feat, membership, atlas)

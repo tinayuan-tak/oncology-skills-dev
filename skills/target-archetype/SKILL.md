@@ -20,7 +20,7 @@ description: |
   nearest-analog nomination companion, not a call.
 
 metadata:
-  version: 0.1.0            # MUST equal SKILL_VERSION in scripts/run.py
+  version: 0.2.0            # MUST equal SKILL_VERSION in scripts/run.py
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -58,6 +58,14 @@ caveat, because it makes no classification claim.
    - **rule_precedent** — reference targets with the most-overlapping fired-rule signature (Jaccard);
    - **missingness** — axes entirely unmeasured for this target (the acquisition backlog);
    - **novelty** — a crude global nearest-neighbour distance (flags EXTREME, not INCONSISTENT — A3 backlog).
+4. It also emits a **D1 nomination-readiness SCORECARD** (`nomination_scorecard`): an interpretable,
+   glass-box, ARCHETYPE-CONDITIONED score. Each of the 13 axes' z-scored position (vs the frozen corpus
+   `axis_ref`) is signed (+favorable / −liability, e.g. safety) and weighted by a SOFT-MEMBERSHIP blend of
+   per-archetype weight profiles (ILLUSTRATIVE + SHOWN, not learned), so a surface antigen is scored on its
+   OWN route (expression/selectivity/surface/safety) rather than penalised for "not being a driver". Emits
+   the per-axis contributions + driving axes + a **route-conditioned counterfactual gap** ("closest to
+   nominatable except axis X"). This is the interpretable **D1** layer only — the outcome-trained predictive
+   score (D2) and its SHAP attribution (D3) stay in the validation harness pending separate approval.
 
 ## Governance (non-negotiable)
 DESCRIPTIVE, `verdict=None`, **out of `_SHORT_TO_GATE`**, never wired into a resolver `when.card_id` or
