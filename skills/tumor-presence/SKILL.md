@@ -47,7 +47,7 @@ description: |
   POST-HOC lens exposed via the optional --modality flag.
 
 metadata:
-  version: 1.14.0
+  version: 1.15.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -72,6 +72,7 @@ composition:
     - cellline-rna-protein-concordance
     - rna-protein-concordance-tumor
     - cellline-protein-abundance-procan   # cell-line protein 2nd platform (ProCan DIA/SWATH, CC-BY); DISPLAY-ONLY / verdict-inert — fires no rule, NOT in rules_scope
+    - hpa-pathology-cancer-ihc   # MS-INDEPENDENT antibody IHC protein-in-tumor (HPA Pathology, 20 cancer types); (protein_ihc, tumor) bucket; DISPLAY-ONLY / verdict-inert (measured-unruled) — fills protein presence where CPTAC is data_unavailable
     # VERDICT-BEARING single-cell (sc_rna/tumor)
     - tumor-scrna-celltype-expression
     # NORMAL-TISSUE SAFETY COMPARATORS (2) — verdict-inert
@@ -103,6 +104,7 @@ composition:
     - sc_tumor_celltype_expression
     - sc_normal_celltype_expression
     - normal_tissue_protein_breadth       # normal-tissue-liability HPA-IHC comparator (protein_ihc/normal)
+    - tumor_protein_ihc_presence          # hpa-pathology-cancer-ihc — MS-independent antibody protein-in-tumor (protein_ihc/tumor)
   rules_scope:
     - cellline-rna-distribution
     - tumor-rna-vs-adjacent

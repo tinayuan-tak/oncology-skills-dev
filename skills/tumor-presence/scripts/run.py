@@ -243,7 +243,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.14.0"   # 1.14.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.15.0"   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -272,6 +272,13 @@ CARDS = [
     # driven by Gygi's fired rules).
     "cellline-protein-abundance-procan",
 
+    # antibody IHC protein-presence-in-TUMOR (HPA Pathology, 20 cancer types) — the MS-INDEPENDENT
+    # protein-in-tumor leg. Occupies the (protein_ihc, tumor) bucket: fills protein presence where the
+    # CPTAC TMT-MS card (bulk_protein_ms/tumor) is data_unavailable. VERDICT-INERT: fires NO rule; surfaced
+    # as a `measured` bucket via _MEASURED_UNRULED_PRESENT, so the COLLAPSED presence verdict is byte-stable
+    # (the pm matrix gains the 8th, protein_ihc/tumor, bucket — additive).
+    "hpa-pathology-cancer-ihc",
+
     # ── NORMAL-TISSUE SAFETY COMPARATORS (2) — verdict-inert window framing ────
     # The safety VERDICT is owned by on-target-safety-liability, NOT this skill.
     "normal-tissue-liability",           # HPA IHC normal-tissue protein footprint (protein_ihc/normal)
@@ -297,6 +304,7 @@ CARD_CONTEXT = {
     "cellline-rna-protein-concordance":     ("bulk_rna", "cell_line"),
     "rna-protein-concordance-tumor":        ("bulk_rna", "tumor"),
     "tumor-scrna-celltype-expression":      ("sc_rna", "tumor"),
+    "hpa-pathology-cancer-ihc":             ("protein_ihc", "tumor"),   # MS-independent antibody IHC protein-in-tumor (verdict-inert; measured-unruled)
     "normal-tissue-liability":              ("protein_ihc", "normal"),
     "sc-normal-celltype-expression":        ("sc_rna", "normal"),
 }
@@ -317,6 +325,7 @@ ALL_CONTEXTS = (
     ("bulk_protein_ms", "tumor"),
     ("sc_rna", "tumor"),          # card-backed; measured for the wired sc indications, else data_unavailable
     ("sc_rna", "normal"),         # safety comparator (sc-normal-celltype-expression)
+    ("protein_ihc", "tumor"),     # MS-INDEPENDENT antibody protein-in-tumor (hpa-pathology-cancer-ihc); measured for the ~20 HPA cancer types, else data_unavailable
     ("protein_ihc", "normal"),    # safety comparator (normal-tissue-liability HPA IHC)
 )
 
@@ -699,6 +708,15 @@ _MEASURED_UNRULED_PRESENT = {
                                    {"ns": "protein_present_not_elevated",
                                     "not_significant": "protein_present_not_elevated",
                                     "small_effect": "protein_present_not_elevated"}),
+    # (protein_ihc, tumor): HPA antibody IHC protein-presence, surfaced as `measured` with NO rule
+    # (verdict-inert). Each meaningful protein_presence_class passes through as the bucket verdict; a
+    # class NOT in this map (data_unavailable) leaves the bucket data_unavailable. The collapsed presence
+    # verdict is unaffected (no rule fires); this only populates the additive protein_ihc/tumor bucket.
+    ("protein_ihc", "tumor"): ("hpa-pathology-cancer-ihc", "protein_presence_class",
+                               {"ihc_detected_high": "ihc_detected_high",
+                                "ihc_detected_moderate": "ihc_detected_moderate",
+                                "ihc_detected_low": "ihc_detected_low",
+                                "ihc_not_detected": "ihc_not_detected"}),
 }
 
 
@@ -1091,6 +1109,14 @@ def _headline(cards, fired, verdict_pair):
         "rna_tumor_elevation_n_indications_tested":   get_card_field(cards, "tumor-elevation-breadth", "rna_n_indications_tested"),
         "breadth_layer_concordance":                 get_card_field(cards, "tumor-elevation-breadth", "breadth_layer_concordance"),
         # ── Verdict-inert facets ──────────────────────────────────────────────
+        # HPA antibody IHC protein-presence-in-tumor (MS-independent; the protein_ihc/tumor bucket). Fills
+        # protein presence where CPTAC TMT-MS is data_unavailable. The bucket verdict is in
+        # presence_verdict_by_modality['protein_ihc/tumor']; these are the raw display atoms.
+        "hpa_ihc_protein_presence_class": get_card_field(cards, "hpa-pathology-cancer-ihc", "protein_presence_class"),
+        "hpa_ihc_fraction_detected":      get_card_field(cards, "hpa-pathology-cancer-ihc", "fraction_detected"),
+        "hpa_ihc_staining_score":         get_card_field(cards, "hpa-pathology-cancer-ihc", "staining_score"),
+        "hpa_ihc_n_patients":             get_card_field(cards, "hpa-pathology-cancer-ihc", "n_patients_total"),
+        "hpa_ihc_cancer_type":            get_card_field(cards, "hpa-pathology-cancer-ihc", "hpa_cancer_type"),
         "purity_confound_class":       get_card_field(cards, "expression-purity-confound", "purity_confound_class"),
         "expression_purity_pearson_r": get_card_field(cards, "expression-purity-confound", "expression_purity_pearson_r"),
         # RNA-as-protein-proxy quality — both arms surfaced side-by-side (their disagreement is the signal).

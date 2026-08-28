@@ -83,7 +83,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "cellline-rna-distribution-by-subtype", "normal-tissue-liability",
         "rna-protein-concordance-tumor", "sc-normal-celltype-expression",
         # 2026-08-26: CPTAC-protein subtype panorama added to SUB_SKILL_CARDS[tumor-presence] (#676).
-        "tumor-protein-distribution-by-subtype"}),
+        "tumor-protein-distribution-by-subtype",
+        # 2026-08-28: HPA antibody IHC protein-in-tumor (protein_ihc/tumor bucket) added to
+        # SUB_SKILL_CARDS[tumor-presence]; mirror here (DIMENSION_CARDS drift guard).
+        "hpa-pathology-cancer-ihc"}),
     "genomic_alteration": frozenset({
         "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
         "copy-number-stratified-dependency", "ddr-deficiency-context", "functional-gene-state",

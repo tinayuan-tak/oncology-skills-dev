@@ -355,7 +355,9 @@ def test_all_taxonomy_buckets_present():
     pm = tp._per_modality_verdicts([])
     assert set(pm.keys()) == {"bulk_rna/cell_line", "bulk_rna/tumor",
                               "bulk_protein_ms/cell_line", "bulk_protein_ms/tumor",
-                              "sc_rna/tumor", "sc_rna/normal", "protein_ihc/normal"}
+                              "sc_rna/tumor", "sc_rna/normal",
+                              "protein_ihc/tumor",   # HPA antibody IHC protein-in-tumor (MS-independent; measured-unruled)
+                              "protein_ihc/normal"}
     # each bucket carries its two axes as explicit fields
     for (m, s) in tp.ALL_CONTEXTS:
         b = pm[tp._ctx_key(m, s)]
@@ -559,7 +561,11 @@ def test_full_per_modality_golden_spine():
     cards = [{"card_id": "sc-normal-celltype-expression",
               "summary": {"sc_normal_expression_class": "LOW_LIABILITY"}},
              {"card_id": "normal-tissue-liability",
-              "summary": {"normal_tissue_breadth_class": "restricted"}}]
+              "summary": {"normal_tissue_breadth_class": "restricted"}},
+             # HPA antibody IHC protein-in-tumor: surfaced as `measured` with NO rule (measured-unruled),
+             # demonstrating the protein_ihc/tumor bucket populating the MS-independent protein leg.
+             {"card_id": "hpa-pathology-cancer-ihc",
+              "summary": {"protein_presence_class": "ihc_detected_high"}}]
     pm = tp._per_modality_verdicts(fired, cards)
     assert {k: (v["verdict"], v["evidence_state"]) for k, v in pm.items()} == {
         "bulk_rna/cell_line":       ("broadly_high_expression", "measured"),
@@ -568,6 +574,7 @@ def test_full_per_modality_golden_spine():
         "bulk_protein_ms/tumor":    ("protein_strongly_upregulated", "measured"),
         "sc_rna/tumor":             ("sc_malignant_detected", "measured"),
         "sc_rna/normal":            ("LOW_LIABILITY", "comparator"),
+        "protein_ihc/tumor":        ("ihc_detected_high", "measured"),   # HPA IHC, measured-unruled (no rule)
         "protein_ihc/normal":       ("restricted", "comparator"),
     }
     # collapsed spine: the RNA backbone wins (byte-stable)

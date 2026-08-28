@@ -366,6 +366,9 @@ SUB_SKILL_CARDS = {
                                          # CARDS (and surface-modality-fit CARDS) but composed under NO
                                          # entry → silently dropped. Composed here under its presence home
                                          # (also satisfies the surface-modality-fit CARDS listing).
+        "hpa-pathology-cancer-ihc",      # MS-INDEPENDENT antibody IHC protein-in-tumor (protein_ihc/tumor
+                                         # bucket). Added to tumor-presence CARDS + this composer map together
+                                         # (composer-consistency guard); DISPLAY-ONLY / verdict-inert.
     ],
     "tumor-selectivity": [
         "tumor-vs-normal-selectivity",

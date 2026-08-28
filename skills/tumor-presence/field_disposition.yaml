@@ -731,6 +731,50 @@ cellline-protein-abundance-procan:
   protein_expression_class:
     role: signal
     reason: magnitude/categorical signal
+hpa-pathology-cancer-ihc:
+  protein_presence_class:
+    role: signal
+    reason: "primary antibody-IHC protein-presence-in-tumor readout (protein_ihc/tumor bucket)"
+  fraction_detected:
+    role: signal
+    reason: "(High+Medium+Low)/total \u2014 the continuous presence signal the class keys on"
+  fraction_moderate_strong:
+    role: context
+    reason: "(High+Medium)/total \u2014 moderate-or-strong staining fraction"
+  staining_score:
+    role: context
+    reason: "0-3 weighted intensity across patients"
+  n_high:
+    role: context
+    reason: "component staining count"
+  n_medium:
+    role: context
+    reason: "component staining count"
+  n_low:
+    role: context
+    reason: "component staining count"
+  n_not_detected:
+    role: context
+    reason: "component staining count"
+  n_patients_total:
+    role: context
+    reason: "power / detection denominator"
+  hpa_cancer_type:
+    role: provenance
+    reason: "the HPA broad cancer type the OncoTree indication mapped to (granularity provenance)"
+  prognostic_type:
+    role: display
+    reason: "HPA survival-association direction (favorable/unfavorable) \u2014 display context, not a presence signal"
+  prognostic_is_significant:
+    role: display
+    reason: "HPA prognostic significance flag \u2014 display context"
+  prognostic_p_value:
+    role: display
+    reason: "HPA prognostic association p-value \u2014 display context"
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+
 normal-tissue-liability:
   essential_tissue_flag:
     role: display
