@@ -715,6 +715,7 @@ question_hierarchies:
       - id: cis_dosage_read
         measurement_types:
         - cis_dosage_coupling
+        - cis_protein_dosage_coupling
         - amp_expr_stratified_dependency
       context_types:
       - cell_line_isoform_dominance
@@ -729,6 +730,7 @@ question_hierarchies:
       - id: expr_dep_read
         measurement_types:
         - expression_dependency_correlation
+        - abundance_dependency_correlation
     - id: CONJOINT
       questions:
       - id: conjoint_read
