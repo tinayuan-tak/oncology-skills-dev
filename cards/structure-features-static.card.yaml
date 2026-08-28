@@ -17,6 +17,24 @@ question: "Are {target.symbol}'s known TCGA mutation hotspots in druggable pocke
 
 tier: target   # scope-invariant: AlphaFold structure / pocket features are properties of the protein, identical across patient subgroups. Never stratifies.
 
+# Evidence-capsule projection contract (consumed by _skills_common/evidence_capsule.emit_capsules).
+# WHY: the capsule's `class` heuristic picks the alphabetical-first *_class field, which for this card
+# is `alphafold_confidence_class` — a CONTEXT-confidence label, NOT the verdict-driving datum. The SM
+# ligandability call this card exists to make is `structural_ligandability_class` (the composite of 6
+# per-UniProt products incl. the PLINDER experimental co-crystal leg). Declare it so the capsule the
+# cross-evidence agent cites carries the RIGHT primary + the salient categorical/bool ligandability
+# axes a numeric-only selector would drop. VERDICT-INERT projection.
+capsule:
+  primary_class: structural_ligandability_class
+  categorical_fields:
+    - structural_ligandability_class          # PRIMARY composite SM-ligandability call
+    - hotspot_pocket_adjacency_call           # is a known hotspot residue in a druggable pocket
+    - has_experimental_cocrystal              # PLINDER proper-ligand co-crystal (strongest handle)
+    - has_druggable_pocket                    # HOTPocket supportive tier
+    - has_cryptic_site                        # CryptoBench cryptic/allosteric pocket
+    - pdb_coverage_class                       # experimental-structure coverage
+    - alphafold_confidence_class               # structural-context confidence (kept as a facet)
+
 applies_when: []
 
 required_inputs:

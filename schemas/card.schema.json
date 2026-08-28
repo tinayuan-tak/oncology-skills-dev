@@ -49,10 +49,12 @@
     },
     "derived_from": {
       "type": "array",
-      "description": "OPTIONAL. Declares this card as a DERIVED card whose method reads upstream cards' outputs (instead of, or in addition to, raw data products). Each entry names an upstream card_id. A cross-reference validator (validators/validate_cards.py::validate_derived_from_refs) uses this list to verify every referenced card_id resolves to a live card (or to a historical alias `from`->`to` in vocabularies/card_id_aliases.yaml). NOTE: the stronger 'emits the fields this card reads' field-level reachability check is NOT yet implemented — this list is verified for card EXISTENCE only.",
+      "description": "OPTIONAL. Declares this card as a DERIVED card whose method reads upstream cards' outputs (instead of, or in addition to, raw data products). Each entry names an upstream card_id. A cross-reference validator (validators/validate_cards.py::validate_derived_from_refs) uses this list to verify every referenced card_id resolves to a live card (or to a historical alias `from`->`to` in vocabularies/card_id_aliases.yaml). NOTE: the stronger 'emits the fields this card reads' field-level reachability check is NOT yet implemented \u2014 this list is verified for card EXISTENCE only.",
       "items": {
         "type": "object",
-        "required": ["card_id"],
+        "required": [
+          "card_id"
+        ],
         "additionalProperties": false,
         "properties": {
           "card_id": {
@@ -67,10 +69,15 @@
     },
     "consumed_by": {
       "type": "array",
-      "description": "OPTIONAL. The card→skill binding, MANY-TO-MANY with per-host role (plan Part 5 / card-binding SoT). One entry per skill that hosts this card; a multi-homed card carries N entries with per-host role. Cross-checks (in validators/validate_cards.py): (a) `lens` names a question `short` or conditioner id in vocabularies/target_profiling_axes.yaml (or the `self_contained` sentinel for inline-verdict skills); (b) role/verdict_source consistency vs the resolver; (c) reconciliation against the skills-side CARDS/SUB_SKILL_CARDS literals (validate-only). The verdict-bearing edge set stays DERIVED from rule_id→resolver→gate; this block records + reconciles it, it does not author it.",
+      "description": "OPTIONAL. The card\u2192skill binding, MANY-TO-MANY with per-host role (plan Part 5 / card-binding SoT). One entry per skill that hosts this card; a multi-homed card carries N entries with per-host role. Cross-checks (in validators/validate_cards.py): (a) `lens` names a question `short` or conditioner id in vocabularies/target_profiling_axes.yaml (or the `self_contained` sentinel for inline-verdict skills); (b) role/verdict_source consistency vs the resolver; (c) reconciliation against the skills-side CARDS/SUB_SKILL_CARDS literals (validate-only). The verdict-bearing edge set stays DERIVED from rule_id\u2192resolver\u2192gate; this block records + reconciles it, it does not author it.",
       "items": {
         "type": "object",
-        "required": ["skill", "lens", "role", "verdict_source"],
+        "required": [
+          "skill",
+          "lens",
+          "role",
+          "verdict_source"
+        ],
         "additionalProperties": false,
         "properties": {
           "skill": {
@@ -89,12 +96,21 @@
           "role": {
             "type": "string",
             "description": "The card's role in this host. verdict=feeds a verdict; corroboration=confidence; stratification=patient-selection; display=verdict-inert render facet.",
-            "enum": ["verdict", "corroboration", "stratification", "display"]
+            "enum": [
+              "verdict",
+              "corroboration",
+              "stratification",
+              "display"
+            ]
           },
           "verdict_source": {
             "type": "string",
             "description": "How the host resolves its verdict: resolver (declarative resolvers/<gate>.resolver.yaml), inline (in the skill's run.py), or none (display/descriptive). role:verdict requires resolver|inline.",
-            "enum": ["resolver", "inline", "none"]
+            "enum": [
+              "resolver",
+              "inline",
+              "none"
+            ]
           },
           "compose_into_profile": {
             "type": "boolean",
@@ -107,7 +123,7 @@
           },
           "order_hint": {
             "type": "integer",
-            "description": "OPTIONAL. Advisory ordinal within the host's card list. NOT the byte-order authority — the committed literal governs order (validate-only phase).",
+            "description": "OPTIONAL. Advisory ordinal within the host's card list. NOT the byte-order authority \u2014 the committed literal governs order (validate-only phase).",
             "minimum": 0
           },
           "note": {
@@ -118,11 +134,24 @@
         "allOf": [
           {
             "if": {
-              "properties": {"role": {"const": "verdict"}},
-              "required": ["role"]
+              "properties": {
+                "role": {
+                  "const": "verdict"
+                }
+              },
+              "required": [
+                "role"
+              ]
             },
             "then": {
-              "properties": {"verdict_source": {"enum": ["resolver", "inline"]}}
+              "properties": {
+                "verdict_source": {
+                  "enum": [
+                    "resolver",
+                    "inline"
+                  ]
+                }
+              }
             }
           }
         ]
@@ -132,8 +161,12 @@
     },
     "axis_edge": {
       "type": "object",
-      "description": "OPTIONAL. Marks this card as a CROSS-AXIS EDGE — evidence that joins two biological axes (rather than a single-axis measurement). Formalizes what was previously only header prose (plan Part 5 / Part 6). `reports_into` (a question short in target_profiling_axes.yaml) is cross-checked in validators/validate_cards.py.",
-      "required": ["anchor", "partner", "edge_kind"],
+      "description": "OPTIONAL. Marks this card as a CROSS-AXIS EDGE \u2014 evidence that joins two biological axes (rather than a single-axis measurement). Formalizes what was previously only header prose (plan Part 5 / Part 6). `reports_into` (a question short in target_profiling_axes.yaml) is cross-checked in validators/validate_cards.py.",
+      "required": [
+        "anchor",
+        "partner",
+        "edge_kind"
+      ],
       "additionalProperties": false,
       "properties": {
         "anchor": {
@@ -150,8 +183,15 @@
         },
         "edge_kind": {
           "type": "string",
-          "enum": ["stratified_dependency", "conditional_dependency", "co_occurrence",
-                   "drug_response", "paralog", "colocalization", "prognostic_association"]
+          "enum": [
+            "stratified_dependency",
+            "conditional_dependency",
+            "co_occurrence",
+            "drug_response",
+            "paralog",
+            "colocalization",
+            "prognostic_association"
+          ]
         },
         "reports_into": {
           "type": "string",
@@ -166,7 +206,9 @@
       "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory). May be empty ONLY for COMPOSED cards (cards that declare `derived_from:` upstream card_ids); leaf cards must declare at least one product_id. Composed-card empty-array eligibility is checked by the cross-reference validator, not the JSON Schema.",
       "items": {
         "type": "object",
-        "required": ["product_id"],
+        "required": [
+          "product_id"
+        ],
         "unevaluatedProperties": false,
         "properties": {
           "product_id": {
@@ -187,7 +229,7 @@
           },
           "optional": {
             "type": "boolean",
-            "description": "When true, this input is non-blocking — the card runs even if the product is unavailable, and emits 'data_unavailable' labels for fields derived from it. Useful for companion datasets (e.g. RNAi as a companion to CRISPR). Default: false (input is required).",
+            "description": "When true, this input is non-blocking \u2014 the card runs even if the product is unavailable, and emits 'data_unavailable' labels for fields derived from it. Useful for companion datasets (e.g. RNAi as a companion to CRISPR). Default: false (input is required).",
             "default": false
           }
         }
@@ -200,7 +242,9 @@
       "description": "Method CLIs the card invokes. Methods are deterministic. Cards do not call models or web APIs directly.",
       "items": {
         "type": "object",
-        "required": ["call"],
+        "required": [
+          "call"
+        ],
         "unevaluatedProperties": false,
         "properties": {
           "call": {
@@ -210,7 +254,7 @@
           },
           "module": {
             "type": "string",
-            "description": "OPTIONAL (T11, 2026-08-11): the importable methods-repo module path backing this call, e.g. 'gnomad_constraint' or 'driver_role_overlay.cli'. When present WITH `entrypoint`, compose-dashboard's generic dispatcher can invoke the reader directly without a hand-written _dispatch_* function — collapsing the ~30 pure-passthrough dispatchers into data. Defaults to `call` with hyphens→underscores when omitted.",
+            "description": "OPTIONAL (T11, 2026-08-11): the importable methods-repo module path backing this call, e.g. 'gnomad_constraint' or 'driver_role_overlay.cli'. When present WITH `entrypoint`, compose-dashboard's generic dispatcher can invoke the reader directly without a hand-written _dispatch_* function \u2014 collapsing the ~30 pure-passthrough dispatchers into data. Defaults to `call` with hyphens\u2192underscores when omitted.",
             "pattern": "^[a-z][a-z0-9_.]*[a-z0-9]$"
           },
           "entrypoint": {
@@ -222,7 +266,13 @@
             "type": "object",
             "description": "Keyword arguments passed to the method CLI. Values may contain {target}, {indication}, {release_pin}, {subgroup_spec} template placeholders.",
             "additionalProperties": {
-              "type": ["string", "number", "boolean", "array", "null"]
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "array",
+                "null"
+              ]
             }
           }
         }
@@ -233,12 +283,14 @@
     "outputs": {
       "type": "object",
       "description": "Declarative description of what the card emits. The shape here defines what populates summary.json + figure.svg + plot_data.parquet for this card.",
-      "required": ["summary_fields"],
+      "required": [
+        "summary_fields"
+      ],
       "unevaluatedProperties": false,
       "properties": {
         "summary_fields": {
           "type": "array",
-          "description": "Names of fields that must be present in the card's emitted summary.json. Used by compose-dashboard's post-invocation validation (B1 § compose-dashboard subsection 5) to gate the validation_state. Each entry may be a bare string (biology-agnostic field, emitted unconditionally) OR an object with `name` + optional `lens_conditional_on` marker (field emitted only when a specific optional lens is invoked — e.g. `adc_grade` gated on `modality` lens). Bare-string form is preserved for backward compatibility; the reviewer-driven arch upgrade A2 (2026-07-08) adds the object form to prevent lens-only fields from leaking into biology-first invocations.",
+          "description": "Names of fields that must be present in the card's emitted summary.json. Used by compose-dashboard's post-invocation validation (B1 \u00a7 compose-dashboard subsection 5) to gate the validation_state. Each entry may be a bare string (biology-agnostic field, emitted unconditionally) OR an object with `name` + optional `lens_conditional_on` marker (field emitted only when a specific optional lens is invoked \u2014 e.g. `adc_grade` gated on `modality` lens). Bare-string form is preserved for backward compatibility; the reviewer-driven arch upgrade A2 (2026-07-08) adds the object form to prevent lens-only fields from leaking into biology-first invocations.",
           "items": {
             "oneOf": [
               {
@@ -248,7 +300,9 @@
               },
               {
                 "type": "object",
-                "required": ["name"],
+                "required": [
+                  "name"
+                ],
                 "additionalProperties": false,
                 "properties": {
                   "name": {
@@ -258,7 +312,11 @@
                   },
                   "lens_conditional_on": {
                     "type": "string",
-                    "enum": ["modality", "therapeutic_hypothesis", "subgroup"],
+                    "enum": [
+                      "modality",
+                      "therapeutic_hypothesis",
+                      "subgroup"
+                    ],
                     "description": "When set, this field is emitted only when the named optional lens is invoked at runtime. The rules engine treats the field as absent when the lens is not invoked; downstream consumers (target-profile LLM synthesis, provenance.yaml) must handle absence gracefully. Enables clean separation between biology-first outputs (always emitted) and lens-conditional outputs (e.g., ADC/TCE letter grades gated on the modality lens)."
                   },
                   "description": {
@@ -278,32 +336,66 @@
           "description": "Optional: for categorical summary_fields, declare the exhaustive set of values the method may emit. Consumed by validators/validate_interpretation_rules.py to confirm rule (card_id, field, value) triples are reachable. Map of field_name (must appear in summary_fields) -> list of allowed string values. Cards may omit this during the pure-data transition; validator emits a warning rather than an error.",
           "additionalProperties": {
             "type": "array",
-            "items": {"type": "string", "minLength": 1, "maxLength": 100},
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
             "minItems": 1,
             "maxItems": 30
           }
         },
         "summary_fields_record_schemas": {
           "type": "object",
-          "description": "Phase 4 (2026-07-15) — Declare record shapes for list-typed summary_fields (e.g. per_subgroup_metrics: [{stratum, class, subgroup_n, ...}]). Rules matching these fields use `when.in_record` (interpretation_rules.schema.json). Map of field_name → object describing the record's key names + expected value types. Per key, value spec is either `enum: [...]` (categorical), a JSON-schema type string ('integer', 'boolean', 'string'), or an object with an `enum` key. See target-contracts/docs/design/IDAS_SUBTYPE_PIPELINE.md for the list-typed card convention.",
+          "description": "Phase 4 (2026-07-15) \u2014 Declare record shapes for list-typed summary_fields (e.g. per_subgroup_metrics: [{stratum, class, subgroup_n, ...}]). Rules matching these fields use `when.in_record` (interpretation_rules.schema.json). Map of field_name \u2192 object describing the record's key names + expected value types. Per key, value spec is either `enum: [...]` (categorical), a JSON-schema type string ('integer', 'boolean', 'string'), or an object with an `enum` key. See target-contracts/docs/design/IDAS_SUBTYPE_PIPELINE.md for the list-typed card convention.",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": {
               "oneOf": [
-                {"type": "string", "enum": ["integer", "boolean", "string", "number"]},
-                {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                {
+                  "type": "string",
+                  "enum": [
+                    "integer",
+                    "boolean",
+                    "string",
+                    "number"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
                 {
                   "type": "object",
                   "properties": {
-                    "enum": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "type": {"type": "string", "enum": ["integer", "boolean", "string", "number"]}
+                    "enum": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "integer",
+                        "boolean",
+                        "string",
+                        "number"
+                      ]
+                    }
                   },
                   "additionalProperties": false
                 },
                 {
                   "comment": "Nested list-of-records: a summary_field record may carry a key whose value is itself a list of records (one level of nesting, e.g. per_subgroup_metrics[].proxy_normal_windows[]). record_schema maps each nested leaf key to a flat type/enum spec.",
                   "type": "object",
-                  "required": ["record_schema"],
+                  "required": [
+                    "record_schema"
+                  ],
                   "additionalProperties": false,
                   "properties": {
                     "record_schema": {
@@ -311,13 +403,41 @@
                       "minProperties": 1,
                       "additionalProperties": {
                         "oneOf": [
-                          {"type": "string", "enum": ["integer", "boolean", "string", "number"]},
-                          {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                          {
+                            "type": "string",
+                            "enum": [
+                              "integer",
+                              "boolean",
+                              "string",
+                              "number"
+                            ]
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1
+                          },
                           {
                             "type": "object",
                             "properties": {
-                              "enum": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                              "type": {"type": "string", "enum": ["integer", "boolean", "string", "number"]}
+                              "enum": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "minItems": 1
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "integer",
+                                  "boolean",
+                                  "string",
+                                  "number"
+                                ]
+                              }
                             },
                             "additionalProperties": false
                           }
@@ -341,7 +461,10 @@
           "description": "Iter-2 multi-figure declaration. Cards may emit multiple figures with different visual representations of the same underlying analysis (e.g., waterfall + histogram for a distribution). The renderer reads `preferred_surfaces` to pick which figure to embed per output surface. The method CLI emits ALL listed figures to staging; the framework's renderer chooses per-context.",
           "items": {
             "type": "object",
-            "required": ["id", "type"],
+            "required": [
+              "id",
+              "type"
+            ],
             "unevaluatedProperties": false,
             "properties": {
               "id": {
@@ -354,10 +477,22 @@
                 "pattern": "^[a-z][a-z0-9_]*$",
                 "description": "Figure-template identifier (e.g., 'ranked_waterfall', 'density_histogram_with_kde')."
               },
-              "description": {"type": "string"},
+              "description": {
+                "type": "string"
+              },
               "preferred_surfaces": {
                 "type": "array",
-                "items": {"type": "string", "enum": ["markdown", "markdown_alt", "html", "ppt", "decision_memo", "poster"]},
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "markdown",
+                    "markdown_alt",
+                    "html",
+                    "ppt",
+                    "decision_memo",
+                    "poster"
+                  ]
+                },
                 "description": "Which renderer surfaces should prefer this figure variant. Renderers iterate their surface and pick the first matching figure."
               },
               "primary": {
@@ -377,15 +512,18 @@
     },
     "interpretation_hints": {
       "type": "array",
-      "description": "Rules that map output metrics to a categorical interpretation_call. Evaluated in order; first matching rule wins. Predicates use the same CEL-compatible subset as applies_when (B1 § compose-dashboard subsection 2).",
+      "description": "Rules that map output metrics to a categorical interpretation_call. Evaluated in order; first matching rule wins. Predicates use the same CEL-compatible subset as applies_when (B1 \u00a7 compose-dashboard subsection 2).",
       "items": {
         "type": "object",
-        "required": ["if", "call"],
+        "required": [
+          "if",
+          "call"
+        ],
         "unevaluatedProperties": false,
         "properties": {
           "if": {
             "type": "string",
-            "description": "CEL-compatible predicate evaluated against the card's emitted summary fields (NOT against the dashboard context — interpretation predicates are scoped to summary fields only).",
+            "description": "CEL-compatible predicate evaluated against the card's emitted summary fields (NOT against the dashboard context \u2014 interpretation predicates are scoped to summary fields only).",
             "format": "cel-predicate",
             "minLength": 3,
             "maxLength": 500
@@ -398,7 +536,7 @@
           },
           "dominant": {
             "type": "boolean",
-            "description": "EG4 (iter-2): if true, this interpretation_call is treated as a DOMINANT signal in fit_level scoring. The synthesis layer's dominant-signal-plus-confirmation rule rates the modality 'strong' when ANY primary card emits a dominant call AND no primary card emits a non-informative call. Card-authors opt in per-call to mark which of their calls represent discovery-driving signal (e.g., 'lineage-restricted: single tissue', 'structurally druggable: covalent pocket', 'actionable alteration'). Cards without any dominant calls fall back to ratio-based scoring (current iter-1b behavior). Backward-compatible: absent or false → no behavior change."
+            "description": "EG4 (iter-2): if true, this interpretation_call is treated as a DOMINANT signal in fit_level scoring. The synthesis layer's dominant-signal-plus-confirmation rule rates the modality 'strong' when ANY primary card emits a dominant call AND no primary card emits a non-informative call. Card-authors opt in per-call to mark which of their calls represent discovery-driving signal (e.g., 'lineage-restricted: single tissue', 'structurally druggable: covalent pocket', 'actionable alteration'). Cards without any dominant calls fall back to ratio-based scoring (current iter-1b behavior). Backward-compatible: absent or false \u2192 no behavior change."
           }
         }
       },
@@ -407,9 +545,13 @@
     },
     "thresholds": {
       "type": "object",
-      "description": "Named thresholds referenced by applies_when and interpretation_hints predicates (e.g., THRESHOLD.expression_p95_min). Extracted to a separate block per T1.5 — magic numbers in predicates are the failure mode this pattern guards against. Threshold names are referenced in predicates as THRESHOLD.<name>; the validate_cards.py validator checks referential integrity.",
+      "description": "Named thresholds referenced by applies_when and interpretation_hints predicates (e.g., THRESHOLD.expression_p95_min). Extracted to a separate block per T1.5 \u2014 magic numbers in predicates are the failure mode this pattern guards against. Threshold names are referenced in predicates as THRESHOLD.<name>; the validate_cards.py validator checks referential integrity.",
       "additionalProperties": {
-        "type": ["number", "string", "boolean"]
+        "type": [
+          "number",
+          "string",
+          "boolean"
+        ]
       }
     },
     "caveats": {
@@ -428,7 +570,11 @@
       "description": "Optional. Named warning predicates that fire (or don't fire) against the emitted output. When a predicate fires, the card's validation_state becomes 'passed_with_warnings' and the warning_id is surfaced in the dashboard. Predicates use the same CEL-compatible subset; evaluated against the card's emitted summary fields.",
       "items": {
         "type": "object",
-        "required": ["warning_id", "if", "message"],
+        "required": [
+          "warning_id",
+          "if",
+          "message"
+        ],
         "unevaluatedProperties": false,
         "properties": {
           "warning_id": {
@@ -453,32 +599,52 @@
     },
     "tier": {
       "type": "string",
-      "description": "Phase 4 (2026-07-15) — Optional annotation of which channel-precedence tier this card's evidence belongs to. Used by validators to enforce tier-appropriate applies_when predicates (target-tier cards should not reference indication.* or subtype.* keys). Enum: target | indication | panel | subtype. Cards without tier tag are un-classified (backward-compat for pre-Phase-4 cards).",
-      "enum": ["target", "indication", "panel", "subtype"]
+      "description": "Phase 4 (2026-07-15) \u2014 Optional annotation of which channel-precedence tier this card's evidence belongs to. Used by validators to enforce tier-appropriate applies_when predicates (target-tier cards should not reference indication.* or subtype.* keys). Enum: target | indication | panel | subtype. Cards without tier tag are un-classified (backward-compat for pre-Phase-4 cards).",
+      "enum": [
+        "target",
+        "indication",
+        "panel",
+        "subtype"
+      ]
     },
     "status": {
       "type": "string",
-      "description": "Card build/wiring state (2026-08-12). `wired` (the default when OMITTED) = has a live method + dispatcher + landed product. `placeholder_not_wired` = declared in the contract but no method/product yet (compose-dashboard surfaces it in excluded_at_compose, exclusion_source=data_blocked_at_compose; SK#373). `dormant_pending_data` = a method exists but the card is gated off because its data source has not landed (applies_when-excluded at runtime). `superseded` (added 2026-08-19) = the card's capability is provided elsewhere (e.g. wired at the method level in another skill), so the card is retired-as-duplicate but NOT hard-deleted (card_id is a data contract); it must be consumed by no skill/dashboard and carries a `superseded_by` note in caveats. ENFORCEMENT (validate_cards.py): a card whose status is NOT `wired` MUST NOT appear in any dashboard_spec `required_cards` — it belongs in `placeholder_cards`. This keeps `required_cards` meaning 'must produce' rather than 'may be silently not_wired'.",
-      "enum": ["wired", "placeholder_not_wired", "dormant_pending_data", "superseded"]
+      "description": "Card build/wiring state (2026-08-12). `wired` (the default when OMITTED) = has a live method + dispatcher + landed product. `placeholder_not_wired` = declared in the contract but no method/product yet (compose-dashboard surfaces it in excluded_at_compose, exclusion_source=data_blocked_at_compose; SK#373). `dormant_pending_data` = a method exists but the card is gated off because its data source has not landed (applies_when-excluded at runtime). `superseded` (added 2026-08-19) = the card's capability is provided elsewhere (e.g. wired at the method level in another skill), so the card is retired-as-duplicate but NOT hard-deleted (card_id is a data contract); it must be consumed by no skill/dashboard and carries a `superseded_by` note in caveats. ENFORCEMENT (validate_cards.py): a card whose status is NOT `wired` MUST NOT appear in any dashboard_spec `required_cards` \u2014 it belongs in `placeholder_cards`. This keeps `required_cards` meaning 'must produce' rather than 'may be silently not_wired'.",
+      "enum": [
+        "wired",
+        "placeholder_not_wired",
+        "dormant_pending_data",
+        "superseded"
+      ]
     },
     "subgroup_stratification": {
       "type": "object",
-      "description": "Subgroup-panorama layer (2026-07-16) — Optional attestation block declaring whether this card enumerates a target's evidence across molecular subgroups (the DESCRIPTIVE subgroup panorama). Consumed by validators/validate_cards.py grain-check: a card with status:live MUST bind a per-sample stratified reader (read_stratified_* / build_*_panorama) — NOT an aggregate-substrate method whose values are baked at emit time. `tier: target` cards may NOT carry this block (scope-invariant target evidence never stratifies). Cards without the block are non-stratified (backward-compat).",
-      "required": ["eligible", "status"],
+      "description": "Subgroup-panorama layer (2026-07-16) \u2014 Optional attestation block declaring whether this card enumerates a target's evidence across molecular subgroups (the DESCRIPTIVE subgroup panorama). Consumed by validators/validate_cards.py grain-check: a card with status:live MUST bind a per-sample stratified reader (read_stratified_* / build_*_panorama) \u2014 NOT an aggregate-substrate method whose values are baked at emit time. `tier: target` cards may NOT carry this block (scope-invariant target evidence never stratifies). Cards without the block are non-stratified (backward-compat).",
+      "required": [
+        "eligible",
+        "status"
+      ],
       "additionalProperties": false,
       "properties": {
         "eligible": {
           "type": "boolean",
-          "description": "True when the card's biology genuinely varies by subgroup (author attestation, PR-reviewed — filter 1 of the two-filter card-selection rule)."
+          "description": "True when the card's biology genuinely varies by subgroup (author attestation, PR-reviewed \u2014 filter 1 of the two-filter card-selection rule)."
         },
         "status": {
           "type": "string",
-          "enum": ["live", "blocked_needs_per_sample_reader", "out_of_scope"],
+          "enum": [
+            "live",
+            "blocked_needs_per_sample_reader",
+            "out_of_scope"
+          ],
           "description": "live = bound to a per-sample stratified reader, panorama emits per_subgroup_metrics. blocked_needs_per_sample_reader = biology varies but the bound method returns an emit-time aggregate (filter 2 fails); the card is honestly tagged as not-yet-stratifiable and the grain-check forbids it from declaring per_subgroup_metrics. out_of_scope = deliberately not stratified this iteration."
         },
         "axes": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "description": "Subgroup axes this card enumerates when live (e.g. [msi_status, sidedness, line_of_therapy]). Descriptive only."
         },
         "rationale": {
@@ -489,7 +655,7 @@
         "product": {
           "type": "string",
           "minLength": 1,
-          "description": "When live: the derived per-subgroup product id the panorama reads (e.g. coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1). First live (indication × axis); coverage grows one product at a time."
+          "description": "When live: the derived per-subgroup product id the panorama reads (e.g. coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1). First live (indication \u00d7 axis); coverage grows one product at a time."
         },
         "assignments_manifest": {
           "type": "string",
@@ -501,13 +667,33 @@
           "description": "When live across MULTIPLE (indication x axis) products: the coverage registry. Each entry names a per-indication by-subgroup product, its indication, the axes it carries, and the assignments manifest that supplied its member sets. product/assignments_manifest above name the canonical first example; this is the exhaustive list. Provenance/coverage hint (the reader resolves the product per indication).",
           "items": {
             "type": "object",
-            "required": ["product", "indication", "axes"],
+            "required": [
+              "product",
+              "indication",
+              "axes"
+            ],
             "additionalProperties": false,
             "properties": {
-              "product": {"type": "string", "minLength": 1},
-              "indication": {"type": "string", "minLength": 1},
-              "axes": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
-              "assignments_manifest": {"type": "string", "minLength": 1}
+              "product": {
+                "type": "string",
+                "minLength": 1
+              },
+              "indication": {
+                "type": "string",
+                "minLength": 1
+              },
+              "axes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "assignments_manifest": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "minItems": 1,
@@ -530,7 +716,7 @@
     },
     "sample_context": {
       "type": "string",
-      "description": "OPTIONAL (2026-07-21). The BIOLOGICAL SAMPLE the card's evidence comes from, ORTHOGONAL to `measurement` (the measurement layer). measurement says HOW it was measured (bulk_rna / bulk_protein_ms / ...); sample_context says WHAT was measured (cell_line / tumor / normal). Both axes are independent — every combination is real (bulk_rna x cell_line = DepMap expression; bulk_rna x tumor = TCGA DGE; bulk_protein_ms x cell_line = Gygi; bulk_protein_ms x tumor = CPTAC). The per-modality sub-verdict view buckets by (measurement, sample_context) so a cell-line-RNA signal is never conflated with a tumor-RNA signal. Defaults from measurement_type (cell_line_* -> cell_line, tumor_* -> tumor); the validator enforces consistency. Cards without a sample substrate (dependency, mutation, mechanism, tractability) omit this.",
+      "description": "OPTIONAL (2026-07-21). The BIOLOGICAL SAMPLE the card's evidence comes from, ORTHOGONAL to `measurement` (the measurement layer). measurement says HOW it was measured (bulk_rna / bulk_protein_ms / ...); sample_context says WHAT was measured (cell_line / tumor / normal). Both axes are independent \u2014 every combination is real (bulk_rna x cell_line = DepMap expression; bulk_rna x tumor = TCGA DGE; bulk_protein_ms x cell_line = Gygi; bulk_protein_ms x tumor = CPTAC). The per-modality sub-verdict view buckets by (measurement, sample_context) so a cell-line-RNA signal is never conflated with a tumor-RNA signal. Defaults from measurement_type (cell_line_* -> cell_line, tumor_* -> tumor); the validator enforces consistency. Cards without a sample substrate (dependency, mutation, mechanism, tractability) omit this.",
       "enum": [
         "cell_line",
         "tumor",
@@ -539,7 +725,7 @@
     },
     "modality_relevance": {
       "type": "array",
-      "description": "OPTIONAL (2026-07-23, P4 modality-vector emission). ROUTING METADATA (per DATA_TO_SKILL_CONTRACT.md): declares WHICH modality-fit gates (axis-2) should PULL this card, so a card's evidence lands in the right modality gate rather than being stranded on the biology axis (axis-1). NOT a modality-specific value and NOT a signal — the per-modality SIGNAL is carried by the interpretation rules' `signals:` map (small_molecule/degrader on the intracellular axis; adc/bite_tce/antibody on the surface axis). A card declaring `modality_relevance: [adc,...]` but with no surface-axis rule is 'declared-relevant-but-mute' — the stranded state P4 exists to prevent. DISAMBIGUATION: distinct from the per-edge `modality_relevance` tuple that appears INSIDE signaling-network-mechanism's upstream_regulators struct records (that is struct-internal, this is the card-level routing key). Mirrors the `modality_relevance` key already used on measurement_types in vocabularies/measurement_types.yaml (e.g. surface_confirmation).",
+      "description": "OPTIONAL (2026-07-23, P4 modality-vector emission). ROUTING METADATA (per DATA_TO_SKILL_CONTRACT.md): declares WHICH modality-fit gates (axis-2) should PULL this card, so a card's evidence lands in the right modality gate rather than being stranded on the biology axis (axis-1). NOT a modality-specific value and NOT a signal \u2014 the per-modality SIGNAL is carried by the interpretation rules' `signals:` map (small_molecule/degrader on the intracellular axis; adc/bite_tce/antibody on the surface axis). A card declaring `modality_relevance: [adc,...]` but with no surface-axis rule is 'declared-relevant-but-mute' \u2014 the stranded state P4 exists to prevent. DISAMBIGUATION: distinct from the per-edge `modality_relevance` tuple that appears INSIDE signaling-network-mechanism's upstream_regulators struct records (that is struct-internal, this is the card-level routing key). Mirrors the `modality_relevance` key already used on measurement_types in vocabularies/measurement_types.yaml (e.g. surface_confirmation).",
       "items": {
         "type": "string",
         "enum": [
@@ -556,14 +742,14 @@
     },
     "measurement_type": {
       "type": "string",
-      "description": "DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) — the card's IDENTITY: the single per-target-entity CLAIM it measures (e.g. crispr_lof_dependency, surface_confirmation, normal_tissue_breadth). Must be a key registered in vocabularies/measurement_types.yaml. A card owns exactly one measurement_type; distinct claims (per the concordance test, Rule 2) are distinct cards. OPTIONAL during migration (existing cards are un-migrated; a validator warns, does not error) — REQUIRED for all NEW cards per the frozen identity rule. The type registry declares the value_vocabulary, providers, evidence tiers, grains, and multi_provider_policy; the card names which type it is a view of.",
+      "description": "DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) \u2014 the card's IDENTITY: the single per-target-entity CLAIM it measures (e.g. crispr_lof_dependency, surface_confirmation, normal_tissue_breadth). Must be a key registered in vocabularies/measurement_types.yaml. A card owns exactly one measurement_type; distinct claims (per the concordance test, Rule 2) are distinct cards. OPTIONAL during migration (existing cards are un-migrated; a validator warns, does not error) \u2014 REQUIRED for all NEW cards per the frozen identity rule. The type registry declares the value_vocabulary, providers, evidence tiers, grains, and multi_provider_policy; the card names which type it is a view of.",
       "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$",
       "minLength": 3,
       "maxLength": 80
     },
     "entity_grains": {
       "type": "array",
-      "description": "DATA_TO_SKILL_CONTRACT.md Rule 5 (2026-07-21) — the CAPABILITY CEILING: the entity grains this card's substrate can emit (a per-sample reader can support target_subtype; an aggregate reader cannot). The runtime query SELECTS a grain within this ceiling; a request above the ceiling gets an honest data_unavailable for that grain and MUST NOT silently fall back to a coarser grain. Values are governed by the grain vocabulary (target | target_indication | target_subtype | target_lineage | cohort | single_cell — extensible by vocabulary entry, never a schema change). OPTIONAL during migration; when present, must be non-empty. Complements the existing `tier` field (channel-precedence tier) — grain is the slicing dimension, tier is the precedence class.",
+      "description": "DATA_TO_SKILL_CONTRACT.md Rule 5 (2026-07-21) \u2014 the CAPABILITY CEILING: the entity grains this card's substrate can emit (a per-sample reader can support target_subtype; an aggregate reader cannot). The runtime query SELECTS a grain within this ceiling; a request above the ceiling gets an honest data_unavailable for that grain and MUST NOT silently fall back to a coarser grain. Values are governed by the grain vocabulary (target | target_indication | target_subtype | target_lineage | cohort | single_cell \u2014 extensible by vocabulary entry, never a schema change). OPTIONAL during migration; when present, must be non-empty. Complements the existing `tier` field (channel-precedence tier) \u2014 grain is the slicing dimension, tier is the precedence class.",
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$",
@@ -577,6 +763,24 @@
       "type": "integer",
       "description": "Version of card.schema.json this spec validates against. Currently always 1; bumps when card.schema.json itself takes a breaking change.",
       "const": 1
+    },
+    "capsule": {
+      "type": "object",
+      "description": "Evidence-capsule projection contract (consumed by _skills_common/evidence_capsule.emit_capsules). OPTIONAL strangler: when present it OVERRIDES the capsule's field-selection heuristics for this card; when absent the emitter falls back to the hint heuristics. `primary_class` names the verdict-driving *_class field (fixes the alphabetical-first mis-pick on multi-class cards); `categorical_fields` names the salient non-numeric summary fields (stage labels, class enums, bool flags, short lists) a numeric-only selector would drop. VERDICT-INERT projection.",
+      "additionalProperties": false,
+      "properties": {
+        "primary_class": {
+          "type": "string",
+          "description": "The verdict-driving categorical summary field for this card (e.g. structural_ligandability_class), used as the capsule `class` instead of the alphabetical-first *_class heuristic."
+        },
+        "categorical_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Salient non-numeric summary fields to surface as categorical_anchors in the capsule DATA layer, in priority order."
+        }
+      }
     }
   }
 }
