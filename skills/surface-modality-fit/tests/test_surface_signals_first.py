@@ -11,7 +11,6 @@ RUN_PY = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
-from _skills_common import synthesis_surface_modality as SM   # noqa: E402
 
 
 def _sm():
@@ -26,14 +25,6 @@ def _decision():
                          "claim_vector": {
                              "TOPOLOGY": {"signal": "strong", "corroboration": "high", "evidence": "type-I"},
                              "SAFETY": {"signal": "moderate", "corroboration": "moderate", "evidence": "ok"}}}}
-
-
-def test_narrator_leads_with_signal_vector():
-    p = SM.build_user_prompt(_decision())
-    assert "SIGNAL VECTOR" in p and "COLLAPSED VERDICT" in p
-    assert p.index("SIGNAL VECTOR") < p.index("COLLAPSED VERDICT")
-    assert "signal=strong" in p
-    assert "ADC_preferred" in p
 
 
 def test_composite_in_strength_certainty():

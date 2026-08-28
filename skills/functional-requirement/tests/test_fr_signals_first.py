@@ -13,7 +13,6 @@ RUN_PY = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
-from _skills_common import synthesis_dependency as SD          # noqa: E402
 from _skills_common.signals_first import render_signal_vector, certainty_composite  # noqa: E402
 
 
@@ -28,14 +27,6 @@ def _decision():
                          "claim_vector": {
                              "DEP": {"signal": "strong", "corroboration": "high", "evidence": "Chronos -1.2"},
                              "SEL": {"signal": "moderate", "corroboration": "moderate", "evidence": "lineage"}}}}
-
-
-def test_narrator_leads_with_signal_vector():
-    p = SD.build_user_prompt(_decision())
-    assert "SIGNAL VECTOR" in p and "COLLAPSED VERDICT" in p
-    assert p.index("SIGNAL VECTOR") < p.index("COLLAPSED VERDICT")
-    assert p.index("signal=strong") < p.index("dependency_verdict:")
-    assert "selective_dependent" in p                      # verdict retained, just repositioned
 
 
 def test_composite_in_strength_certainty():

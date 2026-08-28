@@ -60,10 +60,7 @@ def test_synthesize_fn_is_invoked_not_presence(tmp_path):
             "value": "strongly_supports", "_source": "llm_synthesized",
             "_model_id": "m", "_prompt_hash": "h"}}
 
-    # If the dispatcher wrongly fell back to presence, this patch would make it explode.
-    with patch("_skills_common.synthesis.synthesize_presence",
-               side_effect=AssertionError("presence narrator must NOT be used when synthesize_fn is set")):
-        d = _run(tmp_path / "sel", synthesize=True, synthesize_fn=_fake_selectivity)
+    d = _run(tmp_path / "sel", synthesize=True, synthesize_fn=_fake_selectivity)
     assert calls["n"] == 1
     assert "selectivity_relevance_for_target" in d["llm_synthesis"]
 
@@ -71,9 +68,7 @@ def test_synthesize_fn_is_invoked_not_presence(tmp_path):
 def test_verdict_bearing_without_narrator_skips_not_mislens(tmp_path):
     """A VERDICT-bearing skill that declares NO synthesize_fn must NOT be narrated through the presence
     lens (the removed mis-lensing fallback). --synthesize honest-skips with a note; presence never runs."""
-    with patch("_skills_common.synthesis.synthesize_presence",
-               side_effect=AssertionError("presence narrator must NOT run for a narrator-less skill")):
-        d = _run(tmp_path / "pres", synthesize=True, synthesize_fn=None)  # verdict_fn defaults present
+    d = _run(tmp_path / "pres", synthesize=True, synthesize_fn=None)  # verdict_fn defaults present
     s = d["llm_synthesis"]
     assert s.get("_synthesis_skipped") == "no_narrator_declared"
     assert "expression_relevance_for_target" not in s   # no mis-lensed presence fields leaked in
@@ -82,9 +77,7 @@ def test_verdict_bearing_without_narrator_skips_not_mislens(tmp_path):
 def test_descriptive_skill_skips_synthesis_not_mislens(tmp_path):
     """A DESCRIPTIVE skill (verdict_fn=None AND no synthesize_fn — e.g. target-intrinsic) must also
     honest-skip, never mis-lensing through the presence narrator."""
-    with patch("_skills_common.synthesis.synthesize_presence",
-               side_effect=AssertionError("presence narrator must NOT run for a descriptive skill")):
-        d = _run(tmp_path / "desc", synthesize=True, synthesize_fn=None, verdict_fn=None)
+    d = _run(tmp_path / "desc", synthesize=True, synthesize_fn=None, verdict_fn=None)
     s = d["llm_synthesis"]
     assert s.get("_synthesis_skipped") == "no_narrator_declared"
     # no mis-lensed presence fields leaked in

@@ -60,10 +60,10 @@ from .run_log import install_run_log, restore_run_log
 VerdictFn = Callable[[list[dict]], tuple[str, Optional[str]]]
 HeadlineFn = Callable[[list[dict], list[dict], Optional[tuple[str, Optional[str]]]], dict]
 # A skill-specific two-slot synthesizer: (decision, model_id, subtype_query) -> llm_synthesis dict.
-# Each single-lens skill declares its OWN narrator (presence / selectivity / genomic-alteration),
-# each with its own tool schema + prompt. When --synthesize is passed but no synthesize_fn is
-# provided, the dispatcher falls back to synthesize_presence (backward-compat for tumor-presence,
-# which relied on the former hardcoded import).
+# Every skill now narrates through the ONE generic capsule-driven engine (narrator_engine.narrate +
+# a per-lens LensConfig), passed as synthesize_fn via narrator_engine.make_synthesize_fn(<LENS>). When
+# --synthesize is passed but NO synthesize_fn is provided, the dispatcher honest-skips (no narration) —
+# it NEVER falls back to another lens's narrator (the former presence fallback was removed as mis-lensing).
 SynthesizeFn = Callable[[dict, Optional[str], Optional[str]], dict]
 # A skill-specific subtype-PANORAMA resolver: (target, indication, [stratum_ids]) -> dict with
 #   {"cards": [<resolved subtype card outputs>], "scope_subtypes": [...], "<axis>": {<panorama>}}.

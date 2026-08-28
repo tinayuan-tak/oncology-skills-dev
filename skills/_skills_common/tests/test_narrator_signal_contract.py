@@ -15,7 +15,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.signals_first import render_narrator_signals, render_signal_summary  # noqa: E402
-from _skills_common import synthesis as SYN  # noqa: E402
 
 
 def _subgroup_headline():
@@ -123,19 +122,7 @@ def test_generic_subgroup_names():
     assert "dependency_strength: signal=strong confidence=high" in p
 
 
-# 9. presence integration — build_user_prompt now leads through the contract with subgroup_signals
-def test_presence_prompt_leads_with_subgroup_signals():
-    decision = {"target": "EPCAM", "indication": "COADREAD", "cards": [],
-                "headline": {"presence_verdict": "tumor_broadly_expressed",
-                             "driving_rule_id": "tumor-expression-broadly-high-supportive",
-                             **_subgroup_headline()}}
-    p = SYN.build_user_prompt(decision)
-    assert "SUB-GROUP SIGNALS" in p
-    assert p.index("SUB-GROUP SIGNALS") < p.index("COLLAPSED VERDICT")   # signals still lead
-    assert "PRESENCE RULE:" in p                                          # lens directive threaded through
-
-
-# 10. render_signal_summary — SECTION-context content (no lead/directive framing) for the composed facet
+# render_signal_summary — SECTION-context content (no lead/directive framing) for the composed facet
 def test_signal_summary_is_section_register_no_lead_no_directive():
     p = render_signal_summary(_subgroup_headline())
     assert "SUB-GROUP SIGNALS" in p

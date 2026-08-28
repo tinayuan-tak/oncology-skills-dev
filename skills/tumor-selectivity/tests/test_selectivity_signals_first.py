@@ -12,7 +12,6 @@ RUN_PY = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
-from _skills_common import synthesis_selectivity as SS       # noqa: E402
 
 
 def _ts():
@@ -26,14 +25,6 @@ def _decision():
                          "claim_vector": {
                              "WIN": {"signal": "strong", "corroboration": "high", "evidence": "window clean"},
                              "SAFE": {"signal": "moderate", "corroboration": "moderate", "evidence": "safe"}}}}
-
-
-def test_narrator_leads_with_signal_vector():
-    p = SS.build_user_prompt(_decision())
-    assert "SIGNAL VECTOR" in p and "COLLAPSED VERDICT" in p
-    assert p.index("SIGNAL VECTOR") < p.index("COLLAPSED VERDICT")
-    assert "signal=strong" in p
-    assert "tumor_selective" in p                  # verdict retained, just repositioned/reframed
 
 
 def test_composite_in_strength_certainty():
