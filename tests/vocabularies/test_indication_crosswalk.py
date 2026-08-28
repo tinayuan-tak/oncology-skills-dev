@@ -71,6 +71,20 @@ def test_every_depmap_lineage_is_a_real_model_csv_lineage():
     assert not bad, f"depmap_lineage values absent from DepMap 26Q1 Model.csv: {bad}"
 
 
+def test_every_indication_has_mesh_ids_well_formed():
+    """The mesh_ids lane (indication -> MeSH descriptor ids; the disease_mesh key of the PubTator
+    gene-disease-relations product) must be present and well-formed on every indication."""
+    import re
+    doc = _load()
+    mesh_re = re.compile(r"^MESH:[CD]\d+$")
+    missing = [i["canonical_code"] for i in doc["indications"] if not i.get("mesh_ids")]
+    assert not missing, f"indications missing a mesh_ids lane: {missing}"
+    bad = {i["canonical_code"]: [m for m in i["mesh_ids"] if not mesh_re.match(str(m))]
+           for i in doc["indications"]}
+    bad = {k: v for k, v in bad.items() if v}
+    assert not bad, f"malformed mesh_ids (expect MESH:D#### / MESH:C####): {bad}"
+
+
 def test_crosswalk_agrees_with_analysis_methods_canonical_map():
     """Cross-repo sync (skipped if the sibling analysis-methods repo isn't on disk):
     for every indication code the analysis-methods canonical map knows, the crosswalk's
