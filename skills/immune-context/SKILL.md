@@ -25,7 +25,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -43,6 +43,7 @@ composition:
     - caf-compartment-expression-luo         # pan-cancer CAF states (stromal lens; stroma-vs-malignant denominator)
     - ici-response-association               # per-gene ICI (anti-PD-1) responder-vs-non-responder association (melanoma-scoped)
     - tcga-til-fraction-saltz                # absolute H&E-DL TIL corroborator of the CIBERSORT CD8 call (Saltz 2018); DISPLAY-ONLY / verdict-inert
+    - ici-response-imvigor210                # urothelial ICI-response + desert/excluded/inflamed phenotype (IMvigor210); DISPLAY-ONLY / verdict-inert
   measurement_types_pulled:
     - immune_context
     - sc_tumor_myeloid_state_expression      # DISPLAY-ONLY

@@ -58,4 +58,5 @@ def test_cards_list_includes_immune_context_and_tme_display_cards():
         "caf-compartment-expression-luo",
         "ici-response-association",
         "tcga-til-fraction-saltz",   # 2026-08-28 — absolute H&E-DL TIL corroborator (verdict-inert)
+        "ici-response-imvigor210",   # 2026-08-28 — urothelial ICI-response + immune phenotype (verdict-inert)
     }

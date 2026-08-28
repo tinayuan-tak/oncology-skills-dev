@@ -42,7 +42,7 @@ _IMMUNE_VALUE_TIERS = {
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.5.0"   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
                           # headline hero — a verdict-INERT projection over the effector-context
                           # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -55,6 +55,7 @@ CARDS = [
     "myeloid-compartment-expression-cheng",   # pan-cancer tumour-infiltrating myeloid states (suppressive-TME / myeloid-target)
     "caf-compartment-expression-luo",         # pan-cancer CAF states (stromal lens; stroma-vs-malignant denominator)
     "ici-response-association",               # per-gene ICI (anti-PD-1) responder-vs-non-responder association (melanoma-scoped)
+    "ici-response-imvigor210",                # urothelial ICI (atezolizumab) response + desert/excluded/inflamed phenotype (IMvigor210); verdict-inert
     "tcga-til-fraction-saltz",                # absolute H&E-DL TIL fraction (Saltz 2018) — VERDICT-INERT
                                               # corroborator of the CIBERSORT CD8 hot/cold call (morphology vs
                                               # RNA deconvolution, same TCGA participants); fires no rule.

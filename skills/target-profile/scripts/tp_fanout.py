@@ -489,6 +489,7 @@ SUB_SKILL_CARDS = {
         "caf-compartment-expression-luo",
         "ici-response-association",
         "tcga-til-fraction-saltz",       # absolute H&E-DL TIL corroborator (Saltz 2018); verdict-inert
+        "ici-response-imvigor210",       # urothelial ICI-response + phenotype (IMvigor210); verdict-inert
     ],
     "combination-and-vulnerability": [   # CONSOLIDATED relational annex (wired 2026-08-20).
         "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
