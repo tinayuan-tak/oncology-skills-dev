@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""publish_dashboard.py — on-demand publisher for the unified framework dashboard + output registry.
+"""publish_dashboard.py — on-demand publisher for the Living Architecture Document + output registry.
 
-Regenerates fresh (registry catalog → health → unified dashboard), stamps a small provenance
+CONSOLIDATED (2026-08-28): this publishes the SINGLE canonical framework dashboard — the Living
+Architecture Document (validators/architecture_dashboard/living), a superset of the former unified
+dashboard (it renders the same Overview/Explorer/Health/Cards/Datasets/Coverage tabs PLUS Flow /
+Gaps / Concepts / Docs). `build_unified_dashboard` + `framework_health` remain the ENGINES beneath
+it (the living builder imports their build/merge/health functions); they are no longer published as
+separate artifacts.
+
+Regenerates fresh (registry catalog → health → living document), stamps a small provenance
 manifest, and publishes to BOTH:
   - S3  : s3://<bucket>/<prefix>/ (live) + history/<date>/ ; prints a time-boxed PRESIGNED URL.
   - GitHub : the rendered HTML as a dated `gh release` asset (no repo bloat).
@@ -83,18 +90,21 @@ def compute_health(roots: dict, out_dir: Path, stamp: str) -> Path | None:
 
 
 def build_dashboard(roots: dict, out_dir: Path) -> tuple[Path, Path]:
-    """Run build_unified_dashboard from its package dir (bare imports) → HTML + JSON."""
-    pkg = Path(roots["contracts"]) / "validators" / "architecture_dashboard"
-    html = out_dir / "framework_dashboard.html"
-    js = out_dir / "framework_dashboard.json"
-    r = _run([sys.executable, "build_unified_dashboard.py",
+    """Build the Living Architecture Document (the single canonical dashboard) → HTML + JSON.
+
+    It supersets the former unified dashboard, so its JSON carries the same summary/health/coverage
+    keys build_manifest reads. Health was already computed into out_dir/health_current.json, so we
+    pass --no-compute-health (the living builder loads it from out_dir)."""
+    html = out_dir / "living_doc.html"
+    js = out_dir / "living_doc.json"
+    r = _run([sys.executable, "-m", "validators.architecture_dashboard.living.build_living_doc",
               "--tc", str(roots["contracts"]), "--sk", str(roots["skills"]),
               "--dc", str(roots["catalog"]), "--dp", str(roots["products"]),
               "--no-compute-health",  # we computed it into out_dir already
-              "--out", str(html), "--json", str(js)], cwd=str(pkg))
+              "--out", str(html), "--json", str(js)], cwd=str(roots["contracts"]))
     print(r.stdout.strip() or r.stderr.strip())
     if not html.exists():
-        raise RuntimeError(f"dashboard build failed: {r.stderr[-400:]}")
+        raise RuntimeError(f"living-document build failed: {r.stderr[-400:]}")
     return html, js
 
 
@@ -144,9 +154,9 @@ def publish_s3(files, bucket: str, prefix: str, date: str, presign_days: int,
 
 def publish_gh_release(html: Path, repo: str, date: str, manifest: dict, dry: bool) -> str | None:
     tag = f"dashboard-{date}"
-    title = f"Framework dashboard — {date}"
+    title = f"Living Architecture Document — {date}"
     o = manifest["outputs"]
-    notes = (f"Auto-published framework dashboard.\n\n"
+    notes = (f"Auto-published Living Architecture Document (single framework dashboard).\n\n"
              f"- skills {manifest['framework'].get('n_skills')} · cards {manifest['framework'].get('n_cards')}\n"
              f"- health drift {manifest['health'].get('n_drift_flags')} ({manifest['health'].get('n_error_drift')} error)\n"
              f"- outputs {o.get('n_entries')} across {o.get('n_cells')} cells; "
@@ -187,7 +197,7 @@ def main():
         regenerate_catalog(roots, stamp)
         print("· computing framework health …")
         compute_health(roots, out_dir, stamp)
-        print("· building unified dashboard …")
+        print("· building living architecture document (single dashboard) …")
         html, js = build_dashboard(roots, out_dir)
         manifest = build_manifest(js, roots, stamp)
         manifest_path = out_dir / "manifest.json"

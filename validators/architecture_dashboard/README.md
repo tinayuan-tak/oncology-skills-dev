@@ -1,4 +1,12 @@
-# architecture_dashboard — the framework's wiring + health, as one product
+# architecture_dashboard — the framework's wiring + health
+
+> **Consolidated (2026-08-28):** the single canonical published dashboard is now the
+> **Living Architecture Document** in [`living/`](living/), which SUPERSETS this one —
+> it renders the same Overview/Explorer/Health/Cards/Datasets/Coverage tabs PLUS Flow /
+> Gaps / Concepts / Docs and the glossary legibility layer. `make dashboard` publishes the
+> living document. `build_unified_dashboard` here remains the composition **engine** (the
+> living builder imports its `compute_or_load_health` / `merge` / `load_coverage`) and stays
+> runnable standalone for debugging the wiring/health layer in isolation.
 
 A self-contained HTML dashboard that consolidates **what's *wired*** (architecture) with
 **what's *live*** (health) into a single click-through product:

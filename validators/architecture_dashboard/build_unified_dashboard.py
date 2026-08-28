@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""build_unified_dashboard.py — ONE product: framework health + architecture wiring.
+"""build_unified_dashboard.py — framework health + architecture wiring.
+
+CONSOLIDATION NOTE (2026-08-28): the SINGLE canonical published dashboard is now the Living
+Architecture Document (validators/architecture_dashboard/living), which SUPERSETS this one
+(it renders these same Overview/Explorer/Health/Cards/Datasets/Coverage tabs PLUS Flow / Gaps /
+Concepts / Docs). This module remains the composition ENGINE — the living builder imports
+`compute_or_load_health`, `merge`, and `load_coverage` from here — and stays runnable standalone
+for debugging the wiring/health layer in isolation. `make dashboard` / publish_dashboard publish
+the living document, not this artifact.
 
 Consolidates the two dashboards into a single self-contained HTML with an executive
 Overview landing that drills into an Explorer (Miller-columns wiring), a Health matrix,

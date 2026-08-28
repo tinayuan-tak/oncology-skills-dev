@@ -1,7 +1,8 @@
 # target-contracts — convenience targets.
 #
-# dashboard : regenerate the output registry + framework health + unified dashboard, then
-#             publish to S3 (presigned URL) and a dated GitHub release. Needs AWS_PROFILE
+# dashboard : regenerate the output registry + framework health + the Living Architecture
+#             Document (the SINGLE canonical dashboard — supersets the old unified dashboard),
+#             then publish to S3 (presigned URL) and a dated GitHub release. Needs AWS_PROFILE
 #             (e.g. cbg) for S3 + the skill-runs index, and gh auth for the release.
 #             Assumes the canonical sibling checkout layout (see framework_health.probe).
 #
@@ -13,8 +14,9 @@ STAMP ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AWS_PROFILE ?= cbg
 
 .PHONY: dashboard dashboard-dry promote-list profile living-doc living-doc-check
-# living-doc : regenerate the Living Architecture Document (superset of the unified dashboard:
-#              + Gaps / Concepts / Docs tabs + the glossary legibility layer). Writes the
+# living-doc : regenerate the Living Architecture Document LOCALLY — the SAME single dashboard
+#              `make dashboard` publishes (Overview/Explorer/Health/Cards/Datasets/Coverage +
+#              Flow / Gaps / Concepts / Docs + the glossary legibility layer). Writes the
 #              committed feed health/living_doc.{json,html}. Needs the sibling checkouts.
 #   make living-doc          # regenerate the committed json + html
 #   make living-doc-check    # local drift-guard: fail if the committed json is stale
