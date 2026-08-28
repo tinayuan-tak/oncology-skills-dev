@@ -27,7 +27,12 @@
 #     a bite_tce-scoped modality positive registered in nomination_verdict_gate.yaml (positive_signals_
 #     modality_scoped, when_modality_in [bite_tce]); it is NOT kill-capable.
 gate: surface_modality
-version: 1.4.0   # 2026-08-25: promote IEDB pMHC-epitope evidence to VERDICT-BEARING — new pmhc_tce_supported
+version: 1.5.0   # 2026-08-28: consume 2 already-fired-but-unconsumed safety signals (distillation assessment):
+                # (1b') exon-grain essential-window liability (priority 9/10, mirrors the transcript 7/8 rungs)
+                # → catches a finer-resolution TCE-safety false-negative; (3b') pMHC normal-presentation veto
+                # (priority 19/20) → withdraws an un-earned pmhc_tce_supported promotion to tce_unsafe_normal_
+                # liability when the epitope is BROADLY PRESENTED on normal tissue. Both reuse existing verdicts;
+                # priorities renumbered (order-independent interpreter). 1.4.0: promote IEDB pMHC-epitope evidence to VERDICT-BEARING — new pmhc_tce_supported
                 # positive (bite_tce-scoped) via two when_all_fired rungs [neither-viable-killer +
                 # pmhc-iedb-{tcell-validated,presented}-tce-supportive] at priority 17/18 (the pMHC-TCE route
                 # for a folded-surface-dead intracellular oncoprotein; outranks the bare neither_viable rung
@@ -63,6 +68,14 @@ resolve:
   - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, modality-window-essential-liability-tce-opposing], driving_rule: modality-window-essential-liability-tce-opposing, priority: 7}
   - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, modality-window-essential-liability-tce-opposing], driving_rule: modality-window-essential-liability-tce-opposing, priority: 8}
 
+  # (1b') EXON-GRAIN essential-window liability (2026-08-28, distillation assessment). MIRRORS (1b) at the
+  #       finer EXON resolution: an essential normal EXON exceeds the strict TPM tier even when the
+  #       TRANSCRIPT-level window does not — a false-negative safety hole the transcript-only rungs (7/8)
+  #       cannot catch. Same SAFETY semantics: DROP the TCE arm, PRESERVE ADC. Consumes the already-fired
+  #       exon-window-essential-liability-tce-opposing (previously narrative-only).
+  - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, exon-window-essential-liability-tce-opposing], driving_rule: exon-window-essential-liability-tce-opposing, priority: 9}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, exon-window-essential-liability-tce-opposing], driving_rule: exon-window-essential-liability-tce-opposing, priority: 10}
+
   # (1c) TCE ANTIGEN-ESCAPE (EFFICACY, bite_tce-only) — within-tumor antigen-low escape reservoir from the
   #      single-cell tce_antigen_escape_class (coverage x inter-donor consistency; escape_risk_high). This
   #      is an EFFICACY foreclosure of the TCE arm (antigen-low malignant cells survive redirected killing),
@@ -71,20 +84,20 @@ resolve:
   #      density/shed caveats (a TCE-arm drop is stronger than a viability-preserving caveat). ADC is
   #      heterogeneity-tolerant (bystander payload), so ADC is preserved. Promoted 2026-08-24 (audit): the
   #      superior escape model already shipped in the card's stats.py but fired into the narrative only.
-  - {verdict: adc_preferred_tce_escape_risk, when_all_fired: [both-viable-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing, priority: 9}
-  - {verdict: tce_escape_risk, when_all_fired: [tce-preferred-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing, priority: 10}
+  - {verdict: adc_preferred_tce_escape_risk, when_all_fired: [both-viable-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing, priority: 11}
+  - {verdict: tce_escape_risk, when_all_fired: [tce-preferred-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing, priority: 12}
 
   # (2) MEASURED LOW DENSITY — DOWNGRADE, NEVER VETO (CD19 trap). Grade-A/B below-TCE-floor only
   #     (density_floor_verdict is grade-gated at source). A topology-viable target whose MEASURED
   #     absolute density sits below the soluble-TCE floor is caveated, not killed.
-  - {verdict: surface_viable_density_caveated, when_all_fired: [both-viable-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 11}
-  - {verdict: surface_viable_density_caveated, when_all_fired: [tce-preferred-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 12}
-  - {verdict: surface_viable_density_caveated, when_all_fired: [adc-preferred-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 13}
+  - {verdict: surface_viable_density_caveated, when_all_fired: [both-viable-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 13}
+  - {verdict: surface_viable_density_caveated, when_all_fired: [tce-preferred-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 14}
+  - {verdict: surface_viable_density_caveated, when_all_fired: [adc-preferred-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 15}
 
   # (3) DOMINANT SHED ECTODOMAIN — soluble-decoy-sink caveat for antibody-based modalities.
-  - {verdict: shed_dominant_opposed, when_all_fired: [both-viable-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 14}
-  - {verdict: shed_dominant_opposed, when_all_fired: [adc-preferred-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 15}
-  - {verdict: shed_dominant_opposed, when_all_fired: [tce-preferred-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 16}
+  - {verdict: shed_dominant_opposed, when_all_fired: [both-viable-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 16}
+  - {verdict: shed_dominant_opposed, when_all_fired: [adc-preferred-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 17}
+  - {verdict: shed_dominant_opposed, when_all_fired: [tce-preferred-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 18}
 
   # (3b) pMHC-TCE ROUTE WHEN THE FOLDED SURFACE IS DEAD (bite_tce-only POSITIVE, promotion 2026-08-25).
   #      THE REPRESENTATIONAL GAP: a TCR-mimetic pMHC T-cell engager reaches an INTRACELLULAR oncoprotein
@@ -99,28 +112,36 @@ resolve:
   #      scoped for bite_tce in nomination_verdict_gate.yaml), NOT kill-capable. tcell_validated ranks above
   #      presented_not_tcell_confirmed (stronger ground truth). For a surface-viable antigen the IEDB rule
   #      rides as an ADDITIVE bite_tce signal and moves no verdict (neither-viable-killer absent).
-  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 17}
-  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 18}
+  # (3b') pMHC-TCE NORMAL-PRESENTATION SAFETY VETO (2026-08-28, distillation assessment). A pMHC epitope
+  #       BROADLY PRESENTED on normal tissue is NOT a selective TCE target — the TCR-mimetic would redirect
+  #       killing to normal cells. These 3-condition rungs consume the already-fired pmhc-broadly-presented-
+  #       normal-tce-opposing (previously narrative-only) and OUTRANK the pmhc_tce_supported promotion
+  #       (21/22), withdrawing the un-earned positive → tce_unsafe_normal_liability (reuses the existing
+  #       normal-tissue-liability verdict; the pMHC signal + normal-presentation detail stay in narration).
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive, pmhc-broadly-presented-normal-tce-opposing], driving_rule: pmhc-broadly-presented-normal-tce-opposing, priority: 19}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive, pmhc-broadly-presented-normal-tce-opposing], driving_rule: pmhc-broadly-presented-normal-tce-opposing, priority: 20}
+  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 21}
+  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 22}
 
   # (4) PLAIN fit_class rungs (topology+family gate) — unchanged; the byte-stable base ladder. Reached
   #     when no liability combination above fires (first-match).
   - verdict: adc_preferred
     when_fired: adc-preferred-supportive
-    priority: 19
+    priority: 23
   - verdict: tce_preferred
     when_fired: tce-preferred-supportive
-    priority: 20
+    priority: 24
   - verdict: both_viable
     when_fired: both-viable-supportive
-    priority: 21
+    priority: 25
   - verdict: neither_viable
     when_fired: neither-viable-killer
-    priority: 22
+    priority: 26
   - verdict: isoform_dependent_undefined
     when_fired: isoform-dependent-modality-suppression
-    priority: 23
+    priority: 27
   - verdict: modality_ambiguous
     when_fired: modality-ambiguous-insufficient
-    priority: 24
+    priority: 28
 default: insufficient
 evaluation: match_all_reduce
