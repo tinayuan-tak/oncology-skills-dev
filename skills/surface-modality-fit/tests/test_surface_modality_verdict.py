@@ -131,6 +131,24 @@ def test_therapeutic_window_essential_liability_drops_tce_preserves_adc_2026_08_
     assert _vv("tce-preferred-supportive", "modality-window-essential-liability-tce-opposing")[0] == "tce_unsafe_normal_liability"
 
 
+def test_exon_window_essential_liability_drops_tce_preserves_adc():
+    # SAFETY mover (2026-08-28, distillation assessment): exon-grain essential-window liability mirrors the
+    # transcript-window rungs (7/8) at the finer EXON resolution — drop TCE, preserve ADC.
+    assert _vv("both-viable-supportive", "exon-window-essential-liability-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+    assert _vv("tce-preferred-supportive", "exon-window-essential-liability-tce-opposing")[0] == "tce_unsafe_normal_liability"
+
+
+def test_pmhc_normal_presentation_vetoes_pmhc_support():
+    # SAFETY veto (2026-08-28, distillation assessment): a pMHC epitope BROADLY PRESENTED on normal tissue
+    # withdraws the un-earned pmhc_tce_supported promotion → tce_unsafe_normal_liability (the 3-condition
+    # veto rung at priority 19/20 outranks the 2-condition pmhc_tce_supported at 21/22).
+    assert _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive")[0] == "pmhc_tce_supported"
+    assert smf._verdict([{"rule_id": "neither-viable-killer"}, {"rule_id": "pmhc-iedb-tcell-validated-tce-supportive"},
+                         {"rule_id": "pmhc-broadly-presented-normal-tce-opposing"}])[0] == "tce_unsafe_normal_liability"
+    assert smf._verdict([{"rule_id": "neither-viable-killer"}, {"rule_id": "pmhc-iedb-presented-tce-supportive"},
+                         {"rule_id": "pmhc-broadly-presented-normal-tce-opposing"}])[0] == "tce_unsafe_normal_liability"
+
+
 def test_tce_antigen_escape_is_an_efficacy_mover_distinct_from_safety_2026_08_24():
     # EFFICACY mover (new 2026-08-24): within-tumor antigen escape (escape_risk_high) forecloses the TCE
     # arm on EFFICACY (antigen-low escape reservoir), a DISTINCT verdict from the safety tce_unsafe rungs.
@@ -196,10 +214,16 @@ _NEWLY_REACHABLE_RULES = [
     "modality-window-narrow-opposing",        # narrow_window → opposing (signal-only)
     # enrichment — peptide-centric HLA presentation (bite_tce-only):
     "pmhc-restricted-presentation-tce-supportive",   # restricted → TCE supportive
-    "pmhc-broadly-presented-normal-tce-opposing",    # broad normal presentation → TCE opposing
+    # NOTE (2026-08-28 distillation assessment): pmhc-broadly-presented-normal-tce-opposing was PROMOTED
+    # to a resolver veto rung (→ tce_unsafe_normal_liability, priority 19/20; withdraws the un-earned
+    # pmhc_tce_supported promotion when the epitope is broadly presented on normal tissue) and is NO LONGER
+    # signal-only — pinned by test_pmhc_normal_presentation_vetoes_pmhc_support below.
     # enrichment — modality exon-window (per-exon tumor-vs-normal + heterogeneity flag):
     "exon-window-heterogeneity-flag-supportive",     # exon_heterogeneity_flag → secondary supportive (hypothesis)
-    "exon-window-essential-liability-tce-opposing",  # essential_exon_liability → bite_tce opposing, adc neutral
+    # NOTE (2026-08-28 distillation assessment): exon-window-essential-liability-tce-opposing was PROMOTED
+    # to a resolver rung (→ adc_preferred_tce_unsafe / tce_unsafe_normal_liability, priority 9/10; mirrors the
+    # transcript-window rungs at 7/8 at the finer exon grain) and is NO LONGER signal-only — pinned by
+    # test_exon_window_essential_liability_drops_tce_preserves_adc below.
     # enrichment — CD/IO-antigen backbone clinical-precedent (supportive-only):
     "cd-established-io-backbone-supportive",         # established_io_backbone → supportive (important)
     "cd-antigen-backbone-supportive",                # cd_antigen → supportive (secondary)
