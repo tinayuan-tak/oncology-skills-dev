@@ -24,6 +24,7 @@ resolver_consumed_cards:
 - gnomad-lof-constraint
 - known-drug-tractability
 - measured-potency-tractability
+- modality-exon-window
 - modality-therapeutic-window
 - mouse-ko-phenotype
 - mutation-drug-response
@@ -36,6 +37,7 @@ resolver_consumed_cards:
 - paralog-buffering
 - partner-conditional-dependency
 - pmhc-epitope-evidence-iedb
+- pmhc-presentation
 - prism-compound-activity
 - prism-crispr-concordance
 - sc-normal-celltype-expression
@@ -181,6 +183,11 @@ detail:
     - measured-chembl-clinical-precedent-sm-supportive
     - measured-potent-ligand-sm-supportive
     - measured-weak-ligand-sm-supportive
+  modality-exon-window:
+    resolvers:
+    - surface_modality
+    rules:
+    - exon-window-essential-liability-tce-opposing
   modality-therapeutic-window:
     resolvers:
     - surface_modality
@@ -262,6 +269,11 @@ detail:
     rules:
     - pmhc-iedb-presented-tce-supportive
     - pmhc-iedb-tcell-validated-tce-supportive
+  pmhc-presentation:
+    resolvers:
+    - surface_modality
+    rules:
+    - pmhc-broadly-presented-normal-tce-opposing
   prism-compound-activity:
     resolvers:
     - tractability_small_molecule

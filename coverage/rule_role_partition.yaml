@@ -3,8 +3,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
   total: 401
-  gating: 123
-  display: 278
+  gating: 125
+  display: 276
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -47,6 +47,7 @@ gating:
 - e7-crispr-confirmed-supportive-sm
 - e7-discordant-off-target-warning
 - e7-triangulated-target-engaged-supportive
+- exon-window-essential-liability-tce-opposing
 - fusion-landscape-recurrent-driver-supportive
 - fusion-positive-indication-scoped-context
 - fusion-positive-moderately-dependent-supportive
@@ -94,6 +95,7 @@ gating:
 - pan-essential-killer
 - partner-conditional-moderately-dependent-supportive
 - partner-conditional-strongly-dependent-supportive
+- pmhc-broadly-presented-normal-tce-opposing
 - pmhc-iedb-presented-tce-supportive
 - pmhc-iedb-tcell-validated-tce-supportive
 - prism-clinical-precedent-only-weak-supportive-sm
@@ -196,7 +198,6 @@ display:
 - ecd-minimal-biologics-opposing
 - ecd-moderate-biologics-supportive
 - ecd-none-biologics-opposing
-- exon-window-essential-liability-tce-opposing
 - exon-window-heterogeneity-flag-supportive
 - expression-biomarker-moderate-supportive
 - expression-biomarker-supportive
@@ -288,7 +289,6 @@ display:
 - phospho-low-neutral
 - phospho-not-phosphoprotein-neutral
 - phospho-present-supportive
-- pmhc-broadly-presented-normal-tce-opposing
 - pmhc-restricted-presentation-tce-supportive
 - predictability-biomarker-hypothesis-supportive
 - predictability-context-determined-neutral

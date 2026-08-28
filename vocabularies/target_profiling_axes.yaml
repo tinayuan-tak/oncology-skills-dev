@@ -500,6 +500,7 @@ skill_objectives:
     primary_axis: safety
     questions:
       - {q: "Germline LoF-constrained (gnomAD)?", answered_by: [gnomad-lof-constraint]}
+      - {q: "Continuous dominant-LoF selection intolerance (s_het) corroborating the constraint call? (display-only)", answered_by: [shet-lof-intolerance]}
       - {q: "Population burden / dosage sensitivity?", answered_by: [gene-burden-safety, clingen-dosage]}
       - {q: "Mouse-KO normal-physiology phenotype?", answered_by: [mouse-ko-phenotype]}
       - {q: "Germline pathogenicity (ClinVar)?", answered_by: [clinvar-pathogenicity-safety]}
@@ -915,6 +916,7 @@ question_hierarchies:
       - id: constraint_read
         measurement_types:
         - gnomad_lof_constraint
+        - shet_lof_selection
       context_types:
       - alteration_role
       - copy_number_alteration
