@@ -23,6 +23,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import MECHANISM_PHARMACOLOGY as _LENS
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
@@ -43,7 +45,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                                               #        facet (verdict-inert; SIGNOR cross-referenced)
                                               # 1.5.0: pathway-activity-context (PROGENy)
                                               # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -388,6 +390,8 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
+        synthesize_fn=make_synthesize_fn(_LENS),
         isoform_check_target=True,          # warn on p95HER2 / AR-V7 / etc.
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,

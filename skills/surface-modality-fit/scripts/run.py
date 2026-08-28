@@ -25,6 +25,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import SURFACE_MODALITY_FIT as _LENS
 from _skills_common import get_card_field, card_summary
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
@@ -56,7 +58,6 @@ _SURFACE_VALUE_TIERS = {
     "high_liability": "absent", "moderate_normal_expression": "weak",
     "clinically_shed": "absent", "not_cd_antigen": "absent",
 }
-from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from orthogonality import score_orthogonality   # noqa: E402 — skill-local facet
@@ -165,7 +166,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.5.0"   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
                           # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -760,7 +761,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
                   for c in cards],
     }
-    return synthesize_surface_modality(decision, model_id, subtype)
+    return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 
 
 if __name__ == "__main__":
@@ -783,7 +784,7 @@ if __name__ == "__main__":
         # spine is composed, so it is structurally impossible for the narration to alter
         # surface_modality_verdict / fit_class. Without this synthesize_fn the dispatcher would fall back
         # to the PRESENCE narrator (wrong lens, 2026-08-06).
-        synthesize_fn=synthesize_surface_modality,
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
         # top tension). Additive / display-only.
         skill_figures_fn=_emit_skill_figures,

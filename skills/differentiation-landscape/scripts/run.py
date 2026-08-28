@@ -17,6 +17,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE as _LENS
 from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -39,7 +41,7 @@ from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
+SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
                           #        as an ADDITIVE, verdict-inert render facet; namespaced competitor_* headline
                           #        keys feed the target-profile deterministic modality cross-ref. Verdict byte-stable.
                           # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
@@ -389,6 +391,8 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         partial_status_note=PARTIAL_STATUS_NOTE,

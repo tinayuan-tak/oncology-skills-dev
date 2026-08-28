@@ -27,6 +27,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import TARGET_INTRINSIC as _LENS
 from _skills_common import get_card_field
 from _skills_common.target_intrinsic_claims import (
     target_intrinsic_claim_vector, target_intrinsic_key_signals)
@@ -48,7 +50,7 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.3.0"   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
@@ -256,6 +258,8 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=None,                   # DESCRIPTIVE dossier — no nomination (indication-conditioned)
         headline_fn=_headline,
+        # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive mode).
         # Additive / display-only; the descriptive dossier is byte-stable without it.
         skill_figures_fn=_emit_skill_figures,

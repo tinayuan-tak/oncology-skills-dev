@@ -44,6 +44,8 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
 from _skills_common.genomic_question_table import genomic_question_table
 from _skills_common.subgroup_derivation import make_value_classifier, subgroup_signals_for
+from _skills_common.narrator_engine import narrate as _narrate
+from _skills_common.narrator_lenses import GENOMIC_ALTERATION as _LENS
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
 # This skill hand-rolls main() (no run_wired_skill), so it wires the fleet sub-group derivation itself
@@ -78,7 +80,7 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.9.0"   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.10.0"   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -865,11 +867,12 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     fan-out-resolved (verdict, driving_rule) via _build_headline (exactly as _synthesis_facet does),
     then narrates through the genomic synthesizer. Best-effort + VERDICT-INERT (the subtype arg is
     unused — genomic narrates whole-cohort; a failure is the caller's to swallow)."""
-    from _skills_common.synthesis_genomic import synthesize_genomic_alteration
     verdict, driving = (verdict_pair or (None, None))
     headline = _build_headline(cards, verdict, driving, {})
-    decision = {"target": target, "indication": indication, "headline": headline}
-    return synthesize_genomic_alteration(decision, model_id)
+    # cards passed so the generic engine can build evidence capsules (bounded raw data layer).
+    decision = {"target": target, "indication": indication, "headline": headline,
+                "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}} for c in cards]}
+    return _narrate(decision, _LENS, model_id)
 
 
 def main() -> int:
@@ -977,10 +980,8 @@ def main() -> int:
     # deterministic decision is composed, so it structurally cannot alter the verdict spine; a
     # synthesis failure (Bedrock auth/network) degrades to a note and never breaks the run.
     if args.synthesize:
-        from _skills_common.synthesis_genomic import synthesize_genomic_alteration
         try:
-            decision["llm_synthesis"] = synthesize_genomic_alteration(
-                decision, args.synthesis_model)
+            decision["llm_synthesis"] = _narrate(decision, _LENS, args.synthesis_model)
         except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
             decision["llm_synthesis"] = {
                 "_synthesis_error": f"{type(e).__name__}: {e}",

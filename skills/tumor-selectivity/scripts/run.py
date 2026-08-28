@@ -19,9 +19,10 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary, resolve_cards
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import TUMOR_SELECTIVITY as _LENS
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.synthesis_selectivity import synthesize_selectivity
 from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
 from _skills_common.selectivity_question_table import selectivity_question_table
 from _skills_common.selectivity_hero import emit_selectivity_hero
@@ -63,7 +64,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.15.0"   # 1.15.0 (2026-08-27): tuned signals-first sub-group reader (selectivity vocab). Verdict-INERT.
+SKILL_VERSION = "1.16.0"   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.15.0 (2026-08-27): tuned signals-first sub-group reader (selectivity vocab). Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -734,7 +735,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
                   for c in cards],
     }
-    return synthesize_selectivity(decision, model_id, subtype)
+    return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 
 
 if __name__ == "__main__":
@@ -748,7 +749,7 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # Opt-in --synthesize narrates through the SELECTIVITY lens (its own tool schema + prompt).
         # Two-slot / verdict-inert.
-        synthesize_fn=synthesize_selectivity,
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Opt-in --figures skill-level HEROES: the selectivity evidence-strip (verdict banner + the
         # independent comparator axes incl. the normal-tissue WINDOW veto) AND the shared canonical
         # headline hero (verdict · confidence · top tension). Complementary; both over decision['headline'].

@@ -24,6 +24,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import IMMUNE_CONTEXT as _LENS
 from _skills_common import get_card_field
 from _skills_common.immune_context_claims import (
     immune_context_claim_vector, immune_context_key_signals)
@@ -40,7 +42,7 @@ _IMMUNE_VALUE_TIERS = {
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.2.0"   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.3.0"   # 1.3.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
                           # headline hero — a verdict-INERT projection over the effector-context
                           # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -208,6 +210,8 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         # Signals-first: tuned sub-group reader for the immune-context vocabulary. Verdict-INERT.

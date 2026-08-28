@@ -42,7 +42,8 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.synthesis import synthesize_presence
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import TUMOR_PRESENCE as _LENS
 from _skills_common import get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.presence_matrix import emit_presence_matrix
@@ -242,7 +243,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.13.0"
+SKILL_VERSION = "1.14.0"   # 1.14.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -1284,7 +1285,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
                   for c in cards],
     }
-    return synthesize_presence(decision, model_id, subtype)
+    return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 
 
 if __name__ == "__main__":
@@ -1298,7 +1299,7 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # Presence narrates through its OWN synthesizer, passed explicitly (no dispatcher fallback):
         # the dispatcher no longer defaults a narrator-less skill to the presence lens.
-        synthesize_fn=synthesize_presence,
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the Presence × Context hero matrix + the
         # claim-vector (signal × reliability) figure. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,

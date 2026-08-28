@@ -35,5 +35,126 @@ ON_TARGET_SAFETY = LensConfig(
     mode="verdict",
 )
 
-# Registry for the dispatcher / fan-out lookup by skill name.
-LENSES = {L.name: L for L in (FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY)}
+TUMOR_PRESENCE = LensConfig(
+    name="tumor-presence",
+    thesis="how much the EXPRESSION/PRESENCE lens informs whether the target is a relevant drug target — "
+           "abundant + tumor-elevated/selective supports it; merely present but ubiquitous is uninformative.",
+    relevance_prompt="judge how much the presence evidence supports this target's relevance in this cancer "
+                     "(indication and, where measured, subtype grain).",
+    axis_labels={"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"},
+    scope_exclusions=("therapeutic modality", "surface accessibility"),
+    mode="verdict",
+)
+
+TUMOR_SELECTIVITY = LensConfig(
+    name="tumor-selectivity",
+    thesis="whether the target is TUMOR-SELECTIVE enough to open a therapeutic window (tumor-enriched vs "
+           "normal tissue), the decisive axis being the normal-tissue comparator.",
+    relevance_prompt="judge the tumor-selectivity / therapeutic-window support for this target.",
+    axis_labels={"WIN": "therapeutic window", "DIST": "normal-tissue distribution",
+                 "INT": "tumor-intrinsic", "SAFE": "safety"},
+    scope_exclusions=("absolute abundance as presence", "therapeutic modality"),
+    mode="verdict",
+)
+
+GENOMIC_ALTERATION = LensConfig(
+    name="genomic-alteration-profile",
+    thesis="HOW the target is genomically altered (SNV/indel, copy-number, fusion, or a mix) and which "
+           "alteration CLASS carries the signal — not a single 'is it a driver' call.",
+    relevance_prompt="judge how the genomic-alteration evidence supports this target, naming which class drives.",
+    axis_labels={"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion", "DEP": "alteration-conferred dependency"},
+    scope_exclusions=("therapeutic modality", "expression as presence"),
+    mode="verdict",
+)
+
+SURFACE_MODALITY_FIT = LensConfig(
+    name="surface-modality-fit",
+    thesis="whether the surface biology supports a BIOLOGICS modality — ADC-favorable, TCE-favorable, both, "
+           "or neither — from topology, surfaceome family, density, and normal-tissue/shedding liabilities.",
+    relevance_prompt="judge the biologics surface-modality fit (ADC / TCE / both / neither).",
+    axis_labels={"FIT": "modality fit", "TOPOLOGY": "topology/accessibility", "DENSITY": "surface density",
+                 "SAFETY": "normal-tissue safety", "SHED": "shedding"},
+    scope_exclusions=("small-molecule tractability", "intracellular mechanism"),
+    mode="verdict",
+)
+
+TRACTABILITY_SM = LensConfig(
+    name="tractability-small-molecule",
+    thesis="whether the target looks druggable by a SMALL MOLECULE — is there a compound that hits it, and "
+           "does the chemical signal agree with the genetic dependency.",
+    relevance_prompt="judge the small-molecule tractability (chemical + structural evidence).",
+    axis_labels={"POTENCY": "binding potency", "ACTIVITY": "cellular activity", "STRUCT": "structural ligandability",
+                 "DRUG": "drug/tool compound", "DEGRADER": "degrader handle"},
+    scope_exclusions=("biologics/surface modality", "expression as presence"),
+    mode="verdict",
+)
+
+IMMUNE_CONTEXT = LensConfig(
+    name="immune-context",
+    thesis="the immune/TME context for a T-cell-engager — CD8 infiltration and whether the tumor is "
+           "inflamed vs excluded/desert (the effector-arm companion to surface-modality-fit).",
+    relevance_prompt="judge how the immune-context evidence supports a TCE effector arm for this target.",
+    axis_labels={"IMMUNE": "CD8 / immune infiltration"},
+    scope_exclusions=("surface antigen accessibility (owned by surface-modality-fit)", "small-molecule tractability"),
+    mode="verdict",
+)
+
+DIFFERENTIATION_LANDSCAPE = LensConfig(
+    name="differentiation-landscape",
+    thesis="what patient-selection / combination-biology hypotheses the co-mutation, stemness, node-leverage "
+           "and prognostic landscape support for this target.",
+    relevance_prompt="judge how the differentiation-landscape evidence informs patient-selection / positioning.",
+    axis_labels={"COMUT": "co-mutation / mutual-exclusivity", "SURVIVAL": "subtype survival",
+                 "PROGNOSIS": "prognostic association", "NODE": "pathway node-leverage"},
+    scope_exclusions=("therapeutic modality", "dependency magnitude (owned by functional-requirement)"),
+    mode="verdict",
+)
+
+MECHANISM_PHARMACOLOGY = LensConfig(
+    name="mechanism-and-pharmacology",
+    thesis="the signaling-network mechanism + candidate MoA hooks + PD-marker suggestions — how well the "
+           "target's mechanism is characterized and what it implies for SM/degrader/glue programs.",
+    relevance_prompt="give the mechanism / MoA-hook context read for this target (descriptive; no nomination call).",
+    axis_labels={"NETWORK": "signaling network", "PHOSPHO": "phospho activity", "PATHWAY": "pathway activity",
+                 "PERTURBATION": "drug-perturbation MoA", "PREDICTABILITY": "dependency predictability"},
+    scope_exclusions=("nomination verdict", "therapeutic modality selection"),
+    mode="descriptive",
+)
+
+CIS_FEATURE_COHERENCE = LensConfig(
+    name="cis-feature-coherence",
+    thesis="whether the locus→expression→dependency chain is COHERENT (cis copy-number dosage coupling, "
+           "methylation silencing, expression↔dependency) — a data-integrity / mechanism-plausibility context.",
+    relevance_prompt="give the cis-feature-coherence context read (descriptive; no nomination call).",
+    axis_labels={"CIS_DOSAGE": "cis copy-number dosage", "SILENCING": "methylation silencing",
+                 "EXPR_DEP": "expression↔dependency", "CONJOINT": "conjoint patient cis-dosage"},
+    scope_exclusions=("nomination verdict",),
+    mode="descriptive",
+)
+
+COMBINATION_VULNERABILITY = LensConfig(
+    name="combination-and-vulnerability",
+    thesis="the relational (gene×gene) opportunities — synthetic-lethal partners, measured dual-KO "
+           "co-dependencies, combination co-targets under inhibition, and resistance mediators.",
+    relevance_prompt="give the combination / vulnerability context read (descriptive ranked-partner annex; no nomination call).",
+    axis_labels={"SL": "synthetic-lethal", "CODEP": "paralog dual-KO co-dependency",
+                 "COMBO": "combination co-target", "RESISTANCE": "resistance mediators"},
+    scope_exclusions=("single-target nomination verdict",),
+    mode="descriptive",
+)
+
+TARGET_INTRINSIC = LensConfig(
+    name="target-intrinsic",
+    thesis="the indication-INDEPENDENT intrinsic target dossier — modality routing (surface vs intracellular), "
+           "annotation/characterization, interactome hubness, and tractability precedent.",
+    relevance_prompt="give the intrinsic target-biology context read (descriptive dossier; no nomination call).",
+    axis_labels={"MODALITY_ROUTING": "modality routing", "TRACTABILITY_PRECEDENT": "tractability precedent"},
+    scope_exclusions=("indication-conditioned nomination verdict",),
+    mode="descriptive",
+)
+
+# Registry for the dispatcher / fan-out lookup by skill name — ALL 13 hierarchy skills.
+LENSES = {L.name: L for L in (
+    FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_PRESENCE, TUMOR_SELECTIVITY, GENOMIC_ALTERATION,
+    SURFACE_MODALITY_FIT, TRACTABILITY_SM, IMMUNE_CONTEXT, DIFFERENTIATION_LANDSCAPE,
+    MECHANISM_PHARMACOLOGY, CIS_FEATURE_COHERENCE, COMBINATION_VULNERABILITY, TARGET_INTRINSIC)}

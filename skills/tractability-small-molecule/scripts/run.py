@@ -36,12 +36,13 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import TRACTABILITY_SM as _LENS
 from _skills_common import get_card_field
 from _skills_common.tractability_claims import small_molecule_claim_vector, small_molecule_key_signals
 from _skills_common.tractability_sm_question_table import tractability_sm_question_table
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
@@ -249,7 +250,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.6.0"     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+SKILL_VERSION = "3.7.0"   # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
                             # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
@@ -508,7 +509,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
                   for c in cards],
     }
-    return synthesize_tractability_sm(decision, model_id, subtype)
+    return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 
 
 if __name__ == "__main__":
@@ -529,7 +530,7 @@ if __name__ == "__main__":
         # attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed, so it is
         # structurally impossible for the narration to alter druggability_snapshot. Without this
         # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
-        synthesize_fn=synthesize_tractability_sm,
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Signals-first: tuned sub-group reader for the tractability vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_TRACT_VALUE_TIERS),
     ))

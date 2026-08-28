@@ -22,6 +22,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE as _LENS
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
@@ -44,7 +46,7 @@ _CIS_VALUE_TIERS = {
 
 
 SKILL_NAME = "cis-feature-coherence"
-SKILL_VERSION = "1.1.0"   # 1.1.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.
+SKILL_VERSION = "1.2.0"   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.1.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.
 
 CARDS = [
     "cis-feature-expression-coherence",     # GoF leg-1: CN → own-expression cis-dosage (amplification)
@@ -304,6 +306,8 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
+        synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         # Signals-first: tuned sub-group reader for the cis-coherence vocabulary. Verdict-INERT.
