@@ -37,6 +37,21 @@ def test_renders_indication_conflict_and_dq_only():
     assert "empty-card" not in out                                    # data_unavailable card skipped from data block
 
 
+def test_renders_categorical_anchors_for_clinical_cards():
+    caps = {"differentiation": {"capsules": {
+        "clinical-precedent": {"card_id": "clinical-precedent", "evidence_state": "measured",
+            "categorical_anchors": [{"field": "highest_clinical_stage", "value": "approved"},
+                                    {"field": "approved_agents", "value": ["adagrasib", "sotorasib"]}]},
+        "competitor-landscape": {"card_id": "competitor-landscape", "evidence_state": "measured",
+            "categorical_anchors": [{"field": "n_approved", "value": 0},
+                                    {"field": "highest_clinical_stage", "value": "PHASE_3"}]},
+    }}}
+    out = CE._render_capsule_data(caps)
+    assert "highest_clinical_stage=approved" in out                  # clinical stage now a citable token
+    assert "approved_agents=['adagrasib', 'sotorasib']" in out       # actual competitor drug names
+    assert "n_approved=0" in out                                     # indication-approval count surfaced
+
+
 def test_empty_is_byte_stable_noop():
     assert CE._render_capsule_data({}) == ""
     assert CE._render_capsule_data(None) == ""

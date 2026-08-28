@@ -52,6 +52,30 @@ def test_numeric_anchors_and_provenance_and_caveats():
     assert "paralog_buffering_class" in caps["a-paralog"]["sibling_caveats"]   # caveat-hint field (real key)
 
 
+def test_categorical_anchors_opt_in_only():
+    # A clinical card whose decision-relevant datum is a STRING stage + a LIST of agents: invisible to
+    # numeric_anchors, surfaced only when the card opts in via config['categorical_fields'].
+    cards = [{"card_id": "clinical-precedent", "summary": {
+        "clinical_precedent_class": "trial_precedent_present", "highest_clinical_stage": "approved",
+        "approved_agents": ["adagrasib", "sotorasib"], "n_trials": 170}}]
+    # no config → categorical_anchors is None (byte-stable for every non-opted card)
+    plain = EC.emit_capsules(cards, "COADREAD")["capsules"]["clinical-precedent"]
+    assert plain["categorical_anchors"] is None
+    # opted in → the stage label + agent list ride through verbatim
+    cfg = {"clinical-precedent": {"categorical_fields": ["highest_clinical_stage", "approved_agents"]}}
+    ca = EC.emit_capsules(cards, "COADREAD", config=cfg)["capsules"]["clinical-precedent"]["categorical_anchors"]
+    got = {a["field"]: a["value"] for a in ca}
+    assert got["highest_clinical_stage"] == "approved"
+    assert got["approved_agents"] == ["adagrasib", "sotorasib"]
+
+
+def test_categorical_anchors_list_capped():
+    cards = [{"card_id": "x", "summary": {"agents": [f"d{i}" for i in range(20)]}}]
+    cfg = {"x": {"categorical_fields": ["agents"]}}
+    ca = EC.emit_capsules(cards, None, config=cfg)["capsules"]["x"]["categorical_anchors"]
+    assert len(ca[0]["value"]) == 6                                   # top-k capped for token budget
+
+
 def test_conflict_pair_across_same_measurement_type(monkeypatch):
     import _skills_common.evidence_capsule as M
     monkeypatch.setattr(M, "_card_meta", lambda cid: {"hi": ("mt_x", None), "lo": ("mt_x", None)}.get(cid, (None, None)))

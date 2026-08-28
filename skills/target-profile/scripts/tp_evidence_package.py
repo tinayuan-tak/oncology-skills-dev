@@ -64,12 +64,31 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
     return out
 
 
+# Per-card capsule selector overrides. The numeric-anchor / n_basis shapes only carry floats/ints, so a
+# card whose DECISION-relevant datum is a stage label, class enum, or agent list was invisible to the
+# capsule DATA layer the cross-evidence agent cites. These cards carry the clinical/competitive/maturity
+# reality (approved-in-indication vs approved-anywhere, stage, competitor drug names) — declare their
+# salient categorical fields so `categorical_anchors` surfaces them. VERDICT-INERT (rider only).
+_CAPSULE_CONFIG: dict = {
+    "clinical-precedent": {
+        "categorical_fields": ["highest_clinical_stage", "approved_agents", "clinical_precedent_class"]},
+    "competitor-landscape": {
+        "categorical_fields": ["highest_clinical_stage", "competitor_class", "n_approved",
+                               "late_stage_non_approved_agents", "indication_scope"]},
+    "known-drug-tractability": {
+        "categorical_fields": ["known_drug_tractability_class", "has_approved_drug",
+                               "n_approved_drug_interactions"]},
+    "target-development-level": {
+        "categorical_fields": ["tdl_class", "target_family"]},
+}
+
+
 def _capsules_from_sub_results(sub_results: dict, indication: str) -> dict:
     """Per-short evidence-capsule package (evidence_capsule.emit_capsules over the sub-skill's own cards):
-    the complete-but-limited DATA layer — 5 bounded selector shapes + a card-floor manifest — carried into
+    the complete-but-limited DATA layer — 6 bounded selector shapes + a card-floor manifest — carried into
     the machine envelope so the retrieve-don't-recall cross-evidence agent can cite the bounded RAW data
-    (strata, magnitudes, conflicts, provenance) behind each verdict, not just the class label. Every card
-    that fed a sub-verdict emits ≥1 citable capsule (card floor). VERDICT-INERT; empty on any fault."""
+    (strata, magnitudes, categoricals, conflicts, provenance) behind each verdict, not just the class label.
+    Every card that fed a sub-verdict emits ≥1 citable capsule (card floor). VERDICT-INERT; empty on any fault."""
     out: dict = {}
     try:
         from _skills_common.evidence_capsule import emit_capsules
@@ -80,7 +99,7 @@ def _capsules_from_sub_results(sub_results: dict, indication: str) -> dict:
         if not cards:
             continue
         try:
-            out[short] = emit_capsules(cards, indication)
+            out[short] = emit_capsules(cards, indication, config=_CAPSULE_CONFIG)
         except Exception:  # noqa: BLE001 — never break emit on one sub-skill
             continue
     return out

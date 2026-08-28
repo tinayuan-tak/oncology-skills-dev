@@ -1,7 +1,7 @@
 """evidence_capsule — a COMPLETE-but-LIMITED per-card data package for the LLM consumers.
 
 Unifies the SIGNAL layer (sub-verdict + claim axis — already flowing via the narrator-input contract)
-with a bounded DATA layer: 5 fixed deterministic SELECTOR SHAPES over each card's already-computed
+with a bounded DATA layer: 6 fixed deterministic SELECTOR SHAPES over each card's already-computed
 fields. ONE emitter, read by BOTH the single-lens narrators and the retrieve-don't-recall cross-evidence
 agent (each capsule row is a citable atom).
 
@@ -13,12 +13,14 @@ HASH-STABLE: sorted card order, sorted rows, rounded floats, sorted-key JSON —
 
 Pure selection over resolved cards — no LLM, no network, no new computation. VERDICT-INERT.
 
-The 5 selector shapes:
-  1 top_k_strata     — a card's per-lineage/oncotree/stratum array → indication row + argmin + argmax
-  2 numeric_anchors  — the load-bearing scalar(s) behind each class (effect/q/CI/percentile/n)
-  3 conflict_pairs   — two cards on one measurement_type disagreeing in tier (with precedence)
-  4 sibling_caveats  — caveat fields that qualify a favorable headline (escape/variability/…)
-  5 provenance_keys  — distinct contributing sources + distinct_provenance_count
+The 6 selector shapes:
+  1 top_k_strata       — a card's per-lineage/oncotree/stratum array → indication row + argmin + argmax
+  2 numeric_anchors    — the load-bearing scalar(s) behind each class (effect/q/CI/percentile/n)
+  3 categorical_anchors— config-declared salient non-numeric fields (stage labels, class enums, agent
+                         lists) a numeric shape can't carry; None unless the card opts in
+  4 conflict_pairs     — two cards on one measurement_type disagreeing in tier (with precedence)
+  5 sibling_caveats    — caveat fields that qualify a favorable headline (escape/variability/…)
+  6 provenance_keys    — distinct contributing sources + distinct_provenance_count
 plus data_quality_flags — generic mis-bind / direction-inversion contradictions surfaced, not hidden.
 """
 from __future__ import annotations
@@ -98,6 +100,27 @@ def _n_basis(summary):
     ns = sorted(k for k, v in summary.items()
                 if isinstance(v, (int, float)) and any(h in k.lower() for h in _N_HINTS))
     return {k: summary[k] for k in ns[:3]}
+
+
+def _categorical_anchors(summary, cfg):
+    """Emit config-DECLARED salient non-numeric fields (stage labels, class enums, agent lists) verbatim.
+    The numeric-anchor / n_basis shapes only surface floats/ints, so a card whose decision-relevant datum
+    is a STRING (e.g. clinical-precedent.highest_clinical_stage='approved') or a LIST (approved_agents)
+    was invisible to the capsule DATA layer. This shape closes that gap for cards that opt in via
+    `config[card_id]['categorical_fields']`; it stays None (byte-stable) for every card that does not.
+    List values are top-k capped for token budget; scalars pass through unchanged."""
+    fields = (cfg or {}).get("categorical_fields")
+    if not fields:
+        return None
+    out = []
+    for f in fields:
+        if f not in summary:
+            continue
+        v = summary[f]
+        if isinstance(v, list):
+            v = v[:6]
+        out.append({"field": f, "value": v})
+    return out or None
 
 
 def _sibling_caveats(summary, cfg):
@@ -187,6 +210,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             "card_id": cid, "measurement_type": mt, "tier": tier, "evidence_state": "measured",
             "class": cls,
             "numeric_anchors": (_numeric_anchors(summ, cfg) or None),
+            "categorical_anchors": _categorical_anchors(summ, cfg),
             "n_basis": (_n_basis(summ) or None),
             "_complete": True,
         }

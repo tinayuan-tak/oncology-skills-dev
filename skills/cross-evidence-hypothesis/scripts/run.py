@@ -313,8 +313,9 @@ def _render_capsule_data(caps_by_short: dict) -> str:
     if not isinstance(caps_by_short, dict) or not caps_by_short:
         return ""
     lines = ["PANEL — evidence-capsule DATA (bounded raw behind the classes; card-floor complete; cite these "
-             "card_ids). Complements the claim-vector atoms with the on-indication stratum, cross-source "
-             "CONFLICTS, and DATA-QUALITY flags (treat flags as bugs to note, NOT as biology):"]
+             "card_ids). Complements the claim-vector atoms with the on-indication stratum, salient "
+             "categoricals (clinical stage / competitor drugs), cross-source CONFLICTS, and DATA-QUALITY "
+             "flags (treat flags as bugs to note, NOT as biology):"]
     for short in sorted(caps_by_short):
         caps = (caps_by_short.get(short) or {}).get("capsules") or {}
         rows = []
@@ -326,6 +327,8 @@ def _render_capsule_data(caps_by_short: dict) -> str:
             ind = [r for r in (c.get("top_k_strata") or []) if r.get("role") == "INDICATION"]
             if ind:
                 frag.append(f"indication_stratum {ind[0].get('stratum')}={ind[0].get('value')}(n={ind[0].get('n')})")
+            if c.get("categorical_anchors"):
+                frag.append("; ".join(f"{a.get('field')}={a.get('value')}" for a in c["categorical_anchors"]))
             if c.get("conflict_pairs"):
                 cp = c["conflict_pairs"][0]
                 frag.append(f"CONFLICT(mt={cp.get('measurement_type')} vs {[o.get('card') for o in cp.get('other_sources', [])]})")
