@@ -767,6 +767,7 @@ SUB_SKILL_CARDS = {
                                           # own descriptive/verdict-inert rules (if any) and never a nomination rung.
         "target-identity-summary",           # canonical id / family / aliases (also read standalone by the emitter for hgnc_id)
         "target-development-level",           # Pharos/IDG TDL druggability/novelty tier (Tclin/Tchem/Tbio/Tdark)
+        "measured-potency-tractability",      # borrowed: ChEMBL/BindingDB measured chemical matter (tier:target); verdict-inert
         "protein-domains-class",              # UniProt FT DOMAIN architecture + keyword protein class
         "domain-modality-relevance",          # interpretive domain→modality facet (inhibitor_sufficient vs removal_required)
         "ppi-interactome",                    # STRING functional network + CORUM complex membership

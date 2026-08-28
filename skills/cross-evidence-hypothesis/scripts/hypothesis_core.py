@@ -163,6 +163,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     "target_intrinsic": frozenset({
         "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
         "protein-domains-class", "reactome-pathway-membership", "target-development-level",
+        "measured-potency-tractability",
         "target-identity-summary"}),
     "tractability_sm": frozenset({
         "degradation-feasibility", "dependency-predictability", "gdsc-drug-activity",

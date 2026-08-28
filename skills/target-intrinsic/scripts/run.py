@@ -50,7 +50,7 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.5.0"   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
@@ -83,6 +83,9 @@ CARDS = [
     "protein-domains-class",             # FT DOMAIN architecture + UniProt-keyword protein class
     "target-development-level",          # Pharos/IDG TDL: druggability/novelty tier (Tclin/Tchem/Tbio/Tdark)
                                          # + family. Verdict-inert target-intrinsic facet.
+    "measured-potency-tractability",     # ChEMBL/BindingDB measured potent-binder count + best potency —
+                                         # the MEASURED chemical-matter dimension (tier:target). Borrowed from
+                                         # tractability-small-molecule; verdict-inert intrinsic-druggability facet.
     "domain-modality-relevance",         # INTERPRETIVE domain→modality facet: inhibitor_sufficient vs
                                          # removal_required_scaffolding (e.g. RIPK1). tier:target, verdict-inert.
     # --- PARALOGS (gene-family redundancy — a genomic-intrinsic property) -----------------------
@@ -117,6 +120,10 @@ _HEADLINE_SPEC = [
     ("surface_protein_family",        "surfaceome-family-classification", "family_class"),
     ("is_surface_protein",            "surfaceome-family-classification", "is_surface_protein"),
     ("structure_pocket_call",         "structure-features-static",        "hotspot_pocket_adjacency_call"),
+    # measured chemical matter (borrowed from tractability-small-molecule; intrinsic druggability)
+    ("measured_bioactivity_class",    "measured-potency-tractability",    "measured_bioactivity_class"),
+    ("chembl_n_potent_ligands",       "measured-potency-tractability",    "chembl_n_potent_ligands"),
+    ("best_measured_potency_neglog_m","measured-potency-tractability",    "best_measured_potency_neglog_m"),
     ("shed_liability_class",          "shed-ectodomain-liability",        "shed_liability_class"),
     # functional annotation (Gene Ontology)
     ("go_annotation_class",           "gene-ontology-annotation",         "annotation_class"),

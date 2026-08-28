@@ -25,7 +25,7 @@ description: |
   grain level.
 
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -49,6 +49,7 @@ composition:
     - shed-ectodomain-liability
     - protein-domains-class
     - target-development-level            # Pharos/IDG TDL: druggability/novelty tier (Tclin/Tchem/Tbio/Tdark) + family; verdict-inert
+    - measured-potency-tractability      # ChEMBL/BindingDB measured potent-binder count + best potency (tier:target chemical matter); borrowed, verdict-inert
     - domain-modality-relevance
     - ppi-interactome
     - gene-ontology-annotation
@@ -73,6 +74,7 @@ composition:
     - shed_ectodomain_liability
     - protein_domains_class
     - target_development_level          # Pharos/IDG TDL
+    - measured_potency_tractability     # measured-potency-tractability (ChEMBL/BindingDB chemical matter)
     - domain_modality_relevance
     - ppi_interactome
     - gene_ontology_annotation
