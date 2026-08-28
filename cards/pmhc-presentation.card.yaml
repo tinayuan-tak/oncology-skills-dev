@@ -22,6 +22,15 @@ card_id: pmhc-presentation
 version: 1.0.0
 question: "Are {target.symbol}'s peptides presented on HLA, and how broadly across NORMAL tissue — i.e. is it a clean peptide-centric (TCR-mimetic TCE) target or a broad on-target/off-tumor presentation liability?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: pmhc_presentation_class
+  categorical_fields:
+    - pmhc_presentation_class
+    - hla_class
+
 tier: target   # HLA presentation of a protein's peptides is a protein property (indication-independent, like the benign atlas)
 
 applies_when:

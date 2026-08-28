@@ -18,6 +18,21 @@ card_id: surface-abundance-density
 version: 1.0.0
 question: "What is the estimated surface copies-per-cell of {target.symbol} in {indication.label} tumors, and is it above the TCE viability threshold?"
 
+# Evidence-capsule projection contract. The alphabetical-first *_class heuristic mis-picks
+# `absolute_density_class` — the field the card's own docstring declares verdict-INERT — as the headline
+# class. The verdict-driving primary is `surface_density_class` (rules key on it: surface-intrinsic.rules
+# .yaml:475/490/503/519/539). Declare it + the salient density/viability categoricals a numeric selector
+# drops. VERDICT-INERT projection.
+capsule:
+  primary_class: surface_density_class
+  categorical_fields:
+    - surface_density_class
+    - density_floor_verdict
+    - hpa_ihc_intensity_class
+    - is_tce_viable
+    - is_adc_high_payload_viable
+    - absolute_density_class
+
 applies_when:
   - "context.data_sources.cptac_available == true"
   - "context.data_sources.hpa_available == true"

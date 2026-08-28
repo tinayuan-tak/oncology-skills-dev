@@ -52,6 +52,16 @@ card_id: shed-ectodomain-liability
 version: 1.1.0
 question: "Is the extracellular domain of {target.symbol} proteolytically shed as a soluble circulating decoy, creating an antigen-sink liability for antibody / ADC / T-cell-engager modalities?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: shed_liability_class
+  categorical_fields:
+    - shed_liability_class
+    - shed_evidence_tier
+    - measured_shed_class
+
 tier: target   # scope-invariant: ectodomain shedding is a property of the protein, not of any tumor subgroup. Never stratifies.
 
 # Biologics-relevant only. The composed card is modality-scoped downstream; the

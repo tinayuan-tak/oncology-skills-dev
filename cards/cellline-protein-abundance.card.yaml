@@ -22,6 +22,15 @@ card_id: cellline-protein-abundance
 version: 1.0.0
 question: "Across DepMap cell lines (Gygi TMT MS), what is the protein-abundance distribution of {target.symbol}, and is it lineage-stratified?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: protein_expression_class
+  categorical_fields:
+    - protein_expression_class
+    - allgene_percentile_class
+
 tier: target   # cell-line protein abundance is a per-ModelID property; stratifies by DepMap LINEAGE (read-side), not by patient molecular subtype. Not indication-scoped.
 
 applies_when:

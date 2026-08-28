@@ -17,6 +17,17 @@ card_id: cellline-rna-distribution
 version: 1.1.0
 question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: expression_class
+  categorical_fields:
+    - expression_class
+    - allgene_percentile_class
+    - control_position_class
+    - isoform_expression_class
+
 applies_when:
   - "context.data_sources.depmap_expression_available == true"
 

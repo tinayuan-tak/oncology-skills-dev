@@ -17,6 +17,17 @@ card_id: tumor-rna-distribution
 version: 0.2.0
 question: "How does {target.symbol} RNA expression DISTRIBUTE across {indication.label} tumors — median, fraction of patients detectable/high, and shape (continuous, bimodal, long-tail)?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: tumor_expression_class
+  categorical_fields:
+    - tumor_expression_class
+    - distribution_pattern
+    - allgene_percentile_class
+    - control_position_class
+
 tier: indication   # the POOLED per-indication tumor distribution; the target_subtype grain lives on the
                    # sibling tumor-rna-distribution-by-subtype card (the framework's grain-split convention)
 

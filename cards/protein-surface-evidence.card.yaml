@@ -15,6 +15,19 @@ card_id: protein-surface-evidence
 version: 1.2.0   # +HPA-IF second measured provider (surface_multimodal_support corroboration facet; verdict-inert)
 question: "Is {target.symbol} confirmed at the protein level and accessible on the tumor cell surface in {indication.label}?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: surface_confirmation_class
+  categorical_fields:
+    - surface_confirmation_class
+    - surface_multimodal_support
+    - hpa_if_surface_class
+    - measured_in_cspa
+    - hpa_if_plasma_membrane
+    - evidence_tier
+
 applies_when:
   # CSPA is a target-intrinsic surface residency measurement (indication-independent); the card fires
   # whenever the target resolves to a UniProt AC. An absent target is an honest measured-negative

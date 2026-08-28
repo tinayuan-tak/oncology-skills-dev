@@ -15,6 +15,17 @@ card_id: protein-domains-class
 version: 1.0.0
 question: "What is {target.symbol}'s curated domain architecture, and what molecular protein class(es) does it belong to?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: protein_features_class
+  categorical_fields:
+    - protein_features_class
+    - protein_class
+    - protein_class_primary
+    - domain_evidence
+
 tier: target   # domain architecture + protein class are properties of the protein, independent of indication
 
 applies_when:

@@ -23,6 +23,15 @@ card_id: mutation-type-counts
 version: 1.0.0
 question: "Across DepMap cell lines, what kinds of mutations does {target.symbol} carry — missense-dominant (oncogene pattern), LOF-dominant (tumor-suppressor pattern), mixed, or no mutations?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: mutation_landscape_class
+  categorical_fields:
+    - mutation_landscape_class
+    - mut_dominant_mutation_class
+
 applies_when:
   - "context.data_sources.depmap_somatic_mutations_available == true"
 

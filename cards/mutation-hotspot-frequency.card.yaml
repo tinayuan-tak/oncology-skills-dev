@@ -2,6 +2,16 @@ card_id: mutation-hotspot-frequency
 version: 1.2.0    # GENIE panel-coverage-correct recurrence comparator (genie_driver_recurrence_*, display facet)
 question: "What is the somatic mutation frequency and hotspot landscape of {target.symbol} in {indication.label}?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: pooled_driver_recurrence_class
+  categorical_fields:
+    - pooled_driver_recurrence_class
+    - driver_recurrence_class
+    - genie_driver_recurrence_class
+
 applies_when:
   - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"
 

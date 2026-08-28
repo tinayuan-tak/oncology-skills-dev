@@ -24,6 +24,17 @@ card_id: surface-topology-and-ptm
 version: 1.0.0
 question: "What is the predicted membrane topology and PTM profile of {target.symbol}, and does the target have clinically-dominant alt isoforms that make gene-level reasoning systematically wrong?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: topology_class
+  categorical_fields:
+    - topology_class
+    - ecd_engineerability_class
+    - ecd_orientation
+    - signal_peptide_present
+
 applies_when:
   - "context.data_sources.tmbed_predictor_available == true"
 

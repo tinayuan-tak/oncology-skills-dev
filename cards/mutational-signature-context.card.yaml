@@ -28,6 +28,18 @@ card_id: mutational-signature-context
 version: 1.0.0
 question: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the {indication.label} cohort, and which dominates?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: dominant_process
+  categorical_fields:
+    - dominant_process
+    - enriched_processes
+    - apobec_class
+    - mmr_deficiency_class
+    - hrd_class
+
 tier: indication   # per-indication cohort property; target-independent. Never stratifies by target.
 
 applies_when:

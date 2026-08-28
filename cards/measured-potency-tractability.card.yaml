@@ -25,6 +25,15 @@ card_id: measured-potency-tractability
 version: 1.0.0
 question: "Is there a POTENT (<=1 uM) measured small-molecule ligand for {target.symbol}, and how deep is the chemotype series?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: measured_bioactivity_class
+  categorical_fields:
+    - measured_bioactivity_class
+    - chembl_clinical_phase_class
+
 tier: target   # measured potency is a property of the gene's chemical matter, independent of indication. Never stratifies.
 
 applies_when: []

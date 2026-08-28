@@ -15,6 +15,17 @@ card_id: tumor-protein-abundance-cptac
 version: 1.0.0
 question: "Is {target.symbol} present at the protein level in {indication.label} tumors vs matched normals per CPTAC?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: protein_expression_class
+  categorical_fields:
+    - protein_expression_class
+    - allgene_percentile_class
+    - protein_effect_standardized_class
+    - stat_test_used
+
 tier: indication   # indication-scoped CPTAC protein presence; subtype-eligible once a per-sample protein reader ships
 
 # BLOCKED (2026-07-16): protein presence varies by molecular subgroup (filter 1

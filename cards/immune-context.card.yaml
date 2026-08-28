@@ -20,6 +20,16 @@ card_id: immune-context
 version: 1.0.0
 question: "For {indication.label}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell effector population present for a T-cell engager to redirect?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: immune_context_class
+  categorical_fields:
+    - immune_context_class
+    - antigen_conditioned_call
+    - antigen_high_immune_context_class
+
 tier: indication   # the per-indication immune landscape; target-independent (v1). Antigen-conditioned = v2.
 
 applies_when:

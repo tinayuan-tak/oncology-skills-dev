@@ -25,6 +25,17 @@ card_id: normal-tissue-protein-abundance-tphp
 version: 1.0.0
 question: "Across the TPHP normal-tissue proteome (DIA MaxLFQ), how broad is {target.symbol}'s NORMAL-tissue protein footprint, and where is it highest — the quantitative normal-protein comparator for tumor-vs-normal selectivity?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: tphp_normal_protein_liability_class
+  categorical_fields:
+    - tphp_normal_protein_liability_class
+    - normal_protein_breadth_class
+    - fetal_vs_adult_flag
+    - highest_abundance_tissue_class
+
 tier: target   # a normal-tissue protein footprint is a property of the gene, not a tumor subgroup; never stratifies.
 
 applies_when:

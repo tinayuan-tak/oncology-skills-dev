@@ -27,6 +27,16 @@ card_id: pan-cancer-crispr-dependency-distribution
 version: 3.0.0          # bumped 2026-06-30: split RNAi out into sibling card
 question: "Across ~1500 DepMap cell lines, what is the shape of CRISPR LOF dependency on {target.symbol}?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: dependency_class
+  categorical_fields:
+    - dependency_class
+    - distribution_shape
+    - dep_control_position_class
+
 applies_when:
   - "context.data_sources.depmap_chronos_available == true"
 

@@ -8,6 +8,15 @@ card_id: tumor-rna-vs-adjacent
 version: 2.1.0                                  # bumped 2026-07-08: TPM fields now backed by real data (Gencode v26 gene-length norm)
 question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: expression_call_class
+  categorical_fields:
+    - expression_call_class
+    - allgene_percentile_class
+
 tier: indication   # indication-scoped tumor-vs-adjacent contrast; subtype-eligible once a per-sample expression reader ships
 
 # BLOCKED (2026-07-16): tumor-vs-adjacent log2FC varies by molecular subgroup

@@ -42,6 +42,16 @@ card_id: dependency-predictability
 version: 2.1.0
 question: "How well can {target.symbol}'s Chronos dependency be predicted from a genome-wide multi-omics + lineage feature set? Is the dependency biomarker-anchored (target-own omics dominate), context/driver-dependent (lineage/arm/co-driver flags dominate), or unpredictable (standard features don't explain Chronos)?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: predictability_class
+  categorical_fields:
+    - predictability_class
+    - pred_dominant_feature_class
+    - model_agreement
+
 applies_when:
   - "context.data_sources.depmap_predictability_available == true"
 

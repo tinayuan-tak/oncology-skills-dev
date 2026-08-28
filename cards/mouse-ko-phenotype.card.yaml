@@ -26,6 +26,16 @@ version: 1.1.0    # 1.1.0 (2026-08-21): + IMPC-DIRECT corroboration (impc-ko-phe
                  # framework-health orphan + adds a systematic preweaning-viability + organ-system read.
 question: "Does mouse knockout of {target.symbol} cause ADULT lethality or severe organ dysfunction (a normal-physiology safety signal), as distinct from purely developmental lethality?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: ko_phenotype_class
+  categorical_fields:
+    - ko_phenotype_class
+    - impc_ko_phenotype_class
+    - evidence_tier
+
 tier: target   # scope-invariant: mouse-KO phenotype is a property of the gene. Never stratifies.
 
 applies_when: []

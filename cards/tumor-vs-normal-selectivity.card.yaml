@@ -46,6 +46,17 @@ card_id: tumor-vs-normal-selectivity
 version: 3.7.0    # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: selectivity_class
+  categorical_fields:
+    - selectivity_class
+    - comparator_concordance
+    - dominant_direction
+    - selectivity_allgene_percentile_class
+
 tier: indication   # indication-scoped whole-cohort call is the PRIMARY grain; subtype grain now LIVE for
                    # indications with a per-subgroup sensitivity product (COADREAD/msi_status as of 2026-08-18).
 

@@ -18,6 +18,19 @@ card_id: tumor-scrna-celltype-expression
 version: 0.1.0
 question: "At single-cell resolution, in how many cells of each tumor compartment (malignant / immune / stromal / endothelial) is {target.symbol} detected in {indication.label}, and is a detectable signal tumor-cell-intrinsic (malignant) or microenvironmental?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: sc_expression_class
+  categorical_fields:
+    - sc_expression_class
+    - tce_antigen_escape_class
+    - within_tumor_coverage_class
+    - inter_donor_consistency_class
+    - caf_vs_malignant_class
+    - tce_homogeneity_class
+
 tier: indication   # the per-indication single-cell compartment landscape; per-cell subtype grain is a later slice
 
 subgroup_stratification:

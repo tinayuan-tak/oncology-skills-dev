@@ -20,6 +20,17 @@ card_id: tumor-rna-distribution-by-subtype
 version: 0.1.0
 question: "How does {target.symbol} RNA expression DISTRIBUTE across the molecular subtypes of {indication.label} tumors — which subtypes are enriched, depleted, or restricted vs the pooled distribution?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: subtype_stratification_class
+  categorical_fields:
+    - subtype_stratification_class
+    - subtype_effect_size_class
+    - subtype_axis_quality
+    - normal_comparator_type
+
 tier: subtype
 
 subgroup_stratification:

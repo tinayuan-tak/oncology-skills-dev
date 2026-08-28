@@ -31,6 +31,16 @@ card_id: tumor-elevation-breadth
 version: 1.1.0                                    # 1.1.0 (Slice C): + RNA breadth layer (pan-cancer DESeq2)
 question: "Across how many cancer indications is {target.symbol} elevated in tumor vs normal — at the protein layer (CPTAC) and/or the RNA layer (pan-cancer DESeq2) — as pan-cancer tumor-presence breadth?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: tumor_elevation_breadth_class
+  categorical_fields:
+    - tumor_elevation_breadth_class
+    - rna_tumor_elevation_breadth_class
+    - breadth_layer_concordance
+
 tier: target   # pan-cancer breadth is a target property (rolled up over indications); does not stratify by subgroup
 
 applies_when:

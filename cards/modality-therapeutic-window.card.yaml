@@ -20,6 +20,17 @@ card_id: modality-therapeutic-window
 version: 1.1.0
 question: "For {target.symbol} in {indication.label}, is tumor expression high enough relative to the worst essential normal organ to open a therapeutic window for a biologic at each modality tier (strict TCE / moderate ADC / pathway antibody)?"
 
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: window_class
+  categorical_fields:
+    - window_class
+    - therapeutic_window_class
+    - full_normal_window_class
+    - modality
+
 tier: indication   # per-indication tumor-vs-essential-normal window; the tumor numerator is cohort-specific
 
 applies_when:
