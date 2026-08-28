@@ -64,6 +64,28 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
     return out
 
 
+def _capsules_from_sub_results(sub_results: dict, indication: str) -> dict:
+    """Per-short evidence-capsule package (evidence_capsule.emit_capsules over the sub-skill's own cards):
+    the complete-but-limited DATA layer — 5 bounded selector shapes + a card-floor manifest — carried into
+    the machine envelope so the retrieve-don't-recall cross-evidence agent can cite the bounded RAW data
+    (strata, magnitudes, conflicts, provenance) behind each verdict, not just the class label. Every card
+    that fed a sub-verdict emits ≥1 citable capsule (card floor). VERDICT-INERT; empty on any fault."""
+    out: dict = {}
+    try:
+        from _skills_common.evidence_capsule import emit_capsules
+    except Exception:  # noqa: BLE001
+        return out
+    for short, r in sub_results.items():
+        cards = r.get("cards") or []
+        if not cards:
+            continue
+        try:
+            out[short] = emit_capsules(cards, indication)
+        except Exception:  # noqa: BLE001 — never break emit on one sub-skill
+            continue
+    return out
+
+
 def _load_figure_registry():
     """Import the shared figure-emission registry (emit_figures_for_card).
 
@@ -425,6 +447,9 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         # verdict-INERT claim-vector signal facets — the SIGNAL decomposition + citable
         # evidence atoms per sub-skill, for downstream cross-evidence reasoning (not just the label).
         "claim_vectors": _claim_vectors_from_sub_results(sub_results),
+        # verdict-INERT DATA layer — per-sub-skill evidence capsules (bounded raw behind the classes,
+        # card-floor complete) so the cross-evidence agent can cite the raw data, not just labels.
+        "evidence_capsules": _capsules_from_sub_results(sub_results, args.indication),
         # verdict-INERT DECISION FACETS — the reader-facing facet layer that previously reached only
         # nomination.json (certainty, cross-gate correlation, flip-fragility + acquisition backlog,
         # competitor cross-ref). Carried here so the cross-evidence-hypothesis integrator (which consumes

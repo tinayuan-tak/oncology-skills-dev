@@ -304,6 +304,41 @@ def _atom_is_notable(atom: dict) -> bool:
     return False
 
 
+def _render_capsule_data(caps_by_short: dict) -> str:
+    """Render the per-sub-skill evidence-capsule DATA layer (synthesis.evidence_capsules) — the bounded
+    RAW behind the classes, card-floor complete. COMPLEMENTS the claim-vector atoms: it surfaces only what
+    the atoms do NOT carry — the on-INDICATION stratum, cross-source CONFLICTS, and DATA-QUALITY flags —
+    so the retrieve-don't-recall agent can cite these card_ids/fields without prompt bloat or duplication.
+    Salience-gated (indication row / conflict / DQ only); '' when no capsules (byte-stable for older packages)."""
+    if not isinstance(caps_by_short, dict) or not caps_by_short:
+        return ""
+    lines = ["PANEL — evidence-capsule DATA (bounded raw behind the classes; card-floor complete; cite these "
+             "card_ids). Complements the claim-vector atoms with the on-indication stratum, cross-source "
+             "CONFLICTS, and DATA-QUALITY flags (treat flags as bugs to note, NOT as biology):"]
+    for short in sorted(caps_by_short):
+        caps = (caps_by_short.get(short) or {}).get("capsules") or {}
+        rows = []
+        for cid in sorted(caps):
+            c = caps[cid]
+            if not isinstance(c, dict) or c.get("evidence_state") == "data_unavailable":
+                continue
+            frag = []
+            ind = [r for r in (c.get("top_k_strata") or []) if r.get("role") == "INDICATION"]
+            if ind:
+                frag.append(f"indication_stratum {ind[0].get('stratum')}={ind[0].get('value')}(n={ind[0].get('n')})")
+            if c.get("conflict_pairs"):
+                cp = c["conflict_pairs"][0]
+                frag.append(f"CONFLICT(mt={cp.get('measurement_type')} vs {[o.get('card') for o in cp.get('other_sources', [])]})")
+            for dq in (c.get("data_quality_flags") or [])[:1]:
+                frag.append(f"DATA_QUALITY: {str(dq.get('flag'))[:70]}")
+            if frag:
+                rows.append(f"    {cid}: " + " | ".join(frag))
+        if rows:
+            lines.append(f"  [{short}]")
+            lines.extend(rows)
+    return "\n".join(lines) + "\n\n" if len(lines) > 1 else ""
+
+
 def _render_claim_vectors(cvs: dict) -> str:
     """Salience-gated rendering: PRIMARY claims (informative tier OR a conflict OR a notable atom)
     carry their full citable VALUES; SECONDARY claims collapse to a one-line tier (present, not
@@ -386,6 +421,7 @@ def _panel_block(panel: dict, objective: str) -> str:
     # (bimodality, responder fraction, control-position, …) to {card_id, fields} + entity keys. Reason
     # over the atom VALUES, not just the verdict label; the atom's card_id is already a citable token.
     cv_block = _render_claim_vectors(panel.get("claim_vectors") or {})
+    caps_block = _render_capsule_data((panel["pkg"].get("synthesis") or {}).get("evidence_capsules") or {})
     facets_block = _render_decision_facets(panel)
     return (
         f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
@@ -396,6 +432,7 @@ def _panel_block(panel: dict, objective: str) -> str:
         f"PANEL — per-card interpretation (card_id -> call; cite these card_ids):\n"
         f"{json.dumps(panel['cards_brief'], indent=1, default=str)}\n\n"
         f"{cv_block}"
+        f"{caps_block}"
         f"{facets_block}"
         f"{grounded_block}"
         f"GROUNDED literature risk reads:\n{json.dumps(panel['risk'], indent=1, default=str)}\n\n"), \
