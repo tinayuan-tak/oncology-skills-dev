@@ -493,6 +493,7 @@ SUB_SKILL_CARDS = {
         "synthetic-lethal-partners",     # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
         "combinatorial-dependency",      # measured paralog dual-KO GI (CODEP axis; target_pair atoms)
         "combo-crispr-screen",           # combination co-targets under inhibition (COMBO axis)
+        "combo-chemical-synergy",        # chemical drug×drug synergy (SYNERGY axis; Sanger 2022 Bliss)
         "resistance-emergence-signature",  # resistance mediators that rescue (RESISTANCE liability axis)
                                          # All four are ALSO composed under their standalone entries above —
                                          # same cards, relational lens (like copy-number-distribution's dual

@@ -50,7 +50,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     # cards are all composed under combination-and-vulnerability now). Their cards live on under this one dim.
     "combination_vulnerability": frozenset({   # mirrors SUB_SKILL_CARDS[combination-and-vulnerability]
         "synthetic-lethal-partners", "combinatorial-dependency",
-        "combo-crispr-screen", "resistance-emergence-signature"}),  # CONSOLIDATED relational annex (gateless)
+        "combo-crispr-screen", "combo-chemical-synergy", "resistance-emergence-signature"}),  # CONSOLIDATED relational annex (gateless)
     "cis_coherence": frozenset({
         "cis-feature-expression-coherence", "cis-feature-protein-coherence",  # mRNA + PROTEIN GoF leg-1
         "cellline-methylation-expression-coherence",
