@@ -1,0 +1,86 @@
+# Card — HPA PATHOLOGY CANCER-IHC  (antibody protein-presence-in-TUMOR)
+#
+# The MS-INDEPENDENT protein-presence-in-tumor leg. tumor-presence measures RNA presence for 27
+# indications but bulk tumor PROTEIN only for the ~10 CPTAC TMT cohorts (tumor-protein-abundance-cptac);
+# most indications read protein presence = data_unavailable, and there was NO antibody/IHC readout at
+# all. This card reads HPA Pathology antibody staining across 20 broad cancer types — orthogonal to the
+# CPTAC/Gygi mass-spec cards and available where CPTAC is absent.
+#
+# VERDICT-INERT DISPLAY (like cellline-protein-abundance-procan): occupies the (protein_ihc, tumor)
+# measurement×sample_context bucket — distinct from (protein_ihc, normal) [normal-tissue-liability] and
+# (bulk_protein_ms, tumor) [tumor-protein-abundance-cptac]. It fills the sub-verdict bucket as `measured`
+# for the ~20 HPA cancer types WITHOUT touching the presence ladder (verdict byte-stable). A fast-follow
+# can promote it to a verdict-bearing MS-independent protein ladder (its own rung, never averaged w/ TMT-MS).
+#
+# SUBSTRATE: HPA v23 pathology.tsv (v24/v25 dropped the standalone bulk file; the master proteinatlas.tsv
+# carries only cancer prognostics + RNA specificity, not the IHC staining counts). IHC corpus is
+# version-stable. HPA's 20 cancer types are COARSER than OncoTree (lung cancer ⊋ LUAD/LUSC; colorectal ⊋
+# COAD/READ) — the reader maps OncoTree→HPA type and surfaces the granularity caveat.
+
+card_id: hpa-pathology-cancer-ihc
+version: 1.0.0
+question: "By antibody IHC (HPA Pathology), is {target.symbol} protein present in {indication} tumour tissue, and at what staining fraction/intensity?"
+
+tier: indication   # per-(gene x cancer-type) IHC; indication-scoped via the OncoTree->HPA-cancer-type map
+
+applies_when:
+  - "context.indication != null"
+
+required_inputs:
+  - product_id: hpa-pathology-cancer-ihc-per-gene-v1
+
+methods:
+  - call: hpa-pathology-cancer-ihc
+    module: hpa_pathology_cancer_ihc
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - protein_presence_class                  # PRIMARY categorical (keyed on fraction_detected)
+    - fraction_detected                        # (High+Medium+Low)/total — the presence signal
+    - fraction_moderate_strong                 # (High+Medium)/total
+    - staining_score                           # 0-3 weighted intensity
+    - n_high
+    - n_medium
+    - n_low
+    - n_not_detected
+    - n_patients_total                         # detection denominator
+    - hpa_cancer_type                          # the HPA broad type the OncoTree indication mapped to (provenance)
+    - prognostic_type                          # favorable | unfavorable | none (HPA survival association)
+    - prognostic_is_significant
+    - prognostic_p_value
+    - method_version
+
+  summary_fields_vocabulary:
+    protein_presence_class:
+      - ihc_detected_high                      # fraction_detected > 0.66 — broadly stained across patients
+      - ihc_detected_moderate                  # 0.33 < fraction_detected <= 0.66
+      - ihc_detected_low                       # 0 < fraction_detected <= 0.33
+      - ihc_not_detected                       # fraction_detected == 0 — antibody-negative in this cancer
+      - data_unavailable                       # gene x cancer absent / no patients scored / indication unmapped
+    prognostic_type:
+      - favorable
+      - unfavorable
+      - none
+
+thresholds:
+  ihc_detected_low_max_fraction: 0.33
+  ihc_detected_moderate_max_fraction: 0.66
+
+caveats:
+  - "VERDICT-INERT display: an MS-INDEPENDENT antibody protein-presence corroborator in the (protein_ihc, tumor) bucket. It fills protein presence for the ~20 HPA cancer types where CPTAC TMT-MS is data_unavailable, but does NOT move the presence ladder (kept byte-stable). Promotion to a verdict-bearing protein-IHC rung is a separate decision."
+  - "HPA cancer types are COARSER than OncoTree (one 'lung cancer' type = LUAD+LUSC+NSCLC; one 'colorectal cancer' = COAD+READ; no subtype split). The read reports hpa_cancer_type so the granularity is explicit; the same HPA read is shared across OncoTree codes that map to one HPA type."
+  - "IHC is antibody-dependent (staining reflects the specific HPA antibody + epitope); small patient n per cancer (often 4-12). Read fraction_detected alongside n_patients_total, not as a population prevalence. Source pinned to HPA v23 (last release shipping the bulk pathology.tsv); IHC corpus is version-stable."
+  - "prognostic_* are HPA's own survival associations (favorable/unfavorable) for the gene in that cancer — DISPLAY context, not a presence signal."
+
+# DATA_TO_SKILL_CONTRACT — a DIRECT view of the tumor_protein_ihc_presence measurement (HPA antibody
+# staining fraction per gene x cancer type). Dataset-kind (single-source raw HPA IHC), NOT a derived
+# comparison.
+measurement_type: tumor_protein_ihc_presence
+sample_context: tumor
+modality_relevance: [antibody, adc, bite_tce, small_molecule, degrader]
+entity_grains: [target_indication]
+schema_version: 1

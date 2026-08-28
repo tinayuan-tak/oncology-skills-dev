@@ -248,6 +248,19 @@ measurement_types:
       # rolled to a cross-setting shift metric. Product not yet built; card is placeholder_not_wired.
       - {kind: dataset, source: setting-annotated-expression-shift, evidence_tier: measured}
 
+  tumor_protein_ihc_presence:
+    # tumor-presence protein-in-tumor leg (2026-08-28): antibody IHC protein-presence in tumour tissue
+    # (HPA Pathology, 20 broad cancer types). MS-INDEPENDENT — distinct from tumor_protein_abundance
+    # (CPTAC/Gygi TMT-MS whole-cell-lysate) and from normal-tissue HPA-IHC breadth (normal_tissue_liability,
+    # sample_context=normal). Fills protein presence where CPTAC is data_unavailable. Dataset-kind (single
+    # HPA source, not a derived comparison). VERDICT-INERT display (no resolver rung; the card fires no rule).
+    modality_relevance: [antibody, adc, bite_tce, small_molecule, degrader]
+    claim: "Is target protein present in tumour tissue by antibody IHC (HPA Pathology staining fraction), per cancer type?"
+    entity_grains: [target_indication]
+    cards: [hpa-pathology-cancer-ihc]
+    providers:
+      - {kind: dataset, source: hpa-pathology-cancer-ihc-per-gene-v1, evidence_tier: measured}
+
   tumor_protein_abundance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
