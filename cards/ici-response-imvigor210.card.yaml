@@ -1,0 +1,71 @@
+# Card — IMvigor210 ICI-RESPONSE + IMMUNE-PHENOTYPE (urothelial, atezolizumab)
+#
+# The PAN-INDICATION (urothelial) ICI-response leg for immune-context — beyond the melanoma-only
+# ici-response-association card. Backed by imvigor210-ici-response-per-gene-v1 (Mariathasan 2018,
+# atezolizumab metastatic urothelial) + reader imvigor210_ici_response. Uniquely carries the
+# desert/excluded/inflamed IHC GROUND-TRUTH immune phenotype the relative CIBERSORT CD8 call cannot produce.
+#
+# VERDICT-INERT display/context (like ici-response-association): fires no rule, moves no verdict; adds
+# outcome-anchored ICI-response direction + IHC-phenotype enrichment alongside the CD8 effector call.
+# UROTHELIAL scope only → a non-urothelial query resolves data_unavailable (honest scope ceiling).
+
+card_id: ici-response-imvigor210
+version: 1.0.0
+question: "In IMvigor210 (atezolizumab, metastatic urothelial), is baseline {target.symbol} expression higher in anti-PD-L1 RESPONDERS than non-responders, and in which desert/excluded/inflamed immune phenotype is it enriched?"
+
+tier: target   # per-gene ICI-response association; urothelial scope via applies_when (mirrors ici-response-association)
+
+applies_when:
+  - "context.indication in ['BLCA','UROTHELIAL','BLADDER','UC']"
+
+required_inputs:
+  - product_id: imvigor210-ici-response-per-gene-v1
+
+methods:
+  - call: imvigor210-ici-response
+    module: imvigor210_ici_response          # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"              # urothelial-scope guard applied in the reader
+
+outputs:
+  summary_fields:
+    - ici_response_class                 # PRIMARY categorical (verdict-INERT)
+    - log2fc_resp_vs_nonresp             # log2FC responder-vs-non-responder (positive = higher in responders)
+    - mwu_p                              # Mann-Whitney p (responder vs non-responder)
+    - bh_q                               # BH-FDR of mwu_p across genes
+    - n_responder                        # CR/PR patients (68)
+    - n_nonresponder                     # SD/PD patients (230)
+    - mean_logcpm_responder
+    - mean_logcpm_nonresponder
+    - immune_phenotype_enriched_in       # desert | excluded | inflamed (highest-mean phenotype)
+    - kw_p_phenotype                     # Kruskal-Wallis p across the three phenotypes
+    - mean_logcpm_desert
+    - mean_logcpm_excluded
+    - mean_logcpm_inflamed
+    - ici_response_context               # narrative (audit)
+    - method_version
+
+  summary_fields_vocabulary:
+    ici_response_class:
+      - higher_in_responders             # baseline expression higher in atezolizumab responders (BH-q<=0.1)
+      - higher_in_nonresponders          # higher in non-responders
+      - no_association                   # no significant directional difference
+      - data_unavailable                 # non-urothelial indication, no product, or gene absent
+    immune_phenotype_enriched_in:
+      - desert
+      - excluded
+      - inflamed
+
+caveats:
+  - "VERDICT-INERT display/context card for the immune-context ICI-biomarker lens (like ici-response-association). Fires no interpretation rule and moves no verdict; adds outcome-anchored ICI-response direction + the desert/excluded/inflamed IHC-phenotype enrichment alongside the CD8 effector-context call."
+  - "UROTHELIAL (BLCA) scope only — IMvigor210 is metastatic urothelial (atezolizumab; Mariathasan 2018 Nature). A non-urothelial query resolves data_unavailable. Complements the melanoma-only ici-response-association card; together they give two-indication ICI-response context (still not pan-cancer)."
+  - "Baseline (pre-treatment) bulk RNA-seq log2CPM; responder = binaryResponse CR/PR (n=68) vs non-responder SD/PD (n=230). An association (BH-q on Mann-Whitney), not causation; the desert/excluded/inflamed label is HPA/IHC-derived ground-truth. Genentech research-use; cite Mariathasan et al. 2018."
+
+measurement: bulk_rna
+sample_context: tumor
+measurement_type: ici_response_expression
+modality_relevance: [bite_tce]
+entity_grains: [target]
+schema_version: 1

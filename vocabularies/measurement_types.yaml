@@ -1785,7 +1785,7 @@ measurement_types:
     # per-gene ICI signal is directional context, individually non-significant by design; not a gate).
     claim: "Is baseline target expression higher in melanoma ICI (anti-PD-1) responders than non-responders (open-GEO cohorts + cross-cohort Stouffer rollup)?"
     entity_grains: [target]   # per-gene ICI-response association (melanoma-scoped)
-    cards: [ici-response-association]
+    cards: [ici-response-association, ici-response-imvigor210]
     providers:
       - {kind: dataset, source: ici-response-expression-per-gene-v1, method: ici_response, evidence_tier: measured}
 
