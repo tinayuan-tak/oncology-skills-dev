@@ -541,7 +541,7 @@ skill_objectives:
       expression; signaling-network → mechanism; paralog-buffering → combination_vulnerability) — they
       answer their sibling's question, not a new target-intrinsic question. The skill-level coverage
       clause therefore applies to the 7 exclusive cards.
-    displays_borrowed_cards: [gnomad-lof-constraint, gene-burden-safety, clingen-dosage, clinvar-pathogenicity-safety, mouse-ko-phenotype, target-safety-prioritisation, surfaceome-family-classification, structure-features-static, shed-ectodomain-liability, normal-tissue-liability, signaling-network-mechanism, paralog-buffering]
+    displays_borrowed_cards: [gnomad-lof-constraint, gene-burden-safety, clingen-dosage, clinvar-pathogenicity-safety, mouse-ko-phenotype, target-safety-prioritisation, surfaceome-family-classification, structure-features-static, shed-ectodomain-liability, normal-tissue-liability, signaling-network-mechanism, paralog-buffering, measured-potency-tractability]
     questions:
       - {q: "Canonical identity + development level (druggability tier)?", answered_by: [target-identity-summary, target-development-level]}
       - {q: "Protein domain architecture + modality relevance?", answered_by: [protein-domains-class, domain-modality-relevance]}
@@ -1044,6 +1044,7 @@ question_hierarchies:
       - id: tractability_precedent_read
         measurement_types:
         - target_development_level
+        - measured_potency_tractability
   tractability-small-molecule:
     axis: tractability_sm
     sub_groups:
