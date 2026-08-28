@@ -572,6 +572,7 @@ skill_objectives:
       - {q: "Is there a curated synthetic-lethal partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
       - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which paralog partner is strongest?", answered_by: [combinatorial-dependency]}
       - {q: "Which co-targets become MORE essential under inhibition (rational combination partners)?", answered_by: [combo-crispr-screen]}
+      - {q: "Which partner DRUGS chemically synergize with a drug hitting the target (Bliss drug×drug synergy)?", answered_by: [combo-chemical-synergy]}
       - {q: "Which knockouts RESCUE the cell under inhibition (candidate resistance mediators — a monitoring liability)?", answered_by: [resistance-emergence-signature]}
   - skill: cis-feature-coherence
     objective: "Does the target's own locus feature (copy-number / methylation) explain its own expression AND its own dependency — a coherent cis-driven addiction, or co-occurring axes?"
@@ -760,6 +761,11 @@ question_hierarchies:
       - id: resistance_read
         measurement_types:
         - drug_anchored_resistance
+    - id: SYNERGY
+      questions:
+      - id: synergy_read
+        measurement_types:
+        - chemical_combination_synergy
   differentiation-landscape:
     axis: differentiation
     sub_groups:

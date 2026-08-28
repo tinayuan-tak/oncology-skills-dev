@@ -1,0 +1,72 @@
+# Card — CHEMICAL DRUG×DRUG SYNERGY (Sanger 2022 anchor-library screen)
+#
+# The FIRST chemical drug×drug synergy signal for combination-and-vulnerability — the new SYNERGY
+# relational axis, a chemical CORROBORATION sibling to the CRISPR-based COMBO axis (combo-crispr-screen).
+# For a target gene, which partner drugs (+ their targets) synergize with a drug that hits it, across
+# cell lines, by Bliss excess. Backed by sanger-drug-combination-synergy-per-target-v1 + reader
+# sanger_drug_synergy.
+#
+# COVERAGE-GAP DISCIPLINE (mirrors combo-crispr-screen): a target absent from the 86-gene targeted-drug
+# screen → no_synergy_screen (a COVERAGE GAP, NOT "no synergy exists"; measured-vs-null). Bliss-excess
+# only (not Loewe/HSA); 3 tissues screened (Breast/colon/pancreas); cell-line, hypothesis-generating.
+
+card_id: combo-chemical-synergy
+version: 1.0.0
+question: "Which partner drugs synergize with a drug hitting {target.symbol} (chemical drug×drug synergy), and how robustly across cell lines?"
+
+applies_when:
+  - "context.data_sources.sanger_drug_combinations_available == true"
+
+required_inputs:
+  - product_id: sanger-drug-combination-synergy-per-target-v1
+
+methods:
+  - call: sanger-drug-synergy
+    module: sanger_drug_synergy
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - synergy_opportunity_class          # PRIMARY categorical (drives Tier-2 rules)
+    - n_synergy_partners                 # partner drugs passing the synergy threshold
+    - strongest_synergy_partner_drug     # most-synergistic partner compound
+    - strongest_synergy_partner_target   # its gene target(s)
+    - strongest_synergy_delta_emax       # its mean Bliss-excess Emax (positive = synergy)
+    - top_synergy_partners               # list<struct> — ranked partners w/ delta, n_lines, class, role
+    - synergy_context                    # narrative summary (measured-vs-null honest)
+
+  summary_fields_vocabulary:
+    synergy_opportunity_class:
+      - strong_synergy_opportunity       # >=1 robust_synergy partner (frac>=0.5 & mean ΔEmax>=0.10)
+      - synergy_opportunity              # else >=1 supported_synergy partner
+      - context_synergy_opportunity      # else >=1 context_synergy partner (single-line / weak)
+      - no_synergy_signal                # screened, no synergistic partner
+      - no_synergy_screen                # target NOT in the 86-gene screen (COVERAGE GAP, not negative)
+      - data_unavailable                 # product read failure
+
+thresholds:
+  robust_frac_lines: 0.5
+  robust_delta_emax: 0.10
+  supported_delta_emax: 0.05
+
+warning_predicates:
+  - warning_id: narrow_synergy_coverage
+    if: "synergy_opportunity_class == no_synergy_screen"
+    message: "No chemical drug-combination screen for {target.symbol} (the Sanger 2022 panel covers ~86 targeted-drug genes). This is a coverage gap — absence of a synergy signal here is NOT evidence against combination opportunities."
+  - warning_id: narrow_tissue_coverage
+    if: "n_synergy_partners > 0"
+    message: "Sanger 2022 screened only Breast/colon/pancreas cell lines; synergy is cell-line and Bliss-excess based — treat as hypothesis-generating."
+
+caveats:
+  - "Signal = Bliss excess Emax (SYNERGY_DELTA_EMAX; observed killing minus Bliss expectation) + the source's boolean Synergy call. Positive = synergy. A chemical CORROBORATION sibling to the CRISPR COMBO axis, framed as a co-targeting HYPOTHESIS, never a monotherapy claim about the target."
+  - "COVERAGE: only ~86 targeted-drug genes are screened (anchor+library targeted compounds); absence is no_synergy_screen (coverage gap, measured-vs-null), never evidence-against. Bliss-excess ONLY (not Loewe/HSA). Only 3 tissues (Breast/colon/pancreas). Cell-line != in-vivo. Asymmetric assay: target_role anchor|library is reported per partner (aggregated separately)."
+  - "drug→gene is native to the source (ANCHOR_TARGET/LIBRARY_TARGET). CC-BY-4.0 (Dias et al. 2022) — redistributable with attribution."
+
+# DATA_TO_SKILL_CONTRACT — a view of the DERIVED chemical_combination_synergy claim (target × partner-drug
+# Bliss synergy). target_pair-grain relational signal (the partner is the co-target opportunity).
+measurement_type: chemical_combination_synergy
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

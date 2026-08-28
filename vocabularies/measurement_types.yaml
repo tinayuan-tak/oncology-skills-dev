@@ -1848,6 +1848,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: depmap-drug-anchor-combination-per-target-v1, method: combo_drug_anchor, evidence_tier: measured}
 
+  chemical_combination_synergy:
+    claim: "Which partner DRUGS synergize (Bliss excess) with a drug hitting {target} across cell lines — chemical drug×drug combination opportunities?"
+    # NEW measurement_type (2026-08-28). Sanger 2022 anchor-library combination screen (Dias et al.,
+    # CC-BY). The FIRST CHEMICAL drug×drug synergy signal — the SYNERGY relational axis, a chemical
+    # corroboration sibling to drug_anchored_combination (CRISPR drug×gene). NARROW coverage: ~86
+    # targeted-drug genes, 3 tissues → a card returns no_synergy_screen for uncovered targets.
+    entity_grains: [target]
+    cards: [combo-chemical-synergy]
+    modality_relevance: [small_molecule, degrader]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: sanger-drug-combination-synergy-per-target-v1, method: sanger_drug_synergy, evidence_tier: measured}
+
   drug_anchored_resistance:
     claim: "When {target} is INHIBITED by its anchor drug, which gene knockouts RESCUE the cell (candidate resistance mediators)?"
     # NEW measurement_type (Phase-I resistance half). The SIGN-MIRROR of drug_anchored_combination:

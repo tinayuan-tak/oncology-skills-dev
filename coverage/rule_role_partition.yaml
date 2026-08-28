@@ -2,9 +2,9 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 402
+  total: 408
   gating: 126
-  display: 276
+  display: 282
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -156,6 +156,12 @@ display:
 - cd-antigen-backbone-supportive
 - cd-established-io-backbone-supportive
 - cd-molecule-tce-supportive
+- chemical-synergy-context-opportunity
+- chemical-synergy-data-unavailable-insufficient
+- chemical-synergy-no-screen-insufficient
+- chemical-synergy-no-signal-neutral
+- chemical-synergy-strong-opportunity
+- chemical-synergy-supported-opportunity
 - clingen-dosage-sufficient-neutral
 - clinical-high-better-survival-neutral
 - clinical-high-worse-survival-supportive

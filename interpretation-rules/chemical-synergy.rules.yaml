@@ -1,0 +1,84 @@
+# Tier-2 signal-mapping rules for the CHEMICAL-SYNERGY axis.
+# Maps the combo-chemical-synergy card's synergy_opportunity_class → per-modality signals. Sibling to
+# combination-opportunity.rules.yaml (the CRISPR COMBO axis); this is the CHEMICAL drug×drug arm.
+#
+# Dedicated axis `chemical_synergy` keeps these isolated from the shared ladder. The
+# combination-and-vulnerability skill is GATELESS (verdict=None): these rules populate the fired-set +
+# headline; the SYNERGY claim_vector axis reads the class field directly. A chemical synergy is a
+# CO-TARGETING hypothesis (add a second agent), never a monotherapy claim about the target.
+#
+# Signal vocabulary: [supportive, opposing, killer, neutral, insufficient, not_applicable]. A coverage
+# gap (no_synergy_screen) or read failure → insufficient (measured-vs-null; never opposing).
+
+rules_id: chemical-synergy
+version: 1.0.0
+axis: combination_opportunity   # shared with the CRISPR combo rules — chemical synergy IS a combination-opportunity signal (the axis is the rules-loading namespace, not the claim_vector axis)
+schema_version: 1
+
+rationale: |
+  When a drug hitting the target synergizes with a partner drug (Bliss excess across cell lines), the
+  partner is a candidate combination agent (e.g. EGFR + Navitoclax/BCL2 apoptotic priming; BRAF + AKT
+  inhibition). Surfaced from the Sanger 2022 anchor-library screen. Robust (broad across lines) vs
+  context (single-line) mirrors the CRISPR COMBO axis's robust-vs-context framing. Coverage is narrow
+  (~86 targeted-drug genes, 3 tissues); absence is a coverage gap, never a negative.
+
+rules:
+  - rule_id: chemical-synergy-strong-opportunity
+    when:
+      card_id: combo-chemical-synergy
+      field: synergy_opportunity_class
+      equals: strong_synergy_opportunity
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: ">=1 partner drug with robust_synergy (frac_lines_synergistic >= 0.5 AND mean Bliss ΔEmax >= 0.10)."
+
+  - rule_id: chemical-synergy-supported-opportunity
+    when:
+      card_id: combo-chemical-synergy
+      field: synergy_opportunity_class
+      equals: synergy_opportunity
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: ">=1 partner drug with supported_synergy (a synergistic line AND mean Bliss ΔEmax >= 0.05)."
+
+  - rule_id: chemical-synergy-context-opportunity
+    when:
+      card_id: combo-chemical-synergy
+      field: synergy_opportunity_class
+      equals: context_synergy_opportunity
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: "Only single-line / weak synergy — a context-dependent hypothesis, informational."
+
+  - rule_id: chemical-synergy-no-signal-neutral
+    when:
+      card_id: combo-chemical-synergy
+      field: synergy_opportunity_class
+      equals: no_synergy_signal
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: "Screened, no synergistic partner — a measured no-signal (neutral, not opposing)."
+
+  - rule_id: chemical-synergy-no-screen-insufficient
+    when:
+      card_id: combo-chemical-synergy
+      field: synergy_opportunity_class
+      equals: no_synergy_screen
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: "Target not in the ~86-gene screen — a COVERAGE GAP (measured-vs-null); never evidence-against."
+
+  - rule_id: chemical-synergy-data-unavailable-insufficient
+    when:
+      card_id: combo-chemical-synergy
+      field: synergy_opportunity_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: "Product read failure — insufficient."
