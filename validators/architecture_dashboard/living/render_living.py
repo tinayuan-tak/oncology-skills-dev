@@ -426,7 +426,9 @@ def render_html(graph: dict) -> str:
     hgen = _esc(str(H.get("generated_at", ""))[:19])
     agen = _esc(str(graph.get("generated_at", ""))[:19])
     shas = " · ".join(f"{k}@{v}" for k, v in (graph.get("root_shas") or {}).items() if v)
-    data_json = json.dumps(graph, separators=(",", ":"))
+    # escape "<" so a literal "</script>" anywhere in embedded graph text (design-doc prose,
+    # evidence-package example fields, card questions) cannot terminate this <script> element.
+    data_json = json.dumps(graph, separators=(",", ":")).replace("<", "\\u003c")
 
     gaps_badge = ""
     if gs.get("n_error") or gs.get("n_warn"):

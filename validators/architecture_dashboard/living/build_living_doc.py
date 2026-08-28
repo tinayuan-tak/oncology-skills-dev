@@ -79,8 +79,26 @@ def stable_projection(graph: dict) -> str:
     for k in ("generated_at", "root_shas", "health_overlay_at", "health", "coverage",
               "gaps", "narrative", "glossary"):
         g2.pop(k, None)
-    # concepts: keep structure (ids, schema required-sets, counts, example source_path), drop
-    # nothing volatile here — concept shape is contract-derived and should be stable.
+    # Concepts: guard the contract-derived STRUCTURE only. The example VALUES and inventory
+    # counts are harvested live from the sibling repos (a manifest's git_commit, an evidence
+    # package's generated_by SHA / package_id, per-type file counts) and move whenever a sibling
+    # advances — NOT a target-contracts wiring change. Reduce each concept to its skeleton so
+    # --check tracks structure, not sibling churn (avoids false-positive STALE).
+    for c in g2.get("concepts") or []:
+        ex = c.get("example") or {}
+        c["example"] = {"resolved": ex.get("resolved"),
+                        "field_keys": sorted((ex.get("fields") or {}).keys())}
+        di = c.get("defined_in") or {}
+        c["defined_in"] = {"repo": di.get("repo"), "glob": di.get("glob"),
+                           "resolved": di.get("count") not in (None, 0)}
+        sch = c.get("schema") or {}
+        c["schema"] = {"path": sch.get("path"), "required": sorted(sch.get("required") or []),
+                       "field_names": sorted(f.get("name") for f in (sch.get("fields") or []) if f.get("name")),
+                       "error": bool(sch.get("error"))}
+    # Flow: schematics embed live example values too; keep only ids + layout + schematic presence.
+    for lv in g2.get("flow", {}).get("levels") or []:
+        for vol in ("stages", "center", "schematic", "lane", "subtitle"):
+            lv.pop(vol, None)
     return json.dumps(g2, sort_keys=True, separators=(",", ":"))
 
 
@@ -91,6 +109,10 @@ def self_check(graph: dict) -> list[str]:
     concepts = graph.get("concepts") or []
     if not concepts:
         errs.append("no concepts present")
+    # NOTE: a valid committed artifact requires generate to run with ALL FOUR siblings present
+    # (dc/sk/dp) — the manifest/skill schemas + evidence-package inventory come from them. The
+    # schema/count checks below assume that; if you regenerate in a partial env they will (correctly)
+    # flag the resulting artifact as incomplete rather than bless a half-harvested one.
     for c in concepts:
         cid = c.get("id", "?")
         sch = c.get("schema") or {}
@@ -99,7 +121,8 @@ def self_check(graph: dict) -> list[str]:
         if not c.get("narration"):
             errs.append(f"concept {cid}: missing narration")
         if (c.get("defined_in") or {}).get("count") in (None, 0):
-            errs.append(f"concept {cid}: inventory count is {c.get('defined_in', {}).get('count')}")
+            errs.append(f"concept {cid}: inventory count is {c.get('defined_in', {}).get('count')} "
+                        "(regenerate with all four sibling repos present)")
     # gaps: tally consistency
     G = graph.get("gaps") or {}
     items = G.get("items") or []

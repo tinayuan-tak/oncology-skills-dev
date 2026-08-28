@@ -269,7 +269,11 @@ def build_gaps(graph: dict, roots: dict) -> dict:
     # dedup on (component_id, code) keeping highest severity
     best: dict = {}
     for r in allrecs:
-        key = (r["component_id"], r["code"])
+        # include the message in the key so DISTINCT findings that share (component_id, code)
+        # — e.g. several verdict-token / measurement-type issues (empty component_id) or two
+        # structural violations on one card — are not collapsed to a single row. True cross-source
+        # dupes (health + a validator flagging the same thing) still merge on identical message.
+        key = (r["component_id"], r["code"], (r.get("message") or "")[:120])
         if key not in best or _SEV_RANK.get(r["severity"], 0) > _SEV_RANK.get(best[key]["severity"], 0):
             best[key] = r
     items = list(best.values())

@@ -104,7 +104,7 @@ def build_dashboard(roots: dict, out_dir: Path) -> tuple[Path, Path]:
               "--out", str(html), "--json", str(js)], cwd=str(roots["contracts"]))
     print(r.stdout.strip() or r.stderr.strip())
     if not html.exists():
-        raise RuntimeError(f"atlasument build failed: {r.stderr[-400:]}")
+        raise RuntimeError(f"living-document build failed: {r.stderr[-400:]}")
     return html, js
 
 
