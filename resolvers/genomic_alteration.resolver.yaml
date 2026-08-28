@@ -23,7 +23,10 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.6.0
+version: 1.7.0   # 2026-08-28: subclonal-recurrence guard (distillation assessment change-3, backtest-gated) —
+                 # a MEASURED predominantly-subclonal top-1% recurrent SNV with no other corroboration demotes
+                 # recurrent_snv_driver → recurrent_snv_subclonal_uncertain (new rung priority 44, via
+                 # snv-clonality-subclonal-opposing + snv-recurrence-top-driver-supportive). Clonal/unavailable unaffected.
 description: |
   Multi-class genomic-alteration verdict. A Chronos stratified-dependency (any alteration class) is
   the strongest signal and leads the ladder; copy-number and fusion landscape recurrence keep an
@@ -127,7 +130,20 @@ resolve:
   #    in tier 6 so it fires only when no CN/fusion landscape driver did — a dually-altered gene keeps
   #    its existing recurrent_amplification/deletion/fusion verdict (byte-stable). The SNV analog of the
   #    recurrent focal-amp / recurrent-fusion rescues; makes patient recurrence verdict-relevant.
-  - {verdict: recurrent_snv_driver, when_fired: snv-recurrence-top-driver-supportive, priority: 44}
+  #    SUBCLONAL GUARD (2026-08-28, distillation assessment change-3; backtest-gated per the card note):
+  #    a top-1% recurrent SNV that is MEASURED predominantly-subclonal AND carries no other corroboration
+  #    (no dependency/role/CN/fusion — those fire higher rungs) is a late/hitchhiker pattern, not a truncal
+  #    driver → recurrent_snv_subclonal_uncertain (ranks ABOVE the bare recurrence rung). Fires ONLY when
+  #    clonality is measured-subclonal; a clonal OR clonality-unavailable target keeps recurrent_snv_driver
+  #    (no coverage regression). KRAS/APC/TP53 (predominantly_clonal) are unaffected.
+  #    ROLE-CORROBORATION PRE-EMPTION: an OncoKB/intOGen driver ROLE (GoF or LoF) confirms a real driver
+  #    regardless of clonality, so it PRE-EMPTS the subclonal demotion (ranks above it) → keep
+  #    recurrent_snv_driver. (Role alone fires no higher confirmed_driver rung — that needs a CN/dep
+  #    co-signal — so without this a role-confirmed subclonal recurrent SNV would wrongly demote.)
+  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-gof-driver-supportive], driving_rule: snv-recurrence-top-driver-supportive, priority: 44}
+  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-lof-driver-neutral], driving_rule: snv-recurrence-top-driver-supportive, priority: 45}
+  - {verdict: recurrent_snv_subclonal_uncertain, when_all_fired: [snv-recurrence-top-driver-supportive, snv-clonality-subclonal-opposing], driving_rule: snv-clonality-subclonal-opposing, priority: 46}
+  - {verdict: recurrent_snv_driver, when_fired: snv-recurrence-top-driver-supportive, priority: 47}
 
   # ── 7. mixed / passenger fallback, with a double-data-gap guard ──────────────────────────────────
   #    passenger_pattern is a substantive "not a driver" call, but its trigger fires on a rarely-mutated
@@ -136,9 +152,9 @@ resolve:
   #    amplification reframe was built to kill. The engine has no negation predicate, so the guard is
   #    precedence: no-mutations + CN-unavailable resolves to insufficient (an honest coverage gap). A
   #    MEASURED-neutral CN + no mutations still reads passenger_pattern (an informative not-a-driver call).
-  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 45}
-  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 46}
-  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 47}
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 48}
+  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 49}
+  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 50}
 
 default: insufficient
 evaluation: match_all_reduce

@@ -548,6 +548,26 @@ rules:
       higher-tier verdict; recurrent_snv_driver is the honest floor for recurrence-only SNV drivers.
       NOT a killer.
 
+  - rule_id: snv-clonality-subclonal-opposing
+    when:
+      card_id: target-clonality
+      field: clonality_class
+      equals: predominantly_subclonal
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      The target's recurrent mutation is MEASURED predominantly SUBCLONAL (target-clonality; cancer-cell-
+      fraction, purity-corrected VAF) — a LATE / hitchhiker pattern rather than a truncal early driver.
+      This is the backtest-gated verdict-mover the target-clonality card anticipated ("a predominantly-
+      subclonal driver DOWNGRADING nomination confidence is a later, verdict-moving step gated by a
+      backtest"). It fires ONLY the subclonal-guard rung in genomic_alteration.resolver
+      (when_all_fired: [snv-recurrence-top-driver-supportive, snv-clonality-subclonal-opposing] ->
+      recurrent_snv_subclonal_uncertain), demoting a recurrence-ONLY SNV call when the recurrence is
+      subclonal + otherwise uncorroborated. It NEVER fires alone (no bare rung), so a clonal or
+      clonality-unavailable target is unaffected (no coverage regression); dependency/role/CN/fusion
+      corroboration all fire higher rungs and pre-empt this demotion. NOT a killer.
+
   # A1 amp→expr→dep (2026-08-06): the CONJOINT (amplified AND overexpressed) analog of the CN-stratified
   # rules above. The three-way card (amp-expr-stratified-dependency) is the amplification-DRIVEN-
   # overexpression-addiction sibling; these rules fire the SAME biomarker_stratified_dependency verdict

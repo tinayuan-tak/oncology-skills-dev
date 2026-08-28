@@ -54,12 +54,13 @@ outputs:
 
 caveats:
   - "INFERRED (evidence_tier=inferred_diploid): cancer-cell fraction uses the v1 DIPLOID approximation (CN=2, multiplicity=1) of the purity-corrected VAF. The clonal/subclonal CLASS is robust to this approximation (validated against known clonal architecture), but the absolute ccf is not allele-specific; local CN + multiplicity estimation is the v2 refinement."
-  - "VERDICT-INERT durability/heterogeneity facet (v1): reaches the LLM / matrix / headline but drives NO resolver rung. A predominantly-subclonal driver DOWNGRADING nomination confidence is a later, verdict-moving step gated by a backtest."
+  - "VERDICT-BEARING as of 2026-08-28 (distillation assessment change-3, backtest-gated per this note's prior v1 promise): predominantly_subclonal now fires snv-clonality-subclonal-opposing, which — ONLY in conjunction with snv-recurrence-top-driver-supportive — demotes a recurrence-ONLY SNV call to recurrent_snv_subclonal_uncertain (genomic_alteration resolver, subclonal-guard rung). Fires no bare rung: a clonal / mixed / clonality-unavailable target is unaffected (no coverage regression), and dependency/role/CN/fusion corroboration pre-empt the demotion. All OTHER uses (matrix / headline / LLM) remain descriptive."
   - "data_unavailable / insufficient when the gene is not recurrently mutated in-indication (fewer than 10 mutant tumors with an ABSOLUTE purity call) — never a fabricated clonality call. Covers only the TSS-mapped indications on the product (COADREAD / PAAD / NSCLC / GC)."
 
-# No `thresholds:` block — verdict-INERT facet (no rule/predicate reads clonality_class). The clonal
-# ccf cut (>=0.8) and the class thresholds (>=0.7 clonal / >=0.4 mixed) are applied in the method and
-# documented above; a future verdict-moving promotion would add rules + a resolver rung behind a backtest.
+# No `thresholds:` block — the class thresholds (ccf >=0.8 clonal cut; >=0.7 clonal / >=0.4 mixed CLASS)
+# are applied in the method. As of 2026-08-28 clonality_class IS read by a rule (snv-clonality-subclonal-
+# opposing) that fires the backtest-gated subclonal-guard rung — the "future verdict-moving promotion
+# behind a backtest" this note previously anticipated.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of `mutation_clonality` at target_indication grain. The
 # mutation_clonality registry entry already back-references this card; declaring the type here closes
