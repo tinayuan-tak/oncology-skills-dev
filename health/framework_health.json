@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-30T16:06:16.836233+00:00",
+  "generated_at": "2026-08-30T16:20:28.356415+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,7 +9,7 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "89b9473",
+    "contracts": "e3705e4",
     "skills": "8182dd9",
     "methods": "1646efd",
     "products": "5c4a0ea",
@@ -17,17 +17,13 @@
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-30T15:37:10.640398+00:00",
+    "prior_generated_at": "2026-08-30T16:06:16.836233+00:00",
     "n_skills": 0,
     "n_cards": 0,
-    "n_drift_flags": 0,
+    "n_drift_flags": -4,
     "n_error_drift": 0,
     "verdict_tally": {},
-    "card_health_tally": {
-      "blocked": -1,
-      "broken": -1,
-      "placeholder": 2
-    },
+    "card_health_tally": {},
     "skills_added": [],
     "skills_removed": [],
     "cards_added": [],
@@ -46,7 +42,7 @@
     },
     "n_runs_clean": 11,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 28,
+    "n_drift_flags": 24,
     "n_error_drift": 0,
     "n_unregistered_skills": 3,
     "n_live_reader_cards": 61,
@@ -73,9 +69,9 @@
     "n_orphan_cards": 9,
     "n_cards_consumed_but_no_spec": 101,
     "n_datasets": 515,
-    "n_datasets_in_catalog": 508,
+    "n_datasets_in_catalog": 509,
     "n_orphan_datasets": 337,
-    "n_broken_dataset_refs": 7,
+    "n_broken_dataset_refs": 6,
     "n_datasets_high_access_cost": 2,
     "n_datasets_missing_sort_key": 8,
     "access_cost_tally": {
@@ -1447,9 +1443,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": null,
@@ -1465,11 +1461,6 @@
       "n_p4_required": 0,
       "n_p4_declared": 0,
       "drift_flags": [
-        {
-          "code": "dataset_ref_not_in_catalog",
-          "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
-        },
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
@@ -2109,9 +2100,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": [
@@ -2130,11 +2121,6 @@
       "n_p4_required": 10,
       "n_p4_declared": 10,
       "drift_flags": [
-        {
-          "code": "dataset_ref_not_in_catalog",
-          "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
-        },
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
@@ -2895,9 +2881,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": [
@@ -2935,9 +2921,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": null,
@@ -2969,9 +2955,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": null,
@@ -3127,11 +3113,6 @@
       "n_p4_required": 12,
       "n_p4_declared": 12,
       "drift_flags": [
-        {
-          "code": "dataset_ref_not_in_catalog",
-          "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
-        },
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
@@ -7376,9 +7357,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": [
@@ -7413,9 +7394,9 @@
             },
             {
               "product_id": "subgroup-catalog",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "subgroup-catalog"
             }
           ],
           "modality_relevance": null,
@@ -7684,11 +7665,6 @@
       "n_p4_required": 22,
       "n_p4_declared": 22,
       "drift_flags": [
-        {
-          "code": "dataset_ref_not_in_catalog",
-          "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
-        },
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
@@ -14660,9 +14636,9 @@
         },
         {
           "product_id": "subgroup-catalog",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "subgroup-catalog"
         }
       ],
       "modality_relevance": [
@@ -14708,9 +14684,9 @@
         },
         {
           "product_id": "subgroup-catalog",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "subgroup-catalog"
         }
       ],
       "modality_relevance": [
@@ -14757,9 +14733,9 @@
         },
         {
           "product_id": "subgroup-catalog",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "subgroup-catalog"
         }
       ],
       "modality_relevance": null,
@@ -14801,9 +14777,9 @@
         },
         {
           "product_id": "subgroup-catalog",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "subgroup-catalog"
         }
       ],
       "modality_relevance": null,
@@ -14843,9 +14819,9 @@
         },
         {
           "product_id": "subgroup-catalog",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "subgroup-catalog"
         }
       ],
       "modality_relevance": null,
@@ -14889,9 +14865,9 @@
         },
         {
           "product_id": "subgroup-catalog",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "subgroup-catalog"
         }
       ],
       "modality_relevance": null,
@@ -24743,12 +24719,12 @@
     },
     {
       "product_id": "subgroup-catalog",
-      "in_catalog": false,
-      "kind": null,
+      "in_catalog": true,
+      "kind": "subgroup_catalog",
       "provider": null,
       "version": null,
       "size_bytes": null,
-      "file_count": null,
+      "file_count": 9,
       "system_of_record": null,
       "n_derived_from": 0,
       "consumed_by_cards": [
@@ -24761,7 +24737,7 @@
       ],
       "n_consumers": 6,
       "is_orphan": false,
-      "is_broken_ref": true,
+      "is_broken_ref": false,
       "has_sort_key": null,
       "access_cost": "unknown",
       "missing_sort_key": false
@@ -29184,33 +29160,15 @@
     },
     {
       "skill": "differentiation-landscape",
-      "code": "dataset_ref_not_in_catalog",
-      "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
-    },
-    {
-      "skill": "differentiation-landscape",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-clinical-association, co-mutation-and-mutual-exclusivity, competitor-landscape, pathway-node-leverage, precog-prognostic-association, stemness-context, subtype-survival-association"
     },
     {
       "skill": "functional-requirement",
-      "code": "dataset_ref_not_in_catalog",
-      "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
-    },
-    {
-      "skill": "functional-requirement",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
-    },
-    {
-      "skill": "genomic-alteration-profile",
-      "code": "dataset_ref_not_in_catalog",
-      "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -29271,12 +29229,6 @@
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, measured-potency-tractability, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-development-level, target-safety-prioritisation"
-    },
-    {
-      "skill": "target-profile",
-      "code": "dataset_ref_not_in_catalog",
-      "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
     },
     {
       "skill": "target-profile",

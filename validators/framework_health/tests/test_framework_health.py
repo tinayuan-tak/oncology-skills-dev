@@ -628,6 +628,32 @@ def test_catalog_manifests_no_resolver_dir_is_safe(tmp_path):
     assert "target-id-resolver-release" not in cat
 
 
+def test_catalog_manifests_registers_subgroup_catalog(tmp_path):
+    """subgroup-catalogs/ is a catalog artifact OUTSIDE manifests/, tracked as a per-indication
+    tree (subgroup-catalogs/<INDICATION>/<release>.yaml). The --subtypes cards name it by the
+    logical id `subgroup-catalog`; catalog_manifests must register that id so it isn't a false
+    dataset_ref_not_in_catalog broken-ref."""
+    for kind in ("sources", "derived"):
+        (tmp_path / "manifests" / kind).mkdir(parents=True)
+    sc = tmp_path / "subgroup-catalogs" / "COADREAD"
+    sc.mkdir(parents=True)
+    (sc / "2026-Q2.yaml").write_text("subgroups: []\n")
+    (tmp_path / "subgroup-catalogs" / "STAD").mkdir()
+    (tmp_path / "subgroup-catalogs" / "STAD" / "2026-Q3.yaml").write_text("subgroups: []\n")
+    cat = probe.catalog_manifests(tmp_path)
+    assert "subgroup-catalog" in cat
+    assert cat["subgroup-catalog"]["kind"] == "subgroup_catalog"
+    assert cat["subgroup-catalog"]["file_count"] == 2
+
+
+def test_catalog_manifests_no_subgroup_catalog_dir_is_safe(tmp_path):
+    """No subgroup-catalogs/ dir → no key, no crash (isolated/partial checkout)."""
+    for kind in ("sources", "derived"):
+        (tmp_path / "manifests" / kind).mkdir(parents=True)
+    cat = probe.catalog_manifests(tmp_path)
+    assert "subgroup-catalog" not in cat
+
+
 def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
     (tmp_path / "cards").mkdir()
     (tmp_path / "cards" / "c.card.yaml").write_text(

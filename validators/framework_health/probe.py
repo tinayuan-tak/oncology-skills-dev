@@ -531,6 +531,26 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
                 "derived_from": [],
             })
 
+    # subgroup-catalogs/ is likewise a first-class catalog artifact tracked OUTSIDE manifests/
+    # (per-indication molecular-subgroup catalogs at subgroup-catalogs/<INDICATION>/<release>.yaml,
+    # keyed by the tree, not an `id:`). The --subtypes cards (subgroup-stratified-*) name it by the
+    # logical id `subgroup-catalog` in required_inputs, so register that id here — otherwise a real,
+    # present artifact reads as a broken dataset ref (the dataset_ref_not_in_catalog false positive).
+    sc_dir = catalog_root / "subgroup-catalogs"
+    if sc_dir.is_dir():
+        catalog_files = sorted(sc_dir.glob("*/*.yaml"))
+        if catalog_files:
+            out.setdefault("subgroup-catalog", {
+                "kind": "subgroup_catalog",
+                "provider": None,
+                "version": None,
+                "license": None,
+                "size_bytes": None,
+                "file_count": len(catalog_files),
+                "system_of_record": None,
+                "derived_from": [],
+            })
+
     # Real manifest ids take precedence over product_id aliases on collision.
     for k, v in aliases.items():
         out.setdefault(k, v)
