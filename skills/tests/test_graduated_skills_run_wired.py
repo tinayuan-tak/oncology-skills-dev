@@ -61,9 +61,30 @@ _ALWAYS_WIRED = [
                                          # VERDICT-INERT at composition. Wired end-to-end (card→depmap_cis_dosage
                                          # →cis_coherence resolver). Also in _MUST_FIRE (fires coherent_cis_driver
                                          # on KRAS/COADREAD with the local DepMap cache).
+    # 2026-08-30 graduation-gate coverage sweep — three compositional data-package skills that were
+    # wired/partial but never in this shape gate (verified to run exit-0 + emit decision.json on
+    # KRAS/COADREAD with the standard argv). All DESCRIPTIVE / gateless (verdict=None or additive), so
+    # SHAPE-only here, NOT _MUST_FIRE (they mint no nomination verdict by design — like target-intrinsic).
+    "immune-context",                    # TCE effector-arm; gateless additive (indication-level v1).
+    "combination-and-vulnerability",     # consolidated relational annex; verdict=None descriptive.
+    "translational-readiness",           # HCMI model-availability; descriptive (verdict=None).
     # patient-population-and-access DELETED 2026-07-14 (prevalence folded into
     # genomic-alteration-profile; was a thin re-projection of one shared card).
 ]
+
+
+# Skills that declare status wired/partial but are DELIBERATELY outside this run-gate, each with a
+# reason. The coverage guard (test_every_wired_skill_is_gated_or_exempt) asserts that every wired/
+# partial skill is EITHER in _ALWAYS_WIRED or here — so a newly-graduated skill can't silently escape
+# the gate (it fails CI until someone classifies it). Keys are skill dir names.
+_GRADUATION_RUN_EXEMPT = {
+    "target-profile": "composed skill with its own elaborate LLM-synthesis pipeline test (test_run_full_loop).",
+    "catalog-query": "read-only data-catalog QUERY capability — no --target/--indication data-package tree.",
+    "cross-evidence-hypothesis": "LLM reasoning skill (Bedrock) over a prebuilt evidence_package — not a card-dispatch data-package run.",
+    "literature-risk-assessment": "LLM + PubMed retrieval skill (Bedrock/network) — non-reproducible, different CLI/shape.",
+    "target-archetype": "atlas/scoring skill (frozen model over an evidence package) — different entrypoint, not a per-target card dispatch.",
+    "bispecific-pair-scan": "scan-hook background job (--gate, per-pair TCGA/GTEx compute) with a different CLI; covered by its own tests.",
+}
 
 
 def _skill_paths(skill_name: str) -> tuple[Path, Path]:
@@ -347,4 +368,44 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
         f"coverage holes for the emitted class value, (b) a bool-vs-string "
         f"rule-match failure in _skills_common.fired_rules, or (c) the leaf "
         f"skill's _verdict() not mapping the fired rule_id to a verdict."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Coverage-drift guard: the run-gate must not silently under-cover graduations
+# ---------------------------------------------------------------------------
+def test_every_wired_skill_is_gated_or_exempt():
+    """RATCHET: every skill whose SKILL.md declares status in {wired, partial} must be EITHER in
+    _ALWAYS_WIRED (run end-to-end here) OR in _GRADUATION_RUN_EXEMPT (with a documented reason).
+
+    Without this, a newly-graduated skill (status flipped to wired) is not run-gated at all — it can
+    ship claiming `wired` while its dispatcher crashes or emits a placeholder, exactly the drift this
+    suite exists to catch. The two hardcoded lists were a subset of the wired/partial universe; this
+    guard makes that subset EXHAUSTIVE by construction."""
+    gated = set(_ALWAYS_WIRED)
+    exempt = set(_GRADUATION_RUN_EXEMPT)
+    overlap = gated & exempt
+    assert not overlap, f"skills both gated AND exempt (pick one): {sorted(overlap)}"
+
+    wired_partial = {}
+    for md in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        try:
+            comp = validate_skill_md(md)
+        except Exception:
+            continue  # non-compositional skill (no composition block) — not in scope for this gate
+        if comp.status in {"wired", "partial"}:
+            wired_partial[md.parent.name] = comp.status
+
+    uncovered = {k: v for k, v in wired_partial.items() if k not in gated and k not in exempt}
+    assert not uncovered, (
+        f"wired/partial skills missing from the graduation run-gate: {uncovered}. "
+        f"Add each to _ALWAYS_WIRED (if it runs end-to-end on KRAS/COADREAD with the standard "
+        f"--target/--indication argv) or to _GRADUATION_RUN_EXEMPT (with a reason)."
+    )
+
+    # And the exemption list must not rot: every exempt skill must still exist + still be wired/partial.
+    stale_exempt = {k for k in exempt if k not in wired_partial}
+    assert not stale_exempt, (
+        f"_GRADUATION_RUN_EXEMPT names skills that are no longer wired/partial (or gone): "
+        f"{sorted(stale_exempt)} — remove them."
     )
