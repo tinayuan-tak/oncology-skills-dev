@@ -216,10 +216,13 @@ def test_probe_card_honors_declared_module_for_resolver_routed(tmp_path):
     )
     assert out["method_dir_exists"] is True       # resolved from module:, not the kebab label
     assert out["method_has_read"] is True
-    # Post-fix verdict is the HONEST coverage gap, not the false 'broken/card-no-path'.
+    # A card with a BUILT backing method + no CARD_DISPATCHERS entry routes through the GENERIC
+    # dispatcher (card_spec module/entrypoint) — it HAS a working reader, just unproven in a governed
+    # package → `partial`, not `blocked`. (Refined 2026-08-30: this was `blocked` when the ladder had
+    # no generic-dispatch rung; `blocked` now means "no method DECLARED at all".)
     verdict, reason = rollup._resolve(rollup.load_rules()["card_health"], out)
-    assert verdict == "blocked"
-    assert reason == "card-no-reader-no-fire"
+    assert verdict == "partial"
+    assert reason == "card-generic-dispatch-never-fires"
 
 
 def test_catalog_manifests_registers_product_id_alias(tmp_path):
@@ -271,6 +274,15 @@ CARD_CASES = [
       "method_dir_exists": False}, "broken", "card-registered-method-unbuilt"),
     ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True,
       "method_dir_exists": True}, "partial", "card-reader-never-fires"),
+    # Generic dispatcher: no bespoke CARD_DISPATCHERS entry, but a BUILT backing method exists
+    # (routed via card_spec module/entrypoint) → partial, NOT blocked. Pins the blocked-30 fix.
+    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
+      "method_dir_exists": True}, "partial", "card-generic-dispatch-never-fires"),
+    # No reader AND declared backing method module absent → broken (card-no-path).
+    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
+      "method_dir_exists": False}, "broken", "card-no-path"),
+    # Genuine coverage gap: no reader, no method DECLARED at all (method_dir_exists unprobed/None)
+    # → blocked. This is the honest remaining meaning of `blocked` after the generic-dispatch fix.
     ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False},
      "blocked", "card-no-reader-no-fire"),
 ]

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-30T16:47:00.117500+00:00",
+  "generated_at": "2026-08-30T19:05:07.863351+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,23 +9,26 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "93c6fac",
-    "skills": "810057a",
+    "contracts": "6747a27",
+    "skills": "f20e2a2",
     "methods": "1646efd",
     "products": "5c4a0ea",
     "catalog": "994e788"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-30T16:20:28.356415+00:00",
+    "prior_generated_at": "2026-08-30T16:47:00.117500+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
     "n_error_drift": 0,
-    "verdict_tally": {},
+    "verdict_tally": {
+      "partial": -1,
+      "production_ready": 1
+    },
     "card_health_tally": {
-      "broken": -1,
-      "self_produced": 1
+      "blocked": -30,
+      "partial": 30
     },
     "skills_added": [],
     "skills_removed": [],
@@ -35,8 +38,8 @@
   "summary": {
     "n_skills": 27,
     "verdict_tally": {
-      "partial": 21,
-      "production_ready": 6
+      "partial": 20,
+      "production_ready": 7
     },
     "runs_clean_tally": {
       "unknown": 15,
@@ -56,8 +59,7 @@
       "live": 101,
       "placeholder": 10,
       "self_produced": 1,
-      "blocked": 30,
-      "partial": 6
+      "partial": 36
     },
     "modality_routing_tally": {
       "not_required": 69,
@@ -402,9 +404,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "cellline-isoform-expression",
@@ -431,9 +433,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "cellline-methylation-expression-coherence",
@@ -539,9 +541,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "expression-dependency-correlation",
@@ -744,9 +746,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "combo-crispr-screen",
@@ -855,8 +857,8 @@
         }
       ],
       "health_verdict": "partial",
-      "health_reason": "skill-partial-core-gap",
-      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "health_reason": "skill-partial-declared",
+      "reason_text": "declared partial and no stronger signal overrides it",
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
@@ -1233,9 +1235,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "co-mutation-and-mutual-exclusivity",
@@ -1291,9 +1293,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "expression-clinical-association",
@@ -2154,9 +2156,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         }
       ],
       "n_core_cards": 7,
@@ -2957,9 +2959,9 @@
             "antibody"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "subgroup-stratified-fusion",
@@ -2992,9 +2994,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "subgroup-stratified-mutation-frequency",
@@ -3027,9 +3029,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "target-clonality",
@@ -3085,9 +3087,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "tumor-splice-expression",
@@ -3114,9 +3116,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "variant-effect-mave-mavedb",
@@ -3143,9 +3145,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "variant-level-interpretation",
@@ -3266,9 +3268,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "ici-response-association",
@@ -3295,9 +3297,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "ici-response-imvigor210",
@@ -3326,9 +3328,9 @@
             "bite_tce"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "immune-context",
@@ -3386,9 +3388,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "tcga-til-fraction-saltz",
@@ -3417,9 +3419,9 @@
             "bite_tce"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         }
       ],
       "n_core_cards": 0,
@@ -3960,9 +3962,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "functional-gene-state",
@@ -4206,9 +4208,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "pan-cancer-crispr-dependency-distribution",
@@ -4270,9 +4272,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "target-safety-prioritisation",
@@ -4780,9 +4782,9 @@
             "bite_tce"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "pmhc-presentation",
@@ -5375,9 +5377,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "surfaceome-family-classification",
@@ -5584,9 +5586,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         }
       ],
       "n_core_cards": 1,
@@ -5602,8 +5604,8 @@
         }
       ],
       "health_verdict": "partial",
-      "health_reason": "skill-partial-core-gap",
-      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "health_reason": "skill-default",
+      "reason_text": "no skill rule matched (fallback)",
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
@@ -7537,9 +7539,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "subgroup-stratified-mutation-frequency",
@@ -7572,9 +7574,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "surface-abundance-density",
@@ -8307,9 +8309,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "target-model-availability",
@@ -8336,9 +8338,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "target-pdx-drug-response",
@@ -8365,9 +8367,9 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         }
       ],
       "n_core_cards": 0,
@@ -8522,9 +8524,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "cellline-rna-distribution",
@@ -8712,9 +8714,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "normal-tissue-liability",
@@ -9431,9 +9433,9 @@
             "bite_tce"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "sc-normal-celltype-expression",
@@ -10025,9 +10027,9 @@
             "antibody"
           ],
           "modality_routing": "declared",
-          "card_health": "blocked",
-          "health_reason": "card-no-reader-no-fire",
-          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+          "card_health": "partial",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
         },
         {
           "card_id": "tumor-vs-normal-selectivity",
@@ -10088,9 +10090,9 @@
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: normal-tissue-protein-abundance-tphp, sc-normal-celltype-expression, spatial-region-rna-expression, spatial-surface-protein-abundance, spatial-tumor-normal-colocalization, surface-abundance-density, tumor-vs-normal-percentile-crossing, tumor-vs-normal-percentile-crossing-by-subtype, tumor-vs-normal-protein-abundance-tphp"
         }
       ],
-      "health_verdict": "partial",
-      "health_reason": "skill-partial-core-gap",
-      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
@@ -10486,9 +10488,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "immune-context"
       ],
@@ -10564,9 +10566,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "cis-feature-coherence"
       ],
@@ -10601,9 +10603,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "cis-feature-coherence"
       ],
@@ -10729,9 +10731,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "tumor-presence"
       ],
@@ -10959,9 +10961,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "cis-feature-coherence"
       ],
@@ -11040,9 +11042,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "differentiation-landscape"
       ],
@@ -11241,9 +11243,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "combination-and-vulnerability"
       ],
@@ -11319,9 +11321,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "differentiation-landscape"
       ],
@@ -11753,9 +11755,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "on-target-safety-liability"
       ],
@@ -12376,9 +12378,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "tumor-presence"
       ],
@@ -12413,9 +12415,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "immune-context"
       ],
@@ -12452,9 +12454,9 @@
         "bite_tce"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "immune-context"
       ],
@@ -13033,9 +13035,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "immune-context"
       ],
@@ -13157,9 +13159,9 @@
         "bite_tce"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "tumor-selectivity"
       ],
@@ -13231,9 +13233,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "on-target-safety-liability"
       ],
@@ -13723,9 +13725,9 @@
         "bite_tce"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "surface-modality-fit"
       ],
@@ -14595,9 +14597,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "on-target-safety-liability"
       ],
@@ -14982,9 +14984,9 @@
         "antibody"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "genomic-alteration-profile"
       ],
@@ -15028,9 +15030,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "functional-requirement",
         "target-profile"
@@ -15120,9 +15122,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "genomic-alteration-profile"
       ],
@@ -15163,9 +15165,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "genomic-alteration-profile",
         "target-profile"
@@ -15465,9 +15467,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "surface-modality-fit",
         "surfaceome-cohort-ranking"
@@ -15701,9 +15703,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "translational-readiness"
       ],
@@ -15779,9 +15781,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "translational-readiness"
       ],
@@ -15816,9 +15818,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "translational-readiness"
       ],
@@ -15893,9 +15895,9 @@
         "bite_tce"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "immune-context"
       ],
@@ -16342,9 +16344,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "genomic-alteration-profile"
       ],
@@ -16379,9 +16381,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "genomic-alteration-profile"
       ],
@@ -16520,9 +16522,9 @@
         "antibody"
       ],
       "modality_routing": "declared",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "tumor-selectivity"
       ],
@@ -16610,9 +16612,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "partial",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet",
       "consumers": [
         "genomic-alteration-profile"
       ],
@@ -26580,7 +26582,7 @@
         "id": "skill:tumor-selectivity",
         "layer": "skill",
         "label": "tumor-selectivity",
-        "health": "partial",
+        "health": "production_ready",
         "kind": "FOCUSED",
         "risk_category": null
       },
@@ -26660,7 +26662,7 @@
         "id": "card:caf-compartment-expression-luo",
         "layer": "card",
         "label": "caf-compartment-expression-luo",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "sc_tumor_caf_state_expression"
       },
@@ -26676,7 +26678,7 @@
         "id": "card:cellline-isoform-dominance",
         "layer": "card",
         "label": "cellline-isoform-dominance",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "cell_line_isoform_dominance"
       },
@@ -26684,7 +26686,7 @@
         "id": "card:cellline-isoform-expression",
         "layer": "card",
         "label": "cellline-isoform-expression",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "cellline_isoform_expression"
       },
@@ -26708,7 +26710,7 @@
         "id": "card:cellline-protein-abundance-procan",
         "layer": "card",
         "label": "cellline-protein-abundance-procan",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "cell_line_protein_abundance"
       },
@@ -26748,7 +26750,7 @@
         "id": "card:cis-feature-protein-coherence",
         "layer": "card",
         "label": "cis-feature-protein-coherence",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "cis_protein_dosage_coupling"
       },
@@ -26764,7 +26766,7 @@
         "id": "card:clinical-precedent",
         "layer": "card",
         "label": "clinical-precedent",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "clinical_precedent"
       },
@@ -26804,7 +26806,7 @@
         "id": "card:combo-chemical-synergy",
         "layer": "card",
         "label": "combo-chemical-synergy",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "chemical_combination_synergy"
       },
@@ -26820,7 +26822,7 @@
         "id": "card:competitor-landscape",
         "layer": "card",
         "label": "competitor-landscape",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "competitor_landscape"
       },
@@ -26900,7 +26902,7 @@
         "id": "card:drug-warning-safety",
         "layer": "card",
         "label": "drug-warning-safety",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "drug_warning_safety"
       },
@@ -27012,7 +27014,7 @@
         "id": "card:hpa-pathology-cancer-ihc",
         "layer": "card",
         "label": "hpa-pathology-cancer-ihc",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "tumor_protein_ihc_presence"
       },
@@ -27020,7 +27022,7 @@
         "id": "card:ici-response-association",
         "layer": "card",
         "label": "ici-response-association",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "ici_response_expression"
       },
@@ -27028,7 +27030,7 @@
         "id": "card:ici-response-imvigor210",
         "layer": "card",
         "label": "ici-response-imvigor210",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "ici_response_expression"
       },
@@ -27140,7 +27142,7 @@
         "id": "card:myeloid-compartment-expression-cheng",
         "layer": "card",
         "label": "myeloid-compartment-expression-cheng",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "sc_tumor_myeloid_state_expression"
       },
@@ -27164,7 +27166,7 @@
         "id": "card:normal-tissue-protein-abundance-tphp",
         "layer": "card",
         "label": "normal-tissue-protein-abundance-tphp",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "normal_tissue_protein_abundance"
       },
@@ -27180,7 +27182,7 @@
         "id": "card:onsides-adverse-event-safety",
         "layer": "card",
         "label": "onsides-adverse-event-safety",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "onsides_adverse_event_safety"
       },
@@ -27268,7 +27270,7 @@
         "id": "card:pmhc-epitope-evidence-iedb",
         "layer": "card",
         "label": "pmhc-epitope-evidence-iedb",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "pmhc_epitope_evidence"
       },
@@ -27412,7 +27414,7 @@
         "id": "card:shet-lof-intolerance",
         "layer": "card",
         "label": "shet-lof-intolerance",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "shet_lof_selection"
       },
@@ -27468,7 +27470,7 @@
         "id": "card:subgroup-stratified-copy-number",
         "layer": "card",
         "label": "subgroup-stratified-copy-number",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "copy_number_alteration"
       },
@@ -27476,7 +27478,7 @@
         "id": "card:subgroup-stratified-dependency",
         "layer": "card",
         "label": "subgroup-stratified-dependency",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "crispr_lof_dependency"
       },
@@ -27492,7 +27494,7 @@
         "id": "card:subgroup-stratified-fusion",
         "layer": "card",
         "label": "subgroup-stratified-fusion",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "fusion_rearrangement"
       },
@@ -27500,7 +27502,7 @@
         "id": "card:subgroup-stratified-mutation-frequency",
         "layer": "card",
         "label": "subgroup-stratified-mutation-frequency",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "mutation_hotspot_frequency"
       },
@@ -27548,7 +27550,7 @@
         "id": "card:surfaceome-cohort-ranking",
         "layer": "card",
         "label": "surfaceome-cohort-ranking",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": null
       },
@@ -27596,7 +27598,7 @@
         "id": "card:target-genotype-matched-model",
         "layer": "card",
         "label": "target-genotype-matched-model",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "genotype_matched_model"
       },
@@ -27612,7 +27614,7 @@
         "id": "card:target-model-availability",
         "layer": "card",
         "label": "target-model-availability",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "model_availability"
       },
@@ -27620,7 +27622,7 @@
         "id": "card:target-pdx-drug-response",
         "layer": "card",
         "label": "target-pdx-drug-response",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "pdx_drug_response"
       },
@@ -27636,7 +27638,7 @@
         "id": "card:tcga-til-fraction-saltz",
         "layer": "card",
         "label": "tcga-til-fraction-saltz",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "spatial_til_fraction"
       },
@@ -27708,7 +27710,7 @@
         "id": "card:tumor-splice-dysregulation",
         "layer": "card",
         "label": "tumor-splice-dysregulation",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "tumor_splice_dysregulation"
       },
@@ -27716,7 +27718,7 @@
         "id": "card:tumor-splice-expression",
         "layer": "card",
         "label": "tumor-splice-expression",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "tumor_splice_expression"
       },
@@ -27740,7 +27742,7 @@
         "id": "card:tumor-vs-normal-protein-abundance-tphp",
         "layer": "card",
         "label": "tumor-vs-normal-protein-abundance-tphp",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "tumor_vs_normal_protein_abundance"
       },
@@ -27756,7 +27758,7 @@
         "id": "card:variant-effect-mave-mavedb",
         "layer": "card",
         "label": "variant-effect-mave-mavedb",
-        "health": "blocked",
+        "health": "partial",
         "is_orphan": false,
         "measurement_type": "variant_functional_effect_mave"
       },

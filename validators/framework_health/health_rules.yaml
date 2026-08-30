@@ -76,13 +76,29 @@ card_health:
         - {method_dir_exists: false}
     reason: "dispatcher registered but declared backing method module is absent, and never fires"
 
+  # Not in CARD_DISPATCHERS, but a BUILT backing method module exists — the card routes through the
+  # GENERIC dispatcher (read_live_summary → _generic_dispatch, driven by the card_spec module/entrypoint),
+  # so it HAS a working reader; it just hasn't fired in a governed package the probe indexes. This is
+  # `partial` (reader exists, unproven here), NOT `blocked`. Sits ABOVE card-no-reader-no-fire so a
+  # generic-dispatched card is never mislabeled a coverage gap. (has_live_reader=false only means "no
+  # bespoke CARD_DISPATCHERS entry"; method_dir_exists is the framework's own backing-exists signal,
+  # used identically by card-no-path / card-registered-method-unbuilt above.)
+  - id: card-generic-dispatch-never-fires
+    verdict: partial
+    when:
+      all:
+        - {has_live_reader: false}
+        - {fires_in_real_package: false}
+        - {method_dir_exists: true}
+    reason: "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
+
   - id: card-no-reader-no-fire
     verdict: blocked
     when:
       all:
         - {has_live_reader: false}
         - {fires_in_real_package: false}
-    reason: "no live-reader dispatcher and never fired — card cannot pull data (honest coverage gap)"
+    reason: "no live-reader dispatcher, no backing method module, and never fired — card cannot pull data (honest coverage gap)"
 
   - id: card-reader-never-fires
     verdict: partial
