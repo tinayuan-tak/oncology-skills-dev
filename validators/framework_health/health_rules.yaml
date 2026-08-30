@@ -18,10 +18,19 @@
 version: 1.0.0
 
 # ---------------------------------------------------------------------------
-# CARD HEALTH  (enum: broken | placeholder | blocked | partial | live)
+# CARD HEALTH  (enum: broken | placeholder | blocked | partial | self_produced | live)
 # First match wins, top to bottom.
 # ---------------------------------------------------------------------------
 card_health:
+  # A standalone scan-hook skill emits a data-package card named after itself, OUTSIDE the
+  # per-target card/resolver spine; when it has no contract YAML its "product" is the skill's
+  # own live computation, not a landed manifest — self_produced, NOT a broken contract ref.
+  # Sits ABOVE card-missing-yaml so it wins for these (card_id ∈ skill_names AND no YAML).
+  - id: card-self-produced-scan
+    verdict: self_produced
+    when: {is_self_produced_skill_card: true}
+    reason: "self-produced scan-hook output card (card_id is a skill name; no contract YAML by design)"
+
   - id: card-missing-yaml
     verdict: broken
     when: {card_yaml_exists: false}

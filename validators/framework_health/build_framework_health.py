@@ -122,7 +122,7 @@ def stable_projection(report: dict) -> str:
 
 # Enums the committed artifact must conform to (kept in sync with health_rules.yaml).
 _SKILL_VERDICTS = {"production_ready", "ready_unproven", "partial", "placeholder", "broken_or_drift"}
-_CARD_HEALTHS = {"live", "partial", "blocked", "placeholder", "broken"}
+_CARD_HEALTHS = {"live", "partial", "blocked", "placeholder", "broken", "self_produced"}
 # P4 modality-vector lens (parallel to card_health — see probe.probe_card).
 _MODALITY_ROUTINGS = {"declared", "not_required", "missing", "drift", "not_applicable", "unknown"}
 

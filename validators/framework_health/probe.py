@@ -567,8 +567,17 @@ def probe_card(
     catalog_ids: set[str] | None = None,
     modality_types: dict[str, list[str]] | None = None,
     fired_any_ids: set[str] | None = None,
+    skill_names: set[str] | None = None,
 ) -> dict:
     """Ground-truth signals for one card that a skill consumes.
+
+    Self-produced scan cards: a standalone SCAN-HOOK skill (bispecific-pair-scan,
+    surfaceome-cohort-ranking) emits a data-package card named after ITSELF, outside the
+    per-target card/resolver spine. When such a card has no cards/<id>.card.yaml (its
+    "product" is the skill's own live computation, not a landed derived manifest), it is
+    NOT a broken contract card — it is `self_produced`. Detected by card_id ∈ skill_names
+    (passed in) AND no YAML. (A scan skill WITH a backing product still authors a card YAML —
+    e.g. surfaceome-cohort-ranking — and is unaffected.)
 
     Method backing is resolved via the DISPATCHER's actual _import_method target
     (authoritative), NOT the card's methods.call label (which can be stale). The
@@ -591,6 +600,9 @@ def probe_card(
     out: dict[str, Any] = {
         "card_id": card_id,
         "card_yaml_exists": False,
+        # A self-produced scan-hook output card (card_id is a skill name) with no contract YAML —
+        # classified `self_produced`, not `broken`. Set below, once YAML-existence is known.
+        "is_self_produced_skill_card": False,
         "is_placeholder": False,
         "placeholder_reason": None,
         "measurement_type": None,
@@ -614,9 +626,11 @@ def probe_card(
     }
     card = _load_card_yaml(card_id, contracts_root)
     if card is None:
-        # No .card.yaml on disk (a broken ref / not-yet-authored id): routing is not applicable —
-        # keep it out of the P4 tally's real states (a missing card is a card-existence problem,
-        # already surfaced as card_health=broken, not a P4 non-compliance).
+        # No .card.yaml on disk. Either a broken ref / not-yet-authored id (→ broken), OR a
+        # self-produced scan-hook output whose card_id IS a skill name (→ self_produced, not broken —
+        # its "product" is the skill's own live computation, no contract YAML expected).
+        out["is_self_produced_skill_card"] = (skill_names is not None and card_id in skill_names)
+        # routing is not applicable — a missing/self-produced card is not a P4 non-compliance.
         out["modality_routing"] = "not_applicable"
         return out
     out["card_yaml_exists"] = True

@@ -271,7 +271,7 @@ def roll_up_skill(skill: dict, cards: list[dict], drift: list[dict], rules: dict
     # yet) — but NOT broken/placeholder/blocked. This tolerates the thin-data frontier
     # while still catching genuine breakage.
     core_cards_healthy = bool(core) and all(
-        c.get("card_health") in ("live", "partial") for c in core
+        c.get("card_health") in ("live", "partial", "self_produced") for c in core
     )
     # PROVEN vs UNPROVEN: has at least one core card actually FIRED in a real
     # package (card_health == live)? If cores are all "partial" (readers work but
@@ -351,7 +351,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             _card_cache[cid] = probe.probe_card(
                 cid, roots["contracts"], roots["methods"],
                 live_ids, fired_ids, dispatch_modules, catalog_ids, modality_types,
-                fired_any_ids=fired_any_ids,
+                fired_any_ids=fired_any_ids, skill_names=set(skill_names),
             )
         # Return a shallow copy: callers augment the dict (consumers, is_orphan, …)
         # and mutating the cached original would leak fields across the two loops.

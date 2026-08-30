@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-30T16:20:28.356415+00:00",
+  "generated_at": "2026-08-30T16:47:00.117500+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,21 +9,24 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "e3705e4",
-    "skills": "8182dd9",
+    "contracts": "93c6fac",
+    "skills": "810057a",
     "methods": "1646efd",
     "products": "5c4a0ea",
     "catalog": "994e788"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-30T16:06:16.836233+00:00",
+    "prior_generated_at": "2026-08-30T16:20:28.356415+00:00",
     "n_skills": 0,
     "n_cards": 0,
-    "n_drift_flags": -4,
+    "n_drift_flags": 0,
     "n_error_drift": 0,
     "verdict_tally": {},
-    "card_health_tally": {},
+    "card_health_tally": {
+      "broken": -1,
+      "self_produced": 1
+    },
     "skills_added": [],
     "skills_removed": [],
     "cards_added": [],
@@ -44,7 +47,7 @@
     "n_runs_clean_error": 0,
     "n_drift_flags": 24,
     "n_error_drift": 0,
-    "n_unregistered_skills": 3,
+    "n_unregistered_skills": 0,
     "n_live_reader_cards": 61,
     "n_cards_firing_in_real_packages": 101,
     "n_cards_firing_in_any_run": 101,
@@ -52,7 +55,7 @@
     "card_health_tally": {
       "live": 101,
       "placeholder": 10,
-      "broken": 1,
+      "self_produced": 1,
       "blocked": 30,
       "partial": 6
     },
@@ -88,15 +91,17 @@
     "registered": [
       "bispecific-pair-scan",
       "catalog-query",
+      "cis-feature-coherence",
+      "combination-and-vulnerability",
       "combinatorial-dependency",
       "combo-and-resistance",
-      "compose-dashboard",
       "cross-evidence-hypothesis",
       "differentiation-landscape",
       "example-gallery",
       "functional-requirement",
       "genomic-alteration-profile",
       "immune-context",
+      "literature-risk-assessment",
       "mechanism-and-pharmacology",
       "on-target-safety-liability",
       "query-target-evidence",
@@ -141,11 +146,7 @@
       "tumor-presence",
       "tumor-selectivity"
     ],
-    "unregistered": [
-      "cis-feature-coherence",
-      "combination-and-vulnerability",
-      "literature-risk-assessment"
-    ]
+    "unregistered": []
   },
   "skills": [
     {
@@ -182,6 +183,7 @@
         {
           "card_id": "bispecific-pair-scan",
           "card_yaml_exists": false,
+          "is_self_produced_skill_card": true,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": null,
@@ -196,9 +198,9 @@
           "datasets": [],
           "modality_relevance": null,
           "modality_routing": "not_applicable",
-          "card_health": "broken",
-          "health_reason": "card-missing-yaml",
-          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+          "card_health": "self_produced",
+          "health_reason": "card-self-produced-scan",
+          "reason_text": "self-produced scan-hook output card (card_id is a skill name; no contract YAML by design)"
         }
       ],
       "n_core_cards": 1,
@@ -208,8 +210,8 @@
       "n_p4_declared": 0,
       "drift_flags": [],
       "health_verdict": "partial",
-      "health_reason": "skill-partial-core-gap",
-      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "health_reason": "skill-partial-declared",
+      "reason_text": "declared partial and no stronger signal overrides it",
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
@@ -311,6 +313,7 @@
         {
           "card_id": "abundance-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "abundance_dependency_correlation",
@@ -345,6 +348,7 @@
         {
           "card_id": "amp-expr-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "amp_expr_stratified_dependency",
@@ -376,6 +380,7 @@
         {
           "card_id": "cellline-isoform-dominance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cell_line_isoform_dominance",
@@ -404,6 +409,7 @@
         {
           "card_id": "cellline-isoform-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cellline_isoform_expression",
@@ -432,6 +438,7 @@
         {
           "card_id": "cellline-methylation-expression-coherence",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "methylation_silencing_coupling",
@@ -469,6 +476,7 @@
         {
           "card_id": "cis-feature-expression-coherence",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cis_dosage_coupling",
@@ -500,6 +508,7 @@
         {
           "card_id": "cis-feature-protein-coherence",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cis_protein_dosage_coupling",
@@ -537,6 +546,7 @@
         {
           "card_id": "expression-dependency-correlation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "expression_dependency_correlation",
@@ -565,6 +575,7 @@
         {
           "card_id": "patient-cis-coherence",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "patient_cis_coherence",
@@ -676,6 +687,7 @@
         {
           "card_id": "combinatorial-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "combinatorial_ko_dependency",
@@ -707,6 +719,7 @@
         {
           "card_id": "combo-chemical-synergy",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "chemical_combination_synergy",
@@ -738,6 +751,7 @@
         {
           "card_id": "combo-crispr-screen",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "drug_anchored_combination",
@@ -769,6 +783,7 @@
         {
           "card_id": "resistance-emergence-signature",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "drug_anchored_resistance",
@@ -800,6 +815,7 @@
         {
           "card_id": "synthetic-lethal-partners",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "synthetic_lethal_partner",
@@ -883,6 +899,7 @@
         {
           "card_id": "combinatorial-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "combinatorial_ko_dependency",
@@ -974,6 +991,7 @@
         {
           "card_id": "combo-crispr-screen",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "drug_anchored_combination",
@@ -1005,6 +1023,7 @@
         {
           "card_id": "resistance-emergence-signature",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "drug_anchored_resistance",
@@ -1151,6 +1170,7 @@
         {
           "card_id": "alteration-clinical-association",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "alteration_clinical_association",
@@ -1185,6 +1205,7 @@
         {
           "card_id": "clinical-precedent",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "clinical_precedent",
@@ -1219,6 +1240,7 @@
         {
           "card_id": "co-mutation-and-mutual-exclusivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_cooccurrence",
@@ -1247,6 +1269,7 @@
         {
           "card_id": "competitor-landscape",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "competitor_landscape",
@@ -1275,6 +1298,7 @@
         {
           "card_id": "expression-clinical-association",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "expression_clinical_association",
@@ -1309,6 +1333,7 @@
         {
           "card_id": "pathway-node-leverage",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pathway_node_leverage",
@@ -1367,6 +1392,7 @@
         {
           "card_id": "precog-prognostic-association",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "precog_prognostic_association",
@@ -1395,6 +1421,7 @@
         {
           "card_id": "stemness-context",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "stemness_context",
@@ -1423,6 +1450,7 @@
         {
           "card_id": "subtype-survival-association",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "subtype_survival_association",
@@ -1597,6 +1625,7 @@
         {
           "card_id": "abundance-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "abundance_dependency_correlation",
@@ -1631,6 +1660,7 @@
         {
           "card_id": "coessential-module",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": true,
           "placeholder_reason": "status:dormant_pending_data",
           "measurement_type": "coessential_module",
@@ -1662,6 +1692,7 @@
         {
           "card_id": "crispr-rnai-dependency-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_rnai_concordance",
@@ -1696,6 +1727,7 @@
         {
           "card_id": "cross-consortium-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cross_consortium_dependency",
@@ -1727,6 +1759,7 @@
         {
           "card_id": "dependency-lineage-selectivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -1758,6 +1791,7 @@
         {
           "card_id": "dependency-predictability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dependency_predictability",
@@ -1786,6 +1820,7 @@
         {
           "card_id": "expression-dependency-correlation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "expression_dependency_correlation",
@@ -1814,6 +1849,7 @@
         {
           "card_id": "genomic-event-model-match",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "genomic_event_model_match",
@@ -1854,6 +1890,7 @@
         {
           "card_id": "organoid-crispr-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -1891,6 +1928,7 @@
         {
           "card_id": "pan-cancer-crispr-dependency-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -1922,6 +1960,7 @@
         {
           "card_id": "pan-cancer-rnai-dependency-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "rnai_lof_dependency",
@@ -1953,6 +1992,7 @@
         {
           "card_id": "paralog-buffering",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "paralog_buffering",
@@ -1984,6 +2024,7 @@
         {
           "card_id": "partner-conditional-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "partner_conditional_dependency",
@@ -2015,6 +2056,7 @@
         {
           "card_id": "prism-crispr-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "chemical_genetic_concordance",
@@ -2046,6 +2088,7 @@
         {
           "card_id": "recommended-models",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "patient_model_correspondence",
@@ -2080,6 +2123,7 @@
         {
           "card_id": "subgroup-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -2241,6 +2285,7 @@
         {
           "card_id": "alteration-role",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "alteration_role",
@@ -2281,6 +2326,7 @@
         {
           "card_id": "amp-expr-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "amp_expr_stratified_dependency",
@@ -2312,6 +2358,7 @@
         {
           "card_id": "copy-number-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "copy_number_alteration",
@@ -2352,6 +2399,7 @@
         {
           "card_id": "copy-number-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cn_stratified_dependency",
@@ -2383,6 +2431,7 @@
         {
           "card_id": "cross-consortium-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cross_consortium_dependency",
@@ -2414,6 +2463,7 @@
         {
           "card_id": "ddr-deficiency-context",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "ddr_deficiency_context",
@@ -2442,6 +2492,7 @@
         {
           "card_id": "dependency-predictability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dependency_predictability",
@@ -2470,6 +2521,7 @@
         {
           "card_id": "functional-gene-state",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "functional_gene_state",
@@ -2528,6 +2580,7 @@
         {
           "card_id": "fusion-rearrangement-landscape",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "fusion_rearrangement",
@@ -2568,6 +2621,7 @@
         {
           "card_id": "fusion-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "fusion_stratified_dependency",
@@ -2599,6 +2653,7 @@
         {
           "card_id": "genomic-event-model-match",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "genomic_event_model_match",
@@ -2639,6 +2694,7 @@
         {
           "card_id": "genomic-instability-state",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "genomic_instability_state",
@@ -2673,6 +2729,7 @@
         {
           "card_id": "mutation-drug-response",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_drug_response",
@@ -2709,6 +2766,7 @@
         {
           "card_id": "mutation-hotspot-frequency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_hotspot_frequency",
@@ -2743,6 +2801,7 @@
         {
           "card_id": "mutation-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_stratified_dependency",
@@ -2774,6 +2833,7 @@
         {
           "card_id": "mutation-type-counts",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_variant_class_spectrum",
@@ -2805,6 +2865,7 @@
         {
           "card_id": "mutational-signature-context",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutational_signature_context",
@@ -2833,6 +2894,7 @@
         {
           "card_id": "oncogenic-pathway-alteration",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "oncogenic_pathway_alteration",
@@ -2861,6 +2923,7 @@
         {
           "card_id": "subgroup-stratified-copy-number",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "copy_number_alteration",
@@ -2901,6 +2964,7 @@
         {
           "card_id": "subgroup-stratified-fusion",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "fusion_rearrangement",
@@ -2935,6 +2999,7 @@
         {
           "card_id": "subgroup-stratified-mutation-frequency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_hotspot_frequency",
@@ -2969,6 +3034,7 @@
         {
           "card_id": "target-clonality",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_clonality",
@@ -2997,6 +3063,7 @@
         {
           "card_id": "tumor-splice-dysregulation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_splice_dysregulation",
@@ -3025,6 +3092,7 @@
         {
           "card_id": "tumor-splice-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_splice_expression",
@@ -3053,6 +3121,7 @@
         {
           "card_id": "variant-effect-mave-mavedb",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "variant_functional_effect_mave",
@@ -3081,6 +3150,7 @@
         {
           "card_id": "variant-level-interpretation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "variant_level_interpretation",
@@ -3174,6 +3244,7 @@
         {
           "card_id": "caf-compartment-expression-luo",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_tumor_caf_state_expression",
@@ -3202,6 +3273,7 @@
         {
           "card_id": "ici-response-association",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "ici_response_expression",
@@ -3230,6 +3302,7 @@
         {
           "card_id": "ici-response-imvigor210",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "ici_response_expression",
@@ -3260,6 +3333,7 @@
         {
           "card_id": "immune-context",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "immune_context",
@@ -3290,6 +3364,7 @@
         {
           "card_id": "myeloid-compartment-expression-cheng",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_tumor_myeloid_state_expression",
@@ -3318,6 +3393,7 @@
         {
           "card_id": "tcga-til-fraction-saltz",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "spatial_til_fraction",
@@ -3471,6 +3547,7 @@
         {
           "card_id": "dependency-predictability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dependency_predictability",
@@ -3499,6 +3576,7 @@
         {
           "card_id": "pathway-activity-context",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pathway_activity_context",
@@ -3527,6 +3605,7 @@
         {
           "card_id": "phospho-pathway-activity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "phospho_pathway_activity",
@@ -3555,6 +3634,7 @@
         {
           "card_id": "signaling-network-mechanism",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "signaling_network_mechanism",
@@ -3583,6 +3663,7 @@
         {
           "card_id": "tahoe-drug-perturbation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tahoe_drug_perturbation",
@@ -3717,6 +3798,7 @@
         {
           "card_id": "alteration-role",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "alteration_role",
@@ -3757,6 +3839,7 @@
         {
           "card_id": "clingen-dosage",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dosage_sensitivity_safety",
@@ -3785,6 +3868,7 @@
         {
           "card_id": "clinvar-pathogenicity-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "clinvar_germline_pathogenicity_safety",
@@ -3813,6 +3897,7 @@
         {
           "card_id": "copy-number-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "copy_number_alteration",
@@ -3853,6 +3938,7 @@
         {
           "card_id": "drug-warning-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "drug_warning_safety",
@@ -3881,6 +3967,7 @@
         {
           "card_id": "functional-gene-state",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "functional_gene_state",
@@ -3939,6 +4026,7 @@
         {
           "card_id": "gene-burden-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "human_genetic_safety",
@@ -3967,6 +4055,7 @@
         {
           "card_id": "gnomad-lof-constraint",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "gnomad_lof_constraint",
@@ -3998,6 +4087,7 @@
         {
           "card_id": "mouse-ko-phenotype",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mouse_ko_phenotype_safety",
@@ -4032,6 +4122,7 @@
         {
           "card_id": "normal-tissue-liability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "normal_tissue_protein_breadth",
@@ -4064,6 +4155,7 @@
         {
           "card_id": "normal-tissue-liability-gtex",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "normal_tissue_rna_breadth",
@@ -4092,6 +4184,7 @@
         {
           "card_id": "onsides-adverse-event-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "onsides_adverse_event_safety",
@@ -4120,6 +4213,7 @@
         {
           "card_id": "pan-cancer-crispr-dependency-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -4151,6 +4245,7 @@
         {
           "card_id": "shet-lof-intolerance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "shet_lof_selection",
@@ -4182,6 +4277,7 @@
         {
           "card_id": "target-safety-prioritisation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "target_safety_prioritisation",
@@ -4396,6 +4492,7 @@
         {
           "card_id": "adc-tce-modality-fit",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "adc_tce_modality_fit",
@@ -4420,6 +4517,7 @@
         {
           "card_id": "cd-antigen-backbone",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cd_antigen_backbone",
@@ -4452,6 +4550,7 @@
         {
           "card_id": "copy-number-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "copy_number_alteration",
@@ -4492,6 +4591,7 @@
         {
           "card_id": "modality-exon-window",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "exon_window",
@@ -4524,6 +4624,7 @@
         {
           "card_id": "modality-therapeutic-window",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "modality_window",
@@ -4556,6 +4657,7 @@
         {
           "card_id": "mutation-stratified-surface",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_stratified_surface",
@@ -4588,6 +4690,7 @@
         {
           "card_id": "normal-tissue-liability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "normal_tissue_protein_breadth",
@@ -4620,6 +4723,7 @@
         {
           "card_id": "pathway-stratified-surface",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pathway_stratified_surface",
@@ -4652,6 +4756,7 @@
         {
           "card_id": "pmhc-epitope-evidence-iedb",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pmhc_epitope_evidence",
@@ -4682,6 +4787,7 @@
         {
           "card_id": "pmhc-presentation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pmhc_presentation",
@@ -4712,6 +4818,7 @@
         {
           "card_id": "protein-surface-evidence",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surface_confirmation",
@@ -4750,6 +4857,7 @@
         {
           "card_id": "rna-protein-concordance-tumor",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "rna_protein_concordance",
@@ -4782,6 +4890,7 @@
         {
           "card_id": "sc-normal-celltype-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_normal_celltype_expression",
@@ -4922,6 +5031,7 @@
         {
           "card_id": "sc-surface-normal-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_normal_surface_protein",
@@ -4954,6 +5064,7 @@
         {
           "card_id": "sc-surface-rna-protein-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "rna_protein_concordance",
@@ -4986,6 +5097,7 @@
         {
           "card_id": "shed-ectodomain-liability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "shed_ectodomain_liability",
@@ -5024,6 +5136,7 @@
         {
           "card_id": "structure-features-static",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "structure_druggability",
@@ -5061,6 +5174,7 @@
         {
           "card_id": "surface-abundance-density",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surface_density",
@@ -5092,6 +5206,7 @@
         {
           "card_id": "surface-bulk-pair-selectivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "antigen_pair_selectivity",
@@ -5124,6 +5239,7 @@
         {
           "card_id": "surface-colocalization-avidity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "antigen_pair_coexpression",
@@ -5204,6 +5320,7 @@
         {
           "card_id": "surface-topology-and-ptm",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surface_topology",
@@ -5236,6 +5353,7 @@
         {
           "card_id": "surfaceome-cohort-ranking",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": null,
@@ -5264,6 +5382,7 @@
         {
           "card_id": "surfaceome-family-classification",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surfaceome_family",
@@ -5296,6 +5415,7 @@
         {
           "card_id": "tumor-scrna-celltype-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_tumor_celltype_expression",
@@ -5442,6 +5562,7 @@
         {
           "card_id": "surfaceome-cohort-ranking",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": null,
@@ -5526,6 +5647,7 @@
         {
           "card_id": "synthetic-lethal-partners",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "synthetic_lethal_partner",
@@ -5699,6 +5821,7 @@
         {
           "card_id": "clingen-dosage",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dosage_sensitivity_safety",
@@ -5727,6 +5850,7 @@
         {
           "card_id": "clinvar-pathogenicity-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "clinvar_germline_pathogenicity_safety",
@@ -5755,6 +5879,7 @@
         {
           "card_id": "domain-modality-relevance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "domain_modality_relevance",
@@ -5792,6 +5917,7 @@
         {
           "card_id": "gene-burden-safety",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "human_genetic_safety",
@@ -5820,6 +5946,7 @@
         {
           "card_id": "gene-ontology-annotation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "gene_ontology_annotation",
@@ -5848,6 +5975,7 @@
         {
           "card_id": "gnomad-lof-constraint",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "gnomad_lof_constraint",
@@ -5879,6 +6007,7 @@
         {
           "card_id": "measured-potency-tractability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "measured_potency_tractability",
@@ -5915,6 +6044,7 @@
         {
           "card_id": "mouse-ko-phenotype",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mouse_ko_phenotype_safety",
@@ -5949,6 +6079,7 @@
         {
           "card_id": "normal-tissue-liability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "normal_tissue_protein_breadth",
@@ -5981,6 +6112,7 @@
         {
           "card_id": "paralog-buffering",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "paralog_buffering",
@@ -6012,6 +6144,7 @@
         {
           "card_id": "ppi-interactome",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "ppi_interactome",
@@ -6052,6 +6185,7 @@
         {
           "card_id": "protein-domains-class",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "protein_domains_class",
@@ -6086,6 +6220,7 @@
         {
           "card_id": "reactome-pathway-membership",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "reactome_pathway_membership",
@@ -6114,6 +6249,7 @@
         {
           "card_id": "shed-ectodomain-liability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "shed_ectodomain_liability",
@@ -6152,6 +6288,7 @@
         {
           "card_id": "signaling-network-mechanism",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "signaling_network_mechanism",
@@ -6180,6 +6317,7 @@
         {
           "card_id": "structure-features-static",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "structure_druggability",
@@ -6217,6 +6355,7 @@
         {
           "card_id": "surfaceome-family-classification",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surfaceome_family",
@@ -6249,6 +6388,7 @@
         {
           "card_id": "target-development-level",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "target_development_level",
@@ -6277,6 +6417,7 @@
         {
           "card_id": "target-identity-summary",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "target_identity",
@@ -6305,6 +6446,7 @@
         {
           "card_id": "target-safety-prioritisation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "target_safety_prioritisation",
@@ -6439,6 +6581,7 @@
         {
           "card_id": "adc-tce-modality-fit",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "adc_tce_modality_fit",
@@ -6463,6 +6606,7 @@
         {
           "card_id": "cellline-rna-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cell_line_rna_expression",
@@ -6503,6 +6647,7 @@
         {
           "card_id": "cis-feature-expression-coherence",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cis_dosage_coupling",
@@ -6534,6 +6679,7 @@
         {
           "card_id": "co-mutation-and-mutual-exclusivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_cooccurrence",
@@ -6562,6 +6708,7 @@
         {
           "card_id": "combinatorial-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "combinatorial_ko_dependency",
@@ -6593,6 +6740,7 @@
         {
           "card_id": "copy-number-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "copy_number_alteration",
@@ -6633,6 +6781,7 @@
         {
           "card_id": "crispr-rnai-dependency-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_rnai_concordance",
@@ -6667,6 +6816,7 @@
         {
           "card_id": "dependency-lineage-selectivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -6698,6 +6848,7 @@
         {
           "card_id": "dependency-predictability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dependency_predictability",
@@ -6726,6 +6877,7 @@
         {
           "card_id": "domain-modality-relevance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "domain_modality_relevance",
@@ -6763,6 +6915,7 @@
         {
           "card_id": "fusion-rearrangement-landscape",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "fusion_rearrangement",
@@ -6803,6 +6956,7 @@
         {
           "card_id": "gene-ontology-annotation",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "gene_ontology_annotation",
@@ -6831,6 +6985,7 @@
         {
           "card_id": "gnomad-lof-constraint",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "gnomad_lof_constraint",
@@ -6862,6 +7017,7 @@
         {
           "card_id": "mutation-hotspot-frequency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_hotspot_frequency",
@@ -6896,6 +7052,7 @@
         {
           "card_id": "mutation-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_stratified_dependency",
@@ -6927,6 +7084,7 @@
         {
           "card_id": "mutation-type-counts",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_variant_class_spectrum",
@@ -6958,6 +7116,7 @@
         {
           "card_id": "pan-cancer-crispr-dependency-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -6989,6 +7148,7 @@
         {
           "card_id": "pan-cancer-rnai-dependency-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "rnai_lof_dependency",
@@ -7020,6 +7180,7 @@
         {
           "card_id": "paralog-buffering",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "paralog_buffering",
@@ -7051,6 +7212,7 @@
         {
           "card_id": "pathway-node-leverage",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pathway_node_leverage",
@@ -7109,6 +7271,7 @@
         {
           "card_id": "ppi-interactome",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "ppi_interactome",
@@ -7149,6 +7312,7 @@
         {
           "card_id": "prism-compound-activity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": true,
           "placeholder_reason": "placeholder marker in card body",
           "measurement_type": "prism_compound_activity",
@@ -7179,6 +7343,7 @@
         {
           "card_id": "prism-crispr-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "chemical_genetic_concordance",
@@ -7210,6 +7375,7 @@
         {
           "card_id": "protein-domains-class",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "protein_domains_class",
@@ -7244,6 +7410,7 @@
         {
           "card_id": "reactome-pathway-membership",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "reactome_pathway_membership",
@@ -7272,6 +7439,7 @@
         {
           "card_id": "signaling-network-mechanism",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "signaling_network_mechanism",
@@ -7300,6 +7468,7 @@
         {
           "card_id": "structure-features-static",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "structure_druggability",
@@ -7337,6 +7506,7 @@
         {
           "card_id": "subgroup-stratified-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -7374,6 +7544,7 @@
         {
           "card_id": "subgroup-stratified-mutation-frequency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "mutation_hotspot_frequency",
@@ -7408,6 +7579,7 @@
         {
           "card_id": "surface-abundance-density",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surface_density",
@@ -7439,6 +7611,7 @@
         {
           "card_id": "surface-topology-and-ptm",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surface_topology",
@@ -7471,6 +7644,7 @@
         {
           "card_id": "surfaceome-family-classification",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surfaceome_family",
@@ -7503,6 +7677,7 @@
         {
           "card_id": "target-development-level",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "target_development_level",
@@ -7531,6 +7706,7 @@
         {
           "card_id": "target-identity-summary",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "target_identity",
@@ -7559,6 +7735,7 @@
         {
           "card_id": "tumor-protein-abundance-cptac",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_protein_abundance",
@@ -7593,6 +7770,7 @@
         {
           "card_id": "tumor-rna-vs-adjacent",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_adjacent_expression",
@@ -7621,6 +7799,7 @@
         {
           "card_id": "tumor-vs-normal-selectivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_normal_selectivity",
@@ -7730,6 +7909,7 @@
         {
           "card_id": "degradation-feasibility",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "degradation_feasibility",
@@ -7766,6 +7946,7 @@
         {
           "card_id": "dependency-predictability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "dependency_predictability",
@@ -7794,6 +7975,7 @@
         {
           "card_id": "gdsc-drug-activity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": true,
           "placeholder_reason": "placeholder marker in card body",
           "measurement_type": "prism_compound_activity",
@@ -7824,6 +8006,7 @@
         {
           "card_id": "known-drug-tractability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "known_drug_tractability",
@@ -7854,6 +8037,7 @@
         {
           "card_id": "measured-potency-tractability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "measured_potency_tractability",
@@ -7890,6 +8074,7 @@
         {
           "card_id": "prism-compound-activity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": true,
           "placeholder_reason": "placeholder marker in card body",
           "measurement_type": "prism_compound_activity",
@@ -7920,6 +8105,7 @@
         {
           "card_id": "prism-crispr-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "chemical_genetic_concordance",
@@ -7951,6 +8137,7 @@
         {
           "card_id": "structure-features-static",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "structure_druggability",
@@ -8060,6 +8247,7 @@
         {
           "card_id": "organoid-crispr-dependency",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "crispr_lof_dependency",
@@ -8097,6 +8285,7 @@
         {
           "card_id": "target-genotype-matched-model",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "genotype_matched_model",
@@ -8125,6 +8314,7 @@
         {
           "card_id": "target-model-availability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "model_availability",
@@ -8153,6 +8343,7 @@
         {
           "card_id": "target-pdx-drug-response",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "pdx_drug_response",
@@ -8274,6 +8465,7 @@
         {
           "card_id": "cellline-protein-abundance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cell_line_protein_abundance",
@@ -8305,6 +8497,7 @@
         {
           "card_id": "cellline-protein-abundance-procan",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cell_line_protein_abundance",
@@ -8336,6 +8529,7 @@
         {
           "card_id": "cellline-rna-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cell_line_rna_expression",
@@ -8376,6 +8570,7 @@
         {
           "card_id": "cellline-rna-distribution-by-subtype",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "cell_line_rna_expression",
@@ -8410,6 +8605,7 @@
         {
           "card_id": "cellline-rna-protein-concordance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "rna_protein_concordance",
@@ -8447,6 +8643,7 @@
         {
           "card_id": "expression-purity-confound",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "expression_purity_confound",
@@ -8487,6 +8684,7 @@
         {
           "card_id": "hpa-pathology-cancer-ihc",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_protein_ihc_presence",
@@ -8521,6 +8719,7 @@
         {
           "card_id": "normal-tissue-liability",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "normal_tissue_protein_breadth",
@@ -8553,6 +8752,7 @@
         {
           "card_id": "rna-protein-concordance-tumor",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "rna_protein_concordance",
@@ -8585,6 +8785,7 @@
         {
           "card_id": "sc-normal-celltype-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_normal_celltype_expression",
@@ -8725,6 +8926,7 @@
         {
           "card_id": "tumor-elevation-breadth",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_elevation_breadth",
@@ -8759,6 +8961,7 @@
         {
           "card_id": "tumor-protein-abundance-cptac",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_protein_abundance",
@@ -8793,6 +8996,7 @@
         {
           "card_id": "tumor-protein-distribution-by-subtype",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_protein_abundance",
@@ -8827,6 +9031,7 @@
         {
           "card_id": "tumor-rna-distribution",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_expression_distribution",
@@ -8873,6 +9078,7 @@
         {
           "card_id": "tumor-rna-distribution-by-subtype",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_expression_distribution",
@@ -8913,6 +9119,7 @@
         {
           "card_id": "tumor-rna-vs-adjacent",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_adjacent_expression",
@@ -8941,6 +9148,7 @@
         {
           "card_id": "tumor-scrna-celltype-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_tumor_celltype_expression",
@@ -9124,6 +9332,7 @@
         {
           "card_id": "expression-purity-confound",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "expression_purity_confound",
@@ -9164,6 +9373,7 @@
         {
           "card_id": "modality-therapeutic-window",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "modality_window",
@@ -9196,6 +9406,7 @@
         {
           "card_id": "normal-tissue-protein-abundance-tphp",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "normal_tissue_protein_abundance",
@@ -9227,6 +9438,7 @@
         {
           "card_id": "sc-normal-celltype-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_normal_celltype_expression",
@@ -9367,6 +9579,7 @@
         {
           "card_id": "spatial-region-rna-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "spatial_region_rna",
@@ -9423,6 +9636,7 @@
         {
           "card_id": "spatial-surface-protein-abundance",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "spatial_surface_protein",
@@ -9467,6 +9681,7 @@
         {
           "card_id": "spatial-tumor-normal-colocalization",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "spatial_colocalization",
@@ -9553,6 +9768,7 @@
         {
           "card_id": "surface-abundance-density",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "surface_density",
@@ -9584,6 +9800,7 @@
         {
           "card_id": "tumor-protein-abundance-cptac",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_protein_abundance",
@@ -9618,6 +9835,7 @@
         {
           "card_id": "tumor-scrna-celltype-expression",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "sc_tumor_celltype_expression",
@@ -9697,6 +9915,7 @@
         {
           "card_id": "tumor-vs-normal-percentile-crossing",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_normal_percentile_crossing",
@@ -9731,6 +9950,7 @@
         {
           "card_id": "tumor-vs-normal-percentile-crossing-by-subtype",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_normal_percentile_crossing",
@@ -9777,6 +9997,7 @@
         {
           "card_id": "tumor-vs-normal-protein-abundance-tphp",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_normal_protein_abundance",
@@ -9811,6 +10032,7 @@
         {
           "card_id": "tumor-vs-normal-selectivity",
           "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
           "is_placeholder": false,
           "placeholder_reason": null,
           "measurement_type": "tumor_vs_normal_selectivity",
@@ -9889,6 +10111,7 @@
     {
       "card_id": "abundance-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "abundance_dependency_correlation",
@@ -9932,6 +10155,7 @@
     {
       "card_id": "adc-tce-modality-fit",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "adc_tce_modality_fit",
@@ -9967,6 +10191,7 @@
     {
       "card_id": "alteration-clinical-association",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "alteration_clinical_association",
@@ -10009,6 +10234,7 @@
     {
       "card_id": "alteration-role",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "alteration_role",
@@ -10058,6 +10284,7 @@
     {
       "card_id": "amp-expr-stratified-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "amp_expr_stratified_dependency",
@@ -10098,6 +10325,7 @@
     {
       "card_id": "antigen-internalization",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "antigen_internalization",
@@ -10136,6 +10364,7 @@
     {
       "card_id": "antigen-prevalence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "antigen_expressing_prevalence",
@@ -10170,6 +10399,7 @@
     {
       "card_id": "antigen-prevalence-protein",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "antigen_expressing_prevalence",
@@ -10204,6 +10434,7 @@
     {
       "card_id": "bispecific-pair-scan",
       "card_yaml_exists": false,
+      "is_self_produced_skill_card": true,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": null,
@@ -10218,9 +10449,9 @@
       "datasets": [],
       "modality_relevance": null,
       "modality_routing": "not_applicable",
-      "card_health": "broken",
-      "health_reason": "card-missing-yaml",
-      "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
+      "card_health": "self_produced",
+      "health_reason": "card-self-produced-scan",
+      "reason_text": "self-produced scan-hook output card (card_id is a skill name; no contract YAML by design)",
       "consumers": [
         "bispecific-pair-scan"
       ],
@@ -10233,6 +10464,7 @@
     {
       "card_id": "caf-compartment-expression-luo",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "sc_tumor_caf_state_expression",
@@ -10269,6 +10501,7 @@
     {
       "card_id": "cd-antigen-backbone",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cd_antigen_backbone",
@@ -10309,6 +10542,7 @@
     {
       "card_id": "cellline-isoform-dominance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cell_line_isoform_dominance",
@@ -10345,6 +10579,7 @@
     {
       "card_id": "cellline-isoform-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cellline_isoform_expression",
@@ -10381,6 +10616,7 @@
     {
       "card_id": "cellline-methylation-expression-coherence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "methylation_silencing_coupling",
@@ -10426,6 +10662,7 @@
     {
       "card_id": "cellline-protein-abundance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cell_line_protein_abundance",
@@ -10467,6 +10704,7 @@
     {
       "card_id": "cellline-protein-abundance-procan",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cell_line_protein_abundance",
@@ -10506,6 +10744,7 @@
     {
       "card_id": "cellline-rna-distribution",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cell_line_rna_expression",
@@ -10557,6 +10796,7 @@
     {
       "card_id": "cellline-rna-distribution-by-subtype",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cell_line_rna_expression",
@@ -10599,6 +10839,7 @@
     {
       "card_id": "cellline-rna-protein-concordance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "rna_protein_concordance",
@@ -10646,6 +10887,7 @@
     {
       "card_id": "cis-feature-expression-coherence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cis_dosage_coupling",
@@ -10686,6 +10928,7 @@
     {
       "card_id": "cis-feature-protein-coherence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cis_protein_dosage_coupling",
@@ -10731,6 +10974,7 @@
     {
       "card_id": "clingen-dosage",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "dosage_sensitivity_safety",
@@ -10768,6 +11012,7 @@
     {
       "card_id": "clinical-precedent",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "clinical_precedent",
@@ -10813,6 +11058,7 @@
     {
       "card_id": "clinvar-pathogenicity-safety",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "clinvar_germline_pathogenicity_safety",
@@ -10850,6 +11096,7 @@
     {
       "card_id": "co-mutation-and-mutual-exclusivity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_cooccurrence",
@@ -10887,6 +11134,7 @@
     {
       "card_id": "coessential-module",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:dormant_pending_data",
       "measurement_type": "coessential_module",
@@ -10926,6 +11174,7 @@
     {
       "card_id": "combinatorial-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "combinatorial_ko_dependency",
@@ -10967,6 +11216,7 @@
     {
       "card_id": "combo-chemical-synergy",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "chemical_combination_synergy",
@@ -11006,6 +11256,7 @@
     {
       "card_id": "combo-crispr-screen",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "drug_anchored_combination",
@@ -11046,6 +11297,7 @@
     {
       "card_id": "competitor-landscape",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "competitor_landscape",
@@ -11082,6 +11334,7 @@
     {
       "card_id": "copy-number-distribution",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "copy_number_alteration",
@@ -11135,6 +11388,7 @@
     {
       "card_id": "copy-number-stratified-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cn_stratified_dependency",
@@ -11174,6 +11428,7 @@
     {
       "card_id": "crispr-rnai-dependency-concordance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "crispr_rnai_concordance",
@@ -11219,6 +11474,7 @@
     {
       "card_id": "cross-consortium-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "cross_consortium_dependency",
@@ -11259,6 +11515,7 @@
     {
       "card_id": "ddr-deficiency-context",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "ddr_deficiency_context",
@@ -11295,6 +11552,7 @@
     {
       "card_id": "degradation-feasibility",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "degradation_feasibility",
@@ -11339,6 +11597,7 @@
     {
       "card_id": "dependency-lineage-selectivity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "crispr_lof_dependency",
@@ -11382,6 +11641,7 @@
     {
       "card_id": "dependency-predictability",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "dependency_predictability",
@@ -11424,6 +11684,7 @@
     {
       "card_id": "domain-modality-relevance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "domain_modality_relevance",
@@ -11470,6 +11731,7 @@
     {
       "card_id": "drug-warning-safety",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "drug_warning_safety",
@@ -11506,6 +11768,7 @@
     {
       "card_id": "expression-clinical-association",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "expression_clinical_association",
@@ -11550,6 +11813,7 @@
     {
       "card_id": "expression-dependency-correlation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "expression_dependency_correlation",
@@ -11589,6 +11853,7 @@
     {
       "card_id": "expression-purity-confound",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "expression_purity_confound",
@@ -11640,6 +11905,7 @@
     {
       "card_id": "functional-blockade-rationale",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "functional_blockade_rationale",
@@ -11674,6 +11940,7 @@
     {
       "card_id": "functional-gene-state",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "functional_gene_state",
@@ -11741,6 +12008,7 @@
     {
       "card_id": "fusion-rearrangement-landscape",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "fusion_rearrangement",
@@ -11790,6 +12058,7 @@
     {
       "card_id": "fusion-stratified-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "fusion_stratified_dependency",
@@ -11829,6 +12098,7 @@
     {
       "card_id": "gdsc-drug-activity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "placeholder marker in card body",
       "measurement_type": "prism_compound_activity",
@@ -11867,6 +12137,7 @@
     {
       "card_id": "gene-burden-safety",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "human_genetic_safety",
@@ -11904,6 +12175,7 @@
     {
       "card_id": "gene-ontology-annotation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "gene_ontology_annotation",
@@ -11941,6 +12213,7 @@
     {
       "card_id": "genomic-event-model-match",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "genomic_event_model_match",
@@ -11990,6 +12263,7 @@
     {
       "card_id": "genomic-instability-state",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "genomic_instability_state",
@@ -12032,6 +12306,7 @@
     {
       "card_id": "gnomad-lof-constraint",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "gnomad_lof_constraint",
@@ -12073,6 +12348,7 @@
     {
       "card_id": "hpa-pathology-cancer-ihc",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_protein_ihc_presence",
@@ -12115,6 +12391,7 @@
     {
       "card_id": "ici-response-association",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "ici_response_expression",
@@ -12151,6 +12428,7 @@
     {
       "card_id": "ici-response-imvigor210",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "ici_response_expression",
@@ -12189,6 +12467,7 @@
     {
       "card_id": "immune-context",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "immune_context",
@@ -12227,6 +12506,7 @@
     {
       "card_id": "known-drug-tractability",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "known_drug_tractability",
@@ -12265,6 +12545,7 @@
     {
       "card_id": "lineage-restriction-evidence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:dormant_pending_data",
       "measurement_type": "normal_tissue_rna_breadth",
@@ -12299,6 +12580,7 @@
     {
       "card_id": "measured-potency-tractability",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "measured_potency_tractability",
@@ -12344,6 +12626,7 @@
     {
       "card_id": "modality-exon-window",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "exon_window",
@@ -12384,6 +12667,7 @@
     {
       "card_id": "modality-therapeutic-window",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "modality_window",
@@ -12427,6 +12711,7 @@
     {
       "card_id": "mouse-ko-phenotype",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mouse_ko_phenotype_safety",
@@ -12470,6 +12755,7 @@
     {
       "card_id": "mutation-drug-response",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_drug_response",
@@ -12514,6 +12800,7 @@
     {
       "card_id": "mutation-hotspot-frequency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_hotspot_frequency",
@@ -12560,6 +12847,7 @@
     {
       "card_id": "mutation-stratified-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_stratified_dependency",
@@ -12602,6 +12890,7 @@
     {
       "card_id": "mutation-stratified-surface",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_stratified_surface",
@@ -12642,6 +12931,7 @@
     {
       "card_id": "mutation-type-counts",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_variant_class_spectrum",
@@ -12684,6 +12974,7 @@
     {
       "card_id": "mutational-signature-context",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutational_signature_context",
@@ -12720,6 +13011,7 @@
     {
       "card_id": "myeloid-compartment-expression-cheng",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "sc_tumor_myeloid_state_expression",
@@ -12756,6 +13048,7 @@
     {
       "card_id": "normal-tissue-liability",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "normal_tissue_protein_breadth",
@@ -12802,6 +13095,7 @@
     {
       "card_id": "normal-tissue-liability-gtex",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "normal_tissue_rna_breadth",
@@ -12838,6 +13132,7 @@
     {
       "card_id": "normal-tissue-protein-abundance-tphp",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "normal_tissue_protein_abundance",
@@ -12877,6 +13172,7 @@
     {
       "card_id": "oncogenic-pathway-alteration",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "oncogenic_pathway_alteration",
@@ -12913,6 +13209,7 @@
     {
       "card_id": "onsides-adverse-event-safety",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "onsides_adverse_event_safety",
@@ -12949,6 +13246,7 @@
     {
       "card_id": "organoid-crispr-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "crispr_lof_dependency",
@@ -12995,6 +13293,7 @@
     {
       "card_id": "pan-cancer-crispr-dependency-distribution",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "crispr_lof_dependency",
@@ -13038,6 +13337,7 @@
     {
       "card_id": "pan-cancer-rnai-dependency-distribution",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "rnai_lof_dependency",
@@ -13080,6 +13380,7 @@
     {
       "card_id": "paralog-buffering",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "paralog_buffering",
@@ -13121,6 +13422,7 @@
     {
       "card_id": "partner-conditional-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "partner_conditional_dependency",
@@ -13160,6 +13462,7 @@
     {
       "card_id": "pathway-activity-context",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "pathway_activity_context",
@@ -13196,6 +13499,7 @@
     {
       "card_id": "pathway-node-leverage",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "pathway_node_leverage",
@@ -13263,6 +13567,7 @@
     {
       "card_id": "pathway-stratified-surface",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "pathway_stratified_surface",
@@ -13303,6 +13608,7 @@
     {
       "card_id": "patient-cis-coherence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "patient_cis_coherence",
@@ -13354,6 +13660,7 @@
     {
       "card_id": "phospho-pathway-activity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "phospho_pathway_activity",
@@ -13392,6 +13699,7 @@
     {
       "card_id": "pmhc-epitope-evidence-iedb",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "pmhc_epitope_evidence",
@@ -13430,6 +13738,7 @@
     {
       "card_id": "pmhc-presentation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "pmhc_presentation",
@@ -13468,6 +13777,7 @@
     {
       "card_id": "ppi-interactome",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "ppi_interactome",
@@ -13517,6 +13827,7 @@
     {
       "card_id": "precog-prognostic-association",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "precog_prognostic_association",
@@ -13553,6 +13864,7 @@
     {
       "card_id": "prism-compound-activity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "placeholder marker in card body",
       "measurement_type": "prism_compound_activity",
@@ -13594,6 +13906,7 @@
     {
       "card_id": "prism-crispr-concordance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "chemical_genetic_concordance",
@@ -13637,6 +13950,7 @@
     {
       "card_id": "protein-domains-class",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "protein_domains_class",
@@ -13680,6 +13994,7 @@
     {
       "card_id": "protein-surface-evidence",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "surface_confirmation",
@@ -13728,6 +14043,7 @@
     {
       "card_id": "reactome-pathway-membership",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "reactome_pathway_membership",
@@ -13765,6 +14081,7 @@
     {
       "card_id": "recommended-models",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "patient_model_correspondence",
@@ -13807,6 +14124,7 @@
     {
       "card_id": "resistance-emergence-signature",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "drug_anchored_resistance",
@@ -13847,6 +14165,7 @@
     {
       "card_id": "rna-protein-concordance-tumor",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "rna_protein_concordance",
@@ -13890,6 +14209,7 @@
     {
       "card_id": "rwd-stratified-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "rwd_stratified_expression",
@@ -13928,6 +14248,7 @@
     {
       "card_id": "sc-normal-celltype-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "sc_normal_celltype_expression",
@@ -14078,6 +14399,7 @@
     {
       "card_id": "sc-surface-normal-safety",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "sc_normal_surface_protein",
@@ -14118,6 +14440,7 @@
     {
       "card_id": "sc-surface-normal-safety-solid",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "sc_normal_surface_protein",
@@ -14156,6 +14479,7 @@
     {
       "card_id": "sc-surface-rna-protein-concordance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "rna_protein_concordance",
@@ -14196,6 +14520,7 @@
     {
       "card_id": "shed-ectodomain-liability",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "shed_ectodomain_liability",
@@ -14245,6 +14570,7 @@
     {
       "card_id": "shet-lof-intolerance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "shet_lof_selection",
@@ -14284,6 +14610,7 @@
     {
       "card_id": "signaling-network-mechanism",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "signaling_network_mechanism",
@@ -14322,6 +14649,7 @@
     {
       "card_id": "spatial-region-rna-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "spatial_region_rna",
@@ -14386,6 +14714,7 @@
     {
       "card_id": "spatial-surface-protein-abundance",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "spatial_surface_protein",
@@ -14438,6 +14767,7 @@
     {
       "card_id": "spatial-tumor-normal-colocalization",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "spatial_colocalization",
@@ -14532,6 +14862,7 @@
     {
       "card_id": "stemness-context",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "stemness_context",
@@ -14568,6 +14899,7 @@
     {
       "card_id": "structure-features-static",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "structure_druggability",
@@ -14616,6 +14948,7 @@
     {
       "card_id": "subgroup-stratified-copy-number",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "copy_number_alteration",
@@ -14664,6 +14997,7 @@
     {
       "card_id": "subgroup-stratified-dependency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "crispr_lof_dependency",
@@ -14713,6 +15047,7 @@
     {
       "card_id": "subgroup-stratified-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:dormant_pending_data",
       "measurement_type": "tumor_vs_adjacent_expression",
@@ -14757,6 +15092,7 @@
     {
       "card_id": "subgroup-stratified-fusion",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "fusion_rearrangement",
@@ -14799,6 +15135,7 @@
     {
       "card_id": "subgroup-stratified-mutation-frequency",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_hotspot_frequency",
@@ -14845,6 +15182,7 @@
     {
       "card_id": "subtype-survival-association",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "subtype_survival_association",
@@ -14887,6 +15225,7 @@
     {
       "card_id": "surface-abundance-density",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "surface_density",
@@ -14928,6 +15267,7 @@
     {
       "card_id": "surface-bulk-pair-selectivity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "antigen_pair_selectivity",
@@ -14968,6 +15308,7 @@
     {
       "card_id": "surface-colocalization-avidity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "antigen_pair_coexpression",
@@ -15058,6 +15399,7 @@
     {
       "card_id": "surface-topology-and-ptm",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "surface_topology",
@@ -15101,6 +15443,7 @@
     {
       "card_id": "surfaceome-cohort-ranking",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": null,
@@ -15138,6 +15481,7 @@
     {
       "card_id": "surfaceome-family-classification",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "surfaceome_family",
@@ -15182,6 +15526,7 @@
     {
       "card_id": "synthetic-lethal-partners",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "synthetic_lethal_partner",
@@ -15219,6 +15564,7 @@
     {
       "card_id": "tahoe-drug-perturbation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tahoe_drug_perturbation",
@@ -15258,6 +15604,7 @@
     {
       "card_id": "target-clonality",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "mutation_clonality",
@@ -15294,6 +15641,7 @@
     {
       "card_id": "target-development-level",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "target_development_level",
@@ -15331,6 +15679,7 @@
     {
       "card_id": "target-genotype-matched-model",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "genotype_matched_model",
@@ -15367,6 +15716,7 @@
     {
       "card_id": "target-identity-summary",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "target_identity",
@@ -15407,6 +15757,7 @@
     {
       "card_id": "target-model-availability",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "model_availability",
@@ -15443,6 +15794,7 @@
     {
       "card_id": "target-pdx-drug-response",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "pdx_drug_response",
@@ -15479,6 +15831,7 @@
     {
       "card_id": "target-safety-prioritisation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "target_safety_prioritisation",
@@ -15516,6 +15869,7 @@
     {
       "card_id": "tcga-til-fraction-saltz",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "spatial_til_fraction",
@@ -15554,6 +15908,7 @@
     {
       "card_id": "temporal-setting-expression-shift",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": true,
       "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "temporal_expression_shift",
@@ -15588,6 +15943,7 @@
     {
       "card_id": "tumor-elevation-breadth",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_elevation_breadth",
@@ -15632,6 +15988,7 @@
     {
       "card_id": "tumor-protein-abundance-cptac",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_protein_abundance",
@@ -15678,6 +16035,7 @@
     {
       "card_id": "tumor-protein-distribution-by-subtype",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_protein_abundance",
@@ -15720,6 +16078,7 @@
     {
       "card_id": "tumor-rna-distribution",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_expression_distribution",
@@ -15776,6 +16135,7 @@
     {
       "card_id": "tumor-rna-distribution-by-subtype",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_expression_distribution",
@@ -15826,6 +16186,7 @@
     {
       "card_id": "tumor-rna-vs-adjacent",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_vs_adjacent_expression",
@@ -15867,6 +16228,7 @@
     {
       "card_id": "tumor-scrna-celltype-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "sc_tumor_celltype_expression",
@@ -15958,6 +16320,7 @@
     {
       "card_id": "tumor-splice-dysregulation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_splice_dysregulation",
@@ -15994,6 +16357,7 @@
     {
       "card_id": "tumor-splice-expression",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_splice_expression",
@@ -16030,6 +16394,7 @@
     {
       "card_id": "tumor-vs-normal-percentile-crossing",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_vs_normal_percentile_crossing",
@@ -16072,6 +16437,7 @@
     {
       "card_id": "tumor-vs-normal-percentile-crossing-by-subtype",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_vs_normal_percentile_crossing",
@@ -16126,6 +16492,7 @@
     {
       "card_id": "tumor-vs-normal-protein-abundance-tphp",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_vs_normal_protein_abundance",
@@ -16168,6 +16535,7 @@
     {
       "card_id": "tumor-vs-normal-selectivity",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_vs_normal_selectivity",
@@ -16220,6 +16588,7 @@
     {
       "card_id": "variant-effect-mave-mavedb",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "variant_functional_effect_mave",
@@ -16256,6 +16625,7 @@
     {
       "card_id": "variant-level-interpretation",
       "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "variant_level_interpretation",
@@ -26282,7 +26652,7 @@
         "id": "card:bispecific-pair-scan",
         "layer": "card",
         "label": "bispecific-pair-scan",
-        "health": "broken",
+        "health": "self_produced",
         "is_orphan": false,
         "measurement_type": null
       },

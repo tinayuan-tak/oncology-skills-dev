@@ -33,6 +33,7 @@ CARD_COLORS = {
     "blocked": "#b8860b",
     "placeholder": _GREY,
     "broken": _RED,
+    "self_produced": "#2aa198",
 }
 SEVERITY_COLORS = {"error": _RED, "warn": _AMBER, "info": _PURPLE}
 
@@ -86,6 +87,7 @@ CARD_GLOSS = {
     "blocked": "no live reader — cannot pull data (honest gap)",
     "placeholder": "declared placeholder / blocked-status card",
     "broken": "no path to data: no reader + no backing method, never fires",
+    "self_produced": "self-produced scan-hook output (card_id is a skill name; no contract YAML by design)",
 }
 
 # P4 modality-vector lens (routing metadata, PARALLEL to card_health — never affects it).
@@ -565,7 +567,7 @@ def _cards_table(report: dict) -> str:
     cards = report.get("cards", [])
     # Group by card_health; order worst→best so problems surface at the top,
     # but float orphans (any health) into their own leading group.
-    health_order = ["broken", "placeholder", "blocked", "partial", "live"]
+    health_order = ["broken", "placeholder", "blocked", "partial", "self_produced", "live"]
     orphans = [c for c in cards if c.get("is_orphan")]
     groups: dict[str, list] = {}
     for c in cards:
@@ -722,7 +724,7 @@ def _card_summary_cards(report: dict) -> str:
     s = report["summary"]
     t = s.get("card_health_tally", {})
     return _stat_strip(
-        [(h, t.get(h, 0), CARD_COLORS[h]) for h in ("live", "partial", "blocked", "placeholder", "broken")]
+        [(h, t.get(h, 0), CARD_COLORS[h]) for h in ("live", "partial", "blocked", "placeholder", "broken", "self_produced")]
         + [("orphan cards", s.get("n_orphan_cards", 0), _RED),
            ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _RED)]
     )

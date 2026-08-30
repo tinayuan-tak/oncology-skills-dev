@@ -654,6 +654,29 @@ def test_catalog_manifests_no_subgroup_catalog_dir_is_safe(tmp_path):
     assert "subgroup-catalog" not in cat
 
 
+def test_self_produced_scan_card_is_not_broken(tmp_path):
+    """A scan-hook skill emits a card named after itself with no contract YAML — that is
+    `self_produced`, NOT `broken`. Signal = card_id ∈ skill_names AND no YAML."""
+    (tmp_path / "cards").mkdir()   # deliberately NO scan-x.card.yaml
+    sig = probe.probe_card("scan-x", tmp_path, tmp_path, set(), set(),
+                           skill_names={"scan-x", "other-skill"})
+    assert sig["card_yaml_exists"] is False
+    assert sig["is_self_produced_skill_card"] is True
+    rolled = rollup.roll_up_card(sig, rollup.load_rules())
+    assert rolled["card_health"] == "self_produced", rolled["card_health"]
+
+
+def test_missing_card_not_matching_a_skill_stays_broken(tmp_path):
+    """Guard the narrow signal: a no-YAML card whose id is NOT a skill name is a genuine
+    broken ref, still `broken` (self_produced must not swallow real breakage)."""
+    (tmp_path / "cards").mkdir()
+    sig = probe.probe_card("totally-missing", tmp_path, tmp_path, set(), set(),
+                           skill_names={"scan-x"})
+    assert sig["is_self_produced_skill_card"] is False
+    rolled = rollup.roll_up_card(sig, rollup.load_rules())
+    assert rolled["card_health"] == "broken", rolled["card_health"]
+
+
 def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
     (tmp_path / "cards").mkdir()
     (tmp_path / "cards" / "c.card.yaml").write_text(
