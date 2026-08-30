@@ -351,6 +351,21 @@ def list_all_card_ids(contracts_root: Path) -> list[str]:
     return sorted(p.name[: -len(".card.yaml")] for p in cdir.glob("*.card.yaml"))
 
 
+def _live_readers_path(skills_root: Path) -> Path:
+    """Resolve the `_live_readers.py` that defines CARD_DISPATCHERS.
+
+    The dispatcher registry moved to `skills/_skills_common/` when the
+    `compose-dashboard` orchestrator was RETIRED (#654, 2026-08-20). Prefer the
+    current location; fall back to the retired path so the probe still resolves
+    against an older checkout. Returning a non-existent path is fine — the callers'
+    `_module_ast` degrades to None → [] / {} exactly as before.
+    """
+    current = skills_root / "skills" / "_skills_common" / "_live_readers.py"
+    if current.exists():
+        return current
+    return skills_root / "skills" / "compose-dashboard" / "scripts" / "_live_readers.py"
+
+
 def live_reader_card_ids(skills_root: Path) -> list[str]:
     """The set of card_ids that have a live-reader dispatcher.
 
@@ -358,7 +373,7 @@ def live_reader_card_ids(skills_root: Path) -> list[str]:
     (lines ~946-956) is excluded. A grep here over-counts rwd-stratified-expression
     et al. as live.
     """
-    lr = skills_root / "skills" / "compose-dashboard" / "scripts" / "_live_readers.py"
+    lr = _live_readers_path(skills_root)
     tree = _module_ast(lr)
     if tree is None:
         return []
@@ -375,7 +390,7 @@ def dispatcher_method_imports(skills_root: Path) -> dict[str, str]:
     `_import_method("<module>")` call. We map each _dispatch_* function to its first
     _import_method argument, then map card_id -> module via CARD_DISPATCHERS.
     """
-    lr = skills_root / "skills" / "compose-dashboard" / "scripts" / "_live_readers.py"
+    lr = _live_readers_path(skills_root)
     tree = _module_ast(lr)
     if tree is None:
         return {}

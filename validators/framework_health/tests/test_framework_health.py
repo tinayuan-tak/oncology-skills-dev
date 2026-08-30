@@ -98,6 +98,13 @@ def test_live_reader_ids_real_repo_excludes_known_traps():
     if not (roots["skills"] / "skills").exists():
         pytest.skip("skills repo not present")
     live = set(probe.live_reader_card_ids(roots["skills"]))
+    # Non-vacuity guard: the dispatcher registry moved to skills/_skills_common/ when
+    # compose-dashboard was retired (#654). If the probe reads a stale path it returns
+    # an EMPTY set — and every "trap not in live" below passes vacuously (the silent
+    # drift that mislabeled working cards `broken`). Pin a floor + a known-live card so
+    # a stale-path regression fails loudly here.
+    assert len(live) > 40, f"expected many live-reader cards, got {len(live)} (stale dispatcher path?)"
+    assert "cellline-rna-distribution" in live, "a known live-reader card is missing (stale dispatcher path?)"
     for trap in ("rwd-stratified-expression", "antigen-prevalence", "subgroup-stratified-expression"):
         assert trap not in live, f"{trap} is a commented example, must not count as live"
 
@@ -106,7 +113,8 @@ def test_live_reader_ids_real_repo_excludes_known_traps():
 # 3. Dispatcher import resolution (authoritative backing) + submodule suffix
 # ---------------------------------------------------------------------------
 def test_dispatcher_method_imports_resolves_real_module(tmp_path):
-    lr = tmp_path / "skills" / "compose-dashboard" / "scripts"
+    # Current dispatcher location (compose-dashboard retired #654 → _skills_common/).
+    lr = tmp_path / "skills" / "_skills_common"
     lr.mkdir(parents=True)
     (lr / "_live_readers.py").write_text(textwrap.dedent('''
         def _dispatch_x(target, indication):
