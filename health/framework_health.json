@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-30T15:37:10.640398+00:00",
+  "generated_at": "2026-08-30T16:06:16.836233+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,7 +9,7 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "d3d66bc",
+    "contracts": "89b9473",
     "skills": "8182dd9",
     "methods": "1646efd",
     "products": "5c4a0ea",
@@ -17,13 +17,17 @@
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-30T15:34:33.161847+00:00",
+    "prior_generated_at": "2026-08-30T15:37:10.640398+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
     "n_error_drift": 0,
     "verdict_tally": {},
-    "card_health_tally": {},
+    "card_health_tally": {
+      "blocked": -1,
+      "broken": -1,
+      "placeholder": 2
+    },
     "skills_added": [],
     "skills_removed": [],
     "cards_added": [],
@@ -51,9 +55,9 @@
     "n_cards": 148,
     "card_health_tally": {
       "live": 101,
-      "placeholder": 8,
-      "broken": 2,
-      "blocked": 31,
+      "placeholder": 10,
+      "broken": 1,
+      "blocked": 30,
       "partial": 6
     },
     "modality_routing_tally": {
@@ -1636,8 +1640,8 @@
         {
           "card_id": "coessential-module",
           "card_yaml_exists": true,
-          "is_placeholder": false,
-          "placeholder_reason": null,
+          "is_placeholder": true,
+          "placeholder_reason": "status:dormant_pending_data",
           "measurement_type": "coessential_module",
           "has_live_reader": false,
           "method_call": "coessential-module",
@@ -2134,7 +2138,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, coessential-module, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
         }
       ],
       "health_verdict": "production_ready",
@@ -10119,7 +10123,7 @@
       "card_id": "antigen-internalization",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "antigen_internalization",
       "has_live_reader": false,
       "method_call": "antigen-internalization",
@@ -10157,7 +10161,7 @@
       "card_id": "antigen-prevalence",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "antigen_expressing_prevalence",
       "has_live_reader": false,
       "method_call": "prevalence-aggregator",
@@ -10191,7 +10195,7 @@
       "card_id": "antigen-prevalence-protein",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "antigen_expressing_prevalence",
       "has_live_reader": false,
       "method_call": "protein-prevalence-aggregator",
@@ -10907,8 +10911,8 @@
     {
       "card_id": "coessential-module",
       "card_yaml_exists": true,
-      "is_placeholder": false,
-      "placeholder_reason": null,
+      "is_placeholder": true,
+      "placeholder_reason": "status:dormant_pending_data",
       "measurement_type": "coessential_module",
       "has_live_reader": false,
       "method_call": "coessential-module",
@@ -11661,7 +11665,7 @@
       "card_id": "functional-blockade-rationale",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "functional_blockade_rationale",
       "has_live_reader": false,
       "method_call": "functional-blockade-rationale",
@@ -12285,8 +12289,8 @@
     {
       "card_id": "lineage-restriction-evidence",
       "card_yaml_exists": true,
-      "is_placeholder": false,
-      "placeholder_reason": null,
+      "is_placeholder": true,
+      "placeholder_reason": "status:dormant_pending_data",
       "measurement_type": "normal_tissue_rna_breadth",
       "has_live_reader": false,
       "method_call": "hpa-tissue-restriction-aggregator",
@@ -12306,9 +12310,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "broken",
-      "health_reason": "card-no-path",
-      "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data",
+      "card_health": "placeholder",
+      "health_reason": "card-placeholder",
+      "reason_text": "card is a declared placeholder / blocked-status card",
       "consumers": [],
       "n_consumers": 0,
       "is_orphan": true,
@@ -13911,7 +13915,7 @@
       "card_id": "rwd-stratified-expression",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "rwd_stratified_expression",
       "has_live_reader": false,
       "method_call": "tempus-rwd-aggregator",
@@ -14139,7 +14143,7 @@
       "card_id": "sc-surface-normal-safety-solid",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "sc_normal_surface_protein",
       "has_live_reader": false,
       "method_call": "sc-surface-normal-safety-solid",
@@ -14733,8 +14737,8 @@
     {
       "card_id": "subgroup-stratified-expression",
       "card_yaml_exists": true,
-      "is_placeholder": false,
-      "placeholder_reason": null,
+      "is_placeholder": true,
+      "placeholder_reason": "status:dormant_pending_data",
       "measurement_type": "tumor_vs_adjacent_expression",
       "has_live_reader": false,
       "method_call": "dge-deseq2",
@@ -14760,9 +14764,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "placeholder",
+      "health_reason": "card-placeholder",
+      "reason_text": "card is a declared placeholder / blocked-status card",
       "consumers": [],
       "n_consumers": 0,
       "is_orphan": true,
@@ -15575,7 +15579,7 @@
       "card_id": "temporal-setting-expression-shift",
       "card_yaml_exists": true,
       "is_placeholder": true,
-      "placeholder_reason": "placeholder marker in card body",
+      "placeholder_reason": "status:placeholder_not_wired",
       "measurement_type": "temporal_expression_shift",
       "has_live_reader": false,
       "method_call": "temporal-setting-shift",
@@ -26702,7 +26706,7 @@
         "id": "card:lineage-restriction-evidence",
         "layer": "card",
         "label": "lineage-restriction-evidence",
-        "health": "broken",
+        "health": "placeholder",
         "is_orphan": true,
         "measurement_type": "normal_tissue_rna_breadth"
       },
@@ -27134,7 +27138,7 @@
         "id": "card:subgroup-stratified-expression",
         "layer": "card",
         "label": "subgroup-stratified-expression",
-        "health": "blocked",
+        "health": "placeholder",
         "is_orphan": true,
         "measurement_type": "tumor_vs_adjacent_expression"
       },
@@ -29200,7 +29204,7 @@
       "skill": "functional-requirement",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, coessential-module, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
     },
     {
       "skill": "genomic-alteration-profile",

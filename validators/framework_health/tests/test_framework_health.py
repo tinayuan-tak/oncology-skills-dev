@@ -1125,3 +1125,40 @@ def test_committed_artifact_has_p4_lens():
     # coverage identity: required == declared + missing + drift
     mt = rep["summary"]["modality_routing_tally"]
     assert rep["summary"]["n_p4_required_cards"] == sum(mt.get(k, 0) for k in ("declared", "missing", "drift"))
+
+
+# ---------------------------------------------------------------------------
+# Placeholder-status recognition (card.status → is_placeholder) — schema-aligned
+# ---------------------------------------------------------------------------
+def test_placeholder_status_set_covers_schema_nonwired_statuses():
+    """RATCHET: probe._PLACEHOLDER_STATUS must cover every NON-`wired` value of the
+    card.schema.json `status` enum. Otherwise a non-wired card (e.g. dormant_pending_data)
+    slips past is_placeholder and is mislabeled card_health=broken. Reads the schema so a
+    NEW enum value fails loudly here until the probe is taught about it."""
+    schemas_dir = Path(__file__).resolve().parents[3] / "schemas"
+    schema = json.loads((schemas_dir / "card.schema.json").read_text())
+    enum = set(schema["properties"]["status"]["enum"])
+    nonwired = enum - {"wired"}
+    missing = nonwired - probe._PLACEHOLDER_STATUS
+    assert not missing, f"probe._PLACEHOLDER_STATUS missing schema non-wired status(es): {missing}"
+
+
+def test_dormant_pending_data_card_is_placeholder_not_broken(tmp_path):
+    """A card declaring status: dormant_pending_data with no built method must probe as
+    is_placeholder=True → the card_health ladder classifies it `placeholder` (rung
+    card-placeholder), NOT `broken` (rung card-no-path). Pins the lineage-restriction-evidence
+    fix."""
+    (tmp_path / "cards").mkdir()
+    (tmp_path / "cards" / "dormant-x.card.yaml").write_text(textwrap.dedent('''
+        card_id: dormant-x
+        status: dormant_pending_data
+        methods:
+          - call: some-unbuilt-aggregator
+        outputs:
+          summary_fields: [x_class]
+    '''))
+    sig = probe.probe_card("dormant-x", tmp_path, tmp_path, set(), set())
+    assert sig["is_placeholder"] is True
+    assert sig["placeholder_reason"] == "status:dormant_pending_data"
+    rolled = rollup.roll_up_card(sig, rollup.load_rules())
+    assert rolled["card_health"] == "placeholder", rolled["card_health"]

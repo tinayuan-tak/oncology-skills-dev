@@ -437,7 +437,17 @@ def _load_card_yaml(card_id: str, contracts_root: Path) -> Optional[dict]:
         return {"_parse_error": True}
 
 
-_PLACEHOLDER_STATUS = {"blocked_needs_per_sample_reader", "out_of_scope"}
+# card.status values that mark a card as a declared-but-not-producing PLACEHOLDER (→ card_health
+# `placeholder`, not `broken`). These are the NON-`wired` states of the card.schema.json `status`
+# enum: `placeholder_not_wired` (no method/product yet), `dormant_pending_data` (method exists but
+# gated off until its data source lands), `superseded` (capability provided elsewhere; retired-as-
+# duplicate). Previously this set held two values (`blocked_needs_per_sample_reader`, `out_of_scope`)
+# that are NOT in the schema enum, so `dormant_pending_data` cards (e.g. lineage-restriction-evidence)
+# were mislabeled `broken` — only `placeholder_not_wired` was caught, incidentally, by the text regex
+# below. A guard test pins this set ⊇ the schema's non-wired statuses so a new enum value can't
+# silently regress. The legacy two are kept defensively (harmless — no card carries them).
+_SCHEMA_NONWIRED_STATUS = {"placeholder_not_wired", "dormant_pending_data", "superseded"}
+_PLACEHOLDER_STATUS = _SCHEMA_NONWIRED_STATUS | {"blocked_needs_per_sample_reader", "out_of_scope"}
 _PLACEHOLDER_TEXT = re.compile(r"placeholder|not yet landed|data not yet|not_wired", re.IGNORECASE)
 
 
