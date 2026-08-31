@@ -37,7 +37,10 @@ def test_headline_metrics_pinned(metrics):
     """Pin the 2026-08-14 curated headline so a calibration-set edit that shifts the framework's measured
     validity is a DELIBERATE, reviewed change (update these when it legitimately moves)."""
     assert metrics["n_approved"] == 18
-    assert len(metrics["dangerous_false_positives"]) == 4
+    # 4 → 3 (2026-08-30): RBM39 corrected dangerous_false_positive → validated_lane — the pan-essential
+    # axis is now captured (dependency pan_essential_killer VETO + pan-essential-broad-tox safety),
+    # verified by a live run, so the framework declines it for the real window liability (matches outcome).
+    assert len(metrics["dangerous_false_positives"]) == 3
     assert len(metrics["silent_false_negatives"]) == 12
     # blind on the deciding axis for the large majority of known targets
     assert metrics["blind_rate"] >= 0.7
