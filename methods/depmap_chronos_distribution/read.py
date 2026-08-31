@@ -55,10 +55,17 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
             "distribution_shape": "unclassified",
         }
 
+    # T3: resolve DepMap curated core-essential membership so the live-reader path activates the
+    # pan-essential-killer re-anchor too (the CLI run() already does). Without threading this, the reader
+    # defaulted curated_common_essential=None → fraction-only fallback → the re-anchor was inert in the
+    # skill (compose-dashboard) path. None when the control list is unreachable → graceful fraction-only.
+    _curated = _cli._load_curated_common_essentials("26q1")
+    curated_common_essential = (target in _curated) if _curated is not None else None
     summary = _cli.compute_summary_stats(
         chronos_by_model, model_metadata,
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
+        curated_common_essential=curated_common_essential,
     )
 
     # Axis-2 (contextualized interpretation): control-benchmark position. ADDITIVE +
