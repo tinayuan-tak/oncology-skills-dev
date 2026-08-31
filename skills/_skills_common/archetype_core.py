@@ -325,6 +325,9 @@ ARCH_W = {
                              "genomic_alteration": 0.4},
     "control_absent": {a: 0.3 for a in SCORECARD_AXES},
     "control_housekeeping": {**{a: 0.3 for a in SCORECARD_AXES}, "safety": 1.2, "dependency": 0.5},
+    "immune_checkpoint": {"immune_context": 1.4, "surface_modality": 1.0, "expression": 0.8,
+                          "selectivity": 0.8, "safety": 1.0, "differentiation": 0.6, "mechanism": 0.4,
+                          "genomic_alteration": 0.2, "dependency": 0.2, "tractability_sm": 0.2},
 }
 ARCH_W = {k: {ax: v.get(ax, DEFAULT_AX_W) for ax in SCORECARD_AXES} for k, v in ARCH_W.items()}
 

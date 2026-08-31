@@ -46,6 +46,7 @@ ANCHORS = [
     ("amp_driver", "ERBB2", "BRCA"),
     ("expression_surface", "EPCAM", "COADREAD"),
     ("dependency_essential", "AURKA", "BRCA"),
+    ("immune_checkpoint", "PDCD1", "LUAD"),
     ("control_housekeeping", "GAPDH", "LUAD"),
 ]
 
