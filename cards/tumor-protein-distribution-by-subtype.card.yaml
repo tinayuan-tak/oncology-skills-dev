@@ -93,5 +93,9 @@ measurement: bulk_protein_ms
 sample_context: tumor         # patient tumor (CPTAC per-cohort, per-subtype strata) — orthogonal to measurement
 
 measurement_type: tumor_protein_abundance
+# Mirror the measurement-type twin tumor-protein-abundance-cptac: tumor_protein_abundance routes to
+# the modality-fit gates, so the subtype-grain sibling declares the SAME modality vector (was omitted
+# → P4 modality_relevance_missing warn). ADVISORY routing metadata; verdict-inert.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_subtype]
 schema_version: 1

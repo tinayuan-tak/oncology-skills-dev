@@ -1,35 +1,29 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-30T19:05:07.863351+00:00",
+  "generated_at": "2026-08-31T15:43:43.877214+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__fix-protein-subtype-card-modality-relevance",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "6747a27",
-    "skills": "f20e2a2",
+    "contracts": "f42b50e",
+    "skills": "38fdd83",
     "methods": "1646efd",
     "products": "5c4a0ea",
     "catalog": "994e788"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-30T16:47:00.117500+00:00",
+    "prior_generated_at": "2026-08-31T15:41:48.397378+00:00",
     "n_skills": 0,
     "n_cards": 0,
-    "n_drift_flags": 0,
+    "n_drift_flags": -1,
     "n_error_drift": 0,
-    "verdict_tally": {
-      "partial": -1,
-      "production_ready": 1
-    },
-    "card_health_tally": {
-      "blocked": -30,
-      "partial": 30
-    },
+    "verdict_tally": {},
+    "card_health_tally": {},
     "skills_added": [],
     "skills_removed": [],
     "cards_added": [],
@@ -48,7 +42,7 @@
     },
     "n_runs_clean": 11,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 24,
+    "n_drift_flags": 23,
     "n_error_drift": 0,
     "n_unregistered_skills": 0,
     "n_live_reader_cards": 61,
@@ -63,13 +57,12 @@
     },
     "modality_routing_tally": {
       "not_required": 69,
-      "declared": 77,
-      "not_applicable": 1,
-      "missing": 1
+      "declared": 78,
+      "not_applicable": 1
     },
     "n_p4_required_cards": 78,
-    "n_p4_declared_cards": 77,
-    "n_p4_missing_cards": 1,
+    "n_p4_declared_cards": 78,
+    "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
     "n_orphan_cards": 9,
     "n_cards_consumed_but_no_spec": 101,
@@ -9024,8 +9017,14 @@
               "resolved_id": "cptac-subgroup-assignments-coadread-v1"
             }
           ],
-          "modality_relevance": null,
-          "modality_routing": "missing",
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -9232,7 +9231,7 @@
       "n_cards": 17,
       "n_cards_live": 14,
       "n_p4_required": 11,
-      "n_p4_declared": 10,
+      "n_p4_declared": 11,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -9243,11 +9242,6 @@
           "code": "card_consumed_but_no_spec",
           "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance-procan, cellline-rna-distribution-by-subtype, hpa-pathology-cancer-ihc, sc-normal-celltype-expression, tumor-protein-distribution-by-subtype"
-        },
-        {
-          "code": "modality_relevance_missing",
-          "severity": "warn",
-          "detail": "consumed card(s) route to a modality-fit gate but declare no modality_relevance (stranded on the biology axis; P4): tumor-protein-distribution-by-subtype"
         }
       ],
       "health_verdict": "production_ready",
@@ -16063,8 +16057,14 @@
           "resolved_id": "cptac-subgroup-assignments-coadread-v1"
         }
       ],
-      "modality_relevance": null,
-      "modality_routing": "missing",
+      "modality_relevance": [
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -29631,12 +29631,6 @@
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance-procan, cellline-rna-distribution-by-subtype, hpa-pathology-cancer-ihc, sc-normal-celltype-expression, tumor-protein-distribution-by-subtype"
-    },
-    {
-      "skill": "tumor-presence",
-      "code": "modality_relevance_missing",
-      "severity": "warn",
-      "detail": "consumed card(s) route to a modality-fit gate but declare no modality_relevance (stranded on the biology axis; P4): tumor-protein-distribution-by-subtype"
     },
     {
       "skill": "tumor-selectivity",
