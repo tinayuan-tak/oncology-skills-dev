@@ -283,3 +283,14 @@ def test_scorecard_from_sub_results_reuses_companion(atlas: Atlas):
 def test_predictive_score_retired():
     assert not hasattr(ac, "predictive_score")
     assert not hasattr(ac, "predictive_score_from_sub_results")
+
+
+def test_anchors_are_multiexemplar_centroids(atlas: Atlas):
+    # each anchor is now the CENTROID of an exemplar SET (>=1 member), not a single point — robustness fix
+    for a in atlas.anchors:
+        assert a.get("n_members", 1) >= 1
+        assert len(a.get("members", [[a["target"], a["indication"]]])) == a.get("n_members", 1)
+    # the driver/surface/dependency corners must be genuinely multi-member (not n=1)
+    by = {a["label"]: a.get("n_members", 1) for a in atlas.anchors}
+    for lab in ("snv_driver", "tsg_loss", "amp_driver", "expression_surface", "dependency_essential"):
+        assert by[lab] >= 3, f"{lab} anchor should be a multi-exemplar centroid, got n={by[lab]}"

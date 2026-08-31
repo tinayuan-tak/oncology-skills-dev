@@ -13,6 +13,8 @@ AGREE / DISAGREE (incoherent). Pure-numpy (no sklearn) so it runs anywhere the s
 Usage:
   python3 coherence_qc.py --atlas ../atlas/atlas.json --roles tests/fixtures/oncokb_roles.csv \
       [--out-csv role_coherence.csv]
+  NOTE: the default --labels point at frozen snapshot fixtures (tests/fixtures/*, see PROVENANCE.md);
+  for a production run against current data, pass a freshly-derived --labels CSV.
 """
 import argparse
 import csv

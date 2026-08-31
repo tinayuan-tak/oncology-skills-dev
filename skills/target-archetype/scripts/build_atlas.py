@@ -40,15 +40,18 @@ from _skills_common.archetype_core import claim_features  # noqa: E402
 
 # curated canonical phenotype anchors (label reuses the archetype vocabulary; exemplar = (target, indication)).
 # One well-covered exemplar per drug-target phenotype; the query is a convex mixture of these.
-ANCHORS = [
-    ("snv_driver", "KRAS", "LUAD"),
-    ("tsg_loss", "VHL", "KIRC"),
-    ("amp_driver", "ERBB2", "BRCA"),
-    ("expression_surface", "EPCAM", "COADREAD"),
-    ("dependency_essential", "AURKA", "BRCA"),
-    ("immune_checkpoint", "PDCD1", "LUAD"),
-    ("control_housekeeping", "GAPDH", "LUAD"),
-]
+# Curated phenotype anchors — each is the CENTROID of a small exemplar SET (not a single point), so a
+# corner no longer pivots on one target's noisy/partial signature. First member is the canonical
+# representative (shown in the payload); the anchor coord is the mean of all present members' embeddings.
+ANCHOR_SETS = {
+    "snv_driver": [("KRAS", "LUAD"), ("BRAF", "COADREAD"), ("NRAS", "COADREAD")],
+    "tsg_loss": [("VHL", "KIRC"), ("STK11", "LUAD"), ("PTEN", "COADREAD"), ("RB1", "LUSC")],
+    "amp_driver": [("ERBB2", "BRCA"), ("CCND1", "BRCA"), ("MYC", "COADREAD"), ("MET", "LUAD")],
+    "expression_surface": [("EPCAM", "COADREAD"), ("CEACAM6", "COADREAD"), ("MSLN", "PAAD"), ("FOLR1", "OV")],
+    "dependency_essential": [("AURKA", "BRCA"), ("PLK1", "LUAD"), ("BIRC5", "LUAD"), ("WEE1", "OV")],
+    "immune_checkpoint": [("PDCD1", "LUAD"), ("CD28", "BRCA"), ("ICOSLG", "BRCA")],  # immune-synapse set
+    "control_housekeeping": [("GAPDH", "LUAD"), ("ACTB", "COADREAD"), ("RPL13A", "OV")],
+}
 
 
 def _load_panel(path: Path) -> dict:
@@ -117,15 +120,19 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     components = pca.components_                               # m x d
     corpus_emb = pca.transform(Z)                             # n x m
 
-    # anchors: canonical exemplars' frozen embedding coords
+    # anchors: each label's coord = CENTROID (mean embedding) of its present exemplar-set members
     idx_of = {(t, i): r for r, (t, i) in enumerate(zip(targets, indications))}
     anchors = []
-    for label, t, i in ANCHORS:
-        r = idx_of.get((t, i))
-        if r is None:
-            raise SystemExit(f"anchor {label} {t}/{i} not found in corpus — pick a present exemplar")
-        anchors.append({"label": label, "target": t, "indication": i,
-                        "coord": [round(float(x), 6) for x in corpus_emb[r]]})
+    for label, members in ANCHOR_SETS.items():
+        present = [(t, i) for (t, i) in members if (t, i) in idx_of]
+        if not present:
+            raise SystemExit(f"anchor {label}: no members present in corpus — {members}")
+        rows = [idx_of[(t, i)] for (t, i) in present]
+        centroid = corpus_emb[rows].mean(axis=0)
+        rep_t, rep_i = present[0]      # canonical representative (shown in payload)
+        anchors.append({"label": label, "target": rep_t, "indication": rep_i,
+                        "coord": [round(float(x), 6) for x in centroid],
+                        "members": [[t, i] for (t, i) in present], "n_members": len(present)})
 
     # axis_ref (D1 scorecard z-ref): per-axis corpus mean/std of axis_score (nan-mean of ::signal tiers)
     sig_idx = [j for j, k in enumerate(feature_order) if k.endswith("::signal")]
