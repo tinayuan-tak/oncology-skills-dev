@@ -81,3 +81,26 @@ def test_heads_registry_is_de_circularized_per_head():
     assert set(m.HEADS) >= {"role", "surface"}
     assert m.HEADS["role"]["drop_axis"] == "genomic_alteration"
     assert m.HEADS["surface"]["drop_axis"] == "surface_modality"   # de-circ removes the surface-fed axis
+
+
+def _pred():
+    import csv
+    p = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "depmap_predictability.csv"
+    return {r["target"]: {"predictability_class": r["predictability_class"], "r2_rf": r["r2_rf"],
+                          "dominant_feature_class": r["dominant_feature_class"]}
+            for r in csv.DictReader(open(p)) if r["predictability_class"] != "not_evaluated"}
+
+
+def test_dependency_predictability_annotation():
+    m = _mod()
+    rows, summary = m.dependency_predictability_report(Atlas.load(ATLAS), _pred())
+    assert summary["n_evaluated"] > 100
+    # most dependencies are NOT omics-explainable (the honest minority-predictable finding)
+    assert 0.0 < summary["explainable_fraction"] < 0.6
+    assert summary["n_explainable"] == sum(1 for r in rows if r["explainable"])
+    for r in rows[:20]:
+        assert set(r) >= {"target", "indication", "predictability_class", "explainable"}
+        assert isinstance(r["explainable"], bool)
+    # explainable set is exactly the non-'unpredictable' classes
+    for r in rows:
+        assert r["explainable"] == (r["predictability_class"] in m._PREDICTABLE_CLASSES)

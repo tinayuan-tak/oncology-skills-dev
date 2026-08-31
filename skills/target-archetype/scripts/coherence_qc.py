@@ -128,18 +128,80 @@ def coherence_report(atlas: ac.Atlas, label_map: dict, head: str = "role") -> tu
     return rows, summary
 
 
+# ---- dependency-predictability ANNOTATION (not a de-circ recovery head) --------------------------------
+# The DepMap-predictability product already answers "is this gene's dependency omics-EXPLAINABLE?" (an
+# external model recovering dependency from omics). We ANNOTATE each atlas target with that external call
+# rather than re-predict it — surfacing the ~minority whose dependency is feature-explainable (and the
+# dominant feature class), verdict-inert context for the dependency axis.
+_PREDICTABLE_CLASSES = {"weakly_predictable", "own_omics_driven", "context_or_driver_dependent"}
+
+
+def _load_predictability(path: str) -> dict:
+    out = {}
+    for row in csv.DictReader(open(path)):
+        cls = (row.get("predictability_class") or "").strip()
+        if cls and cls != "not_evaluated":
+            out[row["target"].strip()] = {"predictability_class": cls,
+                                          "r2_rf": row.get("r2_rf", ""),
+                                          "dominant_feature_class": row.get("dominant_feature_class", "")}
+    return out
+
+
+def dependency_predictability_report(atlas: ac.Atlas, pred_map: dict) -> tuple:
+    """Annotate each atlas target with the external DepMap-predictability call (is its dependency
+    omics-explainable, r², dominant feature class). Pure/testable. Returns (rows, summary)."""
+    rows = []
+    seen = set()
+    for t, ind in zip(atlas.targets, atlas.indications):
+        p = pred_map.get(t)
+        if p is None or (t, ind) in seen:
+            continue
+        seen.add((t, ind))
+        rows.append({"target": t, "indication": ind,
+                     "predictability_class": p["predictability_class"], "r2_rf": p.get("r2_rf", ""),
+                     "dominant_feature_class": p.get("dominant_feature_class", ""),
+                     "explainable": p["predictability_class"] in _PREDICTABLE_CLASSES})
+    n = len(rows); n_ex = sum(1 for r in rows if r["explainable"])
+    from collections import Counter
+    summary = {"n_evaluated": n, "n_explainable": n_ex,
+               "explainable_fraction": round(n_ex / n, 3) if n else 0.0,
+               "class_distribution": dict(Counter(r["predictability_class"] for r in rows)),
+               "note": "external DepMap-predictability annotation (verdict-inert); most dependencies are "
+                       "NOT omics-explainable — the explainable minority is the useful signal."}
+    return rows, summary
+
+
 def main():
     ap = argparse.ArgumentParser(description="biological-recovery coherence-QC (verdict-inert, offline)")
-    ap.add_argument("--head", choices=sorted(HEADS), default="role")
+    ap.add_argument("--head", choices=sorted(list(HEADS) + ["dependency"]), default="role")
     ap.add_argument("--atlas", default=str(Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"))
     ap.add_argument("--labels", default=None, help="label CSV (default: the head's fixture)")
     ap.add_argument("--roles", default=None, help="[deprecated alias for --labels on the role head]")
     ap.add_argument("--out-csv", default=None)
     a = ap.parse_args()
-    h = HEADS[a.head]
-    labels_path = a.labels or a.roles or str(Path(__file__).resolve().parents[1] / "tests" / "fixtures"
-                                             / h["default_csv"])
+    fx = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
     atlas = ac.Atlas.load(a.atlas)
+
+    if a.head == "dependency":     # ANNOTATION path (external predictability call, not a de-circ classifier)
+        labels_path = a.labels or str(fx / "depmap_predictability.csv")
+        rows, summary = dependency_predictability_report(atlas, _load_predictability(labels_path))
+        out_csv = a.out_csv or "dependency_predictability.csv"
+        with open(out_csv, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["target", "indication", "predictability_class", "r2_rf",
+                                              "dominant_feature_class", "explainable"])
+            w.writeheader(); w.writerows(rows)
+        print(f"dependency-predictability annotation: {summary}")
+        ex = sorted((r for r in rows if r["explainable"]),
+                    key=lambda x: float(x["r2_rf"] or 0), reverse=True)[:15]
+        print(f"\nEXPLAINABLE dependencies (omics-predictable — the useful minority): {summary['n_explainable']}")
+        for r in ex:
+            print(f"  {r['target']}/{r['indication']}: {r['predictability_class']} "
+                  f"(r2={r['r2_rf']}, via {r['dominant_feature_class']})")
+        print(f"\nwrote {out_csv}")
+        return
+
+    h = HEADS[a.head]              # de-circ recovery-and-flag path (role / surface)
+    labels_path = a.labels or a.roles or str(fx / h["default_csv"])
     rows, summary = coherence_report(atlas, _load_labels(labels_path, h["csv_col"], h["pos"], h["neg"]), a.head)
     out_csv = a.out_csv or f"{a.head}_coherence.csv"
     fields = ["target", "indication", h["label_field"], h["prob_field"], h["pred_field"], "agree"]
