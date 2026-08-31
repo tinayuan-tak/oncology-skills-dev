@@ -136,6 +136,12 @@ class Atlas:
         self.meta: dict = doc.get("meta", {})
         # corpus nearest-neighbour distance distribution (in embedding) for the local-density novelty flag
         self._nn_ref = self._corpus_nn_distances()
+        # corpus hull-residual distribution for the novelty threshold — computed ONCE at load (not per
+        # companion() call): each residual is an anchored-membership solve, so recomputing it every call
+        # made companion O(n) and a portfolio scan O(n^2). Cached here → companion() is O(1) in the corpus.
+        self._hull_ref = sorted(self._membership_hull(c) for c in self.corpus_emb) if self.corpus_emb else []
+        self._hull_thr = (self._hull_ref[min(len(self._hull_ref) - 1, int(0.9 * len(self._hull_ref)))]
+                          if self._hull_ref else math.inf)
 
     @classmethod
     def load(cls, path) -> "Atlas":
@@ -234,9 +240,7 @@ class Atlas:
 
         # novelty: hull-residual (INCONSISTENT with any canonical mix) + local-density flag (embedding NN)
         nn_dist = dists[nn[0]] if nn else math.inf
-        hull_ref = sorted(
-            self._membership_hull(c) for c in self.corpus_emb) if self.corpus_emb else []
-        hull_thr = hull_ref[min(len(hull_ref) - 1, int(0.9 * len(hull_ref)))] if hull_ref else math.inf
+        hull_thr = self._hull_thr                        # precomputed at load (was O(n) per call)
         novelty = {
             "hull_residual": None if not math.isfinite(hull) else round(hull, 3),
             "inconsistent_flag": bool(math.isfinite(hull) and hull > hull_thr),
