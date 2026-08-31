@@ -49,7 +49,7 @@ from _skills_common.claim_record import assemble_claim_record
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
                                             presence_key_signals, derive_presence_state,
-                                            presence_strength_from_state)
+                                            presence_strength_from_state, presence_state_phrase)
 from _skills_common.presence_question_table import presence_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
@@ -235,12 +235,20 @@ def _presence_verdict_polarity(v) -> str:
 
 def _presence_headline_block(headline: dict) -> dict:
     """Build the canonical Headline block from the already-computed presence headline. Reads the
-    collapsed verdict + the verdict-inert claim_vector / key_signals; never moves the spine."""
+    collapsed verdict + the verdict-inert claim_vector / key_signals; never moves the spine.
+
+    The badge PHRASE is the honest presence_state projection (presence_state_phrase) rather than the raw
+    collapsed word — so the headline reads e.g. 'Present in the tumor microenvironment (stromal…)' for a
+    PECAM1 or the ALB conflict, not 'Broadly expressed' / 'Strongly up-regulated'. verdict.call stays the
+    spine token for traceability (phrase_override changes only the display phrase)."""
     v = headline.get("presence_verdict")
+    st = headline.get("presence_state")
+    phrase = presence_state_phrase(st) if isinstance(st, dict) and st.get("present") else None
     return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
                           spec=_PRESENCE_HEADLINE_SPEC, verdict_token=v,
                           driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_presence_verdict_polarity(v))
+                          verdict_polarity=_presence_verdict_polarity(v),
+                          phrase_override=phrase)
 
 
 SKILL_NAME = "tumor-presence"

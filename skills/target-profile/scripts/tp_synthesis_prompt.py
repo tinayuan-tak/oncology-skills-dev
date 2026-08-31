@@ -555,7 +555,18 @@ def _build_user_prompt(
                 if not isinstance(b, dict):
                     continue
                 lines.append(f"| {key} | `{b.get('verdict')}` | {b.get('evidence_state')} |")
-        lines.append(f"- collapsed presence verdict: `{pf.get('presence_verdict')}` "
+        # TYPED presence_state — the honest structured read; prefer it over parsing the collapsed word
+        # (which can read `strongly_upregulated_in_tumor` for a contamination artifact or
+        # `tumor_broadly_expressed` for a stromal-only signal). present/abundance/elevation/malignant + a
+        # named protein↔RNA conflict.
+        ps = pf.get("presence_state") or {}
+        if isinstance(ps, dict) and ps.get("present"):
+            lines.append(
+                f"- TYPED presence_state (read THIS, not the one word): present=`{ps.get('present')}` "
+                f"abundance=`{ps.get('abundance_level')}` elevated_vs_normal=`{ps.get('elevated_vs_normal')}` "
+                f"malignant_intrinsic=`{ps.get('malignant_intrinsic')}` breadth=`{ps.get('breadth')}`"
+                + ("  ⚠ protein↔RNA CONFLICT" if ps.get("conflict") else ""))
+        lines.append(f"- collapsed presence verdict (compressed label): `{pf.get('presence_verdict')}` "
                      f"(headline lens: {pf.get('headline_lens')})")
         if pf.get("cell_line_vs_tumor_discordant"):
             lines.append(f"- ⚠ cell-line-vs-tumor DISCORDANT: {pf.get('presence_interpretation_note')}")

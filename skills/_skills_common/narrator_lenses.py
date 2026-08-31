@@ -44,6 +44,7 @@ TUMOR_PRESENCE = LensConfig(
     axis_labels={"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"},
     scope_exclusions=("therapeutic modality", "surface accessibility"),
     mode="verdict",
+    verdict_key="presence_verdict",   # the collapsed word lives here (was mis-read as driving_rule_id)
 )
 
 TUMOR_SELECTIVITY = LensConfig(

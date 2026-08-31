@@ -192,7 +192,7 @@ def collect_citations(claim_vector: dict, axis_keys: Sequence[str]) -> list:
 def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spec: HeadlineSpec,
                    verdict_token: Optional[str], driving_rule_id: Optional[str] = None,
                    verdict_polarity: Optional[str] = None, certainty: Optional[dict] = None,
-                   descriptive_phrase: Optional[str] = None) -> dict:
+                   descriptive_phrase: Optional[str] = None, phrase_override: Optional[str] = None) -> dict:
     """Assemble the canonical Headline block from a skill's ALREADY-computed decision objects.
 
     verdict_polarity: OPTIONAL "positive" | "negative" | "neutral" — the skill's OWN reading of the call
@@ -203,13 +203,18 @@ def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spe
     stays well-formed (call=None, polarity defaults "neutral") so descriptive lenses get the same
     verdict+confidence+tension shape without a gate verdict.
 
+    phrase_override: OPTIONAL — display PHRASE to show instead of spec.verdict_label(verdict_token), while
+    KEEPING verdict.call = verdict_token for traceability. Lets a skill headline with an honest projection
+    of its signal package (e.g. tumor-presence's presence_state phrase) rather than the raw collapsed
+    verdict word, without moving the spine token.
+
     Pure projection — reads the headline + claim_vector + key_signals and writes nothing back. Returns
     {verdict, confidence, top_tension, headline_text, hero, provenance, _disclaimer}."""
     crit = spec.critical_axes or spec.axis_keys
     confidence = derive_confidence(claim_vector, spec.axis_keys, crit, certainty=certainty)
     tension = rank_tension(claim_vector, key_signals, spec, headline)
     if verdict_token is not None:
-        phrase = spec.verdict_label(verdict_token)
+        phrase = phrase_override or spec.verdict_label(verdict_token)
     else:
         phrase = descriptive_phrase or "No call"
         if verdict_polarity is None:

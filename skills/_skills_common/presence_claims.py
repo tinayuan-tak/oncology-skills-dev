@@ -287,6 +287,19 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
         head = "Present, with caveats."
     else:
         head = "Presence largely unmeasured or not distinguishing."
+    # presence_state OVERRIDES for the decisive cases the signal-only head/caveat misses: a protein↔RNA
+    # CONFLICT (ALB), a STROMAL-only signal (PECAM1), or a measured NOT-present. These are the exact
+    # reads the collapsed word buries, so they win the headline + set the caveat.
+    st = derive_presence_state(headline)
+    p, mal = st.get("present"), st.get("malignant_intrinsic")
+    if st.get("conflict") or p in ("no", "untested") or mal == "stroma":
+        head = presence_state_phrase(st)
+        if mal == "stroma":
+            caveat = ("Signal is STROMAL — expressed in the tumor microenvironment, not the malignant "
+                      "cells [single-cell]")
+        elif st.get("conflict"):
+            caveat = ("Protein↔RNA CONFLICT — confirm the target in the disagreeing modality before any "
+                      "dependent read [protein vs RNA/single-cell]")
     return {"headline": head, "supports": supports, "caveat": caveat}
 
 
@@ -379,6 +392,34 @@ def presence_strength_from_state(presence_state: dict, claim_vector: dict) -> st
     if (presence_state or {}).get("conflict"):          # protein↔RNA disagreement is never strong
         strength = "weak_positive"
     return strength
+
+
+# Human-facing PHRASE from the typed state — the honest headline every surface shows instead of the raw
+# collapsed word (which can read "strongly up-regulated" for an ALB contamination artifact or
+# "broadly expressed" for a PECAM1 stromal signal). Verdict-INERT display text.
+def presence_state_phrase(state: dict) -> str:
+    if not isinstance(state, dict) or not state.get("present"):
+        return "Presence not assessed"
+    p, mal = state.get("present"), state.get("malignant_intrinsic")
+    ab, el = state.get("abundance_level"), state.get("elevated_vs_normal")
+    if p == "no":
+        return "Not present in tumor"
+    if p == "untested":
+        return "Presence untested"
+    if p == "protein_only_rna_absent":
+        return ("Conflicting — protein detected but RNA / single-cell absent; investigate "
+                "(contamination or post-transcriptional) before any read")
+    if p == "rna_only_protein_absent":
+        return "RNA-present but protein measured-absent — confirm protein before a biologics read"
+    if p == "protein_only":
+        return "Protein present (RNA abundance unmeasured)"
+    # present == yes | rna_only
+    if mal == "stroma":
+        return "Present in the tumor microenvironment (stromal, not malignant-cell-intrinsic)"
+    lead = {"high": "Abundantly present", "low": "Present (low absolute abundance)"}.get(ab, "Present")
+    tail = " and tumor-elevated" if el == "yes" else "; not elevated vs normal" if el == "no" else ""
+    proxy = " — RNA-only, protein untested" if p == "rna_only" else ""
+    return f"{lead} in tumor{tail}{proxy}"
 
 
 # The one WORD as a pure render of the typed object (Phase 2 will point presence_verdict at this).
@@ -491,4 +532,5 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
 
 __all__ = ["presence_claim_vector", "presence_claim_vector_by_subtype", "presence_key_signals",
            "derive_presence_state", "render_presence_label", "presence_strength_from_state",
+           "presence_state_phrase",
            "CLAIM_NAME", "CLAIM_INFORMS"]

@@ -34,6 +34,8 @@ class LensConfig:
                              "neutral_uninformative", "argues_against")
     verdict_card_ids: Optional[set] = None       # full capsules for these; others thin (None = all full)
     capsule_config: dict = field(default_factory=dict)
+    verdict_key: Optional[str] = None            # headline key holding the collapsed verdict token (e.g.
+                                                 # "presence_verdict"); None → the legacy <name>_verdict guess
 
 
 _CONF_ENUM = ("well_supported", "supported_with_caveats", "weakly_supported", "insufficient_evidence")
@@ -121,6 +123,11 @@ def build_capsule_prompt(decision: dict, lens: LensConfig) -> str:
     pkg = (h.get("evidence_capsules") or decision.get("evidence_capsules")
            or emit_capsules(decision.get("cards", []), indication,
                             verdict_card_ids=lens.verdict_card_ids, config=lens.capsule_config))
+    # collapsed verdict token: the lens's declared verdict_key wins (fixes presence, whose key is
+    # `presence_verdict`, not the legacy `<name>_verdict` guess), then the generic fallbacks.
+    _collapsed = ((h.get(lens.verdict_key) if lens.verdict_key else None)
+                  or h.get("verdict") or h.get(lens.name.replace("-", "_") + "_verdict")
+                  or h.get("driving_rule_id"))
     lines = [
         f"TARGET: {target}    INDICATION: {indication}    LENS: {lens.name}",
         "",
@@ -128,8 +135,7 @@ def build_capsule_prompt(decision: dict, lens: LensConfig) -> str:
         "",
         _render_capsules(pkg),
         "",
-        f"COLLAPSED VERDICT (compressed label, fixed upstream — narrate, do not change): "
-        f"{h.get('verdict') or h.get(lens.name.replace('-', '_') + '_verdict') or h.get('driving_rule_id')}",
+        f"COLLAPSED VERDICT (compressed label, fixed upstream — narrate, do not change): {_collapsed}",
         "",
         f"TASK: using the tool, {lens.relevance_prompt} Reason ACROSS the signals + capsule data; cite "
         f"card_id/field/value; state DATA_UNAVAILABLE gaps plainly; flag any data_quality_flags rather than "
