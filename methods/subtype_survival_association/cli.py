@@ -55,11 +55,12 @@ def emit_svg(indication: str, summary: dict, out_dir: Path, contracts_dir=DEFAUL
             fontsize=10.5, weight="bold", transform=ax.transAxes)
     ax.text(0.5, 0.70, cls.replace("_", " ").upper(), ha="center", va="center",
             fontsize=10.5, weight="bold", color=line, transform=ax.transAxes)
-    lines = [f"omnibus log-rank p = {summary.get('logrank_p','n/a')}  "
+    lines = [f"driving axis '{summary.get('driving_axis','n/a')}' log-rank p = {summary.get('logrank_p','n/a')}  "
              f"(chi2={summary.get('logrank_chi2','n/a')}, df={summary.get('logrank_df','n/a')})"]
-    for s in summary.get("per_stratum", [])[:6]:
-        lines.append(f"  {s['stratum']}: n={s['n']} events={s['n_events']} med OS={s['median_ostime_days']}d")
-    lines.append("univariate omnibus, unadjusted (exploratory)")
+    for a in summary.get("per_axis_association", [])[:5]:
+        lines.append(f"  [{a['axis']}] {'+'.join(a['strata'])}: p={a['logrank_p']} "
+                     f"(n={a['n_patients']}, events={a['n_events']})")
+    lines.append("per-axis univariate omnibus over disjoint arms, unadjusted (exploratory)")
     for i, t in enumerate(lines):
         ax.text(0.06, 0.54 - i * 0.09, t, ha="left", va="center", fontsize=8.0, transform=ax.transAxes)
     fig.savefig(out_path, bbox_inches="tight"); plt.close(fig)

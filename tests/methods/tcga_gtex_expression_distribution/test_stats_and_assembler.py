@@ -256,7 +256,10 @@ def test_landscape_emits_subtype_omnibus(monkeypatch):
 
 def test_omnibus_excludes_underpowered_strata(monkeypatch):
     # only the POWERED strata enter the omnibus; an n<30 stratum must not be tested.
-    # A + B have real overlapping spread + near-equal centers → negligible effect (rank-based
+    # The three strata are SAME-AXIS (CMS1/CMS2/CMS3) so the per-axis omnibus pools them into
+    # one CMS test — the underpowered arm is excluded WITHIN the axis (post per-axis refactor:
+    # cross-axis pooling is gone, so an underpowered-exclusion test must live inside one axis).
+    # CMS1 + CMS2 have real overlapping spread + near-equal centers → negligible effect (rank-based
     # KW needs within-group spread; two CONSTANT groups would rank-separate perfectly — see
     # test_class_tracks_effect_not_p for the spread-based effect-vs-p property).
     _rng = np.random.default_rng(7)
@@ -265,11 +268,11 @@ def test_omnibus_excludes_underpowered_strata(monkeypatch):
     big_b = [(f"b{i}", float(v)) for i, v in enumerate(_rng.normal(4.05, 1.0, 40))]
     _wire_subtype(monkeypatch, pooled_vals=[v for _c, v in small + big_a + big_b],
                   bridged_rows=small + big_a + big_b,
-                  assignment_rows=[(f"s{i}", "RARE", True) for i in range(10)]
-                                  + [(f"a{i}", "A", True) for i in range(40)]
-                                  + [(f"b{i}", "B", True) for i in range(40)])
+                  assignment_rows=[(f"s{i}", "CMS3", True) for i in range(10)]
+                                  + [(f"a{i}", "CMS1", True) for i in range(40)]
+                                  + [(f"b{i}", "CMS2", True) for i in range(40)])
     res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
-    assert res["n_subtypes_tested"] == 2                    # RARE (underpowered) excluded
+    assert res["n_subtypes_tested"] == 2                    # CMS3 (underpowered) excluded
     assert res["subtype_effect_size_class"] == "negligible"
 
 

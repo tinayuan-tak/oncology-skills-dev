@@ -898,7 +898,8 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                 proxy_normals[tissue] = (vals_t, rationale)
 
     landscape = []
-    powered_vectors = {}   # {stratum_id: [log2tpm]} for POWERED strata — the omnibus input
+    powered_vectors = {}       # {stratum_id: [log2tpm]} for POWERED strata — the omnibus input
+    powered_member_sets = {}   # {stratum_id: set(case)} — for per-axis intra-axis disjointness
     for stratum_id in strata:
         member_cases = set(assignments.loc[
             (assignments["stratum_id"] == stratum_id) & (assignments["is_member"] == True),
@@ -909,6 +910,9 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         floor_met = n >= _SUBGROUP_N_FLOOR
         if floor_met:
             powered_vectors[stratum_id] = vals
+            # bridge-matched member cases (the samples that actually contribute to the
+            # omnibus vector), so the per-axis disjointness guard drops composite arms.
+            powered_member_sets[stratum_id] = set(sub["case"].tolist())
         state = _evstate(n, floor_met)
         # join-coverage guard: warns on the <5% id-convention-mismatch signature.
         cov = compute_join_coverage(bridged, "case", stratum_id, manifest, warn=True)
@@ -1015,11 +1019,15 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     # ACROSS-SUBTYPE OMNIBUS (Phase 3, 2026-08-05) — Kruskal-Wallis H + ε² variance-explained
     # over the POWERED strata's per-sample vectors. Answers "is subtype a patient-selection axis
     # for this target, and how much of the expression variance does it explain?" The per-stratum
-    # subtype_signal above is a PAIRWISE-vs-pooled call; this is the single OMNIBUS across all
-    # strata. Effect-size class bins on ε² ONLY (p is display-only: at TCGA n's KW p is near-always
-    # significant, so significance != actionability). One-directional context — like the rest of
-    # this card, never moves presence_verdict.
-    omnibus = _stats.kruskal_epsilon_squared(powered_vectors)
+    # subtype_signal above is a PAIRWISE-vs-pooled call; this is the OMNIBUS.
+    # PER-AXIS (B11-S1-2, 2026-08-31): a subtype shard packs strata from SEVERAL orthogonal axes
+    # (COADREAD: MSI, CMS, sidedness, CIMP, stage) whose memberships OVERLAP — the same sample is
+    # in one arm per axis. Pooling all strata into one KW replicates each sample ~n_axes times and
+    # invalidates ε²/effect-size. So run ONE omnibus per axis over that axis's DISJOINT arms; the
+    # driving-axis ε² (largest) is surfaced in the flat fields, the full per-axis breakdown in
+    # subtype_omnibus_by_axis. Effect-size class bins on ε² ONLY (p is display-only: at TCGA n's KW
+    # p is near-always significant). One-directional context — never moves presence_verdict.
+    omnibus = _stats.kruskal_epsilon_squared_by_axis(powered_vectors, powered_member_sets)
 
     # PURITY spread across MEASURED strata (2026-08-21) — lets a consumer see whether the subtype
     # enrichment signal co-varies with tumor purity: if the "enriched" strata are systematically

@@ -15,7 +15,10 @@ from methods.subgroup_common.panorama import (
     axis_quality,
     build_panorama,
     delta_reducer,
+    disjoint_arms,
     evidence_state,
+    partition_axes,
+    stratum_axis,
 )
 
 
@@ -56,6 +59,57 @@ def test_delta_reducer_ignores_absent_and_null():
     assert out["min_subgroup_frequency"] == 0.1
     assert out["cross_subgroup_delta_frequency"] == 0.4
     assert out["n_subgroups_with_data"] == 2  # absent stratum has subgroup_n=0
+    assert out["n_subgroups_measured"] == 2
+
+
+def test_delta_reducer_excludes_underpowered_from_spread():
+    """B11-S2-1: a tiny-n (underpowered) stratum with an extreme value must NOT drive
+    the max/min/delta scalars (the cards deem underpowered strata inadmissible in
+    comparative prose). It is still counted in n_subgroups_with_data, just excluded
+    from the spread."""
+    records = [
+        {"metric": 0.50, "subgroup_n": 100, "evidence_state": "measured"},
+        {"metric": 0.40, "subgroup_n": 40, "evidence_state": "measured"},
+        # tiny-n outlier — 0.99 would blow up the delta if admitted
+        {"metric": 0.99, "subgroup_n": 3, "evidence_state": "underpowered"},
+    ]
+    out = delta_reducer(records, metric_key="metric", label="frequency")
+    assert out["max_subgroup_frequency"] == 0.50   # NOT the 0.99 underpowered outlier
+    assert out["min_subgroup_frequency"] == 0.40
+    assert out["cross_subgroup_delta_frequency"] == 0.1   # 0.50-0.40, not 0.99-0.40
+    assert out["n_subgroups_measured"] == 2
+    assert out["n_subgroups_with_data"] == 3  # underpowered stratum still has samples
+
+
+def test_stratum_axis_and_partition():
+    """B11-S1: the 5 orthogonal COADREAD axes are recovered from stratum_ids, and
+    unrecognised strata fall back to their own singleton axis (never falsely pooled)."""
+    assert stratum_axis("MSI_H") == "MSI"
+    assert stratum_axis("MSS") == "MSI"
+    assert stratum_axis("CMS2") == "CMS"
+    assert stratum_axis("left_sided") == "sidedness"
+    assert stratum_axis("CIMP_High") == "CIMP"
+    assert stratum_axis("stage_II") == "stage"
+    assert stratum_axis("KRAS_G12C") == "KRAS_G12C"  # unknown → singleton
+    axes = partition_axes(["MSI_H", "MSS", "CMS1", "CMS2", "left_sided", "right_sided",
+                           "CIMP_High", "stage_I", "stage_II", "stage_resectable"])
+    assert axes["MSI"] == ["MSI_H", "MSS"]
+    assert axes["CMS"] == ["CMS1", "CMS2"]
+    assert axes["sidedness"] == ["left_sided", "right_sided"]
+    assert axes["stage"] == ["stage_I", "stage_II", "stage_resectable"]
+
+
+def test_disjoint_arms_drops_overlapping_composite():
+    """The composite stage_resectable is a superset of stage_I ∪ stage_II; the
+    disjointness guard drops it so the omnibus runs over disjoint arms only."""
+    member_sets = {
+        "stage_I": {1, 2, 3},
+        "stage_II": {4, 5, 6},
+        "stage_resectable": {1, 2, 3, 4, 5, 6},   # overlaps both
+    }
+    kept, dropped = disjoint_arms(["stage_I", "stage_II", "stage_resectable"], member_sets)
+    assert kept == ["stage_I", "stage_II"]
+    assert dropped == ["stage_resectable"]
 
 
 def _fake_reader(target, indication, *, subgroups=None,

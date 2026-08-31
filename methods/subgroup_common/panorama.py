@@ -28,6 +28,7 @@ Shared rigor primitives (single source of truth — do NOT redefine per method):
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Callable
 
@@ -82,6 +83,85 @@ def axis_quality(records: list[dict], *, min_powered_strata: int = 2) -> str:
     return "powered" if n_measured >= min_powered_strata else "underpowered"
 
 
+# ---- Orthogonal subtype AXES ----------------------------------------------
+# A molecular-subtype assignment shard packs strata from SEVERAL ORTHOGONAL axes.
+# For COADREAD the 14 strata span 5 axes (MSI, CMS, sidedness, CIMP, stage), and a
+# single patient is a member of ~one arm PER axis (MSI_H AND CMS2 AND left_sided AND
+# CIMP_Neg AND stage_II). So the per-stratum ROWS legitimately share samples, but any
+# CROSS-stratum OMNIBUS (k-group log-rank, Kruskal-Wallis) MUST be run per-axis over
+# that axis's DISJOINT arms: pooling arms from different axes replicates each sample
+# ~n_axes times, inflating N and violating the test's independent-groups assumption
+# (the whole test statistic becomes uninterpretable).
+#
+# `stratum_axis` maps a stratum_id → its axis. Strata we are not CONFIDENT share an
+# axis fall back to a SINGLETON axis (the stratum_id itself): the safe direction is
+# UNDER-pooling (a singleton axis is simply never tested) rather than a false pooled
+# test across biologically unrelated partitions. `disjoint_arms` is the second safety
+# net — it verifies actual membership disjointness WITHIN an axis (e.g. it drops the
+# composite `stage_resectable`, which is a superset of stage_I ∪ stage_II).
+
+_AXIS_RULES: list[tuple[str, "re.Pattern[str]"]] = [
+    ("MSI",           re.compile(r"^(MSI([_-]?[HL])?|MSS)$", re.IGNORECASE)),
+    ("CMS",           re.compile(r"^CMS[1-4](_depmap)?$", re.IGNORECASE)),
+    ("sidedness",     re.compile(r"^(left|right)_sided$", re.IGNORECASE)),
+    ("CIMP",          re.compile(r"^CIMP", re.IGNORECASE)),
+    ("stage",         re.compile(r"^stage", re.IGNORECASE)),
+    ("histology",     re.compile(r"^histology", re.IGNORECASE)),
+    ("HPV",           re.compile(r"^HPV[_-]", re.IGNORECASE)),
+    ("primary_site",  re.compile(r"^site_", re.IGNORECASE)),
+    ("PAM50",         re.compile(r"^PAM50", re.IGNORECASE)),
+    ("molecular_subtype", re.compile(r"^subtype_", re.IGNORECASE)),
+]
+
+
+def stratum_axis(stratum_id: str) -> str:
+    """Map a stratum_id to its ORTHOGONAL subtype axis (single source of truth).
+
+    Returns a canonical axis label for the known molecular-subtype partitions
+    (MSI / CMS / sidedness / CIMP / stage / histology / HPV / primary_site / PAM50 /
+    molecular_subtype). An unrecognised stratum returns its OWN id as a singleton axis
+    — the deliberately conservative default, so it is never falsely pooled into a
+    cross-axis omnibus (a singleton axis has <2 arms and is simply not tested).
+    """
+    s = str(stratum_id)
+    for axis, rx in _AXIS_RULES:
+        if rx.match(s):
+            return axis
+    return s
+
+
+def partition_axes(strata) -> dict[str, list[str]]:
+    """Group stratum_ids by axis → {axis: [stratum_id, ...]} (sorted, deterministic)."""
+    out: dict[str, list[str]] = {}
+    for sid in sorted(strata):
+        out.setdefault(stratum_axis(sid), []).append(sid)
+    return out
+
+
+def disjoint_arms(axis_strata, member_sets: dict) -> tuple[list, list]:
+    """Reduce one axis's arms to a mutually-DISJOINT subset by member overlap.
+
+    Even within a single axis, arms can overlap (e.g. the composite `stage_resectable`
+    is a superset of stage_I and stage_II). Greedily keep arms in sorted id order,
+    dropping any arm that shares a member with an already-kept arm.
+
+    Args:
+      axis_strata: stratum_ids belonging to one axis.
+      member_sets: {stratum_id: set(member id)} — the sample/patient ids in each arm.
+    Returns:
+      (kept, dropped) stratum-id lists. `kept` are pairwise-disjoint.
+    """
+    kept, dropped, seen = [], [], set()
+    for sid in sorted(axis_strata):
+        ms = member_sets.get(sid) or set()
+        if ms & seen:
+            dropped.append(sid)
+        else:
+            kept.append(sid)
+            seen |= set(ms)
+    return kept, dropped
+
+
 # ---- Named cross-stratum reducers -----------------------------------------
 # A card picks one. Each takes the list of projected records + the metric key
 # and returns a dict of summary scalars merged into the panorama envelope.
@@ -89,13 +169,21 @@ def axis_quality(records: list[dict], *, min_powered_strata: int = 2) -> str:
 def delta_reducer(records: list[dict], metric_key: str, label: str = "frequency") -> dict:
     """max/min/delta across strata for a single numeric metric (freq, dependency…).
 
-    Only `measured`/`underpowered` records with a non-null metric contribute;
-    `absent` strata are ignored in the spread but still counted in n_subgroups.
+    Only POWERED (`evidence_state == "measured"`) records with a non-null metric drive
+    the cross-stratum spread. UNDERPOWERED strata (1 <= n < floor) are deliberately
+    EXCLUDED: they are "inadmissible in comparative prose" per every panorama card's own
+    caveat, so a single tiny-n stratum with an extreme value must not inflate
+    cross_subgroup_delta_* nor trip a "subgroup-specific pattern" hint. Underpowered
+    strata are still reported per-stratum (in per_subgroup_metrics) — they just do not
+    drive the cross-stratum scalars. `n_subgroups_measured` counts the powered strata the
+    spread is actually built from; `n_subgroups_with_data` is retained (all non-empty
+    strata) for context.
     """
-    vals = [r[metric_key] for r in records
-            if r.get(metric_key) is not None and r.get("evidence_state") != "absent"]
+    measured = [r for r in records if r.get("evidence_state") == "measured"]
+    vals = [r[metric_key] for r in measured if r.get(metric_key) is not None]
     return {
-        f"n_subgroups_with_data": sum(1 for r in records if r.get("subgroup_n")),
+        "n_subgroups_with_data": sum(1 for r in records if r.get("subgroup_n")),
+        "n_subgroups_measured": len(vals),
         f"max_subgroup_{label}": (max(vals) if vals else None),
         f"min_subgroup_{label}": (min(vals) if vals else None),
         f"cross_subgroup_delta_{label}": (round(max(vals) - min(vals), 4) if vals else None),

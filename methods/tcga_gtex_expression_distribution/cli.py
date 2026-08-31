@@ -117,12 +117,15 @@ def build_subtype_panorama(target: str, indication: str, plot_data_out=None) -> 
         "proxy_normal_tissues": land.get("proxy_normal_tissues") or [],
         # across-subtype omnibus (Phase 3) — the ANOVA-analogue: is subtype a patient-selection
         # axis for this target, and how strong (ε² variance-explained)? Effect-size class is the
-        # decision-relevant field; p is display-only.
+        # decision-relevant field; p is display-only. Run PER-AXIS (B11-S1-2): the flat fields
+        # carry the driving (largest-ε²) axis; subtype_omnibus_by_axis is the full breakdown.
         "subtype_omnibus_kruskal_h": land.get("subtype_omnibus_kruskal_h"),
         "subtype_omnibus_p": land.get("subtype_omnibus_p"),
         "subtype_variance_explained": land.get("subtype_variance_explained"),
         "subtype_effect_size_class": land.get("subtype_effect_size_class", "data_unavailable"),
         "which_subtypes_separate": land.get("which_subtypes_separate"),
+        "subtype_omnibus_driving_axis": land.get("driving_axis"),
+        "subtype_omnibus_by_axis": land.get("subtype_omnibus_by_axis") or [],
         "per_subgroup_metrics": land.get("subtype_landscape") or [],
         **({"_subtype_note": land["_subtype_note"]} if "_subtype_note" in land else {}),
         "method_version": METHOD_VERSION,

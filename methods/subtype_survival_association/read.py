@@ -4,11 +4,17 @@ The SUBTYPE arm of the prognostic question (differentiation Q2): does overall su
 {indication}'s molecular subtypes? INDICATION-level (target-independent) — a HYPOTHESIS-GENERATING
 prognostic association for the biomarker/patient-selection facet, NOT a clinical claim.
 
-  - subtype_stratifies_survival        → survival differs significantly across subtypes (omnibus
-      k-group log-rank p <= alpha, with >= 2 admissible strata).
-  - no_subtype_survival_association     → no significant cross-subtype survival difference.
-  - insufficient_survival_data          → < 2 strata clear the per-arm floor, or too few events.
+  - subtype_stratifies_survival        → survival differs significantly on >= 1 orthogonal subtype
+      AXIS (a per-axis omnibus k-group log-rank p <= alpha, over that axis's disjoint arms).
+  - no_subtype_survival_association     → no significant cross-subtype survival difference on any axis.
+  - insufficient_survival_data          → no axis has >= 2 disjoint strata clearing the per-arm floor.
   - data_unavailable                    → no assignment shard or no survival substrate.
+
+PER-AXIS (B11-S1-1): a subtype shard packs strata from SEVERAL orthogonal axes (COADREAD: MSI, CMS,
+sidedness, CIMP, stage) with OVERLAPPING membership — a patient is a member of ~one arm per axis. A
+single pooled k-group log-rank over ALL strata would double-count each patient ~n_axes-fold and mix
+unrelated biological questions into one uninterpretable p. So we run ONE omnibus PER axis over that
+axis's disjoint arms (per_axis_association[]); the headline names the driving (most-significant) axis.
 
 ZERO new ingestion — reuses:
   - a TCGA-side subgroup-assignment shard (patient-barcode-keyed, e.g. tcga-maf-subgroup-assignments-
@@ -159,37 +165,84 @@ def read_subtype_survival_association(indication: str, subgroup_assignments_mani
 
     # 3) build per-stratum arms over patients-with-OS; keep only strata clearing the per-arm floor
     import numpy as np
-    arms, per_stratum, dropped, n_events = [], [], [], 0
+    from methods.subgroup_common.panorama import partition_axes, disjoint_arms
+
+    arm_data = {}                 # sid -> (times, events, members_set)
+    per_stratum, dropped = [], []
     for sid, ids in sorted(strata.items()):
-        pairs = [cdr[c] for c in ids if c in cdr]
+        members = {c for c in ids if c in cdr}
+        pairs = [cdr[c] for c in members]
         if len(pairs) >= MIN_PER_ARM:
             times = np.array([t for _o, t in pairs], float)
             events = np.array([o for o, _t in pairs], int)
-            arms.append((times, events))
-            n_events += int(events.sum())
+            arm_data[sid] = (times, events, members)
             per_stratum.append({"stratum": sid, "n": len(pairs), "n_events": int(events.sum()),
                                 "median_ostime_days": round(float(np.median(times)), 1)})
         elif pairs:
             dropped.append({"stratum": sid, "n": len(pairs), "reason": "below_per_arm_floor"})
 
-    n_admissible = len(arms)
-    base["n_admissible_strata"] = n_admissible
+    base["n_admissible_strata"] = len(arm_data)
     base["per_stratum"] = per_stratum
     if dropped:
         base["dropped_underpowered_strata"] = dropped
-    if n_admissible < 2:
+
+    # PER-AXIS OMNIBUS (B11-S1-1, 2026-08-31). A subtype shard packs strata from SEVERAL
+    # ORTHOGONAL axes (COADREAD: MSI, CMS, sidedness, CIMP, stage). A single patient is a member
+    # of ~one arm PER axis (MSI_H AND CMS2 AND left_sided …), so pooling ALL strata into ONE
+    # k-group log-rank double-counts each patient ~n_axes-fold, violates the test's independent-
+    # groups assumption, and mixes 5 unrelated biological questions into one uninterpretable p.
+    # Instead: group strata by axis and run ONE omnibus per axis over that axis's DISJOINT arms.
+    # disjoint_arms additionally drops within-axis composites (e.g. stage_resectable ⊇ stage_I/II).
+    member_sets = {sid: m for sid, (_t, _e, m) in arm_data.items()}
+    per_axis, overlap_dropped = [], []
+    for axis, sids in partition_axes(arm_data.keys()).items():
+        kept, dropped_overlap = disjoint_arms(sids, member_sets)
+        for d in dropped_overlap:
+            overlap_dropped.append({"stratum": d, "axis": axis,
+                                    "reason": "overlaps_disjoint_arm_in_axis"})
+        if len(kept) < 2:
+            continue
+        arms = [(arm_data[s][0], arm_data[s][1]) for s in kept]
+        ax_events = int(sum(int(arm_data[s][1].sum()) for s in kept))
+        ax_patients = int(sum(len(arm_data[s][2]) for s in kept))
+        chi2, p, df = multivariate_logrank(arms)
+        per_axis.append({
+            "axis": axis, "strata": kept, "n_strata": len(kept),
+            "subtype_survival_association_class":
+                classify_subtype_survival_association(p, len(kept), ax_events),
+            "logrank_p": float(f"{p:.3g}"), "logrank_chi2": round(float(chi2), 3),
+            "logrank_df": df, "n_events": ax_events, "n_patients": ax_patients,
+        })
+
+    if overlap_dropped:
+        base["dropped_overlapping_strata"] = overlap_dropped
+    base["per_axis_association"] = per_axis
+    base["n_axes_tested"] = len(per_axis)
+
+    if not per_axis:
         base.update({"subtype_survival_association_class": "insufficient_survival_data",
-                     "_data_note": f"only {n_admissible} strata clear the per-arm floor of {MIN_PER_ARM}"})
+                     "_data_note": (f"no orthogonal subtype axis has >= 2 disjoint strata clearing "
+                                    f"the per-arm floor of {MIN_PER_ARM}")})
         return base
 
-    chi2, p, df = multivariate_logrank(arms)
-    cls = classify_subtype_survival_association(p, n_admissible, n_events)
+    # Headline = the most significant axis (min p). subtype_stratifies_survival iff ANY axis is
+    # significant; driving_axis names which. The flat logrank_* fields carry that axis (back-compat)
+    # — a VALID single-axis test, not the old cross-axis pooled artefact.
+    best = min(per_axis, key=lambda a: (a["logrank_p"] if a["logrank_p"] is not None else 2.0))
+    any_sig = any(a["subtype_survival_association_class"] == "subtype_stratifies_survival"
+                  for a in per_axis)
     base.update({
-        "subtype_survival_association_class": cls,
-        "logrank_p": float(f"{p:.3g}"),
-        "logrank_chi2": round(float(chi2), 3),
-        "logrank_df": df,
-        "n_events": n_events,
-        "n_patients": sum(s["n"] for s in per_stratum),
+        "subtype_survival_association_class":
+            "subtype_stratifies_survival" if any_sig else "no_subtype_survival_association",
+        "driving_axis": best["axis"],
+        "logrank_p": best["logrank_p"],
+        "logrank_chi2": best["logrank_chi2"],
+        "logrank_df": best["logrank_df"],
+        "n_events": best["n_events"],
+        "n_patients": best["n_patients"],
+        "_data_note": (f"per-axis omnibus across {len(per_axis)} orthogonal subtype axes "
+                       f"({', '.join(a['axis'] for a in per_axis)}); headline = driving axis "
+                       f"'{best['axis']}' (min p). Each axis tested at alpha={SIGNIFICANCE_ALPHA} "
+                       f"over disjoint arms (multiple axes untested for multiplicity)."),
     })
     return base

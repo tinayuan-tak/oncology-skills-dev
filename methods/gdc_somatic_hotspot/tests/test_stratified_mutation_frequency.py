@@ -107,7 +107,13 @@ def test_stratified_recomputes_within_member_set(synthetic_env):
     # Descriptive metadata present on every record
     assert by["MUT_HI"]["subtype_defining_data"] == "genomic"
     assert by["MUT_HI"]["source_cohort"] == "TCGA-MC3"
-    assert pan["cross_subgroup_delta_frequency"] == 1.0
+    # B11-S2-1: both strata are UNDERPOWERED (n=8, 10 < the n-floor of 30), so neither may drive
+    # the cross-stratum spread — they are inadmissible in comparative prose. The spread scalars are
+    # therefore None (n_subgroups_measured=0), even though both are counted in n_subgroups_with_data.
+    assert pan["cross_subgroup_delta_frequency"] is None
+    assert pan["max_subgroup_frequency"] is None
+    assert pan["n_subgroups_measured"] == 0
+    assert pan["n_subgroups_with_data"] == 2
 
 
 def test_hotspot_frequencies_within_stratum(synthetic_env):

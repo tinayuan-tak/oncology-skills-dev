@@ -282,6 +282,73 @@ def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
     return base
 
 
+def kruskal_epsilon_squared_by_axis(subtype_vectors: dict, member_sets: dict | None = None,
+                                    min_group_n: int = 2, min_groups: int = 2) -> dict:
+    """PER-AXIS across-subtype omnibus — the double-count-safe form of the KW/ε² omnibus.
+
+    A molecular-subtype shard packs strata from SEVERAL orthogonal axes (COADREAD: MSI,
+    CMS, sidedness, CIMP, stage). The SAME sample's log2TPM is replicated into its arm on
+    EACH axis (MSI_H AND CMS2 AND left_sided …), so feeding ALL strata into ONE
+    `kruskal_epsilon_squared` call violates KW's independent-groups assumption and inflates
+    N ~n_axes-fold — the ε²/effect-size class is then computed on an invalid pooling
+    (finding B11-S1-2). This wrapper runs ONE omnibus per axis over that axis's DISJOINT
+    arms (via subgroup_common.panorama.{partition_axes,disjoint_arms}) and never pools
+    across axes.
+
+    Args:
+      subtype_vectors: {stratum_id: [log2tpm, ...]} for POWERED strata.
+      member_sets: {stratum_id: set(sample id)} — used only to drop within-axis overlapping
+        arms (e.g. the composite stage_resectable). When None, no intra-axis overlap is
+        assumed (each axis's strata are treated as disjoint).
+
+    Returns (superset of the single-axis shape, back-compat for existing consumers):
+      subtype_omnibus_by_axis   [ {axis, strata, **omnibus_fields}, ... ] (only axes with
+                                 >= min_groups disjoint powered arms)
+      n_axes_tested             int
+      driving_axis              the axis with the largest ε² (or None)
+      + the representative single-axis fields (subtype_variance_explained,
+        subtype_effect_size_class, subtype_omnibus_p, subtype_omnibus_kruskal_h,
+        which_subtypes_separate, n_subtypes_tested, n_samples_tested) copied from the
+        driving axis, so consumers reading the flat fields keep working but now see a
+        VALID single-axis number rather than a cross-axis pooled artefact.
+    """
+    from methods.subgroup_common.panorama import partition_axes, disjoint_arms
+
+    vectors = subtype_vectors or {}
+    member_sets = member_sets or {}
+    by_axis = []
+    for axis, sids in partition_axes(vectors.keys()).items():
+        kept, _dropped = disjoint_arms(sids, member_sets) if member_sets else (sorted(sids), [])
+        axis_vectors = {s: vectors[s] for s in kept}
+        res = kruskal_epsilon_squared(axis_vectors, min_group_n=min_group_n, min_groups=min_groups)
+        if res["n_subtypes_tested"] >= min_groups:
+            by_axis.append({"axis": axis, "strata": kept, **res})
+
+    out = {"subtype_omnibus_by_axis": by_axis, "n_axes_tested": len(by_axis),
+           "driving_axis": None,
+           "subtype_omnibus_kruskal_h": None, "subtype_omnibus_p": None,
+           "subtype_variance_explained": None,
+           "subtype_effect_size_class": "data_unavailable",
+           "which_subtypes_separate": None,
+           "n_subtypes_tested": 0, "n_samples_tested": 0}
+    if not by_axis:
+        return out
+    # Representative = the axis explaining the most variance (largest ε²). This is the
+    # decision-relevant "is subtype a patient-selection axis, and how strong" summary.
+    driving = max(by_axis, key=lambda a: (a["subtype_variance_explained"] or -1.0))
+    out.update({
+        "driving_axis": driving["axis"],
+        "subtype_omnibus_kruskal_h": driving["subtype_omnibus_kruskal_h"],
+        "subtype_omnibus_p": driving["subtype_omnibus_p"],
+        "subtype_variance_explained": driving["subtype_variance_explained"],
+        "subtype_effect_size_class": driving["subtype_effect_size_class"],
+        "which_subtypes_separate": driving["which_subtypes_separate"],
+        "n_subtypes_tested": driving["n_subtypes_tested"],
+        "n_samples_tested": driving["n_samples_tested"],
+    })
+    return out
+
+
 def _average_ranks(values):
     """1-based average (mid) ranks of `values` (ties share the mean of their rank span) —
     the Kruskal-Wallis ranking convention. Pure numpy."""
