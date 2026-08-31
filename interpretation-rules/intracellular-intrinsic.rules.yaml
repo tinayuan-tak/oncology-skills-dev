@@ -2758,12 +2758,20 @@ rules:
       field: network_class
       equals: sparse
     signals:
-      small_molecule: opposing
-      degrader: opposing
+      small_molecule: neutral
+      degrader: neutral
     rationale: |
-      0-1 edges in SIGNOR-via-OmniPath. Mechanism-of-action reasoning is
-      unconstrained by prior signaling context — governance readers should
-      require additional mechanism evidence before nomination.
+      0-1 curated edges in the composed network (SIGNOR + CollecTRI + Reactome).
+      Mechanism-of-action reasoning is unconstrained by prior signaling context —
+      governance readers should require additional mechanism evidence before
+      nomination. NEUTRAL, not opposing (B6-M05): network sparsity is a CURATION
+      gap for an understudied target, NOT evidence against tractability — an
+      opposing signal penalizes under-studied biology and contradicts the skill's
+      own honesty layer (the claim_vector maps sparse -> "weak", and the disclaimer
+      states no axis carries a negative tier). The `sparse` mechanism VERDICT still
+      fires (the resolver rung keys on this rule FIRING, not its per-modality
+      signal), so the mechanism gate + recommendation spine are byte-stable; only
+      the per-modality claim signal is corrected.
 
   - rule_id: mechanism-data-unavailable-insufficient
     when:
