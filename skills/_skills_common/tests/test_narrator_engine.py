@@ -9,7 +9,8 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common import narrator_engine as NE  # noqa: E402
-from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY  # noqa: E402
+from _skills_common.narrator_lenses import (  # noqa: E402
+    FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_SELECTIVITY)
 
 
 def _decision():
@@ -54,6 +55,22 @@ def test_prompt_carries_signal_lead_and_capsules_and_scope():
     assert "selectivity_index=0.85" in p                     # a bounded raw anchor reached the prompt
     assert "COLLAPSED VERDICT" in p and "lineage_selective" in p
     assert p.index("SUB-GROUP SIGNALS") < p.index("COLLAPSED VERDICT")   # signals lead, verdict trails
+
+
+def test_selectivity_collapsed_verdict_is_resolved_class_not_rule_id():
+    """The tumor-selectivity lens declares verdict_key='selectivity_class', so the COLLAPSED VERDICT
+    prompt line injects the RESOLVED (post-veto) class token — not driving_rule_id (a rule-id string
+    like 'tvn-...-veto'), which is what the fallback chain landed on before the fix. Mirrors the
+    TUMOR_PRESENCE verdict_key contract."""
+    assert TUMOR_SELECTIVITY.verdict_key == "selectivity_class"
+    decision = {"target": "TACSTD2", "indication": "COADREAD",
+                "headline": {"selectivity_class": "selective_but_broadly_normal",
+                             "driving_rule_id": "tvn-no-therapeutic-window-veto",
+                             "claim_vector": {"WIN": {"signal": "strong", "corroboration": "high"}}}}
+    p = NE.build_capsule_prompt(decision, TUMOR_SELECTIVITY)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "selective_but_broadly_normal" in collapsed
+    assert "tvn-no-therapeutic-window-veto" not in collapsed
 
 
 def test_make_synthesize_fn_signature(monkeypatch):

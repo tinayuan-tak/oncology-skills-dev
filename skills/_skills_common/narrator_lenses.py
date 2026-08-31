@@ -54,8 +54,12 @@ TUMOR_SELECTIVITY = LensConfig(
     relevance_prompt="judge the tumor-selectivity / therapeutic-window support for this target.",
     axis_labels={"WIN": "therapeutic window", "DIST": "normal-tissue distribution",
                  "INT": "tumor-intrinsic", "SAFE": "safety"},
-    scope_exclusions=("absolute abundance as presence", "therapeutic modality"),
+    scope_exclusions=("absolute abundance as presence", "therapeutic modality",
+                      "on-target safety severity / nomination call"),
     mode="verdict",
+    verdict_key="selectivity_class",   # the RESOLVED (post-veto) class token; else the collapsed-verdict
+                                       # prompt line fell through to driving_rule_id (a rule-id string),
+                                       # e.g. "tvn-...-veto" — mirrors the TUMOR_PRESENCE fix.
 )
 
 GENOMIC_ALTERATION = LensConfig(
