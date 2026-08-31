@@ -62,6 +62,19 @@ allele_selective_eligibility_rules:
   - activating-driver-role-safety-context
   - alteration-role-gof-driver-supportive
 
+# REQUIRED ROLE CO-GATE (2026-08-31, B4-1 fix): an eligibility signal above is NECESSARY but NOT
+# SUFFICIENT. Both eligibility rules fire on functional_direction=activating / alteration_role=
+# direct_driver_gof, which a spurious IntOGen 'Act' label sets even for a TUMOR SUPPRESSOR (SMARCA2:
+# oncokb_gene_type=TSG yet functional_direction=activating). A TSG is NOT drugged by a mutant-selective
+# activator that spares WT, so downgrading its WT-loss safety concern is wrong (an under-calls-safety
+# bug). The RETIRED safety.resolver.yaml GROUP-1 downgrades required BOTH an activating signal AND
+# oncogene-role-safety-context (when_all_fired); this co-gate restores that conjunction in the Layer-2
+# modality-safety composition: allele-selective escape requires an eligibility rule AND every rule here
+# to have fired. A genuine GoF ONCOGENE (oncokb_gene_type=ONCOGENE) fires oncogene-role-safety-context;
+# a TSG-with-spurious-Act does not → small_molecule stays `hold`.
+allele_selective_required_role_rules:
+  - oncogene-role-safety-context
+
 # DISQUALIFIERS: a GoF oncogene that is AMPLIFICATION-driven (ERBB2, MDM2, MYC) or role-only /
 # rarely-altered (MCL1) has NO selectable activating POINT mutation — a small molecule engages the
 # WILD-TYPE (amplified/role-only) protein, so there is NO allele-selective escape and the WT-loss

@@ -4,9 +4,16 @@ The framework-wide rule audit (2026-08-15) found the WT-constraint safety downgr
 (wt_constraint_mechanism_mismatch / wt_human_genetics_mechanism_mismatch) fired for TUMOR
 SUPPRESSORS whose alteration-role card carries a spurious intOGen 'Act' functional_direction
 (e.g. SMARCA2: oncokb_gene_type=TSG yet functional_direction=activating) — wrongly DOWNGRADING a
-genuine safety concern (an under-calls-safety bug). Fix: GROUP-1 downgrades now require BOTH
-activating-driver-role-safety-context AND oncogene-role-safety-context (oncokb_gene_type=ONCOGENE),
-so only a genuine GoF ONCOGENE earns the downgrade. This test pins that gate.
+genuine safety concern (an under-calls-safety bug).
+
+DESIGN MOVED (safety.resolver.yaml v2.0.0, 2026-08-24): the role-proxy GROUP-1 mechanism-mismatch
+downgrade rungs were RETIRED from the resolver (it now emits the honest raw WT-loss concern); the
+allele-selective, modality-conditional downgrade moved to the Layer-2 modality-safety composition,
+driven by vocabularies/wt_loss_safety_conditioning.yaml. The B4-1 review (2026-08-31) found the moved
+logic had DROPPED the oncogene-role co-gate — the eligibility list is a flat OR-set, so a lone
+activating signal (a TSG with a spurious IntOGen 'Act') again earned the small_molecule escape. Fix:
+allele_selective_required_role_rules pins oncogene-role-safety-context as a REQUIRED co-gate. These
+tests now pin the co-gate in its new (contract) home instead of the retired resolver rungs.
 """
 from __future__ import annotations
 
@@ -15,10 +22,8 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
-SAFETY = REPO / "resolvers" / "safety.resolver.yaml"
 RULES = REPO / "interpretation-rules" / "intracellular-intrinsic.rules.yaml"
-
-_MISMATCH = {"wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch"}
+COND = REPO / "vocabularies" / "wt_loss_safety_conditioning.yaml"
 
 
 def _rules():
@@ -26,18 +31,23 @@ def _rules():
     return doc.get("rules", doc) if isinstance(doc, (list, dict)) else []
 
 
+def _conditioning():
+    return yaml.safe_load(COND.read_text())
+
+
 def test_every_gof_downgrade_requires_oncogene_role():
-    """Each mechanism-mismatch downgrade rung must AND-gate on both the activating signal and the
-    oncogene-role signal — so a TSG (or any non-oncogene) cannot be downgraded."""
-    resolver = yaml.safe_load(SAFETY.read_text())
-    rungs = [r for r in resolver["resolve"] if r.get("verdict") in _MISMATCH and "when_all_fired" in r]
-    assert rungs, "expected GROUP-1 mechanism-mismatch downgrade rungs"
-    for r in rungs:
-        waf = r["when_all_fired"]
-        assert "activating-driver-role-safety-context" in waf, r
-        assert "oncogene-role-safety-context" in waf, (
-            f"mechanism-mismatch downgrade {r['verdict']} must require oncogene-role-safety-context "
-            f"(role-agreement gate) — else a TSG gets its safety wrongly downgraded. Got: {waf}")
+    """The allele-selective WT-loss escape must require the oncogene-role co-gate — so a TSG whose
+    alteration-role card carries a spurious activating direction cannot earn the small_molecule
+    downgrade. The eligibility SIGNALS (activating / gof-driver) are necessary but not sufficient;
+    oncogene-role-safety-context (oncokb_gene_type=ONCOGENE) must ALSO fire."""
+    cond = _conditioning()
+    required = cond.get("allele_selective_required_role_rules") or []
+    assert "oncogene-role-safety-context" in required, (
+        "allele_selective_required_role_rules must pin oncogene-role-safety-context — else a TSG with a "
+        f"spurious IntOGen 'Act' label earns the WT-loss small_molecule escape. Got: {required}")
+    # the eligibility signals it co-gates must themselves still be declared
+    elig = cond.get("allele_selective_eligibility_rules") or []
+    assert "activating-driver-role-safety-context" in elig, elig
 
 
 def test_oncogene_role_rule_defined_and_fires_on_oncogene():
@@ -51,9 +61,9 @@ def test_oncogene_role_rule_defined_and_fires_on_oncogene():
 
 
 # --- S1-1 (cards review 2026-08-17): amplification-driven-GoF guard --------------------------------
-# pan_essential_broad_tox_concern (2026-08-21): the pan-essential broad-tox HOLD also carries a
-# GROUP-1 mutant-selective downgrade, so it needs the same amplification guard as the gnomAD/burden holds.
-_HOLDS = {"highly_constrained_safety_concern", "human_genetics_safety_concern", "pan_essential_broad_tox_concern"}
+# In the moved (contract) model the amplification guard is an allele-selective DISQUALIFIER, not a
+# resolver rung: an amplification-driven oncogene (ERBB2/MDM2/MYC) has no selectable activating POINT
+# mutation, so a small molecule engages WT and the WT-loss HOLD stands.
 _AMP_GUARD = "copy-number-amplified-oncogene-safety-context"
 
 
@@ -68,27 +78,13 @@ def test_amplification_guard_rule_defined():
     assert w.get("equals") == "recurrent_focal_amplification"
 
 
-def test_amplified_gof_keeps_hold_above_every_downgrade():
-    """For EVERY GROUP-1 mechanism-mismatch downgrade (warning + both role rules), there must be a
-    higher-precedence GROUP-0 rung that fires the SAME warning + both role rules + the amplification
-    guard and yields a HOLD (not a mismatch) — so an amplification-driven oncogene (ERBB2/MDM2), whose
-    drug hits WT protein, keeps its on-target-safety hold instead of being downgraded."""
-    resolve = yaml.safe_load(SAFETY.read_text())["resolve"]
-    downgrades = [(i, r) for i, r in enumerate(resolve)
-                  if r.get("verdict") in _MISMATCH and "when_all_fired" in r]
-    assert downgrades, "expected GROUP-1 mechanism-mismatch downgrade rungs"
-    guards = [(i, r) for i, r in enumerate(resolve)
-              if r.get("verdict") in _HOLDS and _AMP_GUARD in (r.get("when_all_fired") or [])]
-    assert guards, "expected GROUP-0 amplification-guard rungs that keep the hold"
-    # every guard must AND-gate on the amp rule + BOTH role rules (else it would over-broadly hold)
-    for _, g in guards:
-        waf = g["when_all_fired"]
-        assert "activating-driver-role-safety-context" in waf and "oncogene-role-safety-context" in waf, g
-    for di, d in downgrades:
-        warning = next(x for x in d["when_all_fired"] if x.endswith("-safety-warning"))
-        # a guard sharing this warning must exist AND sit BEFORE the downgrade (precedence: first match wins)
-        matching = [gi for gi, g in guards if warning in g["when_all_fired"]]
-        assert matching, f"no amplification-guard rung for warning {warning}"
-        assert min(matching) < di, (
-            f"amplification guard for {warning} must precede the GROUP-1 downgrade at index {di} "
-            f"(first-match-wins) — else the downgrade fires before the guard can keep the hold")
+def test_amplified_gof_disqualifies_allele_selective_escape():
+    """An amplification-driven oncogene (ERBB2/MDM2/MYC) is the WILD-TYPE protein over-produced from
+    extra copies — a small molecule engages WT, so there is NO allele-selective escape and the WT-loss
+    HOLD must stand. In the moved (contract) model this is a DISQUALIFIER: even with an activating role
+    + the oncogene-role co-gate, the amplification disqualifier keeps small_molecule=hold."""
+    cond = _conditioning()
+    disq = cond.get("allele_selective_disqualifier_rules") or []
+    assert _AMP_GUARD in disq, (
+        f"{_AMP_GUARD} must be an allele_selective_disqualifier — else an amplification-driven oncogene "
+        f"(whose drug hits WT protein) wrongly earns the WT-loss escape. Got: {disq}")
