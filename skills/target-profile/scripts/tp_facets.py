@@ -1636,10 +1636,16 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
     # this arm is behavior-preserving without the retired shorts.
     dep_v = _v("dependency")
     sl_cls = _cs("synthetic-lethal-partners", "sl_partner_class")
-    combo_v = _cs("combinatorial-dependency", "combinatorial_dependency_verdict")
+    # In the fan-out, combinatorial-dependency is composed as a CARD (under combination-and-vulnerability),
+    # so it emits combinatorial_dependency_CLASS — NOT the standalone skill's combinatorial_dependency_VERDICT.
+    # Reading the verdict field left combo signal permanently None → the relational arm never saw a
+    # combinatorial SL. Read the class + check the two SL class tokens (strong_/context_synthetic_lethal),
+    # which are the card-vocab equivalents of the constitutive/context verdicts (suppressive_interaction is
+    # NOT a co-targeting rationale, so it is excluded).
+    combo_cls = _cs("combinatorial-dependency", "combinatorial_dependency_class")
     rel_dom = (role == "direct_driver_lof" or dep_v == "partner_conditional_dependent" or sl_cls == "has_experimental_sl_partner")
-    rel_sup = (sl_cls == "has_computational_sl_partner" or combo_v in ("constitutive_combinatorial_dependency", "context_combinatorial_dependency"))
-    rel_seen = any(x not in (None, "data_unavailable", "") for x in (role, dep_v, sl_cls, combo_v))
+    rel_sup = (sl_cls == "has_computational_sl_partner" or combo_cls in ("strong_synthetic_lethal", "context_synthetic_lethal"))
+    rel_seen = any(x not in (None, "data_unavailable", "") for x in (role, dep_v, sl_cls, combo_cls))
     rel_tier = "dominant" if rel_dom else "supporting" if rel_sup else "none" if rel_seen else "unknown"
     if rel_dom:
         deriv += [f"{k}={x} -> dependency_relational:dominant" for k, x in

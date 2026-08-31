@@ -128,3 +128,26 @@ def test_override_graceful_skip_when_lookup_absent(monkeypatch):
     monkeypatch.setattr(F, "_actionability_mode_overrides", lambda: {})
     m = F._actionability_mode_facet(_cis_signals(), target="ERBB2")
     assert m["dominant"] == "cis_feature" and m["source"] == "derived"   # no lookup → pure derived
+
+
+def test_relational_arm_reads_combinatorial_class():
+    # Regression (tp_facets combinatorial fix): in the fan-out, combinatorial-dependency is composed as
+    # a CARD emitting combinatorial_dependency_class — NOT the standalone combinatorial_dependency_verdict.
+    # The relational arm must read the CLASS so a real combinatorial synthetic-lethal is seen; reading the
+    # (never-emitted) verdict field left the arm permanently blind to combinatorial SL.
+    s = {"combination_vulnerability": _R(None,
+            [("combinatorial-dependency", "combinatorial_dependency_class", "strong_synthetic_lethal")])}
+    m = _mode(s)
+    assert m["arms"]["dependency_relational"] == "supporting", m["arms"]
+    # context_synthetic_lethal likewise supports (context-conditional buffering is still a co-target rationale)
+    s2 = {"combination_vulnerability": _R(None,
+            [("combinatorial-dependency", "combinatorial_dependency_class", "context_synthetic_lethal")])}
+    assert _mode(s2)["arms"]["dependency_relational"] == "supporting"
+
+
+def test_relational_arm_ignores_suppressive_combinatorial():
+    # A suppressive (masking, positive-GI) interaction is NOT a co-targeting rationale → must not
+    # promote the relational arm to supporting (it is 'none': measured-but-not-actionable).
+    s = {"combination_vulnerability": _R(None,
+            [("combinatorial-dependency", "combinatorial_dependency_class", "suppressive_interaction")])}
+    assert _mode(s)["arms"]["dependency_relational"] != "supporting"
