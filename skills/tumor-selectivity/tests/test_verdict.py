@@ -216,6 +216,56 @@ def test_tphp_does_not_clamp_a_non_selective_call():
     assert v == "not_selective"
 
 
+# --- STROMAL-CONFOUND VETO: the INT-axis arm (tvn-stromal-confound-veto). ---
+_STROMAL_VETO = "tvn-stromal-confound-veto"
+
+
+def test_strong_selective_downgraded_by_stromal_confound_veto():
+    """FAP/POSTN archetype: strong axis-A bulk fold-change but the single-cell attribution shows the
+    signal is CAF/stroma-driven (stromal_confound_class == stromal_confounded) → the INT-axis veto
+    downgrades to selective_but_stromal_confound (a false window for tumor-cell-targeted modalities)."""
+    assert ts._verdict(
+        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _STROMAL_VETO}]) == (
+        "selective_but_stromal_confound", _STROMAL_VETO)
+
+
+def test_modest_and_field_effect_also_downgraded_by_stromal_confound():
+    for r in ("tvn-modest-selective-supportive", "tvn-field-effect-selective-supportive"):
+        assert ts._verdict([{"rule_id": r}, {"rule_id": _STROMAL_VETO}])[0] == "selective_but_stromal_confound"
+
+
+def test_stromal_confound_veto_alone_does_not_manufacture_selective():
+    v = ts._verdict([{"rule_id": _STROMAL_VETO}])[0]
+    assert v not in ("selective_but_stromal_confound", "selective_but_broadly_normal",
+                     "selective_with_normal_liability")
+
+
+def test_stromal_confound_does_not_clamp_a_non_selective_call():
+    v = ts._verdict([{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _STROMAL_VETO}])[0]
+    assert v == "not_selective"
+
+
+def test_stromal_confound_OUTRANKS_window_kill_when_both_fire():
+    """OPTION B precedence: when a gene is BOTH stroma-driven AND broadly-normal (FAP/POSTN — the CAF
+    genes are broadly normal too), the INT-axis stromal-confound KILL outranks the SAFE-axis window KILL:
+    'the antigen is not on the tumor cells' is the more fundamental disqualifier + more actionable
+    nomination signal. Verdict = selective_but_stromal_confound, driven by the stromal veto."""
+    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
+                          {"rule_id": _VETO}, {"rule_id": _FULL_VETO},
+                          {"rule_id": _SC_VETO}, {"rule_id": _STROMAL_VETO}])
+    assert v == "selective_but_stromal_confound" and drv == _STROMAL_VETO
+
+
+def test_headline_emits_stromal_confound_downgrade():
+    """End-to-end through _headline: the resolved (post-clamp) selectivity_class is the stromal-confound
+    outcome, the raw axis-A class is preserved, and driving_rule_id names the stromal veto."""
+    h = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _STROMAL_VETO}])
+    hl = _headline_for("strong_tumor_selective", h)
+    assert hl["selectivity_class"] == "selective_but_stromal_confound"
+    assert hl["axis_a_selectivity_class"] == "strong_tumor_selective"
+    assert hl["driving_rule_id"] == _STROMAL_VETO
+
+
 # --- _headline must EMIT the resolved (post-veto) verdict, not the raw pre-veto axis-A class. ---
 # If _headline emitted the raw tvn.selectivity_class, a veto-downgraded target
 # (selective_but_broadly_normal) would never appear in decision.json and the narrator would over-claim.

@@ -34,7 +34,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.16.0
+  version: 1.17.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -110,8 +110,10 @@ composition:
     - tumor-vs-normal-percentile-crossing
     - modality-therapeutic-window            # tvn-no-therapeutic-window-veto + tvn-no-full-normal-window-veto feed the _verdict clamp
     - sc-normal-celltype-expression          # tvn-sc-normal-critical-organ-veto (the 3rd, verdict-driving veto arm)
-    - normal-tissue-protein-abundance-tphp   # tvn-tphp-broad-abundant-normal-protein-veto (the 4th veto arm: quantitative
+    - normal-tissue-protein-abundance-tphp   # tvn-tphp-broad-abundant-normal-protein-veto (the 4th normal-breadth arm: quantitative
                                              # normal-PROTEIN abundance liability, Floor-C; feeds the _verdict clamp -> selective_with_normal_liability)
+    - tumor-scrna-celltype-expression        # tvn-stromal-confound-veto (the INT-axis arm): stromal_confound_class == stromal_confounded
+                                             # feeds the _verdict clamp -> selective_but_stromal_confound (Option B: outranks the window KILL)
   synthesis:
     - rule_engine
     - structured_llm    # opt-in --synthesize (selectivity-lens narrator, two-slot; verdict-inert)
@@ -261,28 +263,32 @@ When called as `/tumor-selectivity`, Claude should:
    flag that the v3 sensitivity product is not yet in S3 for that indication
    and the response is on legacy two-contrast data.
 
-## Roadmap — the stromal-confound veto (verdict-driving, backtest-gated)
+## The stromal-confound veto (INT-axis, verdict-driving — SHIPPED v1.17.0, 2026-08-31)
 
-The tumor-side single-cell + spatial cards are currently VERDICT-INERT facets (they surface the
-evidence but do not change `selectivity_class`). The designed next step promotes the single-cell
-malignant-vs-stroma signal to a **verdict-driving clamp**, symmetric to the existing normal-breadth
-veto:
+The tumor-side single-cell attribution is now VERDICT-DRIVING (the spatial cards remain verdict-inert
+facets). `tumor-scrna-celltype-expression` promotes the malignant-vs-stroma signal to a verdict-driving
+clamp, symmetric to the normal-breadth veto but on the tumor-cell-INTRINSIC (INT) axis rather than the
+SAFE axis:
 
 - **Motivation.** For target nomination (ADC/TCE/degrader), the most dangerous false positive is a
-  bulk `tumor_selective` call that is actually driven by CAF/stromal/immune content rather than the
-  malignant cells — building a payload against it misses the cancer. Axis-A over-expression is
-  necessary but NOT sufficient; it must also be malignant-cell-intrinsic. This is the same
-  necessary-but-not-sufficient logic the normal-breadth veto applies on the safety side.
-- **Instrument.** `tumor-scrna-celltype-expression` → a new `tvn-stromal-confound-veto` rule
-  (target-contracts) keyed on low `malignant_detection_fraction` with a dominant microenvironment
-  compartment (e.g. `caf_vs_malignant_class == caf_high`), downgrading a selective axis-A call to a
-  new `selective_but_stromal_confound` class via the shared `_skills_common.selectivity_veto` clamp
-  (so BOTH engines apply it — the same single-sourcing as the normal-breadth veto).
-- **Gate (REQUIRED before shipping).** Verdict-moving → backtest-calibrated on a target PANEL, not a
-  single example: known malignant-intrinsic antigens (CEACAM5, EPCAM, FOLR1, MSLN, ERBB2) must RETAIN
-  their selective call; a canonical stromal/CAF gene (FAP, POSTN, a fibrillar collagen) must be
-  downgraded. Thresholds set from the panel distribution, not eyeballed (cf. the CD19
-  counterexample for the absolute-density facet: an over-eager clamp introduces false downgrades that
-  kill good targets).
-- **Cross-repo.** Needs a target-contracts resolver rule + a `selectivity_veto` clamp arm + a backtest
-  fixture; coordinate via `~/.claude/wip-registry.md` (see CLAUDE.md).
+  bulk `tumor_selective` call actually driven by CAF/stromal content rather than the malignant cells —
+  a payload built against it misses the cancer. Axis-A over-expression is necessary but NOT sufficient;
+  it must also be malignant-cell-intrinsic (the same necessary-but-not-sufficient logic the
+  normal-breadth veto applies on the safety side).
+- **Instrument.** `tumor-scrna-celltype-expression` emits a dedicated, provenance-gated
+  `stromal_confound_class` (analysis-methods); `stromal_confounded` fires the `tvn-stromal-confound-veto`
+  rule (target-contracts), and the shared `_skills_common.selectivity_veto` clamp (BOTH engines)
+  downgrades a selective axis-A call to `selective_but_stromal_confound`. The classifier requires
+  `microenvironment_dominant` (malignant detection < 0.10) + `caf_dominant` + a stromal top compartment
+  + a TRUSTWORTHY malignant annotation (curated/inferCNV, entity-specific); a phenotype_proxy /
+  multi-entity-pooled cube reads `inconclusive_low_confidence` and does NOT fire (a mis-annotation
+  cannot manufacture the downgrade).
+- **Precedence (Option B).** The stromal-confound KILL OUTRANKS the normal-breadth window KILL when
+  both fire (CAF genes are broadly-normal too): "the antigen is not on the tumor cells" is the more
+  fundamental disqualifier and the more actionable nomination signal. Full order:
+  stromal-confound > window > full-normal > sc-normal > tphp-normal-protein.
+- **Backtest (passed).** RETAIN malignant-intrinsic antigens (CEACAM5 field-effect, MSLN/CDH17
+  selective_with_normal_liability, EPCAM discordant — none flip); DOWNGRADE canonical CAF genes
+  (FAP/POSTN/COL1A1/THY1 → `selective_but_stromal_confound`). Thresholds are the sc classifier's
+  existing cuts (0.10 malignant / 0.25 microenvironment), not re-eyeballed — avoiding the CD19
+  over-eager-clamp false-negative failure mode. CEACAM5/TACSTD2 replay fixtures byte-stable.

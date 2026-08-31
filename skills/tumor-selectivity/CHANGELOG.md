@@ -4,6 +4,24 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.17.0
+- **INT-axis stromal-confound veto (verdict-MOVING, backtest-gated).** `tumor-scrna-celltype-expression`
+  is now verdict-driving: its provenance-gated `stromal_confound_class == stromal_confounded` fires the
+  `tvn-stromal-confound-veto` rule, and the shared `_skills_common.selectivity_veto` clamp (both engines)
+  downgrades a selective axis-A call to the new `selective_but_stromal_confound` — a bulk selective signal
+  that single-cell attribution shows is CAF/stroma-driven, not malignant-cell-intrinsic (a false window
+  for tumor-cell-targeted modalities; ADC/TCE/CAR/degrader all opposing).
+- **Precedence (Option B):** the stromal-confound KILL outranks the normal-breadth window KILL when both
+  fire — the more fundamental disqualifier for a tumor-cell modality. Order: stromal-confound > window >
+  full-normal > sc-normal > tphp.
+- **Provenance-gated:** fires only on a trustworthy cube (curated/inferCNV, entity-specific); a
+  phenotype_proxy / multi-entity-pooled cube reads `inconclusive_low_confidence` and cannot move the verdict.
+- Backtest passed: RETAIN CEACAM5/EPCAM/CDH17/MSLN (malignant-intrinsic); DOWNGRADE FAP/POSTN/COL1A1/THY1.
+  CEACAM5/TACSTD2 replay fixtures byte-stable. Cross-repo: analysis-methods #537 (the field) +
+  target-contracts #590 (the rule + `selective_but_stromal_confound` token) landed first.
+- Fixed a doc bug: the roadmap referenced `caf_vs_malignant_class == caf_high` (nonexistent); the real
+  value is `caf_dominant`.
+
 ## 1.14.0
 - Added the `tumor-vs-normal-protein-abundance-tphp` card — a VERDICT-INERT RNA→PROTEIN tumor-vs-normal
   corroboration facet, PARALLEL to `tumor-protein-abundance-cptac`, over the TPHP DIA-MS product

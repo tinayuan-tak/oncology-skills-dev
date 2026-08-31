@@ -31,7 +31,8 @@ from typing import Optional
 
 # The axis-A "selective" set is single-sourced in selectivity_veto (the veto owns which verdicts are
 # downgradable); the hero reads it so the "window open" tile can never drift from the clamp's view.
-from _skills_common.selectivity_veto import _AXIS_A_SELECTIVE, _VETO_VERDICT, _LIABILITY_VERDICT
+from _skills_common.selectivity_veto import (_AXIS_A_SELECTIVE, _VETO_VERDICT, _LIABILITY_VERDICT,
+                                             _STROMAL_CONFOUND_VERDICT)
 
 # --- verdict → banner status (the resolved selectivity_class) --------------------------------------
 # Green tiers = a supported tumor-over-normal window; red = window CLOSED by the normal-breadth veto;
@@ -41,6 +42,7 @@ _VERDICT_STATUS = [
     ("modest_tumor_selective", ("good", "modest tumor-selective")),
     ("field_effect_tumor_selective", ("good", "field-effect tumor-selective")),
     ("selective_but_broadly_normal", ("bad", "selective BUT broadly normal — window closed")),
+    ("selective_but_stromal_confound", ("bad", "stroma-driven — NOT tumor-cell-intrinsic (false window)")),
     ("selective_with_normal_liability", ("warn", "selective — normal-tissue liability")),
     ("discordant_across_comparators", ("warn", "discordant across comparators")),
     ("not_selective", ("off", "not selective")),
@@ -81,6 +83,7 @@ def build_selectivity_axes(headline: dict) -> dict:
     driving = h.get("driving_rule_id")
     vetoed = cls == _VETO_VERDICT               # window CLOSED (housekeeping / no-window KILL)
     liability = cls == _LIABILITY_VERDICT       # window OPEN but a NON-origin critical-organ liability
+    stromal_confound = cls == _STROMAL_CONFOUND_VERDICT   # INT-axis KILL: signal in the WRONG cells (CAF/stroma)
     axes: list[dict] = []
 
     def add(key, label, status, value, note):
@@ -158,8 +161,12 @@ def build_selectivity_axes(headline: dict) -> dict:
     sctc = h.get("sc_tumor_expression_class")
     scs = _fnum(scf, "{:.0%}")
     if sctc and sctc != "data_unavailable":
-        st = ("good" if (caf == "caf_low" and "broadly" in (sctc or "")) else
-              ("warn" if caf in ("caf_low", "caf_moderate") or "detected" in (sctc or "") else "off"))
+        # a fired stromal-confound veto = the signal is NOT in malignant cells → this axis OPPOSES
+        if stromal_confound or h.get("sc_stromal_confound_class") == "stromal_confounded":
+            st = "bad"
+        else:
+            st = ("good" if (caf == "caf_low" and "broadly" in (sctc or "")) else
+                  ("warn" if caf in ("caf_low", "caf_moderate") or "detected" in (sctc or "") else "off"))
         val = (f"malignant {scs}" if scs else sctc.replace("_", " "))
         if caf:
             val += f" · {caf}"
@@ -200,6 +207,7 @@ def build_selectivity_axes(headline: dict) -> dict:
         "axis_a_selectivity_class": axis_a,
         "vetoed": vetoed,
         "liability": liability,
+        "stromal_confound": stromal_confound,
         "driving_rule_id": driving,
         "axes": axes,
         "_disclaimer": (
@@ -254,7 +262,10 @@ def render_selectivity_hero_svg(headline: dict, target: str, indication: str) ->
     s.append(f'<text x="{_PAD+16}" y="{by+25}" font-size="16" font-weight="800" fill="{bink}">'
              f'{_STATUS_ICON.get(vstat,"")}  {_esc(view["verdict_label"])}</text>')
     sub = f'resolved selectivity_class: {view["target_verdict"] or "insufficient"}'
-    if view["vetoed"] and view["axis_a_selectivity_class"]:
+    if view.get("stromal_confound") and view["axis_a_selectivity_class"]:
+        sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  STROMA-DRIVEN (not tumor-cell-intrinsic)  ·  '
+               f'{view["driving_rule_id"] or ""}')
+    elif view["vetoed"] and view["axis_a_selectivity_class"]:
         sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  VETOED (no therapeutic window)  ·  '
                f'{view["driving_rule_id"] or ""}')
     elif view.get("liability") and view["axis_a_selectivity_class"]:

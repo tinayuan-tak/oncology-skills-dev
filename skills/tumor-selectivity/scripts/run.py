@@ -56,15 +56,16 @@ _SELECTIVITY_VALUE_TIERS = {
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
 # identical clamp. The names are re-exported here for this skill's own tests + local readability.
 from _skills_common.selectivity_veto import (  # noqa: F401
-    _AXIS_A_SELECTIVE, _NORMAL_BREADTH_VETO_RULES, _WINDOW_VETO_RULE,
-    _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE, apply_normal_breadth_veto,
+    _AXIS_A_SELECTIVE, _NORMAL_BREADTH_VETO_RULES, _SELECTIVITY_VETO_PRECEDENCE, _WINDOW_VETO_RULE,
+    _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE, _STROMAL_CONFOUND_VETO_RULE,
+    _STROMAL_CONFOUND_VERDICT, apply_normal_breadth_veto,
 )
 
 
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.16.0"   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.15.0 (2026-08-27): tuned signals-first sub-group reader (selectivity vocab). Verdict-INERT.
+SKILL_VERSION = "1.17.0"   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -137,19 +138,23 @@ CARDS = [
                                              # _rna_protein_tvn_concordance projection consumes it unchanged.
                                              # Feeds no resolver rung / no clamp; data_unavailable off the TPHP
                                              # carcinoma cohorts (honest abstain).
-    # ── SINGLE-CELL + IN-SITU SPATIAL (tumor side; verdict-inert) ──
+    # ── SINGLE-CELL + IN-SITU SPATIAL (tumor side) ──
     # The bulk four-cell DESeq2 axis-A signal cannot tell whether a "tumor_selective" call is
     # MALIGNANT-cell-intrinsic or driven by CAF/stromal/immune microenvironment content (the purity
     # confound expression-purity-confound only PROXIES via bulk deconvolution). These cards MEASURE the
-    # tumor compartment directly, at single-cell and in-situ resolution.
-    "tumor-scrna-celltype-expression",       # Tumor single-cell per-compartment expression. Its
-                                             # malignant_detection_fraction + caf_vs_malignant_class resolve
-                                             # whether the selective bulk signal is malignant-cell-intrinsic
-                                             # (real, druggable) or microenvironment-driven (a false ADC/TCE
-                                             # window). This is the signal the roadmap stromal-confound veto
-                                             # will key on (SKILL.md § Roadmap). Measured for COADREAD/NSCLC/
-                                             # LUSC/PAAD/HNSC/KIRC/OV/STAD (8 cubes), else sc_expression_class ==
-                                             # data_unavailable (abstain).
+    # tumor compartment directly, at single-cell and in-situ resolution. tumor-scrna-celltype-expression
+    # is now VERDICT-DRIVING (the stromal-confound veto, INT axis); the spatial cards remain verdict-inert.
+    "tumor-scrna-celltype-expression",       # Tumor single-cell per-compartment expression. VERDICT-DRIVING
+                                             # via the INT-axis stromal-confound veto: its stromal_confound_class
+                                             # == stromal_confounded fires tvn-stromal-confound-veto → the
+                                             # _verdict clamp downgrades a selective axis-A call to
+                                             # selective_but_stromal_confound (the bulk signal is CAF/stroma-
+                                             # driven, not malignant-cell-intrinsic — a false window for
+                                             # tumor-cell-targeted modalities). Provenance-gated (only a
+                                             # trustworthy curated/inferCNV entity-specific cube fires).
+                                             # malignant_detection_fraction + caf_vs_malignant_class are the
+                                             # underlying signals. Measured for COADREAD/NSCLC/LUSC/PAAD/HNSC/
+                                             # KIRC/OV/STAD/BRCA cubes, else data_unavailable (abstain).
     "spatial-region-rna-expression",         # In-situ spatial (GeoMx WTA) tumour-vs-microenvironment RNA
                                              # enrichment — a deconvolution-free, orthogonal confirmation of
                                              # tumour-compartment selectivity (spatial_rna_class).
@@ -225,6 +230,8 @@ _SELECTIVITY_VERDICT_PHRASE = {
     # normal-breadth veto outcomes
     "selective_but_broadly_normal":    "Not selective — broadly normal (no therapeutic window)",  # the KILL
     "selective_with_normal_liability": "Tumor-selective, with a critical-organ normal liability",  # preserving
+    # INT-axis stromal-confound veto outcome (the signal is in the WRONG cells)
+    "selective_but_stromal_confound":  "Not tumor-cell-intrinsic — signal is stroma-driven (false window)",  # the INT KILL
     # measured negatives / conflict
     "not_selective":                   "Not tumor-selective",
     "discordant_across_comparators":   "Discordant across normal comparators",
@@ -244,7 +251,7 @@ def _selectivity_verdict_polarity(v) -> str:
     of `pan_essential_killer` (a real dependency carrying a liability)."""
     if v in _AXIS_A_SELECTIVE:                       # strong / modest / field_effect_tumor_selective
         return "positive"
-    if v in ("selective_but_broadly_normal", "not_selective"):
+    if v in ("selective_but_broadly_normal", "selective_but_stromal_confound", "not_selective"):
         return "negative"
     return "neutral"
 
@@ -257,6 +264,11 @@ def _selectivity_tension_extra(headline: dict):
     invisible to rank_tension. Severity 4 (> the max signal tier 3) makes the KILL veto win the single
     tension slot; the selectivity-preserving named-organ flag rides at severity 3."""
     resolved = headline.get("selectivity_class")
+    if resolved == "selective_but_stromal_confound":
+        return {"text": ("axis-A selective in bulk but single-cell attribution shows the signal is "
+                         "CAF/stroma-driven, NOT malignant-cell-intrinsic — a false window for "
+                         "tumor-cell-targeted modalities (stromal-confound veto)"),
+                "source": "stromal_confound_veto", "severity": 4}
     if resolved == "selective_but_broadly_normal":
         return {"text": ("selective vs tissue-of-origin but no therapeutic window vs the worst critical "
                          "normal — broadly-normal liability (normal-breadth veto)"),
@@ -306,7 +318,7 @@ _CERTAINTY_CORROBORATION_CARDS = frozenset({"tumor-protein-abundance-cptac"})
 _SEL_STRONG_POS = {"strong_tumor_selective"}
 _SEL_MOD_POS = {"modest_tumor_selective"}
 _SEL_WEAK_POS = {"field_effect_tumor_selective", "selective_with_normal_liability"}
-_SEL_NEG = {"not_selective", "selective_but_broadly_normal"}          # measured negative / veto KILL
+_SEL_NEG = {"not_selective", "selective_but_broadly_normal", "selective_but_stromal_confound"}  # measured negative / veto KILL (SAFE or INT)
 _SEL_NONE = {"discordant_across_comparators", "not_informative", "insufficient", "data_unavailable", None}
 # decision-relevant (verdict-bearing) cards — the veto instruments are Python-applied, not resolver rungs,
 # but they ARE verdict-precedence, so unknown_mass counts them (CERTAINTY_MODEL: measured coverage-gap).
@@ -582,10 +594,14 @@ def _headline(cards, fired, verdict_pair):
         # whole set so the narrative enumerates ALL flagged essential cell types. Verdict-inert.
         "sc_normal_safety_essential_flags": sc_normal.get("safety_essential_flags"),
         "sc_normal_n_cell_types_above_20pct": sc_normal.get("n_cell_types_above_20pct"),
-        # Single-cell (TUMOR side) facet (verdict-inert): resolves the purity confound at single-cell
-        # resolution — is the selective bulk signal malignant-cell-intrinsic or stroma/CAF-driven?
-        # malignant_detection_fraction high + caf_vs_malignant_class == caf_low → real,
-        # tumor-cell-intrinsic (the CEACAM5/COADREAD read: 0.76 malignant vs 0.03 stromal).
+        # Single-cell (TUMOR side): resolves the purity confound at single-cell resolution — is the
+        # selective bulk signal malignant-cell-intrinsic or stroma/CAF-driven? malignant_detection_fraction
+        # high + caf_vs_malignant_class == caf_low → real, tumor-cell-intrinsic (the CEACAM5/COADREAD read:
+        # 0.76 malignant vs 0.03 stromal). The stromal_confound_class is VERDICT-DRIVING: stromal_confounded
+        # fires tvn-stromal-confound-veto → the _verdict clamp downgrades a selective axis-A call to
+        # selective_but_stromal_confound (the INT-axis KILL). Surfaced here for transparency (the resolved
+        # spine is set by _verdict via the shared clamp over `fired`).
+        "sc_stromal_confound_class":        sc_tumor.get("stromal_confound_class"),
         "sc_tumor_expression_class":        sc_tumor.get("sc_expression_class"),
         "sc_malignant_detection_fraction":  sc_tumor.get("malignant_detection_fraction"),
         "sc_top_microenvironment_compartment":       sc_tumor.get("top_microenvironment_compartment"),
@@ -650,6 +666,7 @@ _SYNTHESIS_FACET_KEYS = (
     "percentile_crossing_class", "fraction_tumor_above_normal_p95", "distribution_overlap_tumor_normal",
     "selectivity_allgene_percentile",
     "sc_tumor_expression_class", "sc_malignant_detection_fraction", "sc_caf_vs_malignant_class",
+    "sc_stromal_confound_class",   # the INT-axis veto input (why a stroma-driven target down-graded)
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
 )
