@@ -438,6 +438,8 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     ("dominant_mutational_process",         "mutational-signature-context",   "dominant_process"),   # patient SBS
     ("enriched_mutational_processes",       "mutational-signature-context",   "enriched_processes"),
     ("model_mmr_signature_class",           "genomic-instability-state",      "model_mmr_signature_class"),
+    ("oncogenic_pathway_class",             "oncogenic-pathway-alteration",   "oncogenic_pathway_class"),   # indication pathway-alteration context (Sanchez-Vega 2018)
+    ("target_pathway_alteration",           "oncogenic-pathway-alteration",   "target_pathway_alteration"), # the target's OWN pathway alteration frequency/class
 
     # ── Per-variant interpretation (CIViC) ───────────────────────────────────
     ("civic_variant_class",                 "variant-level-interpretation",   "civic_variant_class"),

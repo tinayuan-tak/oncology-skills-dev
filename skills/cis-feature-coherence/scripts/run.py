@@ -38,7 +38,12 @@ _CIS_VALUE_TIERS = {
     "cn_dosage_uncoupled": "absent",
     "amplified_overexpressed_strongly_dependent": "strong",
     "amplified_overexpressed_moderately_dependent": "moderate",
-    "methylation_silenced": "strong", "methylation_variable": "moderate",
+    # real cellline-methylation-expression-coherence vocab (methylation_silencing_class ∈
+    # {silencing_coupled_strong, silencing_coupled_moderate, methylation_uncoupled,
+    # methylation_invariant_panel, data_unavailable}); the prior methylation_silenced/
+    # methylation_variable keys never existed, so methylation subgroup rows fell through to default.
+    "silencing_coupled_strong": "strong", "silencing_coupled_moderate": "moderate",
+    "methylation_uncoupled": "absent",
     "methylation_invariant_panel": "absent",
     "strong_negative": "strong", "moderate_negative": "moderate", "weak_negative": "weak",
     "no_correlation": "absent",

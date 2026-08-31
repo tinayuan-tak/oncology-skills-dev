@@ -467,6 +467,7 @@ def _headline(cards, fired, verdict_pair):
     density = _summary("surface-abundance-density")
     protein_tvn = _summary("tumor-protein-abundance-cptac")   # RNA→protein corroboration (verdict-inert)
     protein_tvn_tphp = _summary("tumor-vs-normal-protein-abundance-tphp")  # RNA→protein corrob, TPHP DIA-MS (verdict-inert)
+    window = _summary("modality-therapeutic-window")         # NORMAL-BREADTH VETO instrument (window arms)
     sc_normal = _summary("sc-normal-celltype-expression")     # veto instrument (normal side)
     sc_tumor = _summary("tumor-scrna-celltype-expression")    # tumor side, single-cell
     spatial_rna = _summary("spatial-region-rna-expression")
@@ -532,6 +533,19 @@ def _headline(cards, fired, verdict_pair):
             tvn.get("dominant_direction"),
             protein_tvn_tphp.get("protein_effect_size"),
             protein_tvn_tphp.get("protein_bh_q_value")),
+        # Modality-therapeutic-window facet — the NORMAL-BREADTH WINDOW veto's own inputs, surfaced for
+        # transparency (the card is verdict-DRIVING via the window arms: therapeutic_window_class ==
+        # no_therapeutic_window / full_normal_window_class == no_full_normal_window each fire a KILL
+        # downgrade to selective_but_broadly_normal — the housekeeping GAPDH / TROP2 broadly-normal
+        # archetype). Without this fetch therapeutic_window_class was NULL in every headline, so the Q5
+        # "gate" leading-graphic row read "therapeutic window n/a" and the SAFE claim axis + synthesis
+        # facet could not see the window KILL. Display + feeds the SAFE claim axis; the resolver spine
+        # (set by _verdict via the shared clamp over `fired`) is unchanged.
+        "therapeutic_window_class":         window.get("therapeutic_window_class"),
+        "full_normal_window_class":         window.get("full_normal_window_class"),
+        "window_class":                     window.get("window_class"),
+        "max_essential_normal_organ":       window.get("max_essential_normal_organ"),
+        "window_ratio_essential":           window.get("window_ratio_essential"),
         # Single-cell (NORMAL side) facet — the sc-normal veto's own inputs, surfaced for transparency.
         # This card is verdict-DRIVING via the veto (sc_normal_safety_essential_class ==
         # critical_organ_liability), but a reader of decision['headline'] alone could not otherwise see

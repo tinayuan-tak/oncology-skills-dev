@@ -408,7 +408,14 @@ def _dispatch_subgroup_stratified_mutation_frequency(
         merged_metrics.extend(p.get("per_subgroup_metrics") or [])
         if p.get("_data_note"):
             notes.append(p["_data_note"])
+    # RE-REDUCE over the merged strata: a single-axis panorama carries the cross-stratum reducer
+    # scalars (cross_subgroup_delta_frequency / max_ / min_ / n_subgroups_with_data), but the merge
+    # dropped them — so run.py read delta=None and collapsed the SNV subtype_axis to 'not_informative'
+    # on any mixed molecular+LOT call. Recompute the SAME delta_reducer the builder uses (over
+    # overall_mutation_frequency, label='frequency') across the union so the reducer scalars survive.
+    from methods.subgroup_common.panorama import delta_reducer  # methods repo already on sys.path
     out = {"per_subgroup_metrics": merged_metrics}
+    out.update(delta_reducer(merged_metrics, metric_key="overall_mutation_frequency", label="frequency"))
     if notes:
         out["_data_note"] = " | ".join(notes)
     return out

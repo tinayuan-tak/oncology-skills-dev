@@ -324,9 +324,11 @@ CARDS = [
                                          # from IEDB (iedb-epitope-mhc-per-protein-v1) — has the target's peptides
                                          # been observed presented on human HLA and/or T-cell-RECOGNIZED, on which
                                          # class / how many alleles, in a cancer context. The experimental COMPLEMENT
-                                         # to pmhc-presentation (HLA-Ligand-Atlas benign-breadth). VERDICT-INERT
-                                         # DISPLAY card: no interpretation rule maps it, no resolver rung consumes it
-                                         # → fit_class byte-stable. Adds pMHC narrative context for the TCR-mimetic-TCE axis.
+                                         # to pmhc-presentation (HLA-Ligand-Atlas benign-breadth). VERDICT-BEARING:
+                                         # its rules (pmhc-iedb-tcell-validated / -presented-tce-supportive,
+                                         # bite_tce-only) feed the surface_modality resolver's pmhc_tce_supported
+                                         # rung (3b / 3b') when the folded surface is neither_viable — the pMHC-TCE
+                                         # route for an intracellular oncoprotein (see the get_card_field lift below).
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "

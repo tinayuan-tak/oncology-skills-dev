@@ -81,6 +81,40 @@ def test_critical_organ_liability_is_negative_window():
     assert ks["headline"] == "Selective signal, but a critical-organ normal-tissue liability."
 
 
+def test_window_veto_floors_safe_negative_even_with_clean_sc_normal():
+    """B1-02: a target the therapeutic-window veto KILLED (no window vs the worst critical/full normal —
+    the housekeeping GAPDH / TROP2 broadly-normal archetype) must NOT read SAFE='strong' off a clean
+    sc-normal side. The window arm floors SAFE at negative and flags the conflict."""
+    h = _ceacam5_headline()
+    h.update({"axis_a_selectivity_class": "strong_tumor_selective", "cells_supporting": 3.0,
+              "cells_ran": 3.0, "discordant": False,
+              "sc_normal_safety_essential_class": "none",          # CLEAN sc-normal side
+              "sc_normal_expression_class": "NOT_EXPRESSED",
+              "therapeutic_window_class": "no_therapeutic_window"})  # but the window veto KILLED it
+    vec = selectivity_claim_vector(h, [])
+    assert vec["SAFE"]["signal"] == "negative"
+    assert "window" in (vec["SAFE"]["conflict"] or "")
+    # a fired window veto is itself a measured normal-side read → corroboration is not unmeasured
+    assert vec["SAFE"]["corroboration"] != "unmeasured"
+
+
+def test_full_normal_window_veto_also_floors_safe():
+    """The pan-normal window arm (full_normal_window_class == no_full_normal_window) floors SAFE too."""
+    h = _ceacam5_headline()
+    h.update({"sc_normal_safety_essential_class": "none", "sc_normal_expression_class": "NOT_EXPRESSED",
+              "full_normal_window_class": "no_full_normal_window"})
+    assert selectivity_claim_vector(h, [])["SAFE"]["signal"] == "negative"
+
+
+def test_clean_window_leaves_safe_strong():
+    """A clean therapeutic window must NOT downgrade a clean-sc-normal SAFE axis (no false negative)."""
+    h = _ceacam5_headline()
+    h.update({"sc_normal_safety_essential_class": "none", "sc_normal_expression_class": "NOT_EXPRESSED",
+              "therapeutic_window_class": "clean_window",
+              "full_normal_window_class": "clean_full_normal_window"})
+    assert selectivity_claim_vector(h, [])["SAFE"]["signal"] == "strong"
+
+
 def test_microenvironment_confounded_downgrades_and_flags():
     h = _ceacam5_headline()
     h["purity_confound_class"] = "microenvironment_confounded"

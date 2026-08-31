@@ -145,24 +145,51 @@ def _int_corroboration(h, c):
     return "high" if agree else "moderate"
 
 
+# The modality-therapeutic-window KILL arms: tumor BELOW the worst critical/full normal (the
+# housekeeping GAPDH / TROP2 broadly-normal surface archetype). Each fires a normal-breadth veto that
+# the resolver clamp downgrades to selective_but_broadly_normal — a normal-side REFUTATION of any
+# therapeutic window. The SAFE claim axis must not contradict that KILL by reading `strong` off a clean
+# sc-normal side (the B1-02 bug), so a fired window arm floors the SAFE signal at `negative`.
+def _window_veto_fired(h) -> bool:
+    return (h.get("therapeutic_window_class") == "no_therapeutic_window"
+            or h.get("full_normal_window_class") == "no_full_normal_window")
+
+
 def _safe_signal(h, c):
     cls = h.get("sc_normal_safety_essential_class")
     sig = _SAFE_SIGNAL.get(cls, "unmeasured")
     conflict = ("critical-organ normal expression — therapeutic-window veto (safety verdict owned by "
                 "on-target-safety-liability)" if cls == "critical_organ_liability" else None)
+    # Normal-breadth WINDOW veto (modality-therapeutic-window): no therapeutic window vs the worst
+    # critical/full normal is a normal-side refutation of the whole window. SAFE cannot read a positive
+    # signal against a resolved KILL, so floor it at `negative`. Read from the headline, which the
+    # tumor-selectivity _headline now populates via the modality-therapeutic-window fetch.
+    if _window_veto_fired(h):
+        sig = "negative"
+        conflict = conflict or ("no therapeutic window vs the worst critical/full normal — "
+                                "normal-breadth window veto (the housekeeping / broadly-normal KILL)")
     ev = (f"normal-tissue: {cls or 'data_unavailable'}, sc_normal={h.get('sc_normal_expression_class')}, "
-          f"{h.get('sc_normal_n_cell_types_above_20pct')} normal cell-types >20%")
+          f"{h.get('sc_normal_n_cell_types_above_20pct')} normal cell-types >20%"
+          + (f", therapeutic_window={h.get('therapeutic_window_class')}"
+             if h.get("therapeutic_window_class") else ""))
     return sig, ev, conflict
 
 
 def _safe_corroboration(h, c):
     ess = h.get("sc_normal_safety_essential_class")
+    window_veto = _window_veto_fired(h)
     if _SAFE_SIGNAL.get(ess, "unmeasured") == "unmeasured":
-        return "unmeasured"
+        # the sc-normal read is absent, but a fired window veto is itself a measured normal-side
+        # refutation — corroborate the negative at moderate rather than reporting it unmeasured.
+        return "moderate" if window_veto else "unmeasured"
     # the two independent normal-side reads (essential-cell class + expression-liability class) agree?
     liab = ess in ("critical_organ_liability", "origin_tissue_liability")
     expr_liab = h.get("sc_normal_expression_class") in ("HIGH_LIABILITY", "MODERATE_LIABILITY")
-    return "high" if liab == expr_liab else "moderate"
+    base = "high" if liab == expr_liab else "moderate"
+    # a fired window veto + an sc-normal liability both point at a normal-tissue problem → they agree.
+    if window_veto and liab:
+        base = "high"
+    return base
 
 
 # ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────
