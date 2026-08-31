@@ -292,6 +292,18 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
     def head(v, supports):
         dep, sel, chem, cond = (v["DEP"]["signal"], v["SEL"]["signal"],
                                 v["CHEM"]["signal"], v["COND"]["signal"])
+        # The DEP claim already carries the decisive caveat as its `conflict` (dependency_claims._dep_signal):
+        # pan-essential (broad-toxicity liability) or an RNAi non-corroboration. head() must READ it — else a
+        # pan-essential (resolved verdict pan_essential_killer, "argues AGAINST") reads as a bare "Strong
+        # genetic dependency." win, and a CRISPR-dependent+RNAi-disagreeing case (verdict discordant) does the
+        # same. This is the tumor-selectivity #862 over-claim class. Verdict-INERT: the resolver owns the
+        # verdict; this only aligns the human-facing headline with the conflict the claim vector already found.
+        dep_conflict = v["DEP"].get("conflict") or ""
+        if dep_conflict.startswith("pan-essential"):
+            # a broad-toxicity LIABILITY, not a selective-dependency win — mirrors the pan_essential_killer
+            # verdict phrase; the ", chemically confirmed" suffix is not meaningful framing for a liability.
+            return "Pan-essential dependency — broad-toxicity liability, not a selective target."
+        rnai_disagrees = "does not corroborate" in dep_conflict
         if sig_ge(dep, "moderate") and sig_ge(sel, "strong"):
             base = "Selective genetic dependency."
         elif sig_ge(dep, "strong"):
@@ -304,11 +316,13 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
             base = "Not a genetic dependency in the pooled panel."
         else:
             base = "Dependency largely unmeasured or not distinguishing."
+        if rnai_disagrees and sig_ge(dep, "moderate"):
+            base = base.rstrip(".") + ", but RNAi (orthogonal LoF) does not corroborate."
         if sig_ge(chem, "moderate") and sig_ge(dep, "moderate"):
             base = base.rstrip(".") + ", chemically confirmed."
         return base
 
-    return build_key_signals(
+    ks = build_key_signals(
         vec,
         rank_keys=("DEP", "SEL", "COND", "CHEM"),
         support_fns={"DEP": sup_dep, "SEL": sup_sel, "COND": sup_cond, "CHEM": sup_chem},
@@ -316,6 +330,14 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
         caveat_fns={"DEP": cav_dep, "SEL": cav_sel, "CHEM": cav_chem},
         headline_fn=head,
     )
+    # Surface the DEP `conflict` (pan-essential broad-tox / RNAi non-corroboration) as the caveat when present:
+    # it is the decision-critical caveat, but build_key_signals only surfaces a weak-tier critical claim's
+    # caveat, so for a STRONG-tier DEP with a conflict (exactly the pan-essential / discordant cases) it would
+    # otherwise be dropped in favour of a lesser SEL caveat. Verdict-inert (a display-surface reconciliation).
+    dep_conflict = (vec.get("DEP") or {}).get("conflict")
+    if dep_conflict:
+        ks["caveat"] = dep_conflict
+    return ks
 
 
 __all__ = ["dependency_claim_vector", "dependency_key_signals", "DEPENDENCY_CLAIM_SPEC"]
