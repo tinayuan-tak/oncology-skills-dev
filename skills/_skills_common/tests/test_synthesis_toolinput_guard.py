@@ -126,3 +126,67 @@ def test_persistent_malformation_is_salvaged_not_shipped():
     # The garbage string never reaches the package.
     tv = out["top_arguments_for"]["value"]
     assert not (isinstance(tv, str) and LLM._leaks_toolcall_markup(tv))
+
+
+# ---- XML-dialect RECOVERY (parse leaked <parameter> blocks, don't discard) --------------
+# A realistic corruption: the first array field's value carries its OWN JSON-array content,
+# then swallows the subsequent parameters as closed <parameter name="X">...</parameter> blocks;
+# top_arguments_against + overall_recommendation drop to absent. Unlike the degenerate _MALFORMED
+# above (empty inner values), this carries recoverable content.
+_MALFORMED_RICH = {
+    "executive_summary": "DLL3 is a surface Notch ligand; an approved TCE target in SCLC.",
+    "top_arguments_for": (
+        '["approved TCE (tarlatamab)", "strong tumor selectivity"]\n'
+        '<parameter name="top_arguments_against">'
+        '["forebrain-neuron liability", "sub-threshold surface density"]</parameter>\n'
+        '<parameter name="overall_recommendation">hold</parameter>'
+    ),
+    # top_arguments_against + overall_recommendation swallowed (absent from payload)
+}
+
+
+def test_recover_extracts_swallowed_fields():
+    payload = dict(_MALFORMED_RICH)
+    defects = LLM._tool_input_defects(payload, _SCHEMA)
+    assert "top_arguments_for" in defects and "overall_recommendation" in defects
+    out = LLM._recover_leaked_toolcall(payload, _SCHEMA, defects)
+    # swallower field's OWN content recovered + coerced to a list
+    assert out["top_arguments_for"] == ["approved TCE (tarlatamab)", "strong tumor selectivity"]
+    # swallowed fields recovered
+    assert out["top_arguments_against"] == ["forebrain-neuron liability", "sub-threshold surface density"]
+    assert out["overall_recommendation"] == "hold"
+    assert set(out["_recovered_fields"]) == {"top_arguments_for", "top_arguments_against", "overall_recommendation"}
+    # after recovery there are NO residual defects (nothing to salvage)
+    assert LLM._tool_input_defects(out, _SCHEMA) == []
+    # and no leaked markup survives anywhere
+    def _leaks(v):
+        if isinstance(v, str): return LLM._leaks_toolcall_markup(v)
+        if isinstance(v, list): return any(isinstance(x, str) and LLM._leaks_toolcall_markup(x) for x in v)
+        return False
+    assert not any(_leaks(v) for v in out.values())
+
+
+def test_recover_does_not_clobber_a_clean_field():
+    """A field that arrived CLEAN must never be overwritten by a recovered block."""
+    payload = {
+        "executive_summary": "CLEAN summary — keep me.",
+        "top_arguments_for": (
+            'x\n<parameter name="executive_summary">WRONG do not use</parameter>\n'
+            '<parameter name="overall_recommendation">veto</parameter>'
+        ),
+    }
+    defects = LLM._tool_input_defects(payload, _SCHEMA)
+    out = LLM._recover_leaked_toolcall(payload, _SCHEMA, defects)
+    assert out["executive_summary"] == "CLEAN summary — keep me."   # not clobbered
+    assert out["overall_recommendation"] == "veto"                  # missing required -> recovered
+
+
+def test_full_loop_recovers_on_persistent_rich_malformation():
+    """End-to-end: a model that malforms on EVERY attempt (rich content) is RECOVERED, not
+    salvaged-to-empty — the ERBB2/STAD near-deterministic case."""
+    out = _run_with_sequence([_MALFORMED_RICH, _MALFORMED_RICH, _MALFORMED_RICH])
+    assert out["top_arguments_for"]["value"] == ["approved TCE (tarlatamab)", "strong tumor selectivity"]
+    assert out["top_arguments_against"]["value"] == ["forebrain-neuron liability", "sub-threshold surface density"]
+    assert out["overall_recommendation"]["value"] == "hold"
+    assert "_malformed_fields" not in out          # nothing left to salvage
+    assert "top_arguments_for" in out["_recovered_fields"]

@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -234,6 +235,87 @@ def _tool_input_defects(payload: dict, tool_schema: dict) -> list[str]:
     return list(seen)
 
 
+_PARAM_BLOCK_RE = re.compile(
+    r'<parameter name="([^"]+)">(.*?)(?=</parameter>|<parameter name="|</function|$)',
+    re.DOTALL,
+)
+
+
+def _coerce_recovered(text: str, declared: Optional[str]) -> Any:
+    """Coerce a recovered plain-text value to its declared schema type.
+
+    string  -> the text. array -> a list[str]: prefer a JSON array if the text parses to
+    one, else split on newlines/bullets, else a single-element [text]. Anything else -> text.
+    """
+    t = (text or "").strip()
+    if not t:
+        return None
+    if declared == "array":
+        try:
+            j = json.loads(t)
+            if isinstance(j, list):
+                items = [str(x).strip() for x in j if str(x).strip()]
+                return items or None
+        except (ValueError, TypeError):
+            pass
+        items = [re.sub(r'^[\s\-\*•\d\.\)]+', "", ln).strip()
+                 for ln in t.splitlines() if ln.strip()]
+        return items or [t]
+    return t
+
+
+def _recover_leaked_toolcall(payload: dict, tool_schema: dict, defects: list[str]) -> dict:
+    """Recover fields from the XML `<parameter name="...">` dialect BEFORE salvaging to empty.
+
+    When the model lapses out of native JSON tool-use, the first defective field's value is a
+    raw string that swallows the subsequent parameters as `<parameter name="X">VALUE</parameter>`
+    blocks (the remaining fields drop to None). That grammar is STABLE (the harness tool-call XML
+    convention), so it is recoverable rather than lost: the leading text before the first marker is
+    the swallower field's own value, and each block is a swallowed field. Recovered values are
+    coerced to their declared type, are NEVER allowed to carry residual markup, and only OVERWRITE
+    a field that is itself defective/missing (a clean field is never clobbered). Recovered field
+    names are recorded on `_recovered_fields`; whatever stays malformed still falls through to
+    `_salvage_tool_input`. VISIBLE + conservative: recovers real content, never invents it."""
+    props = tool_schema.get("properties", {}) or {}
+    defect_set = set(defects)
+    recovered_text: dict[str, str] = {}
+
+    for name in defects:
+        val = payload.get(name)
+        if not (isinstance(val, str) and _leaks_toolcall_markup(val)):
+            continue
+        first = val.find('<parameter name="')
+        lead = (val[:first] if first != -1 else val).strip()
+        if lead and not _leaks_toolcall_markup(lead):
+            recovered_text.setdefault(name, lead)   # the swallower field's OWN value
+        for m in _PARAM_BLOCK_RE.finditer(val):
+            fname, fval = m.group(1), (m.group(2) or "").strip()
+            if fname in props and fval and not _leaks_toolcall_markup(fval):
+                recovered_text.setdefault(fname, fval)   # a swallowed field
+
+    applied: list[str] = []
+    for fname, text in recovered_text.items():
+        # Only fill a field that is itself defective or missing — never clobber a clean value.
+        if fname not in defect_set and payload.get(fname) is not None:
+            continue
+        coerced = _coerce_recovered(text, (props.get(fname) or {}).get("type"))
+        if coerced is None:
+            continue
+        # Belt-and-braces: a recovered value must not itself re-introduce leaked markup.
+        if isinstance(coerced, str) and _leaks_toolcall_markup(coerced):
+            continue
+        if isinstance(coerced, list) and any(
+            isinstance(x, str) and _leaks_toolcall_markup(x) for x in coerced
+        ):
+            continue
+        payload[fname] = coerced
+        applied.append(fname)
+
+    if applied:
+        payload["_recovered_fields"] = applied
+    return payload
+
+
 def _salvage_tool_input(payload: dict, tool_schema: dict, defects: list[str]) -> dict:
     """Coerce malformed fields to schema-valid EMPTIES and record the loss visibly.
 
@@ -334,8 +416,10 @@ def synthesize_structured(
         # Call + validate, retrying on a malformed tool_input. The model intermittently lapses
         # out of native JSON tool-use into the XML `<parameter>` dialect (observed clean in
         # 13/25 runs, malformed in 12/25); since it is nondeterministic, a re-call usually
-        # yields a clean object. On persistent malformation we SALVAGE (coerce defective fields
-        # to schema-valid empties + record `_malformed_fields`) rather than ship leaked markup.
+        # yields a clean object. On persistent malformation we first RECOVER the leaked XML
+        # `<parameter>` dialect back into real field values, then SALVAGE whatever is still
+        # malformed (coerce to schema-valid empties + record `_malformed_fields`) — never shipping
+        # leaked markup.
         payload: Optional[dict] = None
         defects: list[str] = []
         for attempt in range(max_retries + 1):
@@ -361,6 +445,13 @@ def synthesize_structured(
                 file=sys.stderr,
             )
 
+    if defects:
+        # RECOVER first: parse the leaked XML `<parameter>` dialect back into real field values
+        # (the swallowed content is recoverable, not garbage), then re-validate. Only what stays
+        # malformed after recovery is coerced to empty. This rescues the persistent-malformation
+        # case (e.g. ERBB2/STAD) that retries alone can't, without shipping leaked markup.
+        payload = _recover_leaked_toolcall(payload, tool_schema, defects)
+        defects = _tool_input_defects(payload, tool_schema)
     if defects:
         payload = _salvage_tool_input(payload, tool_schema, defects)
 
