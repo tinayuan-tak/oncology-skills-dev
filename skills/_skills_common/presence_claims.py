@@ -355,6 +355,32 @@ def derive_presence_state(headline: dict) -> dict:
                        "abundance_floor_flag + sc_expression_class; VERDICT-INERT, reads no presence_verdict")}
 
 
+# Re-based signal STRENGTH for the certainty-discounted composite. Keyed on the INTEGRATED claim vector
+# (peak positive signal across A/B/C/D) floored by presence_state — NOT on the collapsed one-word verdict.
+# Fixes the ALB-style false-strong: a single tumor-vs-adjacent contrast wins the ladder (verdict
+# `strongly_upregulated_in_tumor` → the old verdict-keyed strength read `strong_positive`) while the
+# integrated signal package is weak (A=absent, C=absent). EPCAM is UNHARMED (peak A=strong → strong).
+# Verdict-INERT: feeds only the composite ranking sidecar, never presence_verdict.
+_STRENGTH_BY_ORD = {3: "strong_positive", 2: "moderate_positive", 1: "weak_positive", 0: "weak_positive"}
+
+
+def presence_strength_from_state(presence_state: dict, claim_vector: dict) -> str:
+    """Signal strength for the composite, from the claim vector's PEAK positive signal, floored by
+    presence_state. `no`→negative, `untested`/absent→none, a protein↔RNA conflict caps at weak_positive."""
+    p = (presence_state or {}).get("present")
+    if p == "no":
+        return "negative"
+    if p in (None, "untested"):
+        return "none"
+    ords = [o for ax in ("A", "B", "C", "D")
+            for o in [_SIG_ORD.get(((claim_vector or {}).get(ax) or {}).get("signal"))]
+            if isinstance(o, int) and o >= 1]
+    strength = _STRENGTH_BY_ORD.get(max(ords), "weak_positive") if ords else "weak_positive"
+    if (presence_state or {}).get("conflict"):          # protein↔RNA disagreement is never strong
+        strength = "weak_positive"
+    return strength
+
+
 # The one WORD as a pure render of the typed object (Phase 2 will point presence_verdict at this).
 def render_presence_label(state: dict) -> str:
     p = (state or {}).get("present")
@@ -464,4 +490,5 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
 
 
 __all__ = ["presence_claim_vector", "presence_claim_vector_by_subtype", "presence_key_signals",
-           "derive_presence_state", "render_presence_label", "CLAIM_NAME", "CLAIM_INFORMS"]
+           "derive_presence_state", "render_presence_label", "presence_strength_from_state",
+           "CLAIM_NAME", "CLAIM_INFORMS"]

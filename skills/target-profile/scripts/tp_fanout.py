@@ -966,13 +966,18 @@ def _run_sub_skills(target: str, indication: str,
         # VERDICT-INERT, same discipline as synthesis_facet: a sub-skill that exposes _strength_certainty
         # hands the composed layer its reliability object; absence / failure → None. Only
         # functional-requirement supplies it today.
-        _cert_fn = _load_sub_skill_certainty_fn(skill_dir)
-        strength_certainty = None
-        if _cert_fn is not None:
-            try:
-                strength_certainty = _cert_fn(cards, fired, verdict_pair)
-            except Exception:  # noqa: BLE001 — a sidecar must never break the fan-out
-                strength_certainty = None
+        # PREFER the strength_certainty a sub-skill already emitted into its synthesis_facet (tumor-presence
+        # emits a RE-BASED composite there — strength from the integrated claim_vector, not the collapsed
+        # verdict — so the composed composite matches the standalone one). Fall back to the _strength_certainty
+        # hook for skills that expose the hook but not the facet key.
+        strength_certainty = (synthesis_facet or {}).get("strength_certainty") if isinstance(synthesis_facet, dict) else None
+        if strength_certainty is None:
+            _cert_fn = _load_sub_skill_certainty_fn(skill_dir)
+            if _cert_fn is not None:
+                try:
+                    strength_certainty = _cert_fn(cards, fired, verdict_pair)
+                except Exception:  # noqa: BLE001 — a sidecar must never break the fan-out
+                    strength_certainty = None
         # OPTIONAL factored claim-record SHADOW (M1). Same best-effort + VERDICT-INERT discipline as
         # strength_certainty: a sub-skill exposing _claim_record hands the composed layer its factored
         # record; absence / failure → None. Consumed by nothing (surfaced for M2 render-equivalence).

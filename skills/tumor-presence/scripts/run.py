@@ -48,7 +48,8 @@ from _skills_common import get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
-                                            presence_key_signals, derive_presence_state)
+                                            presence_key_signals, derive_presence_state,
+                                            presence_strength_from_state)
 from _skills_common.presence_question_table import presence_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
@@ -593,8 +594,16 @@ def _presence_composite(strength: str, certainty_level: str) -> float:
     return round(_COMPOSITE_STRENGTH.get(strength, 0.0) * _COMPOSITE_CERTAINTY.get(certainty_level, 0.5), 3)
 
 
-def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
-    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement/selectivity/genomic/surface."""
+def _strength_certainty(cards, fired=None, verdict_pair=None,
+                        claim_vector=None, presence_state=None) -> dict:
+    """Fan-out SIDECAR hook (CERTAINTY_MODEL) — mirrors functional-requirement/selectivity/genomic/surface.
+
+    STRENGTH is re-based (2026-08-31): when the caller supplies the built `claim_vector` + `presence_state`
+    (the `_headline` path), strength is derived from the INTEGRATED signal package via
+    `presence_strength_from_state`, NOT from the collapsed one-word verdict. This fixes the ALB-style
+    false-strong (a single tumor-vs-adjacent contrast wins the ladder → the old verdict-keyed strength read
+    `strong_positive` while the signal package is weak). The verdict-keyed `_presence_strength(v)` remains
+    the FALLBACK for any legacy 3-arg call without the vector. Verdict-INERT (only the composite sidecar)."""
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
     rna_bm = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
     coverage = _pres_coverage(cards)
@@ -603,7 +612,9 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     level = min(components, key=lambda c: _PRES_ORD[c]) if components else "low"
     if v in _PRES_NONE:
         level = "low"
-    strength = _presence_strength(v)
+    strength = (presence_strength_from_state(presence_state, claim_vector)
+                if presence_state is not None and claim_vector is not None
+                else _presence_strength(v))
     return {
         "strength": strength,
         "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
@@ -1218,6 +1229,12 @@ def _headline(cards, fired, verdict_pair):
     # its own field and both symmetric protein↔RNA conflicts are NAMED. Must run AFTER claim_vector (it
     # reads hl['claim_vector']). Reads no presence_verdict → collapsed spine + per-bucket matrix byte-stable.
     hl["presence_state"] = _enrich("presence_state", derive_presence_state, hl)
+    # (strength, certainty) sidecar + continuous composite — emitted STANDALONE here (was fan-out-only)
+    # with the RE-BASED strength (claim_vector peak + presence_state floor, not the collapsed verdict), so
+    # a portfolio-ranking consumer sees the same composite standalone and composed. Verdict-INERT; must run
+    # AFTER claim_vector + presence_state. The composed fan-out reads this off the synthesis facet.
+    hl["strength_certainty"] = _enrich("strength_certainty", _strength_certainty, cards, fired,
+                                       verdict_pair, hl.get("claim_vector"), hl.get("presence_state"))
     # SUBTYPE-scoped claim vector (per stratum) — when a (target, indication, subtype) is the question,
     # the pooled vector flattens the per-stratum signal (cf. CD274 broadly-low pooled but MSI-H-strong).
     # Projects A + distributional-B per stratum from the already-resolved per_subgroup_metrics; None when
@@ -1283,6 +1300,9 @@ _SYNTHESIS_FACET_KEYS = (
     # typed presence_state — the structured re-projection (present/abundance/elevation/malignant/breadth
     # + named protein↔RNA conflict); the composed reasoner reads this instead of parsing the one word.
     "presence_state",
+    # (strength, certainty) + composite ranking scalar (re-based on the signal package) — the fan-out
+    # reads this off the facet so the composed composite matches the standalone one.
+    "strength_certainty",
     # the 7-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
