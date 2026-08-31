@@ -40,8 +40,12 @@
 #     no snapshot yet (the test skips its hard assertion, reports as pending).
 #   - Extending is cheap — add an entry + (for measured ones) a snapshot; bump version.
 
-version: 1.2.1
+version: 1.3.0
 snapshot_date: "2026-07-19"
+# v1.3.0 (2026-08-30): added MET/LUAD to known_gap_watchlist (known_gap_expected_fail) — the
+# METex14-skipping biomarker-conditional dependency false-negative (approved TKI/ADC target reads
+# pan-line non_dependent). Snapshot met_luad.functional-requirement.json captured against
+# depmap-consortium-26q1. Flips to must_not_veto once a METex14 classifier lands (Wave-2 gap).
 curator: ryan.abo@takeda.com
 depmap_release_pin: depmap-consortium-26q1   # snapshots captured against this release
 # v1.1.0 (2026-08-19): added the selectivity_cases bucket + selectivity_verdict_expected
@@ -105,6 +109,20 @@ known_gap_watchlist:
     expected_driving_rule_current: non-dependent-killer
     expected_after_context_sl: [conditional_dependent, insufficient]   # Phase 2 target flip
     note: "Measured: frac_strong 1.3%, paralog partial (SMARCA4). Power-guard does NOT rescue (genuinely flat)."
+
+  MET:
+    indication: LUAD
+    modality: small_molecule            # capmatinib / tepotinib (METex14); also telisotuzumab-vedotin (c-Met ADC)
+    outcome: approved_class             # METex14-selective TKIs approved in NSCLC/LUAD
+    dependency_mode: biomarker_conditional   # dependency is METex14-skipping-selective (a splice-site subset)
+    biomarker: METex14_skipping
+    assertion_type: known_gap_expected_fail
+    measured: true
+    snapshot: met_luad.functional-requirement.json
+    expected_verdict_current: non_dependent
+    expected_driving_rule_current: non-dependent-killer
+    expected_after_metex14: [biomarker_stratified_dependency, conditional_dependent, insufficient]  # flip when a METex14 classifier strata-fies the dependency
+    note: "Biomarker-conditional false-negative (analogue of SMARCA2/LUAD). Pan-line CRISPR/RNAi reads strongly_concordant_non_dependent because METex14 skipping — a splice-site event in ~3% of LUAD — is invisible to the missense/hotspot-centric genomics + the pan-line dependency distribution. MET is APPROVED in LUAD, so the gate-C non_dependent veto is WRONG. Flips to must_not_veto once a METex14 classifier stratifies mutation-stratified-dependency (KNOWN_ISSUES-2026-08-26 MET-LUAD DATA-GAP; mostly WIRE from depmap MAF splice-site + CIViC METex14 + isoform/exon index, not ACQUIRE)."
 
   MARK2:
     indication: PAAD
