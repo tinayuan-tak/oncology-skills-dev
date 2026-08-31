@@ -18,7 +18,12 @@
 version: 1.0.0
 
 # ---------------------------------------------------------------------------
-# CARD HEALTH  (enum: broken | placeholder | blocked | partial | self_produced | live)
+# CARD HEALTH  (enum: broken | placeholder | blocked | partial | wired | self_produced | live)
+#   wired = has a resolvable reader (bespoke CARD_DISPATCHERS entry OR a built backing method reached
+#           via generic dispatch) but has not yet fired in a governed package the probe indexes — WIRED,
+#           awaiting its first firing, NOT a defect. Split out of `partial` 2026-08-31 (the old label
+#           read as broken in the tally / a false-negative for verified-live generic-routed cards).
+#           Treated identically to `partial` in the SKILL rollup, so skill_health stays byte-stable.
 # First match wins, top to bottom.
 # ---------------------------------------------------------------------------
 card_health:
@@ -84,13 +89,13 @@ card_health:
   # bespoke CARD_DISPATCHERS entry"; method_dir_exists is the framework's own backing-exists signal,
   # used identically by card-no-path / card-registered-method-unbuilt above.)
   - id: card-generic-dispatch-never-fires
-    verdict: partial
+    verdict: wired
     when:
       all:
         - {has_live_reader: false}
         - {fires_in_real_package: false}
         - {method_dir_exists: true}
-    reason: "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint); has not fired in a governed package yet"
+    reason: "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) — WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
 
   - id: card-no-reader-no-fire
     verdict: blocked
@@ -101,12 +106,12 @@ card_health:
     reason: "no live-reader dispatcher, no backing method module, and never fired — card cannot pull data (honest coverage gap)"
 
   - id: card-reader-never-fires
-    verdict: partial
+    verdict: wired
     when:
       all:
         - {has_live_reader: true}
         - {fires_in_real_package: false}
-    reason: "has a live reader but has not fired passed/warned in any real package yet"
+    reason: "has a bespoke live reader but has not fired passed/warned in any real package yet — WIRED, awaiting its first governed firing (NOT a defect)"
 
   # NOTE: no second `fires_in_real_package: true` rung here — that verdict is owned
   # by card-live-fired at the TOP of the ladder (ground-truth dominates). A duplicate

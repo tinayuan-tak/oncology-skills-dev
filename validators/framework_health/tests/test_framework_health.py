@@ -218,10 +218,11 @@ def test_probe_card_honors_declared_module_for_resolver_routed(tmp_path):
     assert out["method_has_read"] is True
     # A card with a BUILT backing method + no CARD_DISPATCHERS entry routes through the GENERIC
     # dispatcher (card_spec module/entrypoint) — it HAS a working reader, just unproven in a governed
-    # package → `partial`, not `blocked`. (Refined 2026-08-30: this was `blocked` when the ladder had
-    # no generic-dispatch rung; `blocked` now means "no method DECLARED at all".)
+    # package → `wired`, not `blocked`. (Refined 2026-08-30: this was `blocked` when the ladder had no
+    # generic-dispatch rung; `blocked` now means "no method DECLARED at all". Refined 2026-08-31: the
+    # reader-exists-never-fired verdict was split out of `partial` into `wired` — the honest label.)
     verdict, reason = rollup._resolve(rollup.load_rules()["card_health"], out)
-    assert verdict == "partial"
+    assert verdict == "wired"
     assert reason == "card-generic-dispatch-never-fires"
 
 
@@ -273,11 +274,12 @@ CARD_CASES = [
     ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True,
       "method_dir_exists": False}, "broken", "card-registered-method-unbuilt"),
     ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True,
-      "method_dir_exists": True}, "partial", "card-reader-never-fires"),
+      "method_dir_exists": True}, "wired", "card-reader-never-fires"),
     # Generic dispatcher: no bespoke CARD_DISPATCHERS entry, but a BUILT backing method exists
-    # (routed via card_spec module/entrypoint) → partial, NOT blocked. Pins the blocked-30 fix.
+    # (routed via card_spec module/entrypoint) → wired, NOT blocked/partial. Pins the blocked-30 fix
+    # + the 2026-08-31 partial→wired split (reader-exists-never-fired is WIRED, not a defect).
     ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
-      "method_dir_exists": True}, "partial", "card-generic-dispatch-never-fires"),
+      "method_dir_exists": True}, "wired", "card-generic-dispatch-never-fires"),
     # No reader AND declared backing method module absent → broken (card-no-path).
     ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
       "method_dir_exists": False}, "broken", "card-no-path"),
@@ -995,7 +997,11 @@ def test_committed_artifact_datasets_section():
     assert "datasets" in rep and rep["datasets"], "datasets section missing"
     for d in rep["datasets"]:
         assert d["is_orphan"] == (d["in_catalog"] and d["n_consumers"] == 0)
-        assert d["is_broken_ref"] == ((not d["in_catalog"]) and d["n_consumers"] > 0)
+        # broken = referenced, not in catalog, and NOT a placeholder-only forward-declaration
+        # (those are pending_ref, not broken — 2026-08-31 de-noise).
+        apc = d.get("all_consumers_placeholder")
+        assert d["is_broken_ref"] == ((not d["in_catalog"]) and d["n_consumers"] > 0 and not apc)
+        assert d.get("is_pending_ref", False) == ((not d["in_catalog"]) and d["n_consumers"] > 0 and bool(apc))
 
 
 # ---------------------------------------------------------------------------

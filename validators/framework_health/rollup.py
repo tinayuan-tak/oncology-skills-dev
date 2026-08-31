@@ -259,7 +259,10 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
 def roll_up_skill(skill: dict, cards: list[dict], drift: list[dict], rules: dict) -> dict:
     """Assemble the skill node + its rolled-up verdict."""
     der = skill["derived"]
-    unhealthy = [c for c in cards if c.get("card_health") in ("broken", "placeholder", "blocked", "partial")]
+    # `wired` is the reader-exists-never-fired state formerly labeled `partial` (split out 2026-08-31
+    # so the tally stops reading it as a defect); it is treated IDENTICALLY to `partial` in every
+    # skill-rollup signal below, so skill_health verdicts stay byte-stable — only the card label + tally move.
+    unhealthy = [c for c in cards if c.get("card_health") in ("broken", "placeholder", "blocked", "partial", "wired")]
 
     # CORE cards = the verdict-driving subset (rules_scope). Cards in cards_used but
     # NOT rules_scope are additive/verdict-inert facets (biomarker facets, confidence
@@ -271,7 +274,7 @@ def roll_up_skill(skill: dict, cards: list[dict], drift: list[dict], rules: dict
     # yet) — but NOT broken/placeholder/blocked. This tolerates the thin-data frontier
     # while still catching genuine breakage.
     core_cards_healthy = bool(core) and all(
-        c.get("card_health") in ("live", "partial", "self_produced") for c in core
+        c.get("card_health") in ("live", "wired", "partial", "self_produced") for c in core
     )
     # PROVEN vs UNPROVEN: has at least one core card actually FIRED in a real
     # package (card_health == live)? If cores are all "partial" (readers work but
@@ -451,6 +454,9 @@ def build_health(roots: dict[str, Path]) -> dict:
         for d in c.get("datasets", []):
             key = d.get("resolved_id") or d["product_id"]
             ds_consumers.setdefault(key, []).append(c["card_id"])
+    # Placeholder cards forward-declare products that are not built yet BY DESIGN; a dataset ref whose
+    # ONLY consumers are placeholders is a PENDING forward-declaration, not a broken code reference.
+    _placeholder_ids = {c["card_id"] for c in card_nodes if c.get("is_placeholder")}
 
     ds_universe = sorted(set(catalog) | set(ds_consumers))
     dataset_nodes: list[dict] = []
@@ -474,15 +480,23 @@ def build_health(roots: dict[str, Path]) -> dict:
             "consumed_by_cards": consumers,
             "n_consumers": n_cons,
             "is_orphan": in_cat and not consumers,       # cataloged, no card pulls it
-            "is_broken_ref": (not in_cat) and bool(consumers),  # a card names a missing dataset
+            # all consumers are placeholder cards → a not-yet-built product is expected, not broken.
+            "all_consumers_placeholder": bool(consumers) and all(cid in _placeholder_ids for cid in consumers),
             "has_sort_key": has_sort_key,
         }
+        # BROKEN = a card names a product missing from the catalog. But if the ONLY consumers are
+        # placeholder cards, the missing product is an intentional forward-declaration → PENDING, not
+        # broken (don't inflate the defect count with declared-but-unbuilt placeholder products).
+        node["is_broken_ref"] = (not in_cat) and bool(consumers) and not node["all_consumers_placeholder"]
+        node["is_pending_ref"] = (not in_cat) and bool(consumers) and node["all_consumers_placeholder"]
         node["access_cost"] = _access_cost(size_b, meta.get("file_count"), n_cons)
-        # A CONSUMED (n_cons>0), sizeable, in-catalog dataset with NO declared sort/partition
-        # key is expensive to query — the one static access-latency signal worth acting on.
-        # Not flagged for orphans (nobody queries them) or tiny/unsized datasets.
+        # A CONSUMED (n_cons>0), sizeable, in-catalog DERIVED product with NO declared sort/partition
+        # key is expensive to query — the one static access-latency signal worth acting on. SOURCE
+        # snapshots are exempt: the gene-sorted-pushdown invariant governs DERIVED products, not raw
+        # upstream releases (which method readers load by their own logic). Not flagged for orphans
+        # (nobody queries them) or tiny/unsized datasets.
         node["missing_sort_key"] = bool(
-            in_cat and n_cons > 0 and has_sort_key is False
+            in_cat and meta.get("kind") == "derived" and n_cons > 0 and has_sort_key is False
             and (size_b or 0) >= _SORT_KEY_SIZE_FLOOR
         )
         dataset_nodes.append(node)
@@ -530,6 +544,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_datasets_in_catalog": sum(1 for d in dataset_nodes if d["in_catalog"]),
             "n_orphan_datasets": sum(1 for d in dataset_nodes if d["is_orphan"]),
             "n_broken_dataset_refs": sum(1 for d in dataset_nodes if d["is_broken_ref"]),
+            "n_pending_placeholder_refs": sum(1 for d in dataset_nodes if d.get("is_pending_ref")),
             # STATIC access-cost lens (metadata-derived; NO network/timing):
             "n_datasets_high_access_cost": sum(1 for d in dataset_nodes if d.get("access_cost") == "high"),
             "n_datasets_missing_sort_key": sum(1 for d in dataset_nodes if d.get("missing_sort_key")),

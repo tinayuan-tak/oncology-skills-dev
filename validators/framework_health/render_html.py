@@ -29,6 +29,7 @@ SKILL_COLORS = {
 }
 CARD_COLORS = {
     "live": _GREEN,
+    "wired": "#8fbf5f",   # muted green — has a resolvable reader, awaiting first governed firing (not a defect)
     "partial": _AMBER,
     "blocked": "#b8860b",
     "placeholder": _GREY,
@@ -83,7 +84,8 @@ SKILL_GLOSS = {
 }
 CARD_GLOSS = {
     "live": "fires (passed/warned) in a real evidence package",
-    "partial": "has a live reader but hasn't fired in a real package yet",
+    "wired": "has a resolvable reader (bespoke or generic-dispatch) — awaiting its first governed firing; NOT a defect",
+    "partial": "unclassified fallback (no card rule matched)",
     "blocked": "no live reader — cannot pull data (honest gap)",
     "placeholder": "declared placeholder / blocked-status card",
     "broken": "no path to data: no reader + no backing method, never fires",

@@ -122,7 +122,7 @@ def stable_projection(report: dict) -> str:
 
 # Enums the committed artifact must conform to (kept in sync with health_rules.yaml).
 _SKILL_VERDICTS = {"production_ready", "ready_unproven", "partial", "placeholder", "broken_or_drift"}
-_CARD_HEALTHS = {"live", "partial", "blocked", "placeholder", "broken", "self_produced"}
+_CARD_HEALTHS = {"live", "wired", "partial", "blocked", "placeholder", "broken", "self_produced"}
 # P4 modality-vector lens (parallel to card_health — see probe.probe_card).
 _MODALITY_ROUTINGS = {"declared", "not_required", "missing", "drift", "not_applicable", "unknown"}
 
@@ -200,8 +200,14 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
         for d in datasets:
             if d.get("is_orphan") != (d.get("in_catalog") and d.get("n_consumers", 0) == 0):
                 errs.append(f"[dataset {d.get('product_id')}] is_orphan inconsistent")
-            if d.get("is_broken_ref") != ((not d.get("in_catalog")) and d.get("n_consumers", 0) > 0):
+            # broken = referenced, missing from catalog, and NOT a placeholder-only forward-declaration
+            # (those are pending, not broken).
+            _apc = d.get("all_consumers_placeholder")
+            if d.get("is_broken_ref") != ((not d.get("in_catalog")) and d.get("n_consumers", 0) > 0 and not _apc):
                 errs.append(f"[dataset {d.get('product_id')}] is_broken_ref inconsistent")
+            if "is_pending_ref" in d and d.get("is_pending_ref") != (
+                    (not d.get("in_catalog")) and d.get("n_consumers", 0) > 0 and bool(_apc)):
+                errs.append(f"[dataset {d.get('product_id')}] is_pending_ref inconsistent")
             # Access-cost lens (only for artifacts that carry it): re-derive the band + the
             # missing-sort-key flag from the recorded static inputs — the determinism guard.
             if "access_cost" in d:
@@ -210,7 +216,7 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
                     errs.append(f"[dataset {d.get('product_id')}] access_cost '{d.get('access_cost')}' "
                                 f"does not re-derive (got '{got}') — regenerate")
             if "missing_sort_key" in d:
-                expect = bool(d.get("in_catalog") and d.get("n_consumers", 0) > 0
+                expect = bool(d.get("in_catalog") and d.get("kind") == "derived" and d.get("n_consumers", 0) > 0
                               and d.get("has_sort_key") is False
                               and (d.get("size_bytes") or 0) >= rollup._SORT_KEY_SIZE_FLOOR)
                 if d.get("missing_sort_key") != expect:
