@@ -294,3 +294,18 @@ def test_anchors_are_multiexemplar_centroids(atlas: Atlas):
     by = {a["label"]: a.get("n_members", 1) for a in atlas.anchors}
     for lab in ("snv_driver", "tsg_loss", "amp_driver", "expression_surface", "dependency_essential"):
         assert by[lab] >= 3, f"{lab} anchor should be a multi-exemplar centroid, got n={by[lab]}"
+
+
+def test_soft_labels_fill_unlabeled_analogs(atlas: Atlas):
+    # every corpus target has a data-derived soft label (anchored-mixture dominant)
+    assert len(atlas.soft_labels) == len(atlas.targets)
+    anchor_labels = {a["label"] for a in atlas.anchors}
+    assert all(sl in anchor_labels for sl in atlas.soft_labels)
+    # an analog whose curated label is "?" must display the soft label with a trailing "~" + a derived flag;
+    # a curated analog must not be marked derived
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    for a in atlas.companion(feat, k=12)["nearest_analogs"]:
+        if a["label_is_derived"]:
+            assert a["archetype_label"].endswith("~")
+        else:
+            assert not a["archetype_label"].endswith("~")

@@ -149,7 +149,7 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     axis_ref = {axes[j]: {"mean": round(float(ax_mean[j]), 6), "std": round(float(ax_std[j]), 6)}
                 for j in range(len(axes))}
 
-    return {
+    doc = {
         "feature_order": feature_order,
         "mu": [round(float(x), 6) for x in mu],
         "sd": [round(float(x), 6) for x in sd],
@@ -181,6 +181,17 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
                      "former outcome/approval-propensity (D2/D3) score was RETIRED."),
         },
     }
+    # soft_labels: the anchored-mixture DOMINANT phenotype for EVERY corpus target — a data-derived
+    # display label so nearest-analogs read meaningfully even where the curated panel label is "?"
+    # (106/213 unlabeled). Descriptive only; the curated `labels` field is left untouched.
+    from _skills_common.archetype_core import Atlas   # noqa: E402  (reuse the runtime membership solver)
+    _a = Atlas(doc)
+    soft = []
+    for e in _a.corpus_emb:
+        votes, _ = _a._membership(e)
+        soft.append(max(votes, key=votes.get) if votes else "?")
+    doc["soft_labels"] = soft
+    return doc
 
 
 def main():

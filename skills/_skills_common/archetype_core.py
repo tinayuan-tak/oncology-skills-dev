@@ -127,6 +127,9 @@ class Atlas:
         self.targets: list = list(doc["targets"])
         self.indications: list = list(doc.get("indications", [""] * len(self.targets)))
         self.labels: list = list(doc["labels"])
+        # data-derived dominant phenotype per corpus target (anchored-mixture argmax at build) — used to
+        # DISPLAY a meaningful analog label where the curated panel label is "?" (marked with a trailing ~).
+        self.soft_labels: list = list(doc.get("soft_labels", ["?"] * len(self.targets)))
         self.rule_fingerprints: list = doc.get("rule_fingerprints", [[] for _ in self.targets])
         self.axis_ref: dict = doc.get("axis_ref", {})
         emb = doc.get("embedding") or {}
@@ -223,8 +226,12 @@ class Atlas:
             # duplicates are dropped, never a genuine neighbour.
             order = [i for i in order if dists[i] > 1e-3]
         nn = order[:k]
+        # analog label: curated panel label when present; else the data-derived soft label (trailing "~")
+        def _analog_label(i):
+            return self.labels[i] if self.labels[i] not in ("?", "", None) else f"{self.soft_labels[i]}~"
         analogs = [{"target": self.targets[i], "indication": self.indications[i],
-                    "archetype_label": self.labels[i], "distance": round(dists[i], 3)} for i in nn]
+                    "archetype_label": _analog_label(i), "label_is_derived": self.labels[i] in ("?", "", None),
+                    "distance": round(dists[i], 3)} for i in nn]
 
         membership, hull = self._membership(e)
 
