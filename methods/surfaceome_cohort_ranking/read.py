@@ -32,7 +32,8 @@ DERIVED_MANIFEST_ID = "surfaceome-cohort-ranking-per-indication-v1"
 _COLUMNS = [
     "indication", "gene_symbol", "cohort_rank_class", "tissue_rank",
     "tissue_percentile_rna", "tissue_percentile_protein", "rna_protein_concordance",
-    "ranking_score", "cells_supporting", "max_abs_log2fc", "surface_protein_family",
+    "ranking_score", "cells_supporting", "cells_ran", "max_abs_log2fc",
+    "surface_protein_family", "uniprot_ac",
 ]
 
 # Per-target row cache (keyed by UPPER(gene_symbol)); caches ONLY successful reads. A transient
@@ -80,6 +81,40 @@ def _read_gene_rows(target: str) -> Optional[list]:
     rows = tbl.to_pylist()
     _ROWS_CACHE[sym] = rows
     return rows
+
+
+def load_indication_ranking(indication: str) -> Optional[list]:
+    """Streamed pushdown read of the WHOLE per-indication surfaceome ranking (every gene_symbol
+    ranked in `indication`), for the standalone surfaceome-cohort-ranking skill's cohort-scan mode.
+
+    Companion to _read_gene_rows: same S3 streaming + absence discipline, but pushes down on the
+    `indication` column instead of gene_symbol (the product is gene_symbol-sorted, so this is an
+    inherent full scan filtered to the indication — acceptable for a whole-cohort load). Returns a
+    list of row dicts (possibly empty) on success, None on a GENUINE no-object (NoSuchKey/404), and
+    RAISES on a transient/creds/broken-env failure (so the caller can retry / surface the real cause).
+    """
+    global _PRODUCT_ABSENT
+    ind = (indication or "").strip().upper()
+    if _PRODUCT_ABSENT:
+        return None
+    try:
+        from methods.catalog_query.read import bucket_key_for
+        import pyarrow.parquet as pq
+        import pyarrow.fs as fs
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(region="us-east-1"),
+            filters=[("indication", "=", ind)],
+            columns=_COLUMNS,
+        )
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _PRODUCT_ABSENT = True
+            return None
+        raise
+    return tbl.to_pylist()
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
