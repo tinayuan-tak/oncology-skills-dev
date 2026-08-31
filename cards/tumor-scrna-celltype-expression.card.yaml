@@ -100,6 +100,9 @@ outputs:
     - caf_detection_fraction                     # cross-donor median detection in the stromal/CAF compartment
     - caf_abundance_log1p_cp10k                  # cross-donor median abundance (stromal/CAF)
     - caf_compartment_available                  # false → no stromal compartment measured (abstain)
+    - stromal_confound_class                     # VERDICT-DRIVING (tumor-selectivity stromal-confound veto): is a bulk
+                                                 # selective signal CAF/stroma-driven (a false window) vs malignant-intrinsic?
+                                                 # provenance-gated — only a trustworthy cube fires the veto. See vocabulary.
     # Two-axis TCE antigen-escape readout (2026-08-20) — the honest heterogeneity call that supersedes
     # the single-number tce_homogeneity_class (kept above for back-compat). Separates WITHIN-tumour
     # coverage (detection fraction) from INTER-tumour consistency (per-donor detection dispersion).
@@ -135,6 +138,16 @@ outputs:
       - shared_caf_malignant                    # both compartments detect it within 0.15 — a dual-compartment target
       - caf_low                                 # stromal below 0.25 — not a CAF target
       - data_unavailable                        # no stromal compartment measured — abstain (never a measured zero)
+    stromal_confound_class:                      # VERDICT-DRIVING attribution for the tumor-selectivity stromal-confound
+                                                 # veto: is a bulk tumor-vs-normal SELECTIVE signal driven by CAF/stroma
+                                                 # rather than the malignant cells (a false window for tumor-cell-targeted
+                                                 # modalities — ADC/TCE/CAR/degrader)? Provenance-gated so only a trustworthy
+                                                 # (curated/inferCNV, entity-specific) cube can MOVE the verdict.
+      - stromal_confounded                      # veto-firing: microenvironment_dominant + caf_dominant + stromal top compartment on a trustworthy cube
+      - malignant_intrinsic                     # a real tumor-cell signal (malignant_broadly/subset_detected) — explicitly NOT confounded
+      - inconclusive_low_confidence             # stromal signature present but on a weak-provenance cube (phenotype_proxy / multi_entity_pooled) — surface only, does NOT move the verdict
+      - not_stromal_confounded                  # measured, none of the above (broadly_low, immune/endothelial-dominant, or shared/malignant-dominant CAF)
+      - data_unavailable                        # no sc coverage / underpowered cube — abstain (never fires; absence is not counter-evidence)
     within_tumor_coverage_class:                 # WITHIN-tumour axis: fraction of malignant cells expressing (detection)
       - high                                    # >= 0.75 malignant detection — uniform within a tumour (low escape)
       - partial                                 # 0.5-0.75 — a broad subset; dropout-aware caution

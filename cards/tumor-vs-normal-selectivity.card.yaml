@@ -206,6 +206,14 @@ outputs:
                                             # index concern owned by on-target-safety-liability + modality-fit,
                                             # NOT loss of selectivity. Clamp-produced at the skill layer; the
                                             # sc-normal arm no longer collapses into the housekeeping kill.
+      - selective_but_stromal_confound      # axis-A SELECTIVE in bulk BUT single-cell attribution shows the signal is
+                                            # CAF/stroma-driven, NOT malignant-cell-intrinsic (tumor-scrna-celltype-
+                                            # expression stromal_confound_class == stromal_confounded). A FALSE window for
+                                            # tumor-cell-targeted modalities (ADC/TCE/CAR/degrader) — a payload built against
+                                            # stroma misses the cancer. Clamp-produced at the skill layer (the stromal-confound
+                                            # veto arm); distinct from selective_but_broadly_normal (no window vs normal) — here
+                                            # the window is real but in the WRONG cells. Provenance-gated (fires only on a
+                                            # trustworthy sc cube). See the selectivity conjunction redesign.
       - field_effect_tumor_selective        # discordant BUT adjacent-flat/down + GTEx-population strongly up
                                             # (>=1.5): field-cancerization signature — the adjacent 'normal'
                                             # already over-expresses (Aran/Butte 2017), so defer to the GTEx

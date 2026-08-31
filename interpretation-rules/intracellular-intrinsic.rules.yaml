@@ -2717,6 +2717,35 @@ rules:
       skills-side clamp (_skills_common/selectivity_veto.py); no resolver rung (a conjunction the
       single-rung resolver cannot express) → classified `display` in rule_role_partition.
 
+  - rule_id: tvn-stromal-confound-veto
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: stromal_confound_class
+      equals: stromal_confounded
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+      adc: opposing
+      bite_tce: opposing
+    dominant: true
+    rationale: |
+      STROMAL-CONFOUND veto (tumor-cell-INTRINSIC arm, 2026-08-31). The bulk four-cell DESeq2 selectivity
+      design has no purity covariate, so a target over-expressed in bulk tumor because it is on CAFs /
+      stroma — NOT the malignant cells — reads tumor_selective. The single-cell attribution
+      (tumor-scrna-celltype-expression) resolves this: stromal_confound_class == stromal_confounded means
+      malignant detection is sub-subset while the STROMAL compartment dominates (caf_dominant), on a
+      TRUSTWORTHY malignant-annotation cube (curated/inferCNV, entity-specific — a phenotype_proxy or
+      multi-entity-pooled cube reads inconclusive_low_confidence and does NOT fire, so a mis-annotation
+      cannot manufacture the downgrade). This is a FALSE therapeutic window for EVERY tumor-cell-targeted
+      modality — SM / degrader / ADC / BiTE-TCE all OPPOSING — because a payload built against stroma
+      misses the cancer (unlike the modality-lensed normal-breadth arms, ADC is NOT spared here: the
+      antigen is not on the tumor cell at all). The tumor-selectivity verdict downgrades a selective
+      axis-A call to selective_but_stromal_confound when this fires. Symmetric to the normal-breadth veto
+      but on the INT (tumor-cell-intrinsic) axis rather than the SAFE (normal) axis; backtest-calibrated
+      (RETAIN CEACAM5/EPCAM/CDH17/GUCY2C/MSLN malignant-intrinsic; DOWNGRADE FAP/POSTN/COL1A1/collagen CAF
+      genes). Applied by the skills-side clamp (_skills_common/selectivity_veto.py); no resolver rung (a
+      conjunction the single-rung resolver cannot express) → classified `display` in rule_role_partition.
+
   # ============================================================================
   # Phase D — Signaling-network-mechanism card (added 2026-07-08)
   # ============================================================================
