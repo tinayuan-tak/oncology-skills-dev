@@ -26,3 +26,7 @@ control_housekeeping:
   modality: "deprioritize (pan-essential toxicity)"
   comparators: []
   acquire: ""
+immune_checkpoint:
+  modality: "checkpoint blockade / TCE / bispecific; combine with a T-cell agonist"
+  comparators: [PDCD1, CD274, CTLA4, LAG3]
+  acquire: "CD8 infiltration / IFN-gamma signature; antigen-independent effector context; IO-combo rationale"
