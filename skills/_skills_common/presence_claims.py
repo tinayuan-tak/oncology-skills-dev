@@ -290,6 +290,91 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
     return {"headline": head, "supports": supports, "caveat": caveat}
 
 
+# ── TYPED presence_state — a structured re-projection of the claim vector + facets ──────────────
+# The one-word presence_verdict is a rank-ordered collapse that can (a) disagree with the signal
+# package (an ALB-style single tumor-vs-adjacent contrast reads `strongly_upregulated_in_tumor` while
+# abundance + single-cell say not-present) and (b) structurally cannot carry the B/C/protein axes. This
+# projects the ALREADY-computed claim_vector (A/B/C/D) + the verdict-inert facets into a typed object so
+# each biological question is answered in its own field. VERDICT-INERT: reads NO presence_verdict, feeds
+# no rule; the collapsed spine + per-bucket matrix are byte-identical with or without it. The one word
+# can then be a pure `render_presence_label(state)` (Phase 2) rather than an independent computation.
+#
+# `present` names BOTH conflicted states rather than collapsing them to yes/no (symmetric with the
+# spine's existing present_rna_only_protein_absent token):
+#   yes                     — abundance-positive AND protein confirmed
+#   rna_only                — abundance-positive AND protein untested
+#   rna_only_protein_absent — abundance-positive AND protein measured-absent
+#   protein_only_rna_absent — abundance measured-ABSENT but protein measured-PRESENT (CONFLICT: protein
+#                             detected in bulk lysate / IHC while RNA + single-cell say not in the cells —
+#                             investigate contamination / post-transcriptional; NOT a clean absence call)
+#   protein_only            — abundance UNMEASURED but protein measured-present
+#   no                      — abundance measured-absent AND protein not confirmed
+#   untested                — abundance unmeasured AND protein not confirmed
+_PS_POS_SIG = frozenset({"strong", "moderate", "weak"})
+
+
+def _ps_sig(vec, ax):
+    return ((vec or {}).get(ax) or {}).get("signal")
+
+
+def derive_presence_state(headline: dict) -> dict:
+    """Typed, VERDICT-INERT projection of the presence signal package. Reads headline['claim_vector']
+    (A/B/C/D) + the facets already on the headline (protein_confirmation_state, abundance_floor_flag,
+    sc_expression_class, tumor_elevation_breadth_class). Never reads presence_verdict."""
+    vec = headline.get("claim_vector") or {}
+    A, B, C = _ps_sig(vec, "A"), _ps_sig(vec, "B"), _ps_sig(vec, "C")
+    pcs = headline.get("protein_confirmation_state")          # confirmed|measured_absent|untested|not_applicable
+    floor = headline.get("abundance_floor_flag")              # present_low_abundance|adequate_abundance|None
+    scc = headline.get("sc_expression_class")
+    bc = headline.get("tumor_elevation_breadth_class")
+
+    if A in _PS_POS_SIG:
+        present = {"confirmed": "yes", "measured_absent": "rna_only_protein_absent"}.get(pcs, "rna_only")
+    elif A in ("absent", "negative"):
+        present = "protein_only_rna_absent" if pcs == "confirmed" else "no"
+    else:                                                     # abundance unmeasured
+        present = "protein_only" if pcs == "confirmed" else "untested"
+
+    abundance_level = ("low" if floor == "present_low_abundance"
+                       else "high" if A == "strong"
+                       else "moderate" if A in ("moderate", "weak")
+                       else "untested")
+    elevated = ("yes" if B in ("strong", "moderate")
+                else "no" if B in ("absent", "negative") else "untested")
+    malignant = ("stroma" if (C == "negative" or scc == "microenvironment_dominant")
+                 else "yes" if C in _PS_POS_SIG
+                 else "no" if C == "absent" else "untested")
+    breadth = {"broadly_tumor_elevated": "broad", "multi_tumor_elevated": "multi",
+               "single_tumor_elevated": "single", "not_tumor_elevated": "none"}.get(bc, "untested")
+
+    return {"present": present,
+            "conflict": present in ("rna_only_protein_absent", "protein_only_rna_absent"),
+            "abundance_level": abundance_level, "elevated_vs_normal": elevated,
+            "malignant_intrinsic": malignant, "breadth": breadth,
+            "_basis": ("typed projection of claim_vector A/B/C/D + protein_confirmation_state + "
+                       "abundance_floor_flag + sc_expression_class; VERDICT-INERT, reads no presence_verdict")}
+
+
+# The one WORD as a pure render of the typed object (Phase 2 will point presence_verdict at this).
+def render_presence_label(state: dict) -> str:
+    p = (state or {}).get("present")
+    if p == "no":
+        return "absent"
+    if p == "untested":
+        return "presence_untested"
+    if p == "rna_only_protein_absent":
+        return "present_rna_only_protein_absent"
+    if p == "protein_only_rna_absent":
+        return "conflicted_protein_present_rna_absent"
+    if p == "protein_only":
+        return "present_protein_only"
+    tier = {"high": "broadly", "moderate": "moderately", "low": "sparsely",
+            "untested": "moderately"}.get(state.get("abundance_level"), "moderately")
+    stub = "protein_confirmed" if p == "yes" else "rna_only"
+    elev = "_tumor_elevated" if state.get("elevated_vs_normal") == "yes" else ""
+    return f"present_{tier}{elev}_{stub}"
+
+
 # ── SUBTYPE-scoped claim vector (per stratum) ─────────────────────────────────────────────────
 # When a (target, indication, SUBTYPE) is the question, the pooled indication vector flattens the
 # per-stratum signal (e.g. CD274 is broadly-low pooled in COADREAD but a strong MSI-H signal). This
@@ -379,4 +464,4 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
 
 
 __all__ = ["presence_claim_vector", "presence_claim_vector_by_subtype", "presence_key_signals",
-           "CLAIM_NAME", "CLAIM_INFORMS"]
+           "derive_presence_state", "render_presence_label", "CLAIM_NAME", "CLAIM_INFORMS"]

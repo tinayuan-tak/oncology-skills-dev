@@ -48,7 +48,7 @@ from _skills_common import get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
-                                            presence_key_signals)
+                                            presence_key_signals, derive_presence_state)
 from _skills_common.presence_question_table import presence_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
@@ -1212,6 +1212,12 @@ def _headline(cards, fired, verdict_pair):
 
     hl["claim_vector"] = _enrich("claim_vector", presence_claim_vector, hl, cards)
     hl["key_signals"] = _enrich("key_signals", presence_key_signals, hl, cards)
+    # TYPED presence_state (verdict-INERT): a structured re-projection of the claim_vector A/B/C/D + the
+    # protein_confirmation_state / abundance_floor_flag / sc facets already on `hl`, so each biological
+    # question (present? / abundant? / elevated? / malignant-intrinsic vs stroma? / broad?) is answered in
+    # its own field and both symmetric protein↔RNA conflicts are NAMED. Must run AFTER claim_vector (it
+    # reads hl['claim_vector']). Reads no presence_verdict → collapsed spine + per-bucket matrix byte-stable.
+    hl["presence_state"] = _enrich("presence_state", derive_presence_state, hl)
     # SUBTYPE-scoped claim vector (per stratum) — when a (target, indication, subtype) is the question,
     # the pooled vector flattens the per-stratum signal (cf. CD274 broadly-low pooled but MSI-H-strong).
     # Projects A + distributional-B per stratum from the already-resolved per_subgroup_metrics; None when
@@ -1274,6 +1280,9 @@ _SYNTHESIS_FACET_KEYS = (
     "subtype_purity_source", "subtype_purity_spread", "cellline_subtype_axis_quality",
     # Modality-blind claim vector + brief cited read (the within-lens integration this subskill owns).
     "claim_vector", "claim_vector_by_subtype", "key_signals",
+    # typed presence_state — the structured re-projection (present/abundance/elevation/malignant/breadth
+    # + named protein↔RNA conflict); the composed reasoner reads this instead of parsing the one word.
+    "presence_state",
     # the 7-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
