@@ -83,3 +83,36 @@ def test_enrichment_null_rows_dropped_from_median(monkeypatch):
     _patch(monkeypatch, _cube([("A", "B", "d1", 0.4, 1.5), ("A", "B", "d2", 0.0, None)]))
     r = SC.confirm_pair_samecell("A", "B", "COADREAD")
     assert r["samecell_enrichment_median"] == 1.5   # only the non-null donor counts toward enrichment
+
+
+def test_saturated_high_copresence_is_not_mutually_exclusive(monkeypatch):
+    # BP-1 / #357: a saturated high-co-presence pair (both_fraction ~0.60) with degenerate enrichment
+    # <=0.8 must NOT be labelled mutually_exclusive (an OPPOSING bispecific signal) — 60% of malignant
+    # cells co-express both = excellent avidity. It falls through to same_cell_independent.
+    _patch(monkeypatch, _cube([("EPCAM", "CEACAM5", "d1", 0.60, 0.78),
+                               ("EPCAM", "CEACAM5", "d2", 0.62, 0.75)]))
+    r = SC.confirm_pair_samecell("EPCAM", "CEACAM5", "COADREAD")
+    assert r["samecell_avidity_call"] == "same_cell_independent"
+    assert r["samecell_avidity_call"] != "same_cell_mutually_exclusive"
+
+
+def test_low_copresence_low_enrichment_is_still_mutually_exclusive(monkeypatch):
+    # the genuine exclusion case is preserved: LOW enrichment AND LOW absolute co-presence.
+    _patch(monkeypatch, _cube([("A", "B", "d1", 0.03, 0.4), ("A", "B", "d2", 0.02, 0.3)]))
+    assert SC.confirm_pair_samecell("A", "B", "COADREAD")["samecell_avidity_call"] == "same_cell_mutually_exclusive"
+
+
+def test_n_donors_dedups_on_dataset_donor_grain(monkeypatch):
+    # BP-6: cube grain is (dataset_id, donor_id, gene_a, gene_b). A donor recorded twice (here the
+    # pair in both orientations for the same dataset+donor) must count as ONE donor, not two rows.
+    df = pd.DataFrame([
+        {"gene_a": "A", "gene_b": "B", "dataset_id": "ds1", "donor_id": "d1",
+         "both_fraction": 0.5, "enrichment_vs_independence": 1.4},
+        {"gene_a": "B", "gene_b": "A", "dataset_id": "ds1", "donor_id": "d1",   # dup (orientation flip)
+         "both_fraction": 0.5, "enrichment_vs_independence": 1.4},
+        {"gene_a": "A", "gene_b": "B", "dataset_id": "ds2", "donor_id": "d2",
+         "both_fraction": 0.5, "enrichment_vs_independence": 1.4},
+    ])
+    _patch(monkeypatch, df)
+    r = SC.confirm_pair_samecell("A", "B", "COADREAD")
+    assert r["n_donors"] == 2   # (ds1,d1) + (ds2,d2); NOT 3 rows

@@ -191,6 +191,10 @@ def _load_methylation_from_product(target: str, stripped_to_model: dict, product
 def _methylation_for_gene(target: str, stripped_to_model: dict):
     """Prefer the precomputed per-gene MEAN product (pushdown, ~kB); fall back to streaming the whole
     ~40 MB CCLE gzip when the product is unreachable. Byte-identical {ModelID: mean} either way."""
+    # Canonicalize the gene symbol ONCE so both paths key on the same form (CIS-5): the product path
+    # filtered gene_symbol == target.upper() while the live gzip fallback matched the raw target, so a
+    # non-canonical-case target (e.g. "Tp53") silently diverged — product hit, gzip missed.
+    target = target.upper()
     res = _load_methylation_from_product(target, stripped_to_model)
     if res is not None:
         return res

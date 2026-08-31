@@ -16,6 +16,7 @@ Verdicts:
   no_window                      tumor coordinated & both>=TAU ; normal_liability (a normal cell co-expresses both)
   selectivity_unproven           tumor coordinated & both>=TAU ; normal under_powered (thin coverage — NOT a pass)
   insufficient_tumor_engagement  tumor both<TAU (avidity gate can't co-engage the tumor)
+  insufficient_tumor_power       tumor observed in < MIN_TUMOR_DONORS donors (thin coverage — NOT a pass)
   data_unavailable               a required cube is unreadable
 
 Policy (updated 2026-08-15 per #357, Option A — supersedes the 2026-08-13 coordination policy):
@@ -36,12 +37,18 @@ from methods.pair_selectivity_gate.samecell import (
 )
 
 TUMOR_ENGAGEMENT_MIN = 0.30      # median fraction of malignant cells co-expressing both
+# Honest-abstain donor floor for the TUMOR side, mirroring normal.MIN_DONORS_NORMAL (BP-2). The normal
+# side already floors its selectivity statistic at >=3 donors & >=10 cells; the tumor engagement side
+# had NO donor floor, so window_open could be declared from a single-donor tumor observation (n=1 is
+# not a cross-donor signal). Below the floor we abstain (insufficient_tumor_power), never pass.
+MIN_TUMOR_DONORS = 3
 _COORDINATED_CALL = "same_cell_coordinated"   # samecell avidity call required for window_open
 
 # verdict rank for target-centric best-partner selection (higher = more viable)
 _VERDICT_RANK = {
     "window_open": 5, "window_marginal": 4, "selectivity_unproven": 3,
-    "no_window": 2, "insufficient_tumor_engagement": 1, "data_unavailable": 0,
+    "no_window": 2, "insufficient_tumor_engagement": 1, "insufficient_tumor_power": 1,
+    "data_unavailable": 0,
 }
 
 
@@ -86,6 +93,10 @@ def pair_selectivity_window(target: str, partner: str, indication: str) -> dict:
     # Tumor axis first (avidity gate must engage the tumor at all).
     if tumor.get("samecell_avidity_call") == "data_unavailable":
         return out("data_unavailable")
+    # Honest-abstain donor floor mirroring the normal side (BP-2): a single-donor tumor observation
+    # is not a cross-donor signal, so it must not be allowed to declare window_open.
+    if (tumor.get("n_donors") or 0) < MIN_TUMOR_DONORS:
+        return out("insufficient_tumor_power")
     if not _tumor_engages(tumor):
         return out("insufficient_tumor_engagement")
 

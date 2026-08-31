@@ -52,7 +52,16 @@ INDICATION_TO_SAMECELL_MANIFEST = {
 
 # enrichment_vs_independence bands for the avidity call.
 _COORDINATED_MIN = 1.2      # >= → coordinated (same-cell avidity supportive)
-_EXCLUSION_MAX = 0.8        # <= → mutual exclusion (avidity negative)
+_EXCLUSION_MAX = 0.8        # <= → enrichment below independence (candidate mutual exclusion)
+
+# Absolute same-cell co-presence floor (mirrors window.TUMOR_ENGAGEMENT_MIN / #357 Option A). Above
+# this fraction of malignant cells co-expressing BOTH antigens the pair DEMONSTRABLY co-localizes, so
+# it must NOT be labelled mutually_exclusive on a degenerate-at-saturation enrichment: two near-
+# ubiquitous antigens give enrichment ~1.0 (or even <1) despite a high both_fraction, and calling that
+# "mutually exclusive" is an OPPOSING bispecific signal that contradicts the physics (60% of malignant
+# cells co-express both = excellent avidity). We therefore gate the OPPOSING call on LOW absolute
+# co-presence, never on enrichment alone (BP-1; sibling of window.py's Option A).
+_COPRESENCE_FLOOR = 0.30
 
 
 @lru_cache(maxsize=64)
@@ -89,9 +98,24 @@ def _avidity_call(enrichment: Optional[float], both_fraction: Optional[float]) -
         return "avidity_unconfirmed"
     if enrichment >= _COORDINATED_MIN:
         return "same_cell_coordinated"       # co-express on the same malignant cells — avidity supportive
-    if enrichment <= _EXCLUSION_MAX:
-        return "same_cell_mutually_exclusive"  # rarely the same cell — avidity NEGATIVE (bulk was misleading)
-    return "same_cell_independent"           # both present, co-occur ~by chance
+    if enrichment <= _EXCLUSION_MAX and both_fraction < _COPRESENCE_FLOOR:
+        # low enrichment AND rarely the same cell (below the co-presence floor) → genuine mutual
+        # exclusion: bulk co-expression was misleading, the antigens sit on DIFFERENT cells (avidity
+        # NEGATIVE). A high-co-presence pair (both_fraction >= floor) is NOT reachable here even at
+        # enrichment <1 — that saturation case falls through to independent (BP-1 / #357 physics).
+        return "same_cell_mutually_exclusive"
+    return "same_cell_independent"           # both present at meaningful co-presence, co-occur ~by chance
+
+
+def _count_donors(m) -> int:
+    """Distinct donors in a matched slice. The cube grain is (dataset_id, donor_id, gene_a, gene_b);
+    len(rows) over-counts (a donor observed across multiple datasets, or a pair recorded in both
+    orientations, posts >1 row per donor), so dedup on the (dataset_id, donor_id) donor key — mirrors
+    normal._floored_groups' donor count (BP-6). Falls back to whichever id columns are present."""
+    id_cols = [c for c in ("dataset_id", "donor_id") if c in getattr(m, "columns", [])]
+    if not id_cols:
+        return int(len(m))
+    return int(m[id_cols].drop_duplicates().shape[0])
 
 
 def confirm_pair_samecell(target: str, partner: str, indication: str) -> dict:
@@ -117,7 +141,7 @@ def confirm_pair_samecell(target: str, partner: str, indication: str) -> dict:
         "samecell_avidity_call": _avidity_call(enr_med, both_med),
         "samecell_both_fraction_median": round(both_med, 4),
         "samecell_enrichment_median": round(enr_med, 3) if enr_med is not None else None,
-        "n_donors": int(len(m)),
+        "n_donors": _count_donors(m),
         "_evidence_tier": "single_cell_measured",
     }
 
@@ -179,7 +203,7 @@ def read_target_samecell_avidity(target: str, indication: str) -> dict:
         enr_med = float(np.median(enr)) if len(enr) else None
         partners.append({"partner": str(p), "avidity_call": _avidity_call(enr_med, both_med),
                          "enrichment_median": round(enr_med, 3) if enr_med is not None else None,
-                         "both_fraction_median": round(both_med, 4), "n_donors": int(len(g))})
+                         "both_fraction_median": round(both_med, 4), "n_donors": _count_donors(g)})
     # headline = the most avidity-supportive partner (rank, then enrichment)
     partners.sort(key=lambda d: (_AVIDITY_RANK.get(d["avidity_call"], 0),
                                  d["enrichment_median"] or -1.0), reverse=True)

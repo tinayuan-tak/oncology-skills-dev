@@ -31,6 +31,19 @@ def test_cn_expression_coupling_calls_compute_and_intersects_on_case(monkeypatch
     assert out["cn_expr_spearman_r"] > 0.5
 
 
+def test_gistic_plus_one_gains_counted_as_amplified(monkeypatch):
+    # CIS-3: "amplified" must include GISTIC +1 gains (any gain), not just +2 high-level amps.
+    # 20 neutral/loss ({0,-1,-2}), 20 at +1, 20 at +2 -> n_amplified == 40 (all cn > 0).
+    cases = [f"TCGA-XX-{i:04d}" for i in range(60)]
+    cn = {}
+    for i, c in enumerate(cases):
+        cn[c] = (0 if i < 10 else -1 if i < 20 else 1 if i < 40 else 2)
+    expr = {c: 3.0 + 1.2 * cn[c] for c in cases}
+    _stub(monkeypatch, expr, cn, {})
+    out = cli.compute_patient_cis_coherence("ERBB2", "BRCA")
+    assert out["n_amplified"] == 40   # +1 (20) AND +2 (20); would be 20 if +1 gains were excluded
+
+
 def test_methylation_silencing_negative_delta(monkeypatch):
     # methylated cases express ~2 log2 units lower -> epigenetic_silencing
     meth_cases = {f"TCGA-M-{i:03d}": True for i in range(8)}

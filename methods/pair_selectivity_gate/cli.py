@@ -22,8 +22,8 @@ def build_summary(target: str, indication: str = None) -> dict:
          the pan-tissue normal same-cell cube sc-samecell-coexpr-normal-v1: does ANY well-powered
          normal cell type co-express BOTH antigens on the same cell? Combines with the tumor axis into
          an AND-gate verdict (window_open / window_marginal / no_window / selectivity_unproven /
-         insufficient_tumor_engagement / data_unavailable) + a selectivity_margin (tumor_both -
-         normal_max_both) for ranking.
+         insufficient_tumor_engagement / insufficient_tumor_power / data_unavailable) + a
+         selectivity_margin (tumor_both - normal_max_both) for ranking.
 
     Before v0.2.0 only the tumor axis was surfaced — the normal selectivity gate was built
     (window.py / normal.py) but the cube sc-samecell-coexpr-normal-v1 was orphaned (read by no card).

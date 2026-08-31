@@ -8,9 +8,9 @@ import pytest
 import methods.pair_selectivity_gate.window as W
 
 
-def _tumor(both, call="same_cell_coordinated"):
+def _tumor(both, call="same_cell_coordinated", n_donors=50):
     return {"samecell_avidity_call": call, "samecell_both_fraction_median": both,
-            "samecell_enrichment_median": 1.4, "n_donors": 50}
+            "samecell_enrichment_median": 1.4, "n_donors": n_donors}
 
 
 def _normal(cls, nmb, locus=None):
@@ -76,6 +76,20 @@ def test_saturation_pair_attributes_failure_to_normal_not_tumor(monkeypatch):
     assert r["window_verdict"] == "no_window"
     assert r["tumor_coordinated"] is False
     assert r["normal_liability_locus"]["cell_type"] == "BEST4+ colonocyte"
+
+
+def test_single_donor_tumor_abstains_not_window_open(monkeypatch):
+    # BP-2: a single-donor tumor observation must NOT declare window_open even with high co-presence
+    # and a clean normal side — it abstains (insufficient_tumor_power), mirroring the normal donor floor.
+    _patch(monkeypatch, _tumor(0.60, n_donors=1), _normal("selectivity_clean", 0.01))
+    r = W.pair_selectivity_window("FOLR1", "MSLN", "OV")
+    assert r["window_verdict"] == "insufficient_tumor_power"
+
+
+def test_donor_floor_boundary_passes_at_three(monkeypatch):
+    # exactly MIN_TUMOR_DONORS donors clears the floor -> normal side drives the verdict.
+    _patch(monkeypatch, _tumor(0.60, n_donors=W.MIN_TUMOR_DONORS), _normal("selectivity_clean", 0.01))
+    assert W.pair_selectivity_window("FOLR1", "MSLN", "OV")["window_verdict"] == "window_open"
 
 
 def test_tau_boundary_inclusive(monkeypatch):

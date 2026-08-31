@@ -6,8 +6,9 @@ gene's own expression?" This asks the SAME question in patient tumours, PLUS an 
   1. CN -> expression coupling: does patient copy-number track patient expression? Reuses the exact
      depmap_cis_dosage.compute_cis_dosage statistic (Spearman-driven cis_dosage_class), fed patient
      {case: gistic_call} and {case: log2_tpm} intersected on the case barcode. GISTIC discrete
-     {-2..+2} is an ordinal CN; Spearman (rank) handles it. amplification_threshold=1 (GISTIC +1 =
-     gain) for the descriptive amplified-vs-neutral contrast.
+     {-2..+2} is an ordinal CN; Spearman (rank) handles it. amplification_threshold=0 (compute uses
+     cn > threshold, so GISTIC +1 AND +2 = "any gain") for the descriptive amplified-vs-neutral
+     contrast — matching the documented "+1 gains included" intent (CIS-3).
 
   2. Promoter-methylation -> expression silencing: do promoter-methylated patients express the gene
      LOWER than unmethylated patients? A negative delta (methylated lower) is epigenetic-silencing
@@ -27,8 +28,11 @@ from methods.tcga_cis_coherence_patient import read as _read
 # Methylation silencing thresholds.
 SILENCING_DELTA_LOG2TPM = 1.0   # methylated cases express >= 1 log2 unit (~2x) LOWER = silencing
 MIN_METHYLATED = 5              # need >= this many methylated AND unmethylated cases to call
-# GISTIC +1 (any gain) is the "amplified" edge for the descriptive amp-vs-neutral expression contrast.
-GISTIC_AMPLIFIED_THRESHOLD = 1.0
+# GISTIC "any gain" (+1 or +2) is the "amplified" edge for the descriptive amp-vs-neutral expression
+# contrast. compute_cis_dosage counts amplified as cn > threshold, so the threshold is 0.0 → +1 and
+# +2 are amplified, {0,-1,-2} neutral (CIS-3: 1.0 wrongly excluded +1 gains despite the "any gain"
+# docs/card intent — cn > 1.0 kept only +2 high-level amps).
+GISTIC_AMPLIFIED_THRESHOLD = 0.0
 
 
 def _methylation_silencing(expr: dict[str, float], meth: dict[str, bool]) -> dict:

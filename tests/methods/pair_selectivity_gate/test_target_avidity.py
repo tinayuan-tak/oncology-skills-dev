@@ -29,9 +29,10 @@ def _normal_cube_clean():
 
 
 def _cube():
-    # EPCAM pairs: CEACAM5 coordinated (enr>1.2), ERBB2 mutually exclusive (enr<0.8), 2 donors each.
+    # EPCAM pairs: CEACAM5 coordinated (enr>1.2), ERBB2 mutually exclusive (enr<0.8), 3 donors each
+    # (>= window.MIN_TUMOR_DONORS so the tumor axis clears the BP-2 donor floor).
     rows = []
-    for d in ("d1", "d2"):
+    for d in ("d1", "d2", "d3"):
         rows += [
             {"gene_a": "EPCAM", "gene_b": "CEACAM5", "both_fraction": 0.55,
              "enrichment_vs_independence": 1.6, "dataset_id": "ds", "donor_id": d},
