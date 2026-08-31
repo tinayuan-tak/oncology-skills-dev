@@ -407,6 +407,10 @@ def build_health(roots: dict[str, Path]) -> dict:
         cn["consumers"] = sorted(consumers.get(cid, []))
         cn["n_consumers"] = len(cn["consumers"])
         cn["is_orphan"] = (cn["n_consumers"] == 0)  # on disk but pulled by no skill
+        # A placeholder/dormant card is unconsumed BY DESIGN (a staged forward-declaration awaiting its
+        # data + skill-wiring, often already declared in a dashboard_spec) → STAGED, not a dead orphan.
+        # Separated so the dead-orphan alarm counts only cards that SHOULD have a consumer but don't.
+        cn["is_staged_orphan"] = cn["is_orphan"] and bool(cn.get("is_placeholder"))
         cn["dashboard_specs"] = sorted(spec_cards.get(cid, []))
         cn["in_dashboard_spec"] = bool(cn["dashboard_specs"])
         # Coverage gap: a card consumed by ≥1 skill but in NO dashboard_spec can
@@ -538,7 +542,10 @@ def build_health(roots: dict[str, Path]) -> dict:
                                        if k in ("declared", "drift")),
             "n_p4_missing_cards": modality_tally.get("missing", 0),
             "n_p4_drift_cards": modality_tally.get("drift", 0),
-            "n_orphan_cards": sum(1 for c in card_nodes if c["is_orphan"]),
+            # DEAD orphans only: on-disk cards nothing consumes AND not a staged placeholder/dormant
+            # forward-declaration. Staged orphans are counted separately (not a defect).
+            "n_orphan_cards": sum(1 for c in card_nodes if c["is_orphan"] and not c.get("is_staged_orphan")),
+            "n_staged_orphan_cards": sum(1 for c in card_nodes if c.get("is_staged_orphan")),
             "n_cards_consumed_but_no_spec": sum(1 for c in card_nodes if c.get("consumed_but_no_spec")),
             "n_datasets": len(dataset_nodes),
             "n_datasets_in_catalog": sum(1 for d in dataset_nodes if d["in_catalog"]),

@@ -191,6 +191,9 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
                             f"re-derive (got '{got}') — regenerate")
             if c.get("is_orphan") != (c.get("n_consumers", 0) == 0):
                 errs.append(f"[card {c.get('card_id')}] is_orphan disagrees with n_consumers")
+            if "is_staged_orphan" in c and c.get("is_staged_orphan") != (
+                    c.get("is_orphan") and bool(c.get("is_placeholder"))):
+                errs.append(f"[card {c.get('card_id')}] is_staged_orphan inconsistent")
         if rep["summary"].get("card_health_tally") != ctally:
             errs.append("summary.card_health_tally disagrees with per-card count — regenerate")
 

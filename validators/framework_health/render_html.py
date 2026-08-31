@@ -614,8 +614,11 @@ def _cards_table(report: dict) -> str:
 
     body = ""
     if orphans:
-        body += (f"<tr class='grp'><td colspan='9'>⚠ ORPHAN CARDS — defined on disk, "
-                 f"consumed by no skill ({len(orphans)}) — the pull-model's unclaimed-measurement signal</td></tr>")
+        n_dead = sum(1 for c in orphans if not c.get("is_staged_orphan"))
+        n_staged = sum(1 for c in orphans if c.get("is_staged_orphan"))
+        body += (f"<tr class='grp'><td colspan='9'>ORPHAN CARDS — defined on disk, consumed by no skill "
+                 f"({len(orphans)}: {n_dead} DEAD ⚠, {n_staged} staged placeholder/dormant forward-declarations) "
+                 f"— dead = should have a consumer but doesn't; staged = awaiting data + wiring by design</td></tr>")
         for c in sorted(orphans, key=lambda c: c["card_id"]):
             body += _row(c, orphan=True)
     for h in health_order:
