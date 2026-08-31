@@ -1005,7 +1005,13 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
                   for c in cards],
     }
-    return synthesize_dependency(decision, model_id, subtype)
+    # Narrate through the SAME generic capsule-driven engine + dependency LensConfig the standalone
+    # --synthesize path uses (make_synthesize_fn(_FR_LENS) at the run_wired_skill call). The prior call
+    # here was to `synthesize_dependency`, the BESPOKE narrator that was migrated away (see the note at
+    # the synthesize_fn wiring below) — the name no longer exists, so a COMPOSED target-profile run raised
+    # NameError, swallowed by the fan-out's best-effort wrapper → FR narration was silently dead in the
+    # composed product. Reuse the single source so standalone and composed narrate identically.
+    return make_synthesize_fn(_FR_LENS)(decision, model_id, subtype)
 
 
 # ─── Signals-first sub-group reader (verdict-INERT) ───────────────────────────────────────────────
