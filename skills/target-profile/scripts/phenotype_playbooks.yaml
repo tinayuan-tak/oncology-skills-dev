@@ -1,0 +1,28 @@
+# Phenotype eval PLAYBOOKS (v1, 2026-08-31) — DESCRIPTIVE / verdict-INERT orientation content, keyed by the
+# target-archetype phenotype (anchor) vocabulary. Surfaced (read-only) in the target_profile.md
+# "Target-signature landscape" panel for the dominant phenotype. EDIT THIS FILE to refine — it is data,
+# not code, and never touches the deterministic verdict spine or any gate.
+snv_driver:
+  modality: "mutant-selective small molecule; degrader if allosteric"
+  comparators: [KRAS, BRAF, EGFR]
+  acquire: "hotspot dependency stratification; mutant-selective tool compound"
+amp_driver:
+  modality: "small molecule / ADC if surface; degrader"
+  comparators: [ERBB2, MET, CCND1]
+  acquire: "cis-coherence (amp -> expr -> dependency); focal vs arm-level"
+tsg_loss:
+  modality: "not directly druggable -> synthetic-lethal / combination"
+  comparators: ["VHL/HIF2a", "WRN x MSI", "PARP x BRCA"]
+  acquire: "SL partner screen; collateral-lethality"
+expression_surface:
+  modality: "ADC / TCE / CAR-T"
+  comparators: [EPCAM, TROP2, CEACAM5, FOLR1]
+  acquire: "surface density (copies/cell); normal-tissue breadth; internalization"
+dependency_essential:
+  modality: "small molecule; check therapeutic index"
+  comparators: [PLK1, AURKA, WEE1, CDK7]
+  acquire: "pan-essential vs selective; normal-tissue tolerability"
+control_housekeeping:
+  modality: "deprioritize (pan-essential toxicity)"
+  comparators: []
+  acquire: ""

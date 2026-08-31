@@ -183,6 +183,24 @@ def _mode_ordered_shorts(shorts, actionability_mode: Optional[dict], deciding_ax
     return order + [s for s in shorts if s not in order]
 
 
+_PLAYBOOKS_CACHE: Optional[dict] = None
+
+
+def _load_phenotype_playbooks() -> dict:
+    """Load the editable phenotype->eval-playbook map (data, not code) next to this script. Best-effort:
+    any failure (missing file / no yaml) returns {} so the panel simply omits the playbook line."""
+    global _PLAYBOOKS_CACHE
+    if _PLAYBOOKS_CACHE is not None:
+        return _PLAYBOOKS_CACHE
+    try:
+        import yaml
+        p = Path(__file__).resolve().parent / "phenotype_playbooks.yaml"
+        _PLAYBOOKS_CACHE = yaml.safe_load(p.read_text()) or {} if p.exists() else {}
+    except Exception:
+        _PLAYBOOKS_CACHE = {}
+    return _PLAYBOOKS_CACHE
+
+
 def _render_phenotype_landscape(companion: Optional[dict],
                                 scorecard: Optional[dict] = None) -> list:
     """Render the verdict-INERT target-signature landscape panel (soft phenotype mixture + nearest analogs
@@ -228,8 +246,19 @@ def _render_phenotype_landscape(companion: Optional[dict],
     if prec:
         pstr = ", ".join(f"{p['target']} (J={p.get('jaccard')})" for p in prec[:4])
         out.append(f"- **Rule-fingerprint precedent:** {pstr}")
+    # dominant-phenotype eval PLAYBOOK (descriptive orientation content; read-only, never a gate)
+    dom = max(mix, key=mix.get) if mix else None
+    pb = (_load_phenotype_playbooks() or {}).get(dom) if dom else None
+    if isinstance(pb, dict) and (pb.get("modality") or pb.get("comparators")):
+        out.append(f"- **Playbook ({dom}):** {pb.get('modality', '')}".rstrip())
+        comps = pb.get("comparators") or []
+        if comps:
+            out.append(f"  - _comparators:_ {', '.join(str(c) for c in comps)}")
+        if pb.get("acquire"):
+            out.append(f"  - _evidence to acquire:_ {pb['acquire']}")
     out += ["", "_Descriptive orientation from the frozen target-signature atlas — a soft mixture over "
-            "curated canonical phenotype anchors, not a classification or a gate._", ""]
+            "curated canonical phenotype anchors, not a classification or a gate. Playbook is illustrative "
+            "eval guidance, not a recommendation._", ""]
     return out
 
 

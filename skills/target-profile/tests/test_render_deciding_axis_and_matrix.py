@@ -113,3 +113,12 @@ def test_phenotype_landscape_panel_absent_is_additive():
     md = tp._render_target_profile_md("KRAS", "COADREAD", _sr(), _min_llm(), {})
     assert "## Target-signature landscape" not in md
     assert "## Recommendation" in md              # rest of the profile renders normally
+
+
+def test_phenotype_playbook_rendered_for_dominant_phenotype():
+    comp = {"phenotype_mixture": {"expression_surface": 0.7, "dependency_essential": 0.3},
+            "nearest_analogs": [], "novelty": {}, "missingness": {}}
+    md = tp._render_target_profile_md("EPCAM", "COADREAD", _sr(), _min_llm(), {}, archetype_companion=comp)
+    assert "Playbook (expression_surface)" in md
+    assert "ADC / TCE" in md and "comparators:" in md
+    assert "not a classification or a gate" in md      # governance label retained
