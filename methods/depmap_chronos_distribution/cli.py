@@ -30,6 +30,7 @@ degradation when files unreachable (emits _live_read_error in summary.json).
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import sys
@@ -69,6 +70,37 @@ DEPMAP_LOCAL_FALLBACK_DIRS = [
     Path("/data/depmap/26q1"),
     Path.home() / "depmap-26q1",
 ]
+
+
+@functools.lru_cache(maxsize=4)
+def _load_curated_common_essentials(release_pin: str = "26q1"):
+    """DepMap's CURATED core-essential control set — AchillesCommonEssentialControls.csv, the
+    Hart 2015 ∩ Blomen 2014 intersection of curated pan-essential fitness genes: the CALIBRATED,
+    published definition of a broad-toxicity core-essential. Used to ANCHOR the pan-essential KILLER
+    (T3, 2026-08-31): the former trigger was the eyeballed `fraction_strongly_dependent >= 0.85` alone —
+    a magic number firing a SAFETY veto.
+
+    Returns a frozenset of HGNC symbols, or None when unreachable (offline / no creds) so the classifier
+    degrades to the fraction-only call rather than silently dropping every killer.
+
+    Deliberately NOT CRISPRInferredCommonEssentials.csv — that looser Chronos-inferred list INCLUDES
+    context-essential oncogenes (e.g. KRAS), so anchoring the killer to it would over-fire on selective
+    oncogene-addiction dependencies (the CD19 over-eager-clamp failure mode). The curated Achilles
+    control set excludes them (verified: KRAS/TP53/WRN/EGFR/BRAF/MYC absent; PLK1/KIF11/RAN/RPL3/PCNA/CDK1
+    present).
+    """
+    try:
+        from methods.depmap_common.loaders import _fetch_csv, DEPMAP_S3_PREFIX_CRISPR
+        df = _fetch_csv(f"{DEPMAP_S3_PREFIX_CRISPR}/AchillesCommonEssentialControls.csv",
+                        "AchillesCommonEssentialControls.csv", release_pin)
+    except Exception:  # noqa: BLE001 — additive anchor: an unreachable list must degrade, never crash the method
+        return None
+    if df is None or df.empty:
+        return None
+    col = df.columns[0]   # "Gene"; values are "SYMBOL (entrez_id)"
+    symbols = {str(v).split(" (")[0].strip() for v in df[col].dropna()}
+    symbols.discard("")
+    return frozenset(symbols) or None
 
 
 def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, list]:
@@ -226,8 +258,13 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
                              moderate_threshold: float = -0.5,
                              pan_essential_fraction: float = 0.85,
                              selective_min: float = 0.05,
-                             selective_max: float = 0.60) -> dict:
-    """Compute the decision-grade summary scalars defined in the card_spec."""
+                             selective_max: float = 0.60,
+                             curated_common_essential: bool | None = None) -> dict:
+    """Compute the decision-grade summary scalars defined in the card_spec.
+
+    `curated_common_essential` (T3): is the target in DepMap's curated core-essential control set? Anchors
+    the pan-essential KILLER — see _classify_dependency. None (default) = list unavailable → fraction-only
+    fallback (prior behavior), so existing callers/tests are byte-stable."""
     import numpy as np
     import pandas as pd
 
@@ -343,7 +380,7 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     # the Tier-2 interpretation-rules consume. Vocabulary declared in the card_spec's
     # outputs.summary_fields_vocabulary.dependency_class. The mapping mirrors DepMap's
     # published portal logic.
-    summary["dependency_class"] = _classify_dependency(
+    _classify_kwargs = dict(
         fraction_strongly_dependent=frac_strong,
         median_chronos_panel=summary["median_chronos_panel"],
         distribution_shape=shape,
@@ -353,6 +390,15 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
         selective_min=selective_min,
         selective_max=selective_max,
     )
+    # T3 (2026-08-31): the pan-essential KILLER is now co-required to be a DepMap curated core-essential,
+    # not fired by the eyeballed 0.85 fraction alone. Emit BOTH the re-anchored class AND the raw
+    # fraction-only class (`pan_essential_fraction_call`, the audit/ladder field = prior behavior) so the
+    # re-anchoring is fully auditable, plus the anchor input itself (`depmap_curated_common_essential`).
+    summary["depmap_curated_common_essential"] = curated_common_essential
+    summary["pan_essential_fraction_call"] = _classify_dependency(**_classify_kwargs,
+                                                                   curated_common_essential=None)
+    summary["dependency_class"] = _classify_dependency(**_classify_kwargs,
+                                                        curated_common_essential=curated_common_essential)
 
     return summary
 
@@ -382,7 +428,8 @@ def _classify_dependency(fraction_strongly_dependent: float,
                           n_cell_lines_evaluated: int | None = None,
                           pan_essential_fraction: float = 0.85,
                           selective_min: float = 0.05,
-                          selective_max: float = 0.60) -> str:
+                          selective_max: float = 0.60,
+                          curated_common_essential: bool | None = None) -> str:
     """Map summary stats to a DepMap-convention dependency_class categorical.
 
     Returns one of: common_essential | common_essential_underpowered |
@@ -406,6 +453,16 @@ def _classify_dependency(fraction_strongly_dependent: float,
         if (n_cell_lines_evaluated is not None
                 and n_cell_lines_evaluated < PAN_ESSENTIAL_MIN_PANEL_N):
             return "common_essential_underpowered"
+        # T3 RE-ANCHOR (2026-08-31): the eyeballed 0.85 fraction alone no longer FIRES the pan-essential
+        # KILLER (a broad-toxicity SAFETY veto). Co-require corroboration by DepMap's curated core-essential
+        # control set (AchillesCommonEssentialControls = Hart2015 ∩ Blomen2014) — the calibrated, published
+        # definition. A gene broadly-dependent by fraction but explicitly NOT a curated core-essential (a
+        # context-essential oncogene) is a `broadly_dependent` positive, NOT a killer. This only ever
+        # REMOVES a killer relative to the fraction (the CD19-safe direction: it can never fabricate one).
+        # curated_common_essential is None ⇒ list unavailable (offline/creds) ⇒ fraction-only fallback
+        # (prior behavior), so the method degrades gracefully instead of dropping every killer.
+        if curated_common_essential is False:
+            return "broadly_dependent"
         return "common_essential"
     if fraction_strongly_dependent < selective_min:
         # Below the pooled floor. Admissibility check: is there a well-sampled lineage
@@ -790,11 +847,15 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
             json.dump({"_no_data": True, "target": target}, f)
         return 2
 
-    # 2. Compute summary
+    # 2. Compute summary. Resolve DepMap curated core-essential membership (T3 pan-essential-killer
+    #    anchor); None when the control list is unreachable → fraction-only fallback (prior behavior).
+    _curated = _load_curated_common_essentials(release_pin)
+    curated_common_essential = (target in _curated) if _curated is not None else None
     summary = compute_summary_stats(
         chronos_by_model, model_metadata,
         strong_threshold=strong_dependency_threshold,
         moderate_threshold=moderate_dependency_threshold,
+        curated_common_essential=curated_common_essential,
     )
 
     # 3. Emit summary.json
