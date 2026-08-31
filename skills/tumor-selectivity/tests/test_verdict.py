@@ -376,3 +376,38 @@ def test_strength_certainty_corroborator_is_cptac_not_percentile_crossing():
                              "fraction_tumor_above_normal_p95": 0.9}})
     sc = ts._strength_certainty(base, verdict_pair=("strong_tumor_selective", "x"))
     assert sc["certainty"]["corroboration"] == "unmeasured"   # no CPTAC -> unmeasured despite percentile card
+
+
+# ── comparator-family coverage (double-count fix) ────────────────────────────────────────────────
+def _sel_cards_conc(concordance, cells_ran=3, n_tumor=50):
+    c = _sel_cards("strong_tumor_selective", cells_ran=cells_ran, n_tumor=n_tumor, protein=False)
+    c[0]["summary"]["comparator_concordance"] = concordance
+    return c
+
+
+def test_coverage_single_comparator_is_medium_not_high():
+    """A 3-cell run whose support rests on ONE independent comparator family (adjacent A+B; GTEx silent)
+    must read coverage 'medium', not 'high' — cells A+B are the SAME comparison (ComBat double-count)."""
+    sc = ts._strength_certainty(_sel_cards_conc("single_comparator"),
+                                verdict_pair=("strong_tumor_selective", "x"))
+    assert sc["certainty"]["coverage"] == "medium"
+    assert sc["provenance"]["comparator_concordance"] == "single_comparator"
+
+
+def test_coverage_concordant_families_is_high():
+    sc = ts._strength_certainty(_sel_cards_conc("concordant"),
+                                verdict_pair=("strong_tumor_selective", "x"))
+    assert sc["certainty"]["coverage"] == "high"
+
+
+def test_coverage_discordant_families_is_low():
+    sc = ts._strength_certainty(_sel_cards_conc("discordant"),
+                                verdict_pair=("strong_tumor_selective", "x"))
+    assert sc["certainty"]["coverage"] == "low"
+
+
+def test_coverage_falls_back_to_cell_count_when_concordance_absent():
+    """Byte-stability: no comparator_concordance (older summaries) → the legacy 3-cell tier = high."""
+    sc = ts._strength_certainty(_sel_cards("strong_tumor_selective", protein=False),
+                                verdict_pair=("strong_tumor_selective", "x"))
+    assert sc["certainty"]["coverage"] == "high"

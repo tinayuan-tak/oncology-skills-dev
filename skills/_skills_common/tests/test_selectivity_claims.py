@@ -200,6 +200,31 @@ def test_selective_with_critical_organ_liability_unchanged():
     assert ks["headline"] == "Selective signal, but a critical-organ normal-tissue liability."
 
 
+def test_win_corroboration_capped_by_single_comparator_family():
+    """cells_supporting double-counts cells A (raw) + B (ComBat) as two votes of the same
+    tumor-vs-adjacent comparison. A 3/3 support count with comparator_concordance == single_comparator
+    (only the adjacent family reached significance; GTEx silent) must NOT read WIN corroboration 'high' —
+    it rests on ONE independent comparator family. Cap at 'moderate'. Verdict-inert."""
+    h = _ceacam5_headline()
+    h.update({"axis_a_selectivity_class": "strong_tumor_selective", "cells_supporting": 3.0,
+              "cells_ran": 3.0, "discordant": False, "comparator_concordance": "single_comparator"})
+    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "moderate"
+
+
+def test_win_corroboration_high_when_families_concordant():
+    """A 3/3 support count WITH genuine cross-comparator agreement (both families sig-up) keeps 'high'."""
+    h = _ceacam5_headline()
+    h.update({"axis_a_selectivity_class": "strong_tumor_selective", "cells_supporting": 3.0,
+              "cells_ran": 3.0, "discordant": False, "comparator_concordance": "concordant"})
+    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "high"
+
+
+def test_win_corroboration_unaffected_when_concordance_absent():
+    """Byte-stability: with no comparator_concordance in the headline (older summaries) the cell-count
+    tier is unchanged — the CEACAM5 fixture (discordant, 1/3) still reads 'low'."""
+    assert selectivity_claim_vector(_ceacam5_headline(), [])["WIN"]["corroboration"] == "low"
+
+
 def test_field_names_are_corroboration_not_reliability():
     """Post reliability→corroboration rename: the claim dicts carry `corroboration`."""
     vec = selectivity_claim_vector(_ceacam5_headline(), [])

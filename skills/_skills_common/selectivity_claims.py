@@ -99,6 +99,17 @@ def _win_corroboration(h, c):
         return "unmeasured"
     frac = (cs or 0) / cr
     base = "high" if frac >= 0.8 and cr >= 3 else "moderate" if frac >= 0.5 else "low"
+    # cells_supporting counts cells A (TCGA-adjacent raw) and B (its ComBat re-run) as TWO votes of the
+    # SAME tumor-vs-adjacent comparison, so a 3/3 support count can rest on a SINGLE independent
+    # comparator family with the GTEx family (cell C) silent. Cap the WIN corroboration by the GENUINE
+    # cross-comparator agreement (comparator_concordance: adjacent family vs GTEx family) so an
+    # adjacent-only call cannot read "high" as if 3 independent comparators concurred. Verdict-INERT
+    # (corroboration tier only; selectivity_class + the resolver — which never key on this — untouched).
+    conc = h.get("comparator_concordance")
+    if conc == "single_comparator":
+        base = cap_corroboration(base, "moderate")   # one independent comparator family; count inflated
+    elif conc == "discordant":
+        base = cap_corroboration(base, "low")         # the two families disagree
     if h.get("discordant"):
         base = cap_corroboration(base, "low")   # disagreeing comparators cap corroboration
     return base

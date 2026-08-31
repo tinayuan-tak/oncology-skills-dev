@@ -326,9 +326,22 @@ def _selectivity_strength(v) -> str:
     return "none"
 
 
-def _sel_coverage(cells_ran, n_tumor) -> str:
-    """Comparator-breadth power: 3 cells (TCGA-adjacent raw + ComBat + GTEx) & n_tumor>=10 -> high;
-    2 -> medium; 1 -> low. cells_ran in {0,None} feeds unknown_mass, not a tier."""
+def _sel_coverage(cells_ran, n_tumor, comparator_concordance=None) -> str:
+    """Comparator-breadth power keyed on GENUINE independent comparator families. cells_ran counts cells
+    A (TCGA-adjacent raw) + B (its ComBat re-run) + C (GTEx), but A and B are the SAME tumor-vs-adjacent
+    comparison, so a 3-cell run spans at most TWO independent comparator families (adjacent, GTEx). Base
+    the tier on comparator_concordance (adjacent-family vs GTEx-family agreement) so an adjacent-only 3/3
+    is `medium`, not `high`:
+      concordant (both families agree) & n_tumor>=10 -> high ; single_comparator (one family) -> medium ;
+      discordant -> low. Falls back to the cell-count tier only when concordance is unknown (older
+      summaries). cells_ran in {0,None} feeds unknown_mass, not a tier. Verdict-inert (a certainty tier)."""
+    if comparator_concordance == "concordant":
+        return "high" if (not isinstance(n_tumor, (int, float)) or n_tumor >= 10) else "medium"
+    if comparator_concordance == "single_comparator":
+        return "medium"          # only one INDEPENDENT comparator family reached significance
+    if comparator_concordance == "discordant":
+        return "low"
+    # concordance unknown → fall back to the legacy cell-count breadth
     if not isinstance(cells_ran, (int, float)) or cells_ran < 1:
         return "low"
     if cells_ran >= 3 and (not isinstance(n_tumor, (int, float)) or n_tumor >= 10):
@@ -371,7 +384,7 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     concordance = _rna_protein_tvn_concordance(
         tvn.get("dominant_direction"), protein.get("protein_effect_size"), protein.get("protein_bh_q_value"))
     cells_ran, n_tumor = tvn.get("cells_ran"), tvn.get("n_tumor")
-    coverage = _sel_coverage(cells_ran, n_tumor)
+    coverage = _sel_coverage(cells_ran, n_tumor, tvn.get("comparator_concordance"))
     corroboration = _sel_corroboration(concordance)
     components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
     level = min(components, key=lambda c: _ORD[c]) if components else "low"
@@ -387,7 +400,8 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
         "composite": certainty_composite(strength, level),
         "composite_basis": ("certainty-discounted selectivity strength = peak signal tier × weakest-link "
                             "certainty; a NAMED [0,1] portfolio-ranking projection, not a canonical verdict"),
-        "provenance": {"cells_ran": cells_ran, "n_tumor": n_tumor, "rna_protein_tvn_concordance": concordance},
+        "provenance": {"cells_ran": cells_ran, "n_tumor": n_tumor, "rna_protein_tvn_concordance": concordance,
+                       "comparator_concordance": tvn.get("comparator_concordance")},
         "_model_ref": "CERTAINTY_MODEL.md#selectivity",
     }
 
@@ -488,6 +502,13 @@ def _headline(cards, fired, verdict_pair):
         "dominant_direction": tvn.get("dominant_direction"),
         "discordant":         tvn.get("discordant"),
         "sig_all_cells":      tvn.get("sig_all_cells"),
+        # Genuine cross-comparator agreement (TCGA-adjacent family A+B vs GTEx family C): concordant /
+        # discordant / single_comparator. cells_supporting counts cells A (raw) + B (ComBat re-run of A)
+        # as TWO votes of the SAME tumor-vs-adjacent comparison, so a 3/3 support count can rest on ONE
+        # independent comparator family. This field is the honest breadth signal; the claim_vector WIN
+        # corroboration + the certainty coverage cap on it (verdict-inert — the resolver keys on
+        # selectivity_class, never on comparator_concordance).
+        "comparator_concordance": tvn.get("comparator_concordance"),
         "max_abs_log2fc":     tvn.get("max_abs_log2fc"),
         "data_schema":        tvn.get("_schema"),
         # Relative-selectivity context: where this gene's fold-change ranks among ALL genes in the
