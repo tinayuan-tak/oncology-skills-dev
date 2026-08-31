@@ -10,7 +10,9 @@
 #
 # Statistical steps per (cohort, target, partner):
 #   1. Build 2x2 contingency table (n_11, n_10, n_01, n_00)
-#   2. Fisher's exact test — two-sided p-value
+#   2. Association p-value (col `fisher_p`): Fisher's-exact two-sided when any cell < 5
+#      (the small-n_11 mutual-exclusivity regime), else Yates-corrected chi-square 2x2
+#      (accurate + ~1000x faster at genome-wide pair scale)
 #   3. log2_odds_ratio = log2((n_11 * n_00) / (n_10 * n_01))
 #      with continuity correction (+0.5 to each cell if any is 0)
 #   4. BH-FDR adjustment within (cohort, source)
@@ -91,13 +93,17 @@ compute_fisher_for_cohort <- function(m, cohort_label) {
   cc <- n_01_vec + 0.5; d <- n_00_vec + 0.5
   lor <- log2((a * d) / (b * cc))
 
-  # Vectorized chi-square test (~1000x faster than per-pair fisher.test).
-  # For 2x2 with any cell < 5, fall back to fisher.test (rare when we filter
-  # to min_mut_count=5). We compute chi-square-based p, then flag pairs with
-  # min cell count < 5 for post-hoc Fisher refinement (only if needed).
-  # Chi-square 2x2 statistic (with Yates continuity correction):
-  #   chi2 = N * (|ad - bc| - N/2)^2 / ((a+b)(c+d)(a+c)(b+d))
-  # Then p = 1 - pchisq(chi2, df=1)
+  # Two-tier significance test (statistically-correct hybrid):
+  #   * LARGE cells (every cell >= 5): Yates-corrected chi-square 2x2 — the
+  #     chi-square is an accurate approximation here and is ~1000x faster than
+  #     per-pair fisher.test, which matters at genome-wide pair scale.
+  #     chi2 = N * (|ad - bc| - N/2)^2 / ((a+b)(c+d)(a+c)(b+d)); p = 1 - pchisq(chi2, 1)
+  #   * SMALL cells (any cell < 5): Fisher's exact two-sided test. This is exactly
+  #     the low-n_11 mutual-exclusivity regime where the chi-square approximation is
+  #     least accurate and Fisher is the standard — so we OVERWRITE the chi-square p
+  #     with the exact p for those pairs (implements the long-promised fallback).
+  # The emitted column is named `fisher_p` for schema stability: it is Fisher-exact
+  # in the small-cell regime and Yates chi-square otherwise.
   N <- n_samples
   ad <- as.numeric(n_11_vec) * as.numeric(n_00_vec)
   bc <- as.numeric(n_10_vec) * as.numeric(n_01_vec)
@@ -114,6 +120,21 @@ compute_fisher_for_cohort <- function(m, cohort_label) {
   # chi-square is undefined; set p = 1
   chi2_p[denom == 0] <- 1
 
+  # Post-hoc Fisher-exact refinement for small-cell pairs (min cell count < 5).
+  small_cell <- pmin(n_11_vec, n_10_vec, n_01_vec, n_00_vec) < 5 & denom > 0
+  n_small <- sum(small_cell)
+  if (n_small > 0) {
+    message(sprintf("    [%s] Fisher-exact refinement on %s small-cell pairs (min cell < 5)",
+                    cohort_label, formatC(n_small, big.mark = ",")))
+    small_idx <- which(small_cell)
+    fisher_p_small <- vapply(small_idx, function(ix) {
+      tab <- matrix(c(n_11_vec[ix], n_10_vec[ix], n_01_vec[ix], n_00_vec[ix]),
+                    nrow = 2, byrow = TRUE)
+      fisher.test(tab, alternative = "two.sided")$p.value
+    }, numeric(1))
+    chi2_p[small_idx] <- fisher_p_small
+  }
+
   # Cohort + source
   parts <- strsplit(cohort_label, ":", fixed = TRUE)[[1]]
   src <- if (parts[1] == "MC3") "tcga_mc3" else if (parts[1] == "GENIE") "genie_v19" else "unknown"
@@ -129,7 +150,7 @@ compute_fisher_for_cohort <- function(m, cohort_label) {
     n_01 = as.integer(n_01_vec),
     n_00 = as.integer(n_00_vec),
     log2_odds_ratio = lor,
-    fisher_p = chi2_p   # column name kept for schema stability; test is Yates chi-square
+    fisher_p = chi2_p   # Fisher-exact for small-cell pairs (any cell < 5), Yates chi-square otherwise
   )
 
   # BH adjust within this cohort

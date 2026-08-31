@@ -3,11 +3,33 @@
 Consumer: co-mutation-and-mutual-exclusivity evidence card (Phase E) via
 differentiation-landscape skill.
 
-Reviewer BLOCKER fix discipline (2026-07-08): pooled Q-values are emitted
-ONLY for gene pairs where BOTH the target and partner are covered on ALL
-GENIE panels contributing to the pooled cohort. Genes outside the panel-
-intersect gene set get per-source (TCGA MC3 only) Q-values with
-`pooled_eligible: False` marked per row.
+Product scope (what the bound derived product ACTUALLY contains — 2026-08-31):
+  The derived parquet holds per-(cohort, source) Fisher/DISCOVER/SELECT pair rows.
+  `source` is only ever `tcga_mc3` or `genie_v19` — there is NO cross-source
+  `pooled` row and NO cross-source pooling is performed (see the manifest's
+  "No cross-source cohort alignment" note). `pooled_eligible` is a PER-ROW flag
+  marking pairs where both genes fall in the 166-gene GENIE panel-intersect; it is
+  DISPLAY/interpretation metadata, it does NOT gate a pooled statistic (none exists).
+
+Indication-scoped verdict discipline (2026-08-31 — differentiation-landscape review
+B8-01/B8-02 fix):
+  The VERDICT-driving fields (`cooccurrence_class`, `has_cooccurring_driver`,
+  `has_mutually_exclusive_driver`) are computed from the INDICATION-matched cohort
+  rows only — NOT pooled across all ~53 cohorts. Pooling every cohort let the SAME
+  partner appear co-occurring in one cancer and mutually-exclusive in another (e.g.
+  KRAS×TP53: +2.86 in Pancreatic, -1.35 in NSCLC, both q≈0) and thereby manufacture a
+  spurious `both_patterns_present`. Two guards close that:
+    1. Verdict scope = the indication's cohort(s) (INDICATION_TO_COOCCURRENCE_COHORTS);
+       no indication / unmapped → the single PANCAN cohort, labelled `pan_cohort`;
+       a mapped indication with no matching cohort row → honest `data_unavailable`.
+    2. Within the scope, each partner is collapsed to its single most-significant row,
+       so one partner can drive AT MOST ONE of {co-occurring, mutually-exclusive}. A
+       `both_patterns_present` now requires TWO DISTINCT partners (legitimate biology).
+    3. Multiplicity: the scoped q is Bonferroni-scaled by the number of distinct
+       (cohort, source) test families in the scope (stage-03 already BH-controls the
+       partner axis WITHIN each family), controlling the cross-cohort min-q selection.
+  The pan-cohort `top_cooccurring` / `top_mutually_exclusive` landscape + `n_*` counts
+  are retained UNCHANGED as DISPLAY context.
 
 Wiring approach (data-layer hardening 2026-08-22 — streamed pushdown):
   - STREAMS the target's rows out of the derived parquet at
@@ -29,6 +51,51 @@ from typing import Optional
 
 
 DERIVED_MANIFEST_ID = "pancohort-cooccurrence-fisher-v1"
+
+# Framework indication code → the cohort label(s) the product uses for the VERDICT scope.
+# The product mixes TWO cohort vocabularies: TCGA MC3 study codes (e.g. COAD, LUAD, PAAD)
+# and GENIE OncoTree main-cancer-type names (e.g. "Colorectal Cancer", "Pancreatic Cancer").
+# Mirrors the sibling indication→cohort discipline in methods/driver_role_overlay +
+# methods/functional_gene_state: map ONLY to labels VERIFIED present in the product, so a
+# mapped indication either scopes to real rows or honestly abstains — never silently matches
+# nothing while appearing mapped. An indication ABSENT from this map falls back to the single
+# PANCAN cohort (labelled `pan_cohort` — display, not an indication claim). Do NOT add a guessed
+# variant; if a new indication has no verified cohort label, leave it OUT (PANCAN fallback is safe).
+INDICATION_TO_COOCCURRENCE_COHORTS: dict[str, tuple[str, ...]] = {
+    "COADREAD": ("COAD", "READ", "Colorectal Cancer"),
+    "COAD": ("COAD", "Colorectal Cancer"),
+    "READ": ("READ", "Colorectal Cancer"),
+    "CRC": ("COAD", "READ", "Colorectal Cancer"),
+    "LUAD": ("LUAD", "Non-Small Cell Lung Cancer"),
+    "LUSC": ("LUSC", "Non-Small Cell Lung Cancer"),
+    "NSCLC": ("LUAD", "LUSC", "Non-Small Cell Lung Cancer"),
+    "SCLC": ("Small Cell Lung Cancer",),
+    "BRCA": ("BRCA", "Breast Cancer"),
+    "PAAD": ("PAAD", "Pancreatic Cancer"),
+    "PDAC": ("PAAD", "Pancreatic Cancer"),
+    "SKCM": ("SKCM", "Melanoma"),
+    "MEL": ("SKCM", "Melanoma"),
+    "STAD": ("Esophagogastric Cancer",),
+    "GC": ("Esophagogastric Cancer",),
+    "GEJ": ("Esophagogastric Cancer",),
+    "ESCA": ("Esophagogastric Cancer",),
+    "PRAD": ("Prostate Cancer",),
+    "OV": ("OV", "Ovarian Cancer", "Ovarian/Fallopian Tube Cancer"),
+    "KIRC": ("KIRC", "Renal Cell Carcinoma"),
+    "RCC": ("KIRC", "Renal Cell Carcinoma"),
+    "GBM": ("GBM", "Glioma"),
+    "LGG": ("LGG", "Glioma"),
+    "GLIOMA": ("GBM", "LGG", "Glioma"),
+    "HNSC": ("Head and Neck Cancer",),
+    "HNSCC": ("Head and Neck Cancer",),
+    "BLCA": ("Bladder Cancer",),
+    "LIHC": ("Hepatobiliary Cancer",),
+    "HCC": ("Hepatobiliary Cancer",),
+    "UCEC": ("Endometrial Cancer",),
+}
+
+# The single pan-cancer cohort used for the verdict when no indication is supplied / mapped.
+_PANCOHORT_LABEL = "PANCAN"
 
 # Pushdown key: the derived manifest's query_optimization.primary_filter_column, which is also its
 # sort column. The product is SORTED by target_gene_symbol, so a per-target equality filter lets
@@ -106,45 +173,90 @@ def _read_target_rows(sym: str) -> Optional[list]:
     return rows
 
 
-def _classify_cooccurrence(rows: list[dict]) -> str:
-    """Derive the primary co-occurrence class from the target's row set.
+def _scope_cohorts(indication: Optional[str]) -> tuple[Optional[frozenset], str]:
+    """Resolve the framework indication → the cohort label set that scopes the VERDICT.
 
-    Precedence rules (governance-tuned):
-      - strong_cooccurring: q<0.001 AND log2_or > 1.0
-      - modest_cooccurring: q<0.05 AND log2_or > 0.5
-      - strong_mutually_exclusive: q<0.001 AND log2_or < -1.0
-      - modest_mutually_exclusive: q<0.05 AND log2_or < -0.5
-      - both_patterns_present: has both strong_cooccurring AND strong_mutex
-      - ns: no significant signal
+    Returns (cohort_set, scope_label):
+      - (frozenset(labels), "indication") when the indication maps to product cohort labels,
+      - (None, "pan_cohort") when no indication is supplied OR the indication is unmapped —
+        the caller then scopes the verdict to the single PANCAN cohort (display, not an
+        indication-specific claim).
     """
-    strong_cooc = False
-    modest_cooc = False
-    strong_mutex = False
-    modest_mutex = False
+    if not indication or not str(indication).strip():
+        return (None, "pan_cohort")
+    cohorts = INDICATION_TO_COOCCURRENCE_COHORTS.get(str(indication).upper().strip())
+    if cohorts:
+        return (frozenset(cohorts), "indication")
+    return (None, "pan_cohort")
+
+
+def _rows_in_scope(rows: list[dict], scope_cohorts: Optional[frozenset]) -> list[dict]:
+    """Filter the target's rows to the verdict scope. ``None`` scope → the PANCAN cohort."""
+    if scope_cohorts is None:
+        return [r for r in rows if str(r.get("cohort", "")) == _PANCOHORT_LABEL]
+    return [r for r in rows if str(r.get("cohort", "")) in scope_cohorts]
+
+
+def _scoped_signals(rows: list[dict]) -> tuple[str, bool, bool]:
+    """Derive the co-occurrence class + driver flags from a SCOPED (indication- or PANCAN-)
+    restricted row set. Returns (cooccurrence_class, has_cooccurring_driver, has_mutually_exclusive_driver).
+
+    Two robustness guards (B8-01 / B8-02 fix):
+      * PER-PARTNER collapse — each partner contributes only its single most-significant
+        (min bh_q) row, so one partner can satisfy AT MOST ONE of {co-occurring, mutex}.
+        A `both_patterns_present` therefore requires TWO DISTINCT partners; the same
+        partner carrying opposite signs in different cohorts can no longer manufacture it.
+      * Multiplicity — the per-partner q is Bonferroni-scaled by the number of distinct
+        (cohort, source) test families in the scope. Stage 03 BH-controls the partner axis
+        WITHIN each family; this controls the cross-cohort min-q selection ACROSS families.
+        With a single family (typical after scoping / PANCAN) the factor is 1 → unscaled.
+
+    Precedence: strong_cooc & strong_mutex → both_patterns_present; then strong_cooc;
+    strong_mutex; modest_cooc; modest_mutex; else ns.
+    """
+    if not rows:
+        return ("ns", False, False)
+    n_families = max(1, len({(r.get("cohort"), r.get("source")) for r in rows}))
+    # partner → (best_q, log2_or_at_best_q)
+    best: dict[str, tuple[float, float]] = {}
     for r in rows:
+        partner = str(r.get("partner_gene_symbol", "")).strip().upper()
+        if not partner:
+            continue
         q = float(r.get("bh_q_value") or 1.0)
-        log2_or = float(r.get("log2_odds_ratio") or 0.0)
-        if q < 0.001:
+        if partner not in best or q < best[partner][0]:
+            best[partner] = (q, float(r.get("log2_odds_ratio") or 0.0))
+
+    strong_cooc = modest_cooc = strong_mutex = modest_mutex = False
+    has_cooc_driver = has_mutex_driver = False
+    for q, log2_or in best.values():
+        qc = min(1.0, q * n_families)   # Bonferroni across scoped (cohort, source) families
+        if qc < 0.001:
             if log2_or > 1.0:
                 strong_cooc = True
+                has_cooc_driver = True
             elif log2_or < -1.0:
                 strong_mutex = True
-        if q < 0.05:
+                has_mutex_driver = True
+        if qc < 0.05:
             if log2_or > 0.5:
                 modest_cooc = True
             elif log2_or < -0.5:
                 modest_mutex = True
+
     if strong_cooc and strong_mutex:
-        return "both_patterns_present"
-    if strong_cooc:
-        return "strong_cooccurring"
-    if strong_mutex:
-        return "strong_mutually_exclusive"
-    if modest_cooc:
-        return "modest_cooccurring"
-    if modest_mutex:
-        return "modest_mutually_exclusive"
-    return "ns"
+        cls = "both_patterns_present"
+    elif strong_cooc:
+        cls = "strong_cooccurring"
+    elif strong_mutex:
+        cls = "strong_mutually_exclusive"
+    elif modest_cooc:
+        cls = "modest_cooccurring"
+    elif modest_mutex:
+        cls = "modest_mutually_exclusive"
+    else:
+        cls = "ns"
+    return (cls, has_cooc_driver, has_mutex_driver)
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
@@ -159,10 +271,6 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         return _empty("cooccurrence_data_unavailable")
     if not rows:
         return _empty("target_not_in_cooccurrence_scan")
-
-    # Partition rows into per-source vs pooled
-    per_source = [r for r in rows if str(r.get("source", "")).lower() != "pooled"]
-    pooled = [r for r in rows if str(r.get("source", "")).lower() == "pooled"]
 
     # Top-cooccurring + top-mutually-exclusive lists (ranked by ranking_score
     # if available, else by -log10(q) * sign(log2_or))
@@ -187,10 +295,11 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             "pooled_eligible": bool(r.get("pooled_eligible", False)),
         }
 
-    # Use the higher-quality source per pair: prefer pooled when available,
-    # fall back to TCGA MC3 for panel-ineligible pairs.
+    # DISPLAY landscape (PAN-COHORT, verdict-inert): dedup to one row per partner, keeping the
+    # first (= lowest bh_q_value, the product is sorted target→bh_q_value). No cross-source
+    # `pooled` row exists (see module docstring), so this is a straight per-partner best-of.
     seen: dict[str, dict] = {}
-    for r in pooled + per_source:
+    for r in rows:
         partner = str(r.get("partner_gene_symbol", "")).strip().upper()
         if partner and partner not in seen:
             seen[partner] = r
@@ -211,8 +320,30 @@ def read_target_summary(target: str, indication: str = None) -> dict:
                        if float(r.get("bh_q_value") or 1) < 0.05
                        and float(r.get("log2_odds_ratio") or 0) < -0.5)
 
+    # ── VERDICT (indication-scoped) ──────────────────────────────────────────────
+    # Scope the verdict-driving fields to the indication's cohort(s); pool NOTHING across
+    # unrelated cohorts (that manufactured spurious both_patterns_present — B8-01/B8-02).
+    scope_cohorts, scope_label = _scope_cohorts(indication)
+    scoped_rows = _rows_in_scope(rows, scope_cohorts)
+    if scope_label == "indication" and not scoped_rows:
+        # Indication maps to real cohort labels but the target has no row there → honest
+        # abstention on the VERDICT, while the pan-cohort landscape below stays as display.
+        cooccurrence_class = "data_unavailable"
+        cooccurrence_scope = "unavailable"
+        has_cooc_driver = has_mutex_driver = False
+        scoped_cohorts: list[str] = []
+    else:
+        cooccurrence_class, has_cooc_driver, has_mutex_driver = _scoped_signals(scoped_rows)
+        cooccurrence_scope = scope_label
+        scoped_cohorts = sorted({str(r.get("cohort", "")) for r in scoped_rows})
+
     return {
-        "cooccurrence_class": _classify_cooccurrence(rows),
+        "cooccurrence_class": cooccurrence_class,            # VERDICT-DRIVING (indication-scoped)
+        "cooccurrence_scope": cooccurrence_scope,            # indication | pan_cohort | unavailable
+        "scoped_cohorts": scoped_cohorts,                    # cohort label(s) the verdict used
+        "has_cooccurring_driver": has_cooc_driver,           # VERDICT-DRIVING (scoped)
+        "has_mutually_exclusive_driver": has_mutex_driver,   # scoped
+        # ── pan-cohort DISPLAY landscape (verdict-inert) ──
         "n_significant_cooccurring": n_sig_cooc,
         "n_significant_mutually_exclusive": n_sig_mutex,
         "n_pairs_panel_intersect_eligible": sum(1 for r in rows
@@ -221,12 +352,6 @@ def read_target_summary(target: str, indication: str = None) -> dict:
                                          if not bool(r.get("pooled_eligible", False))),
         "top_cooccurring": [_stripped(r) for r in top_cooc[:10]],
         "top_mutually_exclusive": [_stripped(r) for r in top_mutex[:10]],
-        "has_cooccurring_driver": any(float(r.get("bh_q_value") or 1) < 0.001
-                                        and float(r.get("log2_odds_ratio") or 0) > 1.0
-                                        for r in rows),
-        "has_mutually_exclusive_driver": any(float(r.get("bh_q_value") or 1) < 0.001
-                                               and float(r.get("log2_odds_ratio") or 0) < -1.0
-                                               for r in rows),
         "method_version": "0.1.0",
         "_data_source": DERIVED_MANIFEST_ID,
     }
@@ -235,6 +360,8 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 def _empty(note: str) -> dict:
     return {
         "cooccurrence_class": "data_unavailable",
+        "cooccurrence_scope": "unavailable",
+        "scoped_cohorts": [],
         "n_significant_cooccurring": 0,
         "n_significant_mutually_exclusive": 0,
         "n_pairs_panel_intersect_eligible": 0,
