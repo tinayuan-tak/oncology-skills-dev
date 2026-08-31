@@ -43,7 +43,7 @@ required_inputs:
 methods:
   - call: tcga-patient-cis-coherence
     module: tcga_cis_coherence_patient
-    entrypoint: compute_patient_cis_coherence
+    entrypoint: read_patient_cis_coherence   # the dispatcher wrapper (per module __init__ convention): handles indication=None, pops the internal _cis_dosage_full provenance dict, stamps method_version. compute_patient_cis_coherence is the bare compute (leaks _cis_dosage_full, no method_version).
     args:
       target: "{target.symbol}"
       indication: "{indication}"

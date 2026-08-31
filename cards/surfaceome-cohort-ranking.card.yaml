@@ -50,10 +50,10 @@ outputs:
     - method_version
 
   summary_fields_vocabulary:
-    cohort_rank_class:
+    cohort_rank_class:                              # tokens EMITTED by derive.py::_cohort_rank_class (verified against the shipped product)
       - top_1_percent
-      - top_5_percent
-      - top_25_percent
+      - top_5                                        # derive.py emits top_5 (not top_5_percent); verdict-inert (rules key only top_1_percent + below_25_percent)
+      - top_25                                       # derive.py emits top_25 (not top_25_percent)
       - below_25_percent
       - not_in_surfaceome
       - data_unavailable

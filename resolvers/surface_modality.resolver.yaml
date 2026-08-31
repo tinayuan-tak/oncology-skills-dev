@@ -106,7 +106,7 @@ resolve:
   #      neither_viable YET are pMHC-TCE-viable. These two rungs surface that SEPARATE positive: they fire
   #      ONLY in conjunction with neither-viable-killer (so they cannot flip a surface-VIABLE ADC/TCE call —
   #      neither-viable-killer never co-fires with adc/tce/both-supportive, the fit_class group is mutually
-  #      exclusive) and outrank the bare neither_viable rung (priority 22), promoting it to pmhc_tce_supported.
+  #      exclusive) and outrank the bare neither_viable rung (priority 26), promoting it to pmhc_tce_supported.
   #      The skill still emits fit_class=neither_viable (read direct from the card) alongside the verdict, so
   #      the report reads "surface: neither_viable; pMHC-TCE: supported". POSITIVE (positive_signals_modality_
   #      scoped for bite_tce in nomination_verdict_gate.yaml), NOT kill-capable. tcell_validated ranks above

@@ -8,10 +8,13 @@
 # distinct from — and complementary to — the CRISPR-KO dependency biomarker (a KO removes noncatalytic
 # scaffolding functions a small molecule does not).
 #
-# VERDICT-INERT FACET (v1): ADDITIVE signal-only. Its rules reach the LLM/matrix + headline but feed
-# NO resolver rung — the dependency/genomic verdict spine stays byte-stable. Wiring the drug-response
-# biomarker INTO a verdict (a distinct rung, NOT conflated with biomarker_stratified_dependency, since
-# drug-sensitivity != KO-dependency) is a deliberate, riskier second step (golden regen + sign-off).
+# VERDICT-DRIVING on the GENOMIC gate (wired 2026-08-15, doc-parity fix 2026-08-31): the STRONG class
+# (drug_response_stratification_class == mutant_strongly_drug_sensitive) fires
+# mutation-drug-response-strongly-sensitive-supportive → verdict `drug_response_biomarker`
+# (genomic_alteration.resolver.yaml priority 36). It is a DISTINCT verdict, never conflated with the
+# CRISPR-KO biomarker_stratified_dependency (drug-sensitivity != KO-dependency), and sits BELOW the
+# KO-dependency family. The MODERATE class stays a signal-only facet (no rung). The DEPENDENCY spine is
+# byte-stable — only the genomic gate consumes this card.
 #
 # On-target compound selection: PRISM OncRef CompoundList GeneSymbolOfTargets == {target}
 # (BRAF → VEMURAFENIB / DABRAFENIB / ENCORAFENIB, annotated "inhibitor of BRAF p.V600E"). Per-line
@@ -111,7 +114,7 @@ caveats:
   - "On-target compound = PRISM CompoundList GeneSymbolOfTargets includes the target (gene-level annotation; a compound with off-target polypharmacology is still counted if it lists the gene). Per-line phenotype is the best-responder (min) Log2AUC across those compounds — the deep-responder tail, not the mean."
   - "Two directional passes: a FORWARD one-sided MW (mutant more sensitive, lower Log2AUC) drives the mutant_*_drug_sensitive classes; a SECOND-PASS reverse MW (mutant more resistant) makes mutant_drug_resistant reachable, gated on its own q + a strong positive delta. Verdict-inert either direction (v1)."
   - "Cell-line drug response is NECESSARY but NOT SUFFICIENT for a clinical predictive biomarker — cell-panel PRISM does not recapitulate patient PK/PD, tumor microenvironment, or resistance evolution (EGFR is the cautionary live example: mutation-stratified in patients, not in the PRISM cell panel)."
-  - "VERDICT-INERT (v1): ADDITIVE signal-only; feeds the LLM/matrix + headline but no resolver rung — the dependency/genomic verdict spine stays byte-stable. A distinct verdict rung (NOT conflated with the CRISPR biomarker_stratified_dependency) is a deliberate second step."
+  - "VERDICT-DRIVING on the GENOMIC gate: the STRONG class (mutant_strongly_drug_sensitive) fires drug_response_biomarker (genomic_alteration.resolver.yaml priority 36), a distinct verdict never conflated with the CRISPR biomarker_stratified_dependency; the MODERATE class is signal-only. The DEPENDENCY spine stays byte-stable (only the genomic gate consumes this card)."
 
 # DATA_TO_SKILL_CONTRACT — the DERIVED genotype→drug-response claim, derived_from
 # [mutation_status, prism_compound_activity]. The pharmacological analog of

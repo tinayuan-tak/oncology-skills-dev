@@ -114,6 +114,7 @@ outputs:
       - secretome_proxy_shed
       - not_shed_membrane_retained
       - indeterminate
+      - data_unavailable                            # emitted on infra read-failure (distinct from indeterminate = measured-no-evidence); fires no rule → abstains
     shed_evidence_tier:
       - clinical
       - secretome_proxy

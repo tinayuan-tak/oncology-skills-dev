@@ -16,7 +16,7 @@
 #   - MET:   dependency is exon14-skip/fusion-driven, NOT amplification → not_cn_stratified (delta +0.02)
 #
 # Single-tier CN grouping (unlike mutation-stratified-dependency's hotspot/damaging/any tiers — one CN vector):
-#   - AMPLIFIED: relative CN > FOCAL_AMP (1.5) — the DepMap-side focal-amplification convention
+#   - AMPLIFIED: relative CN > FOCAL_AMP_HIGH (2.0) — the DepMap-side focal HIGH-LEVEL amplification convention
 #   - NEUTRAL (comparator): everything NOT amplified (broad — the faithful mirror of mutation-stratified-dependency's
 #     WT = "everything not mutant")
 #
@@ -78,7 +78,7 @@ outputs:
   figures:
     - id: amp_vs_neutral_strip
       type: cn_stratified_strip
-      description: "Per-cell-line Chronos strip plot split into Amplified (relative CN > 1.5) / Neutral groups. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta."
+      description: "Per-cell-line Chronos strip plot split into Amplified (relative CN > 2.0) / Neutral groups. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
   plot_data: per_cell_line_chronos_with_cn_status
@@ -88,7 +88,7 @@ thresholds:
   min_amplified_cells: 5
   min_neutral_cells: 30
   # Amplification cutoff (DepMap relative-CN convention; diploid ~ 1.0, NOT log2)
-  amplification_threshold: 1.5                 # FOCAL_AMP — reused from depmap_cn_distribution
+  amplification_threshold: 2.0                 # FOCAL_AMP_HIGH — the high-level focal-amp cut depmap_cn_dependency actually applies (cli.py FOCAL_AMP_HIGH=2.0). NOT depmap_cn_distribution's shallow FOCAL_AMP=1.5. Documentary only — the method hardcodes its own constant.
   # Significance + effect-size cutoffs (identical to mutation-stratified-dependency)
   stratification_alpha: 0.05                   # q
   strong_effect_delta: -0.5                    # amplified median >= 0.5 lower than neutral = strong
@@ -103,7 +103,7 @@ warning_predicates:
     message: "Amplified-vs-neutral difference is statistically significant but sub-threshold in effect size (delta > -0.2) — at panel n, small deltas reach significance; not classified as stratified (significance != actionable effect)."
 
 caveats:
-  - "Amplification status = DepMap relative copy number > 1.5 (focal-amp convention; diploid ~ 1.0, NOT log2). Does not distinguish focal from arm-level/broad amplification."
+  - "Amplification status = DepMap relative copy number > 2.0 (focal HIGH-LEVEL amp convention; diploid ~ 1.0, NOT log2). Does not distinguish focal from arm-level/broad amplification."
   - "Two directional passes: a FORWARD one-sided MW (amplified more dependent) drives the amplified_*_dependent classes; a SECOND-PASS reverse MW (neutral more dependent) makes `neutral_strongly_dependent` reachable, gated on its own BH q + a strong positive delta (>= +0.5). Amplification is never credited with a dependency it lacks (forward classes cannot fire on a reverse pattern); the reverse class is verdict-inert."
   - "Amplification and mutation stratification are NOT independent — an amplified target is often also mutant/co-selected (e.g. KRAS). When both stratify, the resolver's mutation rung takes precedence (driving_rule names the mutation path)."
   - "Cell-line amplification-stratified dependency is necessary but NOT sufficient for a clinical biomarker — needs orthogonal validation (PDX, isogenic, patient copy-number)."

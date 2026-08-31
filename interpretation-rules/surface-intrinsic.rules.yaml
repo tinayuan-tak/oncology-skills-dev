@@ -1569,7 +1569,10 @@ rules:
   # by default — the conservative surface-gate read — so window_class here is the strict-tier call.
   # This is the clean-antigen signal neither tumor-vs-normal-selectivity (within-tissue contrast) nor
   # normal-tissue-liability (off-tumor breadth) makes; it surfaces the CEACAM5 pattern (huge window yet
-  # strict-TCE liability). ADDITIVE signal-only: NO surface_modality resolver rung → verdict BYTE-STABLE.
+  # strict-TCE liability). VERDICT-BEARING (promoted 2026-08-24): essential_tissue_liability feeds
+  # surface_modality resolver rungs 1b (priorities 7/8, modality-window-essential-liability-tce-opposing →
+  # adc_preferred_tce_unsafe / tce_unsafe_normal_liability). clean_window / narrow_window remain
+  # non-verdict on the surface gate; data_unavailable / not_expressed_in_cohort fire NO rule.
   # The ADC-vs-TCE split is the point: an essential-tissue liability at the STRICT tier is a TCE concern
   # but frequently ADC-tolerable (moderate tier / bystander payload) — so essential_tissue_liability is
   # bite_tce:opposing, adc:neutral (NOT a shared killer). data_unavailable / not_expressed_in_cohort
@@ -1643,9 +1646,10 @@ rules:
   # GENTLE (secondary) supportive signal — it points at a candidate for junction-level follow-up, it
   # does not confirm an isoform-restricted epitope. essential_exon_liability mirrors the gene-window
   # essential-liability (bite_tce opposing / adc neutral — the ADC-vs-TCE discriminator). uniform_gene_
-  # window / not_expressed_in_cohort / not_in_product / data_unavailable fire NO rule. ADDITIVE
-  # signal-only: no surface_modality resolver rung (verdict resolves off adc-tce-modality-fit.fit_class)
-  # → verdict byte-stable.
+  # window / not_expressed_in_cohort / not_in_product / data_unavailable fire NO rule. VERDICT-BEARING
+  # (added v1.5.0 2026-08-28): essential_exon_liability feeds surface_modality resolver rungs 1b'
+  # (priorities 9/10, exon-window-essential-liability-tce-opposing), mirroring the gene-window rung 1b.
+  # exon_heterogeneity_flag remains signal-only.
 
   - rule_id: exon-window-heterogeneity-flag-supportive
     when:
@@ -1747,8 +1751,10 @@ rules:
   # TCR-mimetic T-cell engager. INVERTED safety semantics (benign atlas): restricted normal-tissue
   # presentation = a CLEAN pMHC-TCE target; broad normal presentation = on-target/off-tumor LIABILITY.
   # Signals bite_tce ONLY (a pMHC TCE — an ADC/naked antibody binds the folded protein, not pMHC).
-  # ADDITIVE signal-only: no surface_modality resolver rung -> verdict byte-stable. not_observed +
-  # intermediate + data_unavailable fire NO rule (weak-negative / ambiguous / gap -> abstain).
+  # broadly_presented_normal is VERDICT-BEARING: with neither-viable-killer + an IEDB positive it feeds
+  # surface_modality resolver rung 3b' (priorities 19/20, pmhc-broadly-presented-normal-tce-opposing),
+  # withdrawing pmhc_tce_supported → tce_unsafe_normal_liability. restricted_presentation stays
+  # signal-only; not_observed + intermediate + data_unavailable fire NO rule (weak-neg / ambiguous / gap -> abstain).
 
   - rule_id: pmhc-restricted-presentation-tce-supportive
     when:

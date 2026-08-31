@@ -17,7 +17,7 @@
 #   - EGFR:  significant q but sub-moderate effect (delta -0.15) → not_amp_expr_stratified (significance != effect)
 #
 # The CONJOINT grouping (the novel part — the framework's first two-condition stratifier):
-#   - AMPLIFIED+OVEREXPRESSED: relative CN > FOCAL_AMP (1.5) AND log2TPM in the top within-panel tertile
+#   - AMPLIFIED+OVEREXPRESSED: relative CN > FOCAL_AMP_HIGH (2.0) AND log2TPM in the top within-panel tertile
 #   - COMPARATOR: every OTHER evaluated line (not-both) — the broad mirror of copy-number-stratified-dependency's neutral comparator
 #
 # Inputs (DepMap 26Q1):
@@ -79,7 +79,7 @@ outputs:
   figures:
     - id: amp_expr_vs_rest_strip
       type: amp_expr_stratified_strip
-      description: "Per-cell-line Chronos strip plot split into Amplified+Overexpressed (CN>1.5 AND top-tertile TPM) / Comparator groups. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta."
+      description: "Per-cell-line Chronos strip plot split into Amplified+Overexpressed (CN>2.0 AND top-tertile TPM) / Comparator groups. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
   plot_data: per_cell_line_chronos_with_amp_expr_status
@@ -87,7 +87,7 @@ outputs:
 thresholds:
   min_amplified_overexpressed_cells: 5             # mirror copy-number-stratified-dependency min_amplified
   min_comparator_cells: 30
-  amplification_threshold: 1.5                      # FOCAL_AMP — reused from depmap_cn_distribution
+  amplification_threshold: 2.0                      # FOCAL_AMP_HIGH — the high-level focal-amp cut depmap_amp_expr_dependency actually applies (cli.py FOCAL_AMP_HIGH=2.0). NOT depmap_cn_distribution's shallow FOCAL_AMP=1.5. Documentary only.
   high_expression_tertile: 0.6667                   # top-tertile log2TPM among evaluated lines
   stratification_alpha: 0.05                        # q
   strong_effect_delta: -0.5
@@ -102,7 +102,7 @@ warning_predicates:
     message: "Amp+overexpr-vs-rest difference is statistically significant but sub-threshold in effect size (delta > -0.2) — at panel n, small deltas reach significance; not classified as stratified (significance != actionable effect). Live example: EGFR (q sig, delta -0.15)."
 
 caveats:
-  - "The positive arm is the CONJUNCTION: amplified (relative CN > 1.5, focal-amp convention; diploid ~ 1.0, NOT log2) AND high-expression (log2TPM in the top within-panel tertile among evaluated lines). Amplified-but-low-expression and high-expression-but-not-amplified lines are EXCLUDED from the positive arm (the AND-gate) — this is what isolates amplification-DRIVEN overexpression from either signal alone."
+  - "The positive arm is the CONJUNCTION: amplified (relative CN > 2.0, focal HIGH-LEVEL amp convention; diploid ~ 1.0, NOT log2) AND high-expression (log2TPM in the top within-panel tertile among evaluated lines). Amplified-but-low-expression and high-expression-but-not-amplified lines are EXCLUDED from the positive arm (the AND-gate) — this is what isolates amplification-DRIVEN overexpression from either signal alone."
   - "The high-expression cut is TARGET-RELATIVE (top tertile among the lines with all three measurements), not an absolute TPM. It adapts per target; the exact cut is emitted as high_expression_log2tpm_threshold for provenance."
   - "Two directional passes: a FORWARD one-sided MW (amp+overexpr more dependent) drives the amplified_overexpressed_*_dependent classes; a SECOND-PASS reverse MW (comparator more dependent) makes `amp_expr_negative_more_dependent` reachable, gated on its own BH q + a strong positive delta (>= +0.5). The conjunction is never credited with a dependency it lacks (forward classes cannot fire on a reverse pattern); the reverse class is verdict-inert."
   - "This is the amp→expression→dependency THREE-WAY: it is the conjoint refinement copy-number-stratified-dependency's caveat named. When BOTH copy-number-stratified-dependency (amplified-vs-neutral) and this conjoint class stratify, the resolver's CN rung takes precedence (driving_rule names the CN path); the conjoint rung is placed LAST (most specific) so any single-alteration driver names the verdict first."
