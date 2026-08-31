@@ -56,6 +56,7 @@ _SUBSKILL_ORDER = [
     "expression", "selectivity", "dependency", "mechanism", "genomic_alteration",
     "differentiation", "tractability_sm", "surface_modality", "immune_context", "safety", "target_intrinsic",
     "combination_vulnerability",   # relational trio (SL/combinatorial/combo-resistance) consolidated here 2026-08-20
+    "translational_readiness",     # gateless descriptive peer (HCMI models / PDX / organoid), wired 2026-08-31
 ]
 # Subskill axes for which the grounded literature reader (literature-risk-assessment/ground_axis)
 # is configured — kept in step with ground_axis.AXIS_CONFIG's verdict_key-bearing (non-pseudo-card)

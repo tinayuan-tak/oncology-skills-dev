@@ -169,6 +169,12 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "degradation-feasibility", "dependency-predictability", "gdsc-drug-activity",
         "known-drug-tractability", "measured-potency-tractability", "prism-compound-activity",
         "prism-crispr-concordance", "structure-features-static"}),
+    # 2026-08-31 — translational-readiness wired into the fan-out as a GATELESS DESCRIPTIVE peer
+    # (verdict=None, absent from _SHORT_TO_GATE), so this mirror must carry its 3 EXCLUSIVE cards
+    # (organoid-crispr-dependency is NOT re-listed — it already reaches tp via the dependency dim).
+    # Keeps DIMENSION_CARDS == SUB_SKILL_CARDS ∘ SUB_SKILLS (test_dimension_cards_matches_spine).
+    "translational_readiness": frozenset({
+        "target-model-availability", "target-genotype-matched-model", "target-pdx-drug-response"}),
 }
 # normalized: dim_norm -> {card_norm}. Used to expand a dimension token to its member cards when
 # deciding whether a contradiction was surfaced (dimension-grain OR card-grain both count).

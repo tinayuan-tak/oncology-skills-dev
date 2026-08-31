@@ -277,6 +277,22 @@ SUB_SKILLS = [
                                                                # three standalone source skills stay wired in this stage (their cards
                                                                # are composed under both entries — like copy-number-distribution);
                                                                # retiring them is the spine-gated follow-on.
+    ("translational-readiness",        "translational_readiness"),  # GATELESS descriptive PEER (wired 2026-08-31),
+                                                               # EXACT target-intrinsic precedent. translational-readiness/run.py
+                                                               # passes verdict_fn=None (DESCRIPTIVE — model availability / PDX /
+                                                               # organoid context informs confidence, not a nomination gate), so
+                                                               # verdict_fn is None → verdict=None; and it is DELIBERATELY absent
+                                                               # from _SHORT_TO_GATE → gate=None. So verdict=None + gate=None
+                                                               # satisfies the must-not-gate requirement STRUCTURALLY, exactly like
+                                                               # target-intrinsic → overall_recommendation + confidence stay
+                                                               # byte-identical (only a new descriptive sub_verdict=None row appears).
+                                                               # 3 of its 4 cards (target-model-availability, target-genotype-
+                                                               # matched-model, target-pdx-drug-response) reach the composed profile
+                                                               # via NO other path; organoid-crispr-dependency already reaches it via
+                                                               # functional-requirement, so it is NOT re-listed here (would double-
+                                                               # read — same discipline as target-intrinsic's 12 elsewhere-HOME'd
+                                                               # cards). Needs AWS_PROFILE=cbg for HCMI/PDXE S3 reads (already
+                                                               # required for the DEFAULT-ON --ground substrate chain).
 ]
 
 # Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
@@ -774,6 +790,21 @@ SUB_SKILL_CARDS = {
         "ppi-interactome",                    # STRING functional network + CORUM complex membership
         "gene-ontology-annotation",           # GO BP/MF/CC term membership
         "reactome-pathway-membership",        # Reactome pathway/geneset membership + top-level rollup
+    ],
+    "translational-readiness": [          # GATELESS descriptive peer (wired 2026-08-31), target-intrinsic
+                                          # precedent. Compose ONLY the translational-readiness-EXCLUSIVE cards
+                                          # — those NOT already composed under another sub-skill's lens.
+                                          # organoid-crispr-dependency (its 4th card) is DELIBERATELY not listed
+                                          # here: it is a HOME card of functional-requirement and already composed
+                                          # under that entry, so re-listing would double-read (same discipline as
+                                          # target-intrinsic's elsewhere-HOME'd cards). The drop-guard is satisfied
+                                          # (organoid-crispr-dependency IS composed somewhere). No gate is scoped to
+                                          # this entry (translational_readiness ∉ _SHORT_TO_GATE), so the resolver-
+                                          # dependency guard does not apply — these cards fire only their own
+                                          # verdict-inert rules (if any) and never a nomination rung.
+        "target-model-availability",          # per-indication HCMI patient-derived model coverage (indication-grain)
+        "target-genotype-matched-model",      # does an available HCMI model carry THIS target's alteration?
+        "target-pdx-drug-response",           # Novartis PDXE in-vivo drug-response (target-grain)
     ],
 }
 

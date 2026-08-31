@@ -228,9 +228,11 @@ def test_envelope_is_llm_free(tmp_path, monkeypatch):
 
 # ── the two previously-UNCOVERED branches (2026-08-14 critical-issues sweep) ──────────────────────
 
-def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok):
+def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok, emit=None):
     """Drive _write_evidence_package with configurable gate_action + whether target-identity resolves.
-    Returns the parsed envelope (raises SystemExit if the emitter's schema validation fails)."""
+    Returns the parsed envelope. The loud schema-validation failure (SystemExit) is now SCOPED to the
+    machine-emit mode (emit="evidence-package"); on a default/nomination run (emit=None) a schema-invalid
+    envelope WARNs + continues (so the human-facing artifacts still emit) and this returns the envelope."""
     if identity_ok:
         monkeypatch.setattr(tp_evidence_package, "resolve_cards",
                             lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)])
@@ -246,7 +248,8 @@ def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok):
         "dependency": _sub("pan-cancer-crispr-dependency-distribution", "dep-01", "dependency",
                            ("selective_dependency", "dep-01")),
     }
-    args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)
+    args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path,
+                           emit=emit)
     ep_path = tp._write_evidence_package(
         args=args, sub_results=sub_results, gate_action=gate_action,
         recommendation_gate={"fired": bool(gate_action)},
@@ -409,18 +412,35 @@ def test_safety_verdict_by_modality_stamped_on_safety_short(tmp_path, monkeypatc
     assert "safety_verdict_by_modality" not in ep["synthesis"]["sub_verdicts"]["dependency"]
 
 
-def test_failed_identity_fails_schema_validation_loudly(tmp_path, monkeypatch):
-    """When target-identity fails to resolve, assemble emits hgnc_id=-1 (schema requires
-    >= 1) ON PURPOSE as a validation tripwire. The emitter must now VALIDATE and fail LOUD (SystemExit)
+def test_failed_identity_fails_schema_validation_loudly_in_machine_emit_mode(tmp_path, monkeypatch):
+    """When target-identity fails to resolve, assemble emits hgnc_id=-1 (schema requires >= 1) ON
+    PURPOSE as a validation tripwire. In the MACHINE-EMIT mode (--emit evidence-package), where a
+    governance-grade envelope is the sole deliverable, the emitter VALIDATEs and fails LOUD (SystemExit)
     rather than silently persist a schema-invalid governance artifact + return success. Also assert the
     -1 sentinel really is what the schema rejects (guards the tripwire itself)."""
     import pytest
     with pytest.raises(SystemExit) as exc:
-        _emit(tmp_path, monkeypatch, gate_action="veto", identity_ok=False)
+        _emit(tmp_path, monkeypatch, gate_action="veto", identity_ok=False, emit="evidence-package")
     assert exc.value.code == 1
     # the invalid envelope is still written for inspection — confirm it carries the -1 sentinel and
     # that the schema validator flags exactly that (the tripwire is real, not incidental).
     ep = json.loads((tmp_path / "evidence_package.json").read_text())
     assert ep["context"]["target"]["hgnc_id"] == -1
+    errs = tp._validate_evidence_package(ep, CONTRACTS)
+    assert any("hgnc_id" in e for e in errs), f"expected an hgnc_id schema error, got: {errs}"
+
+
+def test_failed_identity_on_default_run_warns_and_continues(tmp_path, monkeypatch):
+    """B12-01 regression: the grounded-substrate chain is DEFAULT-ON, so _write_evidence_package runs
+    on EVERY normal nomination (not just --emit evidence-package). A schema-invalid INTENDED-substrate
+    envelope (the hgnc_id=-1 unresolved-identity sentinel) must NOT abort the flagship run — it must
+    WARN and CONTINUE (return the path) so the human-facing artifacts (target_profile.md/.html/
+    nomination.json) still emit. On a DEFAULT run (emit=None) it therefore does NOT raise, and the
+    envelope is still written for inspection with the -1 sentinel."""
+    # No SystemExit on the default path.
+    ep = _emit(tmp_path, monkeypatch, gate_action="veto", identity_ok=False, emit=None)
+    assert ep["context"]["target"]["hgnc_id"] == -1
+    # the invalid envelope is persisted for inspection (it feeds the verdict-inert substrate chain only)
+    assert (tmp_path / "evidence_package.json").exists()
     errs = tp._validate_evidence_package(ep, CONTRACTS)
     assert any("hgnc_id" in e for e in errs), f"expected an hgnc_id schema error, got: {errs}"

@@ -550,14 +550,31 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     # artifact (e.g. hgnc_id=-1 when target-identity failed to resolve) is silently persisted and
     # reported as success. Fail LOUD: the file is written for inspection, but a non-zero exit + the
     # error list stop it being mistaken for a valid governance-grade package.
+    # FAIL-LOUD is scoped to the MACHINE-EMIT mode (--emit evidence-package) only. The
+    # grounded-substrate chain is DEFAULT-ON (SKILL_VERSION 1.2.0), so _write_evidence_package now
+    # runs on EVERY normal nomination (run.py gates the call on `... or substrate_chain_on`). A
+    # target whose target-identity fails to resolve (the hgnc_id=-1 sentinel) yields a schema-invalid
+    # INTENDED-substrate envelope — but that must NOT abort the flagship run before the human-facing
+    # artifacts (target_profile.md / .html / nomination.json) are written. So: raise ONLY in the
+    # machine mode where a governance-grade envelope is the sole deliverable; on a default/substrate
+    # run, WARN and continue (return the path) so the schema-invalid substrate degrades gracefully
+    # and the nomination path still emits.
     schema_errors = _validate_evidence_package(ep, _CONTRACTS_REPO)
     if schema_errors:
-        print(f"[target-profile] --emit evidence-package: envelope FAILED evidence_package.schema "
+        _machine_emit = getattr(args, "emit", None) == "evidence-package"
+        _lead = ("--emit evidence-package: envelope FAILED" if _machine_emit
+                 else "grounded-substrate envelope FAILED")
+        print(f"[target-profile] {_lead} evidence_package.schema "
               f"validation ({len(schema_errors)} error(s)) — NOT a governance-grade artifact "
               f"(written to {out_path} for inspection):", file=sys.stderr)
         for e in schema_errors[:20]:
             print(f"    - {e}", file=sys.stderr)
-        raise SystemExit(1)
+        if _machine_emit:
+            raise SystemExit(1)
+        print("[target-profile] WARN: schema-invalid substrate envelope on a default/nomination run "
+              "— continuing so target_profile.md / .html / nomination.json still emit (the invalid "
+              "envelope is retained for inspection; it feeds the verdict-inert substrate chain only).",
+              file=sys.stderr)
     return out_path
 
 

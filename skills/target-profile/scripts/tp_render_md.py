@@ -98,13 +98,37 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
             return "LOW", saf_r or "LoF-tolerant gene (reduced full-KO liability)"
         return "insufficient_evidence", "gnomAD constraint sub-verdict absent"
 
+    def _translational():
+        # translational-readiness is now WIRED into the fan-out (2026-08-31) as a GATELESS DESCRIPTIVE
+        # peer (verdict=None) — model availability / genotype-matched / PDX drug-response is translational
+        # CONTEXT that informs confidence, not a risk verdict. So the risk LEVEL stays
+        # insufficient_evidence (a descriptive skill mints no risk call), but the NOTE now surfaces the
+        # composed context instead of the stale "data not wired" placeholder (B13-3).
+        r = sub_results.get("translational_readiness") or {}
+        mac = _first_card_summary_field(r, "model_availability_class")
+        gmc = _first_card_summary_field(r, "genotype_matched_class")
+        pdx = _first_card_summary_field(r, "pdx_drug_response_class")
+        bits = []
+        if mac:
+            bits.append(f"HCMI model availability={mac}")
+        if gmc:
+            bits.append(f"genotype-matched={gmc}")
+        if pdx:
+            bits.append(f"PDX drug-response={pdx}")
+        if bits:
+            return ("insufficient_evidence",
+                    "translational-readiness composed (descriptive / verdict-inert context): "
+                    + "; ".join(bits))
+        return ("insufficient_evidence",
+                "translational-readiness composed (descriptive) — HCMI/PDX/organoid context "
+                "unavailable this run")
+
     # For phases we still have no wired data on, report insufficient_evidence
     # honestly rather than fabricate:
     return [
         ("biological",   *_biological()),
         ("druggability", *_druggability()),
-        ("translational", "insufficient_evidence",
-            "Phase-J (translational-readiness) placeholder — data not wired"),
+        ("translational", *_translational()),
         ("clinical",      "insufficient_evidence",
             "Phase-E (clinical precedent) placeholder — data feed not wired"),
         ("safety",        *_safety()),

@@ -3,7 +3,7 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out (in parallel, in-process) to the 13 wired
+  synthesis." Fans out (in parallel, in-process) to the 14 wired
   question-answering skills:
     - tumor-presence
     - tumor-selectivity
@@ -18,6 +18,7 @@ description: |
     - target-intrinsic                  (indication-independent dossier; GATELESS, verdict=None)
     - cis-feature-coherence             (locus→expression→dependency coherence; GATELESS, verdict-inert)
     - combination-and-vulnerability     (consolidated relational annex: SL + measured dual-KO + combo + resistance; GATELESS, verdict=None)
+    - translational-readiness           (HCMI model availability + genotype-matched + PDXE in-vivo drug-response; GATELESS, verdict=None)
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +
@@ -121,17 +122,19 @@ composition:
 
 ## What this skill does
 
-- Runs the 13 wired question-answering skills in parallel (all data-package
+- Runs the 14 wired question-answering skills in parallel (all data-package
   producers): tumor-presence, tumor-selectivity, functional-requirement,
   mechanism-and-pharmacology, genomic-alteration-profile, differentiation-landscape,
   tractability-small-molecule, surface-modality-fit, immune-context,
   on-target-safety-liability, target-intrinsic, cis-feature-coherence,
-  combination-and-vulnerability.
-  - **Five** shorts are **gateless** (absent from the kill/hold gate map `_SHORT_TO_GATE`):
-    `expression` (tumor-presence), `immune-context`, `target-intrinsic`, `cis-feature-coherence`, and
-    `combination-and-vulnerability`. They surface in `sub_verdicts` + the LLM synthesis but do NOT drive
-    the deterministic KILL/HOLD recommendation spine, which stays byte-stable. Nuances: `target-intrinsic`
-    and `combination-and-vulnerability` are additionally **descriptive** (`verdict=None`). `cis-feature-coherence`
+  combination-and-vulnerability, translational-readiness.
+  - **Six** shorts are **gateless** (absent from the kill/hold gate map `_SHORT_TO_GATE`):
+    `expression` (tumor-presence), `immune-context`, `target-intrinsic`, `cis-feature-coherence`,
+    `combination-and-vulnerability`, and `translational-readiness`. They surface in `sub_verdicts` + the
+    LLM synthesis but do NOT drive
+    the deterministic KILL/HOLD recommendation spine, which stays byte-stable. Nuances: `target-intrinsic`,
+    `combination-and-vulnerability`, and `translational-readiness` are additionally **descriptive**
+    (`verdict=None`). `cis-feature-coherence`
     emits a resolver verdict and has since **graduated** (2026-08-20) into the positive tier — its
     `coherent_cis_driver` is a `positive_signal` and `expressed_cis_coupled_inert` a `positive_contradiction`,
     so it can raise the confidence FLOOR and name the deciding axis — but it stays out of `_SHORT_TO_GATE`,

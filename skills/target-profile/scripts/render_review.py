@@ -54,6 +54,7 @@ SUBSKILL_ORDER = [
     ("target_intrinsic", "Target-intrinsic dossier (key biology)"),
     ("cis_coherence", "Cis-feature coherence"),
     ("combination_vulnerability", "Combination & vulnerability"),
+    ("translational_readiness", "Translational readiness (models / PDX)"),
 ]
 SUBSKILL_LABEL = dict(SUBSKILL_ORDER)
 QUESTION_TABLE_FACET = {"expression": "presence_facet", "selectivity": "selectivity_facet",
@@ -75,6 +76,11 @@ DESCRIPTIVE_FIELDS = {
         "ppi-interactome": ["interactome_class", "n_high_confidence_interactors", "top_interactors", "n_corum_complexes"],
         "gene-ontology-annotation": ["annotation_class", "n_biological_process", "n_molecular_function", "n_cellular_component"],
         "reactome-pathway-membership": ["pathway_class", "top_level_pathways", "is_signaling"],
+    },
+    "translational_readiness": {
+        "target-model-availability": ["model_availability_class", "n_patient_derived_models"],
+        "target-genotype-matched-model": ["genotype_matched_class", "n_models_with_alteration"],
+        "target-pdx-drug-response": ["pdx_drug_response_class", "responder_fraction", "most_active_treatment"],
     },
 }
 # Plain-language glosses for the cross-evidence edge relations + hypothesis verdicts.

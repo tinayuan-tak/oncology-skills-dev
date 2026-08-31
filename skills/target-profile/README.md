@@ -4,7 +4,7 @@
 indication Y, with narrative synthesis."**
 
 `target-profile` is the top-level composed skill. It fans out (in parallel, in-process) to the
-13 wired question-answering skills, collects each deterministic sub-verdict, then adds a Tier-3
+14 wired question-answering skills, collects each deterministic sub-verdict, then adds a Tier-3
 LLM narrative on top. The rule-fired verdict spine is deterministic and auditable; the LLM only
 writes narrative + a high-level recommendation. Every LLM field is tagged
 (`_source: llm_synthesized`, `_model_id`, `_prompt_hash`) and stored in schema slots distinct
@@ -30,7 +30,7 @@ from the sub-verdicts, so the audit spine is invariant even if the narrative dri
 
 ## What you get
 
-Running `target-profile` composes these 13 sub-skills:
+Running `target-profile` composes these 14 sub-skills:
 
 | Sub-skill | Answers |
 |---|---|
@@ -47,6 +47,7 @@ Running `target-profile` composes these 13 sub-skills:
 | `target-intrinsic` | Indication-independent molecular dossier (gateless, verdict-inert). |
 | `cis-feature-coherence` | locus → expression → dependency coherence (gateless). |
 | `combination-and-vulnerability` | SL partners, dual-KO, combo co-targets, resistance (gateless). |
+| `translational-readiness` | HCMI patient-derived models, genotype-matched models, PDXE in-vivo drug-response (gateless, verdict-inert). |
 
 It then emits an **executive summary**, **tension analysis** (where sub-verdicts disagree),
 **arguments for/against**, a deterministic **recommendation** (`nominate` / `hold` / `veto`), and a
@@ -58,7 +59,7 @@ It then emits an **executive summary**, **tension analysis** (where sub-verdicts
 
 Install `target-profile` into your local Claude in one of two ways — a **personal-skill symlink**
 (just this skill; the convention this repo already uses) or the full **plugin bundle** (this skill +
-its 13 sub-skills + utilities). Either way it becomes the `/target-profile` skill: you describe the
+its 14 sub-skills + utilities). Either way it becomes the `/target-profile` skill: you describe the
 target in natural language and Claude runs it for you — you never touch the CLI. The skills also ship
 as a Claude Code plugin (`oncology-skills`) published through a local marketplace
 (`claude-oncology-skills`) for the bundle path.
@@ -105,7 +106,7 @@ ln -s ~/rnd-computational-biology-oncology-claude-oncology-skills/skills/target-
       ~/.claude/skills/target-profile
 ```
 
-This installs **only** `target-profile`. It composes 13 sub-skills *in-process* (Python imports,
+This installs **only** `target-profile`. It composes 14 sub-skills *in-process* (Python imports,
 not the Claude skill registry), so you do **not** need to symlink those for a run to work — but you
 may link any you also want to invoke standalone (e.g. `tumor-presence`, `functional-requirement`).
 For a project-scoped install instead, symlink into `<your-project>/.claude/skills/` rather than
@@ -113,7 +114,7 @@ For a project-scoped install instead, symlink into `<your-project>/.claude/skill
 
 #### Method B — install the whole plugin bundle
 
-Registers `target-profile` **plus** its 13 sub-skills and the utility skills in one step, via the
+Registers `target-profile` **plus** its 14 sub-skills and the utility skills in one step, via the
 plugin marketplace:
 
 ```

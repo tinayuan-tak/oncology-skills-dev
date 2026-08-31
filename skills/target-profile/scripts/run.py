@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """target-profile — composed target profile with Tier-3 LLM narrative synthesis.
 
-Fans out to the 13 question-answering sub-skills in SUB_SKILLS (tumor-presence,
+Fans out to the 14 question-answering sub-skills in SUB_SKILLS (tumor-presence,
 tumor-selectivity, functional-requirement, mechanism-and-pharmacology,
 genomic-alteration-profile, differentiation-landscape, tractability-small-molecule,
 surface-modality-fit, immune-context, on-target-safety-liability, target-intrinsic,
-cis-feature-coherence, combination-and-vulnerability)
+cis-feature-coherence, combination-and-vulnerability, translational-readiness)
 + an opt-in subtype_fit tier (--subtypes), collects their sub-verdicts + fired
 rules, then invokes Bedrock (via _skills_common.llm) with a forced structured
 tool_use to produce executive_summary + tension_analysis + recommendation. The
@@ -1024,10 +1024,14 @@ def main() -> int:
         ] + ([] if args.no_figures else [
             "figures/target_profile_at_a_glance.png",
             "figures/target_profile_at_a_glance.svg",
-        ]) + ([f"grounded_{ax}.json" for ax in sorted(grounded_by_axis)] if args.ground else []),
-        # fanout-integration: the per-axis grounded substrate produced this run (empty unless --ground).
-        # Verdict-inert; feeds the inline render + downstream --substrate (risk_rollup + hypothesis).
-        "grounded_axes": sorted(grounded_by_axis) if args.ground else [],
+        ]) + [f"grounded_{ax}.json" for ax in sorted(grounded_by_axis)],
+        # fanout-integration: the per-axis grounded substrate ACTUALLY produced this run. Keyed on
+        # grounded_by_axis (non-empty), NOT args.ground: the grounded-substrate chain is DEFAULT-ON
+        # (SKILL_VERSION 1.2.0), so a normal run auto-produces grounded_<axis>.json via run_ground
+        # WITHOUT the --ground flag being set. Gating provenance on args.ground under-reported those
+        # files (grounded_axes: [] + artifacts omitted) even though they exist in --out and feed the
+        # inline render + risk_rollup/hypothesis. Report what was produced. Verdict-inert.
+        "grounded_axes": sorted(grounded_by_axis),
     }
     write_artifact(args.out, "provenance", yaml.safe_dump(provenance, sort_keys=False), _written)
     # Guard: the artifacts WRITTEN THIS RUN match this mode's declared MODE_WRITE_SET (html is
