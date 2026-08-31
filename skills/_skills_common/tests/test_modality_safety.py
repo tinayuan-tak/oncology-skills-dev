@@ -70,3 +70,20 @@ def test_nongof_constrained_small_molecule_holds():
     v = safety_verdict_by_modality(NONGOF_CONSTRAINED_FIRED)
     assert v["small_molecule"]["action"] == "hold", v["small_molecule"]  # no allele-selective escape
     assert v["degrader"]["action"] == "hold", v["degrader"]
+
+
+# B4-1 regression (S1): a TUMOR SUPPRESSOR with a spurious IntOGen 'Act' label fires the activating
+# eligibility signal but NOT the oncogene-role co-gate (oncokb_gene_type != ONCOGENE). It must NOT earn
+# the allele-selective small_molecule escape — a TSG is not drugged by a mutant-selective activator that
+# spares WT, so the WT-loss HOLD must stand. (SMARCA2 archetype: oncokb_gene_type=TSG, direction=activating.)
+TSG_SPURIOUS_ACTIVATING_FIRED = [
+    {"rule_id": "highly-constrained-safety-warning"},
+    {"rule_id": "activating-driver-role-safety-context"},  # spurious IntOGen 'Act' on a TSG
+    # NOTE: no oncogene-role-safety-context (oncokb_gene_type is NOT ONCOGENE)
+]
+
+
+def test_tsg_spurious_activating_still_holds():
+    v = safety_verdict_by_modality(TSG_SPURIOUS_ACTIVATING_FIRED)
+    assert v["small_molecule"]["action"] == "hold", v["small_molecule"]  # co-gate blocks the escape
+    assert v["degrader"]["action"] == "hold", v["degrader"]
