@@ -73,6 +73,25 @@ def test_selectivity_collapsed_verdict_is_resolved_class_not_rule_id():
     assert "tvn-no-therapeutic-window-veto" not in collapsed
 
 
+def test_functional_requirement_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The functional-requirement lens declares verdict_key='dependency_verdict', so the COLLAPSED
+    VERDICT prompt line injects the RESOLVED dependency verdict token — not driving_rule_id (a rule-id
+    string like 'pan-essential-killer'), which is what the fallback chain landed on before the fix (the
+    FR headline key is dependency_verdict, never 'verdict'). Mirrors the presence/selectivity contract.
+    The pan_essential case matters most: leaking the rule-id would rob the narrator of the resolved
+    'this is a liability' token."""
+    assert FUNCTIONAL_REQUIREMENT.verdict_key == "dependency_verdict"
+    decision = {"target": "PLK1", "indication": "COADREAD",
+                "headline": {"dependency_verdict": "pan_essential_killer",
+                             "driving_rule_id": "pan-essential-killer",
+                             "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}}}}
+    p = NE.build_capsule_prompt(decision, FUNCTIONAL_REQUIREMENT)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "pan_essential_killer" in collapsed
+    # the bare rule-id must not be what the model is handed as the one-word verdict
+    assert collapsed.count("pan-essential-killer") == 0
+
+
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
     monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})

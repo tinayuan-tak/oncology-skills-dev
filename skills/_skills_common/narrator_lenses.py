@@ -18,6 +18,10 @@ FUNCTIONAL_REQUIREMENT = LensConfig(
                  "COND": "conditional/SL", "CHEM": "chemical-genetic"},
     scope_exclusions=("therapeutic modality", "expression/abundance as a presence claim", "mutation frequency"),
     mode="verdict",
+    verdict_key="dependency_verdict",   # the RESOLVED dependency verdict token; else the collapsed-verdict
+                                        # prompt line fell through to driving_rule_id (a rule-id string, e.g.
+                                        # "lineage-selective-supportive") — mirrors the TUMOR_PRESENCE /
+                                        # TUMOR_SELECTIVITY fix (the FR headline key is dependency_verdict).
 )
 
 ON_TARGET_SAFETY = LensConfig(
