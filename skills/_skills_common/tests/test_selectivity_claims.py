@@ -149,6 +149,57 @@ def test_not_selective_case():
     assert ks["supports"] == []
 
 
+def test_not_selective_with_critical_organ_liability_is_not_selective():
+    """REGRESSION (key_signals over-claim): a measured-NEGATIVE target (WIN+DIST absent) that also
+    carries a near-universal critical-organ normal liability (SAFE negative) must NOT read
+    "Selective signal, but …". The endothelial-marker archetype (PECAM1/VWF in COADREAD): not
+    tumor-selective by every selectivity axis, yet expressed in critical normal organs."""
+    h = {
+        "axis_a_selectivity_class": "not_selective", "cells_supporting": 0.0, "cells_ran": 3.0,
+        "discordant": False, "percentile_crossing_class": "not_enriched",
+        "distribution_overlap_tumor_normal": 0.9,
+        "sc_tumor_expression_class": "microenvironment_dominant",
+        "purity_confound_class": "microenvironment_confounded",
+        "sc_normal_safety_essential_class": "critical_organ_liability",
+        "sc_normal_expression_class": "HIGH_LIABILITY",
+    }
+    vec = selectivity_claim_vector(h, [])
+    assert vec["WIN"]["signal"] == "absent" and vec["DIST"]["signal"] == "absent"
+    assert vec["SAFE"]["signal"] == "negative"
+    ks = selectivity_key_signals(h, [])
+    assert not ks["headline"].startswith("Selective signal")
+    assert ks["headline"].startswith("Not tumor-selective")
+    assert "normal-tissue liability" in ks["headline"]
+    assert ks["supports"] == []
+
+
+def test_weak_selectivity_with_liability_does_not_claim_selective():
+    """REGRESSION: a discordant / weak-signal target (WIN+DIST weak, below the moderate bar) with a
+    critical-organ liability (the KRAS/COADREAD archetype) must not lead with "Selective signal"."""
+    h = _ceacam5_headline()
+    h.update({"axis_a_selectivity_class": "discordant_across_comparators", "cells_supporting": 1.0,
+              "discordant": True, "percentile_crossing_class": "minimally_enriched",
+              "fraction_tumor_above_normal_p95": 0.19, "distribution_overlap_tumor_normal": 0.7,
+              "sc_tumor_expression_class": "malignant_subset_detected",
+              "sc_normal_safety_essential_class": "critical_organ_liability"})
+    vec = selectivity_claim_vector(h, [])
+    assert vec["WIN"]["signal"] == "weak" and vec["DIST"]["signal"] == "weak"
+    assert vec["SAFE"]["signal"] == "negative"
+    ks = selectivity_key_signals(h, [])
+    assert not ks["headline"].startswith("Selective signal")
+    assert "normal-tissue liability" in ks["headline"]
+
+
+def test_selective_with_critical_organ_liability_unchanged():
+    """BYTE-STABILITY guard: a genuinely selective target (DIST strong — the CEACAM5 shape) with a
+    critical-organ liability KEEPS the prior "Selective signal, but …" wording. Complements
+    test_critical_organ_liability_is_negative_window; pins that the fix does not regress selective cases."""
+    h = _ceacam5_headline()
+    h["sc_normal_safety_essential_class"] = "critical_organ_liability"
+    ks = selectivity_key_signals(h, [])
+    assert ks["headline"] == "Selective signal, but a critical-organ normal-tissue liability."
+
+
 def test_field_names_are_corroboration_not_reliability():
     """Post reliability→corroboration rename: the claim dicts carry `corroboration`."""
     vec = selectivity_claim_vector(_ceacam5_headline(), [])

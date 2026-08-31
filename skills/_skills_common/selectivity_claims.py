@@ -302,7 +302,19 @@ def selectivity_key_signals(headline: dict, cards: list) -> dict:
     def head(v, supports):
         win, dist, intr, safe = (v["WIN"]["signal"], v["DIST"]["signal"],
                                  v["INT"]["signal"], v["SAFE"]["signal"])
-        if safe == "negative":
+        # A normal-tissue liability (SAFE negative) is only a "Selective signal, but …" headline when a
+        # selective signal ACTUALLY exists (WIN or DIST >= moderate). Without this gate the SAFE-negative
+        # branch fired FIRST unconditionally, so measured-negative / discordant targets whose only
+        # "signal" was the normal-side liability were mislabeled "Selective signal, but …". A critical-
+        # organ normal liability is near-universal (GAPDH/KRAS/PECAM1/VWF all trip
+        # sc_normal_safety_essential_class == critical_organ_liability), so the bug fired broadly — the
+        # key_signals headline contradicted BOTH the resolved selectivity_class (e.g. not_selective) and
+        # its sibling headline_block. Verdict-INERT: only this human-facing summary string changes; the
+        # selectivity_class spine + normal-breadth veto are untouched. Selective cases (WIN/DIST >=
+        # moderate, incl. the CEACAM5 field-effect fixture whose DIST is strong) keep the prior wording
+        # byte-for-byte — only the non-selective SAFE-negative cases are corrected.
+        has_selective = sig_ge(win, "moderate") or sig_ge(dist, "moderate")
+        if safe == "negative" and has_selective:
             base = "Selective signal, but a critical-organ normal-tissue liability."
         elif sig_ge(win, "strong") or (sig_ge(dist, "strong") and sig_ge(intr, "moderate")):
             base = "Tumor-selective."
@@ -312,6 +324,11 @@ def selectivity_key_signals(headline: dict, cards: list) -> dict:
             base = "Not tumor-selective."
         else:
             base = "Selectivity largely unmeasured or not distinguishing."
+        # SAFE negative but no selective signal to lead with: the target is not selective / not
+        # distinguishing — say so, then carry the normal-tissue liability as a TRAILING caveat rather
+        # than announcing a selectivity the WIN/DIST axes do not support.
+        if safe == "negative" and not has_selective:
+            base = base.rstrip(".") + " — with a normal-tissue liability."
         if intr == "negative":
             base = base.rstrip(".") + " — but the signal may be microenvironment-driven."
         return base
