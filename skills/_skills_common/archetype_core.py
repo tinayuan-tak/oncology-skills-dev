@@ -1,34 +1,38 @@
-"""archetype_core — the verdict-INERT cross-skill target-archetype COMPANION primitive.
+"""archetype_core — the verdict-INERT cross-skill target-signature LANDSCAPE companion.
 
-WHAT THIS IS. A target's composed profile (the 13 sub-skills' claim-vectors) forms a per-target point
-in a shared "target-archetype" space. Against a FROZEN reference atlas of labelled targets this module
-computes, for a query target:
-  - nearest reference ANALOGS   ("most like CDH17, TROP2, ...")
-  - soft archetype MEMBERSHIP   (distance-weighted kNN vote — NOT a hard single label)
-  - a rule-fingerprint PRECEDENT overlay (same fired-rule signature; lives on the auditable rule spine)
-  - a MISSINGNESS map           (which axes are unmeasured — the acquisition backlog per target)
-  - a CRUDE novelty score       (nearest-neighbour distance; flags EXTREME, see caveats)
+WHAT THIS IS. A target's composed profile (the 13 sub-skills' claim-vectors) is distilled into a point in
+a FROZEN low-dimensional embedding of the target-signature space. Against a frozen set of CANONICAL
+phenotype ANCHORS (curated exemplars, one per drug-target phenotype) this module computes, for a query:
+  - a soft PHENOTYPE MIXTURE  (convex membership to the anchors — "60% surface + 25% GoF-driver + ...";
+                               a distribution, NEVER a hard single label)
+  - nearest reference ANALOGS ("most like CDH17, TROP2, ...", by embedding distance)
+  - a MISSINGNESS map          (which axes are unmeasured — the acquisition backlog per target)
+  - NOVELTY                    (hull-residual = fits no canonical phenotype mix = INCONSISTENT, plus a
+                               local-density flag — the fix for the old global-NN metric flagging EXTREME
+                               targets like EGFR as "novel")
+  - a rule-fingerprint PRECEDENT overlay (same fired-rule signature; on the auditable rule spine)
 
-WHAT THIS IS NOT (governance — non-negotiable). This is DESCRIPTIVE and strictly VERDICT-INERT: it never
-mints a recommendation, never enters `fired`, the resolver, `_SHORT_TO_GATE`, or the nomination
-sub_verdicts spine. It attaches like the other reduction-stage facets (fragility / heterogeneity /
-biomarker) — computed AFTER the fan-out, emitted for the reader + LLM synthesis, one-directional. There
-is NO atlas-freeze-FOR-CLASSIFICATION and NO hard archetype label: the honest validated result is that
-archetype structure is real (~0.80 leave-one-TARGET-out with RF on the full claim-vector; kNN companion
-is descriptive) but blind/external-label validation (P3) is the gate before any classification claim.
+WHY ANCHORED (design). Unsupervised phenotype DISCOVERY (kNN over raw features, KMeans, archetypal
+analysis) is seed/n-unstable at this corpus size and mis-names corners. Anchoring the phenotype space on
+curated canonical exemplars (KRAS=GoF-driver, VHL=TSG, ERBB2=amp, EPCAM=surface, AURKA=dependency,
+GAPDH=control) makes the mixture stable, correctly-named, and biologically faithful (validated:
+KRAS→90% GoF, ERBB2→100% amp, VHL→100% TSG, EGFR→amp+GoF). Anchor labels reuse the archetype-label
+vocabulary so the D1 scorecard's per-archetype weight profiles keep consuming `soft_membership` unchanged.
 
-SUBSTRATE. The vector is built from each sub-skill's `synthesis_facet.claim_vector` — the SAME payload
-`tp_manifest._subskill_package` serialises into `package.json`, so the OFFLINE atlas (built from harvested
-package.json) and the RUNTIME query (built from in-process `sub_results`) share ONE vectoriser. Ordinal
-map is ported verbatim from the validated harvest; absent(=0) is a real 'not present', unmeasured(=None)
-is ignored per-pair by the nan-aware distance (the A2 mask) rather than imputed.
+WHAT THIS IS NOT (governance — non-negotiable). DESCRIPTIVE and strictly VERDICT-INERT: it never mints a
+recommendation, never enters `fired` / the resolver / `_SHORT_TO_GATE` / the sub_verdicts spine. It
+attaches like the other reduction-stage facets (fragility / heterogeneity), computed AFTER the fan-out.
+NOTE: the outcome-trained approval-propensity score (former D2/D3) was RETIRED here — an ablation showed
+its signal was carried by advancement/study-depth features, not disease biology, and the pure-biology
+residual did not beat a genetics baseline; the honest product is this descriptive phenotype landscape.
 
-CAVEATS (carried in the emitted disclaimer): labels are PROVISIONAL + partly circular (clinical antigens;
-cards designed from the same biology) — nothing is a classification claim until blind labels + a held-out
-split clear baseline. `housekeeping` is not a distinct archetype (recovers at ~0% — correct). `amp_driver`
-is fuzzy (small n). The corroboration ordinal preserves the validated harvest's quirk (only 'moderate'
-maps to a value; low/high -> None) — a re-mapping is a separate re-validated change. Novelty is a crude
-global-NN distance (flags EXTREME not INCONSISTENT); a class-relative / LOF metric is backlog (A3).
+DEPLOYMENT. Pure-stdlib + deterministic. The embedding is a FROZEN linear projection (PCA loadings shipped
+as data in the atlas), applied to a z-scored, mean-imputed query vector — no torch, no pickle. Missing
+tiers are mean-imputed (z=0) for the projection; per-axis missingness is surfaced honestly alongside.
+
+SUBSTRATE. The vector is built from each sub-skill's `synthesis_facet.claim_vector` — the same payload
+`package.json` carries — so the OFFLINE atlas and the RUNTIME query share ONE vectoriser. Corroboration
+uses its own low/moderate/high vocabulary (the prior "only-moderate" encoding bug is fixed here).
 """
 from __future__ import annotations
 
@@ -37,15 +41,13 @@ import math
 from pathlib import Path
 from typing import Optional
 
-# Ordinal encoding of the claim SIGNAL / CORROBORATION tiers — PORTED VERBATIM from the validated
-# harvest (harvest_packages._SIG_ORD). Do NOT "fix" the corroboration quirk here without re-running the
-# leave-one-TARGET-out validation and re-freezing the atlas: the reference matrix was built under this
-# exact map, so query and atlas must encode identically.
-CLAIM_SIG_ORD = {
-    "strong": 3.0, "moderate": 2.0, "weak": 1.0,
-    "absent": 0.0, "negative": 0.0,
-    "unmeasured": None, "none": None,
-}
+# Ordinal encoding of the claim tiers. SIGNAL uses strong/moderate/weak/absent; CORROBORATION uses its
+# OWN low/moderate/high vocabulary — the prior single-map silently nulled low+high (the "only-moderate"
+# bug). Both encodings must match the offline atlas build (single source of truth).
+CLAIM_SIG_ORD = {"strong": 3.0, "moderate": 2.0, "weak": 1.0,
+                 "absent": 0.0, "negative": 0.0, "unmeasured": None, "none": None}
+CLAIM_CORR_ORD = {"high": 3.0, "moderate": 2.0, "low": 1.0,
+                  "absent": 0.0, "negative": 0.0, "unmeasured": None, "none": None}
 
 DEFAULT_K = 8
 
@@ -53,8 +55,8 @@ DEFAULT_K = 8
 def claim_features(subskill_claim_vectors: dict) -> dict:
     """{short: {CLAIM: {signal, corroboration, ...}}} -> {short::claim::CLAIM::signal|corrob: ordinal|None}.
 
-    This is the single canonical vectoriser used for BOTH the offline atlas build and the runtime query,
-    so the two coordinate systems are identical by construction."""
+    The single canonical vectoriser used for BOTH the offline atlas build and the runtime query, so the
+    two coordinate systems are identical by construction."""
     out: dict = {}
     for short, cv in (subskill_claim_vectors or {}).items():
         if not isinstance(cv, dict):
@@ -65,21 +67,17 @@ def claim_features(subskill_claim_vectors: dict) -> dict:
             sig = str(val.get("signal", "")).lower()
             cor = str(val.get("corroboration", "")).lower()
             out[f"{short}::claim::{claim}::signal"] = CLAIM_SIG_ORD.get(sig)
-            out[f"{short}::claim::{claim}::corrob"] = CLAIM_SIG_ORD.get(cor)
+            out[f"{short}::claim::{claim}::corrob"] = CLAIM_CORR_ORD.get(cor)
     return out
 
 
 def vector_from_sub_results(sub_results: dict) -> dict:
-    """Build the query feature dict from the in-process fan-out `sub_results` (dict short -> r).
-
-    Reads r['synthesis_facet']['claim_vector'] — the exact payload package.json carries — so a runtime
-    query is byte-comparable to the offline-harvested atlas rows."""
+    """Build the query feature dict from the in-process fan-out `sub_results` (dict short -> r)."""
     cvs = {}
     for short, r in (sub_results or {}).items():
         if not isinstance(r, dict):
             continue
-        facet = r.get("synthesis_facet") or {}
-        cv = facet.get("claim_vector")
+        cv = (r.get("synthesis_facet") or {}).get("claim_vector")
         if isinstance(cv, dict) and cv:
             cvs[short] = cv
     return claim_features(cvs)
@@ -97,135 +95,176 @@ def fired_rule_ids_from_sub_results(sub_results: dict) -> set:
     return hits
 
 
-def _nan_euclidean(q: list, rows: list) -> list:
-    """NaN-aware Euclidean distance (the A2 mask): compare only co-measured dims, rescale by dimensionality
-    so pairs with more missing overlap are not spuriously 'close'. q, rows entries are float or None."""
-    d = len(q)
-    out = []
-    for row in rows:
-        ssum = 0.0
-        cnt = 0
-        for a, b in zip(q, row):
-            if a is None or b is None:
-                continue
-            diff = a - b
-            ssum += diff * diff
-            cnt += 1
-        out.append(math.sqrt(ssum * (d / cnt)) if cnt > 0 else math.inf)
-    return out
+def _proj_simplex(v: list) -> list:
+    """Project a vector onto the probability simplex (Duchi 2008), pure-python."""
+    if not v:
+        return v
+    u = sorted(v, reverse=True)
+    css = 0.0
+    rho, theta = 0, 0.0
+    for i, uu in enumerate(u):
+        css += uu
+        if uu - (css - 1.0) / (i + 1) > 0:
+            rho = i + 1
+            theta = (css - 1.0) / (i + 1)
+    # recompute theta at rho (css over first rho entries)
+    theta = (sum(u[:rho]) - 1.0) / rho if rho else 0.0
+    return [max(x - theta, 0.0) for x in v]
 
 
 class Atlas:
-    """A frozen reference atlas: reference vectors + labels + provenance. Loaded once, then queried.
+    """A frozen reference atlas backing the descriptive phenotype-landscape companion.
 
-    JSON shape (see build_atlas): feature_order, mu, sd (nan-aware, per feature), X (n x d, null=missing),
-    targets, indications, labels, rule_fingerprints (list[list[str]]), all_rules, meta."""
+    JSON shape (see build_atlas): feature_order · mu · sd (nan-aware) · X (raw ordinal rows, null=missing) ·
+    targets · indications · labels · rule_fingerprints · axis_ref (D1 z-ref) · embedding{components (m x d),
+    corpus (n x m)} · anchors[{label, target, indication, coord (m)}] · meta."""
 
     def __init__(self, doc: dict):
         self.feature_order: list = list(doc["feature_order"])
         self.mu: list = [float(x) for x in doc["mu"]]
         self.sd: list = [float(x) if x else 1.0 for x in doc["sd"]]
-        self.X: list = doc["X"]                              # raw ordinal rows (null = unmeasured)
+        self.X: list = doc.get("X", [])
         self.targets: list = list(doc["targets"])
         self.indications: list = list(doc.get("indications", [""] * len(self.targets)))
         self.labels: list = list(doc["labels"])
         self.rule_fingerprints: list = doc.get("rule_fingerprints", [[] for _ in self.targets])
-        self.axis_ref: dict = doc.get("axis_ref", {})        # {axis: {mean, std}} of axis_score (D1 z-ref)
-        self.d2_model: dict = doc.get("d2_model") or {}      # frozen de-FAMEd logistic (D2 score + D3 attr)
+        self.axis_ref: dict = doc.get("axis_ref", {})
+        emb = doc.get("embedding") or {}
+        self.components: list = emb.get("components", [])          # m x d PCA loadings
+        self.corpus_emb: list = emb.get("corpus", [])              # n x m reference coords
+        self.anchors: list = doc.get("anchors", [])                # [{label,target,indication,coord}]
         self.meta: dict = doc.get("meta", {})
-        # pre-z-score the reference matrix once (same mu/sd applied to the query at call time)
-        self._Z = [self._z(row) for row in self.X]
-        # corpus novelty distribution (nearest-neighbour distance per reference point) for the flag
+        # corpus nearest-neighbour distance distribution (in embedding) for the local-density novelty flag
         self._nn_ref = self._corpus_nn_distances()
 
     @classmethod
     def load(cls, path) -> "Atlas":
         return cls(json.loads(Path(path).read_text()))
 
-    def _z(self, row: list) -> list:
-        return [None if (v is None) else (v - self.mu[i]) / self.sd[i] for i, v in enumerate(row)]
+    # ---- embedding ----
+    def _align_z_impute(self, feat: dict) -> list:
+        """Align a query onto feature_order, z-score vs frozen mu/sd, mean-impute missing -> 0 (=corpus mean)."""
+        out = []
+        for i, k in enumerate(self.feature_order):
+            v = feat.get(k)
+            out.append(0.0 if v is None else (v - self.mu[i]) / self.sd[i])
+        return out
 
-    def _align(self, feat: dict) -> list:
-        """Project a query feature dict onto the atlas feature_order (unknown keys dropped, missing=None)."""
-        return [feat.get(k) for k in self.feature_order]
+    def _embed(self, feat: dict) -> list:
+        """Project a query into the frozen embedding: e[j] = sum_i components[j][i] * z_imputed[i]."""
+        z = self._align_z_impute(feat)
+        return [sum(comp[i] * z[i] for i in range(len(z))) for comp in self.components]
 
     def _corpus_nn_distances(self) -> list:
         out = []
-        for i, z in enumerate(self._Z):
-            dists = _nan_euclidean(z, self._Z)
-            dists[i] = math.inf                              # exclude self
-            out.append(min(dists))
-        return sorted(d for d in out if math.isfinite(d))
+        for i, a in enumerate(self.corpus_emb):
+            best = math.inf
+            for j, b in enumerate(self.corpus_emb):
+                if i == j:
+                    continue
+                d = math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+                if d < best:
+                    best = d
+            if math.isfinite(best):
+                out.append(best)
+        return sorted(out)
 
-    def _novelty_pctl_threshold(self, pctl: float = 0.9) -> float:
+    def _novelty_threshold(self, pctl: float = 0.9) -> float:
         if not self._nn_ref:
             return math.inf
-        idx = min(len(self._nn_ref) - 1, int(pctl * len(self._nn_ref)))
-        return self._nn_ref[idx]
+        return self._nn_ref[min(len(self._nn_ref) - 1, int(pctl * len(self._nn_ref)))]
+
+    # ---- anchored convex membership ----
+    def _membership(self, e: list, iters: int = 400) -> tuple:
+        """Convex mixture of the anchors nearest e: min ||e - w·Z||^2 s.t. w>=0, sum w=1 (projected grad).
+
+        Returns (weights_by_label: dict, hull_residual: float). Labels reuse the archetype vocabulary."""
+        Z = [a["coord"] for a in self.anchors]
+        k = len(Z)
+        if not k:
+            return {}, math.inf
+        m = len(e)
+        w = [1.0 / k] * k
+        step = 1.0
+        prev = math.inf
+        for _ in range(iters):
+            recon = [sum(w[j] * Z[j][t] for j in range(k)) for t in range(m)]
+            resid = [e[t] - recon[t] for t in range(m)]
+            # grad_j = -2 * <resid, Z_j>
+            grad = [-2.0 * sum(resid[t] * Z[j][t] for t in range(m)) for j in range(k)]
+            gmax = max((abs(g) for g in grad), default=1.0) or 1.0
+            w = _proj_simplex([w[j] - step * grad[j] / gmax for j in range(k)])
+            loss = sum(r * r for r in resid)
+            step = step * 1.05 if loss < prev else step * 0.6
+            prev = loss
+        recon = [sum(w[j] * Z[j][t] for j in range(k)) for t in range(m)]
+        hull = math.sqrt(sum((e[t] - recon[t]) ** 2 for t in range(m)))
+        votes: dict = {}
+        for j, a in enumerate(self.anchors):
+            votes[a["label"]] = votes.get(a["label"], 0.0) + w[j]      # collapse duplicate-label anchors
+        return {kk: round(vv, 3) for kk, vv in sorted(votes.items(), key=lambda x: -x[1])}, hull
 
     def companion(self, feat: dict, k: int = DEFAULT_K,
                   query_rules: Optional[set] = None, exclude_self: bool = True) -> dict:
-        """Compute the descriptive companion for a query feature dict. VERDICT-INERT payload."""
-        z = self._z(self._align(feat))
-        dists = _nan_euclidean(z, self._Z)
+        """Descriptive phenotype-landscape companion for a query feature dict. VERDICT-INERT payload."""
+        e = self._embed(feat)
+        # nearest analogs in the embedding
+        dists = [math.sqrt(sum((x - y) ** 2 for x, y in zip(e, c))) for c in self.corpus_emb]
         order = sorted(range(len(dists)), key=lambda i: dists[i])
-        # drop exact-self / zero-distance duplicates (a target present in its own atlas)
         if exclude_self:
-            order = [i for i in order if dists[i] > 1e-9]
+            # SELF_EPS tolerates the atlas's 6-dp coord rounding (a self-query lands at ~1e-5, not exactly 0);
+            # far below the real inter-target spacing (>~5 in this embedding), so only self / exact
+            # duplicates are dropped, never a genuine neighbour.
+            order = [i for i in order if dists[i] > 1e-3]
         nn = order[:k]
+        analogs = [{"target": self.targets[i], "indication": self.indications[i],
+                    "archetype_label": self.labels[i], "distance": round(dists[i], 3)} for i in nn]
 
-        analogs = [{
-            "target": self.targets[i], "indication": self.indications[i],
-            "archetype_label": self.labels[i], "distance": round(dists[i], 3),
-        } for i in nn]
+        membership, hull = self._membership(e)
 
-        # soft membership: inverse-distance-weighted vote over the k neighbours (NOT a hard label)
-        votes: dict = {}
-        for i in nn:
-            w = 1.0 / (dists[i] + 1e-6)
-            votes[self.labels[i]] = votes.get(self.labels[i], 0.0) + w
-        tot = sum(votes.values()) or 1.0
-        membership = {kk: round(vv / tot, 3) for kk, vv in
-                      sorted(votes.items(), key=lambda x: -x[1])}
-
-        # missingness map: which axes are entirely unmeasured for this target (acquisition backlog)
-        by_axis_total: dict = {}
-        by_axis_missing: dict = {}
+        # missingness map (acquisition backlog): axes entirely unmeasured for this target
+        by_tot: dict = {}
+        by_missing: dict = {}
         for kk in self.feature_order:
             ax = kk.split("::")[0]
-            by_axis_total[ax] = by_axis_total.get(ax, 0) + 1
+            by_tot[ax] = by_tot.get(ax, 0) + 1
             if feat.get(kk) is None:
-                by_axis_missing[ax] = by_axis_missing.get(ax, 0) + 1
-        missing_axes = sorted(ax for ax in by_axis_total
-                              if by_axis_missing.get(ax, 0) == by_axis_total[ax])
+                by_missing[ax] = by_missing.get(ax, 0) + 1
+        missing_axes = sorted(ax for ax in by_tot if by_missing.get(ax, 0) == by_tot[ax])
 
-        # crude novelty (nearest-neighbour distance) + a percentile flag. NOT class-relative (A3 backlog).
+        # novelty: hull-residual (INCONSISTENT with any canonical mix) + local-density flag (embedding NN)
         nn_dist = dists[nn[0]] if nn else math.inf
+        hull_ref = sorted(
+            self._membership_hull(c) for c in self.corpus_emb) if self.corpus_emb else []
+        hull_thr = hull_ref[min(len(hull_ref) - 1, int(0.9 * len(hull_ref)))] if hull_ref else math.inf
         novelty = {
+            "hull_residual": None if not math.isfinite(hull) else round(hull, 3),
+            "inconsistent_flag": bool(math.isfinite(hull) and hull > hull_thr),
             "nearest_neighbour_distance": None if not math.isfinite(nn_dist) else round(nn_dist, 3),
-            "flag": bool(math.isfinite(nn_dist) and nn_dist > self._novelty_pctl_threshold()),
-            "metric": "global_nn_distance_CRUDE_flags_extreme_not_inconsistent",
+            "local_density_flag": bool(math.isfinite(nn_dist) and nn_dist > self._novelty_threshold()),
+            "metric": "hull_residual=inconsistent_with_canonical_phenotypes; nn_distance=local_density",
         }
 
         out = {
             "verdict": None,                                 # governance: descriptive companion, never a call
-            "soft_membership": membership,
+            "phenotype_mixture": membership,                 # convex membership to canonical anchors
+            "soft_membership": membership,                   # alias (D1 scorecard consumes this key)
             "nearest_analogs": analogs,
             "missingness": {"unmeasured_axes": missing_axes,
                             "n_features_measured": sum(1 for v in feat.values() if v is not None),
                             "n_features_total": len(self.feature_order)},
             "novelty": novelty,
+            "anchors": [{"label": a["label"], "target": a["target"], "indication": a["indication"]}
+                        for a in self.anchors],
             "atlas_provenance": self.meta,
             "disclaimer": (
-                "DESCRIPTIVE, verdict-inert nearest-reference companion. Soft membership is a "
-                "distance-weighted kNN vote, NOT a classification claim. Reference labels are "
-                "PROVISIONAL and partly circular (clinical antigens; cards designed from the same "
-                "biology); 'housekeeping' is not a distinct archetype and 'amp_driver' is small-n/fuzzy. "
-                "Not a nomination gate. Blind/external-label held-out validation is pending (P3)."
+                "DESCRIPTIVE, verdict-inert target-signature LANDSCAPE companion. Phenotype mixture is a "
+                "convex membership to CURATED canonical anchors (soft, never a hard label); it describes "
+                "the collected evidence, it is NOT a classification or nomination claim and NOT a gate. "
+                "Novelty=hull-residual flags a signature inconsistent with any canonical phenotype mix. "
+                "The outcome/approval-propensity score was retired (signal was study-depth, not biology)."
             ),
         }
-        # rule-fingerprint PRECEDENT overlay (lives on the auditable rule spine): reference targets whose
-        # fired-rule signature most overlaps the query's (Jaccard). Optional — only if query_rules given.
         if query_rules:
             prec = []
             for i, rf in enumerate(self.rule_fingerprints):
@@ -236,38 +275,35 @@ class Atlas:
                 union = len(query_rules | rs) or 1
                 prec.append((inter / union, i))
             prec.sort(key=lambda x: -x[0])
-            out["rule_precedent"] = [{
-                "target": self.targets[i], "indication": self.indications[i],
-                "archetype_label": self.labels[i], "jaccard": round(j, 3),
-            } for j, i in prec[:k] if j > 0]
+            out["rule_precedent"] = [{"target": self.targets[i], "indication": self.indications[i],
+                                      "archetype_label": self.labels[i], "jaccard": round(j, 3)}
+                                     for j, i in prec[:k] if j > 0]
         return out
+
+    def _membership_hull(self, e: list) -> float:
+        """Hull residual for a corpus point (used to build the novelty reference distribution)."""
+        return self._membership(e, iters=200)[1]
 
 
 def companion_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT_K) -> dict:
-    """Convenience: in-process fan-out results -> companion payload. The target-profile reduction-stage hook."""
+    """In-process fan-out results -> phenotype-landscape companion. The target-profile reduction hook."""
     feat = vector_from_sub_results(sub_results)
     rules = fired_rule_ids_from_sub_results(sub_results)
     return atlas.companion(feat, k=k, query_rules=rules)
 
 
 # =============================================================================================
-# D1 NOMINATION SCORECARD — the interpretable, glass-box, ARCHETYPE-CONDITIONED nomination-readiness
-# companion. VERDICT-INERT (no verdict, never a gate). Weights are ILLUSTRATIVE + SHOWN, not learned:
-# each axis's z-scored position (vs the frozen corpus axis_ref) is signed (+favorable / −liability) and
-# weighted by a SOFT-MEMBERSHIP blend of per-archetype weight profiles, so a surface antigen is scored on
-# its OWN route (expression/selectivity/surface/safety) instead of being penalised for "not being a
-# driver". The per-axis contributions are emitted for audit; the route-conditioned limiting axis feeds a
-# counterfactual ("closest to nominatable except axis X"). This is D1 only — NOT the outcome-trained
-# predictive score (D2, which needs a frozen model + external-outcome calibration); D2/D3 stay in the
-# validation harness until their productionization is separately approved.
+# D1 NOMINATION SCORECARD — interpretable, glass-box, ARCHETYPE-CONDITIONED nomination-readiness companion.
+# VERDICT-INERT. Consumes the phenotype MIXTURE (`soft_membership`, keyed by the archetype vocabulary) to
+# blend per-archetype weight profiles, so a target is scored on its OWN phenotype route. Unchanged by the
+# landscape refactor except that membership now comes from the anchored mixture.
 # =============================================================================================
 SCORECARD_AXES = ["expression", "selectivity", "surface_modality", "genomic_alteration", "dependency",
                   "tractability_sm", "differentiation", "mechanism", "cis_coherence", "immune_context",
                   "combination_vulnerability", "target_intrinsic", "safety"]
 AX_SIGN = {a: 1 for a in SCORECARD_AXES}
-AX_SIGN["safety"] = -1          # safety = LoF-constraint LIABILITY: more constraint is worse for full-KO
-DEFAULT_AX_W = 0.2              # off-route axes contribute as low-weight context, never a penalty
-# per-ARCHETYPE axis-weight profiles (ILLUSTRATIVE, expert-set, SHOWN in the emitted payload)
+AX_SIGN["safety"] = -1
+DEFAULT_AX_W = 0.2
 ARCH_W = {
     "expression_surface": {"expression": 1.2, "selectivity": 1.3, "surface_modality": 1.4, "safety": 1.0,
                            "immune_context": 0.6, "differentiation": 0.4, "genomic_alteration": 0.2,
@@ -286,12 +322,10 @@ ARCH_W = {
     "control_absent": {a: 0.3 for a in SCORECARD_AXES},
     "control_housekeeping": {**{a: 0.3 for a in SCORECARD_AXES}, "safety": 1.2, "dependency": 0.5},
 }
-# fill each profile's missing axes with the low-weight default
 ARCH_W = {k: {ax: v.get(ax, DEFAULT_AX_W) for ax in SCORECARD_AXES} for k, v in ARCH_W.items()}
 
 
 def _axis_scores(feat: dict) -> dict:
-    """Per-axis position = mean of that axis's measured ::signal claim tiers (None if the axis is unmeasured)."""
     acc: dict = {}
     for kk, v in feat.items():
         if v is None or not kk.endswith("::signal"):
@@ -301,38 +335,30 @@ def _axis_scores(feat: dict) -> dict:
 
 
 def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
-    """Glass-box, archetype-conditioned nomination-readiness score. VERDICT-INERT.
-
-    membership = the companion's soft archetype membership (used to BLEND the per-archetype weight
-    profiles — no hard label). Returns score(0-1) + coverage + per-axis contributions + driving/limiting
-    axes + a route-conditioned counterfactual. Illustrative weights are echoed in the payload."""
+    """Glass-box, archetype-conditioned nomination-readiness score. VERDICT-INERT."""
     if not atlas.axis_ref:
         return {"verdict": None, "score": None, "note": "atlas has no axis_ref (rebuild atlas)"}
     ascore = _axis_scores(feat)
-    # z-score each axis position vs the frozen corpus reference, apply favorable/liability sign
     z = {}
     for ax in SCORECARD_AXES:
         ref = atlas.axis_ref.get(ax)
         if ref and ax in ascore:
             z[ax] = ((ascore[ax] - ref["mean"]) / (ref["std"] or 1.0)) * AX_SIGN[ax]
-    # effective per-axis weight = soft-membership-weighted blend of the archetype profiles (no hard label)
     m = membership or {}
     mtot = sum(m.values()) or 1.0
     eff_w = {}
     for ax in SCORECARD_AXES:
         eff_w[ax] = sum((m.get(k, 0.0) / mtot) * ARCH_W.get(k, {}).get(ax, DEFAULT_AX_W) for k in m) \
             if m else DEFAULT_AX_W
-    contrib = {ax: z[ax] * eff_w[ax] for ax in z}                 # per-axis weighted contribution (measured)
+    contrib = {ax: z[ax] * eff_w[ax] for ax in z}
     wsum = sum(eff_w[ax] for ax in z) or 1.0
-    raw = sum(contrib.values()) / wsum                            # measured-weighted mean
-    score01 = 1.0 / (1.0 + math.exp(-raw))                       # squashed to 0-1 for readability (logistic)
+    raw = sum(contrib.values()) / wsum
+    score01 = 1.0 / (1.0 + math.exp(-raw))
     coverage = len(z) / len(SCORECARD_AXES)
-
     ordered = sorted(contrib.items(), key=lambda x: -x[1])
     driving = [{"axis": ax, "contribution": round(c, 3)} for ax, c in ordered[:3] if c > 0]
     dom = max(m, key=m.get) if m else None
     route = {ax for ax, w in ARCH_W.get(dom, {}).items() if w >= 0.8} if dom else set(SCORECARD_AXES)
-    # limiting axis = lowest contribution; route-conditioned limiting = lowest among the dominant route's axes
     limiting = ordered[-1] if ordered else (None, None)
     rel = [(ax, c) for ax, c in ordered if ax in route] or ordered
     cond_limiting = min(rel, key=lambda x: x[1]) if rel else (None, None)
@@ -342,18 +368,14 @@ def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
         gap = atlas.axis_ref.get(cl_ax, {})
         measured = cl_ax in ascore
         counterfactual = {
-            "limiting_axis": cl_ax,
-            "limiting_contribution": round(cl_c, 3),
-            "route_conditioned": True,
-            "statement": (
-                f"Route-limiting axis for the {dom} route is '{cl_ax}'"
-                + (f" (below the corpus mean {gap.get('mean')})." if measured
-                   else " — UNMEASURED; acquiring this axis's evidence would resolve the gap.")
-            ),
+            "limiting_axis": cl_ax, "limiting_contribution": round(cl_c, 3), "route_conditioned": True,
+            "statement": (f"Route-limiting axis for the {dom} route is '{cl_ax}'"
+                          + (f" (below the corpus mean {gap.get('mean')})." if measured
+                             else " — UNMEASURED; acquiring this axis's evidence would resolve the gap.")),
             "axis_measured": measured,
         }
     return {
-        "verdict": None,                                         # governance: companion score, never a call
+        "verdict": None,
         "score": round(score01, 3),
         "coverage": round(coverage, 3),
         "dominant_archetype_soft": dom,
@@ -361,71 +383,19 @@ def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
         "driving_axes": driving,
         "limiting_axis": {"axis": limiting[0], "contribution": round(limiting[1], 3)} if limiting[0] else None,
         "counterfactual_gap": counterfactual,
-        "weights_note": ("ILLUSTRATIVE expert-set weights, soft-membership-blended per-archetype (SHOWN, "
+        "weights_note": ("ILLUSTRATIVE expert-set weights, phenotype-mixture-blended per-archetype (SHOWN, "
                          "not learned). Interpretable D1 layer; safety is a liability axis (sign −1)."),
         "disclaimer": ("DESCRIPTIVE, verdict-inert nomination-READINESS score. Glass-box: score = "
-                       "archetype-conditioned weighted mean of z-scored axis positions vs the frozen "
-                       "corpus. NOT a gate, NOT the outcome-trained predictive score, never mints a "
-                       "recommendation."),
+                       "phenotype-conditioned weighted mean of z-scored axis positions vs the frozen "
+                       "corpus. NOT a gate, never mints a recommendation."),
     }
 
 
 def scorecard_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT_K,
                                companion: Optional[dict] = None) -> dict:
-    """Convenience: in-process fan-out results -> D1 scorecard. Reuses a precomputed companion's
-    soft_membership if given (avoids recomputing), else derives it."""
+    """In-process fan-out results -> D1 scorecard. Reuses a precomputed companion's soft_membership."""
     feat = vector_from_sub_results(sub_results)
     membership = (companion or {}).get("soft_membership")
     if membership is None:
         membership = atlas.companion(feat, k=k).get("soft_membership")
     return nomination_scorecard(feat, membership, atlas)
-
-
-# =============================================================================================
-# D2 PREDICTIVE SCORE (+ D3 attribution) — the OUTCOME-TRAINED nomination companion. VERDICT-INERT.
-# The model is a FROZEN de-FAMEd logistic shipped as COEFFICIENTS in the atlas (data, not a pickle), so
-# this is pure-numpy + deterministic. The linear model's additive structure yields the D2 probability AND
-# the D3 per-axis attribution in one pass. Trained on OT approval outcome (external, NOT card-derived) with
-# the target_intrinsic axis EXCLUDED (notoriety proxy). Report as biology-predicted clinical-ADVANCEMENT
-# PROPENSITY, never P(success), never a gate. See build_atlas._train_d2 + the validation gates (P3/D2/OOD).
-# =============================================================================================
-def predictive_score(feat: dict, atlas: Atlas) -> dict:
-    """Frozen-logistic D2 propensity + D3 per-axis attribution for a query feature dict. VERDICT-INERT."""
-    m = atlas.d2_model
-    if not m:
-        return {"verdict": None, "score": None, "note": "atlas has no d2_model (rebuild with --outcome-labels)"}
-    fo, coef, mean, std = m["feature_order"], m["coef"], m["mean"], m["std"]
-    logit = float(m["intercept"])
-    measured = 0
-    axis_contrib: dict = {}
-    for i, k in enumerate(fo):
-        v = feat.get(k)
-        z = 0.0 if v is None else (v - mean[i]) / (std[i] or 1.0)   # mean-impute -> z=0 (no contribution)
-        c = coef[i] * z
-        logit += c
-        if v is not None:
-            measured += 1
-        axis_contrib[k.split("::")[0]] = axis_contrib.get(k.split("::")[0], 0.0) + c
-    prob = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, logit))))
-    ordered = sorted(axis_contrib.items(), key=lambda x: -x[1])
-    return {
-        "verdict": None,                                          # governance: predictive companion, never a call
-        "score": round(prob, 3),
-        "score_kind": "clinical_advancement_propensity_de_famed",
-        "coverage": round(measured / len(fo), 3),
-        "axis_attribution": {ax: round(c, 3) for ax, c in ordered},   # D3 — exact additive log-odds by axis
-        "driving_axes": [{"axis": ax, "contribution": round(c, 3)} for ax, c in ordered[:3] if c > 0],
-        "limiting_axis": ({"axis": ordered[-1][0], "contribution": round(ordered[-1][1], 3)}
-                          if ordered else None),
-        "provenance": m.get("provenance", {}),
-        "disclaimer": ("OUTCOME-TRAINED, verdict-inert predictive companion (frozen de-FAMEd logistic; "
-                       "coefficients are DATA, not a model pickle). Biology-predicted clinical-ADVANCEMENT "
-                       "propensity — NOT P(success), NOT a gate. Enrichment/FAME confound bounded "
-                       "(target_intrinsic excluded); validated held-out (P3 AUC 0.91) and out-of-distribution "
-                       "(OOD AUC 0.90, de-FAMEd 0.74). Report the propensity with its axis attribution."),
-    }
-
-
-def predictive_score_from_sub_results(sub_results: dict, atlas: Atlas) -> dict:
-    """Convenience: in-process fan-out results -> D2 predictive score + D3 attribution."""
-    return predictive_score(vector_from_sub_results(sub_results), atlas)

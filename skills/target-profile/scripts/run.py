@@ -557,25 +557,22 @@ def main() -> int:
     narrative_by_axis = _narrative_by_axis(sub_results, fragility, modality=args.modality)
 
     # Target-archetype COMPANION (2026-08-28): a verdict-INERT reduction-stage facet — the cross-skill
-    # nearest-reference layer. Positions this target against the frozen reference atlas: nearest analogs +
-    # soft archetype membership (distance-weighted kNN, NOT a hard label) + rule-fingerprint precedent +
-    # a missingness map. DESCRIPTIVE only — never a gate, never in _SHORT_TO_GATE / sub_verdicts / the
-    # resolver; emitted in nomination.json for the reader + Tier-3 synthesis. Best-effort: a missing or
-    # unreadable atlas degrades to None so the deterministic nomination spine is NEVER affected. See
-    # skills/target-archetype/SKILL.md + _skills_common/archetype_core.py for the governance contract.
+    # target-signature LANDSCAPE companion. Distils this target's composed claim-vectors into a point in the
+    # frozen low-dim embedding and emits a soft PHENOTYPE MIXTURE (convex membership to curated canonical
+    # anchors — never a hard label) + nearest analogs + rule-fingerprint precedent + a missingness map +
+    # novelty (hull-residual = inconsistent with any canonical phenotype). DESCRIPTIVE only — never a gate,
+    # never in _SHORT_TO_GATE / sub_verdicts / the resolver; emitted for the reader + Tier-3 synthesis.
+    # Best-effort: a missing/unreadable atlas degrades to None so the deterministic spine is NEVER affected.
+    # See skills/target-archetype/SKILL.md + _skills_common/archetype_core.py for the governance contract.
     archetype_companion = None
-    # D1 NOMINATION SCORECARD (2026-08-28): the interpretable, glass-box, ARCHETYPE-CONDITIONED
-    # nomination-readiness companion — per-axis z-scored position (vs the frozen corpus) × soft-membership-
-    # blended per-archetype weights → score + driving/limiting axes + a route-conditioned counterfactual
-    # gap ("closest to nominatable except axis X"). Reuses the companion's soft_membership. DESCRIPTIVE /
-    # verdict-inert (never a gate), same governance as the companion. D1 only — the outcome-trained
-    # predictive score (D2) stays in the validation harness pending separate productionization approval.
+    # D1 NOMINATION SCORECARD: interpretable, glass-box, PHENOTYPE-CONDITIONED nomination-readiness companion
+    # — per-axis z-scored position (vs the frozen corpus) × phenotype-mixture-blended per-archetype weights
+    # → score + driving/limiting axes + a route-conditioned counterfactual gap. Reuses the companion's
+    # phenotype mixture. DESCRIPTIVE / verdict-inert (never a gate), same governance as the companion.
     nomination_scorecard_facet = None
-    # D2 PREDICTIVE SCORE (+ D3 attribution) (2026-08-28): the OUTCOME-TRAINED nomination companion — a
-    # frozen de-FAMEd logistic (coefficients shipped in the atlas; pure-numpy, deterministic) that emits a
-    # biology-predicted clinical-advancement PROPENSITY + exact per-axis (D3) attribution. Validated
-    # held-out (P3 AUC 0.91) + out-of-distribution (OOD AUC 0.90/de-FAMEd 0.74). DESCRIPTIVE / verdict-inert
-    # — NOT P(success), NOT a gate; same governance as D1. None when the atlas carries no d2_model.
+    # NOTE: the former outcome-trained approval-propensity score (D2/D3) was RETIRED — an ablation showed its
+    # signal was carried by advancement/study-depth features, not disease biology (the pure-biology residual
+    # did not beat a genetics baseline), so the honest product is the descriptive phenotype landscape above.
     nomination_predictive_score = None
     try:
         from _skills_common import archetype_core
@@ -585,11 +582,9 @@ def main() -> int:
             archetype_companion = archetype_core.companion_from_sub_results(sub_results, _atlas)
             nomination_scorecard_facet = archetype_core.scorecard_from_sub_results(
                 sub_results, _atlas, companion=archetype_companion)
-            nomination_predictive_score = archetype_core.predictive_score_from_sub_results(sub_results, _atlas)
     except Exception:
         archetype_companion = None            # verdict-inert facets — never fail the flagship on an error
         nomination_scorecard_facet = None
-        nomination_predictive_score = None
 
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
