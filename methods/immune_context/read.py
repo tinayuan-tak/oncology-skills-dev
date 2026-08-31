@@ -33,7 +33,10 @@ except Exception:  # noqa: BLE001
 # an existing key) so a first-class framework indication like NSCLC resolves rather than silently
 # returning data_unavailable — the indication-vocabulary-fragmentation trap. Constituent studies must
 # be present in the CIBERSORT cancer_type vocabulary.
-_UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"]}
+# UCEC/SARC are first-class TCGA studies the immune-context card advertises; the dge_deseq2 map omits
+# them, but the CIBERSORT product covers all 33 TCGA studies, so add them here (self-mapped) so they
+# resolve rather than silently returning data_unavailable.
+_UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"], "UCEC": ["UCEC"], "SARC": ["SARC"]}
 INDICATION_TO_TCGA_STUDIES = {**_UMBRELLA_SUPPLEMENT, **_DGE_MAP}  # _DGE_MAP wins on any shared key
 
 

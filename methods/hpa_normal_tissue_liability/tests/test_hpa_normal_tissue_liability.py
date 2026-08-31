@@ -159,6 +159,9 @@ def test_read_target_summary_graceful_on_failure(monkeypatch):
     out = hc_read.read_target_summary(target="EGFR")
     assert out["normal_tissue_breadth_class"] == "data_unavailable"
     assert out["_live_read_error"] == "hpa_normal_tissue_read_failed"
+    # SOURCE-unread fallback must NOT emit a MEASURED-negative `absent` (false reassurance);
+    # it is `unknown`, matching cli.compute_summary(row=None). (B4-2/SA-2 fix)
+    assert out["essential_tissue_flag"] == "unknown"
 
 
 # --- figure emission (viz-coverage backfill 2026-07-20) ------------------

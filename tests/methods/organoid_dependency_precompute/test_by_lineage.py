@@ -89,6 +89,24 @@ def test_reader_unmapped_indication_leaves_lineage_null(monkeypatch):
     assert out["per_lineage_stats"]  # per_lineage_stats still populated (target-only view)
 
 
+def test_reader_gc_maps_to_esophagus_stomach_lineage(monkeypatch):
+    # 'GC' (HCMI gastric code) must map to the Esophagus/Stomach organoid lineage — previously
+    # omitted, so GC silently returned None lineage fields though the cohort exists. (TR-01 fix)
+    lk = _load("lookup")
+    gc_rows = (
+        {"lineage": "Esophagus/Stomach", "n_lineage_cohort": 18, "n_models_screened": 18,
+         "n_dependent": 10, "frac_dependent": 0.556, "n_strongly_dependent": 6,
+         "median_gene_effect": -0.6},
+    )
+    monkeypatch.setattr(lk, "_organoid_row", lambda s: _summary_row())
+    monkeypatch.setattr(lk, "_lineage_rows", lambda s: gc_rows)
+    out = lk.build_summary("KRAS", "GC")
+    assert out["organoid_lineage"] == "Esophagus/Stomach"
+    assert out["organoid_lineage_frac_dependent"] == pytest.approx(0.556)
+    assert out["organoid_lineage_class"] == "broad_organoid_dependency"  # 0.556 >= 0.50
+    assert out["organoid_lineage_n_screened"] == 18
+
+
 def test_reader_no_lineage_product_still_returns_summary(monkeypatch):
     lk = _load("lookup")
     monkeypatch.setattr(lk, "_organoid_row", lambda s: _summary_row())

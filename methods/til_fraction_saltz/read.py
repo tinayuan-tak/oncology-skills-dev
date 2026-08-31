@@ -23,7 +23,9 @@ try:
     from methods.dge_deseq2.read import INDICATION_TO_TCGA_STUDIES as _DGE_MAP
 except Exception:  # noqa: BLE001 — map import is best-effort; empty map → all data_unavailable (honest)
     _DGE_MAP = {}
-_UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"]}
+# UCEC/UVM are in the Saltz 13-study coverage set but absent from the dge_deseq2 map; add them
+# (self-mapped) so they resolve rather than returning data_unavailable. (See manifest coverage_studies.)
+_UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"], "UCEC": ["UCEC"], "UVM": ["UVM"]}
 INDICATION_TO_TCGA_STUDIES = {**_UMBRELLA_SUPPLEMENT, **_DGE_MAP}
 
 # Saltz til_percentage coverage (13 TCGA studies). Absolute-threshold bins on the per-indication median

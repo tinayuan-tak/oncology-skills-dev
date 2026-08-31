@@ -36,7 +36,7 @@ _INDICATION_TO_ORGANOID_LINEAGE = {
     "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "CRC": "Bowel",
     "PAAD": "Pancreas", "PDAC": "Pancreas",
     "STAD": "Esophagus/Stomach", "ESCA": "Esophagus/Stomach", "ESCC": "Esophagus/Stomach",
-    "EGC": "Esophagus/Stomach", "GEA": "Esophagus/Stomach",
+    "EGC": "Esophagus/Stomach", "GEA": "Esophagus/Stomach", "GC": "Esophagus/Stomach",
     "BRCA": "Breast",
     "PRAD": "Prostate",
 }
