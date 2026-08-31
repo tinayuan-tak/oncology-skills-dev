@@ -1,0 +1,56 @@
+"""Guards for the role-recovery coherence-QC (offline analysis tool; DESCRIPTIVE, verdict-inert)."""
+import csv
+import importlib.util
+import sys
+from pathlib import Path
+
+SKILLS_DIR = Path(__file__).resolve().parents[2]
+if str(SKILLS_DIR) not in sys.path:
+    sys.path.insert(0, str(SKILLS_DIR))
+from _skills_common.archetype_core import Atlas   # noqa: E402
+
+ATLAS = Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"
+CQC = Path(__file__).resolve().parents[1] / "scripts" / "coherence_qc.py"
+ROLES = Path(__file__).resolve().parent / "fixtures" / "oncokb_roles.csv"
+
+
+def _mod():
+    spec = importlib.util.spec_from_file_location("coherence_qc", CQC)
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    return m
+
+
+def _roles():
+    return {r["target"]: r["role"] for r in csv.DictReader(open(ROLES))}
+
+
+def test_role_coherence_report_recovers_signal_and_flags_incoherent():
+    m = _mod()
+    rows, summary = m.coherence_report(Atlas.load(ATLAS), _roles())
+    assert summary["n"] > 100
+    # de-circularized (genomic axis removed) recovery is a REAL signal (clears chance), honestly modest
+    assert summary["auc"] > 0.5
+    assert "removed 'genomic_alteration'" in summary["de_circularized"]
+    # every row is a coherence judgement with the required fields
+    for r in rows[:20]:
+        assert set(r) >= {"target", "indication", "oncokb_role", "pred_role", "agree"}
+        assert r["oncokb_role"] in ("oncogene", "tsg") and isinstance(r["agree"], bool)
+    # the incoherent (review) set is a strict subset, and its size matches the summary
+    disagree = [r for r in rows if not r["agree"]]
+    assert 0 < len(disagree) < len(rows)
+    assert len(disagree) == summary["n_disagree"]
+
+
+def test_role_head_is_de_circularized_no_genomic_features():
+    # the report must not depend on the OncoKB-fed genomic axis (the de-circularization contract)
+    m = _mod()
+    atlas = Atlas.load(ATLAS)
+    dc = [k for k in atlas.feature_order if k.split("::")[0] != m.DECIRC_DROP_AXIS]
+    assert len(dc) < len(atlas.feature_order)                 # genomic features were dropped
+    assert not any(k.split("::")[0] == "genomic_alteration" for k in dc)
+
+
+def test_empty_roles_degrades_gracefully():
+    m = _mod()
+    rows, summary = m.coherence_report(Atlas.load(ATLAS), {})
+    assert rows == [] and summary["n"] == 0
