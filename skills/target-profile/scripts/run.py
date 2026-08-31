@@ -842,6 +842,8 @@ def main() -> int:
         ordinal_matrix=ordinal_matrix,
         presence_facet=presence_facet,
         actionability_mode=actionability_mode,
+        archetype_companion=archetype_companion,
+        nomination_scorecard=nomination_scorecard_facet,
     )
     write_artifact(args.out, "markdown", md, _written)
 

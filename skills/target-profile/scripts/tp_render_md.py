@@ -182,6 +182,56 @@ def _mode_ordered_shorts(shorts, actionability_mode: Optional[dict], deciding_ax
     return order + [s for s in shorts if s not in order]
 
 
+def _render_phenotype_landscape(companion: Optional[dict],
+                                scorecard: Optional[dict] = None) -> list:
+    """Render the verdict-INERT target-signature landscape panel (soft phenotype mixture + nearest analogs
+    + novelty + D1 readiness). Returns [] when the companion is absent (best-effort facet — never blocks)."""
+    if not companion or not isinstance(companion, dict):
+        return []
+    mix = companion.get("phenotype_mixture") or companion.get("soft_membership") or {}
+    if not mix:
+        return []
+    out = ["## Target-signature landscape *(deterministic VIEW — descriptive, verdict-inert)*", ""]
+    # phenotype mixture (components >= 8%), as a compact text bar
+    parts = [(k, v) for k, v in mix.items() if v and v >= 0.08]
+    if parts:
+        bar = " · ".join(f"**{v*100:.0f}%** {k}" for k, v in parts)
+        out.append(f"- **Phenotype mixture:** {bar}")
+    analogs = companion.get("nearest_analogs") or []
+    if analogs:
+        astr = ", ".join(f"{a['target']}" + (f"/{a['indication']}" if a.get('indication') else "")
+                         + f" ({a.get('distance')})" for a in analogs[:5])
+        out.append(f"- **Nearest reference analogs:** {astr}")
+    nov = companion.get("novelty") or {}
+    if nov:
+        flags = []
+        if nov.get("inconsistent_flag"):
+            flags.append("**inconsistent** with any canonical phenotype")
+        if nov.get("local_density_flag"):
+            flags.append("local outlier")
+        tag = "; ".join(flags) if flags else "consistent with known phenotypes"
+        hr = nov.get("hull_residual")
+        out.append(f"- **Novelty:** {tag}" + (f" (hull-residual {hr})" if hr is not None else ""))
+    miss = companion.get("missingness") or {}
+    if miss:
+        um = miss.get("unmeasured_axes") or []
+        cov = f"{miss.get('n_features_measured')}/{miss.get('n_features_total')} features measured"
+        out.append(f"- **Coverage:** {cov}"
+                   + (f"; unmeasured axes: {', '.join(um[:6])}" + ("…" if len(um) > 6 else "") if um else ""))
+    if scorecard and isinstance(scorecard, dict) and scorecard.get("score") is not None:
+        cf = scorecard.get("counterfactual_gap") or {}
+        lim = cf.get("limiting_axis")
+        out.append(f"- **Readiness (D1, phenotype-conditioned):** {scorecard['score']}"
+                   + (f" — route-limiting axis: `{lim}`" if lim else ""))
+    prec = companion.get("rule_precedent") or []
+    if prec:
+        pstr = ", ".join(f"{p['target']} (J={p.get('jaccard')})" for p in prec[:4])
+        out.append(f"- **Rule-fingerprint precedent:** {pstr}")
+    out += ["", "_Descriptive orientation from the frozen target-signature atlas — a soft mixture over "
+            "curated canonical phenotype anchors, not a classification or a gate._", ""]
+    return out
+
+
 def _render_target_profile_md(
     target: str,
     indication: str,
@@ -193,6 +243,8 @@ def _render_target_profile_md(
     ordinal_matrix: Optional[dict] = None,
     presence_facet: Optional[dict] = None,
     actionability_mode: Optional[dict] = None,
+    archetype_companion: Optional[dict] = None,
+    nomination_scorecard: Optional[dict] = None,
 ) -> str:
     """Render target_profile.md with clearly-tagged LLM sections + per-phase
     evidence tables + risk-by-category summary + deciding-axis routing + the
@@ -250,6 +302,12 @@ def _render_target_profile_md(
     lines.append(f"- **Action:** `{rec}`")
     lines.append(f"- **Confidence:** `{conf}`")
     lines.append("")
+
+    # --- Target-signature landscape (deterministic, DESCRIPTIVE, verdict-inert) --------------------
+    # Orientation panel from the target-archetype companion: the soft phenotype MIXTURE (convex membership
+    # to canonical anchors), nearest reference analogs, a novelty flag, and the interpretable D1
+    # readiness score. A "you are here" read — never a gate, never a classification claim.
+    lines += _render_phenotype_landscape(archetype_companion, nomination_scorecard)
 
     # --- Deciding axis (deterministic router; reports, never predicts) -----
     if deciding_axis:

@@ -84,3 +84,32 @@ def test_render_additive_without_new_sections():
     assert "## Deciding axis" not in md
     assert "## Modality-scoped evidence matrix" not in md
     assert "## Sub-verdicts" in md   # the rest still renders
+
+
+# ---- target-signature landscape panel (descriptive, verdict-inert) --------------------------------
+def _min_llm():
+    return {"executive_summary": {"value": "x"}, "overall_recommendation": {"value": "advance"},
+            "confidence": {"value": "moderate"}, "tension_analysis": {"value": ""}, "top_arguments": []}
+
+
+def test_phenotype_landscape_panel_rendered_when_companion_present():
+    comp = {"phenotype_mixture": {"expression_surface": 0.62, "dependency_essential": 0.28, "amp_driver": 0.1},
+            "nearest_analogs": [{"target": "CDH17", "indication": "COADREAD", "distance": 4.3}],
+            "novelty": {"inconsistent_flag": False, "local_density_flag": False, "hull_residual": 1.2},
+            "missingness": {"unmeasured_axes": ["immune_context"], "n_features_measured": 89,
+                            "n_features_total": 108}}
+    sc = {"score": 0.56, "counterfactual_gap": {"limiting_axis": "safety"}}
+    md = tp._render_target_profile_md("EPCAM", "COADREAD", _sr(), _min_llm(), {},
+                                      archetype_companion=comp, nomination_scorecard=sc)
+    assert "## Target-signature landscape" in md
+    assert "Phenotype mixture" in md and "expression_surface" in md
+    assert "Nearest reference analogs" in md and "CDH17" in md
+    assert "Readiness (D1" in md and "0.56" in md
+    assert "verdict-inert" in md.lower()          # governance label present
+
+
+def test_phenotype_landscape_panel_absent_is_additive():
+    # no companion -> the render still works and the section is simply absent (purely additive)
+    md = tp._render_target_profile_md("KRAS", "COADREAD", _sr(), _min_llm(), {})
+    assert "## Target-signature landscape" not in md
+    assert "## Recommendation" in md              # rest of the profile renders normally
