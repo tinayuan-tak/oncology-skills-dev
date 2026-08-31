@@ -460,6 +460,9 @@ tumor-scrna-celltype-expression:
   sc_expression_class:
     role: signal
     reason: magnitude/categorical signal
+  stromal_confound_class:
+    role: signal
+    reason: magnitude/categorical signal
   tce_antigen_escape_class:
     role: signal
     reason: magnitude/categorical signal
