@@ -211,6 +211,58 @@ def caf_readout(comp_summary: dict) -> dict:
             "caf_compartment_available": True, "caf_vs_malignant_class": cls}
 
 
+# --- stromal-confound classifier (the tumor-selectivity stromal-confound veto instrument) ---
+# Malignant-annotation provenance we trust enough to let a stromal-confound call MOVE the selectivity
+# verdict. An author-curated or inferCNV-called malignant compartment on an entity-specific cube is
+# reliable; a phenotype_proxy heuristic (STAD) or a multi-entity-pooled cube (pan-renal KIRC /
+# pan-gynecologic OV / NSCLC-umbrella LUAD) could mis-assign malignant cells and manufacture a false
+# "malignant-low / stroma-high" pattern, so those DO NOT fire the veto (they surface the concern only).
+_TRUSTWORTHY_MALIGNANT_ANNOTATION = frozenset({"curated", "infercnv"})
+
+
+def classify_stromal_confound(sc_expression_class, caf_vs_malignant_class,
+                              top_microenvironment_compartment,
+                              malignant_annotation_method, entity_purity) -> str:
+    """Is a bulk tumor-vs-normal SELECTIVE signal actually driven by CAF/stromal microenvironment
+    content rather than the malignant cells? The sc-unique attribution the bulk four-cell DESeq2 design
+    cannot make. This is the verdict-DRIVING instrument for the tumor-selectivity stromal-confound veto
+    (a false window for tumor-cell-targeted modalities — ADC/TCE/CAR/degrader — since a payload built
+    against stroma misses the cancer). Value space:
+
+      stromal_confounded          — the veto-firing state: malignant detection is sub-subset (the
+                                    sc_expression_class == microenvironment_dominant branch: malignant
+                                    < MALIGNANT_SUBSET_DETECTED_MIN with a microenvironment compartment
+                                    >= MICROENV_DETECTED_MIN) AND the dominant microenvironment
+                                    compartment is STROMAL/CAF (caf_vs_malignant_class == caf_dominant
+                                    and top_microenvironment_compartment == 'stromal') AND the malignant
+                                    annotation is TRUSTWORTHY (curated/inferCNV, entity-specific).
+      malignant_intrinsic         — a real tumor-cell signal (malignant_broadly/subset_detected): the
+                                    selective call IS tumor-cell-intrinsic — explicitly NOT confounded.
+      inconclusive_low_confidence — the stromal signature is present BUT on a weak-provenance cube
+                                    (phenotype_proxy / multi_entity_pooled / unspecified): surface the
+                                    concern, do NOT move the verdict (a mis-annotation could manufacture it).
+      not_stromal_confounded      — measured, none of the above (broadly_low, an immune/endothelial-
+                                    dominant microenvironment signal, or a shared/malignant-dominant CAF class).
+      data_unavailable            — no sc coverage / underpowered cube (never fires; absence is not
+                                    counter-evidence, mirroring the normal-breadth veto doctrine).
+
+    Verdict-inert by itself — it becomes verdict-driving only via the target-contracts
+    tvn-stromal-confound-veto rule + the shared selectivity_veto clamp (both engines)."""
+    if sc_expression_class in (None, "data_unavailable"):
+        return "data_unavailable"
+    if sc_expression_class in ("malignant_broadly_detected", "malignant_subset_detected"):
+        return "malignant_intrinsic"
+    stromal_signature = (sc_expression_class == "microenvironment_dominant"
+                         and caf_vs_malignant_class == "caf_dominant"
+                         and top_microenvironment_compartment == "stromal")
+    if not stromal_signature:
+        return "not_stromal_confounded"
+    if (malignant_annotation_method in _TRUSTWORTHY_MALIGNANT_ANNOTATION
+            and entity_purity == "entity_specific"):
+        return "stromal_confounded"
+    return "inconclusive_low_confidence"
+
+
 # --- TCE within-tumor homogeneity thresholds (biologics-augment Phase 3.2) ---
 # A DISTINCT lens on malignant_detection_fraction from the presence ladder above: for a T-cell
 # engager, within-tumor antigen HOMOGENEITY is a program-killer — antigen-low malignant cells escape

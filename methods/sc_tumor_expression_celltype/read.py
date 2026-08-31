@@ -190,6 +190,14 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
         **_malignant_annotation_provenance(indication),
     }
     out.update(_stats.caf_readout(comp_summary))
+    # Stromal-confound attribution (the tumor-selectivity stromal-confound veto instrument): is a bulk
+    # selective signal driven by CAF/stroma rather than malignant cells? Provenance-gated so only a
+    # trustworthy (curated/inferCNV, entity-specific) cube can fire the verdict-moving veto. Verdict-inert
+    # here; wired to the veto via target-contracts + the shared selectivity_veto clamp.
+    out["stromal_confound_class"] = _stats.classify_stromal_confound(
+        out["sc_expression_class"], out["caf_vs_malignant_class"],
+        out["top_microenvironment_compartment"],
+        out["malignant_annotation_method"], out["entity_purity"])
     # Two-axis TCE antigen-escape readout (2026-08-20): within-tumour coverage + INTER-donor consistency,
     # the honest heterogeneity call that supersedes the single-number tce_homogeneity_class (kept above
     # for back-compat). Merge only the NEW keys (malignant_detection_fraction / n_donors already present).
@@ -237,6 +245,7 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "malignant_n_donors": 0,
         "malignant_n_cells": 0,
         "ambient_contamination_risk": "data_unavailable",
+        "stromal_confound_class": "data_unavailable",
         "top_microenvironment_compartment": None,
         "top_microenvironment_detection_fraction": None,
         "n_compartments_measured": 0,

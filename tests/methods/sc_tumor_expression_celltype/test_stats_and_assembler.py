@@ -377,3 +377,76 @@ def test_emit_compartment_bar_falls_back_to_detection_dict(tmp_path):
 def test_emit_compartment_bar_noop_when_nothing_to_plot(tmp_path):
     C.emit_compartment_bar({"indication": "GBM"}, "X", tmp_path)
     assert not (tmp_path / "figure_sc_compartment_detection.svg").exists()
+
+
+# --- stromal-confound classifier (the tumor-selectivity stromal-confound veto instrument) -----------
+
+def test_stromal_confound_fires_on_caf_dominant_microenvironment_with_trusted_provenance():
+    """The veto-firing state: microenvironment_dominant + caf_dominant + stromal top compartment on a
+    curated/entity-specific cube (the FAP/POSTN COADREAD archetype)."""
+    assert S.classify_stromal_confound(
+        "microenvironment_dominant", "caf_dominant", "stromal",
+        "curated", "entity_specific") == "stromal_confounded"
+    assert S.classify_stromal_confound(
+        "microenvironment_dominant", "caf_dominant", "stromal",
+        "infercnv", "entity_specific") == "stromal_confounded"
+
+
+def test_stromal_confound_malignant_intrinsic_never_fires():
+    """A real tumor-cell signal (the CEACAM5/MSLN antigen archetype) is malignant_intrinsic, not confounded."""
+    for cls in ("malignant_broadly_detected", "malignant_subset_detected"):
+        assert S.classify_stromal_confound(cls, "caf_low", "stromal",
+                                           "curated", "entity_specific") == "malignant_intrinsic"
+
+
+def test_stromal_confound_weak_provenance_does_not_fire():
+    """The stromal signature on a phenotype_proxy or multi_entity_pooled cube surfaces the concern but
+    must NOT move the verdict (a mis-annotation could manufacture the malignant-low pattern)."""
+    assert S.classify_stromal_confound(
+        "microenvironment_dominant", "caf_dominant", "stromal",
+        "phenotype_proxy", "entity_specific") == "inconclusive_low_confidence"
+    assert S.classify_stromal_confound(
+        "microenvironment_dominant", "caf_dominant", "stromal",
+        "infercnv", "multi_entity_pooled") == "inconclusive_low_confidence"
+    assert S.classify_stromal_confound(
+        "microenvironment_dominant", "caf_dominant", "stromal",
+        "unspecified", "entity_specific") == "inconclusive_low_confidence"
+
+
+def test_stromal_confound_immune_dominant_is_not_stromal_confounded():
+    """microenvironment_dominant but driven by the IMMUNE (not stromal) compartment is not a STROMAL
+    confound — the named veto is stroma-specific."""
+    assert S.classify_stromal_confound(
+        "microenvironment_dominant", "caf_low", "immune",
+        "curated", "entity_specific") == "not_stromal_confounded"
+
+
+def test_stromal_confound_data_unavailable_never_fires():
+    assert S.classify_stromal_confound(
+        "data_unavailable", "data_unavailable", None, "unspecified", "unspecified") == "data_unavailable"
+    assert S.classify_stromal_confound(
+        None, None, None, None, None) == "data_unavailable"
+
+
+def test_stromal_confound_broadly_low_is_not_confounded():
+    assert S.classify_stromal_confound(
+        "broadly_low", "caf_low", "stromal", "curated", "entity_specific") == "not_stromal_confounded"
+
+
+def test_assembler_emits_stromal_confound_class(monkeypatch):
+    """The assembled COADREAD summary carries stromal_confound_class. A CAF-dominant compartment vector
+    (malignant low, stromal high) on the curated CRC cube resolves to stromal_confounded end-to-end."""
+    rows = _rows([
+        ("malignant", "dsA", "d1", 5000, 0.02, 0.1), ("malignant", "dsB", "d2", 5000, 0.03, 0.1),
+        ("malignant", "dsC", "d3", 5000, 0.01, 0.1), ("malignant", "dsD", "d4", 5000, 0.02, 0.1),
+        ("malignant", "dsE", "d5", 5000, 0.03, 0.1),
+        ("stromal", "dsA", "d1", 5000, 0.45, 2.0), ("stromal", "dsB", "d2", 5000, 0.40, 2.0),
+        ("stromal", "dsC", "d3", 5000, 0.50, 2.0), ("stromal", "dsD", "d4", 5000, 0.43, 2.0),
+        ("stromal", "dsE", "d5", 5000, 0.47, 2.0),
+    ])
+    import pandas as pd
+    monkeypatch.setattr(R, "read_gene_compartment_rows", lambda *a, **k: pd.DataFrame(rows))
+    out = R.read_sc_expression_presence("FAP", "COADREAD")   # COADREAD cube = curated, entity_specific
+    assert out["sc_expression_class"] == "microenvironment_dominant"
+    assert out["caf_vs_malignant_class"] == "caf_dominant"
+    assert out["stromal_confound_class"] == "stromal_confounded"
