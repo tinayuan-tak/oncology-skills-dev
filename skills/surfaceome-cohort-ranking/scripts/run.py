@@ -34,12 +34,12 @@ def _load_ranking(indication: str, target: str | None) -> dict:
     derived product (surfaceome-cohort-ranking-per-indication-v1), via the
     method module's S3-cache helper — NOT a hardcoded /tmp path.
 
-    Fixed 2026-07-14: previously read a hardcoded
-    `/tmp/surfaceome_cohort_ranking_v1.parquet` that NOTHING writes, so the
-    skill returned empty even after the S3 product would land (and was a
-    /tmp trust surface). Now uses the method reader's `_ensure_derived_cached`,
-    which downloads from the pinned S3 key and returns None (→ honest
-    data_unavailable) until the derived product is published.
+    Fixed 2026-08-31 (SR-1): previously called `_srm_read._ensure_derived_cached()`, which the
+    Aug-2026 read.py rewrite REMOVED (read.py switched to per-target streaming pushdown). The stale
+    call raised AttributeError, was swallowed by the broad `except`, and the skill returned
+    n_ranked=0 / data_unavailable on EVERY run despite the live product. Now calls the new
+    `load_indication_ranking(indication)` — a streamed pushdown on the `indication` column that
+    returns every ranked gene_symbol for the indication (None → honest data_unavailable).
     """
     import pandas as pd
 
@@ -52,29 +52,28 @@ def _load_ranking(indication: str, target: str | None) -> dict:
         "cohort_rank_class", "method_version",
     ]
 
-    # Reach the method module's cache helper via the shared method loader the dispatchers use
-    # (_skills_common._live_readers._import_method). The whole import+cache chain is wrapped: any
+    # Reach the method reader via the shared method loader the dispatchers use
+    # (_skills_common._live_readers._import_method). The whole import+read chain is wrapped: any
     # failure (unimportable _live_readers/method module, S3 error) degrades to an EMPTY ranking
-    # (→ honest data_unavailable) rather than crashing the skill — the old /tmp `.exists()` check
-    # never raised, so we preserve that graceful-degradation contract.
-    ranking_path = None
+    # (→ honest data_unavailable) rather than crashing the skill — preserving the graceful-degradation
+    # contract. load_indication_ranking returns list[dict] (rows already filtered to this indication),
+    # [] for an indication with no ranked genes, or None on a definitive product absence.
+    ranking_rows = None
     try:
         from _skills_common._live_readers import _import_method
         _import_method("surfaceome_cohort_ranking")  # ensures methods repo on path
         from methods.surfaceome_cohort_ranking import read as _srm_read
-        ranking_path = _srm_read._ensure_derived_cached()  # Path or None
+        ranking_rows = _srm_read.load_indication_ranking(indication)  # list[dict] or None
     except Exception as e:
         print(f"[surfaceome-cohort-ranking] ranking load failed "
               f"({type(e).__name__}: {e}); treating as data_unavailable",
               file=sys.stderr)
-        ranking_path = None
+        ranking_rows = None
 
-    if ranking_path is not None and Path(ranking_path).exists():
-        df = pd.read_parquet(ranking_path)
-        df = df[df["indication"] == indication]
-        # NO skill-side re-filter: the product already applies the RELATIVE robustness filter at build
-        # (cells_supporting >= min(2, cells_ran), dominant_direction==up). The old fixed `>= 3` re-filter
-        # zeroed out low-comparator indications (OV cells_ran=1, 2-cell products) — see the manifest note.
+    if ranking_rows:
+        # rows are already pushed-down to this indication and the product already applies the RELATIVE
+        # robustness filter at build (cells_supporting >= min(2, cells_ran), dominant_direction==up).
+        df = pd.DataFrame(ranking_rows)
     else:
         df = pd.DataFrame(columns=empty_cols)
 
