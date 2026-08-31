@@ -27,13 +27,33 @@ from _skills_common import archetype_core as ac  # noqa: E402
 
 DECIRC_DROP_AXIS = "genomic_alteration"   # the OncoKB-fed axis — removed to de-circularize the role head
 
+# Coherence-QC HEADS: each predicts an orthogonal external biological label from the signature with the
+# label-defining (de-circularizing) axis REMOVED, then flags targets whose signature disagrees. Each head
+# is a binary recover: pos vs everything-else. Add a head by ingesting its label + naming its drop axis.
+HEADS = {
+    "role": {  # OncoKB oncogene-vs-TSG; de-circ by removing the OncoKB-fed genomic axis
+        "drop_axis": DECIRC_DROP_AXIS, "csv_col": "role", "pos": "oncogene", "neg": "tsg",
+        "label_field": "oncokb_role", "pred_field": "pred_role", "prob_field": "pred_prob_oncogene",
+        "default_csv": "oncokb_roles.csv",
+        "decirc_note": f"removed '{DECIRC_DROP_AXIS}' axis (OncoKB-fed)",
+        "label_name": "OncoKB role",
+    },
+    "surface": {  # CSPA wet-lab surface confirmation; de-circ by removing the surface-modality axis
+        "drop_axis": "surface_modality", "csv_col": "surface", "pos": "yes", "neg": "no",
+        "label_field": "cspa_surface", "pred_field": "pred_surface", "prob_field": "pred_prob_surface",
+        "default_csv": "cspa_surface.csv",
+        "decirc_note": "removed 'surface_modality' axis (CSPA/surface-fed)",
+        "label_name": "CSPA surface confirmation",
+    },
+}
 
-def _load_roles(path: str) -> dict:
+
+def _load_labels(path: str, col: str, pos: str, neg: str) -> dict:
     out = {}
     for row in csv.DictReader(open(path)):
-        r = (row.get("role") or "").strip().lower()
-        if r in ("oncogene", "tsg"):
-            out[row["target"].strip()] = r
+        v = (row.get(col) or "").strip().lower()
+        if v in (pos, neg):
+            out[row["target"].strip()] = v
     return out
 
 
@@ -70,16 +90,20 @@ def _auc(y, p):
     return float((ranks[:len(pos)].sum() - len(pos) * (len(pos) + 1) / 2) / (len(pos) * len(neg)))
 
 
-def coherence_report(atlas: ac.Atlas, role_map: dict) -> tuple:
-    """Pure, testable core. Returns (rows, summary). rows: per labeled (target,indication) — oncokb_role,
-    pred_prob_oncogene, pred_role, agree. summary: n, auc, accuracy, majority_baseline, n_disagree."""
-    dc_cols = [j for j, k in enumerate(atlas.feature_order) if k.split("::")[0] != DECIRC_DROP_AXIS]
+def coherence_report(atlas: ac.Atlas, label_map: dict, head: str = "role") -> tuple:
+    """Pure, testable core for any HEAD. Predict the head's external label from the signature with the
+    head's de-circularizing axis REMOVED (leave-one-TARGET-out), then per labeled (target,indication):
+    the head's label_field, prob_field, pred_field + agree. summary: n, auc, accuracy, majority_baseline,
+    n_disagree, de_circularized. Row field NAMES are per-head (role keeps its landed schema)."""
+    h = HEADS[head]
+    drop, pos, neg = h["drop_axis"], h["pos"], h["neg"]
+    dc_cols = [j for j, k in enumerate(atlas.feature_order) if k.split("::")[0] != drop]
     idx, y, groups, meta = [], [], [], []
     for i, (t, ind) in enumerate(zip(atlas.targets, atlas.indications)):
-        r = role_map.get(t)
-        if r is None:
+        v = label_map.get(t)
+        if v is None:
             continue
-        idx.append(i); y.append(1 if r == "oncogene" else 0); groups.append(t); meta.append((t, ind, r))
+        idx.append(i); y.append(1 if v == pos else 0); groups.append(t); meta.append((t, ind, v))
     if len(idx) < 6:
         return [], {"n": len(idx), "note": "too few labeled targets"}
     X = np.array([[atlas.X[i][j] for j in dc_cols] for i in idx], float)
@@ -89,41 +113,45 @@ def coherence_report(atlas: ac.Atlas, role_map: dict) -> tuple:
     ok = ~np.isnan(oof)
     auc = _auc(np.array(y)[ok], oof[ok])
     rows = []
-    for k, (t, ind, r) in enumerate(meta):
+    for k, (t, ind, v) in enumerate(meta):
         if np.isnan(oof[k]):
             continue
-        p = float(oof[k]); pred = "oncogene" if p >= 0.5 else "tsg"
-        rows.append({"target": t, "indication": ind, "oncokb_role": r,
-                     "pred_prob_oncogene": round(p, 3), "pred_role": pred, "agree": pred == r})
+        p = float(oof[k]); pred = pos if p >= 0.5 else neg
+        rows.append({"target": t, "indication": ind, h["label_field"]: v,
+                     h["prob_field"]: round(p, 3), h["pred_field"]: pred, "agree": pred == v})
     yv = np.array(y)[ok]
     acc = float(np.mean([(oof[k] >= 0.5) == (y[k] == 1) for k in range(len(y)) if ok[k]]))
-    summary = {"n": len(rows), "auc": round(auc, 3), "accuracy": round(acc, 3),
+    summary = {"n": len(rows), "head": head, "auc": round(auc, 3), "accuracy": round(acc, 3),
                "majority_baseline": round(max(yv.mean(), 1 - yv.mean()), 3),
                "n_disagree": sum(1 for r in rows if not r["agree"]),
-               "de_circularized": f"removed '{DECIRC_DROP_AXIS}' axis (OncoKB-fed)"}
+               "de_circularized": h["decirc_note"]}
     return rows, summary
 
 
 def main():
-    ap = argparse.ArgumentParser(description="role-recovery coherence-QC (verdict-inert, offline)")
+    ap = argparse.ArgumentParser(description="biological-recovery coherence-QC (verdict-inert, offline)")
+    ap.add_argument("--head", choices=sorted(HEADS), default="role")
     ap.add_argument("--atlas", default=str(Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"))
-    ap.add_argument("--roles", default=str(Path(__file__).resolve().parents[1] / "tests" / "fixtures" /
-                                           "oncokb_roles.csv"))
-    ap.add_argument("--out-csv", default="role_coherence.csv")
+    ap.add_argument("--labels", default=None, help="label CSV (default: the head's fixture)")
+    ap.add_argument("--roles", default=None, help="[deprecated alias for --labels on the role head]")
+    ap.add_argument("--out-csv", default=None)
     a = ap.parse_args()
+    h = HEADS[a.head]
+    labels_path = a.labels or a.roles or str(Path(__file__).resolve().parents[1] / "tests" / "fixtures"
+                                             / h["default_csv"])
     atlas = ac.Atlas.load(a.atlas)
-    rows, summary = coherence_report(atlas, _load_roles(a.roles))
-    with open(a.out_csv, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["target", "indication", "oncokb_role", "pred_prob_oncogene",
-                                          "pred_role", "agree"])
-        w.writeheader(); w.writerows(rows)
-    print(f"role-recovery coherence-QC (de-circularized): {summary}")
+    rows, summary = coherence_report(atlas, _load_labels(labels_path, h["csv_col"], h["pos"], h["neg"]), a.head)
+    out_csv = a.out_csv or f"{a.head}_coherence.csv"
+    fields = ["target", "indication", h["label_field"], h["prob_field"], h["pred_field"], "agree"]
+    with open(out_csv, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fields); w.writeheader(); w.writerows(rows)
+    print(f"{a.head}-recovery coherence-QC (de-circularized): {summary}")
     disagree = [r for r in rows if not r["agree"]]
-    print(f"\nINCOHERENT (signature disagrees with OncoKB role — REVIEW, not an auto-edit): {len(disagree)}")
-    for r in sorted(disagree, key=lambda x: abs(x["pred_prob_oncogene"] - 0.5), reverse=True)[:15]:
-        print(f"  {r['target']}/{r['indication']}: OncoKB={r['oncokb_role']} "
-              f"signature->{r['pred_role']} (p_oncogene={r['pred_prob_oncogene']})")
-    print(f"\nwrote {a.out_csv}")
+    print(f"\nINCOHERENT (signature disagrees with {h['label_name']} — REVIEW, not an auto-edit): {len(disagree)}")
+    for r in sorted(disagree, key=lambda x: abs(x[h["prob_field"]] - 0.5), reverse=True)[:15]:
+        print(f"  {r['target']}/{r['indication']}: {h['label_name']}={r[h['label_field']]} "
+              f"signature->{r[h['pred_field']]} (p={r[h['prob_field']]})")
+    print(f"\nwrote {out_csv}")
 
 
 if __name__ == "__main__":

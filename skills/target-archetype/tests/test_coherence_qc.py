@@ -54,3 +54,30 @@ def test_empty_roles_degrades_gracefully():
     m = _mod()
     rows, summary = m.coherence_report(Atlas.load(ATLAS), {})
     assert rows == [] and summary["n"] == 0
+
+
+def _surface():
+    import csv
+    p = Path(__file__).resolve().parent / "fixtures" / "cspa_surface.csv"
+    return {r["target"]: r["surface"] for r in csv.DictReader(open(p))}
+
+
+def test_surface_head_recovers_cspa_strongly_and_flags_incoherent():
+    m = _mod()
+    rows, summary = m.coherence_report(Atlas.load(ATLAS), _surface(), head="surface")
+    assert summary["head"] == "surface"
+    # surfaceome is the most de-circularizable label (lit) — de-circ recovery clears chance by a wide margin
+    assert summary["auc"] > 0.75
+    assert "removed 'surface_modality'" in summary["de_circularized"]
+    for r in rows[:20]:
+        assert set(r) >= {"target", "indication", "cspa_surface", "pred_surface", "agree"}
+        assert r["cspa_surface"] in ("yes", "no") and isinstance(r["agree"], bool)
+    disagree = [r for r in rows if not r["agree"]]
+    assert 0 < len(disagree) < len(rows) and len(disagree) == summary["n_disagree"]
+
+
+def test_heads_registry_is_de_circularized_per_head():
+    m = _mod()
+    assert set(m.HEADS) >= {"role", "surface"}
+    assert m.HEADS["role"]["drop_axis"] == "genomic_alteration"
+    assert m.HEADS["surface"]["drop_axis"] == "surface_modality"   # de-circ removes the surface-fed axis
