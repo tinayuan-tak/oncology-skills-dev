@@ -999,11 +999,21 @@ def _run_sub_skills(target: str, indication: str,
             if _synth_fn is not None:
                 llm_synthesis = _synthesize_with_retry(
                     _synth_fn, cards, fired, verdict_pair, target, indication, synthesis_model)
+        # PHASE 3 (tumor-presence): the EMITTED presence word is reconciled with the signal package in
+        # _headline (stromal-only / protein↔RNA conflict / not-present demote to caveated tokens). The
+        # facet carries that reconciled word; reflect it in the STORED sub-result verdict so the composed
+        # dashboard + risk-rollup can't display a word that disagrees with presence_state. The internal
+        # hooks above stay on the raw verdict_pair. Verdict-INERT (presence ∉ _SHORT_TO_GATE); no-op for
+        # every other sub-skill (only presence's facet carries presence_verdict).
+        stored_verdict = verdict_pair
+        if (isinstance(synthesis_facet, dict) and synthesis_facet.get("presence_verdict") and verdict_pair):
+            stored_verdict = (synthesis_facet["presence_verdict"],
+                              verdict_pair[1] if len(verdict_pair) > 1 else None)
         return short, {
             "skill_dir": skill_dir,
             "cards": cards,
             "fired": fired,
-            "verdict": verdict_pair,  # (str, driving_rule_id) or None
+            "verdict": stored_verdict,  # (str, driving_rule_id) or None; presence word = reconciled
             # Deterministic cross-modal reconciliation for the synthesis prompt (None for every
             # sub-skill except tumor-presence). ADDITIVE / verdict-inert — see _load_sub_skill_facet_fn.
             "synthesis_facet": synthesis_facet,

@@ -201,6 +201,10 @@ _PRESENCE_VERDICT_PHRASE = {
     "data_unavailable":               "Data unavailable",
     "not_informative":                "Not informative",
     "insufficient":                   "Insufficient evidence",
+    # Phase-3 reconciled caveat tokens (emitted presence_verdict when the raw word disagrees with the state)
+    "stromal_microenvironment_present":       "Present in tumor microenvironment (stromal)",
+    "conflicted_protein_present_rna_absent":  "Conflicting — protein present, RNA/single-cell absent",
+    "absent":                                 "Not present in tumor",
 }
 
 
@@ -225,7 +229,13 @@ _PRESENCE_HEADLINE_SPEC = HeadlineSpec(
 
 def _presence_verdict_polarity(v) -> str:
     """The skill's OWN reading of the collapsed verdict (colours the hero badge; never a gate). Reuses
-    the presence positive/negative vocabularies so the polarity can't drift from the spine."""
+    the presence positive/negative vocabularies so the polarity can't drift from the spine. The Phase-3
+    reconciled caveat tokens (stromal-only, protein↔RNA conflict) read NEUTRAL; the demoted `absent` reads
+    NEGATIVE (these are checked first since _is_presence_positive would otherwise call them positive)."""
+    if v in (STROMAL_MICROENVIRONMENT_PRESENT, CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT):
+        return "neutral"
+    if v == "absent":
+        return "negative"
     if _is_presence_positive(v):
         return "positive"
     if v in _MEASURED_NEGATIVE_VERDICTS:
@@ -513,6 +523,32 @@ _PROTEIN_ABSENCE_RIDS = frozenset({
 # a consumer reading only the one-word verdict (not presence_verdict_by_modality) is not falsely
 # reassured. Verdict-inert to the nomination spine (presence ∉ target-profile _SHORT_TO_GATE).
 PRESENT_RNA_ONLY_PROTEIN_ABSENT = "present_rna_only_protein_absent"
+
+# ── PHASE 3: EMITTED-verdict reconciliation with the signal package (surgical demotion) ─────────────
+# The raw ladder collapse (`_verdict`) is UNTOUCHED — its golden spine / ladder-invariant / flip-matrix
+# tests stay byte-stable and it still drives presence_verdict_by_modality + the robustness facets (the
+# raw multi-modal picture). But the ONE WORD that consumers read (hl["presence_verdict"]) is reconciled
+# in `_headline` against presence_state so it can no longer DISAGREE with the signal package. Only the
+# disagreeing POSITIVE cases demote (an agreeing positive keeps its nuanced ladder word → EPCAM/ERBB2
+# byte-stable); a raw negative/gap already agrees and is left alone. The raw word is retained as
+# `presence_verdict_ladder` for traceability. Verdict-INERT to the nomination spine (presence ∉ _SHORT_TO_GATE).
+STROMAL_MICROENVIRONMENT_PRESENT = "stromal_microenvironment_present"        # PECAM1: present but not malignant-cell
+CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT = "conflicted_protein_present_rna_absent"  # ALB: protein detected, RNA/sc absent
+
+
+def reconcile_presence_verdict(raw_verdict: str | None, presence_state: dict | None) -> str | None:
+    """Demote a raw presence-POSITIVE word that DISAGREES with presence_state to a caveated token; leave
+    agreeing positives and all raw negatives/gaps unchanged. See the block comment above."""
+    if not _is_presence_positive(raw_verdict) or not isinstance(presence_state, dict):
+        return raw_verdict                                   # raw already agrees (negative/gap) → keep
+    mal, p = presence_state.get("malignant_intrinsic"), presence_state.get("present")
+    if mal == "stroma":
+        return STROMAL_MICROENVIRONMENT_PRESENT
+    if p == "protein_only_rna_absent":
+        return CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT
+    if p == "no":
+        return "absent"                                      # raw positive but state measured-absent
+    return raw_verdict
 
 
 # ── (strength, certainty) SIDECAR — 5th certainty axis, first NO-RESOLVER gate (CERTAINTY_MODEL.md).
@@ -1237,6 +1273,16 @@ def _headline(cards, fired, verdict_pair):
     # its own field and both symmetric protein↔RNA conflicts are NAMED. Must run AFTER claim_vector (it
     # reads hl['claim_vector']). Reads no presence_verdict → collapsed spine + per-bucket matrix byte-stable.
     hl["presence_state"] = _enrich("presence_state", derive_presence_state, hl)
+    # PHASE 3: reconcile the EMITTED one word with presence_state so it can't DISAGREE with the signal
+    # package (ALB conflict / PECAM1 stromal / not-present demote to caveated tokens; agreeing positives
+    # unchanged → EPCAM/ERBB2 byte-stable). The RAW ladder collapse is retained as presence_verdict_ladder
+    # and still drives presence_verdict_by_modality + the facets above. Runs before headline_block so its
+    # verdict.call = the reconciled token. Verdict-INERT to the nomination spine.
+    if isinstance(hl.get("presence_state"), dict) and hl["presence_state"].get("present"):
+        _reconciled = reconcile_presence_verdict(v, hl["presence_state"])
+        if _reconciled != v:
+            hl["presence_verdict_ladder"] = v
+            hl["presence_verdict"] = _reconciled
     # (strength, certainty) sidecar + continuous composite — emitted STANDALONE here (was fan-out-only)
     # with the RE-BASED strength (claim_vector peak + presence_state floor, not the collapsed verdict), so
     # a portfolio-ranking consumer sees the same composite standalone and composed. Verdict-INERT; must run

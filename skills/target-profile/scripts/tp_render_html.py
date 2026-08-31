@@ -1593,9 +1593,13 @@ def _render_target_profile_html(
     if presence_facet and presence_facet.get("question_table"):
         try:
             from _skills_common.presence_question_table import render_question_table_html
+            from _skills_common.presence_claims import presence_state_phrase
+            # Show the honest presence_state phrase, not the raw collapsed word (last human surface leak).
+            _ps = presence_facet.get("presence_state")
+            _plabel = (presence_state_phrase(_ps) if isinstance(_ps, dict) and _ps.get("present")
+                       else presence_facet.get("presence_verdict"))
             _qt = render_question_table_html(presence_facet["question_table"],
-                                             verdict=presence_facet.get("presence_verdict"),
-                                             include_css=True)
+                                             verdict=_plabel, include_css=True)
             if _qt:
                 p.append(f"<section id=s-presence-table class=det>{_qt}</section>")
         except Exception:  # noqa: BLE001 — an additive summary must never break the report
