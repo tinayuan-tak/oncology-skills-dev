@@ -92,6 +92,12 @@ SURFACE_MODALITY_FIT = LensConfig(
                  "SAFETY": "normal-tissue safety", "SHED": "shedding"},
     scope_exclusions=("small-molecule tractability", "intracellular mechanism"),
     mode="verdict",
+    verdict_key="surface_modality_verdict",   # the RESOLVED surface-modality verdict token (run.py headline
+                                              # key); else the collapsed-verdict fallback lands on the
+                                              # <name>_verdict guess ("surface_modality_fit_verdict" — note
+                                              # the extra "fit") which MISSES the real key, then on
+                                              # driving_rule_id (a rule-id string). Mirrors the
+                                              # presence/selectivity/safety/functional-requirement contract.
 )
 
 TRACTABILITY_SM = LensConfig(

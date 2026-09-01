@@ -10,7 +10,7 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common import narrator_engine as NE  # noqa: E402
 from _skills_common.narrator_lenses import (  # noqa: E402
-    FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_SELECTIVITY)
+    FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, SURFACE_MODALITY_FIT, TUMOR_SELECTIVITY)
 
 
 def _decision():
@@ -108,6 +108,28 @@ def test_on_target_safety_collapsed_verdict_is_resolved_token_not_rule_id():
     assert "highly_constrained_safety_concern" in collapsed
     # the bare rule-id must not be what the model is handed as the one-word verdict
     assert "highly-constrained-safety-warning" not in collapsed
+
+
+def test_surface_modality_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The surface-modality-fit lens declares verdict_key='surface_modality_verdict', so the COLLAPSED
+    VERDICT prompt line injects the RESOLVED surface-modality verdict token — not driving_rule_id (a
+    rule-id string like 'pmhc-iedb-tcell-validated-tce-supportive'). Before the fix the fallback chain
+    MISSED the real key (the <name>_verdict guess is 'surface_modality_fit_verdict' — note the extra
+    'fit' — while the headline key is 'surface_modality_verdict') and landed on driving_rule_id. The
+    pmhc_tce_supported case matters most: leaking the rule-id let the narrator narrate a NEGATIVE
+    (surface fit_class=neither_viable) against a POSITIVE resolved verdict. Mirrors the
+    presence/selectivity/FR/safety contract; surface-modality-fit was left behind."""
+    assert SURFACE_MODALITY_FIT.verdict_key == "surface_modality_verdict"
+    decision = {"target": "KRAS", "indication": "COADREAD",
+                "headline": {"surface_modality_verdict": "pmhc_tce_supported",
+                             "driving_rule_id": "pmhc-iedb-tcell-validated-tce-supportive",
+                             "fit_class": "neither_viable",
+                             "claim_vector": {"FIT": {"signal": "strong", "corroboration": "high"}}}}
+    p = NE.build_capsule_prompt(decision, SURFACE_MODALITY_FIT)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "pmhc_tce_supported" in collapsed
+    # the bare rule-id must not be what the model is handed as the one-word verdict
+    assert "pmhc-iedb-tcell-validated-tce-supportive" not in collapsed
 
 
 def test_make_synthesize_fn_signature(monkeypatch):
