@@ -397,8 +397,13 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     summary["depmap_curated_common_essential"] = curated_common_essential
     summary["pan_essential_fraction_call"] = _classify_dependency(**_classify_kwargs,
                                                                    curated_common_essential=None)
+    # OFFLINE-FALLBACK FIX (2026-09-01): when the curated anchor is unavailable (None), the real
+    # dependency_class routes a >=85% call to common_essential_underpowered (insufficient, no killer)
+    # rather than a fraction-only common_essential veto — the CD19-safe direction. The audit ladder
+    # field above intentionally keeps the raw fraction-only call for provenance.
     summary["dependency_class"] = _classify_dependency(**_classify_kwargs,
-                                                        curated_common_essential=curated_common_essential)
+                                                        curated_common_essential=curated_common_essential,
+                                                        treat_missing_anchor_as_underpowered=True)
 
     return summary
 
@@ -429,7 +434,8 @@ def _classify_dependency(fraction_strongly_dependent: float,
                           pan_essential_fraction: float = 0.85,
                           selective_min: float = 0.05,
                           selective_max: float = 0.60,
-                          curated_common_essential: bool | None = None) -> str:
+                          curated_common_essential: bool | None = None,
+                          treat_missing_anchor_as_underpowered: bool = False) -> str:
     """Map summary stats to a DepMap-convention dependency_class categorical.
 
     Returns one of: common_essential | common_essential_underpowered |
@@ -448,6 +454,16 @@ def _classify_dependency(fraction_strongly_dependent: float,
       - `common_essential_underpowered` (H fix 2026-07-20): a >=85% pan-essential call on
         a panel below PAN_ESSENTIAL_MIN_PANEL_N — a tiny-panel artifact, not a trusted
         pan-essential. Routes to insufficient instead of the pan-essential veto.
+      - `common_essential_underpowered` also covers a >=85% call whose curated core-essential
+        ANCHOR is unavailable (offline/creds fail) when `treat_missing_anchor_as_underpowered`
+        is set — see the T3 re-anchor note below.
+
+    `treat_missing_anchor_as_underpowered` (2026-09-01): when set, a >=85% fraction whose
+    `curated_common_essential` anchor is None (list unreachable) resolves to
+    `common_essential_underpowered` (→ insufficient, NO killer) rather than falling through to a
+    fraction-only `common_essential` KILLER. Set at the real `dependency_class` call site; the
+    audit/ladder field (`pan_essential_fraction_call`) leaves it False to preserve the raw
+    fraction-only call. Default False keeps every caller's prior behavior byte-for-byte.
     """
     if fraction_strongly_dependent >= pan_essential_fraction:
         if (n_cell_lines_evaluated is not None
@@ -459,10 +475,18 @@ def _classify_dependency(fraction_strongly_dependent: float,
         # definition. A gene broadly-dependent by fraction but explicitly NOT a curated core-essential (a
         # context-essential oncogene) is a `broadly_dependent` positive, NOT a killer. This only ever
         # REMOVES a killer relative to the fraction (the CD19-safe direction: it can never fabricate one).
-        # curated_common_essential is None ⇒ list unavailable (offline/creds) ⇒ fraction-only fallback
-        # (prior behavior), so the method degrades gracefully instead of dropping every killer.
         if curated_common_essential is False:
             return "broadly_dependent"
+        # OFFLINE-FALLBACK FIX (2026-09-01): curated_common_essential is None ⇒ the anchor list is
+        # unreachable (offline / creds fail). We CANNOT distinguish a true core-essential from a
+        # high-fraction context-essential oncogene (the CD19 / KRAS-CRISPRInferred trap) without the
+        # anchor — so a fraction-only `common_essential` KILLER here is exactly the unjustified veto the
+        # T3 re-anchor removed. At the real dependency_class call site we route it to the existing
+        # `common_essential_underpowered` (→ insufficient, no veto), the honest "can't-trust-this-pan-
+        # essential" bucket. The audit/ladder field (treat_missing_anchor_as_underpowered=False) still
+        # reports the raw fraction-only `common_essential`, so the degradation is fully auditable.
+        if curated_common_essential is None and treat_missing_anchor_as_underpowered:
+            return "common_essential_underpowered"
         return "common_essential"
     if fraction_strongly_dependent < selective_min:
         # Below the pooled floor. Admissibility check: is there a well-sampled lineage
