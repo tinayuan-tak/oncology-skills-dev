@@ -42,9 +42,9 @@ interpretation_hints:
     call: "resolved cleanly with curated biology axis"
   - if: "resolution_status == 'resolved' && biology_axis_curated == 'unknown'"
     call: "resolved cleanly; biology axis uncurated — framework cannot select an axis-specific base dashboard"
-  - if: "resolution_status == 'deprecated_redirected'"
-    call: "deprecated alias redirected; downstream cards interpret with caution"
-  - if: "resolution_status == 'ambiguous' || resolution_status == 'not_found'"
+  - if: "resolution_status == 'deprecated_remapped'"
+    call: "deprecated alias remapped; downstream cards interpret with caution"
+  - if: "resolution_status == 'ambiguous' || resolution_status == 'no_match_in_source'"
     call: "resolution failed — downstream cards excluded"
 
 caveats:
