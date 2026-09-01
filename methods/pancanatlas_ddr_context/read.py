@@ -56,10 +56,16 @@ def _combine_rows(rows) -> dict:
         return {}
     frac = sum(r["frac_hrd_high"] * r["n_samples"] for r in rows) / total_n
     med_hrd = sum(r["median_hrd_score"] * r["n_samples"] for r in rows) / total_n
+    # median_mutsig3: sample-weighted mean of per-cohort medians (same approximation as median_hrd_score),
+    # over cohorts that HAVE a mutSig3 median; None when none do. Was dropped on the multi-cohort combine
+    # path (single-cohort dict(rows[0]) kept it) → the card-declared field was MISSING for COADREAD etc.
+    _sig3 = [(r["median_mutsig3"], r["n_samples"]) for r in rows if r.get("median_mutsig3") is not None]
+    med_sig3 = (sum(v * n for v, n in _sig3) / sum(n for _v, n in _sig3)) if _sig3 else None
     return {
         "n_samples": total_n,
         "frac_hrd_high": round(float(frac), 4),
         "median_hrd_score": round(float(med_hrd), 3),
+        "median_mutsig3": (round(float(med_sig3), 4) if med_sig3 is not None else None),
         "ddr_context_class": _cli._classify(total_n, frac),
         "pooled_from": [r["indication"] for r in rows],
     }

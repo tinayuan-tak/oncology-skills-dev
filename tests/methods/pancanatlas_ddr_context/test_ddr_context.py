@@ -34,9 +34,9 @@ def test_alias_pooling_sample_weighted(monkeypatch):
     import pandas as pd
     fake = pd.DataFrame([
         {"indication": "COAD", "n_samples": 300, "median_hrd_score": 10.0, "frac_hrd_high": 0.02,
-         "ddr_context_class": "hrd_low"},
+         "median_mutsig3": 0.01, "ddr_context_class": "hrd_low"},
         {"indication": "READ", "n_samples": 100, "median_hrd_score": 15.0, "frac_hrd_high": 0.06,
-         "ddr_context_class": "hrd_low"},
+         "median_mutsig3": 0.05, "ddr_context_class": "hrd_low"},
     ])
     monkeypatch.setattr(ddr_read, "_load_product", lambda: fake)
     out = ddr_read.read_ddr_deficiency_context(indication="COADREAD")
@@ -45,6 +45,10 @@ def test_alias_pooling_sample_weighted(monkeypatch):
     assert abs(out["frac_hrd_high"] - 0.03) < 1e-6
     assert out["ddr_context_class"] == "hrd_low"
     assert sorted(out["pooled_from"]) == ["COAD", "READ"]
+    # regression: median_mutsig3 (card-declared) must survive the multi-cohort combine, sample-weighted.
+    # weighted = (0.01*300 + 0.05*100)/400 = 0.02
+    assert "median_mutsig3" in out
+    assert abs(out["median_mutsig3"] - 0.02) < 1e-6
 
 
 def test_unmapped_indication_is_data_unavailable(monkeypatch):
