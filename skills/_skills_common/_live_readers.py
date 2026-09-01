@@ -517,6 +517,15 @@ def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[
         }
 
     hgnc_id_int = int(t.hgnc.id.split(":", 1)[1])
+    # Card-declared biology_axis_curated / biology_axis_source — previously never emitted, leaving the
+    # two curated-axis interpretation_hints dead. Sourced from the curated target_biology_axis_lookup
+    # (the same lane used for base-dashboard selection); axis='unknown' + source='uncurated_default'
+    # when the target is not in the lookup (surfaced honestly, per the card caveat).
+    try:
+        from _skills_common.biology_axis import resolve_biology_axis
+        axis_info = resolve_biology_axis(t.hgnc.primary_symbol)
+    except Exception:  # noqa: BLE001 — axis is display context; never fail identity resolution on it
+        axis_info = {"biology_axis": "unknown", "curated": False}
     return {
         "input_value": target,
         "resolved_hgnc_symbol": t.hgnc.primary_symbol,
@@ -526,6 +535,8 @@ def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[
         "resolution_status": "deprecated_remapped" if t.deprecation_warning else "resolved",
         "redirects_applied": [t.deprecation_warning.input_alias] if t.deprecation_warning else [],
         "resolver_release_pin": t.release_pins.resolver_release,
+        "biology_axis_curated": axis_info.get("biology_axis", "unknown"),
+        "biology_axis_source": "curated_lookup" if axis_info.get("curated") else "uncurated_default",
     }
 
 
@@ -1397,6 +1408,14 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         # ablate the ectodomain epitope (ectodomain_intact / neoepitope / resistance_acquired / …) —
         # fit_class preserved, the mechanism surfaced instead of blanking the verdict. None otherwise.
         "isoform_mechanism_caveat": topology.get("isoform_mechanism_caveat"),
+        # Card-declared field (adc-tce-modality-fit.card.yaml) previously never surfaced under this
+        # composed card — the isoform-epitope caveat is only set on the topology dispatcher output, so
+        # run.py's get_card_field(...,"adc-tce-modality-fit","isoform_epitope_caveat") resolved None.
+        # Pass it through (None when no isoform-selective warning fired).
+        "isoform_epitope_caveat": topology.get("isoform_epitope_caveat"),
+        # Composed-card provenance version (no AM method behind this card; tracks the composition
+        # logic version, matching the card's declared version). Card-declared field, previously absent.
+        "method_version": "1.1.0",
         # structure-features-static passthrough (honors the card's derived_from) — carried for
         # display + a future ECD-epitope-quality rule; does NOT feed fit_class today. Empty/None
         # when the structure product is unavailable (the reader returns 'no_structure').
