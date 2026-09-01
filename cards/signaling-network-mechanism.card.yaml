@@ -79,6 +79,10 @@ outputs:
       - upstream_hdac_modulation
       - upstream_protease_modulation
       - upstream_transcriptional_modulation
+      - upstream_stimulator                   # directional edge classes (composed from moa_ontology)
+      - upstream_inhibitor
+      - upstream_transcriptional_activator
+      - upstream_transcriptional_repressor
       - molecular_glue_disruptor
       - unmapped
     pd_marker_classes_present:
@@ -91,6 +95,10 @@ outputs:
       - transcriptional_pd_marker
       - downstream_pd_cleavage
       - downstream_pd_methylation
+      - downstream_activation_readout          # directional downstream readout classes (from moa_ontology)
+      - downstream_repression_readout
+      - downstream_transcriptional_activation_readout
+      - downstream_transcriptional_repression_readout
       - unmapped
 
   figures:

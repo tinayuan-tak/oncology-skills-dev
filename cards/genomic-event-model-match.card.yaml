@@ -76,7 +76,7 @@ outputs:
       screen_role: {enum: [positive_model, resistance_model, indeterminate], type: string}
   summary_fields_vocabulary:
     event_correspondence_class: [event_matched_dependent_in_lineage, event_matched_dependent_off_lineage, event_matched_not_dependent, no_event_match, no_target_event, data_unavailable]
-    patient_event_state: [biallelic-genetic, monoallelic]
+    patient_event_state: [biallelic-genetic, monoallelic, activating_mutation]
   figure: genomic_event_model_match_card       # tumor event + correspondence class + top matched models
 
 thresholds:

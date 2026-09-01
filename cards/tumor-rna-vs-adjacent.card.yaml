@@ -49,10 +49,9 @@ outputs:
   summary_fields:
     - log2_fc
     - q_value
-    - tumor_median_log2tpm                     # per-sample TPM via Gencode-v26 gene lengths, median across tumor cohort
-    - adjacent_median_log2tpm                  # same, adjacent-normal cohort
-    - tumor_median_log2cpm                     # backward-compat; equal to what DEG uses
-    - adjacent_median_log2cpm
+    # NOTE: per-cohort median TPM/CPM display fields (tumor/adjacent_median_log2tpm/cpm) were removed
+    # 2026-09-01 — the DESeq2 reader emits log2_fc/q_value/expression_call_class, not per-sample
+    # medians (never computed; the reader had hard-coded them to None). See card-review sweep.
     - n_tumor
     - n_adjacent
     - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)

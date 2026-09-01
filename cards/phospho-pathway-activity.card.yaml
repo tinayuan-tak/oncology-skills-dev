@@ -44,8 +44,8 @@ outputs:
     - n_phosphosites_frequent             # sites detected in >= active-fraction of tumors
     - max_site_detection_fraction         # detection fraction of the most-detected site
     - phospho_exceeds_abundance           # true = phosphorylated beyond total protein (pathway-active)
-    - phospho_minus_protein_z             # mean(phospho z) - mean(protein z) across tumors
-    - n_phospho_protein_paired
+    - top_site_phospho_minus_protein      # top site's mean(phospho log-ratio − gene total-protein log-ratio) across paired tumors
+    - n_phospho_protein_paired            # paired tumors backing the top site's phospho-vs-protein residual
     - top_phosphosites                    # top sites by detection (record list)
     - n_tumors
     - cptac_cohort
