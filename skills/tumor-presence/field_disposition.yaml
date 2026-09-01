@@ -95,12 +95,6 @@ cellline-rna-distribution:
     role: display
     reason: human-facing detail / large container
 tumor-rna-vs-adjacent:
-  adjacent_median_log2cpm:
-    role: signal
-    reason: magnitude/categorical signal
-  adjacent_median_log2tpm:
-    role: signal
-    reason: magnitude/categorical signal
   allgene_percentile:
     role: signal
     reason: magnitude/categorical signal
@@ -132,12 +126,6 @@ tumor-rna-vs-adjacent:
   q_value:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
-  tumor_median_log2cpm:
-    role: signal
-    reason: magnitude/categorical signal
-  tumor_median_log2tpm:
-    role: signal
-    reason: magnitude/categorical signal
 tumor-rna-distribution:
   allgene_percentile:
     role: signal

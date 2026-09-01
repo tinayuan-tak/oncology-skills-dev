@@ -101,7 +101,7 @@ MECHANISM_CLAIM_SPEC = [
               _corr(_C_PHOS, "phospho_activity_class", _PHOSPHO_SIGNAL), _INFORMS["PHOSPHO"],
               _mk_atom(_C_PHOS, "phospho_activity_class",
                        ("phospho_activity_class", "n_phosphosites", "max_site_detection_fraction",
-                        "phospho_exceeds_abundance", "phospho_minus_protein_z", "top_phosphosites"), _E_PHOS)),
+                        "phospho_exceeds_abundance", "top_site_phospho_minus_protein", "top_phosphosites"), _E_PHOS)),
     ClaimSpec("PATHWAY", "pathway activity context", _sig(_C_PATH, "pathway_activity_class", _PATHWAY_SIGNAL),
               _corr(_C_PATH, "pathway_activity_class", _PATHWAY_SIGNAL), _INFORMS["PATHWAY"],
               _mk_atom(_C_PATH, "pathway_activity_class",
