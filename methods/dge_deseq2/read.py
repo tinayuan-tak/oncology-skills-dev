@@ -181,8 +181,9 @@ def read_dge_gene_row(
     return {
         "log2_fc": log2_fc,
         "q_value": q_value,
-        "tumor_mean_tpm": None,  # not in this product
-        "adjacent_mean_tpm": None,
+        # (removed dead tumor_mean_tpm/adjacent_mean_tpm=None keys — undeclared and never populated;
+        #  the DESeq2 product carries no per-sample TPM/CPM. The tumor-rna-vs-adjacent card's
+        #  per-cohort median display fields were removed in the paired contracts change.)
         "n_tumor": raw.get("n_tumor"),
         "n_adjacent": raw.get("n_normal"),
         "base_mean": raw.get("baseMean"),

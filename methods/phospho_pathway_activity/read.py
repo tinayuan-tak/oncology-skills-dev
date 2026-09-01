@@ -180,11 +180,13 @@ def read_phospho_pathway_activity(target: str, indication: str,
     df_by_det = df.sort_values("detection_fraction", ascending=False)
     phospho_over_protein = None
     top_site_resid = None
+    top_site_n_paired = None       # paired tumors backing the winning site's residual (card field)
     for _, r in df_by_det.iterrows():
         resid = r.get("site_phospho_minus_protein")
         n_paired = int(r.get("n_paired_tumors") or 0)
         if resid is not None and resid == resid and n_paired >= MIN_PAIRED_TUMORS:
             top_site_resid = float(resid)
+            top_site_n_paired = n_paired
             phospho_over_protein = bool(top_site_resid > PHOSPHO_OVER_PROTEIN_DELTA)
             break
 
@@ -200,6 +202,7 @@ def read_phospho_pathway_activity(target: str, indication: str,
         "max_site_detection_fraction": round(max_det, 4),
         "phospho_exceeds_abundance": phospho_over_protein,      # now a REAL call (or None if unpaired)
         "top_site_phospho_minus_protein": (None if top_site_resid is None else round(top_site_resid, 4)),
+        "n_phospho_protein_paired": (top_site_n_paired or 0),   # card-declared; paired tumors behind the residual
         "top_phosphosites": top_sites,
         "_data_source": PHOSPHO_PRODUCT_MANIFEST,
     })
