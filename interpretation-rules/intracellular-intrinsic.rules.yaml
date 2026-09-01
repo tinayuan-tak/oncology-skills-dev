@@ -2761,10 +2761,10 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      >= 3 upstream regulators AND >= 3 downstream effectors annotated in
-      SIGNOR-via-OmniPath. Well-characterized network context — MoA hooks
-      + PD marker candidates are enumerable. Supportive for both SM and
-      degrader modalities.
+      >= 3 upstream regulators AND >= 3 downstream effectors in the composed
+      network (SIGNOR + CollecTRI + Reactome). Well-characterized network
+      context — MoA hooks + PD marker candidates are enumerable. Supportive
+      for both SM and degrader modalities.
 
   - rule_id: mechanism-partial-neutral
     when:
@@ -2813,8 +2813,8 @@ rules:
       small_molecule: insufficient
       degrader: insufficient
     rationale: |
-      Target not present in SIGNOR-via-OmniPath. Coverage gap; not opposing
-      evidence.
+      Target not present in the composed network (SIGNOR + CollecTRI +
+      Reactome). Coverage gap; not opposing evidence.
 
   - rule_id: has-pd-marker-supportive
     when:
