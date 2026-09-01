@@ -2200,12 +2200,14 @@ rules:
     rationale: |
       All pair-wise rhos < 0.10. Compound activity does NOT track with genetic
       dependency in either CRISPR or RNAi. The annotated compounds may be working
-      via off-target mechanisms. IMPORTANT: this is a compound-annotation warning,
-      NOT a target killer. The target itself may still be biologically valid — a
-      different chemical scaffold could engage it. Interpretation: PRISM's E6
-      activity call should be discounted (or contextualized as "possibly
-      off-target") but the target-itself signal (dependency, essentiality) is
-      untouched by this rule.
+      via off-target mechanisms. Effect (per T1.1, 2026-08-09): when no on-target
+      chemical-genetic rung fires, this DEMOTES the small-molecule TRACTABILITY
+      call to `discordant` — a negative snapshot that blocks a strong tractability
+      nomination — because PRISM's E6 activity is discounted as "possibly
+      off-target". SCOPE: it demotes the tractability (is-there-a-compound-that-
+      hits-it) call, NOT the target's biological validity — the
+      dependency/essentiality signal is untouched, and a different chemical
+      scaffold could still engage the target.
 
   - rule_id: e7-thin-evidence-insufficient
     when:
