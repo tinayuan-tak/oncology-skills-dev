@@ -75,10 +75,14 @@ def test_atoms_present_and_citable():
 
 
 def test_mutant_selective_gof_conditions_constraint_conflict():
-    # activating-GoF mechanism → the WT-constraint concern is flagged as DOWNGRADED (a conflict), tier kept
+    # activating-GoF mechanism → the WT-constraint concern is flagged as MODALITY-CONDITIONAL (a conflict
+    # tension pointing at the per-modality safety verdict), tier kept. The scalar downgrade was retired
+    # (safety.resolver 2.0.0); the conflict must NOT claim the scalar verdict was downgraded.
     vec = safety_claim_vector(_headline(alteration_functional_direction="activating"), _cards())
     assert vec["CONSTRAINT"]["signal"] == "strong"      # tier unchanged (this is the SIGNAL)
-    assert "DOWNGRADED" in (vec["CONSTRAINT"]["conflict"] or "")
+    conflict = vec["CONSTRAINT"]["conflict"] or ""
+    assert "MODALITY-CONDITIONAL" in conflict
+    assert "NOT downgraded" in conflict                 # scalar verdict is the raw concern
 
 
 def test_atoms_absent_without_cards():

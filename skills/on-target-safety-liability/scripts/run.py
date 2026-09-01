@@ -561,8 +561,9 @@ def _synthesis_facet(cards, fired, verdict_pair):
     facet["_facet_note"] = (
         "Deterministic on-target-safety facet. claim_vector is an INVERSE-valence LIABILITY decomposition "
         "(CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO) — a strong signal is a safety CONCERN, not a "
-        "win; the safety VERDICT (incl. the mutant-selective-GoF WT-constraint downgrade) is owned by the "
-        "safety resolver, not this projection.")
+        "win; the scalar safety VERDICT is owned by the safety resolver, not this projection. The mutant-"
+        "selective-GoF WT-loss downgrade is MODALITY-CONDITIONAL (realised in the per-modality safety "
+        "verdict, safety_verdict_by_modality), NOT applied to the scalar verdict.")
     return facet
 
 

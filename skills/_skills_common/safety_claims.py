@@ -19,11 +19,15 @@ good thing. A MEASURED tolerant read (LoF-tolerant, dosage-sufficient, no-phenot
 (measured negative concern); a burden that is PROTECTIVE is `negative` (measured opposite direction).
 `unmeasured` (indeterminate / no-entry / insufficient) is a data GAP, never evidence of safety.
 
-MECHANISM CONDITIONING: the safety VERDICT downgrades the WT-constraint concern for a mutant-selective
-GoF (alteration-role functional_direction=activating) — a mutant-selective agent need not fully inhibit
-the WT gene. This projection surfaces that as a CONSTRAINT `conflict`; it never re-computes the verdict
-(owned by the shared safety resolver). Verdict-INERT: reads the ALREADY-computed safety _headline; the
-EGFR/FLT3 replay guards freeze the safety verdict byte-stable with or without this.
+MECHANISM CONDITIONING: for a mutant-selective GoF (alteration-role functional_direction=activating) the
+WT-loss concern is MODALITY-CONDITIONAL — an allele-selective agent need not fully inhibit the WT gene.
+That downgrade was RETIRED from the scalar resolver (safety.resolver 2.0.0, 2026-08-24); it now lives in
+the per-modality safety verdict (safety_verdict_by_modality: small_molecule may be `conditional`). The
+SCALAR safety verdict is the honest raw WT-loss concern and is NOT downgraded. This projection surfaces
+the modality-conditionality as a CONSTRAINT `conflict` tension (pointing at the per-modality verdict); it
+never re-computes the verdict (owned by the shared safety resolver). Verdict-INERT: reads the ALREADY-
+computed safety _headline; the EGFR/FLT3 replay guards freeze the safety verdict byte-stable with or
+without this.
 """
 from __future__ import annotations
 
@@ -97,11 +101,13 @@ def _constraint_signal(h, c):
     cls = h.get("constraint_class")
     sig = _CONSTRAINT_SIGNAL.get(cls, "unmeasured")
     conflict = None
-    # mechanism conditioning: a mutant-selective GoF downgrades the WT-constraint concern (the verdict
-    # applies this; surfaced here as a tension, tier unchanged — this is the SIGNAL, not the verdict).
+    # mechanism conditioning: for a mutant-selective GoF the WT-loss concern is MODALITY-CONDITIONAL. The
+    # scalar downgrade was retired (safety.resolver 2.0.0); it now lives in the per-modality safety verdict,
+    # NOT the scalar. Surfaced here as a tension (tier unchanged — this is the SIGNAL, not the verdict).
     if sig_ge(sig, "moderate") and h.get("alteration_functional_direction") == "activating":
-        conflict = ("WT LoF-constraint concern is DOWNGRADED for a mutant-selective / activating-GoF "
-                    "mechanism — a mutant-selective agent need not fully inhibit WT (see safety verdict)")
+        conflict = ("activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL — an "
+                    "allele-selective small molecule may spare WT protein (see the per-modality safety "
+                    "verdict); the scalar safety verdict is the raw concern and is NOT downgraded")
     ev = (f"gnomAD: {cls or 'data_unavailable'}, pLI={_f(h.get('pli_score'))}, LOEUF={_f(h.get('loeuf_score'))}, "
           f"obs/exp LoF={h.get('obs_lof_count')}/{_f(h.get('exp_lof_count'), 1)}")
     return sig, ev, conflict
@@ -161,11 +167,12 @@ def _paness_signal(h, c):
     cls = h.get("dependency_class")
     sig = _PANESS_SIGNAL.get(cls, "unmeasured")
     conflict = None
-    # mechanism conditioning (mirrors CONSTRAINT): a mutant-selective GoF spares the WT essential
-    # protein normal cells depend on — the verdict downgrades this; surfaced here as a tension.
+    # mechanism conditioning (mirrors CONSTRAINT): for a mutant-selective GoF, WT-sparing makes the
+    # broad-tox concern MODALITY-CONDITIONAL. Retired from the scalar verdict; now per-modality only.
     if sig_ge(sig, "moderate") and h.get("alteration_functional_direction") == "activating":
-        conflict = ("broad-tox pan-essential concern is DOWNGRADED for a mutant-selective / activating-GoF "
-                    "mechanism — a mutant-selective agent spares WT in normal tissue (see safety verdict)")
+        conflict = ("activating (GoF) driver: the broad-tox pan-essential concern is MODALITY-CONDITIONAL — "
+                    "an allele-selective small molecule may spare WT in normal tissue (see the per-modality "
+                    "safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded")
     ev = f"DepMap: {cls or 'data_unavailable'}, pan_essential_score={_f(h.get('pan_essential_score'))}"
     return sig, ev, conflict
 
@@ -260,7 +267,8 @@ _DISCLAIMER = (
     "signal×corroboration. INVERSE "
     "valence: a strong signal is a safety CONCERN, not a win; a measured tolerant read is `absent`; a "
     "protective burden is `negative`. Claims are NOT averaged. Never feeds the safety verdict (owned by "
-    "the shared safety resolver, which also applies the mutant-selective-GoF WT-constraint downgrade).")
+    "the shared safety resolver). The mutant-selective-GoF WT-loss downgrade is MODALITY-CONDITIONAL — "
+    "realised in the per-modality safety verdict (safety_verdict_by_modality), not the scalar verdict.")
 
 
 def safety_claim_vector(headline: dict, cards: list) -> dict:

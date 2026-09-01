@@ -13,8 +13,10 @@ POLARITY (inverted vs the other heroes): a liability OPPOSES a safe target, so r
 "is this leg TOLERANT (safe)?" — Signal strong = LoF-tolerant / safe; absent = a liability (concern).
 This keeps the shared "Signal — supports [good outcome]" meter semantics (green = safe) consistent
 with presence/tractability. Verdict-INERT: a one-way projection over decision['headline']; reuses the
-shared Signal/Confidence vocab + renderer. NB: an activating (mutant-selective GoF) mechanism
-downgrades the WT-constraint concern — that conditioning lives in the safety_verdict (shown in caption).
+shared Signal/Confidence vocab + renderer. NB: for an activating (mutant-selective GoF) driver the
+WT-constraint concern is MODALITY-CONDITIONAL — that conditioning was retired from the scalar
+safety_verdict (safety.resolver 2.0.0) and now lives in the per-modality safety verdict
+(safety_verdict_by_modality); the scalar safety_verdict is the honest raw concern.
 """
 
 from __future__ import annotations
