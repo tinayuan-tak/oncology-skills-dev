@@ -135,6 +135,12 @@ IMMUNE_CONTEXT = LensConfig(
     axis_labels={"IMMUNE": "CD8 / immune infiltration"},
     scope_exclusions=("surface antigen accessibility (owned by surface-modality-fit)", "small-molecule tractability"),
     mode="verdict",
+    # The collapsed-verdict line reads the RESOLVED effector-context token from this declared headline key.
+    # Without it, the fallback relies on the legacy `<name>_verdict` guess ("immune-context" →
+    # "immune_context_verdict"), which HAPPENS to equal the real key here (unlike surface/genomic, whose
+    # guesses carried an extra token) — so this is a robustness/consistency fix, not an active-bug fix:
+    # it removes the naming-coincidence dependency and brings this lens into line with the fleet.
+    verdict_key="immune_context_verdict",
 )
 
 DIFFERENTIATION_LANDSCAPE = LensConfig(

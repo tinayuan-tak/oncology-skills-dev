@@ -172,6 +172,27 @@ def test_tractability_sm_collapsed_verdict_is_resolved_token_not_rule_id():
     assert "e7-triangulated-target-engaged-supportive" not in collapsed
 
 
+def test_immune_context_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The immune-context lens declares verdict_key='immune_context_verdict', so the COLLAPSED VERDICT
+    prompt line injects the RESOLVED effector-context token (immune_hot/…) — not driving_rule_id (a
+    rule-id string like 'immune-context-hot-tce-supportive'). UNLIKE surface/genomic/tractability, the
+    legacy <name>_verdict guess here ('immune-context' → 'immune_context_verdict') COINCIDES with the real
+    headline key, so the collapsed line was already correct; declaring verdict_key removes that
+    naming-coincidence dependency (a future rename can't silently regress it) and brings this lens into
+    line with the presence/selectivity/FR/safety/surface/genomic/tractability contract."""
+    from _skills_common.narrator_lenses import IMMUNE_CONTEXT
+    assert IMMUNE_CONTEXT.verdict_key == "immune_context_verdict"
+    decision = {"target": "MSLN", "indication": "PRAD",
+                "headline": {"immune_context_verdict": "immune_hot",
+                             "driving_rule_id": "immune-context-hot-tce-supportive",
+                             "claim_vector": {"IMMUNE": {"signal": "strong", "corroboration": "moderate"}}}}
+    p = NE.build_capsule_prompt(decision, IMMUNE_CONTEXT)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "immune_hot" in collapsed
+    # the bare rule-id must not be what the model is handed as the one-word verdict
+    assert "immune-context-hot-tce-supportive" not in collapsed
+
+
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
     monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})
