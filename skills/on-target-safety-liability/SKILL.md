@@ -4,8 +4,11 @@ description: |
   Phase-G skill — on-target safety liability from HUMAN GENETICS: gnomAD LoF
   constraint + a 5-leg human-genetics axis (Open Targets 26.06: gene-burden,
   ClinGen dosage, mouse-KO phenotype, ClinVar pathogenicity, target-priority)
-  + GTEx normal-tissue breadth, mechanism-conditioned by alteration-role
-  (mutant-selective GoF downgrade). Plus (data-utilization expansion 2026-08-21)
+  + GTEx normal-tissue breadth. The scalar verdict is the HONEST raw WT-loss
+  concern; for an activating (GoF) driver the mutant-selective downgrade is
+  MODALITY-CONDITIONAL and lives in the per-modality safety verdict
+  (safety_verdict_by_modality), not the scalar (resolver role-proxy downgrade
+  retired v2.0.0). Plus (data-utilization expansion 2026-08-21)
   DepMap pan-essentiality (broad-tox HOLD), HPA-IHC essential-tissue protein
   (HOLD), ClinGen recessive-only reassurance, and OT drug-warning pharmacovigilance context. 11 cards;
   verdict via the shared declarative resolver (safety.resolver.yaml).
@@ -14,9 +17,10 @@ description: |
   Is {target} intolerant of loss-of-function in humans (gnomAD constraint,
   population burden, dosage sensitivity, mouse-KO lethality, germline
   pathogenicity), and what does that imply for on-target safety of a full-KO
-  modality (degrader, RNA therapeutic, full-inhibition SM)? An activating
-  mutant-selective mechanism (alteration-role GoF) DOWNGRADES the WT-constraint
-  concern, since a mutant-selective agent need not fully inhibit the WT gene.
+  modality (degrader, RNA therapeutic, full-inhibition SM)? For an activating
+  (GoF) driver the WT-constraint concern is not eliminated but is MODALITY-
+  CONDITIONAL — an allele-selective agent may spare the WT gene — a distinction
+  carried by the per-modality safety verdict, not a scalar-verdict downgrade.
 
   History: graduated not_wired → partial 2026-07-08 (gnomAD leg, PR #79 + the
   gnomad_constraint method, merged AM #41 2026-07-19). Grew 2→8 cards over the
@@ -36,24 +40,26 @@ composition:
     - shet-lof-intolerance             # 2026-08-28 — continuous GeneBayes s_het; VERDICT-INERT complement to gnomAD constraint
     - target-safety-prioritisation     # P5 composite safety-prioritisation
     - normal-tissue-liability-gtex     # P5: GTEx normal-tissue liability (re-scoped from the HPA-IHC normal-tissue-liability card, which was re-homed to surface-modality-fit/tumor-presence)
-    - alteration-role                  # 2026-07-23 — mechanism CONTEXT for mutant-selective
-                                       # conditioning of the WT gnomAD-constraint concern (its
-                                       # activating-driver-role-safety-context rule combines with the
-                                       # highly-constrained warning in the resolver → downgrade).
+    - alteration-role                  # 2026-07-23 — mechanism CONTEXT for the modality-conditional
+                                       # WT-loss reading. Its activating-driver-role-safety-context rule
+                                       # is now ORPHAN in the safety resolver (role-proxy downgrade
+                                       # retired v2.0.0); functional_direction feeds the per-modality
+                                       # safety verdict (small_molecule=conditional) + claim_vector, not
+                                       # a scalar-verdict downgrade.
     - clinvar-pathogenicity-safety     # P5: ClinVar germline pathogenicity
     - mouse-ko-phenotype               # P5: IMPC mouse-KO phenotype
     - clingen-dosage                   # P5: ClinGen haploinsufficiency/triplosensitivity dosage
     - gene-burden-safety               # P5: gene-burden safety signal
-    - copy-number-distribution         # S1-1 (2026-08-17): AMPLIFICATION guard for the mutant-selective
-                                       # downgrade — patient_focal_cn_class (GISTIC) fires
-                                       # copy-number-amplified-oncogene-safety-context; the resolver's
-                                       # GROUP-0 guard keeps the HOLD for amp-driven oncogenes (ERBB2/MDM2).
-    - functional-gene-state            # PR-4c (2026-08-24): RARELY-ALTERED guard — functional_state_class
-                                       # ==rarely_altered fires functional-gene-state-rarely-altered-neutral;
-                                       # the resolver's GROUP-0b guard keeps the WT-loss HOLD for an
-                                       # amplification/role-only oncogene with no recurrent activating
-                                       # mutation (MCL1, pan-inhibited), so GROUP-1 mutant-selective
-                                       # downgrade does NOT misfire.
+    - copy-number-distribution         # S1-1 (2026-08-17): was the AMPLIFICATION guard for the retired
+                                       # resolver GROUP-0 downgrade. copy-number-amplified-oncogene-safety-
+                                       # context is now ORPHAN (role-proxy downgrade retired v2.0.0); near-
+                                       # dead composition, retained as amplification context only.
+    - functional-gene-state            # PR-4c (2026-08-24): RARELY-ALTERED guard. functional_state_class
+                                       # ==rarely_altered fires functional-gene-state-rarely-altered-neutral
+                                       # (now ORPHAN in the resolver); the disqualifier moved to the per-
+                                       # modality safety verdict — a rarely-altered oncogene (MCL1, pan-
+                                       # inhibited) keeps small_molecule=hold so exists-safe-modality does
+                                       # NOT clear the WT-loss concern (replaces the retired GROUP-0b guard).
     - pan-cancer-crispr-dependency-distribution  # data-util expansion 2026-08-21 — DepMap pan-essentiality
                                        # BROAD-TOX leg: dependency_class==common_essential fires
                                        # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_
@@ -80,13 +86,13 @@ composition:
     - shet_lof_selection                       # shet-lof-intolerance (continuous GeneBayes s_het)
     - target_safety_prioritisation             # target-safety-prioritisation
     - normal_tissue_rna_breadth                # normal-tissue-liability-gtex (GTEx = RNA)
-    - alteration_role                          # alteration-role — mechanism-conditioning (mutant-selective downgrade)
+    - alteration_role                          # alteration-role — modality-conditioning CONTEXT (role-proxy downgrade retired v2.0.0)
     - clinvar_germline_pathogenicity_safety    # clinvar-pathogenicity-safety
     - mouse_ko_phenotype_safety                # mouse-ko-phenotype
     - dosage_sensitivity_safety                # clingen-dosage
     - human_genetic_safety                     # gene-burden-safety
-    - copy_number_alteration                   # copy-number-distribution — amplification guard (S1-1)
-    - functional_gene_state                    # functional-gene-state — rarely-altered guard (PR-4c, GROUP-0b)
+    - copy_number_alteration                   # copy-number-distribution — amplification context (guard rule now ORPHAN, GROUP-0 retired)
+    - functional_gene_state                    # functional-gene-state — rarely-altered guard (rule now ORPHAN; disqualifier moved to per-modality verdict)
     - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
     - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
     - drug_warning_safety                      # drug-warning-safety — OT pharmacovigilance context (verdict-inert, 2026-08-21)
@@ -95,18 +101,21 @@ composition:
   # the sibling skills). 2026-08-14 review (S3): completed from 2 entries — it listed the
   # gnomad-lof-constraint card + the activating-driver-role-safety-context RULE-id (inconsistent),
   # but OMITTED the 4 P5 human-genetics warning legs (gene-burden / clingen-dosage / mouse-ko /
-  # clinvar), each of which fires a resolver rung (the human_genetics_safety_concern HOLD + its
-  # mutant-selective *_mechanism_mismatch downgrade). alteration-role is listed for the downgrade.
-  # target-safety-prioritisation + normal-tissue-liability-gtex are ADDITIVE (no resolver rung) — not here.
+  # clinvar), each of which fires a resolver rung (the human_genetics_safety_concern HOLD). The role-proxy
+  # mutant-selective downgrade was RETIRED (resolver v2.0.0, 2026-08-24) → alteration-role / copy-number-
+  # distribution / functional-gene-state remain LISTED for provenance but their rules are now ORPHAN in the
+  # safety resolver (parked in rule_role_partition.yaml display:); the modality-conditional read moved to
+  # the per-modality safety verdict. target-safety-prioritisation + normal-tissue-liability-gtex are
+  # ADDITIVE (no resolver rung) — not here.
   rules_scope:
     - gnomad-lof-constraint            # highly/moderately/tolerant/data-unavailable constraint rungs
     - gene-burden-safety               # gene-burden-lof-safety-warning
     - clingen-dosage                   # clingen-dominant-loss-safety-warning
     - mouse-ko-phenotype               # mouse-ko-lethal-safety-warning
     - clinvar-pathogenicity-safety     # clinvar-germline-pathogenic-safety-warning
-    - alteration-role                  # activating-driver-role-safety-context → mutant-selective downgrade (2026-07-23)
-    - copy-number-distribution         # copy-number-amplified-oncogene-safety-context → GROUP-0 amplification guard (S1-1, 2026-08-17)
-    - functional-gene-state            # functional-gene-state-rarely-altered-neutral → GROUP-0b rarely-altered guard (PR-4c, 2026-08-24)
+    - alteration-role                  # activating-driver-role-safety-context — ORPHAN (role-proxy downgrade retired v2.0.0); feeds per-modality verdict
+    - copy-number-distribution         # copy-number-amplified-oncogene-safety-context — ORPHAN (GROUP-0 guard retired v2.0.0)
+    - functional-gene-state            # functional-gene-state-rarely-altered-neutral — ORPHAN (GROUP-0b guard retired; disqualifier now per-modality)
     - pan-cancer-crispr-dependency-distribution  # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_concern (data-util expansion 2026-08-21)
     - normal-tissue-liability          # normal-tissue-protein-liability-safety-warning → normal_tissue_protein_safety_concern (data-util expansion 2026-08-21)
     # NOTE: clingen-dosage (above) ALSO fires clingen-recessive-only-safety-favorable →
@@ -149,14 +158,17 @@ resolves a `safety_verdict` via the shared declarative resolver
   7. **normal-tissue-liability-gtex** — GTEx normal-tissue RNA breadth
      (critical-organ liability). NOTE: this is the GTEx-RNA leg; HPA-IHC
      normal-tissue liability was re-homed to surface-modality-fit.
-  8. **alteration-role** — mechanism CONTEXT: an activating GoF role
-     DOWNGRADES the WT-constraint concern in the resolver (a mutant-selective
-     agent need not fully inhibit the WT gene).
+  8. **alteration-role** — mechanism CONTEXT: for an activating GoF role the
+     WT-constraint concern is MODALITY-CONDITIONAL (a mutant-selective agent
+     need not fully inhibit the WT gene). This downgrade was RETIRED from the
+     scalar resolver (v2.0.0, 2026-08-24) and now lives in the per-modality
+     safety verdict (`safety_verdict_by_modality`), not the scalar.
 
 The rules engine maps each card's categorical to per-modality safety signals
 (e.g. highly_constrained → warning for a full-KO modality; tolerant →
-supportive), and the resolver combines them (with the mutant-selective
-downgrade) into `safety_verdict` + `driving_rule_id`.
+supportive), and the resolver combines them into the scalar `safety_verdict` +
+`driving_rule_id` (the raw WT-loss concern); the modality-conditional
+downgrade is realised separately in `safety_verdict_by_modality`.
 
 ## What this skill does NOT do (yet) — why status is `partial`
 

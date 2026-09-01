@@ -93,13 +93,13 @@ CARDS = [
                                       # opposing on critical_organ_liability (on-target-off-tumor for
                                       # full-KO modalities); supportive on restricted_normal. Additive
                                       # signal — the safety RESOLVER stays keyed to gnomAD (byte-stable).
-    "alteration-role",                # 2026-07-23 — mechanism CONTEXT for mutant-selective conditioning.
-                                      # Its activating-driver-role-safety-context rule (intracellular axis)
-                                      # fires on functional_direction==activating; the safety RESOLVER
-                                      # combines it with highly-constrained-safety-warning (when_all_fired)
-                                      # to DOWNGRADE the WT-constraint concern → wt_constraint_mechanism_
-                                      # mismatch (a GoF driver is drugged mutant-selectively; gnomAD
-                                      # constraint is about the WILD-TYPE protein the drug spares).
+    "alteration-role",                # 2026-07-23 — mechanism CONTEXT for the modality-conditional WT-loss
+                                      # reading. Its activating-driver-role-safety-context rule fires on
+                                      # functional_direction==activating but is now ORPHAN in the safety
+                                      # resolver (the role-proxy DOWNGRADE was retired v2.0.0, 2026-08-24).
+                                      # functional_direction feeds the per-modality safety verdict
+                                      # (small_molecule=conditional: a GoF driver drugged mutant-selectively
+                                      # spares the WT protein) + the claim_vector — NOT a scalar downgrade.
     "clinvar-pathogenicity-safety",   # (2026-07-24) — ClinVar germline-pathogenic
                                       # variants. germline_pathogenic -> clinvar-germline-pathogenic-
                                       # safety-warning (SM/degrader opposing, 4th corroborating germline
@@ -115,25 +115,20 @@ CARDS = [
     "gene-burden-safety",             # (2026-07-24) — population rare-variant BURDEN LoF-
                                       # tolerance (OT 26.06). burden_safety_class=lof_risk_phenotype ->
                                       # gene-burden-lof-safety-warning (SM/degrader opposing, the full-KO
-                                      # WT-loss safety signal); protective -> drug-positive. The
-                                      # verdict-moving rule is NOT yet resolver-referenced (byte-stable);
-                                      # safety.resolver.yaml wires it, composed with the
-                                      # same mutant-selective downgrade as the gnomAD path.
-    "copy-number-distribution",       # (cards review 2026-08-17) — AMPLIFICATION guard for the
-                                      # mutant-selective downgrade. The dispatcher enriches this card
-                                      # with patient_focal_cn_class (TCGA GISTIC, indication-specific);
-                                      # its copy-number-amplified-oncogene-safety-context rule fires on
-                                      # recurrent_focal_amplification and the safety resolver's GROUP-0
-                                      # guard KEEPS the on-target-safety HOLD
-                                      # for an amplification-driven oncogene (ERBB2/MDM2) — the drug
-                                      # hits WT protein, so the mutant-selective-sparing logic fails.
-    "functional-gene-state",          # (PR-4c 2026-08-24) — RARELY-ALTERED guard, the mutation-state
-                                      # analogue of the amplification guard above. functional_state_
+                                      # WT-loss safety signal); protective -> drug-positive. Resolver-wired
+                                      # (human_genetics_safety_concern when_any_fired).
+    "copy-number-distribution",       # (cards review 2026-08-17) — was the AMPLIFICATION guard for the
+                                      # retired resolver GROUP-0 downgrade. The dispatcher enriches this card
+                                      # with patient_focal_cn_class (TCGA GISTIC); its copy-number-amplified-
+                                      # oncogene-safety-context rule is now ORPHAN (role-proxy downgrade
+                                      # retired v2.0.0). Near-dead composition, retained as amplification
+                                      # context only.
+    "functional-gene-state",          # (PR-4c 2026-08-24) — RARELY-ALTERED guard. functional_state_
                                       # class==rarely_altered fires functional-gene-state-rarely-altered-
-                                      # neutral; the safety resolver's GROUP-0b guard KEEPS the WT-loss
-                                      # HOLD for an amplification/role-only oncogene with no recurrent
-                                      # activating mutation (MCL1) — drugged by PAN-inhibition, so the
-                                      # mutant-selective-sparing (GROUP-1) downgrade must NOT fire.
+                                      # neutral (now ORPHAN in the resolver); the disqualifier moved to the
+                                      # per-modality safety verdict — a rarely-altered oncogene (MCL1, pan-
+                                      # inhibited) keeps small_molecule=hold so exists-safe-modality does NOT
+                                      # clear the WT-loss concern (replaces the retired GROUP-0b guard).
     "pan-cancer-crispr-dependency-distribution",  # (data-util expansion 2026-08-21) — DepMap pan-
                                       # essentiality as a BROAD-TOX safety signal. dependency_class==
                                       # common_essential fires pan-essential-broad-tox-safety-warning
@@ -141,7 +136,8 @@ CARDS = [
                                       # a full-KO modality abrogates an essential function in NORMAL
                                       # tissue too. Same card the dependency skill vetoes as
                                       # pan_essential_killer (no window); here it is the SAFETY reading.
-                                      # Mechanism-conditioned (GROUP-1 downgrade) + amp-guarded (GROUP-0).
+                                      # The modality-conditional read (mutant-selective sparing) lives in
+                                      # the per-modality safety verdict, not a scalar-verdict downgrade.
     "normal-tissue-liability",        # (data-util expansion 2026-08-21) — HPA-IHC protein normal-tissue
                                       # liability. essential_tissue_flag==present fires normal-tissue-
                                       # protein-liability-safety-warning → normal_tissue_protein_safety_
@@ -174,9 +170,9 @@ PARTIAL_STATUS_NOTE = (
     "verdict-moving via safety.resolver 1.3.0: gnomAD germline LoF-constraint + rare-variant "
     "BURDEN (gene-burden-safety) + ClinGen dosage-sensitivity (clingen-dosage) + mouse-KO "
     "normal-physiology (mouse-ko-phenotype) + ClinVar germline pathogenicity (clinvar-"
-    "pathogenicity-safety) — each mechanism-conditioned by the mutant-selective downgrade "
-    "(wt_constraint_mechanism_mismatch / wt_human_genetics_mechanism_mismatch) when an activating "
-    "driver is present (requires alteration-role in-scope; wired 2026-07-24). target-safety-"
+    "pathogenicity-safety). The scalar verdict is the HONEST raw WT-loss concern; the mutant-selective "
+    "downgrade for an activating driver was RETIRED from the resolver (v2.0.0, 2026-08-24) and now lives "
+    "in the per-modality safety verdict (safety_verdict_by_modality), not the scalar. target-safety-"
     "prioritisation is verdict-inert OT context. DATA-UTILIZATION EXPANSION (2026-08-21, safety.resolver "
     "1.5.0): three further already-ingested legs now move the verdict — DepMap pan-essentiality "
     "(pan_essential_broad_tox_concern HOLD, broad normal-tissue tox), HPA-IHC essential-tissue protein "
