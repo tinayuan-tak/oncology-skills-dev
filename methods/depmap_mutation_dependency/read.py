@@ -104,5 +104,10 @@ def read_mutation_stratified_dependency(
         d = {m: v for m, v in damaging_by_model.items() if m in c}
         return _cli.compute_mutation_stratification(c, h, d)
 
-    return apply_lineage_ladder(
+    result = apply_lineage_ladder(
         _compute, "mutation_stratification_class", model_metadata, indication)
+    # Card-declared indication_lineage: the shared ladder sets pan_lineage_* but not the resolved
+    # lineage NAME, so this card (the only sibling declaring it) saw it MISSING. Set it here (None
+    # when the indication is unmapped / absent — honest).
+    result["indication_lineage"] = _cli._resolve_indication_lineage(indication)
+    return result

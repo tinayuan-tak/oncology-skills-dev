@@ -82,6 +82,11 @@ def apply_lineage_ladder(compute: Callable[[Optional[set], Optional[set]], dict]
     """
     pan = compute(None, None)
     pan_class = pan.get(class_key)
+    # ALWAYS surface the pan-DepMap audit class (docstring: `pan_lineage_<class_key>` is the audit
+    # field, present on every path). Set it here so the no-indication early return AND the RUNG-3
+    # pan-lineage fallback both carry it (previously only _finish/rungs 1-2 set it, so cards declaring
+    # pan_lineage_<class_key> saw it MISSING on the fallback path — card-review emission-guard gap).
+    pan[f"pan_lineage_{class_key}"] = pan_class
 
     restrict = models_in_lineage(model_metadata, indication)
     if not restrict:

@@ -100,6 +100,7 @@ def build_subtype_panorama(target: str, indication: str, plot_data_out=None) -> 
         # confounder the card also declares) so subtype_axis_available:true no longer masks an underpowered
         # axis. Verdict-inert (display-only honesty grade).
         "subtype_axis_quality": land.get("subtype_axis_quality"),
+        "purity_source": land.get("purity_source"),   # card-declared; computed in `land` but was not lifted here
         "subtype_purity_spread": land.get("subtype_purity_spread"),
         "spotlight_subtype": land.get("spotlight_subtype"),
         "assignment_manifest": land.get("assignment_manifest"),

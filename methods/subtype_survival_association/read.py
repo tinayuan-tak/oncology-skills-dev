@@ -183,8 +183,9 @@ def read_subtype_survival_association(indication: str, subgroup_assignments_mani
 
     base["n_admissible_strata"] = len(arm_data)
     base["per_stratum"] = per_stratum
-    if dropped:
-        base["dropped_underpowered_strata"] = dropped
+    # Always emit the card-declared field (empty list when no stratum was dropped) — a bare `if dropped`
+    # left it MISSING on the common no-drop path (card-review emission-guard gap).
+    base["dropped_underpowered_strata"] = dropped
 
     # PER-AXIS OMNIBUS (B11-S1-1, 2026-08-31). A subtype shard packs strata from SEVERAL
     # ORTHOGONAL axes (COADREAD: MSI, CMS, sidedness, CIMP, stage). A single patient is a member
