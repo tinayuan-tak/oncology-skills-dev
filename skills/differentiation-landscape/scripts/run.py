@@ -158,6 +158,42 @@ def _differentiation_verdict_polarity(v) -> str:
     return "neutral"
 
 
+def _int_or_none(v):
+    """Coerce a headline count to int; None/non-numeric → None (field-absent-safe)."""
+    return v if isinstance(v, int) else (int(v) if isinstance(v, float) else None)
+
+
+def _panel_absent_signal(hl: dict) -> str | None:
+    """DETERMINISTIC panel-intersect-provenance caveat (verdict-INERT).
+
+    The reviewer BLOCKER-FIX restricts a POOLED co-mutation claim to the GENIE panel-intersect
+    (166 genes): a panel-ABSENT target gets per-source q-values only (`pooled_eligible=false`) and
+    must not be read as a pooled cross-cohort pattern. But the read-time classifier keys the
+    `cooccurrence_class` on q + log2-OR ALONE — it never consults `pooled_eligible` — so a
+    panel-absent target (e.g. a large passenger gene) can still surface a `strong_cooccurring`
+    pattern built ENTIRELY from per-source pairs, which for a long/passenger gene is a TMB /
+    gene-length co-mutation artifact rather than biology. When the target is IN the scan but has
+    ZERO panel-intersect-eligible pairs, surface that deterministically (rather than leaving it to
+    LLM discretion). Verdict token is UNTOUCHED. Fires only for panel-absent targets, so every
+    panel-present target (incl. the KRAS / FBXW7 COADREAD replay fixtures, both with >0 eligible
+    pairs, and CD19) is byte-identical."""
+    elig = _int_or_none(hl.get("n_pairs_panel_intersect_eligible"))
+    per_source = _int_or_none(hl.get("n_pairs_per_source_only"))
+    if elig == 0 and (per_source or 0) > 0:
+        return ("Target is absent from the GENIE panel-intersect (0 panel-intersect-eligible pairs; "
+                f"{per_source} per-source-only pairs) — no POOLED cross-cohort co-mutation claim is "
+                "possible. The co-mutation pattern rests entirely on per-source pairs and, for a "
+                "large/passenger gene, may reflect tumor-mutational-burden / gene-length confounding "
+                "rather than biology (pooled_eligible=false throughout).")
+    return None
+
+
+def _panel_absent_tension(hl: dict) -> dict | None:
+    """tension_extra hook — the panel-absent caveat as the single top_tension (severity 3, data-quality)."""
+    cav = _panel_absent_signal(hl)
+    return {"text": cav, "source": "panel_intersect.absent", "severity": 3} if cav else None
+
+
 _DIFFERENTIATION_HEADLINE_SPEC = HeadlineSpec(
     gate="differentiation",
     axis_labels={"COMUT": "co-mutation landscape", "SURVIVAL": "expression↔survival",
@@ -165,10 +201,10 @@ _DIFFERENTIATION_HEADLINE_SPEC = HeadlineSpec(
     axis_keys=("COMUT", "SURVIVAL", "PROGNOSIS", "NODE"),
     critical_axes=("COMUT", "SURVIVAL"),
     verdict_label=lambda v: _DIFFERENTIATION_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
-    # No cross-cutting flag beyond the claim_vector conflicts + key_signals caveat: differentiation_key_signals
-    # emits no caveat and the skill has no single skill-specific tension flag (the panel-intersect pooling
-    # discipline is carried per-claim in the atoms). So tension_extra=None.
-    tension_extra=None,
+    # Skill-specific tension: the panel-intersect-provenance flag (a panel-ABSENT target whose
+    # co-mutation pattern rests only on per-source pairs). Verdict-INERT; fires only for panel-absent
+    # targets, so panel-present targets (incl. the replay fixtures) are byte-identical.
+    tension_extra=_panel_absent_tension,
 )
 
 
@@ -343,6 +379,15 @@ def _headline(cards, fired, verdict_pair):
     # + citable atoms the composed fan-out lifts to the cross-evidence agent.
     hl["claim_vector"] = differentiation_claim_vector(hl, cards)
     hl["key_signals"] = differentiation_key_signals(hl, cards)
+    # DETERMINISTIC panel-intersect-provenance caveat (verdict-INERT): a panel-ABSENT target's
+    # co-mutation pattern rests only on per-source pairs (possible TMB/gene-length artifact). Surface it
+    # as the key_signals caveat so the narrator + cross-evidence agent see it deterministically instead of
+    # relying on LLM discretion. Panel-absence is the dominant data-quality caveat, so it takes the slot
+    # (differentiation_key_signals emits no claim-tier caveat today). Fires only for panel-absent targets
+    # → panel-present targets (incl. KRAS/FBXW7 replay fixtures) keep caveat=None, byte-identical.
+    _pa = _panel_absent_signal(hl)
+    if _pa:
+        hl["key_signals"]["caveat"] = _pa
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
