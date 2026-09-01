@@ -44,7 +44,8 @@ _ARM_CALL_COLOR = {
     "unsafe": "#8a1f1f", "not_viable": "#8a1f1f", "opposed": "#8a1f1f", "escape_risk": "#8a1f1f",
     "caveated": "#c8892a", "not_preferred": "#c8892a", "ambiguous": "#c8892a",
 }
-_ARM_LABEL = {"adc": "ADC", "bite_tce": "TCE", "antibody": "mAb", "pmhc_tce": "pMHC-TCE"}
+_ARM_LABEL = {"adc": "ADC", "bite_tce": "TCE", "antibody": "mAb", "pmhc_tce": "pMHC-TCE",
+              "small_molecule": "SM", "degrader": "Degrader"}
 
 
 def _verdict_color(verdict: dict) -> str:

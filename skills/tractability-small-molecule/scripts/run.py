@@ -114,6 +114,40 @@ def _tractability_verdict_polarity(v) -> str:
     return "neutral"
 
 
+# ── PER-MODALITY-ARM decomposition (druggability_verdict_by_modality) ────────────────────────────────
+# tractability-small-molecule loads the intracellular axis, which scores TWO modalities in parallel:
+# small-molecule INHIBITION (the druggability_snapshot spine) and DEGRADATION (the degrader_snapshot
+# lens). Degradation ≠ inhibition (KO-like complete removal), so an SM-intractable scaffold can still be
+# a degrader prospect (BRD4, STAT3). This is a PURE PROJECTION of the two already-computed snapshots onto
+# explicit per-arm calls — the SM analog of surface_modality_verdict_by_modality / safety_verdict_by_
+# modality / presence_verdict_by_modality. VERDICT-INERT: the projection can never disagree with the
+# one-word spine (it IS the spine, re-expressed per modality); byte-stable (additive key). Arm-call vocab
+# is the shared hero colour vocab (viable/caveated/opposed/not_viable/insufficient) so the hero renders a
+# chip per arm. Every druggability_snapshot / degrader_snapshot token is mapped (pinned by
+# test_verdict_by_modality_covers_all_tokens); an unmapped/None token falls back to insufficient (honest).
+_SM_ARM = {
+    # strong positives → viable; weaker/forward positives → caveated (a handle, not a proven hit)
+    "well_covered": "viable", "chemically_confirmed_genetic": "viable", "chemically_active": "viable",
+    "measured_potent_ligand": "viable",
+    "clinical_precedent_only": "caveated", "tool_compound_only": "caveated",
+    "weakly_active": "caveated", "structurally_ligandable": "caveated",
+    # negatives
+    "discordant": "opposed", "structurally_intractable": "not_viable", "chemically_unhit": "not_viable",
+    "insufficient": "insufficient",
+}
+_DEG_ARM = {
+    "strong_degrader_rationale": "viable", "degrader_rationale": "supported",
+    "degrader_opposed": "opposed", "degrader_unviable": "not_viable", "insufficient": "insufficient",
+}
+
+
+def _druggability_verdict_by_modality(sm_snapshot, degrader_snapshot) -> dict:
+    """Project the two resolved snapshots onto explicit per-modality-arm calls {small_molecule, degrader}.
+    Pure projection — never moves the spine; unmapped/None → insufficient (never fabricates a viable arm)."""
+    return {"small_molecule": _SM_ARM.get(sm_snapshot, "insufficient"),
+            "degrader": _DEG_ARM.get(degrader_snapshot, "insufficient")}
+
+
 # ── FACTORED-RECORD SHADOW (M1) — the TRACTABILITY (small-molecule) per-axis builder. This axis is
 #    SM-SPECIFIC, so modality_scope.small_molecule is the meaningful coordinate (favorable when
 #    druggable, unfavorable when intractable; biologics='na' — tractability_sm does not speak to
@@ -246,7 +280,11 @@ def _build_headline_block(headline: dict) -> dict:
     return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
                           spec=_TRACTABILITY_HEADLINE_SPEC, verdict_token=v,
                           driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_tractability_verdict_polarity(v))
+                          verdict_polarity=_tractability_verdict_polarity(v),
+                          # per-modality-arm chips (SM inhibition + degrader) — omitted (None) leaves the
+                          # shared hero byte-identical for skills that don't decompose. Verdict-inert.
+                          modality_arms=(headline.get("druggability_verdict_by_modality")
+                                         or _druggability_verdict_by_modality(v, headline.get("degrader_snapshot"))))
 
 
 SKILL_NAME = "tractability-small-molecule"
@@ -414,6 +452,10 @@ def _headline(cards, fired, verdict_pair):
         # byte-stable, proven by the resolver golden-oracle test).
         "degrader_snapshot":         degrader_class,
         "degrader_driving_rule_id":  degrader_drv,
+        # PER-MODALITY-ARM decomposition — pure projection of the two snapshots above onto
+        # {small_molecule, degrader} calls (the SM analog of surface/safety/presence *_by_modality).
+        # Verdict-INERT (cannot disagree with the one-word spine); rendered as hero chips + a facet key.
+        "druggability_verdict_by_modality": _druggability_verdict_by_modality(v, degrader_class),
         # slice 3 LANDED: the target-degradability read (E3-substrate + PROTAC precedent + location
         # gate) from the degradation-feasibility card, replacing the not_yet_assessed placeholder.
         "degradability_machinery":   get_card_field(cards, "degradation-feasibility", "degradability_feasibility_class"),
@@ -475,6 +517,7 @@ def _headline(cards, fired, verdict_pair):
 
 _SYNTHESIS_FACET_KEYS = (
     "druggability_snapshot", "driving_rule_id", "degrader_snapshot",
+    "druggability_verdict_by_modality",     # per-arm {small_molecule, degrader} projection (verdict-inert)
     "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
     "degradability_machinery", "claim_vector", "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
