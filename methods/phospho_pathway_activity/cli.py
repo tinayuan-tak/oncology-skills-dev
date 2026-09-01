@@ -9,7 +9,6 @@ from pathlib import Path
 
 from . import read as _read
 
-METHOD_VERSION = "0.1.0"
 DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 _CLASS_COLORS = {
@@ -22,9 +21,9 @@ _CLASS_COLORS = {
 
 
 def build_summary(target: str, indication: str) -> dict:
-    summary = _read.read_phospho_pathway_activity(target, indication)
-    summary["method_version"] = METHOD_VERSION
-    return summary
+    # read_phospho_pathway_activity already stamps the authoritative method_version (read.METHOD_VERSION,
+    # currently 1.1.0); do NOT overwrite it here (a stale cli-local 0.1.0 used to clobber it).
+    return _read.read_phospho_pathway_activity(target, indication)
 
 
 def _load_style(contracts_dir):
@@ -60,7 +59,7 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
     lines = [
         f"phosphosites: {summary.get('n_phosphosites','n/a')}  (frequent: {summary.get('n_phosphosites_frequent','n/a')})",
         f"max site detection: {summary.get('max_site_detection_fraction','n/a')}  |  n tumors: {summary.get('n_tumors','n/a')}",
-        f"phospho exceeds abundance: {summary.get('phospho_exceeds_abundance','n/a')}  (dz={summary.get('phospho_minus_protein_z','n/a')})",
+        f"phospho exceeds abundance: {summary.get('phospho_exceeds_abundance','n/a')}  (dz={summary.get('top_site_phospho_minus_protein','n/a')})",
     ]
     for i, t in enumerate(lines):
         ax.text(0.06, 0.52 - i * 0.10, t, ha="left", va="center", fontsize=8.5, transform=ax.transAxes)

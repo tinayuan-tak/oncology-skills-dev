@@ -79,13 +79,31 @@ def test_build_summary_absent_gene_is_data_unavailable(monkeypatch):
     assert "_data_note" in out
 
 
-def test_build_summary_indication_not_consumed(monkeypatch):
-    """indication is accepted for the dispatch contract but must NOT change the (target-grain) result."""
+def _lin(lineage, frac_dep, *, n=20):
+    # a _lineage_rows dict (see lookup._lineage_rows return shape)
+    return {"lineage": lineage, "n_lineage_cohort": n, "n_models_screened": n,
+            "n_dependent": int(frac_dep * n), "frac_dependent": frac_dep,
+            "n_strongly_dependent": int(frac_dep * n), "median_gene_effect": -0.8}
+
+
+def test_build_summary_target_grain_invariant_but_lineage_indication_conditioned(monkeypatch):
+    """The PAN-organoid (target-grain) result must NOT change with indication, but the v2 per-lineage
+    fields ARE indication-conditioned (COADREAD->Bowel vs STAD->Esophagus/Stomach). Regression: the
+    old test asserted the WHOLE dict was indication-invariant, which broke when per-lineage landed."""
     lk = _load()
     monkeypatch.setattr(lk, "_organoid_row", lambda sym: _row(0.30))
+    monkeypatch.setattr(lk, "_lineage_rows",
+                        lambda sym: (_lin("Bowel", 0.9), _lin("Esophagus/Stomach", 0.2)))
     a = lk.build_summary("EGFR", "COADREAD")
     b = lk.build_summary("EGFR", "STAD")
-    assert a == b
+    # target-grain fields are identical across indications
+    for k in ("organoid_dependency_class", "frac_dependent", "mean_gene_effect",
+              "per_lineage_stats", "n_lineages_evaluated"):
+        assert a[k] == b[k], k
+    # but the indication-conditioned lineage lens differs
+    assert a["organoid_lineage"] == "Bowel"
+    assert b["organoid_lineage"] == "Esophagus/Stomach"
+    assert a != b
 
 
 def test_build_summary_empty_target_is_data_unavailable(monkeypatch):

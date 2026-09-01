@@ -30,6 +30,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+METHOD_VERSION = "1.1.0"   # modality therapeutic-window scorer; emitted as the card's method_version
+
 # Indication -> TCGA study code(s). Reuses the canonical map from dge_deseq2 (do NOT invent a 7th
 # indication map — see the framework's indication-vocabulary-fragmentation lesson). Imported lazily
 # in the reader entry; duplicated minimally here only for the pure path's default.
@@ -225,4 +227,5 @@ def read_modality_window(target: str, indication: str,
     out["modality"] = str(modality).lower()
     out["target"] = target
     out["indication"] = str(indication).upper().strip()
+    out["method_version"] = METHOD_VERSION       # card-declared summary_field (was never emitted)
     return out
