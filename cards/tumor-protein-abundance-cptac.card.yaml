@@ -65,7 +65,8 @@ outputs:
     - protein_median_log2_tumor                    # float
     - protein_median_log2_normal                   # float
     - protein_effect_size                          # float — median_log2_t - median_log2_n (RAW log2; the class thresholds on this)
-    - protein_effect_size_pooled_sd                # float (declared legacy; NOT emitted by the reader — see protein_effect_size_se)
+    # (removed protein_effect_size_pooled_sd 2026-09-01 — legacy field the reader never emitted;
+    #  superseded by protein_effect_size_se, the MSstatsTMT moderated SE declared below.)
     - protein_p_value                              # float
     - protein_bh_q_value                           # float
     - n_tumor_samples
