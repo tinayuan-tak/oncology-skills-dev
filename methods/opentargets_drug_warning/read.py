@@ -64,12 +64,15 @@ def _chembls_engaging_target(ensg: str) -> set:
 def classify_drug_warning(warnings: list, n_targeted_drugs: int) -> dict:
     """Pure classifier: engaging-drug warning rows -> drug_warning_class + evidence."""
     if n_targeted_drugs == 0:
-        return {"drug_warning_class": "no_targeted_drug", "n_targeted_warned_drugs": 0,
+        return {"drug_warning_class": "no_targeted_drug", "n_targeted_drugs": 0,
+                "n_targeted_warned_drugs": 0,
                 "has_black_box": False, "has_withdrawn": False, "toxicity_classes": [],
                 "warning_types": []}
     wtypes = {str(w.get("warningType") or "").strip().lower() for w in warnings}
-    tox = sorted({str(w.get("toxicityClass")).strip() for w in warnings
-                  if w.get("toxicityClass")})
+    # isinstance str guard: toxicityClass can be NaN (float) — NaN is truthy, so a bare truthy
+    # check let str(NaN) == "nan" leak into the label set. Keep only real string labels.
+    tox = sorted({w["toxicityClass"].strip() for w in warnings
+                  if isinstance(w.get("toxicityClass"), str) and w["toxicityClass"].strip()})
     has_withdrawn = any(_WITHDRAWN in w for w in wtypes)
     has_black_box = any(_BLACK_BOX in w for w in wtypes)
     if has_withdrawn:

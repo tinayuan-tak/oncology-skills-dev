@@ -23,6 +23,18 @@ def test_no_targeted_drug_is_coverage_gap():
     out = r.classify_drug_warning([], n_targeted_drugs=0)
     assert out["drug_warning_class"] == "no_targeted_drug"
     assert out["has_black_box"] is False and out["has_withdrawn"] is False
+    assert out["n_targeted_drugs"] == 0          # declared summary_field must be present on this branch
+
+
+def test_nan_toxicity_class_does_not_leak_nan_token():
+    # regression: a NaN toxicityClass (float) is truthy, so a bare truthy check let str(NaN)=="nan"
+    # leak into toxicity_classes. Real string labels only.
+    nan = float("nan")
+    out = r.classify_drug_warning(
+        [_w("Black Box Warning", tox="hepatotoxicity"), _w("Black Box Warning", tox=nan)],
+        n_targeted_drugs=2)
+    assert out["toxicity_classes"] == ["hepatotoxicity"]
+    assert "nan" not in out["toxicity_classes"]
 
 
 def test_engaging_drug_no_warning_is_measured_negative():

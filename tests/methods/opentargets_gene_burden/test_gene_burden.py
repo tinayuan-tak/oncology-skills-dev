@@ -64,6 +64,15 @@ def test_null_direction_significant_is_unresolved():
     assert out["burden_safety_class"] == "direction_unresolved"
 
 
+def test_nan_direction_does_not_crash_sorted():
+    # regression: a NaN directionOnTrait (float) is truthy, so a bare `if s[0]` used to let it into
+    # the `directions` set and sorted() then raised TypeError (str vs float). PCSK9 hit this live.
+    nan = float("nan")
+    out = r.classify_burden([_row("risk", 1e-10, "Leukemia"), _row(nan, 1e-9)])
+    assert out["burden_safety_class"] == "lof_risk_phenotype"
+    assert out["directions"] == ["risk"]          # NaN filtered out, no crash
+
+
 def test_empty_rows_is_no_burden_signal():
     out = r.classify_burden([])
     assert out["burden_safety_class"] == "no_burden_signal"

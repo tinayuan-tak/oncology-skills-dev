@@ -89,7 +89,9 @@ def classify_burden(rows: list) -> dict:
         "min_pvalue": float(f"{min(s[1] for s in sig):.3g}"),
         "n_risk": len(risk),
         "n_protect": len(protect),
-        "directions": sorted({s[0] for s in sig if s[0]}),
+        # isinstance str guard: directionOnTrait can be NaN (float) from the parquet — NaN is truthy,
+        # so a bare `if s[0]` lets it into the set and sorted() then raises TypeError (str vs float).
+        "directions": sorted({s[0] for s in sig if isinstance(s[0], str) and s[0]}),
         "top_disease": top_row.get("diseaseFromSource"),
         "top_ancestry": top_row.get("ancestry"),
         "top_statistical_method": top_row.get("statisticalMethod"),
