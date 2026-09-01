@@ -109,20 +109,15 @@ TARGET_OVERRIDES: dict[str, tuple[str, str]] = {
 # readers emit `pan_lineage_RAW_*_class` while the cards declare `pan_lineage_*_class` (no "raw"), and
 # the mutation sibling omits the declared `indication_lineage`. Resolve by aligning the 4 sibling
 # reader/card names together (deferred: touches 3 AM readers + 4 cards).
-KNOWN_EMISSION_DEBT: dict[str, set[str]] = {
-    # The 7 code-fixable gaps this guard first found were RESOLVED (analysis-methods #545 shared
-    # lineage_ladder pan_lineage audit-field + subtype dropped_underpowered_strata + tcga_gtex
-    # purity_source lift + mutation indication_lineage; skills #891 topology vocabulary_version_isoform).
-    # Only the two DATA-CATALOG product-rebuild gaps remain — neither is a card or reader edit:
-    "ddr-deficiency-context": {"MISSING median_mutsig3"},   # materialized DDR product lacks the mutSig3
-                                                            # column; needs a pancanatlas-ddr rebuild.
-    # stale live product (classifier 1.0.0) emits retired 'ns' + omits pooled-SD; needs a
-    # cptac-protein-tumor-vs-normal product rebuild at classifier >=1.2.0 (data-catalog), not a card edit.
-    "tumor-protein-abundance-cptac": {
-        "MISSING protein_effect_size_pooled_sd",
-        "OUT_OF_VOCAB protein_expression_class='ns'",
-    },
-}
+# EMPTY — every gap this guard found has been resolved (card-review sweep, 2026-09-01):
+#   - the 7 code-fixable gaps: AM #545 (lineage_ladder pan_lineage audit-field, subtype
+#     dropped_underpowered_strata, tcga_gtex purity_source, mutation indication_lineage) + skills
+#     #891 (topology vocabulary_version_isoform);
+#   - ddr median_mutsig3: AM #546 carried it through the multi-cohort _combine_rows (not a product gap);
+#   - cptac 'ns' + pooled_sd: data-catalog cptac per-cohort rebuild to v1.2.0 ('ns' -> not_significant,
+#     + protein_effect_size_se) and target-contracts #600 (trim the legacy pooled_sd field).
+# The guard now asserts full emission with NO tracked debt — any new gap FAILS.
+KNOWN_EMISSION_DEBT: dict[str, set[str]] = {}
 
 
 # --- fields emitted only on a NON-primary dispatch branch (exempt from the presence check) -------

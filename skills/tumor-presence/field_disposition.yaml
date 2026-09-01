@@ -259,9 +259,6 @@ tumor-protein-abundance-cptac:
   protein_effect_size:
     role: signal
     reason: magnitude/categorical signal
-  protein_effect_size_pooled_sd:
-    role: context
-    reason: power / statistical qualifier
   protein_effect_size_se:
     role: context
     reason: power / statistical qualifier
