@@ -10,8 +10,12 @@ rather than raw text.
 Ontology discipline:
   1. Every edge has ONE and only ONE MoA class (no overlap; no orphans).
   2. Unmapped mechanism strings log to `_unmapped_mechanisms.jsonl` in the
-     run directory + increment a counter — a `test_signor_moa_ontology_coverage`
-     verification test fails CI when >5% of edges are unmapped.
+     run directory + increment a counter. The coverage invariant (edge-weighted
+     unmapped fraction < 5%) is enforced credential-less in CI by
+     tests/methods/signor_mechanism_network/test_moa_ontology_coverage.py, which
+     replays a frozen (mechanism, direction) tally of the SIGNOR_Jul2026 human
+     protein-protein edge population through this ontology and fails when
+     coverage regresses below 95%.
   3. Ontology version bumps IN THIS FILE when the table changes. Consumer
      cards emit `moa_ontology_version` in their summary_fields so target-
      profile downstream can trace which ontology snapshot fired.
