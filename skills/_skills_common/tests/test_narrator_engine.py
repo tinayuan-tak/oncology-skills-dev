@@ -11,7 +11,7 @@ if str(SKILLS) not in sys.path:
 from _skills_common import narrator_engine as NE  # noqa: E402
 from _skills_common.narrator_lenses import (  # noqa: E402
     FUNCTIONAL_REQUIREMENT, GENOMIC_ALTERATION, ON_TARGET_SAFETY, SURFACE_MODALITY_FIT,
-    TUMOR_SELECTIVITY)
+    TRACTABILITY_SM, TUMOR_SELECTIVITY)
 
 
 def _decision():
@@ -151,6 +151,25 @@ def test_genomic_alteration_collapsed_verdict_is_resolved_token_not_rule_id():
     assert "biomarker_stratified_dependency" in collapsed
     # the bare rule-id must not be what the model is handed as the one-word verdict
     assert "mutant-strongly-dependent-supportive" not in collapsed
+
+
+def test_tractability_sm_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The tractability-small-molecule lens declares verdict_key='druggability_snapshot', so the COLLAPSED
+    VERDICT prompt line injects the RESOLVED snapshot token — not driving_rule_id (a rule-id string like
+    'known-drug-approved-antineoplastic-sm-supportive'). Before the fix the fallback chain MISSED the real
+    key (the <name>_verdict guess is 'tractability_small_molecule_verdict' while the headline key is
+    'druggability_snapshot') and landed on driving_rule_id. tractability-small-molecule was the LAST
+    verdict-skill left behind; mirrors the presence/selectivity/FR/safety/surface/genomic contract."""
+    assert TRACTABILITY_SM.verdict_key == "druggability_snapshot"
+    decision = {"target": "EGFR", "indication": "LUAD",
+                "headline": {"druggability_snapshot": "well_covered",
+                             "driving_rule_id": "e7-triangulated-target-engaged-supportive",
+                             "claim_vector": {"ACTIVITY": {"signal": "strong", "corroboration": "high"}}}}
+    p = NE.build_capsule_prompt(decision, TRACTABILITY_SM)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "well_covered" in collapsed
+    # the bare rule-id must not be what the model is handed as the one-word verdict
+    assert "e7-triangulated-target-engaged-supportive" not in collapsed
 
 
 def test_make_synthesize_fn_signature(monkeypatch):

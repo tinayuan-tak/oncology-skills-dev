@@ -119,6 +119,12 @@ TRACTABILITY_SM = LensConfig(
                  "DRUG": "drug/tool compound", "DEGRADER": "degrader handle"},
     scope_exclusions=("biologics/surface modality", "expression as presence"),
     mode="verdict",
+    verdict_key="druggability_snapshot",         # the headline key holding the resolved snapshot token
+                                                 # (NOT the legacy <name>_verdict guess, which would be
+                                                 # "tractability_small_molecule_verdict" and MISS it →
+                                                 # fall through to driving_rule_id, a rule-id string).
+                                                 # Mirrors presence/selectivity/FR/safety/surface/genomic;
+                                                 # tractability-small-molecule was the last one left behind.
 )
 
 IMMUNE_CONTEXT = LensConfig(
