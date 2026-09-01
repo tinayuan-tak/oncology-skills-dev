@@ -36,6 +36,16 @@ def _esc(s):
 
 _POLARITY_COLOR = {"positive": "#184f95", "negative": "#8a1f1f", "neutral": "#5a5f66"}
 
+# Per-modality-ARM call → colour (used only when a skill supplies plot_data["modality_arms"], e.g.
+# surface-modality-fit's {adc, bite_tce, antibody}). Positive-viable=blue, foreclosed/opposed=red,
+# caveat/soft=amber, gap/undefined=gray. Skill-agnostic (any arm-decomposing skill can populate it).
+_ARM_CALL_COLOR = {
+    "viable": "#184f95", "preferred": "#184f95", "supported": "#184f95",
+    "unsafe": "#8a1f1f", "not_viable": "#8a1f1f", "opposed": "#8a1f1f", "escape_risk": "#8a1f1f",
+    "caveated": "#c8892a", "not_preferred": "#c8892a", "ambiguous": "#c8892a",
+}
+_ARM_LABEL = {"adc": "ADC", "bite_tce": "TCE", "antibody": "mAb", "pmhc_tce": "pMHC-TCE"}
+
 
 def _verdict_color(verdict: dict) -> str:
     """Colour the badge by the skill's OWN declared polarity when present (authoritative); otherwise
@@ -62,10 +72,12 @@ def render_headline_hero_svg(plot_data: dict, target: str, indication: str) -> s
     verdict = plot_data.get("verdict") or {}
     confidence = plot_data.get("confidence") or {}
     tension = plot_data.get("tension") or None
+    arms = plot_data.get("modality_arms") or {}
     W = 620
     header_h, badge_h, rowh = 44, 46, 30
     tension_h = 34 if tension else 0
-    H = header_h + badge_h + 12 + len(axes) * rowh + tension_h + 20
+    arms_h = 28 if arms else 0
+    H = header_h + badge_h + 12 + len(axes) * rowh + arms_h + tension_h + 20
     x0 = 16
     s = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" '
          f'font-family="Inter, Helvetica, Arial, sans-serif">',
@@ -123,6 +135,23 @@ def render_headline_hero_svg(plot_data: dict, target: str, indication: str) -> s
             s.append(f'<text x="{bar_x+barmax+58}" y="{y+13}" font-size="9.5" fill="#3a3a39">'
                      f'{_esc(ax.get("signal"))} · {_esc(ax.get("corroboration"))}{warn}</text>')
         y += rowh
+
+    # per-modality-arm decomposition (optional; e.g. surface-modality-fit adc/bite_tce/antibody). The
+    # arms are the modality CHANNELS (orthogonal to the evidence axes above) — a colored chip per arm.
+    if arms:
+        s.append(f'<text x="{x0}" y="{y+13}" font-size="10" font-weight="600" fill="#3a3a39">modality arms</text>')
+        cxp = x0 + 108
+        for arm in [a for a in ("adc", "bite_tce", "antibody", "pmhc_tce") if a in arms] + \
+                   [a for a in arms if a not in ("adc", "bite_tce", "antibody", "pmhc_tce")]:
+            call = arms.get(arm)
+            col = _ARM_CALL_COLOR.get(call, "#8a8d91")
+            chip = f'{_ARM_LABEL.get(arm, arm)}: {call}'
+            wchip = 8 + int(6.2 * len(chip))
+            s.append(f'<rect x="{cxp}" y="{y+1}" width="{wchip}" height="16" rx="8" fill="none" '
+                     f'stroke="{col}" stroke-width="1.2"/>')
+            s.append(f'<text x="{cxp+7}" y="{y+13}" font-size="9.5" fill="{col}">{_esc(chip)}</text>')
+            cxp += wchip + 8
+        y += arms_h
 
     # tension callout
     if tension:

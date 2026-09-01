@@ -148,15 +148,58 @@ def _fit_class_polarity(fit_class) -> str:
     return "neutral"
 
 
+# ── PER-MODALITY-ARM decomposition (2026-09-01) ──────────────────────────────────────────────────
+# The one-word surface_modality_verdict packs the ADC-vs-TCE call into a compound token
+# (adc_preferred_tce_unsafe = ADC viable, TCE unsafe); this projects the RESOLVED token onto explicit
+# {adc, bite_tce, antibody} arms (+ pmhc_tce for the intracellular pMHC route) so a consumer need not
+# string-parse the token. Mirrors safety_verdict_by_modality / presence_verdict_by_modality. It is a pure
+# PROJECTION OF the resolved token — so it CANNOT disagree with surface_modality_verdict (the byte-stable
+# compressed label), and is verdict-INERT to the nomination spine. Arm semantics are the resolver's own
+# (SKILL.md): a bite_tce-only killer "drops TCE, PRESERVES ADC" (adc_preferred_tce_unsafe); the
+# tce_preferred-base foreclosures are TCE-only targets (adc/antibody were not the fit's pick →
+# not_preferred); density/shed hit every binder arm; the pMHC promotion adds a pmhc_tce arm while the
+# folded surface stays neither_viable.
+_ARM_ORDER = ("adc", "bite_tce", "antibody")
+_VERDICT_ARMS = {
+    "both_viable":                   {"adc": "viable",        "bite_tce": "viable",       "antibody": "viable"},
+    "adc_preferred":                 {"adc": "preferred",     "bite_tce": "not_preferred","antibody": "viable"},
+    "tce_preferred":                 {"adc": "not_preferred", "bite_tce": "preferred",    "antibody": "viable"},
+    "neither_viable":                {"adc": "not_viable",    "bite_tce": "not_viable",   "antibody": "not_viable"},
+    "adc_preferred_tce_unsafe":      {"adc": "viable",        "bite_tce": "unsafe",       "antibody": "viable"},
+    "tce_unsafe_normal_liability":   {"adc": "not_preferred", "bite_tce": "unsafe",       "antibody": "not_preferred"},
+    "adc_preferred_tce_escape_risk": {"adc": "viable",        "bite_tce": "escape_risk",  "antibody": "viable"},
+    "tce_escape_risk":               {"adc": "not_preferred", "bite_tce": "escape_risk",  "antibody": "not_preferred"},
+    "surface_viable_density_caveated": {"adc": "caveated",    "bite_tce": "caveated",     "antibody": "caveated"},
+    "shed_dominant_opposed":         {"adc": "opposed",       "bite_tce": "opposed",      "antibody": "opposed"},
+    "pmhc_tce_supported":            {"adc": "not_viable",    "bite_tce": "not_viable",   "antibody": "not_viable",
+                                      "pmhc_tce": "supported"},
+    "modality_ambiguous":            {"adc": "ambiguous",     "bite_tce": "ambiguous",    "antibody": "ambiguous"},
+    "isoform_dependent_undefined":   {"adc": "undefined",     "bite_tce": "undefined",    "antibody": "undefined"},
+    "insufficient":                  {"adc": "insufficient",  "bite_tce": "insufficient", "antibody": "insufficient"},
+    "data_unavailable":              {"adc": "insufficient",  "bite_tce": "insufficient", "antibody": "insufficient"},
+}
+_ARMS_DEFAULT = {"adc": "insufficient", "bite_tce": "insufficient", "antibody": "insufficient"}
+
+
+def _surface_verdict_by_modality(verdict_token) -> dict:
+    """Project the RESOLVED surface_modality_verdict onto explicit per-modality-arm calls. Every resolver
+    token is mapped (pinned by test_verdict_by_modality_covers_all_tokens); an unmapped/None token falls
+    back to all-insufficient (honest — never fabricates a viable arm). Returns a fresh dict per call."""
+    return dict(_VERDICT_ARMS.get(verdict_token, _ARMS_DEFAULT))
+
+
 def _build_headline_block(headline: dict) -> dict:
     """Build the canonical Headline block from the already-computed surface headline. The canonical `call`
     is the composed fit_class; the resolver's safety/density/shed downgrade rides as the top tension.
-    Reads the verdict-inert claim_vector / key_signals; never moves the spine."""
+    The per-modality-arm decomposition (surface_modality_verdict_by_modality) rides in the hero payload so
+    the ADC/TCE/mAb arms are legible without string-parsing the token. Verdict-inert; never moves the spine."""
     fit_class = headline.get("fit_class")
     return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
                           spec=_SURFACE_HEADLINE_SPEC, verdict_token=fit_class,
                           driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_fit_class_polarity(fit_class))
+                          verdict_polarity=_fit_class_polarity(fit_class),
+                          modality_arms=(headline.get("surface_modality_verdict_by_modality")
+                                         or _surface_verdict_by_modality(headline.get("surface_modality_verdict"))))
 
 
 def _emit_skill_figures(decision, figures_root):
@@ -523,6 +566,11 @@ def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
         "surface_modality_verdict":       v,
+        # PER-MODALITY-ARM decomposition of the one-word verdict — {adc, bite_tce, antibody[, pmhc_tce]}.
+        # A pure projection OF surface_modality_verdict (cannot disagree with it); verdict-inert. Mirrors
+        # safety_verdict_by_modality / presence_verdict_by_modality; surfaces the ADC-vs-TCE split the
+        # compound token packs (e.g. adc_preferred_tce_unsafe → {adc: viable, bite_tce: unsafe}).
+        "surface_modality_verdict_by_modality": _surface_verdict_by_modality(v),
         "driving_rule_id":                drv,
         "fit_class":                      get_card_field(cards, "adc-tce-modality-fit", "fit_class"),
         # Isoform-selective indication-scope (2026-08-14): TRUE when the target has a curated dominant
@@ -724,7 +772,8 @@ def _headline(cards, fired, verdict_pair):
 
 
 _SYNTHESIS_FACET_KEYS = (
-    "surface_modality_verdict", "driving_rule_id", "fit_class", "topology_class",
+    "surface_modality_verdict", "surface_modality_verdict_by_modality",
+    "driving_rule_id", "fit_class", "topology_class",
     "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
     "window_class", "tce_antigen_escape_class",   # verdict-moving TCE safety + efficacy facets (2026-08-24)
     "pmhc_epitope_evidence_class",                 # verdict-moving pMHC-TCE facet (IEDB, 2026-08-25)

@@ -140,17 +140,24 @@ def rank_tension(claim_vector: dict, key_signals: dict, spec: HeadlineSpec, head
 
 # ── the hero payload (renderer-agnostic) ──────────────────────────────────────────────────────────
 def headline_hero_plot_data(*, verdict: dict, confidence: dict, tension: Optional[dict],
-                            claim_vector: dict, spec: HeadlineSpec) -> dict:
+                            claim_vector: dict, spec: HeadlineSpec,
+                            modality_arms: Optional[dict] = None) -> dict:
     """The renderer-agnostic hero payload: the data the reference renderer (or any consumer) needs to
     draw the headline — verdict badge, confidence meter, per-axis signal×corroboration, tension marker.
-    Pure data; no target/indication (the renderer injects those from the decision)."""
+    Pure data; no target/indication (the renderer injects those from the decision).
+
+    modality_arms: OPTIONAL {arm: call} — a skill whose one-word verdict packs a PER-MODALITY-ARM call
+    (surface-modality-fit: adc/bite_tce/antibody) surfaces the decomposition here so the arms are legible
+    in the hero, not string-parsed from the token. The evidence `axes` above stay the evidence axes; this
+    is the orthogonal modality-arm channel. Omitted from the payload entirely when None (other skills'
+    hero stays byte-identical)."""
     axes = []
     for k in spec.axis_keys:
         cl = (claim_vector or {}).get(k) or {}
         axes.append({"key": k, "label": spec.axis_labels.get(k, k),
                      "signal": cl.get("signal"), "corroboration": cl.get("corroboration"),
                      "conflict": bool(cl.get("conflict"))})
-    return {
+    payload = {
         "kind": "headline_hero",
         "verdict": {"call": verdict.get("call"), "phrase": verdict.get("phrase"),
                     "gate": verdict.get("gate"), "polarity": verdict.get("polarity")},
@@ -158,6 +165,9 @@ def headline_hero_plot_data(*, verdict: dict, confidence: dict, tension: Optiona
         "tension": ({"text": tension["text"]} if tension else None),
         "axes": axes,
     }
+    if modality_arms is not None:
+        payload["modality_arms"] = modality_arms
+    return payload
 
 
 # ── deterministic headline text ─────────────────────────────────────────────────────────────────
@@ -192,7 +202,8 @@ def collect_citations(claim_vector: dict, axis_keys: Sequence[str]) -> list:
 def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spec: HeadlineSpec,
                    verdict_token: Optional[str], driving_rule_id: Optional[str] = None,
                    verdict_polarity: Optional[str] = None, certainty: Optional[dict] = None,
-                   descriptive_phrase: Optional[str] = None, phrase_override: Optional[str] = None) -> dict:
+                   descriptive_phrase: Optional[str] = None, phrase_override: Optional[str] = None,
+                   modality_arms: Optional[dict] = None) -> dict:
     """Assemble the canonical Headline block from a skill's ALREADY-computed decision objects.
 
     verdict_polarity: OPTIONAL "positive" | "negative" | "neutral" — the skill's OWN reading of the call
@@ -222,7 +233,7 @@ def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spe
     verdict = {"call": verdict_token, "phrase": phrase, "gate": spec.gate,
                "driving_rule_id": driving_rule_id, "polarity": verdict_polarity}
     hero = headline_hero_plot_data(verdict=verdict, confidence=confidence, tension=tension,
-                                   claim_vector=claim_vector, spec=spec)
+                                   claim_vector=claim_vector, spec=spec, modality_arms=modality_arms)
     return {
         "verdict": verdict,
         "confidence": confidence,
