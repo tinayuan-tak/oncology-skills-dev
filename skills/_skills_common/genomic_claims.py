@@ -314,7 +314,15 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
         else:
             base = "Alteration profile largely unmeasured."
         if sig_ge(v[DEP]["signal"], "moderate"):
-            base = base.rstrip(".") + ", biomarker-stratified dependency."
+            # Respect the emitted-verdict reconciliation: when the collapsed word was demoted to
+            # `biomarker_dependency_unconfirmed` (both KO-dependency confidence cards contradict the
+            # claimed dependency — see run.py reconcile_genomic_verdict), the DEP claim must be surfaced
+            # as an UNCONFIRMED caveat here rather than asserted as a clean biomarker-stratified
+            # dependency, so this most-read summary line can't over-read the verdict.
+            if h.get("genomic_alteration_profile") == "biomarker_dependency_unconfirmed":
+                base = base.rstrip(".") + " — biomarker dependency UNCONFIRMED (orthogonal KO-dependency evidence contradicts)."
+            else:
+                base = base.rstrip(".") + ", biomarker-stratified dependency."
         return base
 
     return build_key_signals(

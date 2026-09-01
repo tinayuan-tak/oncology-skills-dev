@@ -4,6 +4,24 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-01 (v2.12.0)
+- EMITTED-verdict reconciliation with the signal package (`reconcile_genomic_verdict`), mirroring
+  tumor-presence's `reconcile_presence_verdict` (#860). The raw resolver ladder collapse (`_verdict`)
+  is UNTOUCHED and remains what the composed target-profile GATE reads (tp_fanout stores the raw
+  `resolve_verdict_for_gate` output in `sub_results`; genomic IS in `_SHORT_TO_GATE`, so the nomination
+  spine + the tp_gates GoF co-condition keep the raw call). But the ONE WORD a human/LLM reads
+  (`headline.genomic_alteration_profile` + `headline_block` + `key_signals` + `question_table` + the
+  narrator's collapsed-verdict line) is now reconciled so it can't OVER-READ the decomposition. A
+  biomarker-dependency-family verdict demotes to the new NEUTRAL caveat token
+  `biomarker_dependency_unconfirmed` ONLY when BOTH orthogonal KO-dependency confidence cards contradict
+  the claimed dependency: cross-consortium `concordant_non_dependent` AND event-model
+  `event_matched_not_dependent`. The raw word is kept as `genomic_alteration_profile_ladder`.
+  CD19-safe (categorical, no magic number; two explicit opposing measurements — a single card
+  gap/agreement retains). Backtested on a LoF-suppressor + GoF-oncogene panel: only TP53/COADREAD
+  demotes (its DEP is a low-confidence mutant-p53 correlation both cards oppose); KRAS/ERBB2/PIK3CA
+  (real dependencies) and BRAF (event card absent) all retain. Verdict-INERT to the nomination spine
+  (resolver golden byte-stable — the token is clamp-minted, not a resolver token).
+
 ## 2026-08-21 (v2.8.0)
 - Emit the EXISTING per-question `genomic_question_table` into `decision.headline["question_table"]`
   (and add it to `_SYNTHESIS_FACET_KEYS`), mirroring tumor-presence / tumor-selectivity. Additive +

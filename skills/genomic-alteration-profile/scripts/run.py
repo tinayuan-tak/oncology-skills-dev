@@ -80,7 +80,7 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.11.0"   # +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.12.0"   # +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -549,6 +549,11 @@ _GENOMIC_VERDICT_PHRASE = {
     "missense_dominant_pattern":       "Missense-dominant mutation pattern",
     # measured negative
     "passenger_pattern":               "Passenger (not a recurrent driver)",
+    # Phase-3 reconciled caveat token (emitted genomic_alteration_profile when the raw dependency-family
+    # word disagrees with the KO-dependency confidence cards) — see reconcile_genomic_verdict. NEUTRAL
+    # polarity: the alteration is a real driver (see genomic_alteration_by_class), but the claimed
+    # biomarker-stratified genetic dependency is not corroborated.
+    "biomarker_dependency_unconfirmed": "Biomarker dependency unconfirmed (orthogonal KO-dependency evidence contradicts)",
     # gaps / inconclusive
     "mixed_pattern":                   "Mixed alteration pattern",
     "insufficient":                    "Insufficient evidence",
@@ -578,6 +583,43 @@ def _genomic_verdict_polarity(v) -> str:
     if v in _GENOMIC_NEGATIVE_VERDICTS:
         return "negative"
     return "neutral"
+
+
+# ── EMITTED-verdict reconciliation with the signal package (surgical demotion) ─────────────────────
+# The raw resolver ladder collapse (`_verdict` → resolvers/genomic_alteration.resolver.yaml) is
+# UNTOUCHED — its golden spine stays byte-stable and it is what the composed target-profile GATE reads
+# (tp_fanout stores the RAW resolve_verdict_for_gate output in sub_results; genomic_alteration IS in
+# _SHORT_TO_GATE, so the nomination spine + the tp_gates GoF co-condition keep the raw call). But the
+# ONE WORD a human/LLM reads (headline["genomic_alteration_profile"] + headline_block + key_signals +
+# question_table + the narrator's collapsed-verdict line via verdict_key) is reconciled here against the
+# already-computed decomposition so it can no longer OVER-READ the signal package. The raw word is
+# retained as `genomic_alteration_profile_ladder` for traceability. Mirrors tumor-presence's
+# reconcile_presence_verdict (#860). Verdict-INERT to the nomination spine.
+#
+# ONLY the biomarker-dependency FAMILY is reconciled, and ONLY when BOTH orthogonal KO-dependency
+# CONFIDENCE cards directly contradict the claimed dependency: cross-consortium (Broad↔Sanger) reads
+# `concordant_non_dependent` AND the DepMap models carrying the tumour's OWN event read
+# `event_matched_not_dependent`. Requiring BOTH is CD19-safe (categorical, no magic number; two explicit
+# opposing measurements): a real biomarker dependency (KRAS/ERBB2 concordant_dependent, PIK3CA
+# concordant_dependent, BRAF whose event card is absent) is never demoted; a single card gap/agreement
+# retains. Backtested on a LoF-suppressor + GoF-oncogene panel: only TP53/COADREAD demotes (its DEP is a
+# low-confidence mutant-p53 correlation the cross-consortium + event-model cards oppose), everything else
+# retains. It only ever DEMOTES a positive to a neutral caveat token — never fabricates a driver call.
+_GENOMIC_DEP_FAMILY = frozenset({"biomarker_stratified_dependency", "moderate_biomarker_dependency"})
+BIOMARKER_DEPENDENCY_UNCONFIRMED = "biomarker_dependency_unconfirmed"
+
+
+def reconcile_genomic_verdict(raw_verdict: str | None, headline: dict) -> str | None:
+    """Demote a raw biomarker-dependency word that BOTH KO-dependency confidence cards contradict to the
+    `biomarker_dependency_unconfirmed` caveat token; leave every other verdict (and any dependency call
+    the cards do not both oppose) unchanged. See the block comment above."""
+    if raw_verdict not in _GENOMIC_DEP_FAMILY or not isinstance(headline, dict):
+        return raw_verdict
+    cross = headline.get("cross_consortium_class")
+    event = headline.get("event_correspondence_class")
+    if cross == "concordant_non_dependent" and event == "event_matched_not_dependent":
+        return BIOMARKER_DEPENDENCY_UNCONFIRMED
+    return raw_verdict
 
 
 def _genomic_tension_extra(headline: dict):
@@ -634,6 +676,18 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
     }
     for key, card_id, field in _HEADLINE_FIELDS:
         headline[key] = _lift_field(card_by_id, card_id, field)
+    # EMITTED-verdict reconciliation (Phase 3): now that the KO-dependency confidence fields
+    # (cross_consortium_class + event_correspondence_class) are lifted, reconcile the ONE WORD a
+    # human/LLM reads so it can no longer OVER-READ the signal package. The raw resolver word is kept as
+    # `genomic_alteration_profile_ladder`; the reconciled word replaces genomic_alteration_profile so the
+    # downstream claim_vector-free surfaces built below (headline_block, question_table) and the narrator
+    # (verdict_key="genomic_alteration_profile") all inherit it. Verdict-INERT to the nomination spine —
+    # the composed GATE reads the RAW resolve_verdict_for_gate output, not this emitted word. See
+    # reconcile_genomic_verdict.
+    _reconciled = reconcile_genomic_verdict(verdict, headline)
+    if _reconciled != verdict:
+        headline["genomic_alteration_profile_ladder"] = verdict
+        headline["genomic_alteration_profile"] = _reconciled
     headline["cards_available"] = sum(1 for c in cards if not c.get("_missing"))
     headline["cards_missing"]   = [c["card_id"] for c in cards if c.get("_missing")]
     # Additive, verdict-INERT: the claim vector (SNV/CN/FUS driver + DEP alteration-confers-dependency,
