@@ -28,8 +28,11 @@ ON_TARGET_SAFETY = LensConfig(
     name="on-target-safety-liability",
     thesis="whether the target is intolerant of loss-of-function in humans — i.e. the ON-TARGET SAFETY "
            "LIABILITY of a full-KO modality (degrader / RNA / full-inhibition SM).",
-    relevance_prompt="judge the on-target safety LIABILITY of full loss-of-function for this target; an "
-                     "activating mutant-selective (GoF) mechanism DOWNGRADES the WT-constraint concern.",
+    relevance_prompt="judge the on-target safety LIABILITY of full loss-of-function for this target. The "
+                     "scalar verdict is the HONEST raw WT-loss concern; the mutant-selective downgrade is "
+                     "MODALITY-CONDITIONAL, realised in the per-modality safety verdict (an allele-selective "
+                     "small molecule may spare WT protein), NOT applied to the scalar verdict — do not narrate "
+                     "the scalar concern as downgraded.",
     axis_labels={},
     scope_exclusions=("tumor presence/abundance", "efficacy", "modality choice beyond full-KO tolerability"),
     polarity_note="signal = strength of the LIABILITY. High gnomAD constraint, broad normal-tissue expression, "
@@ -37,6 +40,10 @@ ON_TARGET_SAFETY = LensConfig(
                   "strongly_selective dependency is REASSURING (LOW broad-tox liability), not support.",
     relevance_enum=("high_liability", "moderate_liability_with_caveats", "low_liability", "insufficient_evidence"),
     mode="verdict",
+    verdict_key="safety_verdict",   # the RESOLVED safety verdict token (run.py headline key); else the
+                                    # collapsed-verdict prompt line fell through to driving_rule_id (a rule-id
+                                    # string, e.g. "highly-constrained-safety-warning") — mirrors the
+                                    # TUMOR_PRESENCE / TUMOR_SELECTIVITY / FUNCTIONAL_REQUIREMENT fix.
 )
 
 TUMOR_PRESENCE = LensConfig(

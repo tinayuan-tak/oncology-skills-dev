@@ -92,6 +92,24 @@ def test_functional_requirement_collapsed_verdict_is_resolved_token_not_rule_id(
     assert collapsed.count("pan-essential-killer") == 0
 
 
+def test_on_target_safety_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The on-target-safety lens declares verdict_key='safety_verdict', so the COLLAPSED VERDICT prompt
+    line injects the RESOLVED safety verdict token — not driving_rule_id (a rule-id string like
+    'highly-constrained-safety-warning'), which is what the fallback chain landed on before the fix (the
+    safety headline key is safety_verdict, never 'verdict'). Mirrors the presence/selectivity/FR contract;
+    safety was left behind when those three were fixed."""
+    assert ON_TARGET_SAFETY.verdict_key == "safety_verdict"
+    decision = {"target": "KRAS", "indication": "COADREAD",
+                "headline": {"safety_verdict": "highly_constrained_safety_concern",
+                             "driving_rule_id": "highly-constrained-safety-warning",
+                             "claim_vector": {"CONSTRAINT": {"signal": "strong", "corroboration": "high"}}}}
+    p = NE.build_capsule_prompt(decision, ON_TARGET_SAFETY)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "highly_constrained_safety_concern" in collapsed
+    # the bare rule-id must not be what the model is handed as the one-word verdict
+    assert "highly-constrained-safety-warning" not in collapsed
+
+
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
     monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})
