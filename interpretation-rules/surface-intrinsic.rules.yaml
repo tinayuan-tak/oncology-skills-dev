@@ -513,25 +513,31 @@ rules:
       response can still salvage the program), but governance readers
       should require override justification.
 
+  # rule_id retains the historical `-killer` suffix for reference stability (rule_role_partition +
+  # cross-repo id pins), but its SEVERITY was demoted killer→opposing 2026-09-01 (surface-modality-fit
+  # assessment). Rationale: this rule fires on `surface_density_class`, the grade-D CPTAC×HPA order-of-
+  # magnitude ESTIMATE — NOT a bead-calibrated absolute count. The precise MEASURED signal
+  # (surface-density-below-tce-floor-measured-downgrade, below) is only OPPOSING → a DOWNGRADE, never a
+  # veto (the CD19 = ~110 copies/cell trap: a validated CAR-T/TCE antigen below the soluble-TCE floor).
+  # An ESTIMATE must not claim MORE certainty ("cannot be rescued", dominant killer) than the measured
+  # anchor it approximates. Demoted to opposing to remove that estimate-vs-measured asymmetry. Still an
+  # ADDITIVE display signal (no resolver rung keys on it; density does not feed fit_class) → verdict-inert.
   - rule_id: surface-density-very-low-killer
     when:
       card_id: surface-abundance-density
       field: surface_density_class
       equals: very_low
     signals:
-      adc: killer
-      bite_tce: killer
-    dominant: true
-    killer_message: >
-      Surface density is very low (well below the ~1,000 copies/cell TCE
-      viability floor and the ~10,000 copies/cell ADC high-payload bar).
-      Biologic modalities cannot be rescued by program-strategy adjustment
-      at this abundance level.
+      adc: opposing
+      bite_tce: opposing
     rationale: |
-      Very low surface density (well below TCE + ADC viability floors).
-      Kills both biologic modalities on abundance grounds alone. Dominant
-      because surface abundance is a first-order constraint that no
-      program-strategy adjustment can rescue.
+      Very low ESTIMATED surface density (grade-D CPTAC×HPA estimate, well below the ~1,000 copies/cell
+      TCE viability floor and the ~10,000 copies/cell ADC high-payload bar). Strong OPPOSING signal for
+      both biologic modalities on abundance grounds — but NOT a hard killer: (a) it rests on an order-of-
+      magnitude estimate, not a bead-calibrated count, and (b) high-avidity binders / CAR-T geometry can
+      operate below the soluble-TCE floor (CD19 ~110 copies/cell). A MEASURED sub-floor density is
+      arbitrated by surface-density-below-tce-floor-measured-downgrade (also opposing). Governance
+      readers should require override justification.
 
   - rule_id: surface-density-unmeasured-insufficient
     when:

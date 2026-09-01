@@ -88,17 +88,20 @@ outputs:
   plot_data: per_subcellular_location_evidence
 
 interpretation_hints:
-  - if: "surface_confirmation_class == 'cell_surface_confirmed' && n_celllines_detected >= THRESHOLD.strong_detection"
-    call: "strong protein surface evidence (CSPA-measured across multiple cell lines)"
-  - if: "surface_confirmation_class == 'cell_surface_confirmed'"
+  # 2026-09-01 (surface-modality-fit assessment): the first two hints keyed the phantom token
+  # `cell_surface_confirmed` — the SAME dead token the 2026-08-17 enum+rule correction (above) removed,
+  # but these render-hints were missed, so they never matched. Re-anchored to the tokens the reader
+  # actually emits (confirmed_high / confirmed). The `n_celllines_detected >= THRESHOLD.strong_detection`
+  # guard was dropped: surface_confirmation_class is a CSPA-category passthrough, not an n-lines cut, so
+  # `confirmed_high` IS the "strong" tier (the strong_detection threshold keyed nothing → removed).
+  - if: "surface_confirmation_class == 'confirmed_high'"
+    call: "strong protein surface evidence (CSPA high-confidence surface capture)"
+  - if: "surface_confirmation_class == 'confirmed'"
     call: "protein surface evidence (CSPA-measured)"
   - if: "measured_in_cspa == false"
     call: "not detected on the surface in CSPA (measured-negative)"
   - if: "surface_confirmation_class == 'data_unavailable'"
     call: "surface confirmation unavailable (target not resolvable to a CSPA UniProt AC)"
-
-thresholds:
-  strong_detection: 3                          # CSPA wet-lab detection across >= 3 cell lines
 
 caveats:
   - "CSPA (Bausch-Fluck 2015) is the `measured` surface-confirmation tier: a mass-spec cell-surface-capture surfaceome across cell lines. HPA protein-IHC would be a SECOND measured provider (future corroboration), not a blocker."
