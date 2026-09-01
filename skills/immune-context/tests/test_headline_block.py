@@ -103,3 +103,28 @@ def test_immune_cold_is_negative_with_efficacy_risk_tension():
     assert block["verdict"]["polarity"] == "negative"
     tension = block.get("top_tension") or {}
     assert "efficacy" in (tension.get("text") or "").lower()
+
+
+def test_immune_hot_discordant_with_absolute_til_is_neutral_not_positive():
+    """PRAD-like: CIBERSORT calls it immune_hot (CD8 SHARE >= pan-cancer Q3) but the orthogonal absolute
+    H&E-DL TIL (Saltz) is til_low → til_cibersort_agreement is False. The confident 'TCE-favourable' badge
+    over-reads (relatively CD8-rich but absolutely T-cell-sparse), so the badge is DEMOTED to neutral, a
+    severity-3 discordance tension is surfaced, and the key_signals headline+caveat carry the disagreement.
+    The immune_context_verdict TOKEN stays immune_hot (an honest RELATIVE call) — verdict-inert."""
+    cards = [{"card_id": "immune-context",
+              "summary": {"immune_context_class": "immune_hot", "median_cd8_fraction": 0.13,
+                          "median_total_t_cell_fraction": 0.3, "n_samples": 558}},
+             {"card_id": "tcga-til-fraction-saltz",
+              "summary": {"til_fraction_class": "til_low", "median_til_percentage": 1.5, "n_samples": 332}}]
+    hl = ic._headline(cards, [], ic._verdict([{"rule_id": "immune-context-hot-tce-supportive"}]))
+    # the spine TOKEN is unchanged (honest relative call)
+    assert hl["immune_context_verdict"] == "immune_hot"
+    assert hl["til_cibersort_agreement"] is False
+    block = hl["headline_block"]
+    assert block["verdict"]["call"] == "immune_hot"          # token unchanged
+    assert block["verdict"]["polarity"] == "neutral"          # badge demoted (was positive)
+    tension = block.get("top_tension") or {}
+    assert tension.get("source") == "til_cibersort_agreement"
+    assert "disagree" in (tension.get("text") or "").lower()
+    assert (hl["key_signals"].get("caveat") or "")             # discordance caveat present
+    assert "disagree" in hl["key_signals"]["caveat"].lower()

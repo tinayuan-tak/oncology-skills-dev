@@ -119,10 +119,38 @@ def _immune_verdict_polarity(v) -> str:
     return "neutral"
 
 
+def _til_discordance_text(headline: dict) -> str | None:
+    """Human-facing text for a CIBERSORT-vs-absolute-TIL DISAGREEMENT. Returns None unless the orthogonal
+    absolute H&E-DL TIL corroborator (Saltz) is MEASURED and points the OPPOSITE way to the relative
+    CIBERSORT hot/cold call (til_cibersort_agreement is False). The two measure different things — CIBERSORT
+    gives the CD8 SHARE of the leukocyte compartment (relative), Saltz gives the ABSOLUTE lymphocyte
+    fraction from morphology — so a relatively-CD8-rich but absolutely-T-cell-sparse indication (e.g. PRAD)
+    reads immune_hot while the absolute effector density is low: the 'CD8 effectors present to redirect'
+    read over-claims. Symmetric for a cold call the absolute TIL contradicts."""
+    if headline.get("til_cibersort_agreement") is not False:
+        return None
+    icls = headline.get("immune_context_class")
+    tcls = headline.get("til_fraction_class")
+    tpct = headline.get("median_til_percentage")
+    tail = f"absolute H&E-DL TIL={tcls}" + (f" (median {tpct}%)" if tpct is not None else "")
+    if icls in ("immune_hot", "immune_inflamed", "t_cell_inflamed"):
+        return (f"relative-CIBERSORT immune-hot DISAGREES with the orthogonal {tail}: CD8-rich SHARE but "
+                f"low ABSOLUTE lymphocyte density — few effectors to redirect. Interpret the TCE-favourable "
+                f"read with caution (CIBERSORT is relative + non-spatial).")
+    return (f"relative-CIBERSORT immune-cold DISAGREES with the orthogonal {tail}: the absolute lymphocyte "
+            f"read is HIGHER than the relative CD8 share implies — the effector-absence call may understate "
+            f"the TME (CIBERSORT is relative + non-spatial).")
+
+
 def _immune_tension_extra(headline: dict):
-    """The sharpest immune-context caveat: an immune-COLD indication is a MEASURED CD8 effector-absence — a
-    TCE-EFFICACY risk (no effector population to redirect), NOT a target-level veto (CIBERSORT is a
-    RELATIVE, non-spatial bulk-deconvolution screen). Surfaced only when the call is immune_cold."""
+    """The sharpest immune-context caveat. Priority order: (1) a CIBERSORT-vs-absolute-TIL DISAGREEMENT
+    (the relative hot/cold call is contradicted by the orthogonal absolute H&E-DL TIL corroborator —
+    surfaced whenever til_cibersort_agreement is False, either direction); else (2) an immune-COLD
+    indication is a MEASURED CD8 effector-absence — a TCE-EFFICACY risk (no effector population to
+    redirect), NOT a target-level veto (CIBERSORT is a RELATIVE, non-spatial bulk-deconvolution screen)."""
+    discord = _til_discordance_text(headline)
+    if discord:
+        return {"text": discord, "source": "til_cibersort_agreement", "severity": 3}
     if headline.get("immune_context_verdict") == "immune_cold":
         return {"text": ("immune-cold: a MEASURED CD8 effector-absence is a TCE-EFFICACY risk (no effector "
                          "population to redirect) — NOT a target veto; CIBERSORT is relative + non-spatial"),
@@ -146,10 +174,18 @@ def _build_headline_block(headline: dict) -> dict:
     skill is gateless). No CERTAINTY_MODEL sidecar is emitted, so confidence is derived from the claim
     vector's corroboration."""
     v = headline.get("immune_context_verdict")
+    pol = _immune_verdict_polarity(v)
+    # DISCORDANCE DEMOTION (verdict-INERT): when the orthogonal absolute H&E-DL TIL corroborator is
+    # MEASURED and CONTRADICTS the relative CIBERSORT hot/cold call (til_cibersort_agreement is False), the
+    # confident badge over-reads — the relative CD8 SHARE and the absolute lymphocyte DENSITY point opposite
+    # ways. Neutralise the badge (positive/negative → neutral); the immune_context_verdict TOKEN is
+    # unchanged (it is an honest RELATIVE call) and the discordance is spelled out in top_tension.
+    if headline.get("til_cibersort_agreement") is False and pol in ("positive", "negative"):
+        pol = "neutral"
     return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
                           spec=_IMMUNE_HEADLINE_SPEC, verdict_token=v,
                           driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_immune_verdict_polarity(v))
+                          verdict_polarity=pol)
 
 
 def _emit_skill_figures(decision, figures_root):

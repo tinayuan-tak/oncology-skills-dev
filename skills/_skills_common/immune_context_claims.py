@@ -66,15 +66,39 @@ def immune_context_claim_vector(headline: dict, cards: list) -> dict:
     return build_claim_vector(IMMUNE_CONTEXT_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
+def _til_discordance_caveat(headline: dict):
+    """A key_signals caveat when the orthogonal absolute H&E-DL TIL corroborator (Saltz) is MEASURED and
+    CONTRADICTS the relative CIBERSORT hot/cold call (til_cibersort_agreement is False). None otherwise —
+    so concordant / unmeasured runs are byte-unchanged. CIBERSORT is a RELATIVE CD8 SHARE, Saltz an
+    ABSOLUTE lymphocyte fraction; when they disagree the 'effectors present to redirect' read over-claims."""
+    if headline.get("til_cibersort_agreement") is not False:
+        return None
+    tcls = headline.get("til_fraction_class")
+    return (f"orthogonal absolute H&E-DL TIL ({tcls}) DISAGREES with the relative-CIBERSORT "
+            f"{headline.get('immune_context_class')} call — relative CD8 share vs absolute lymphocyte "
+            f"density point opposite ways; interpret the effector-context read with caution.")
+
+
 def immune_context_key_signals(headline: dict, cards: list) -> dict:
     vec = immune_context_claim_vector(headline, cards)
+    # A CIBERSORT-vs-absolute-TIL disagreement (til_cibersort_agreement is False) qualifies the headline and
+    # supplies the caveat — the relative hot/cold call is contradicted by the orthogonal absolute-density
+    # card, so the deterministic surface must not read a bald "effector context present". Verdict-INERT.
+    discord = headline.get("til_cibersort_agreement") is False
+
+    def _head(v, s):
+        base = ("TCE effector context present (immune-hot/intermediate)." if s else
+                "Immune-cold or unmeasured — limited TCE effector context.")
+        if discord:
+            return base.rstrip(".") + " — but the absolute H&E-DL TIL read disagrees (interpret with caution)."
+        return base
+
     return build_key_signals(
         vec, rank_keys=("IMMUNE",),
         support_fns={"IMMUNE": lambda cl: f"IMMUNE: {cl['signal']} ({cl['evidence']})"},
         critical_keys=("IMMUNE",), caveat_fns={},
-        headline_fn=lambda v, s: ("TCE effector context present (immune-hot/intermediate)." if s else
-                                  "Immune-cold or unmeasured — limited TCE effector context."),
-        fallback_caveat_fn=lambda: None)
+        headline_fn=_head,
+        fallback_caveat_fn=lambda: _til_discordance_caveat(headline))
 
 
 __all__ = ["immune_context_claim_vector", "immune_context_key_signals", "IMMUNE_CONTEXT_CLAIM_SPEC"]
