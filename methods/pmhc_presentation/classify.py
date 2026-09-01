@@ -21,15 +21,23 @@ strong evidence, ABSENCE is WEAK. A protein absent from the atlas is `not_observ
 presented below MS detection), NEVER `not_presented`. A gene not in the atlas is a weak-negative /
 tumor-restricted CANDIDATE, not a confirmed non-presenter.
 
-Thresholds anchored to the atlas n_tissues distribution (15,262 proteins; quartiles [3, 8, 19, 25]).
+Thresholds anchored to the atlas n_tissues distribution (15,262 proteins; [Q1, median, Q3] = [3, 8, 19]).
 """
 from __future__ import annotations
 
 from typing import Optional
 
+# The n_tissues distribution quartiles of the SOURCE atlas (hla-ligand-atlas-2020-12 →
+# hla-ligand-atlas-presentation-per-protein-v1; 15,262 proteins). SINGLE-SOURCED here so the two band
+# constants below cannot drift from the docstring / from each other, and so a refresh has ONE place to
+# update. Pinned to the live product by test_quartile_provenance_matches_atlas (requires_data): if the
+# atlas is ever refreshed and these quartiles move, that drift-guard fails and forces a recompute here
+# rather than silently classifying against stale cutpoints.
+_ATLAS_N_TISSUES_QUARTILES = (3, 8, 19)   # (Q1, median, Q3) — recompute on any atlas-release change.
+
 # n_tissues (distinct normal tissues presenting the protein's peptides) — atlas-anchored bands.
-RESTRICTED_MAX_TISSUES = 3       # <= atlas Q1 → restricted normal presentation (TCE-favorable / clean)
-BROAD_MIN_TISSUES = 19           # >= atlas Q3 → broadly presented on normal tissue (safety liability)
+RESTRICTED_MAX_TISSUES = _ATLAS_N_TISSUES_QUARTILES[0]   # <= atlas Q1 → restricted normal presentation (TCE-favorable / clean)
+BROAD_MIN_TISSUES = _ATLAS_N_TISSUES_QUARTILES[2]        # >= atlas Q3 → broadly presented on normal tissue (safety liability)
 
 
 def classify_pmhc_presentation(n_peptides: Optional[int], n_tissues: Optional[int]) -> str:
