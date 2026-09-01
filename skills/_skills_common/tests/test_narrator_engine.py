@@ -193,6 +193,29 @@ def test_immune_context_collapsed_verdict_is_resolved_token_not_rule_id():
     assert "immune-context-hot-tce-supportive" not in collapsed
 
 
+def test_mechanism_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The mechanism-and-pharmacology lens declares verdict_key='mechanism_verdict', so the COLLAPSED VERDICT
+    prompt line injects the RESOLVED characterization token (well_characterized / partial / …) — NOT
+    driving_rule_id (a rule-id string like 'mechanism-well-characterized-supportive'). This lens is
+    mode='descriptive', but descriptive mode STILL builds the collapsed line, and — unlike the other three
+    descriptive lenses, which carry no token — this skill emits a real `mechanism_verdict` (top-level
+    decision['verdict'] is None here). Without the declared key the legacy <name>_verdict guess
+    ('mechanism-and-pharmacology' → 'mechanism_and_pharmacology_verdict') MISSES the real headline key and
+    the line fell through to the rule-id, which the LLM was observed to echo verbatim into user prose. Mirrors
+    the surface/genomic/tractability guess-misses fix; mechanism was the last verdict-carrying skill left
+    behind."""
+    from _skills_common.narrator_lenses import MECHANISM_PHARMACOLOGY
+    assert MECHANISM_PHARMACOLOGY.verdict_key == "mechanism_verdict"
+    decision = {"target": "EGFR", "indication": "COADREAD",
+                "headline": {"mechanism_verdict": "well_characterized",
+                             "driving_rule_id": "mechanism-well-characterized-supportive",
+                             "claim_vector": {"NETWORK": {"signal": "moderate", "corroboration": "moderate"}}}}
+    p = NE.build_capsule_prompt(decision, MECHANISM_PHARMACOLOGY)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "well_characterized" in collapsed
+    assert "mechanism-well-characterized-supportive" not in collapsed
+
+
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
     monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})

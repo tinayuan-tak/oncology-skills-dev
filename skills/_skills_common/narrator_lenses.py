@@ -163,6 +163,17 @@ MECHANISM_PHARMACOLOGY = LensConfig(
                  "PERTURBATION": "drug-perturbation MoA", "PREDICTABILITY": "dependency predictability"},
     scope_exclusions=("nomination verdict", "therapeutic modality selection"),
     mode="descriptive",
+    # Unlike the other three DESCRIPTIVE lenses (cis-feature-coherence / combination-and-vulnerability /
+    # target-intrinsic), which carry NO verdict token, mechanism-and-pharmacology DOES emit a resolved token
+    # (`mechanism_verdict`: well_characterized / partial / sparse / has_pd_marker / …) — descriptive mode still
+    # builds a COLLAPSED VERDICT prompt line. Without a declared verdict_key the fallback lands on the legacy
+    # `<name>_verdict` guess ("mechanism_and_pharmacology_verdict"), which MISSES the real headline key
+    # `mechanism_verdict` (top-level decision["verdict"] is None here), then falls through to driving_rule_id —
+    # a rule-id string ("mechanism-well-characterized-supportive") that the LLM was observed to echo verbatim
+    # into user-facing prose. Declaring the key hands the narrator the resolved token instead. This is the
+    # surface/genomic/tractability "guess MISSES the key" class (not the immune-context coincidence), and
+    # mechanism-and-pharmacology was the LAST verdict-carrying skill left without a verdict_key. Verdict-INERT.
+    verdict_key="mechanism_verdict",
 )
 
 CIS_FEATURE_COHERENCE = LensConfig(
