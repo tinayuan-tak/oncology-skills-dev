@@ -1103,7 +1103,11 @@ def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional
     mod = _import_method("topology_predictions_tmbed")
     out = dict(mod.read_target_summary(target=target, indication=indication) or {})
     try:
-        from _skills_common.isoform_selective_targets import check_target
+        from _skills_common.isoform_selective_targets import check_target, vocabulary_version
+        # Card-declared provenance field — emit UNCONDITIONALLY (the vocab version is target-independent),
+        # so a target with no isoform warning still carries it (was previously set only inside the
+        # warning branch → MISSING on the common no-warning path; card-review emission-guard gap).
+        out["vocabulary_version_isoform"] = vocabulary_version()
         warning = check_target(target.upper().strip())
         if warning is not None:
             # INDICATION-SCOPE (2026-08-14): the suppression must fire only where the dominant alt
