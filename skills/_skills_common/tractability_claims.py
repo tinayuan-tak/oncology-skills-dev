@@ -109,16 +109,48 @@ def small_molecule_claim_vector(headline: dict, cards: list) -> dict:
     return build_claim_vector(SMALL_MOLECULE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
+# The resolved druggability_snapshot NEGATIVE tokens (off-target / intractable / unhit). When the
+# resolver lands one of these, key_signals must NOT read "Small-molecule tractable." off the
+# positive-valence claim decomposition -- that would CONTRADICT the resolved negative verdict (a chemical
+# hit that is off-target still lights up the ACTIVITY/POTENCY axes). Mirrors the FR #874 / selectivity
+# #862 head()-over-claim fix. VERDICT-INERT: reads the already-resolved snapshot, never moves it; the
+# POSITIVE / insufficient paths are byte-identical to the prior binary headline.
+_NEGATIVE_SNAPSHOT_HEADLINE = {
+    "discordant":               "Chemical activity is off-target (discordant with the genetic "
+                                "dependency) — argues against small-molecule tractability.",
+    "structurally_intractable": "Structurally intractable — no small-molecule handle.",
+    "chemically_unhit":         "No compound found — small-molecule tractability unestablished.",
+}
+
+
 def small_molecule_key_signals(headline: dict, cards: list) -> dict:
     vec = small_molecule_claim_vector(headline, cards)
+    v = (headline or {}).get("druggability_snapshot")
+    neg_headline = _NEGATIVE_SNAPSHOT_HEADLINE.get(v)
+
+    def _headline_fn(_vec, supports):
+        # A resolved NEGATIVE snapshot wins the headline over the positive-valence claim signals -- a
+        # discordant/intractable/unhit call must never read as "tractable".
+        if neg_headline:
+            return neg_headline
+        return "Small-molecule tractable." if supports else "Limited small-molecule tractability evidence."
+
+    def _fallback_caveat():
+        # For a discordant read, surface the off-target caveat even when no weak-critical claim fires --
+        # the concordance conflict is the point (mirrors headline_block.top_tension).
+        if v == "discordant":
+            concord = (headline or {}).get("prism_crispr_concord")
+            return ("chemical activity does not track the CRISPR/RNAi genetic dependency (off-target)"
+                    + (f"; concordance: {concord}" if concord else ""))
+        return None
+
     return build_key_signals(
         vec, rank_keys=("POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"),
         support_fns={k: (lambda cl, _k=k: f"{_k}: {cl['signal']} ({cl['evidence']})") for k in
                      ("POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER")},
         critical_keys=("POTENCY", "STRUCT", "DRUG"), caveat_fns={},
-        headline_fn=lambda v, s: ("Small-molecule tractable." if s else
-                                  "Limited small-molecule tractability evidence."),
-        fallback_caveat_fn=lambda: None)
+        headline_fn=_headline_fn,
+        fallback_caveat_fn=_fallback_caveat)
 
 
 __all__ = ["small_molecule_claim_vector", "small_molecule_key_signals", "SMALL_MOLECULE_CLAIM_SPEC"]
