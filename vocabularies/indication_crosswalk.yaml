@@ -438,3 +438,52 @@ indications:
     mesh_ids:
       - MESH:D016393
       - MESH:D016403
+
+  - canonical_code: BCC
+    display_name: Basal Cell Carcinoma
+    strategic_bucket: Skin
+    oncotree_code: BCC
+    tcga_studies: []
+    gdc_project_ids: []
+    depmap_lineage: Skin
+    depmap_oncotree_lineage: Skin
+    cptac_cohort: null
+    gtex_normal_tissue: Skin
+    adj_normal_manifest: null
+    mesh_terms: [carcinoma, basal cell]
+    efo_ids: []
+    mesh_ids: []
+    iter1_status: provisional
+    notes: "Added 2026-09-01 for discovery-register coverage (non-TCGA skin cancer). efo_ids/mesh_ids pending curation (run gen_indication_mesh_ids.py --regenerate)."
+  - canonical_code: NBL
+    display_name: Neuroblastoma
+    strategic_bucket: Pediatric
+    oncotree_code: NBL
+    tcga_studies: []
+    gdc_project_ids: [TARGET-NBL]
+    depmap_lineage: Peripheral Nervous System
+    depmap_oncotree_lineage: Peripheral Nervous System
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [neuroblastoma]
+    efo_ids: []
+    mesh_ids: []
+    iter1_status: provisional
+    notes: "Added 2026-09-01 for discovery-register coverage (pediatric, non-TCGA; TARGET-NBL). efo_ids/mesh_ids pending curation."
+  - canonical_code: UVM
+    display_name: Uveal Melanoma
+    strategic_bucket: Ophthalmic
+    oncotree_code: UM
+    tcga_studies: [TCGA-UVM]
+    gdc_project_ids: [TCGA-UVM]
+    depmap_lineage: null
+    depmap_oncotree_lineage: null
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [melanoma, intraocular, uveal melanoma]
+    efo_ids: []
+    mesh_ids: []
+    iter1_status: provisional
+    notes: "Added 2026-09-01 for discovery-register coverage (distinct from SKCM cutaneous; TCGA-UVM). efo_ids/mesh_ids pending curation."
