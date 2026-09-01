@@ -4214,8 +4214,9 @@ rules:
       scale — an on-target safety concern for a full-KO modality (degrader, RNA therapeutic, full-
       inhibition SM). Opposing + dominant, mirroring the gnomAD highly-constrained rung. NOTE: for a
       MUTANT-SELECTIVE therapy against an activating driver, the WT protein this concerns is spared —
-      the resolver's mechanism-conditioning downgrade (Slice 5) nullifies this via when_all_fired with
-      the activating-driver-role-safety-context rule (parallel to wt_constraint_mechanism_mismatch).
+      that downgrade is MODALITY-CONDITIONAL and lives in the per-modality safety verdict
+      (small_molecule=conditional), not a scalar-verdict downgrade (the resolver role-proxy nullification
+      was retired v2.0.0, 2026-08-24; this warning now emits the honest raw WT-loss concern).
 
   - rule_id: gene-burden-protective-favorable
     when:
@@ -4253,8 +4254,9 @@ rules:
       (degrader, RNA therapeutic, full-inhibition SM) risks recapitulating a haploinsufficiency
       phenotype systemically. Opposing + dominant, mirroring the gnomAD + gene-burden safety rungs.
       NOTE: a MUTANT-SELECTIVE therapy against an activating driver spares the WT copy this concern is
-      about — the resolver's mechanism-conditioning downgrade (Slice 5) nullifies it via when_all_fired
-      with activating-driver-role-safety-context (parallel to wt_constraint_mechanism_mismatch).
+      about — that downgrade is MODALITY-CONDITIONAL (per-modality safety verdict,
+      small_molecule=conditional), not a scalar-verdict downgrade (the resolver role-proxy nullification
+      was retired v2.0.0, 2026-08-24; this warning now emits the honest raw WT-loss concern).
 
   - rule_id: clingen-dosage-sufficient-neutral
     when:
@@ -4290,8 +4292,9 @@ rules:
       weaning, not merely developmental). On-target safety caution for a full-KO modality (degrader,
       RNA, full-inhibition SM). OPPOSING but NOT dominant and NOT a killer: mouse KO is INFERRED
       evidence (a model of human physiology), so it cautions rather than vetoes — contrast the
-      measured gnomAD / gene-burden / ClinGen rungs which may be dominant. Composes with the
-      mutant-selective downgrade (Slice 5): an activating driver drugged mutant-selectively spares WT.
+      measured gnomAD / gene-burden / ClinGen rungs which may be dominant. The mutant-selective
+      downgrade for an activating driver is MODALITY-CONDITIONAL (per-modality safety verdict), not a
+      scalar-verdict downgrade (resolver role-proxy nullification retired v2.0.0, 2026-08-24).
 
   - rule_id: mouse-ko-developmental-only-neutral
     when:
@@ -4331,8 +4334,9 @@ rules:
       suppressor typically fires several). OPPOSING, not dominant: it is one of several corroborating
       germline legs, not a standalone veto. The germline guardrail is in the card — a SOMATIC
       pathogenic variant (somatic_only) is a cancer-driver signal, NOT this safety signal, and does
-      NOT fire. Composes with the mutant-selective downgrade (Slice-5 pattern): an activating driver
-      drugged mutant-selectively spares the WT protein this concerns.
+      NOT fire. The mutant-selective downgrade for an activating driver (which spares the WT protein this
+      concerns) is MODALITY-CONDITIONAL — carried by the per-modality safety verdict, not a scalar-verdict
+      downgrade (resolver role-proxy nullification retired v2.0.0, 2026-08-24).
 
   # ============================================================================
   # Roadmap #3 — domain-modality-relevance card → DEGRADER lens (verdict-wiring, 2026-08-07)
