@@ -81,6 +81,16 @@ GENOMIC_ALTERATION = LensConfig(
     axis_labels={"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion", "DEP": "alteration-conferred dependency"},
     scope_exclusions=("therapeutic modality", "expression as presence"),
     mode="verdict",
+    verdict_key="genomic_alteration_profile",   # the RESOLVED multi-class verdict token (run.py headline
+                                                # key); else the collapsed-verdict fallback lands on the
+                                                # <name>_verdict guess ("genomic_alteration_profile_verdict"
+                                                # — note the extra "_verdict") which MISSES the real key
+                                                # `genomic_alteration_profile`, then falls through to
+                                                # driving_rule_id (a rule-id string, e.g.
+                                                # "mutant-strongly-dependent-supportive"). genomic-alteration
+                                                # was the LAST verdict-skill left behind; mirrors the
+                                                # presence/selectivity/safety/functional-requirement/
+                                                # surface-modality-fit contract.
 )
 
 SURFACE_MODALITY_FIT = LensConfig(

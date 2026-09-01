@@ -10,7 +10,8 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common import narrator_engine as NE  # noqa: E402
 from _skills_common.narrator_lenses import (  # noqa: E402
-    FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, SURFACE_MODALITY_FIT, TUMOR_SELECTIVITY)
+    FUNCTIONAL_REQUIREMENT, GENOMIC_ALTERATION, ON_TARGET_SAFETY, SURFACE_MODALITY_FIT,
+    TUMOR_SELECTIVITY)
 
 
 def _decision():
@@ -130,6 +131,26 @@ def test_surface_modality_collapsed_verdict_is_resolved_token_not_rule_id():
     assert "pmhc_tce_supported" in collapsed
     # the bare rule-id must not be what the model is handed as the one-word verdict
     assert "pmhc-iedb-tcell-validated-tce-supportive" not in collapsed
+
+
+def test_genomic_alteration_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The genomic-alteration lens declares verdict_key='genomic_alteration_profile', so the COLLAPSED
+    VERDICT prompt line injects the RESOLVED multi-class verdict token — not driving_rule_id (a rule-id
+    string like 'mutant-strongly-dependent-supportive'). Before the fix the fallback chain MISSED the
+    real key (the <name>_verdict guess is 'genomic_alteration_profile_verdict' — note the extra
+    '_verdict' — while the headline key is 'genomic_alteration_profile') and landed on driving_rule_id.
+    genomic-alteration was the LAST verdict-skill left behind; mirrors the
+    presence/selectivity/FR/safety/surface-modality-fit contract."""
+    assert GENOMIC_ALTERATION.verdict_key == "genomic_alteration_profile"
+    decision = {"target": "KRAS", "indication": "COADREAD",
+                "headline": {"genomic_alteration_profile": "biomarker_stratified_dependency",
+                             "driving_rule_id": "mutant-strongly-dependent-supportive",
+                             "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}}}}
+    p = NE.build_capsule_prompt(decision, GENOMIC_ALTERATION)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "biomarker_stratified_dependency" in collapsed
+    # the bare rule-id must not be what the model is handed as the one-word verdict
+    assert "mutant-strongly-dependent-supportive" not in collapsed
 
 
 def test_make_synthesize_fn_signature(monkeypatch):
