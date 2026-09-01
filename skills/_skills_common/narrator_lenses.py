@@ -152,6 +152,15 @@ DIFFERENTIATION_LANDSCAPE = LensConfig(
                  "PROGNOSIS": "prognostic association", "NODE": "pathway node-leverage"},
     scope_exclusions=("therapeutic modality", "dependency magnitude (owned by functional-requirement)"),
     mode="verdict",
+    # The collapsed-verdict line reads the RESOLVED differentiation token (both_patterns_present /
+    # strong_cooccurring / strong_mutually_exclusive / …) from this declared headline key. Without it,
+    # the fallback's legacy `<name>_verdict` guess ("differentiation-landscape" →
+    # "differentiation_landscape_verdict") MISSES the real key `differentiation_verdict` and the line
+    # fell through to `driving_rule_id` — handing the narrator a rule-id string (e.g.
+    # `cooccurrence-both-patterns-supportive`) as the one-word verdict. Same guess-misses failure the
+    # surface/genomic/tractability/mechanism lenses fixed; differentiation was the last verdict-carrying
+    # lens still relying on the (broken) guess.
+    verdict_key="differentiation_verdict",
 )
 
 MECHANISM_PHARMACOLOGY = LensConfig(

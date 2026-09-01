@@ -216,6 +216,29 @@ def test_mechanism_collapsed_verdict_is_resolved_token_not_rule_id():
     assert "mechanism-well-characterized-supportive" not in collapsed
 
 
+def test_differentiation_landscape_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The differentiation-landscape lens declares verdict_key='differentiation_verdict', so the COLLAPSED
+    VERDICT prompt line injects the RESOLVED co-mutation token (both_patterns_present / strong_cooccurring /
+    strong_mutually_exclusive / …) — NOT driving_rule_id (a rule-id string like
+    'cooccurrence-both-patterns-supportive'). This lens is mode='verdict' and emits a real
+    `differentiation_verdict` (top-level decision['verdict'] is None — the descriptive fan-out gate). Without
+    the declared key the legacy <name>_verdict guess ('differentiation-landscape' →
+    'differentiation_landscape_verdict') MISSED the real headline key `differentiation_verdict` and the line
+    fell through to the rule-id, which the LLM could echo verbatim into user prose. Mirrors the
+    surface/genomic/tractability/mechanism guess-misses fix; differentiation was the last verdict-carrying
+    lens left behind."""
+    from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE
+    assert DIFFERENTIATION_LANDSCAPE.verdict_key == "differentiation_verdict"
+    decision = {"target": "PCLO", "indication": "COADREAD",
+                "headline": {"differentiation_verdict": "strong_cooccurring",
+                             "driving_rule_id": "cooccurrence-strong-supportive",
+                             "claim_vector": {"COMUT": {"signal": "strong", "corroboration": "moderate"}}}}
+    p = NE.build_capsule_prompt(decision, DIFFERENTIATION_LANDSCAPE)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "strong_cooccurring" in collapsed
+    assert "cooccurrence-strong-supportive" not in collapsed
+
+
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
     monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})
