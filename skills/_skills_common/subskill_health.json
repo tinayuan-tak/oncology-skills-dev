@@ -3,24 +3,52 @@
   "harness": "framework_health_smoke",
   "note": "Deterministic offline 'runs clean?' smoke of each wired subskill's real run.py under FRAMEWORK_HEALTH_SMOKE=1 (card readers stubbed; NO live data). smoke=clean \u2192 compute path executed + emitted run_health; clean_uninstrumented \u2192 ran clean but hand-rolls main() (no run_health); error \u2192 a real pipeline break.",
   "summary": {
-    "n_subskills": 12,
-    "n_clean": 11,
+    "n_subskills": 14,
+    "n_clean": 13,
     "n_clean_uninstrumented": 1,
     "n_error": 0
   },
   "subskills": {
+    "cis-feature-coherence": {
+      "skill_name": "cis-feature-coherence",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 9,
+        "n_cards_resolved": 9,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.055,
+        "compute_secs": 0.1288,
+        "total_secs": 0.1838
+      }
+    },
+    "combination-and-vulnerability": {
+      "skill_name": "combination-and-vulnerability",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 5,
+        "n_cards_resolved": 5,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.03,
+        "compute_secs": 0.0977,
+        "total_secs": 0.1277
+      }
+    },
     "differentiation-landscape": {
       "skill_name": "differentiation-landscape",
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 2,
-        "n_cards_resolved": 2,
+        "n_cards_consumed": 9,
+        "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1687,
-        "total_secs": 0.1687
+        "read_secs": 0.0485,
+        "compute_secs": 0.1465,
+        "total_secs": 0.195
       }
     },
     "functional-requirement": {
@@ -28,13 +56,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 10,
-        "n_cards_resolved": 10,
+        "n_cards_consumed": 15,
+        "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1699,
-        "total_secs": 0.17
+        "read_secs": 0.1067,
+        "compute_secs": 0.2096,
+        "total_secs": 0.3163
       }
     },
     "genomic-alteration-profile": {
@@ -47,13 +75,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 1,
-        "n_cards_resolved": 1,
+        "n_cards_consumed": 6,
+        "n_cards_resolved": 6,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.0679,
-        "total_secs": 0.0679
+        "read_secs": 0.0289,
+        "compute_secs": 0.0857,
+        "total_secs": 0.1146
       }
     },
     "mechanism-and-pharmacology": {
@@ -61,13 +89,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 2,
-        "n_cards_resolved": 2,
+        "n_cards_consumed": 5,
+        "n_cards_resolved": 5,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1823,
-        "total_secs": 0.1824
+        "read_secs": 0.0334,
+        "compute_secs": 0.2503,
+        "total_secs": 0.2837
       }
     },
     "on-target-safety-liability": {
@@ -75,13 +103,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 8,
-        "n_cards_resolved": 8,
+        "n_cards_consumed": 15,
+        "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1678,
-        "total_secs": 0.1678
+        "read_secs": 0.0884,
+        "compute_secs": 0.3517,
+        "total_secs": 0.4401
       }
     },
     "surface-modality-fit": {
@@ -89,27 +117,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 13,
-        "n_cards_resolved": 13,
+        "n_cards_consumed": 24,
+        "n_cards_resolved": 24,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.085,
-        "total_secs": 0.085
-      }
-    },
-    "synthetic-lethal-partners": {
-      "skill_name": "synthetic-lethal-partners",
-      "smoke": "clean",
-      "run_health": {
-        "status": "ok",
-        "n_cards_consumed": 1,
-        "n_cards_resolved": 1,
-        "n_cards_fired": 0,
-        "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1704,
-        "total_secs": 0.1705
+        "read_secs": 0.1637,
+        "compute_secs": 0.3764,
+        "total_secs": 0.5402
       }
     },
     "target-intrinsic": {
@@ -117,13 +131,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 17,
-        "n_cards_resolved": 17,
+        "n_cards_consumed": 20,
+        "n_cards_resolved": 20,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1639,
-        "total_secs": 0.1639
+        "read_secs": 0.1135,
+        "compute_secs": 0.3148,
+        "total_secs": 0.4284
       }
     },
     "tractability-small-molecule": {
@@ -131,13 +145,27 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
+        "n_cards_consumed": 8,
+        "n_cards_resolved": 8,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0649,
+        "compute_secs": 0.1461,
+        "total_secs": 0.211
+      }
+    },
+    "translational-readiness": {
+      "skill_name": "translational-readiness",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
         "n_cards_consumed": 4,
         "n_cards_resolved": 4,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1674,
-        "total_secs": 0.1674
+        "read_secs": 0.0213,
+        "compute_secs": 0.0868,
+        "total_secs": 0.1081
       }
     },
     "tumor-presence": {
@@ -145,13 +173,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 11,
-        "n_cards_resolved": 11,
+        "n_cards_consumed": 17,
+        "n_cards_resolved": 17,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.161,
-        "total_secs": 0.161
+        "read_secs": 0.1426,
+        "compute_secs": 0.3027,
+        "total_secs": 0.4453
       }
     },
     "tumor-selectivity": {
@@ -159,13 +187,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 2,
-        "n_cards_resolved": 2,
+        "n_cards_consumed": 13,
+        "n_cards_resolved": 13,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1638,
-        "total_secs": 0.1638
+        "read_secs": 0.108,
+        "compute_secs": 0.2622,
+        "total_secs": 0.3703
       }
     }
   }
