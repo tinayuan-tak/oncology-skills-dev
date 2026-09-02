@@ -25,7 +25,7 @@ description: |
   grain level.
 
 metadata:
-  version: 1.5.0
+  version: 1.5.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -100,7 +100,7 @@ composition:
 - Answers the INDICATION-INDEPENDENT question: what is true of target X as a
   protein/gene, regardless of cancer type. Invoked with `--target` alone.
 - Fans out (via the shared run_wired_skill dispatcher, which makes `--indication`
-  optional) over the 19 live-wired `tier: target` cards, grouped by sub-axis:
+  optional) over the 20 live-wired `tier: target` cards, grouped by sub-axis:
   - **identity** — target-identity-summary
   - **on-target-safety genetics** — gnomAD LoF constraint, gene-burden,
     ClinGen dosage, ClinVar pathogenicity, mouse-KO phenotype, OT safety prioritisation

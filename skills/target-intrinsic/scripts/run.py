@@ -36,21 +36,40 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
-# Signals-first sub-group reader (VERDICT-INERT; this skill is descriptive, verdict=None). Thesis:
-# intrinsic target characterization + modality routing. default_classify is the fallback.
+# Signals-first sub-group VALUE→TIER map (VERDICT-INERT; feeds ONLY the --figures subgroup-signal panel,
+# never the spine / claim_vector / narrator). Stated for target-intrinsic's OWN LIVE card vocabulary so a
+# positive signal is not silently flipped to `absent` by the lens-blind default_classify substring
+# heuristic (make_value_classifier docstring); any value the map omits still degrades to that default.
+# Keys are the ACTUAL emitted class tokens (the prior map keyed on tokens no method emits —
+# partially_annotated / poorly_annotated / moderately_characterized / connector / peripheral /
+# degrader_required / curated_domain / bare-`surface` — so those live classes fell through to the
+# default, which flips e.g. connected / removal_favored / kinase_surface to `absent`). MODALITY routing
+# tiers MIRROR target_intrinsic_claims._MODALITY_SIGNAL (the claim_vector the narrator sees).
 _TARGET_INTRINSIC_VALUE_TIERS = {
-    "well_annotated": "strong", "partially_annotated": "moderate", "poorly_annotated": "weak",
-    "well_characterized": "strong", "moderately_characterized": "moderate",
-    "hub": "strong", "connector": "moderate", "peripheral": "weak",
+    # annotation / characterization density (GO annotation_class, signaling network_class, reactome
+    # pathway_class) — a heavily-curated target is better-ANNOTATED, not better biology (disclaimed).
+    "well_annotated": "strong", "well_characterized": "strong",
+    "partial": "moderate", "sparse": "weak",
+    # interactome hubness (ppi-interactome interactome_class); "sparse" tiered above
+    "hub": "strong", "connected": "moderate",
+    # Pharos/IDG development level (TDL) — drug-development PRECEDENT (Tdark = understudied, not adverse)
     "Tclin": "strong", "Tchem": "moderate", "Tbio": "weak", "Tdark": "absent",
-    "inhibitor_sufficient": "strong", "degrader_required": "moderate",
-    "curated_domain": "strong", "no_curated_domain": "absent",
-    "surface": "strong", "not_surface": "absent",
+    # domain→modality routing (domain-modality-relevance) — MIRRORS _MODALITY_SIGNAL (call conviction)
+    "removal_required_scaffolding": "strong", "removal_favored": "moderate",
+    "inhibitor_sufficient": "moderate", "context_dependent": "weak", "indeterminate": "absent",
+    # UniProt curated domain architecture (protein-domains-class protein_features_class)
+    "multi_domain": "strong", "single_domain": "moderate", "no_curated_domain": "absent",
+    # surfaceome family (surfaceome-family-classification family_class) — a surface-confirmed family is a
+    # positive modality-routing determinant; the honest non-surface token carries no surface route.
+    "kinase_surface": "strong", "enzyme_surface": "strong", "transporter": "strong",
+    "cd_molecule": "strong", "adhesion": "strong", "gpcr": "strong",
+    "growth_factor_receptor": "strong", "immune_receptor": "strong", "other_surface": "strong",
+    "not_surface": "absent",
 }
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.5.0"   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.5.1"   # 1.5.1 (2026-09-02): _TARGET_INTRINSIC_VALUE_TIERS aligned to live card vocab (dead keys removed; positive subgroup signals no longer flip to `absent`). Verdict-INERT (subgroup --figures only).   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
