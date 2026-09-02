@@ -197,39 +197,14 @@ def _rows_in_scope(rows: list[dict], scope_cohorts: Optional[frozenset]) -> list
     return [r for r in rows if str(r.get("cohort", "")) in scope_cohorts]
 
 
-def _scoped_signals(rows: list[dict]) -> tuple[str, bool, bool]:
-    """Derive the co-occurrence class + driver flags from a SCOPED (indication- or PANCAN-)
-    restricted row set. Returns (cooccurrence_class, has_cooccurring_driver, has_mutually_exclusive_driver).
-
-    Two robustness guards (B8-01 / B8-02 fix):
-      * PER-PARTNER collapse — each partner contributes only its single most-significant
-        (min bh_q) row, so one partner can satisfy AT MOST ONE of {co-occurring, mutex}.
-        A `both_patterns_present` therefore requires TWO DISTINCT partners; the same
-        partner carrying opposite signs in different cohorts can no longer manufacture it.
-      * Multiplicity — the per-partner q is Bonferroni-scaled by the number of distinct
-        (cohort, source) test families in the scope. Stage 03 BH-controls the partner axis
-        WITHIN each family; this controls the cross-cohort min-q selection ACROSS families.
-        With a single family (typical after scoping / PANCAN) the factor is 1 → unscaled.
-
-    Precedence: strong_cooc & strong_mutex → both_patterns_present; then strong_cooc;
-    strong_mutex; modest_cooc; modest_mutex; else ns.
-    """
-    if not rows:
-        return ("ns", False, False)
-    n_families = max(1, len({(r.get("cohort"), r.get("source")) for r in rows}))
-    # partner → (best_q, log2_or_at_best_q)
-    best: dict[str, tuple[float, float]] = {}
-    for r in rows:
-        partner = str(r.get("partner_gene_symbol", "")).strip().upper()
-        if not partner:
-            continue
-        q = float(r.get("bh_q_value") or 1.0)
-        if partner not in best or q < best[partner][0]:
-            best[partner] = (q, float(r.get("log2_odds_ratio") or 0.0))
-
+def _classify_partners(best_items, n_families: int) -> tuple[str, bool, bool]:
+    """Classify a set of per-partner (q, log2_or) bests into (cooccurrence_class, has_cooc_driver,
+    has_mutex_driver), applying the strong/modest q + log2-OR cutpoints with the shared Bonferroni
+    family scaling. Precedence: strong_cooc & strong_mutex → both_patterns_present; then strong_cooc;
+    strong_mutex; modest_cooc; modest_mutex; else ns."""
     strong_cooc = modest_cooc = strong_mutex = modest_mutex = False
     has_cooc_driver = has_mutex_driver = False
-    for q, log2_or in best.values():
+    for q, log2_or in best_items:
         qc = min(1.0, q * n_families)   # Bonferroni across scoped (cohort, source) families
         if qc < 0.001:
             if log2_or > 1.0:
@@ -243,7 +218,6 @@ def _scoped_signals(rows: list[dict]) -> tuple[str, bool, bool]:
                 modest_cooc = True
             elif log2_or < -0.5:
                 modest_mutex = True
-
     if strong_cooc and strong_mutex:
         cls = "both_patterns_present"
     elif strong_cooc:
@@ -257,6 +231,61 @@ def _scoped_signals(rows: list[dict]) -> tuple[str, bool, bool]:
     else:
         cls = "ns"
     return (cls, has_cooc_driver, has_mutex_driver)
+
+
+def _scoped_signals(rows: list[dict]) -> tuple[str, bool, bool, str]:
+    """Derive the co-occurrence class + driver flags from a SCOPED (indication- or PANCAN-)
+    restricted row set. Returns (cooccurrence_class, has_cooccurring_driver, has_mutually_exclusive_driver,
+    cooccurrence_class_prefloor).
+
+    Two robustness guards (B8-01 / B8-02 fix):
+      * PER-PARTNER collapse — each partner contributes only its single most-significant
+        (min bh_q) row, so one partner can satisfy AT MOST ONE of {co-occurring, mutex}.
+        A `both_patterns_present` therefore requires TWO DISTINCT partners; the same
+        partner carrying opposite signs in different cohorts can no longer manufacture it.
+      * Multiplicity — the per-partner q is Bonferroni-scaled by the number of distinct
+        (cohort, source) test families in the scope. Stage 03 BH-controls the partner axis
+        WITHIN each family; this controls the cross-cohort min-q selection ACROSS families.
+        With a single family (typical after scoping / PANCAN) the factor is 1 → unscaled.
+
+    TCGA-WES-ONLY (panel-absent passenger) FLOOR: without a guard the class keyed on q + log2-OR
+    ALONE and never asked whether the co-mutation signal is a TARGETED-PANEL claim at all. A gene
+    sequenced ONLY in TCGA whole-exome — never on a GENIE targeted panel (no panel-intersect-eligible
+    pair AND no GENIE-source significant pair anywhere in scope) — is typically a large/passenger
+    gene (PCLO, TTN, MUC16, CSMD3), and its per-source co-occurrence is a tumor-mutational-burden /
+    gene-length artifact, not biology (live: PCLO/COADREAD read `strong_cooccurring` off 3961
+    tcga_mc3-only pairs). Such a target is demoted to `ns` (no panel-comparable co-mutation claim).
+
+    Deliberately NARROW — GENIE presence, not panel-INTERSECT membership, is the gate. A real driver
+    off the restrictive 166-gene ∩-of-10-workhorse-panels (e.g. KEAP1/LUAD, sequenced on GENIE panels
+    with a genuine STK11 co-mutation / EGFR mutual-exclusivity signal) has GENIE-source significant
+    pairs and is NOT touched. So every target with ANY panel-eligible pair OR ANY GENIE-source
+    significant pair — every panel-present driver and every off-intersect-but-on-GENIE driver — keeps
+    its exact pre-floor class (byte-identical). Only pure-TCGA-WES passengers flip. The un-floored
+    call is preserved verbatim as `cooccurrence_class_prefloor` for audit.
+    """
+    if not rows:
+        return ("ns", False, False, "ns")
+    n_families = max(1, len({(r.get("cohort"), r.get("source")) for r in rows}))
+    # partner → (best_q, log2_or_at_best_q)  — identical to the pre-floor per-partner collapse
+    best: dict[str, tuple[float, float]] = {}
+    for r in rows:
+        partner = str(r.get("partner_gene_symbol", "")).strip().upper()
+        if not partner:
+            continue
+        q = float(r.get("bh_q_value") or 1.0)
+        if partner not in best or q < best[partner][0]:
+            best[partner] = (q, float(r.get("log2_odds_ratio") or 0.0))
+
+    prefloor_cls, has_cooc_driver, has_mutex_driver = _classify_partners(best.values(), n_families)
+
+    # TCGA-WES-only passenger gate: no panel-eligible pair AND no GENIE-source significant pair.
+    any_eligible = any(bool(r.get("pooled_eligible", False)) for r in rows)
+    any_genie_sig = any("genie" in str(r.get("source", "")).lower()
+                        and float(r.get("bh_q_value") or 1.0) < 0.05 for r in rows)
+    if not any_eligible and not any_genie_sig:
+        return ("ns", False, False, prefloor_cls)   # demote; audit keeps the raw call
+    return (prefloor_cls, has_cooc_driver, has_mutex_driver, prefloor_cls)
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
@@ -329,16 +358,22 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         # Indication maps to real cohort labels but the target has no row there → honest
         # abstention on the VERDICT, while the pan-cohort landscape below stays as display.
         cooccurrence_class = "data_unavailable"
+        cooccurrence_class_prefloor = "data_unavailable"
         cooccurrence_scope = "unavailable"
         has_cooc_driver = has_mutex_driver = False
         scoped_cohorts: list[str] = []
     else:
-        cooccurrence_class, has_cooc_driver, has_mutex_driver = _scoped_signals(scoped_rows)
+        (cooccurrence_class, has_cooc_driver, has_mutex_driver,
+         cooccurrence_class_prefloor) = _scoped_signals(scoped_rows)
         cooccurrence_scope = scope_label
         scoped_cohorts = sorted({str(r.get("cohort", "")) for r in scoped_rows})
 
     return {
-        "cooccurrence_class": cooccurrence_class,            # VERDICT-DRIVING (indication-scoped)
+        "cooccurrence_class": cooccurrence_class,            # VERDICT-DRIVING (indication-scoped, panel-floored)
+        # AUDIT: the raw pre-floor class (all partners incl. panel-absent per-source-only pairs). When it
+        # DIFFERS from cooccurrence_class the target's pattern rested on panel-ineligible pairs (possible
+        # TMB/gene-length artifact); verdict-inert (no rule keys on it).
+        "cooccurrence_class_prefloor": cooccurrence_class_prefloor,
         "cooccurrence_scope": cooccurrence_scope,            # indication | pan_cohort | unavailable
         "scoped_cohorts": scoped_cohorts,                    # cohort label(s) the verdict used
         "has_cooccurring_driver": has_cooc_driver,           # VERDICT-DRIVING (scoped)
@@ -360,6 +395,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 def _empty(note: str) -> dict:
     return {
         "cooccurrence_class": "data_unavailable",
+        "cooccurrence_class_prefloor": "data_unavailable",
         "cooccurrence_scope": "unavailable",
         "scoped_cohorts": [],
         "n_significant_cooccurring": 0,
