@@ -95,14 +95,35 @@ Curated labels drift; the collapsed word hides modality-conditioning; verify aga
 - **Status:** QUEUED — verify against a fresh FOLR1/TROP2 emit first (both need a solid cohort; FOLR1/OV,
   TROP2/BRCA are runnable).
 
-### CASE-002 — MET-LUAD METex14 false-negative veto — QUEUED
-- MET → veto (`dependency:non_dependent` + coverage gaps) which is WRONG (approved LUAD target:
-  capmatinib/tepotinib in METex14; telisotuzumab-vedotin ADC). The METex14 splice driver is invisible
-  to the missense/hotspot-centric genomics layer. **Highest-leverage fix:** derive a per-sample/
-  cell-line METex14 classifier (from the MAF splice-donor/acceptor at the exon-14 boundary + CIViC)
-  and feed `mutation-stratified-dependency` / `mutation-hotspot-frequency` as an alteration class
-  beyond missense-hotspot. Detail in `~/dev/framework-runs/KNOWN_ISSUES-2026-08-26.md` (DATA-GAP).
-- **Status:** QUEUED (synthetic_lethal/genomics-adjacent; independent of CASE-001).
+### CASE-002 — MET-LUAD METex14 — veto RESOLVED (stale); residual is SIGNAL-VECTOR fidelity, not a veto
+- **Original premise (KNOWN_ISSUES-2026-08-26):** MET-LUAD → veto (`dependency:non_dependent` +
+  coverage gaps); a false-negative for an approved LUAD target.
+- **VERIFY-FIRST (live emit 2026-09-02):** MET/LUAD **no modality → "no gate fired"** — `non_dependent`
+  suppressed via `context_escape` (branch A), safety via `exists_safe_modality`. **The veto is gone**
+  (fixes landed since 08-26). `--modality small_molecule` → `hold` via `safety:highly_constrained_
+  safety_concern` (gnomAD WT-loss) — DEFENSIBLE for a WT-kinase-inhibiting TKI, not an obvious bug.
+- **The one clearly-real residual = genomic mischaracterization (signal-vector fidelity):**
+  `genomic_alteration → missense_dominant_pattern`, but MET's LUAD driver is METex14 splice-SKIPPING,
+  invisible to the missense/hotspot-centric genomics layer. Does NOT change the nomination (gate
+  already clears MET); it mis-states WHY MET matters — a substrate defect a reasoner would be misled by.
+- **Fix (if pursued):** derive a per-sample/cell-line METex14 classifier (MAF splice donor/acceptor at
+  the exon-14 boundary + CIViC) feeding `mutation-stratified-dependency`/`mutation-hotspot-frequency`
+  as an alteration class beyond missense-hotspot. A data+method+card build (analysis-methods +
+  data-catalog + target-contracts), NOT a nomination-gate change. Detail in the 08-26 issue doc.
+- **Status:** veto RESOLVED. Residual genomic-fidelity fix QUEUED as a real (non-false-alarm) build.
+
+---
+
+## Meta-finding (2026-09-02) — the nomination GATE is healthy; remaining work is SUBSTRATE FIDELITY
+
+Four consecutive cases (CASE-001, -004, -005, -002) that looked like nomination-gate false-negatives
+**dissolved on a live re-run** — the documented 08-26/08-31 vetoes were fixed by intervening work
+(context_escape, modality_scoped suppression, exists_safe_modality). The gate is in good shape. The
+genuine remaining gaps are **signal-vector FIDELITY** — the framework reaching the right call but
+mischaracterizing WHY (MET read as missense-dominant; approved surface antigens under-credited on the
+deciding axis; `approved_deciding_axis_capture_rate = 0.056`). This is exactly the axis the
+signal-vector backtest measures, and it's where the cadence should aim next. See
+[[project_substrate_sufficiency_improvement_loop]].
 
 ### CASE-003 — DLL3-SCLC holds on gate-C despite approved TCE — REPORTED
 - Fresh run: `hold` forced by `dependency:non_dependent` (gate C), though DLL3 is an approved SCLC
