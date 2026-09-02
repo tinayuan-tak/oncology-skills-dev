@@ -1,0 +1,75 @@
+# Card — CITED LITERATURE EVIDENCE (what does the literature SAY about this target in this indication, with citations?)
+#
+# The verdict-INERT gene×indication CITED-LITERATURE facet. Composes two pinned, catalogued literature
+# products into one "what does the literature say about {target} in {indication}, with citations" read:
+#   - opentargets-europepmc-evidence-per-target-v1 : OT co-occurrence literature VOLUME + RECENCY + the
+#     top cited statements (pmid/pmc/year/section/sentence).
+#   - pubtator3-gene-disease-relations-per-gene-v1  : PubTator3 BioREx typed relation DIRECTION
+#     (associate / cause / positive_correlate / negative_correlate / stimulate / inhibit) + PMIDs.
+# Both lanes are best-effort (an absent product/creds degrades that half to null, recorded in `notes`);
+# extraction stays in the pinned products, so the card is REPRODUCIBLE (no LLM).
+#
+# HISTORY — this promotes the former `cited_literature_evidence.json` side-channel (the target-profile
+# tp_grounding.auto_cited_evidence bolt-on) to a first-class card so it is visible to the card + skill
+# validators and the emission guard. Home skill: literature-context (a verdict-inert descriptive fan-out
+# member, mirroring translational-readiness / target-intrinsic). It does NOT live in
+# literature-risk-assessment (that skill is context-tier by decision record and holds no cards).
+#
+# ROLE — verdict-INERT descriptive context facet. Reaches the LLM / matrix / headline; drives NO
+# resolver rung. Literature is CONTEXT/CONFIDENCE, never a verdict/gate input (RISK_ASSESSMENT_
+# INTEGRATION.md §4) — so there is intentionally NO `thresholds:` block.
+#
+# cited_evidence_status (PRIMARY): ok (>=1 lane present) | insufficient (target didn't resolve) |
+#   no_evidence (target resolved but no literature rows — an honest coverage gap).
+#
+# ZERO new ingestion: both products were already in the catalog; the card composes their readers via
+# analysis-methods cited_literature_evidence.read.read_cited_literature_evidence.
+
+card_id: cited-literature-evidence
+version: 1.0.0
+question: "For {target.symbol} in {indication.label}, what does the literature say — co-occurrence volume/recency, the top cited statements, and typed relation direction (associate/cause/inhibit/…), with citations?"
+
+tier: indication   # gene×indication cited-literature context (mirrors target-genotype-matched-model's target_indication-grain facet)
+
+applies_when:
+  - "true"   # any target/indication; no_evidence-safe when the target has no literature rows, insufficient when it doesn't resolve
+
+required_inputs:
+  - product_id: opentargets-europepmc-evidence-per-target-v1   # OT co-occurrence literature volume/recency + top cited statements
+  - product_id: pubtator3-gene-disease-relations-per-gene-v1   # PubTator3 BioREx typed relation direction + PMIDs
+
+methods:
+  - call: cited-literature-evidence
+    module: cited_literature_evidence
+    entrypoint: read_cited_literature_evidence   # composes BOTH readers + flattens to top-level summary_fields
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - cited_evidence_status              # PRIMARY categorical (verdict-INERT; overall literature-evidence state)
+    - literature_scope                   # OT co-occurrence disease scoping: indication | target_level | target_level_fallback
+    - paper_disease_mentions             # OT co-occurrence VOLUME (summed paper×disease mentions, NOT distinct papers — see caveat)
+    - recent_mentions                    # co-occurrence mentions in the recent window (RECENCY)
+    - n_diseases                         # number of indication-scoped disease subtypes summed into the mention counts
+    - earliest_year                      # first co-occurrence year (literature age)
+    - latest_year                        # most recent co-occurrence year (currency)
+    - top_cited                          # top cited statements (pmid/pmc/year/section/sentence), English surfaced first
+    - relation_types                     # PubTator BioREx typed-relation labels present, ordered by publication support (DIRECTION)
+    - total_relation_publications        # total PubTator publications supporting the typed relations
+  summary_fields_vocabulary:
+    cited_evidence_status:
+      - ok                               # >=1 literature lane present (europepmc and/or pubtator)
+      - insufficient                     # the target could not be resolved to an Ensembl gene id (both readers insufficient)
+      - no_evidence                      # the target resolved but has no literature rows (honest coverage gap / un-text-mined)
+
+caveats:
+  - "VERDICT-INERT descriptive context facet: reaches the LLM / matrix / headline but drives NO resolver rung and no verdict/gate. Literature is CONTEXT/CONFIDENCE, never a nomination-gate input (RISK_ASSESSMENT_INTEGRATION.md §4). No thresholds: block by design."
+  - "paper_disease_mentions / recent_mentions are SUMMED over the indication's disease subtypes — a paper co-occurring with N subtypes counts N times. They are paper×disease MENTIONS, not distinct papers (the product carries per-(gene,disease) counts); n_diseases is surfaced so the inflation is visible."
+  - "Co-occurrence != assertion: the europepmc lane is CO-OCCURRENCE volume + text-mined sentences (no polarity). relation_types (PubTator BioREx) carries DIRECTION but is dominated by `associate`; directional types are sparser. When the indication has no EFO/MeSH scope the read falls back to TARGET-LEVEL (literature_scope=target_level*), not disease-scoped."
+  - "no_evidence (target resolved, no rows) is an HONEST coverage gap, DISTINCT from insufficient (target didn't resolve). Both lanes best-effort: an absent product/creds degrades that half to null (recorded in notes), never a fabricated count."
+
+measurement_type: cited_literature_evidence   # per-(target, indication) cited-literature context (DATA_TO_SKILL_CONTRACT Rule 1)
+entity_grains: [target_indication]
+schema_version: 1

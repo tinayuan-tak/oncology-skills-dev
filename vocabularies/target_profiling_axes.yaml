@@ -556,6 +556,12 @@ skill_objectives:
       - {q: "Do the available patient-derived (HCMI) models CARRY a functional coding alteration in this target — is there a genotype-matched model to validate the nomination? (display-only)", answered_by: [target-genotype-matched-model]}
       - {q: "Does the target's drug-response signal reproduce IN VIVO — do treatments naming it produce tumour regression in PDX population trials (Novartis PDXE)? (display-only)", answered_by: [target-pdx-drug-response]}
       - {q: "Does the target's dependency REPRODUCE EX VIVO in patient-derived organoid models (HCMI/DepMap 3D CRISPR), the ex-vivo complement of the PDX in-vivo leg? (display-only, borrowed from the dependency axis)", answered_by: [organoid-crispr-dependency]}
+  - skill: literature-context
+    objective: "What does the literature say about the target in this indication — co-occurrence volume/recency, the top cited statements, and typed relation direction — with citations?"
+    primary_axis: null
+    role_note: "VERDICT-INERT descriptive context fan-out member (2026-09-02); promotes the former cited_literature_evidence.json tp_grounding side-channel to a first-class card. Composes ONE card (cited-literature-evidence: OT europepmc co-occurrence + PubTator3 relation direction). Gateless (verdict=None); literature is CONTEXT/CONFIDENCE, never a nomination-gate input (RISK_ASSESSMENT_INTEGRATION.md §4). Distinct from literature-risk-assessment (that skill is context-tier by decision record and holds no cards; this is the reproducible pinned-product citation facet)."
+    questions:
+      - {q: "What does the literature say about the target in this indication — co-occurrence volume/recency + the top cited statements (Open Targets europePMC), and typed relation direction (PubTator3 associate/cause/inhibit/…) — with citations?", answered_by: [cited-literature-evidence]}
   - skill: immune-context
     objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect), and what is the surrounding TME context — suppressive myeloid states, CAF/stroma, and the ICI-response association?"
     primary_axis: null

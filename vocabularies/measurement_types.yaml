@@ -549,6 +549,25 @@ measurement_types:
     providers:
       - {kind: dataset, source: pdxe-drug-response-per-gene-v1, evidence_tier: measured}
 
+  cited_literature_evidence:
+    claim: "For target X in indication Y, what does the literature SAY — co-occurrence volume/recency, the top cited statements, and typed relation direction — with citations?"
+    # 2026-09-02: promotes the former cited_literature_evidence.json side-channel (target-profile
+    # tp_grounding.auto_cited_evidence bolt-on) to a first-class VERDICT-INERT descriptive context facet.
+    # Composes TWO pinned literature products: OT europepmc CO-OCCURRENCE (volume + recency + top cited
+    # statements) and PubTator3 BioREx typed relation DIRECTION. Home skill: literature-context (a
+    # verdict-inert descriptive fan-out member). DISPLAY facet — reaches the LLM / matrix / headline,
+    # drives NO resolver rung; literature is CONTEXT/CONFIDENCE, never a nomination-gate input
+    # (RISK_ASSESSMENT_INTEGRATION.md §4). No modality_relevance: a biology-axis context facet.
+    entity_grains: [target_indication]
+    cards: [cited-literature-evidence]
+    # >1 provider (co-occurrence VOLUME vs typed-relation DIRECTION): the two are DISTINCT literature
+    # reads reported SIDE-BY-SIDE (europepmc says "how much / how recent / cited sentences"; pubtator says
+    # "in what direction") — never averaged/pick-one. surface_discordance is the correct policy.
+    multi_provider_policy: surface_discordance
+    providers:
+      - {kind: dataset, source: opentargets-europepmc-evidence-per-target-v1, evidence_tier: measured}   # co-occurrence volume/recency + top cited statements
+      - {kind: dataset, source: pubtator3-gene-disease-relations-per-gene-v1, evidence_tier: measured}   # typed relation direction + PMIDs
+
   mutational_signature_context:
     claim: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the indication's cohort, and which dominates?"
     # 2026-08-12: an INDICATION-level, target-INDEPENDENT PRE-INTEGRATED companion result — per-sample
