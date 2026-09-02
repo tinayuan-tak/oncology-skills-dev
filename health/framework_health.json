@@ -1,32 +1,71 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-31T18:21:53.231965+00:00",
+  "generated_at": "2026-09-02T12:17:10.879424+00:00",
   "roots": {
-    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__fix-health-probe-staged-orphan",
+    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-regen-framework-health",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "3a02ac3",
-    "skills": "1abdefe",
-    "methods": "2f79ecf",
+    "contracts": "4044429",
+    "skills": "4585f2e",
+    "methods": "0e8d5a8",
     "products": "5c4a0ea",
-    "catalog": "994e788"
+    "catalog": "2f4b7f0"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-31T18:04:32.423888+00:00",
-    "n_skills": 0,
-    "n_cards": 0,
-    "n_drift_flags": 0,
+    "prior_generated_at": "2026-09-02T12:15:54.694541+00:00",
+    "n_skills": 27,
+    "n_cards": 1,
+    "n_drift_flags": 23,
     "n_error_drift": 0,
-    "verdict_tally": {},
-    "card_health_tally": {},
-    "skills_added": [],
+    "verdict_tally": {
+      "partial": 20,
+      "production_ready": 7
+    },
+    "card_health_tally": {
+      "broken": -135,
+      "live": 101,
+      "placeholder": -2,
+      "self_produced": 1,
+      "wired": 36
+    },
+    "skills_added": [
+      "bispecific-pair-scan",
+      "catalog-query",
+      "cis-feature-coherence",
+      "combination-and-vulnerability",
+      "combinatorial-dependency",
+      "combo-and-resistance",
+      "cross-evidence-hypothesis",
+      "differentiation-landscape",
+      "example-gallery",
+      "functional-requirement",
+      "genomic-alteration-profile",
+      "immune-context",
+      "literature-risk-assessment",
+      "mechanism-and-pharmacology",
+      "on-target-safety-liability",
+      "query-target-evidence",
+      "render-evidence-package",
+      "surface-modality-fit",
+      "surfaceome-cohort-ranking",
+      "synthetic-lethal-partners",
+      "target-archetype",
+      "target-intrinsic",
+      "target-profile",
+      "tractability-small-molecule",
+      "translational-readiness",
+      "tumor-presence",
+      "tumor-selectivity"
+    ],
     "skills_removed": [],
-    "cards_added": [],
+    "cards_added": [
+      "bispecific-pair-scan"
+    ],
     "cards_removed": []
   },
   "summary": {
@@ -1161,7 +1200,7 @@
           "clinical-precedent",
           "competitor-landscape"
         ],
-        "test_count": 7
+        "test_count": 8
       },
       "cards": [
         {
@@ -1616,7 +1655,7 @@
           "coessential-module",
           "subgroup-stratified-dependency"
         ],
-        "test_count": 16
+        "test_count": 18
       },
       "cards": [
         {
@@ -2276,7 +2315,7 @@
           "subgroup-stratified-copy-number",
           "subgroup-stratified-fusion"
         ],
-        "test_count": 13
+        "test_count": 14
       },
       "cards": [
         {
@@ -4483,7 +4522,7 @@
           "surface-bulk-pair-selectivity",
           "pmhc-epitope-evidence-iedb"
         ],
-        "test_count": 13
+        "test_count": 14
       },
       "cards": [
         {
@@ -5725,7 +5764,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 1
+        "test_count": 3
       },
       "cards": [],
       "n_core_cards": 0,
@@ -7900,7 +7939,7 @@
           "degradation-feasibility",
           "gdsc-drug-activity"
         ],
-        "test_count": 8
+        "test_count": 9
       },
       "cards": [
         {
@@ -9292,7 +9331,8 @@
           "tumor-vs-normal-percentile-crossing",
           "modality-therapeutic-window",
           "sc-normal-celltype-expression",
-          "normal-tissue-protein-abundance-tphp"
+          "normal-tissue-protein-abundance-tphp",
+          "tumor-scrna-celltype-expression"
         ],
         "prose_markers": [
           "wired"
@@ -10069,7 +10109,7 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         }
       ],
-      "n_core_cards": 5,
+      "n_core_cards": 6,
       "n_cards": 14,
       "n_cards_live": 10,
       "n_p4_required": 12,
