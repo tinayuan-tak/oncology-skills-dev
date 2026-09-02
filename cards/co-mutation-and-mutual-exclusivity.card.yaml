@@ -55,7 +55,8 @@ methods:
 
 outputs:
   summary_fields:
-    - cooccurrence_class                    # PRIMARY categorical
+    - cooccurrence_class                    # PRIMARY categorical (verdict-driving; TCGA-WES-only passenger floored → ns)
+    - cooccurrence_class_prefloor           # AUDIT: raw pre-floor class (all partners incl. per-source-only). Verdict-INERT — no rule keys on it; differs from cooccurrence_class only when a TCGA-WES-only passenger was demoted
     - top_cooccurring                       # list<struct: partner_symbol, log2_or, q_value, source, pooled_eligible>
     - top_mutually_exclusive                # list<struct: partner_symbol, log2_or, q_value, source, pooled_eligible>
     - n_significant_cooccurring             # count at q < 0.05, log2_or > 0.5
