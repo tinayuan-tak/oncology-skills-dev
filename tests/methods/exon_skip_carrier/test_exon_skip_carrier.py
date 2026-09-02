@@ -112,3 +112,50 @@ def test_maf_adapter_missing_column_raises():
     bad = [["Hugo_Symbol", "Chromosome", "Variant_Classification", "ModelID"]]  # no Start_Position
     with pytest.raises(ValueError):
         list(_observations_from_maf(iter(bad), gene="MET"))
+
+
+# ------------------------------- product builder -------------------------------
+
+def _maf(rows):
+    header = ["Hugo_Symbol", "Chromosome", "Start_Position", "End_Position",
+              "Variant_Classification", "ModelID", "VariantType"]
+    return [header] + rows
+
+
+def test_builder_retains_only_splice_and_sorts():
+    from methods.exon_skip_carrier.build import splice_rows_from_maf
+    rows = _maf([
+        ["MET", "chr7", "116771990", "116771990", "Splice_Site", "ACH-000616", "SNV"],
+        ["MET", "7", "116769792", "116769792", "Splice_Region", "ACH-001864", "SNV"],   # bare chrom
+        ["KRAS", "chr12", "25245350", "25245350", "Missense_Mutation", "ACH-XX", "SNV"],  # non-splice dropped
+        ["APC", "chr5", "112839999", "112840010", "Splice_Site", "ACH-YY", "deletion"],
+    ])
+    out = splice_rows_from_maf(rows)
+    assert [r["gene_symbol"] for r in out] == ["APC", "MET", "MET"]      # gene-sorted, non-splice dropped
+    met = [r for r in out if r["gene_symbol"] == "MET"]
+    assert met[0]["chrom"] == "chr7" and met[1]["chrom"] == "chr7"        # bare "7" normalized
+    assert met[0]["start_position"] == 116769792 < met[1]["start_position"]  # sorted within gene
+    assert out[0]["end_position"] == 112840010                            # End_Position retained
+
+
+def test_builder_unparseable_position_dropped():
+    from methods.exon_skip_carrier.build import splice_rows_from_maf
+    rows = _maf([["MET", "chr7", "", "", "Splice_Site", "ACH-NOPOS", "SNV"]])
+    assert splice_rows_from_maf(rows) == []
+
+
+def test_builder_table_schema():
+    from methods.exon_skip_carrier.build import build_table
+    rows = _maf([["MET", "chr7", "116771990", "116771990", "Splice_Site", "ACH-000616", "SNV"]])
+    tbl = build_table(rows)
+    assert tbl.schema.names == ["gene_symbol", "model_id", "chrom", "start_position",
+                                "end_position", "variant_classification", "variant_type"]
+    assert tbl.num_rows == 1
+
+
+def test_builder_missing_column_raises():
+    import pytest
+    from methods.exon_skip_carrier.build import splice_rows_from_maf
+    bad = [["Hugo_Symbol", "Start_Position", "Variant_Classification", "ModelID"]]  # no Chromosome
+    with pytest.raises(ValueError):
+        splice_rows_from_maf(iter(bad))

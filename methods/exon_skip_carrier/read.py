@@ -1,18 +1,16 @@
 """exon_skip_carrier.read — source loaders that produce carrier sample sets.
 
-DepMap live loader streams the raw OmicsSomaticMutationsMAF.maf — the POSITION-BEARING
-source. The derived per-model somatic parquet (methods.depmap_common.parquet) exposes only
-ModelID/VariantType/VariantInfo/ProteinChange/HugoSymbol — no Chromosome/Start_Position — so
-it CANNOT isolate exon 14 (splice classification alone over-calls distant MET splice sites).
-Hence the raw MAF here.
+DepMap carriers are read PRODUCT-FIRST from the gene-sorted `depmap-somatic-splice-variants-v1`
+product (a cheap pushdown on gene_symbol), falling back to a streamed read of the raw
+OmicsSomaticMutationsMAF.maf only when the product is absent. Both are POSITION-BEARING: the
+standard derived per-model somatic parquet (methods.depmap_common.parquet) exposes only
+ModelID/VariantType/VariantInfo/ProteinChange/HugoSymbol — no Chromosome/Start_Position — so it
+CANNOT isolate exon 14 (splice classification alone over-calls distant MET splice sites). The
+product exists precisely so consumers avoid streaming the ~738 MB raw MAF per query.
 
 MC3 / GENIE patient carriers use the SAME classifier (classify.carriers_for_event) over the
 per-sample MAF, which retains Start_Position; that wiring is a downstream follow-up (the
 patient-prevalence + dependency-stratification consumers), tracked with the card/resolver work.
-
-Streaming note: the raw MAF is ~large; this is a BUILD / precompute-grade read (streamed
-line-by-line, gene-filtered), not a per-query live card read. Result is cached per
-(release_pin, event_id).
 """
 from __future__ import annotations
 
@@ -27,6 +25,7 @@ METHOD_VERSION = "0.1.0"
 
 DEFAULT_AWS_PROFILE = "cbg"
 DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+PRODUCT_MANIFEST_ID = "depmap-somatic-splice-variants-v1"
 _MAF_FILENAME = "OmicsSomaticMutationsMAF.maf"
 
 
@@ -78,19 +77,50 @@ def _observations_from_maf(rows: Iterable[list], gene: str) -> Iterable[VariantO
         yield VariantObs(sample_id=r[si], chrom=r[ci], pos=pos, classification=r[vi])
 
 
+def _observations_from_product(gene: str) -> Optional[list]:
+    """PRODUCT-first: gene-sorted pushdown over depmap-somatic-splice-variants-v1.
+    Returns a list of VariantObs, or None if the product is absent (→ raw-MAF fallback).
+    Broken-env/transient/creds errors are re-raised (not masked as a coverage gap)."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+        from methods.catalog_query.read import bucket_key_for
+        import pyarrow.parquet as pq
+        import pyarrow.fs as fs
+        bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
+        tbl = pq.read_table(
+            f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
+            columns=["gene_symbol", "model_id", "chrom", "start_position", "variant_classification"],
+            filters=[("gene_symbol", "=", (gene or "").strip().upper())])
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
+        return None
+    return [VariantObs(sample_id=r["model_id"], chrom=r["chrom"], pos=r["start_position"],
+                       classification=r["variant_classification"]) for r in tbl.to_pylist()]
+
+
 @lru_cache(maxsize=8)
 def depmap_carriers(event_id: str = "METex14", release_pin: str = "26q1") -> dict:
-    """Identify DepMap cell lines (ModelID) carrying `event_id`, from the raw somatic MAF.
+    """Identify DepMap cell lines (ModelID) carrying `event_id`.
 
-    Returns {event_id, gene, release_pin, carrier_samples (sorted), n_carriers, genome_build,
-    window, _data_source}. carrier_samples is the primitive the dependency-stratification and
-    prevalence consumers key on.
+    Product-first (gene-sorted pushdown over depmap-somatic-splice-variants-v1); falls back to
+    a streamed read of the raw somatic MAF when the product is absent. Returns {event_id, gene,
+    release_pin, carrier_samples (sorted), n_carriers, genome_build, window, _data_source}.
+    carrier_samples is the primitive the dependency-stratification + prevalence consumers key on.
     """
     if event_id not in EXON_SKIP_EVENTS:
         raise KeyError(f"unknown exon-skip event: {event_id!r}")
     ev = EXON_SKIP_EVENTS[event_id]
-    bucket, key = _resolve_maf_location()
-    obs = list(_observations_from_maf(_stream_maf_lines(bucket, key), ev.gene))
+    obs = _observations_from_product(ev.gene)
+    if obs is not None:
+        source = f"{PRODUCT_MANIFEST_ID}"
+    else:
+        bucket, key = _resolve_maf_location()
+        obs = list(_observations_from_maf(_stream_maf_lines(bucket, key), ev.gene))
+        source = f"{DEPMAP_SOURCE_MANIFEST_ID}:{_MAF_FILENAME} (product-absent fallback)"
     carriers = carriers_for_event(obs, event_id)
     return {
         "event_id": event_id,
@@ -100,7 +130,7 @@ def depmap_carriers(event_id: str = "METex14", release_pin: str = "26q1") -> dic
         "window": f"{ev.chrom}:{ev.window_start}-{ev.window_end}",
         "carrier_samples": sorted(carriers),
         "n_carriers": len(carriers),
-        "_data_source": f"{DEPMAP_SOURCE_MANIFEST_ID}:{_MAF_FILENAME}",
+        "_data_source": source,
         "method_version": METHOD_VERSION,
     }
 
