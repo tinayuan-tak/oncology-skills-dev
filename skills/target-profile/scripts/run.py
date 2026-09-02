@@ -68,7 +68,8 @@ from tp_facets import (
     build_target_rollup, build_target_coherence,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
-from tp_synthesis_prompt import _SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool, _build_user_prompt
+from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool,
+                                  _build_user_prompt, validate_synthesis_anchors)
 from tp_render_md import *           # noqa: F401,F403
 from tp_render_md import _render_target_profile_md
 from tp_render_html import *         # noqa: F401,F403
@@ -651,6 +652,16 @@ def main() -> int:
         # LLM's inline glosses. On a successful narration only (a degraded/error dict stays minimal).
         if isinstance(llm_output, dict) and "_synthesis_error" not in llm_output:
             llm_output.setdefault("metric_legend", _METRIC_LEGEND)
+            # Verdict-INERT audit: flag any bracketed [rule_id]/[card_id] anchors the model cited that
+            # are NOT in the deterministic narrative/fired/card anchor set (possible hallucinated
+            # citations). Fail-visible (records, never strips); does not touch the verdict/recommendation.
+            llm_output["_anchor_validation"] = validate_synthesis_anchors(
+                llm_output, narrative_by_axis, sub_results)
+            _inv = llm_output["_anchor_validation"]["n_invented"]
+            if _inv:
+                print(f"[target-profile] NOTE: {_inv} synthesis citation anchor(s) not in the "
+                      f"narrative block (possible hallucination): "
+                      f"{llm_output['_anchor_validation']['invented_anchors']}", file=sys.stderr)
 
     # 2b. Deterministic recommendation gate. A killer sub-verdict FORCES the
     # recommendation regardless of what the LLM chose — the auditable rule wins.

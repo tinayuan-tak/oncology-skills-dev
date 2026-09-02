@@ -708,6 +708,119 @@ def _build_user_prompt(
     return "\n".join(lines)
 
 
+# --- Post-synthesis anchor validation (verdict-INERT audit) -----------------------------------------
+# The synthesis prompt tells the model to cite load-bearing claims with inline [rule_id]/[card_id]
+# anchors drawn ONLY from the Per-verdict narrative block, and to fill the optional structured
+# `citations` with anchors present there — "never invent one." That was PROMPT-ONLY: nothing checked the
+# emitted anchors against the legal set, so a hallucinated [rule_id] shipped silently into
+# target_profile.md. This validator computes the legal anchor set deterministically (narrative_by_axis +
+# every fired rule + every card_id across the fan-out) and records which bracketed anchors in the
+# prose/citations are NOT in it. FLAG-ONLY (fail-visible, like _malformed_fields): it records the
+# invented anchors and NEVER edits the prose, the verdict, or the recommendation.
+_ANCHOR_TOKEN_RE = re.compile(r"\[([^\[\]]+)\]")
+# a bracket token is an ID anchor only if it looks like a framework rule_id/card_id — KEBAB-case
+# (>=1 hyphen, no spaces). This excludes numeric refs ([1]), UPPER_SNAKE stratum labels (MSI_H), and
+# prose asides in brackets, which are not rule/card anchors and must not be mis-flagged.
+_ID_LIKE_RE = re.compile(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$")
+_PROSE_ANCHOR_FIELDS = ("executive_summary", "tension_analysis",
+                        "top_arguments_for", "top_arguments_against")
+
+
+def _uv_field(v):
+    """Unwrap a provenance-stamped field ({'value':..., '_source':...}) to its value."""
+    return v.get("value") if isinstance(v, dict) and "value" in v else v
+
+
+def _allowed_anchor_set(narrative_by_axis: Optional[dict], sub_results: Optional[dict]) -> set:
+    """The deterministic legal anchor set: every rule_id + card_id the narrative block, the fired
+    rules, and the fan-out cards expose — i.e. exactly what the prompt told the model it may cite."""
+    allowed: set = set()
+    for n in (narrative_by_axis or {}).values():
+        if not isinstance(n, dict):
+            continue
+        if n.get("driving_rule_id"):
+            allowed.add(n["driving_rule_id"])
+        for m in (n.get("movers") or []):
+            allowed.update(x for x in (m.get("rule_id"), m.get("card_id")) if x)
+        for d in (n.get("dissenters") or []):
+            allowed.update(x for x in (d.get("rule_id"), d.get("card_id")) if x)
+        for f in (n.get("flip_conditions") or []):
+            if f.get("rule_id"):
+                allowed.add(f["rule_id"])
+        for rid, info in (n.get("rule_sentences") or {}).items():
+            allowed.add(rid)
+            if isinstance(info, dict) and info.get("card_id"):
+                allowed.add(info["card_id"])
+        for g in (n.get("gaps") or []):
+            for mc in (g.get("missing_cards") or []):
+                if mc.get("card_id"):
+                    allowed.add(mc["card_id"])
+    for r in (sub_results or {}).values():
+        for f in (r.get("fired") or []):
+            allowed.update(x for x in (f.get("rule_id"), f.get("card_id")) if x)
+        for c in (r.get("cards") or []):
+            if c.get("card_id"):
+                allowed.add(c["card_id"])
+    return allowed
+
+
+def _extract_id_anchors(text: Any) -> set:
+    """The kebab-case ID anchors inside [brackets] in a string (splitting a token on , or /)."""
+    out: set = set()
+    if not isinstance(text, str):
+        return out
+    for tok in _ANCHOR_TOKEN_RE.findall(text):
+        for part in re.split(r"[,/]", tok):
+            p = part.strip()
+            if _ID_LIKE_RE.match(p):
+                out.add(p)
+    return out
+
+
+def validate_synthesis_anchors(llm_output: Optional[dict], narrative_by_axis: Optional[dict],
+                               sub_results: Optional[dict]) -> dict:
+    """Verdict-INERT audit: flag bracketed [rule_id]/[card_id] anchors in the LLM prose + the structured
+    `citations` that are NOT in the deterministic anchor set (possible hallucinated citations). Returns
+    the audit block for the caller to attach; it never edits prose and never moves a verdict."""
+    allowed = _allowed_anchor_set(narrative_by_axis, sub_results)
+    cited: set = set()
+    invented_by_field: dict = {}
+    for field in _PROSE_ANCHOR_FIELDS:
+        v = _uv_field((llm_output or {}).get(field))
+        found: set = set()
+        for t in (v if isinstance(v, list) else [v]):
+            found |= _extract_id_anchors(t)
+        cited |= found
+        inv = sorted(a for a in found if a not in allowed)
+        if inv:
+            invented_by_field[field] = inv
+    cit_found: set = set()
+    for c in (_uv_field((llm_output or {}).get("citations")) or []):
+        c = _uv_field(c)
+        if isinstance(c, dict):
+            for a in (_uv_field(c.get("anchors")) or []):
+                if isinstance(a, str):
+                    for part in re.split(r"[,/]", a):
+                        p = part.strip()
+                        if _ID_LIKE_RE.match(p):
+                            cit_found.add(p)
+    cited |= cit_found
+    inv_cit = sorted(a for a in cit_found if a not in allowed)
+    if inv_cit:
+        invented_by_field["citations"] = inv_cit
+    invented = sorted(a for a in cited if a not in allowed)
+    return {
+        "allowed_anchor_count": len(allowed),
+        "n_cited": len(cited),
+        "invented_anchors": invented,
+        "n_invented": len(invented),
+        "invented_by_field": invented_by_field,
+        "_note": ("verdict-INERT audit: bracketed [rule_id]/[card_id] anchors in the LLM "
+                  "prose/citations absent from the deterministic narrative block (possible "
+                  "hallucinated citations). Does NOT alter the verdict, recommendation, or prose."),
+    }
+
+
 __all__ = [
     '_LOAD_BEARING_SUMMARY_KEY_PARTS',
     '_METRIC_LEGEND',
@@ -717,4 +830,5 @@ __all__ = [
     '_build_user_prompt',
     '_format_card_summary_for_prompt',
     '_render_matrix_slice_for_prompt',
+    'validate_synthesis_anchors',
 ]
