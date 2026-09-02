@@ -148,3 +148,35 @@ def test_all_self_target_becomes_no_resistance_signal(monkeypatch):
     assert out["resistance_emergence_class"] == "no_resistance_signal"
     assert out["n_resistance_mediators"] == 0
     assert out["anchor_drug"] == "MRTX1133"     # anchor metadata still surfaced from raw row
+
+
+# ── min-cell-line power floor (thin-panel artifact guard) ────────────────────────────────────────
+def test_underpowered_robust_resistance_is_capped_at_context_with_prefloor_audit():
+    """A robust rescuer resting on n_models < MIN_POWERED_MODELS (the XPO1 n=2 artifact) is capped at
+    context_resistance_signal; the raw pre-floor call + underpowered flag are preserved for audit."""
+    rows = (_row("FEN1", "robust_resistance_mediator", 0.8, nsig=1, nm=2),)
+    out = r.resistance_mediators_for_gene("XPO1", rows=rows, include_tahoe_adaptation=False)
+    assert out["resistance_emergence_class"] == "context_resistance_signal"
+    assert out["resistance_emergence_class_prefloor"] == "strong_resistance_signal"
+    assert out["drug_anchor_underpowered"] is True
+    assert out["drug_anchor_n_models_max"] == 2
+    assert "UNDERPOWERED" in out["resistance_context"]
+
+
+def test_powered_robust_resistance_unchanged_and_not_flagged():
+    """A robust rescuer on a sufficient panel (n_models >= MIN_POWERED_MODELS) is unchanged and NOT
+    flagged underpowered (KRAS n=6 / KIT n=3 keep their strong call)."""
+    rows = (_row("BORA", "robust_resistance_mediator", 0.8, nsig=2, nm=3),)
+    out = r.resistance_mediators_for_gene("KIT", rows=rows, include_tahoe_adaptation=False)
+    assert out["resistance_emergence_class"] == "strong_resistance_signal"
+    assert out["resistance_emergence_class_prefloor"] == "strong_resistance_signal"
+    assert out["drug_anchor_underpowered"] is False
+
+
+def test_underpowered_resistance_never_erased_to_no_signal():
+    """An underpowered positive rescuer is capped at context, never dropped to no_resistance_signal."""
+    rows = (_row("Y", "supported_resistance_mediator", 0.4, nsig=1, nm=2),)
+    out = r.resistance_mediators_for_gene("XPO1", rows=rows, include_tahoe_adaptation=False)
+    assert out["resistance_emergence_class"] == "context_resistance_signal"
+    assert out["resistance_emergence_class_prefloor"] == "resistance_signal"
+    assert out["drug_anchor_underpowered"] is True

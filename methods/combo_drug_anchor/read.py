@@ -68,7 +68,19 @@ def _read_rows(target: str) -> Optional[tuple]:
     return result
 
 
-def _classify(rows: Optional[tuple]) -> str:
+# A drug-anchor combination/resistance call resting on too few cell lines is UNDERPOWERED: the
+# robust tier requires frac_models_significant>=0.5, which at n_models==2 is a single significant
+# line (a coin-flip), and no fraction/replication is interpretable below 3 observations. Rows below
+# the floor cannot carry the roll-up above the CONTEXT tier — the signal is never erased (an
+# underpowered co-target is still a conditional hypothesis), only capped. The raw pre-floor class is
+# preserved as `combination_opportunity_class_prefloor` (audit). Empirically only the XPO1 anchor
+# (Eltanexor, n_models=2) moves; KRAS (MRTX1133, n=6) and KIT (Avapritinib, n=3) are unchanged.
+MIN_POWERED_MODELS = 3
+
+_POSITIVE_COMBINATION_CLASSES = ("robust_combination", "supported_combination", "context_combination")
+
+
+def _classify(rows: Optional[tuple], min_models: int = 0) -> str:
     """Target-level combination_opportunity_class (strongest co-target wins).
 
       strong_combination_opportunity   >=1 co-target robust_combination
@@ -77,17 +89,27 @@ def _classify(rows: Optional[tuple]) -> str:
       no_combination_signal            anchor screened, no co-target passed
       no_anchor_screen                 target has no anchor-drug screen (coverage gap)
       data_unavailable                 read failure
+
+    min_models: minimum n_models a co-target row must have to carry the roll-up above CONTEXT. With
+    the default 0 the classifier is the RAW pre-floor call (all rows eligible — byte-identical to the
+    historical behaviour). With min_models=MIN_POWERED_MODELS an underpowered positive signal is
+    capped at context_combination_opportunity rather than promoted to strong/moderate.
     """
     if rows is None:
         return "data_unavailable"
     if len(rows) == 0:
         return "no_anchor_screen"
-    classes = {r.get("combination_class") for r in rows}
+    powered = [r for r in rows if int(r.get("n_models") or 0) >= min_models]
+    classes = {r.get("combination_class") for r in powered}
     if "robust_combination" in classes:
         return "strong_combination_opportunity"
     if "supported_combination" in classes:
         return "combination_opportunity"
     if "context_combination" in classes:
+        return "context_combination_opportunity"
+    # No POWERED row reached a positive tier. If underpowered positive rows exist, the signal is real
+    # but underpowered → cap at context (never erase a measured co-target to no-signal).
+    if min_models and any(r.get("combination_class") in _POSITIVE_COMBINATION_CLASSES for r in rows):
         return "context_combination_opportunity"
     return "no_combination_signal"
 
@@ -128,13 +150,19 @@ def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None
             # _read_rows does not cache a failed load, so a later call still retries.
             data = None
             read_error = f"combo_drug_anchor transient/creds/broken-env read failure: {e}"
-    klass = _classify(data)
+    klass_prefloor = _classify(data)                              # RAW (audit) — no power floor
+    klass = _classify(data, min_models=MIN_POWERED_MODELS)        # POWERED (the reported class)
+    n_models_max = max((int(r.get("n_models") or 0) for r in data), default=0) if data else 0
+    underpowered = (klass != klass_prefloor)                      # the floor demoted the call
     partners = _rank(data, top_n=20) if data else []
     strongest = partners[0] if partners else None
     anchor = (data[0].get("anchor_drug") if data else None)
     mechanism = (data[0].get("mechanism") if data else None)
     out = {
         "combination_opportunity_class": klass,
+        "combination_opportunity_class_prefloor": klass_prefloor,  # raw pre-power-floor call (audit)
+        "drug_anchor_n_models_max": n_models_max,                  # widest cell-line panel behind the call
+        "drug_anchor_underpowered": underpowered,                  # True iff the power floor demoted it
         "anchor_drug": anchor,
         "anchor_mechanism": mechanism,
         "n_co_targets": len(data) if data else 0,
@@ -142,7 +170,7 @@ def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None
         "strongest_co_target_shift": (strongest or {}).get("mean_effect_shift"),
         "strongest_co_target_class": (strongest or {}).get("combination_class"),
         "top_co_targets": partners,
-        "combination_context": _context(sym, klass, strongest, anchor),
+        "combination_context": _context(sym, klass, strongest, anchor, underpowered, n_models_max),
         "method_version": METHOD_VERSION,
         "_data_source": PRODUCT_MANIFEST_ID,
     }
@@ -155,7 +183,17 @@ def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None
     return out
 
 
-def _context(sym: str, klass: str, strongest: Optional[dict], anchor: Optional[str]) -> Optional[str]:
+def _context(sym: str, klass: str, strongest: Optional[dict], anchor: Optional[str],
+             underpowered: bool = False, n_models_max: int = 0) -> Optional[str]:
+    if underpowered and klass == "context_combination_opportunity":
+        s = strongest or {}
+        cg, shift = s.get("co_target_gene"), s.get("mean_effect_shift")
+        raw_cls = (s.get("combination_class") or "").replace("_", " ")
+        shift_txt = f" (mean shift {shift:.2f})" if isinstance(shift, (int, float)) else ""
+        return (f"{sym} inhibition ({anchor}): UNDERPOWERED combination signal with {cg}{shift_txt} — "
+                f"the strongest co-target reads {raw_cls} but the anchor was screened in only "
+                f"{n_models_max} cell line(s) (< {MIN_POWERED_MODELS}), so replication is "
+                f"uninterpretable; capped at a context-conditional hypothesis pending a wider panel.")
     if klass == "no_anchor_screen":
         return (f"{sym}: no drug-anchor CRISPR screen (no anchor inhibitor of {sym} in the DepMap "
                 f"26Q1 drug-anchor panel — covers KRAS/KIT/XPO1 only). A coverage gap, NOT evidence "

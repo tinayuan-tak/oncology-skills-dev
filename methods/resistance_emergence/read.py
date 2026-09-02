@@ -82,7 +82,19 @@ def _drop_self_target(rows: tuple) -> tuple:
     return tuple(r for r in rows if r.get("rescuer_gene") != r.get("inhibited_target"))
 
 
-def _classify(raw_rows: Optional[tuple], mediators: tuple) -> str:
+# A drug-anchor resistance call resting on too few cell lines is UNDERPOWERED (the robust tier needs
+# frac_models_significant>=0.5, a single significant line at n_models==2, and no fraction is
+# interpretable below 3 observations). Rescuer rows below the floor cannot carry the roll-up above
+# CONTEXT — the signal is never erased (an underpowered rescuer is still a conditional escape
+# hypothesis), only capped. Raw pre-floor class preserved as `resistance_emergence_class_prefloor`.
+# Mirror of combo_drug_anchor.MIN_POWERED_MODELS; kept byte-identical. Empirically only XPO1 moves.
+MIN_POWERED_MODELS = 3
+
+_POSITIVE_RESISTANCE_CLASSES = ("robust_resistance_mediator", "supported_resistance_mediator",
+                               "context_resistance_mediator")
+
+
+def _classify(raw_rows: Optional[tuple], mediators: tuple, min_models: int = 0) -> str:
     """Target-level resistance_emergence_class (strongest rescuer wins).
 
       strong_resistance_signal    >=1 mediator robust_resistance_mediator
@@ -94,19 +106,28 @@ def _classify(raw_rows: Optional[tuple], mediators: tuple) -> str:
 
     Takes BOTH the raw rows (to detect a genuine no-screen) and the post-self-drop mediators (to
     classify), so an all-self-target result is a real negative (no_resistance_signal), NOT mistaken
-    for a coverage gap."""
+    for a coverage gap.
+
+    min_models: minimum n_models a rescuer row must have to carry the roll-up above CONTEXT. Default 0
+    is the RAW pre-floor call (byte-identical to the historical behaviour); MIN_POWERED_MODELS caps an
+    underpowered positive signal at context_resistance_signal rather than promoting it."""
     if raw_rows is None:
         return "data_unavailable"
     if len(raw_rows) == 0:
         return "no_anchor_screen"
     if len(mediators) == 0:
         return "no_resistance_signal"          # screened, but only the self-target (now dropped)
-    classes = {r.get("resistance_class") for r in mediators}
+    powered = [r for r in mediators if int(r.get("n_models") or 0) >= min_models]
+    classes = {r.get("resistance_class") for r in powered}
     if "robust_resistance_mediator" in classes:
         return "strong_resistance_signal"
     if "supported_resistance_mediator" in classes:
         return "resistance_signal"
     if "context_resistance_mediator" in classes:
+        return "context_resistance_signal"
+    # No POWERED rescuer reached a positive tier. If underpowered positive rescuers exist, the signal
+    # is real but underpowered → cap at context (never erase a measured rescuer to no-signal).
+    if min_models and any(r.get("resistance_class") in _POSITIVE_RESISTANCE_CLASSES for r in mediators):
         return "context_resistance_signal"
     return "no_resistance_signal"
 
@@ -156,7 +177,11 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
             raw = None
             read_error = f"resistance_emergence transient/creds/broken-env read failure: {e}"
     non_self = _drop_self_target(raw) if raw else raw
-    klass = _classify(raw, non_self or tuple())
+    non_self_t = non_self or tuple()
+    klass_prefloor = _classify(raw, non_self_t)                          # RAW (audit) — no power floor
+    klass = _classify(raw, non_self_t, min_models=MIN_POWERED_MODELS)    # POWERED (the reported class)
+    n_models_max = max((int(r.get("n_models") or 0) for r in non_self_t), default=0)
+    underpowered = (klass != klass_prefloor)                            # the floor demoted the call
     mediators = _rank(non_self, top_n=20) if non_self else []
     strongest = mediators[0] if mediators else None
     # anchor metadata comes from raw rows (present even in the all-self / no-mediator case)
@@ -164,6 +189,9 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     mechanism = (raw[0].get("mechanism") if raw else None)
     out = {
         "resistance_emergence_class": klass,
+        "resistance_emergence_class_prefloor": klass_prefloor,  # raw pre-power-floor call (audit)
+        "drug_anchor_n_models_max": n_models_max,               # widest cell-line panel behind the call
+        "drug_anchor_underpowered": underpowered,               # True iff the power floor demoted it
         "anchor_drug": anchor,
         "anchor_mechanism": mechanism,
         "n_resistance_mediators": len(non_self) if non_self else 0,
@@ -171,7 +199,7 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
         "strongest_mediator_shift": (strongest or {}).get("mean_effect_shift"),
         "strongest_mediator_class": (strongest or {}).get("resistance_class"),
         "top_resistance_mediators": mediators,
-        "resistance_context": _context(sym, klass, strongest, anchor),
+        "resistance_context": _context(sym, klass, strongest, anchor, underpowered, n_models_max),
         "method_version": METHOD_VERSION,
         "_data_source": PRODUCT_MANIFEST_ID,
     }
@@ -198,7 +226,17 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     return out
 
 
-def _context(sym: str, klass: str, strongest: Optional[dict], anchor: Optional[str]) -> Optional[str]:
+def _context(sym: str, klass: str, strongest: Optional[dict], anchor: Optional[str],
+             underpowered: bool = False, n_models_max: int = 0) -> Optional[str]:
+    if underpowered and klass == "context_resistance_signal":
+        s = strongest or {}
+        rg, shift = s.get("rescuer_gene"), s.get("mean_effect_shift")
+        raw_cls = (s.get("resistance_class") or "").replace("_", " ")
+        shift_txt = f" (mean shift +{shift:.2f})" if isinstance(shift, (int, float)) else ""
+        return (f"{sym} inhibition ({anchor}): UNDERPOWERED resistance signal — KO of {rg} rescues"
+                f"{shift_txt} and reads {raw_cls}, but the anchor was screened in only {n_models_max} "
+                f"cell line(s) (< {MIN_POWERED_MODELS}), so replication is uninterpretable; capped at a "
+                f"context-conditional escape hypothesis pending a wider panel.")
     if klass == "no_anchor_screen":
         return (f"{sym}: no drug-anchor CRISPR screen (no anchor inhibitor of {sym} in the DepMap "
                 f"26Q1 drug-anchor panel — covers KRAS/KIT/XPO1 only). A coverage gap, NOT evidence "

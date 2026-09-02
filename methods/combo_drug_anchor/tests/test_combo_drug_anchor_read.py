@@ -116,3 +116,41 @@ def test_empty_absence_is_cached_and_no_anchor_screen(monkeypatch):
     assert "_live_read_error" not in out
     r.combination_opportunities_for_gene("NOSCREEN")
     assert calls["n"] == 1                                  # empty absence cached (definitive)
+
+
+# ── min-cell-line power floor (thin-panel artifact guard) ────────────────────────────────────────
+def _row(co, klass, n_models, shift=-0.6, nsig=None):
+    nsig = nsig if nsig is not None else max(1, round(0.6 * n_models))
+    return {"inhibited_target": "XPO1", "co_target_gene": co, "anchor_drug": "Eltanexor",
+            "mechanism": "XPO1 inhibitor", "n_models": n_models, "mean_effect_shift": shift,
+            "min_effect_shift": shift - 0.2, "n_models_significant": nsig,
+            "frac_models_significant": nsig / n_models, "combination_class": klass}
+
+
+def test_underpowered_robust_is_capped_at_context_with_prefloor_audit():
+    """A robust co-target resting on n_models < MIN_POWERED_MODELS (the XPO1 n=2 artifact) is capped
+    at context, but the raw pre-floor call + the underpowered flag are preserved for audit."""
+    out = r.combination_opportunities_for_gene("XPO1", rows=(_row("STRAP", "robust_combination", 2),))
+    assert out["combination_opportunity_class"] == "context_combination_opportunity"
+    assert out["combination_opportunity_class_prefloor"] == "strong_combination_opportunity"
+    assert out["drug_anchor_underpowered"] is True
+    assert out["drug_anchor_n_models_max"] == 2
+    assert "UNDERPOWERED" in out["combination_context"]
+
+
+def test_powered_robust_is_unchanged_and_not_flagged():
+    """A robust co-target on a sufficient panel (n_models >= MIN_POWERED_MODELS) is unchanged and
+    NOT flagged underpowered — the floor only moves the thin panels (KRAS n=6 / KIT n=3 stay)."""
+    out = r.combination_opportunities_for_gene("KIT", rows=(_row("BORA", "robust_combination", 3),))
+    assert out["combination_opportunity_class"] == "strong_combination_opportunity"
+    assert out["combination_opportunity_class_prefloor"] == "strong_combination_opportunity"
+    assert out["drug_anchor_underpowered"] is False
+
+
+def test_underpowered_signal_is_never_erased_to_no_signal():
+    """An underpowered positive co-target is capped at context, never dropped to no_combination_signal
+    (a measured co-target is a conditional hypothesis, not absence)."""
+    out = r.combination_opportunities_for_gene("XPO1", rows=(_row("X", "supported_combination", 2),))
+    assert out["combination_opportunity_class"] == "context_combination_opportunity"
+    assert out["combination_opportunity_class_prefloor"] == "combination_opportunity"
+    assert out["drug_anchor_underpowered"] is True
