@@ -112,6 +112,25 @@ Curated labels drift; the collapsed word hides modality-conditioning; verify aga
   data-catalog + target-contracts), NOT a nomination-gate change. Detail in the 08-26 issue doc.
 - **Status:** veto RESOLVED. Residual genomic-fidelity fix QUEUED as a real (non-false-alarm) build.
 
+### CASE-006 — CNDP2-COADREAD neomorphic-GoF silent-FN — CONFIRMED (full-panel, 2026-09-02)
+- Full-panel sweep flagged the one genuine fresh miss: `CNDP2/COADREAD [small_molecule] → veto`
+  (`dependency:non_dependent`). CNDP2 is an `active` program; its deciding axis is a **neomorphic
+  gain-of-function** the framework can't see (whole-gene KO ≠ neomorphic-enzyme inhibition), so it
+  reads non-dependent and hard-vetoes. A real silent-FN (same family as the IDH1 GoF-driver-downgrade
+  branch D in tp_gates, but CNDP2's GoF isn't captured genomically to trigger it).
+- **Status:** CONFIRMED real gap (genomic/GoF fidelity). Distinct from the demoted false alarms —
+  this one survives a live re-run. Queued alongside CASE-002 as a genomic-fidelity build.
+
+### Full-panel baseline (2026-09-02) — 22/26 emitted (4 timeouts), scored 12/13 (acc 0.923)
+- Ran `run_known_target_panel.py --emit` over all 26 in-scope profiles (modality-aware). 22 OK; 4
+  TIMEOUT at 600s (ADAR1, CD20/DLBC, HIF2A, SCD1 — heavier targets/indications; bump `--timeout` or
+  investigate). Recommendation-gate: **12/13 hit (0.923)** over scored known targets; the lone miss is
+  CASE-006 CNDP2. Signal ledger: avg 29.9 positive / 33.1 negative per target; **54 negatives surviving
+  vs 72 suppressed** (modality/context-cleared). Deciding-axis capture: partial 14 / captured 6 / blind 1.
+- **Instrument fix (this PR):** the `_drift` heuristic wrongly flagged RBM39 (`validated_lane` but
+  outcome=`declined`, correctly vetoed) as a REGRESSION. Now gated on a POSITIVE outcome — the
+  full panel catching a flaw in its own instrument.
+
 ---
 
 ## Meta-finding (2026-09-02) — the nomination GATE is healthy; remaining work is SUBSTRATE FIDELITY

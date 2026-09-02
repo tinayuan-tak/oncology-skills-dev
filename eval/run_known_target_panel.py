@@ -281,11 +281,14 @@ def _drift(row: dict) -> str | None:
     """Curated label vs fresh recommendation — surfaces both regressions and outgrown labels."""
     if row.get("status") != "scored":
         return None
-    sev, reco = row.get("severity"), row.get("reco")
+    sev, reco, outcome = row.get("severity"), row.get("reco"), row.get("outcome")
     if sev == "silent_false_negative" and reco == "nominate":
         return "curated=silent_FN but live NOMINATES → framework outgrew the label; flip calibration entry"
-    if sev == "validated_lane" and reco == "veto":
-        return "curated=validated_lane but live VETOES → REGRESSION"
+    # A validated_lane VETO is only a regression when the OUTCOME is positive (approved/advanced/active).
+    # validated_lane also covers correctly-declined targets (RBM39: the framework validly vetoes a
+    # pan-essential/no-window liability that matches a `declined` outcome) — vetoing those is CORRECT.
+    if sev == "validated_lane" and reco == "veto" and outcome in _POSITIVE:
+        return "curated=validated_lane (positive outcome) but live VETOES → REGRESSION"
     if sev == "dangerous_false_positive" and reco != "nominate":
         return "curated=dangerous_FP but live does NOT nominate → framework caught up; re-review"
     return None
