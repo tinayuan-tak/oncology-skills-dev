@@ -36,7 +36,7 @@
   "correlated_evidence_discounted": false,
   "correlated_groups": {},
   "n_independent_units": 80,
-  "prompt_template_hash": "a9c0cca3669cbb7c6330d01c1a1e3aa0ef98ab35a4197a61f7681c83d674a284",
+  "prompt_template_hash": "17e6398cee81cb123025415a40f915cb354f514a6fcad206976921ecafc19127",
   "model_id": "offline:offline_replay",
   "llm_mode": "offline_replay"
 }

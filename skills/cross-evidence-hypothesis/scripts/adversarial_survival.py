@@ -29,6 +29,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -39,6 +40,7 @@ sys.path.insert(0, str(HERE.parent.parent))   # skills/ (for _skills_common)
 
 import hypothesis_core as hc  # noqa: E402
 import run as R  # noqa: E402
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
 
 CLAUSE_KEYS = ("causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window")
 N_SKEPTICS = 3
@@ -66,7 +68,20 @@ SKEPTIC_SYSTEM = (
     "For each clause return: refuted (bool), refutation (the specific evidence-grounded reason, or '' "
     "if it survives), and cited (the EXACT package tokens your refutation rests on — card_ids / "
     "sub-verdict names / rule_ids / PMIDs / dossier field names)."
+    + EVIDENCE_ONLY_DIRECTIVE
 )
+
+
+def skeptic_prompt_hash() -> str:
+    """Stable sha256 over the skeptic prompt SURFACE (system prompt + tool schema). The main
+    integrator's prompt_template_hash (run.prompt_template_hash) covers only the two GENERATION calls,
+    so the skeptic surface was drift-invisible; pinning it here makes a silent edit to the skeptic
+    prompt/schema auditable in the survival provenance."""
+    h = hashlib.sha256()
+    for part in (SKEPTIC_SYSTEM, json.dumps(_skeptic_schema(list(CLAUSE_KEYS)), sort_keys=True)):
+        h.update(part.encode("utf-8"))
+        h.update(b"\x00")
+    return h.hexdigest()
 
 
 def _skeptic_schema(clause_names: list) -> dict:
@@ -163,7 +178,8 @@ def adversarial_survival(hypothesis_result: dict, pkg_path: str, risk_path=None,
                              "n_skeptics": len(votes), "skeptics": votes}
     score = round(n_survive / len(clause_names), 3)
     return {"score": score, "n_clauses": len(clause_names),
-            "n_surviving": n_survive, "clauses": clause_results}
+            "n_surviving": n_survive, "clauses": clause_results,
+            "provenance": {"skeptic_prompt_hash": skeptic_prompt_hash(), "n_skeptics": n_skeptics}}
 
 
 def adversarial_survival_gate(result: dict, threshold: float = DEFAULT_THRESHOLD) -> dict:

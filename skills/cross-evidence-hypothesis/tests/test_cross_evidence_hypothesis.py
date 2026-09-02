@@ -475,3 +475,42 @@ def test_adversarial_flag_populates_quality_slot_and_gate():
     base = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
                  str(DOSSIER), synthesize_fn=_stub_clean)
     assert r["verdict"] == base["verdict"] and r["defensibility"] == base["defensibility"]
+
+
+# =============================== grounding + schema-correctness guards ===============================
+def test_generation_prompts_carry_evidence_only_fence():
+    # both generation prompts must append the shared anti-lore directive (this skill names the gene
+    # and GENERATES biology — the KRAS-blinding case the directive was written for).
+    marker = "EVIDENCE-ONLY GROUNDING"
+    assert marker in R.EDGE_SYSTEM
+    assert marker in R.HYP_SYSTEM
+
+
+def test_contradicting_citations_declared_on_every_assertive_clause():
+    # the coherence teeth + _all_clause_citations READ contradicting_citations from all four clauses;
+    # the schema must DECLARE it on all four (not just therapeutic_window) or the acknowledged-tension
+    # escape hatch depends on an undeclared field.
+    props = R.HYPOTHESIS_SCHEMA["properties"]
+    for clause in ("causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window"):
+        assert "contradicting_citations" in props[clause]["properties"], clause
+
+
+def test_modality_is_enum_constrained_to_scope():
+    modality = R.HYPOTHESIS_SCHEMA["properties"]["therapeutic_hypothesis"]["properties"]["modality"]
+    assert modality.get("enum") == sorted(hc.MODALITY_SCOPE)
+
+
+def test_run_surfaces_llm_field_recovery_provenance():
+    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
+              str(DOSSIER), synthesize_fn=_stub_clean)
+    rec = r["provenance"]["llm_field_recovery"]
+    # clean stubs → no salvage/recovery, but the audit slot is present + shaped for both calls
+    assert set(rec.keys()) == {"edges", "hypothesis"}
+    assert rec["edges"] == {} and rec["hypothesis"] == {}
+
+
+def test_skeptic_prompt_is_fenced_and_hash_is_stable():
+    import adversarial_survival as AS
+    assert "EVIDENCE-ONLY GROUNDING" in AS.SKEPTIC_SYSTEM
+    assert AS.skeptic_prompt_hash() == AS.skeptic_prompt_hash()   # deterministic
+    assert len(AS.skeptic_prompt_hash()) == 64                    # sha256 hex

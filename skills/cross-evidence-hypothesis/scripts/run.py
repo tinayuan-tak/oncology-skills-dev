@@ -48,6 +48,10 @@ sys.path.insert(0, str(SKILLS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hypothesis_core as hc  # noqa: E402
+# Shared anti-lore grounding fence. This skill puts the target gene name in-prompt and GENERATES
+# biology, which is exactly the prior-knowledge-leak (KRAS blinding) case the directive was written
+# for; append it to both generation prompts. Offline-safe (llm.py imports only stdlib at module level).
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
 SKILL_VERSION = "0.5.0"   # 0.4.0→0.5.0: P4 reconciliation — the spine's cross-gate correlation
@@ -91,6 +95,7 @@ EDGE_SYSTEM = (
     "decision-relevant claim, each step citing what it rests on. A line whose verdict is "
     "insufficient / data_unavailable carries NO weight — do not build an edge or path on it (you may "
     "note its absence as a tension). Cite-or-abstain; never cite from memory."
+    + EVIDENCE_ONLY_DIRECTIVE
 )
 
 EDGE_SCHEMA = {
@@ -160,23 +165,36 @@ HYP_SYSTEM = (
     "the goal — do not inflate confidence to fill a gap. go_forth is REQUIRED and must name the "
     "single most decision-changing next experiment (typically resolving the limiting gap or the "
     "principal tension)."
+    + EVIDENCE_ONLY_DIRECTIVE
 )
 
 HYPOTHESIS_SCHEMA = {
     "type": "object",
     "properties": {
+        # contradicting_citations is declared on EVERY assertive clause (not just therapeutic_window):
+        # HYP_SYSTEM instructs the model to surface an acknowledged tension IN THE SAME CLAUSE by
+        # placing the contradicting token here, and both _all_clause_citations and the coherence teeth
+        # READ it from all four clauses. Declaring it on only one clause meant the escape hatch depended
+        # on an undeclared field for three clauses — so a legitimately acknowledged-tension clause could
+        # fail the coherence guard. (contracts-first: schema now matches prompt + reader.)
         "causal_rationale": {"type": "object", "properties": {
             "statement": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}}},
+            "citations": {"type": "array", "items": {"type": "string"}},
+            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
             "required": ["statement", "citations"]},
         "therapeutic_hypothesis": {"type": "object", "properties": {
-            "statement": {"type": "string"}, "modality": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}}},
+            "statement": {"type": "string"},
+            # controlled modality channel (matches hypothesis_core.MODALITY_SCOPE / the resolved
+            # --modality vocabulary) so the proposed channel is cross-checkable, not free text.
+            "modality": {"type": "string", "enum": sorted(hc.MODALITY_SCOPE)},
+            "citations": {"type": "array", "items": {"type": "string"}},
+            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
             "required": ["statement", "modality", "citations"]},
         "population": {"type": "object", "properties": {
             "statement": {"type": "string"}, "indication": {"type": "string"},
             "subtype_or_biomarker": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}}},
+            "citations": {"type": "array", "items": {"type": "string"}},
+            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
             "required": ["statement", "citations"]},
         "therapeutic_window": {"type": "object", "properties": {
             "statement": {"type": "string"},
@@ -793,6 +811,15 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "prompt_template_hash": prompt_template_hash(),
             "model_id": _resolve_model_id(llm_mode), "llm_mode": llm_mode,
             "generated_at": datetime.now(timezone.utc).isoformat(),
+            # Surface any malformed-tool-use SALVAGE / RECOVERY that synthesize_structured applied to
+            # either LLM call (fields lost to the XML-<parameter> dialect leak, or recovered from it),
+            # so a partially-lost response is AUDITABLE rather than proceeding silently.
+            "llm_field_recovery": {
+                "edges": {k: edge_out.get(k) for k in ("_malformed_fields", "_recovered_fields")
+                          if edge_out.get(k)},
+                "hypothesis": {k: hyp_out.get(k) for k in ("_malformed_fields", "_recovered_fields")
+                               if hyp_out.get(k)},
+            },
         },
         "panel_conviction": conviction,
     }
