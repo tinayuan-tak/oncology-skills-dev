@@ -172,16 +172,17 @@ MECHANISM_PHARMACOLOGY = LensConfig(
                  "PERTURBATION": "drug-perturbation MoA", "PREDICTABILITY": "dependency predictability"},
     scope_exclusions=("nomination verdict", "therapeutic modality selection"),
     mode="descriptive",
-    # Unlike the other three DESCRIPTIVE lenses (cis-feature-coherence / combination-and-vulnerability /
-    # target-intrinsic), which carry NO verdict token, mechanism-and-pharmacology DOES emit a resolved token
-    # (`mechanism_verdict`: well_characterized / partial / sparse / has_pd_marker / …) — descriptive mode still
-    # builds a COLLAPSED VERDICT prompt line. Without a declared verdict_key the fallback lands on the legacy
-    # `<name>_verdict` guess ("mechanism_and_pharmacology_verdict"), which MISSES the real headline key
-    # `mechanism_verdict` (top-level decision["verdict"] is None here), then falls through to driving_rule_id —
-    # a rule-id string ("mechanism-well-characterized-supportive") that the LLM was observed to echo verbatim
-    # into user-facing prose. Declaring the key hands the narrator the resolved token instead. This is the
-    # surface/genomic/tractability "guess MISSES the key" class (not the immune-context coincidence), and
-    # mechanism-and-pharmacology was the LAST verdict-carrying skill left without a verdict_key. Verdict-INERT.
+    # DESCRIPTIVE mode still builds a COLLAPSED VERDICT prompt line, and mechanism-and-pharmacology DOES emit
+    # a resolved token (`mechanism_verdict`: well_characterized / partial / sparse / has_pd_marker / …) — so it
+    # needs a verdict_key like the verdict-mode lenses (only combination-and-vulnerability / target-intrinsic
+    # are truly TOKENLESS descriptive lenses; cis-feature-coherence looks descriptive but ALSO emits a resolved
+    # token — `cis_coherence_verdict` — and carries its own verdict_key below). Without a declared verdict_key
+    # the fallback lands on the legacy `<name>_verdict` guess ("mechanism_and_pharmacology_verdict"), which
+    # MISSES the real headline key `mechanism_verdict` (top-level decision["verdict"] is None here), then falls
+    # through to driving_rule_id — a rule-id string ("mechanism-well-characterized-supportive") that the LLM was
+    # observed to echo verbatim into user-facing prose. Declaring the key hands the narrator the resolved token
+    # instead. This is the surface/genomic/tractability "guess MISSES the key" class (not the immune-context
+    # coincidence). Verdict-INERT.
     verdict_key="mechanism_verdict",
 )
 
@@ -191,9 +192,21 @@ CIS_FEATURE_COHERENCE = LensConfig(
            "methylation silencing, expression↔dependency) — a data-integrity / mechanism-plausibility context.",
     relevance_prompt="give the cis-feature-coherence context read (descriptive; no nomination call).",
     axis_labels={"CIS_DOSAGE": "cis copy-number dosage", "SILENCING": "methylation silencing",
-                 "EXPR_DEP": "expression↔dependency", "CONJOINT": "conjoint patient cis-dosage"},
+                 "EXPR_DEP": "expression↔dependency", "CONJOINT": "amp∩overexpr addiction"},
     scope_exclusions=("nomination verdict",),
     mode="descriptive",
+    # DESCRIPTIVE mode STILL builds a COLLAPSED VERDICT prompt line, and — unlike combination-and-vulnerability
+    # / target-intrinsic (truly tokenless) — this skill supplies verdict_fn=_verdict and emits a RESOLVED token
+    # `cis_coherence_verdict` (coherent_cis_driver / coherent_epigenetic_silencing / expressed_cis_coupled_inert
+    # / dependency_without_cis_dosage / cis_uncoupled_no_dependency / insufficient_cis_coherence) in the
+    # headline; top-level decision["verdict"] is None (verdict-INERT at nomination — never a gate). Without a
+    # declared verdict_key the fallback lands on the legacy `<name>_verdict` guess
+    # ("cis_feature_coherence_verdict"), which MISSES the real headline key `cis_coherence_verdict`, then falls
+    # through to driving_rule_id — a rule-id string ("cis-dosage-coupled-supportive" / "cis-silencing-coupled-
+    # supportive" / "cis-dosage-uncoupled-neutral", confirmed live) that the LLM can echo verbatim into prose.
+    # Declaring the key hands the narrator the resolved token instead. Mirrors the mechanism guess-misses fix;
+    # cis-feature-coherence was the LAST verdict-carrying lens left without a verdict_key. Verdict-INERT.
+    verdict_key="cis_coherence_verdict",
 )
 
 COMBINATION_VULNERABILITY = LensConfig(

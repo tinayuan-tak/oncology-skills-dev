@@ -239,6 +239,30 @@ def test_differentiation_landscape_collapsed_verdict_is_resolved_token_not_rule_
     assert "cooccurrence-strong-supportive" not in collapsed
 
 
+def test_cis_feature_coherence_collapsed_verdict_is_resolved_token_not_rule_id():
+    """The cis-feature-coherence lens declares verdict_key='cis_coherence_verdict', so the COLLAPSED VERDICT
+    prompt line injects the RESOLVED coherence token (coherent_cis_driver / coherent_epigenetic_silencing /
+    dependency_without_cis_dosage / …) — NOT driving_rule_id (a rule-id string like
+    'cis-dosage-coupled-supportive'). This lens is mode='descriptive', but descriptive mode STILL builds the
+    collapsed line, and — unlike combination-and-vulnerability / target-intrinsic (truly tokenless) — this
+    skill supplies verdict_fn=_verdict and emits a real `cis_coherence_verdict` (top-level decision['verdict']
+    is None; verdict-inert at nomination). Without the declared key the legacy <name>_verdict guess
+    ('cis-feature-coherence' → 'cis_feature_coherence_verdict') MISSED the real headline key
+    `cis_coherence_verdict` and the line fell through to the rule-id (confirmed live). Mirrors the
+    surface/genomic/tractability/mechanism/differentiation guess-misses fix; cis-feature-coherence was the last
+    verdict-carrying lens left behind."""
+    from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE
+    assert CIS_FEATURE_COHERENCE.verdict_key == "cis_coherence_verdict"
+    decision = {"target": "ERBB2", "indication": "BRCA",
+                "headline": {"cis_coherence_verdict": "coherent_cis_driver",
+                             "driving_rule_id": "cis-dosage-coupled-supportive",
+                             "claim_vector": {"CIS_DOSAGE": {"signal": "moderate", "corroboration": "moderate"}}}}
+    p = NE.build_capsule_prompt(decision, CIS_FEATURE_COHERENCE)
+    collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
+    assert "coherent_cis_driver" in collapsed
+    assert "cis-dosage-coupled-supportive" not in collapsed
+
+
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
     monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})
