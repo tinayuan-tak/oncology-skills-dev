@@ -49,6 +49,15 @@ EVAL_DIR = Path(__file__).resolve().parent
 PKG_DIR = EVAL_DIR / "known-target-packages"          # gitignored (generated, large)
 OUT_PATH = EVAL_DIR / "known_target_panel_report.json"
 
+# Single-source the deciding-axis→family classifier from the discrimination harness (the same map that
+# powers blind_axis_load_bearingness), so the panel's per-family capture view and the harness agree.
+try:
+    sys.path.insert(0, str(CONTRACTS_ROOT / "validators"))
+    from validate_framework_discrimination import deciding_axis_family as _deciding_axis_family
+except Exception:                                     # harness unavailable → degrade to a single bucket
+    def _deciding_axis_family(axis: str) -> str:
+        return f"unclassified: {axis}"
+
 # Target symbol the resolver accepts (profile key -> HGNC-canonical gene symbol). Composite /
 # non-gene keys are SKIPPED (reported as out-of-scope, never silently passed).
 # CANONICALIZATION MATTERS FOR SPEED, not just resolution: the DepMap parquet fast path
@@ -311,7 +320,9 @@ def score_profile(name: str, prof: dict, pkg) -> dict:
     (job, reason) = resolve_job(name, prof)
     row = {"target": name, "indication": prof.get("indication"), "modality": prof.get("modality"),
            "outcome": prof.get("outcome"), "severity": prof.get("severity"),
-           "curated_agreement": prof.get("agreement"), "deciding_axis": prof.get("deciding_axis")}
+           "curated_agreement": prof.get("agreement"), "deciding_axis": prof.get("deciding_axis"),
+           "curated_coverage": prof.get("deciding_axis_coverage"),
+           "deciding_axis_family": _deciding_axis_family(prof.get("deciding_axis") or "")}
     if job is None:
         return {**row, "status": "out_of_scope", "reason": reason, "reco": None}
     row["emit_target"], row["code"] = job
@@ -410,6 +421,28 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
             "deciding_axis_capture_tally": deciding_bands,
         }
 
+    # DECIDING-AXIS CAPTURE BY FAMILY (A1) — the substrate-fidelity north-star, broken out of the flat
+    # capture-rate into a ratchetable per-family map. For each known target's CURATED deciding-axis
+    # family: how many is the framework curated-blind on, and how many does the LIVE run now evidence
+    # (any 'captured'/'partial' band in the emitted deciding_axis)? A family moving blind→captured is
+    # the measurable improvement each fidelity build should produce.
+    capture_by_family: dict = {}
+    for r in rows:
+        if not r.get("signal_vector"):
+            continue
+        fam = r.get("deciding_axis_family") or "unclassified"
+        bands = set((r["signal_vector"].get("deciding_axis_capture") or {}).values())
+        f = capture_by_family.setdefault(fam, {"n": 0, "curated_blind": 0, "live_any_captured": 0,
+                                               "live_any_partial_or_captured": 0})
+        f["n"] += 1
+        if r.get("curated_coverage") in ("blind", "license_blocked", "out_of_scope"):
+            f["curated_blind"] += 1
+        if "captured" in bands:
+            f["live_any_captured"] += 1
+        if bands & {"captured", "partial"}:
+            f["live_any_partial_or_captured"] += 1
+    capture_by_family = dict(sorted(capture_by_family.items(), key=lambda kv: -kv[1]["curated_blind"]))
+
     # Positive/negative signal-ledger rollup across the panel — the substrate-fidelity headline.
     ledgers = [r["signal_ledger"] for r in rows if r.get("signal_ledger")]
     signal_ledger_rollup = None
@@ -443,6 +476,7 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
                    "accuracy": round(len(hits) / len(scored), 3) if scored else None},
         "signal_substrate": substrate,
         "signal_ledger_rollup": signal_ledger_rollup,
+        "capture_by_family": capture_by_family,
         "subtype_rollup": subtype_rollup,
         "fresh_errors": fresh_errors,
         "drift_vs_curated": drifts,
@@ -530,6 +564,12 @@ def main(argv=None) -> int:
               f"{sub['avg_strong']} strong, conflict-rate {sub['any_conflict_rate']}")
         print(f"    recommendations: {sub['recommendation_tally']}   confidence: {sub['confidence_tally']}")
         print(f"    deciding-axis capture: {sub['deciding_axis_capture_tally']}")
+    cbf = report.get("capture_by_family")
+    if cbf:
+        print("  deciding-axis capture BY FAMILY (curated-blind → live-captured; the fidelity gap map):")
+        for fam, f in cbf.items():
+            print(f"    {f['live_any_captured']:>2}/{f['curated_blind']:<2} curated-blind captured live"
+                  f"  ({f['n']} targets)  {fam}")
     lr = report.get("signal_ledger_rollup")
     if lr:
         print(f"  signal ledger ({lr['n_with_ledger']} targets): avg {lr['avg_positive']} positive / "
