@@ -11,8 +11,17 @@
 # gap (no_synergy_screen) or read failure → insufficient (measured-vs-null; never opposing).
 
 rules_id: chemical-synergy
-version: 1.0.0
-axis: combination_opportunity   # shared with the CRISPR combo rules — chemical synergy IS a combination-opportunity signal (the axis is the rules-loading namespace, not the claim_vector axis)
+version: 1.1.0
+# The loader is FILENAME-keyed: load_interpretation_rules(axis) reads `{axis.replace('_','-')}.rules.yaml`
+# and REQUIRES doc["axis"] == the requested axis. This file's filename maps to axis `chemical_synergy`,
+# so the previous `axis: combination_opportunity` made it UNLOADABLE under every request (requesting
+# combination_opportunity loads combination-opportunity.rules.yaml; requesting chemical_synergy hit the
+# doc.axis mismatch) — all 6 rules were structurally dead, and the SYNERGY claim_vector axis surfaced
+# an orphan out-claim with no backing fired rule. Aligning axis→`chemical_synergy` (matching the
+# filename) + adding `chemical_synergy` to the combination-and-vulnerability skill's extra_axes makes
+# the ladder load. `chemical_synergy` remains an ISOLATED rules-loading namespace; the CLAIM_VECTOR
+# axis label (COMBO/SYNERGY) is a separate concept, unchanged.
+axis: chemical_synergy
 schema_version: 1
 
 rationale: |

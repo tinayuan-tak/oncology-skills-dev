@@ -20,8 +20,8 @@
     },
     "axis": {
       "type": "string",
-      "description": "The biology axis this rules file applies to. Matches the dashboard_spec's axis_resolution outputs. `combination_opportunity` + `resistance_emergence` + `combinatorial_dependency` + `cis_coherence` are DEDICATED self-contained axes (combo-and-resistance / combinatorial-dependency / cis-feature-coherence skills) — kept out of the shared nomination ladder; their rules_loader requires the file axis to equal the skill's requested axis name. `cis_coherence` is VERDICT-INERT at the composed target-profile layer (not registered in the skills gating axes).",
-      "enum": ["intracellular_intrinsic", "surface_intrinsic", "extrinsic", "mixed", "combination_opportunity", "resistance_emergence", "combinatorial_dependency", "cis_coherence"]
+      "description": "The biology axis this rules file applies to. Matches the dashboard_spec's axis_resolution outputs. `combination_opportunity` + `resistance_emergence` + `combinatorial_dependency` + `chemical_synergy` + `cis_coherence` are DEDICATED self-contained axes (combo-and-resistance / combination-and-vulnerability / combinatorial-dependency / cis-feature-coherence skills) — kept out of the shared nomination ladder; their rules_loader requires the file axis to equal the skill's requested axis name (so the axis must match the filename). `cis_coherence` is VERDICT-INERT at the composed target-profile layer (not registered in the skills gating axes).",
+      "enum": ["intracellular_intrinsic", "surface_intrinsic", "extrinsic", "mixed", "combination_opportunity", "resistance_emergence", "combinatorial_dependency", "chemical_synergy", "cis_coherence"]
     },
     "rules": {
       "type": "array",
