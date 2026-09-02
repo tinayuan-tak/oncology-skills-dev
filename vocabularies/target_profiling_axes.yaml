@@ -862,6 +862,7 @@ question_hierarchies:
         measurement_types:
         - fusion_rearrangement
         - fusion_stratified_dependency
+        - splice_exon_skip
         - tumor_splice_dysregulation
         - tumor_splice_expression
     - id: DEP
