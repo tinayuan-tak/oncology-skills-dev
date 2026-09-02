@@ -6,6 +6,7 @@ anchored convex phenotype mixture, and companion determinism. They do NOT assert
 (deliberately out of scope — this is a descriptive map, not a classifier)."""
 import json
 import math
+import subprocess
 import sys
 from pathlib import Path
 
@@ -309,3 +310,37 @@ def test_soft_labels_fill_unlabeled_analogs(atlas: Atlas):
             assert a["archetype_label"].endswith("~")
         else:
             assert not a["archetype_label"].endswith("~")
+
+
+# ---- standalone CLI entry (scripts/run.py) -------------------------------------------------------
+RUN_PY = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
+
+
+def _write_min_package(pkg_dir: Path):
+    """Minimal full-package tree: one subskill claim_vector + nomination.json with a fired rule."""
+    (pkg_dir / "subskills" / "genomic_alteration").mkdir(parents=True)
+    (pkg_dir / "subskills" / "genomic_alteration" / "package.json").write_text(json.dumps({
+        "sub_skill": "genomic_alteration",
+        "claim_vector": {"SNV": {"signal": "strong", "corroboration": "high"}},
+    }))
+    (pkg_dir / "nomination.json").write_text(json.dumps({
+        "target": "KRAS", "indication": "COADREAD",
+        "sub_verdicts": {"genomic_alteration": {"fired_rule_ids": ["ga.snv.recurrent_driver"]}},
+    }))
+
+
+def test_standalone_cli_runs_and_emits_scorecard(tmp_path):
+    """Guards both regressions: the CLI summary print must not crash (novelty key), and the emitted
+    doc must carry the D1 nomination_scorecard alongside the companion."""
+    pkg = tmp_path / "run"
+    pkg.mkdir()
+    _write_min_package(pkg)
+    r = subprocess.run([sys.executable, str(RUN_PY), "--package-dir", str(pkg)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, f"CLI exited {r.returncode}:\n{r.stderr}"
+    doc = json.loads((pkg / "companion.json").read_text())
+    assert doc["verdict"] is None
+    assert "companion" in doc and "novelty" in doc["companion"]
+    sc = doc["nomination_scorecard"]
+    assert sc["verdict"] is None
+    assert sc["score"] is None or 0.0 <= sc["score"] <= 1.0

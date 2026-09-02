@@ -26,7 +26,7 @@ from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]        # .../skills
 sys.path.insert(0, str(SKILLS_DIR))
-from _skills_common.archetype_core import Atlas, claim_features  # noqa: E402
+from _skills_common.archetype_core import Atlas, claim_features, nomination_scorecard  # noqa: E402
 
 SKILL_NAME = "target-archetype"
 SKILL_VERSION = "0.4.0"    # DESCRIPTIVE companion, verdict-INERT. MUST equal SKILL.md metadata.version.
@@ -69,11 +69,13 @@ def main():
         raise SystemExit(2)
     feat = claim_features(cvs)
     companion = atlas.companion(feat, k=a.k, query_rules=rules)
+    scorecard = nomination_scorecard(feat, companion.get("soft_membership"), atlas)
     doc = {
         "skill": SKILL_NAME, "skill_version": SKILL_VERSION,
         "target": target, "indication": indication,
         "verdict": None,                                    # governance: descriptive companion
         "companion": companion,
+        "nomination_scorecard": scorecard,                  # D1 glass-box readiness (verdict-inert)
     }
     out = Path(a.out) if a.out else pkg_dir / "companion.json"
     out.write_text(json.dumps(doc, indent=2))
@@ -83,9 +85,13 @@ def main():
     print(f"{target}/{indication}")
     print(f"  soft membership : {mem}")
     print(f"  nearest analogs : {an}")
-    print(f"  novelty         : {companion['novelty']['nearest_neighbour_distance']} "
-          f"(flag={companion['novelty']['flag']})")
+    nov = companion["novelty"]
+    print(f"  novelty         : hull_residual={nov['hull_residual']} "
+          f"(inconsistent={nov['inconsistent_flag']}, low_density={nov['local_density_flag']})")
     print(f"  unmeasured axes : {companion['missingness']['unmeasured_axes']}")
+    cf = (scorecard.get("counterfactual_gap") or {}).get("limiting_axis")
+    print(f"  D1 readiness    : score={scorecard.get('score')} coverage={scorecard.get('coverage')} "
+          f"route={scorecard.get('dominant_archetype_soft')} limiting_axis={cf}")
     print(f"  wrote {out}")
 
 
