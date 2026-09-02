@@ -74,3 +74,16 @@ def test_primary_block_is_capped_at_scale():
 
 def _cap_over():
     return R._CV_PRIMARY_CAP + 11
+
+
+def test_salience_cut_keeps_conflict_over_late_neutral_notable():
+    # >_CV_PRIMARY_CAP PRIMARY atoms: 32 notable-only (priority 2) then one CONFLICT (priority 0) on a
+    # LATE axis. Assembly-order truncation would drop the conflict; salience ranking must KEEP it.
+    axes = {f"NOTE{i}": _claim("unmeasured", {"bimodality_coefficient": 0.60}) for i in range(32)}
+    axes["LATECONF"] = _claim("weak", {"n_compounds_evaluated": 9},
+                              conflict="compound kill likely off-target")
+    txt = R._render_claim_vectors(_cvs(**axes))
+    prim = txt.split("SECONDARY (tier-only):")[0]
+    assert "off-target" in prim                      # the conflict survived the top-N cut
+    assert "elided for length" in txt                # the cut actually fired
+    assert "highest-SALIENCE" in txt

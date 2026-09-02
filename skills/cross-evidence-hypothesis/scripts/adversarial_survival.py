@@ -65,11 +65,36 @@ SKEPTIC_SYSTEM = (
     "IMPORTANT: if a clause ITSELF already surfaces the tension you would raise (it lists the "
     "contradicting line in contradicting_citations or states the tension), it is NOT refuted — an "
     "acknowledged tension is honest reasoning, not an over-reach.\n\n"
+    "ABSENCE-BASED REFUTATION: a clause that rests on a line whose deterministic verdict is "
+    "insufficient / data_unavailable / not_assessed / not_informative is refutable — BUT you MUST make "
+    "it CONTAINED by citing that absent line's OWN token (its sub-verdict/dimension name, e.g. "
+    "`dependency`, or its verdict value). That token IS present in the package's per-line verdicts, so "
+    "an absence objection that names the absent line is valid; an absence objection that cites nothing "
+    "will be discarded. The enriched surface below (claim-vector atoms, grounded per-axis findings + "
+    "PMIDs, per-stratum subtype records) is ALSO citable — refute at atom/stratum resolution where it "
+    "helps, citing the card_id / stratum name / PMID shown.\n\n"
     "For each clause return: refuted (bool), refutation (the specific evidence-grounded reason, or '' "
     "if it survives), and cited (the EXACT package tokens your refutation rests on — card_ids / "
-    "sub-verdict names / rule_ids / PMIDs / dossier field names)."
+    "sub-verdict names / rule_ids / PMIDs / dossier field names / stratum names)."
     + EVIDENCE_ONLY_DIRECTIVE
 )
+
+# Per-skeptic ADVERSARIAL ANGLES (majority-of-N is only a real ensemble if the passes differ). Since
+# temperature is deprecated on the framework model, we diversify by FRAMING: each skeptic i gets a
+# distinct attack lens appended to the system prompt, cycled over the passes. Not part of
+# skeptic_prompt_hash (that pins the shared base surface); recorded per-vote as `angle`.
+SKEPTIC_ANGLES = (
+    "ANGLE — OVER-REACH AUDITOR: attack any clause that claims MORE than the cited line's own verdict "
+    "value literally supports (magnitude, breadth, or certainty inflation).",
+    "ANGLE — ABSENCE AUDITOR: hunt for clauses resting on a line whose verdict is a GAP "
+    "(insufficient / data_unavailable / not_assessed); cite that line's own token to refute.",
+    "ANGLE — COMPETING-LINE FINDER: hunt for a DIFFERENT line in the same package (a measured-negative "
+    "or opposing sibling) that undercuts the clause's thesis; cite that competing line.",
+)
+
+
+def _angle_for(i: int) -> str:
+    return SKEPTIC_ANGLES[i % len(SKEPTIC_ANGLES)]
 
 
 def skeptic_prompt_hash() -> str:
@@ -115,12 +140,39 @@ def _clause_block(hyp: dict):
 
 
 def _evidence_block(panel: dict) -> str:
-    """The SAME evidence surface the integrator saw — the only thing the skeptic may cite."""
+    """The SAME evidence surface the integrator saw + is validated against — the only thing the skeptic
+    may cite. Symmetry fix (W5): the containment guard validates a refutation's citations against the
+    FULL citation_surface (card_ids + sub-verdicts + rule_ids + PMIDs + dossier fields + STRATA + the
+    grounded per-axis PMIDs). Earlier this block showed only conviction/cards/dossier/risk, so the
+    skeptic could neither attack the atom/stratum-level values the integrator cited nor produce
+    contained citations for the grounded/subtype axes — biasing every clause toward 'survives'. Now the
+    block mirrors the integrator's own panel: GAP lines are marked explicitly, and the claim-vector
+    atoms, grounded per-axis findings + PMIDs, and per-stratum subtype records are all shown."""
+    conviction = panel.get("conviction") or {}
+    gap_lines = sorted(d for d, v in conviction.items() if v in hc.GAP_VERDICTS)
     parts = [
         "EVIDENCE PACKAGE (refute ONLY from these fields; cite the exact token):",
-        f"PANEL — deterministic verdict per line:\n{json.dumps(panel['conviction'], indent=1, default=str)}",
-        f"PANEL — per-card interpretation (card_id -> call):\n{json.dumps(panel['cards_brief'], indent=1, default=str)}",
+        f"PANEL — deterministic verdict per line:\n{json.dumps(conviction, indent=1, default=str)}",
     ]
+    if gap_lines:
+        parts.append("GAP / ABSENT lines (verdict is insufficient / data_unavailable / not_assessed — "
+                     "a clause resting on one is refutable; cite the line's own name to stay contained): "
+                     f"{gap_lines}")
+    parts.append(f"PANEL — per-card interpretation (card_id -> call):\n"
+                 f"{json.dumps(panel.get('cards_brief') or {}, indent=1, default=str)}")
+    # claim-vector atoms (the citable signal decomposition the integrator reasoned over) — reuse the
+    # integrator's own salience-gated renderer so the skeptic sees the same atoms + card_ids.
+    cv = R._render_claim_vectors(panel.get("claim_vectors") or {})
+    if cv:
+        parts.append("PANEL — " + cv.strip())
+    gs = panel.get("grounded_substrate") or {}
+    if gs.get("present") and gs.get("per_axis"):
+        parts.append("GROUNDED per-axis literature findings (cite the PMIDs / axis shown):\n"
+                     f"{json.dumps(gs['per_axis'], indent=1, default=str)}")
+    subtype = panel.get("subtype") or {}
+    if subtype.get("present") and subtype.get("per_stratum"):
+        parts.append("SUBTYPE-RESOLVED per-stratum records (cite the stratum name):\n"
+                     f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}")
     if panel.get("dossier"):
         parts.append(f"TARGET-BIOLOGY dossier fields:\n{json.dumps(panel['dossier'], indent=1, default=str)}")
     if panel.get("risk"):
@@ -151,7 +203,10 @@ def adversarial_survival(hypothesis_result: dict, pkg_path: str, risk_path=None,
 
     tally = {k: [] for k in clause_names}
     for i in range(n_skeptics):
-        out = synth(SKEPTIC_SYSTEM, user, "skeptic_refutation", schema, max_tokens=6000)
+        # W6: diversify the passes by FRAMING (temperature is deprecated) — each skeptic attacks from a
+        # distinct lens, so majority-of-N is a genuine ensemble rather than N identical calls.
+        angle = _angle_for(i)
+        out = synth(SKEPTIC_SYSTEM + "\n\n" + angle, user, "skeptic_refutation", schema, max_tokens=6000)
         for entry in R._objs(out.get("clauses")):
             name = hc._scalar(entry.get("clause"))
             if name not in tally:
@@ -161,7 +216,8 @@ def adversarial_survival(hypothesis_result: dict, pkg_path: str, risk_path=None,
             untraceable = hc.check_traceability(cited, surface)   # CONTAINMENT: recall is discarded
             contained = refuted and bool(cited) and not untraceable
             tally[name].append({
-                "skeptic": i, "refuted": refuted,
+                "skeptic": i, "angle": angle.split(":")[0].replace("ANGLE — ", "").strip(),
+                "refuted": refuted,
                 "refutation": hc._scalar(entry.get("refutation")) or "",
                 "cited": cited, "containment_valid": bool(contained),
                 "untraceable_citations": untraceable,

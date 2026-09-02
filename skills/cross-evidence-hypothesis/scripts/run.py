@@ -250,6 +250,29 @@ def _all_clause_citations(out: dict) -> dict:
     return m
 
 
+def _edge_endpoint_warnings(edges: list, panel: dict) -> list:
+    """Flag edges whose from/to_dimension is NOT a recognized dimension/card token. The coherence teeth
+    (hypothesis_core.coherence_violations) match edge endpoints against the conviction/card vocabulary
+    (normalized); an endpoint that is a HALLUCINATED or misspelled dimension silently fails to match, so
+    a real contradiction the edge names can slip past the coherence guard. FLAG-only + verdict-INERT: a
+    static enum would over-constrain (a package's conviction can carry dimensions absent from
+    DIMENSION_CARDS, e.g. legacy combinatorial_dependency / synthetic_lethal_partners), so this records
+    the unrecognized endpoints for a reviewer instead of forcing a fixed vocabulary."""
+    recognized = {hc._norm(k) for k in (panel.get("conviction") or {})}
+    recognized |= {hc._norm(k) for k in hc.DIMENSION_CARDS}
+    recognized |= {hc._norm(c) for c in ((panel.get("citation_surface") or {}).get("card_ids") or set())}
+    warnings = []
+    for i, e in enumerate(edges or []):
+        if not isinstance(e, dict):
+            continue
+        for role in ("from_dimension", "to_dimension"):
+            tok = e.get(role)
+            if tok and hc._norm(tok) not in recognized:
+                warnings.append({"edge_index": i, "type": e.get("type"),
+                                 "field": role, "value": tok})
+    return warnings
+
+
 def _default_synthesize():
     """Lazy default LLM fn — import only when a real run needs Bedrock (keeps tests offline)."""
     from _skills_common.llm import synthesize_structured
@@ -367,7 +390,11 @@ def _render_claim_vectors(cvs: dict) -> str:
     repeated _disclaimer / informs / entity / verbose cite.fields) so 13-axis fan-in stays legible."""
     if not cvs:
         return ""
-    prim, sec = [], []
+    # PRIMARY entries are collected with a SALIENCE priority (lower = more decision-relevant) so the
+    # top-N cut keeps the most important atoms rather than whatever fell in the first N by assembly
+    # order (a conflict/strong atom on a late axis used to be silently dropped for an early neutral one).
+    # priority: conflict=0, informative-signal / deterministic-headline=1, notable-only atom=2.
+    prim_entries, sec = [], []      # prim_entries: (priority, order_index, text)
     for short, facet in cvs.items():
         if not isinstance(facet, dict):
             continue
@@ -377,28 +404,34 @@ def _render_claim_vectors(cvs: dict) -> str:
             atom = claim.get("evidence_atom") or {}
             sig, corr, conflict = claim.get("signal"), claim.get("corroboration"), claim.get("conflict")
             cite = (atom.get("cite") or {}).get("card_id")
-            if sig in _CV_INFORMATIVE or bool(conflict) or _atom_is_notable(atom):
+            informative, notable = sig in _CV_INFORMATIVE, _atom_is_notable(atom)
+            if informative or bool(conflict) or notable:
                 entry = {"signal": sig, "corroboration": corr, "read": atom.get("read"),
                          "values": atom.get("values"), "cite_card_id": cite}
                 if conflict:
                     entry["conflict"] = conflict
-                prim.append(f"  [{short}.{ax}] {json.dumps(entry, default=str)}")
+                priority = 0 if conflict else (1 if informative else 2)
+                prim_entries.append((priority, len(prim_entries), f"  [{short}.{ax}] {json.dumps(entry, default=str)}"))
             else:
                 sec.append(f"  [{short}.{ax}] {sig}/{corr}" + (f" [{cite}]" if cite else ""))
         ks = (facet.get("key_signals") or {}).get("headline")
         if ks:
-            prim.append(f"  [{short}] deterministic read: {ks}")
+            prim_entries.append((1, len(prim_entries), f"  [{short}] deterministic read: {ks}"))
+    # rank by salience (stable within a priority via the recorded assembly index), THEN cap.
+    prim_entries.sort(key=lambda e: (e[0], e[1]))
+    prim = [t for _, _, t in prim_entries]
     elided = 0
     if len(prim) > _CV_PRIMARY_CAP:
         elided = len(prim) - _CV_PRIMARY_CAP
-        prim = prim[:_CV_PRIMARY_CAP]      # deterministic top-N (assembly order), bound the prompt
+        prim = prim[:_CV_PRIMARY_CAP]      # top-N by SALIENCE (conflict > informative > notable), bound the prompt
     out = ("PANEL — claim-vector signal decomposition (SALIENCE-GATED for scale). PRIMARY claims carry "
            "their full citable atom VALUES — reason over them and cite the cite_card_id. SECONDARY "
            "claims are one-line tiers (uninformative/unremarkable for this target):\n")
     out += "PRIMARY:\n" + ("\n".join(prim) if prim else "  (none)") + "\n"
     if elided:
         out += (f"  … (+{elided} more PRIMARY claim(s) elided for length; the {_CV_PRIMARY_CAP} shown are "
-                "the highest-priority by assembly order — see the full nomination.json claim_vectors)\n")
+                "the highest-SALIENCE (conflict > informative > notable) — see the full "
+                "nomination.json claim_vectors)\n")
     if sec:
         out += "SECONDARY (tier-only):\n" + "\n".join(sec) + "\n"
     return out + "\n"
@@ -541,6 +574,7 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     edges = _objs(edge_out.get("edges"))
     tensions = _objs(edge_out.get("principal_tensions"))
     paths = _objs(edge_out.get("evidence_paths"))
+    edge_endpoint_warnings = _edge_endpoint_warnings(edges, panel)
 
     # CALL 2 — assemble the six-part hypothesis ON the edges/paths/tensions
     hyp_user = (
@@ -748,6 +782,10 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "n_coherence_violations": sum(len(v) for v in coherence_v.values()),
             "n_coherence_tensions_surfaced": len(coherence_surfaced_tensions),
             "promotable": promotable, "promotion_blockers": promotion_blockers,
+            # verdict-INERT audit: edges whose from/to_dimension isn't a recognized dimension/card
+            # token, so the coherence teeth couldn't match them (a hallucinated/misspelled endpoint
+            # could hide a real contradiction). Flagged for a reviewer; never blocks promotion.
+            "edge_endpoint_warnings": edge_endpoint_warnings,
         },
         "uncertainty": {
             "overall_certainty": cert["final"], "base_certainty": cert["base"],
