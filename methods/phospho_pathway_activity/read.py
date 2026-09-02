@@ -135,21 +135,36 @@ def read_phospho_pathway_activity(target: str, indication: str,
     base = {"target": target, "indication": indication, "substrate": "cptac_phosphoproteomics_bcm",
             "method_version": METHOD_VERSION}
 
-    cohort = INDICATION_TO_CPTAC.get(indication.upper().strip())
-    if cohort is None:
+    # Resolve indication → cohort(s). An umbrella (NSCLC) expands to its LEAF cohorts (luad + lscc);
+    # CPTAC has no pooled NSCLC phospho cohort. A leaf indication resolves to a single cohort.
+    from methods.indication_aliases import indication_leaf_codes
+    cohorts: list[str] = []
+    for leaf in indication_leaf_codes(indication):
+        c = INDICATION_TO_CPTAC.get(leaf.upper().strip())
+        if c and c not in cohorts:
+            cohorts.append(c)
+    if not cohorts:
         base.update({"phospho_activity_class": "data_unavailable",
                      "_data_note": f"no CPTAC phospho cohort for indication {indication}"})
         return base
-    base["cptac_cohort"] = cohort
 
-    # _read_gene_sites now returns None ONLY on GENUINE absence (NoSuchKey/404) — a transient/broken-
-    # env failure re-raises and is surfaced as _live_read_error by the live-read seam. So None here is
-    # honest data_unavailable (unchanged verdict), NOT a masked read error — no double-handling.
-    df = _read_gene_sites(sym, cohort, product_path)
-    if df is None:
+    # _read_gene_sites returns None ONLY on GENUINE absence (NoSuchKey/404) — a transient/broken-env
+    # failure re-raises and surfaces as _live_read_error. Read each leaf; report the cohort with the
+    # RICHEST phospho evidence for this gene (most phosphosites, tie-break by cohort tumor count). For a
+    # single-cohort indication this is the exact prior behavior.
+    reads = [(c, _read_gene_sites(sym, c, product_path)) for c in cohorts]
+    reads = [(c, d) for c, d in reads if d is not None]
+    if not reads:
         base.update({"phospho_activity_class": "data_unavailable",
-                     "_data_note": f"phospho product genuinely absent (NoSuchKey/404) for cohort {cohort}"})
+                     "_data_note": (f"phospho product genuinely absent (NoSuchKey/404) for "
+                                    f"cohort(s) {'+'.join(cohorts)}")})
         return base
+    cohort, df = max(reads, key=lambda cd: (
+        len(cd[1]), int(cd[1]["n_tumors_cohort"].iloc[0]) if len(cd[1]) else 0))
+    base["cptac_cohort"] = cohort
+    if len(cohorts) > 1:
+        base["_data_note"] = (f"{indication.upper().strip()} umbrella → {'+'.join(cohorts)}; "
+                              f"reporting {cohort} (richest phospho evidence)")
 
     # cohort tumor count: from the gene's own rows if present, else a cohort probe so a
     # no-phosphosite gene is classified not_phosphoprotein rather than data_unavailable.

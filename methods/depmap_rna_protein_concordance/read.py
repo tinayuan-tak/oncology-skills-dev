@@ -176,6 +176,27 @@ INDICATION_TO_CPTAC_COHORT = {
 }
 
 
+def _cptac_cohorts_for(indication: str) -> list[str]:
+    """CPTAC matched-cohort codes for an indication, expanding an umbrella (NSCLC → luad+lscc) to its
+    LEAF cohorts (CPTAC has no pooled NSCLC row). Each member OncoTree code is mapped through
+    INDICATION_TO_CPTAC_COHORT; unmapped members drop out. Single-element for a leaf indication."""
+    from methods.indication_aliases import indication_leaf_codes
+    seen, out = set(), []
+    for leaf in indication_leaf_codes(indication):
+        c = INDICATION_TO_CPTAC_COHORT.get(leaf.upper().strip())
+        if c and c not in seen:
+            seen.add(c); out.append(c)
+    return out
+
+
+def _read_matched_cohorts(cohorts: list[str]):
+    """Read + row-concat the matched CPTAC product across one or more leaf cohorts (pooled NSCLC)."""
+    import pandas as pd
+    frames = [_read_matched_cohort(c) for c in cohorts]
+    frames = [f for f in frames if not f.empty]
+    return pd.concat(frames, ignore_index=True) if frames else _read_matched_cohort(cohorts[0])
+
+
 def _read_matched_cohort(cohort: str):
     """Read the matched CPTAC product for one cohort → DataFrame[patient_id, gene, rna_log2tpm,
     protein_log2abundance]. Empty on any read failure (data_unavailable-safe)."""
@@ -218,14 +239,15 @@ def read_tumor_rna_protein_concordance(target: str, indication: str,
                     Path(plot_data_out) / "plot_data_rna_protein_tumor.parquet", index=False)
         except Exception:  # noqa: BLE001 — persistence best-effort
             pass
-    cohort = INDICATION_TO_CPTAC_COHORT.get(indication.upper().strip())
+    cohorts = _cptac_cohorts_for(indication)
+    cohort = "+".join(cohorts) if cohorts else None   # e.g. "luad+lscc" for the NSCLC umbrella
     base = {"target": target, "indication": indication, "cptac_cohort": cohort,
             "substrate": "cptac_tumor"}
-    if cohort is None:
+    if not cohorts:
         base.update({"rna_as_biomarker": "data_unavailable", "rna_protein_r": None,
                      "n_paired_tumors": 0, "_data_note": "no CPTAC cohort for this indication"})
         return base
-    df = _read_matched_cohort(cohort)
+    df = _read_matched_cohorts(cohorts)
     sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
     sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
     n = len(sub)
@@ -261,10 +283,11 @@ def read_tumor_rna_protein_concordance(target: str, indication: str,
 
 def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
     """Per-tumor paired points for the Q5 TUMOR scatter figure. data-gap-safe."""
-    cohort = INDICATION_TO_CPTAC_COHORT.get(indication.upper().strip())
-    if cohort is None:
+    cohorts = _cptac_cohorts_for(indication)
+    if not cohorts:
         return {"available": False, "points": [], "cptac_cohort": None}
-    df = _read_matched_cohort(cohort)
+    cohort = "+".join(cohorts)
+    df = _read_matched_cohorts(cohorts)
     sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
     sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
     return {"available": bool(len(sub)), "cptac_cohort": cohort,

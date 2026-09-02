@@ -31,3 +31,25 @@ def to_cohort_canonical(indication: str) -> str:
     if not indication:
         return indication
     return _TO_COHORT_CANONICAL.get(indication, indication)
+
+
+# Umbrella canonical code -> its member OncoTree LEAF codes. The DOWN-expansion counterpart to
+# to_cohort_canonical's UP-pooling: some products are keyed by the finer LEAF cohort and have NO pooled
+# umbrella partition. CPTAC ships lung as two separate cohorts (LUAD + LSCC) with no NSCLC row, so an
+# indication="NSCLC" query must expand to BOTH leaves and pool / pick across them, else it spuriously
+# reads data_unavailable (the tumor-elevation-breadth card, which enumerates all cohorts target-grain,
+# DID see LUAD+LSCC while the per-sample CPTAC readers returned "no cohort"). Keyed by the crosswalk
+# umbrella canonical_code; identity for codes that already have their own leaf partition.
+_UMBRELLA_TO_LEAVES = {
+    "NSCLC": ("LUAD", "LUSC"),   # CPTAC: LUAD + LSCC (LUSC≡LSCC); no pooled NSCLC cohort
+}
+
+
+def indication_leaf_codes(indication: str) -> tuple[str, ...]:
+    """Expand an umbrella indication to its member OncoTree LEAF codes for LEAF-keyed products; identity
+    (single-element tuple) for a code that is already a leaf / has its own partition. Empty for falsy
+    input. Callers pass each returned code through their OWN indication→cohort map (preserving casing)."""
+    if not indication:
+        return ()
+    ind = indication.upper().strip()
+    return _UMBRELLA_TO_LEAVES.get(ind, (ind,))

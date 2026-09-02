@@ -302,27 +302,40 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 
     sym = target.upper().strip()
 
-    # Resolve indication → CPTAC cohort
-    cohort = None
+    # Resolve indication → CPTAC cohort(s). An umbrella indication (NSCLC) expands to its LEAF cohorts
+    # (LUAD + LSCC) — CPTAC has no pooled NSCLC row. A leaf indication resolves to a single cohort.
+    from methods.indication_aliases import indication_leaf_codes
+    cohorts: list[str] = []
     if indication:
-        cohort = INDICATION_TO_CPTAC.get(indication.upper().strip())
+        for leaf in indication_leaf_codes(indication):
+            c = INDICATION_TO_CPTAC.get(leaf.upper().strip())
+            if c and c not in cohorts:
+                cohorts.append(c)
 
-    # Primary path: indication-specific lookup
-    if cohort:
-        idx = cohort_gene_idx.get((cohort, sym))
-        if idx is None:
-            return _empty(f"target_not_in_cptac_cohort_{cohort}")
-        row = df.iloc[idx].to_dict()
-        pct, pct_class = _allgene_effect_percentile(df, cohort, row.get("protein_effect_size"))
-        return _row_to_summary(row, matched_cohort=cohort,
+    # Primary path: indication-specific lookup. Among the resolved cohort(s) the target is present in,
+    # report the largest-|effect_size| row. For a single cohort this is the exact prior behavior; for the
+    # NSCLC umbrella the pick is restricted to NSCLC's OWN leaves (LUAD/LSCC ARE NSCLC → NOT a
+    # cross-indication leak, unlike the indication-free pan-cancer fallback below).
+    if cohorts:
+        present = [(c, cohort_gene_idx[(c, sym)]) for c in cohorts if (c, sym) in cohort_gene_idx]
+        if not present:
+            return _empty(f"target_not_in_cptac_cohort_{'+'.join(cohorts)}")
+        best_c, best_idx = max(
+            present, key=lambda ci: abs(float(df.iloc[ci[1]].get("protein_effect_size", 0) or 0)))
+        row = df.iloc[best_idx].to_dict()
+        pct, pct_class = _allgene_effect_percentile(df, best_c, row.get("protein_effect_size"))
+        summ = _row_to_summary(row, matched_cohort=best_c,
                                allgene_percentile=pct, allgene_percentile_class=pct_class)
+        if len(cohorts) > 1:
+            summ["_data_note"] = (f"{indication.upper().strip()} umbrella → {'+'.join(cohorts)}; "
+                                  f"reporting {best_c} (largest |protein_effect_size|)")
+        return summ
 
     # A SUPPLIED but unmapped indication must NOT leak a different cohort's contrast. CPTAC is a
     # PER-COHORT tumor-vs-normal differential; returning the most-extreme OTHER cohort as if it were
-    # the queried disease is a silent cross-indication data leak — e.g. NSCLC (absent from
-    # INDICATION_TO_CPTAC; only LUAD/LSCC are cohorts) previously returned OV/BRCA's contrast labeled
-    # as NSCLC. Honest posture: data_unavailable (no matching CPTAC cohort for this indication). The
-    # cross-cohort aggregate below is reserved for the indication-FREE (target-only / pan-cancer) call.
+    # the queried disease is a silent cross-indication data leak. Honest posture: data_unavailable (no
+    # matching CPTAC cohort for this indication). The cross-cohort aggregate below is reserved for the
+    # indication-FREE (target-only / pan-cancer) call.
     if indication:
         return _empty(f"indication_not_in_cptac_{indication.upper().strip()}")
 
