@@ -94,6 +94,43 @@ def load_profiles() -> dict:
     return spec.get("reference_profiles") or {}
 
 
+def load_decoys() -> dict:
+    """decoy_controls — SPECIFICITY controls (non-targets a correct framework must NOT nominate).
+    Separate from reference_profiles by design (the discrimination harness ignores them so they can't
+    dilute blind_rate); the panel scores them for specificity."""
+    import yaml
+    spec = yaml.safe_load(CAL_SET.read_text())
+    return spec.get("decoy_controls") or {}
+
+
+def score_decoys(decoys: dict, pkg_dir: Path) -> dict:
+    """A decoy that comes back `nominate` is a specificity FALSE-POSITIVE; hold/veto/None = pass."""
+    rows = []
+    for name, d in sorted(decoys.items()):
+        et = TARGET_CANON.get(name, name)
+        code = IND_MAP.get(d.get("indication"), "UNMAPPED")
+        row = {"target": name, "indication": d.get("indication"), "expect_not": d.get("expect_not", "nominate")}
+        p = pkg_dir / f"{et}__{_slug(code)}.json" if code not in (None, "UNMAPPED") else None
+        pkg = None
+        if p and p.exists():
+            try:
+                pkg = json.loads(p.read_text())
+            except (ValueError, OSError):
+                pkg = None
+        if pkg is None:
+            rows.append({**row, "status": "no_package", "reco": None})
+            continue
+        reco = _forced_reco(pkg)
+        # pass = did NOT nominate (the specificity guard held). --emit is LLM-free so a clean target
+        # is reco=None; a decoy should be held/vetoed by a gate, or at worst None — never `nominate`.
+        hit = reco != "nominate"
+        rows.append({**row, "status": "scored", "reco": reco, "hit": hit})
+    scored = [r for r in rows if r["status"] == "scored"]
+    return {"n": len(scored), "pass": sum(1 for r in scored if r["hit"]),
+            "failures": [f"{r['target']} → nominate (specificity FP)" for r in scored if not r["hit"]],
+            "rows": rows}
+
+
 def resolve_job(name: str, prof: dict):
     """(emit_target, code) or (None, reason). Skips composite/non-gene keys + uncovered indications."""
     if name in _COMPOSITE:
@@ -469,10 +506,17 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     profiles = load_profiles()
+    decoys = load_decoys()
     if args.emit:
-        emit_packages(profiles, args.packages_dir, args.timeout, set(args.only) if args.only else None)
+        only = set(args.only) if args.only else None
+        emit_packages(profiles, args.packages_dir, args.timeout, only)
+        # decoys share the emit machinery — treat each as a 1-profile job (indication + modality).
+        if decoys:
+            emit_packages({k: {**v, "modality": v.get("modality")} for k, v in decoys.items()},
+                          args.packages_dir, args.timeout, only)
 
     report = score_all(profiles, args.packages_dir)
+    report["decoy_specificity"] = score_decoys(decoys, args.packages_dir)
     OUT_PATH.write_text(json.dumps(report, indent=2))
 
     s = report["scored"]
@@ -495,6 +539,10 @@ def main(argv=None) -> int:
     if sr:
         print(f"  subtype-primary ({sr['n_subtype_scoped']} scoped): {sr['n_captured']} captured a "
               f"subtype_fit verdict; verdicts {sr['verdict_tally']}")
+    dc = report.get("decoy_specificity")
+    if dc and dc["n"]:
+        print(f"  decoy specificity: {dc['pass']}/{dc['n']} held (non-targets NOT nominated)"
+              + ("" if not dc["failures"] else f" — FAILURES: {dc['failures']}"))
     for e in report["fresh_errors"]:
         print(f"    FRESH-ERROR {e}")
     for d in report["drift_vs_curated"]:
