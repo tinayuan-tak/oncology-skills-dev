@@ -202,7 +202,8 @@ COMBINATION_VULNERABILITY = LensConfig(
            "co-dependencies, combination co-targets under inhibition, and resistance mediators.",
     relevance_prompt="give the combination / vulnerability context read (descriptive ranked-partner annex; no nomination call).",
     axis_labels={"SL": "synthetic-lethal", "CODEP": "paralog dual-KO co-dependency",
-                 "COMBO": "combination co-target", "RESISTANCE": "resistance mediators"},
+                 "COMBO": "combination co-target", "SYNERGY": "chemical drug×drug synergy",
+                 "RESISTANCE": "resistance mediators"},
     scope_exclusions=("single-target nomination verdict",),
     mode="descriptive",
 )
