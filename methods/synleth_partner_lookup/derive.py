@@ -17,6 +17,16 @@ experimental > computational (a computational-only partner suppresses more weakl
 
 Output: one parquet keyed by gene_symbol (+ entrez_id), written to the derived path;
 the read side (read.py) does a point lookup. CC-BY-4.0 source (redistributable).
+
+COVERAGE / provenance caveats (deliberate, disclosed):
+  - SynLethDB Tier-2 (Human.computed.SL — deep-learning top-1% predictions) is EXCLUDED
+    by design at the source-selection layer; this product indexes only the curated
+    Human.SL.detailed edges. A gene with only Tier-2 predicted partners reads as
+    no_curated_sl_partner here — a curated-set restriction, not "no SL biology".
+  - evidence_tier() is a SUBSTRING-keyword heuristic over rel_source (see markers below).
+    A new/renamed v3 rel_source that matches no marker falls to the LEAST-trusted "other"
+    tier (see _TIER_RANK). test_evidence_tier_buckets pins the known v3 vocabulary so a
+    silent drift into "other" is caught on the next source refresh.
 """
 
 from __future__ import annotations
@@ -54,7 +64,12 @@ def evidence_tier(rel_source: Optional[str]) -> str:
     return "other"
 
 
-_TIER_RANK = {"experimental": 2, "other": 1, "computational": 0}
+# An UNRECOGNIZED rel_source ("other" — no experimental/computational marker matched) must NOT
+# outrank a KNOWN computational prediction: unknown provenance is the least-trustworthy tier, not a
+# middle one. (Was {experimental:2, other:1, computational:0}, which let an unmapped source win the
+# best_evidence_tier / top-partner sort over a labelled computational edge.) Build-time only (the
+# resulting best_evidence_tier is frozen into the parquet); takes effect on the next re-derive.
+_TIER_RANK = {"experimental": 2, "computational": 1, "other": 0}
 
 
 from methods.target_id_sidecar import ensure_aws_profile

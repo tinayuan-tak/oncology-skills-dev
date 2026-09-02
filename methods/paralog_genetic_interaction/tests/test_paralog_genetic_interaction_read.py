@@ -113,3 +113,29 @@ def test_empty_absence_is_cached_and_no_paralog_screened(monkeypatch):
     assert "_live_read_error" not in out
     r.combinatorial_dependency_for_gene("NOTINLIB")
     assert calls["n"] == 1
+
+
+# ── _partner_class cutpoint regression guard (deferred-debt hardening) ────────────────────────────
+# The reader-authoritative GI thresholds — especially FRAC_STRONG_CONSTITUTIVE=0.4, which gates the
+# constitutive->context demotion and is justified anecdotally (MARK2/3 frac_strong=0.58 survives; the
+# over-called artifacts sit at 0.19-0.29) — are UNCALIBRATED. These tests freeze the current boundary
+# behaviour so a silent threshold change is caught (they do NOT endorse recalibration; that needs a
+# labelled paralog-SL truth set).
+def _pc(mean_gi, frac_strong, min_gi=None):
+    return r._partner_class({"mean_gi": mean_gi, "frac_lines_strong_gi": frac_strong, "min_gi": min_gi})
+
+
+def test_partner_class_cutpoints_are_pinned():
+    assert r.FRAC_STRONG_CONSTITUTIVE == 0.4         # the load-bearing eyeballed gate
+    assert r.CONSTITUTIVE_MEAN == -0.25
+    # MARK2/3-style survivor: broad negative + majority-ish strong lines -> constitutive
+    assert _pc(-0.30, 0.58) == "constitutive_buffering"
+    # the demoted artifact band (frac below 0.4) -> context, NOT constitutive
+    assert _pc(-0.30, 0.25) == "context_buffering"
+    # exact boundary: frac==0.4 clears; 0.39 does not
+    assert _pc(-0.30, 0.40) == "constitutive_buffering"
+    assert _pc(-0.30, 0.39) == "context_buffering"
+    # positive GI -> suppressive (masking); a single very-strong line -> context; else no_interaction
+    assert _pc(0.30, 0.0) == "suppressive"
+    assert _pc(-0.10, 0.05, min_gi=-1.5) == "context_buffering"
+    assert _pc(-0.10, 0.05, min_gi=-0.5) == "no_interaction"

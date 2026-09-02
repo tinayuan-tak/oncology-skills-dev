@@ -124,3 +124,22 @@ def test_reader_graceful_on_read_failure(monkeypatch):
     s = r.read_target_summary("SMARCA2")
     assert s["sl_partner_class"] == "data_unavailable"
     assert s["_live_read_error"] == "synlethdb_partners_read_failed"
+
+
+# ── evidence-tier drift-guard + ordering (deferred-debt hardening) ───────────────────────────────
+def test_known_v3_rel_sources_never_fall_to_other():
+    """Every rel_source value observed in the SynLethDB v3 table (+ common combinations) must map to
+    experimental or computational — a drift into the least-trusted 'other' bucket on the next source
+    refresh would silently mis-tier partners. If v3 adds a NEW rel_source, extend the markers."""
+    known = ["CRISPR/CRISPRi", "GenomeRNAi", "High Throughput", "Low Throughput",
+             "Computational Prediction", "Text Mining",
+             "CRISPR/CRISPRi;High Throughput", "GenomeRNAi;Low Throughput"]
+    for src in known:
+        assert d.evidence_tier(src) in ("experimental", "computational"), \
+            f"{src!r} fell to 'other' — extend _EXPERIMENTAL_MARKERS/_COMPUTATIONAL_MARKERS"
+
+
+def test_tier_rank_orders_experimental_over_computational_over_other():
+    """An UNRECOGNIZED source ('other') must rank BELOW a known computational prediction (it is the
+    least-trustworthy tier, not a middle one)."""
+    assert d._TIER_RANK["experimental"] > d._TIER_RANK["computational"] > d._TIER_RANK["other"]
