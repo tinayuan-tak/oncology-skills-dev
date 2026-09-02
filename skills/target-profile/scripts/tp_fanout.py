@@ -293,6 +293,21 @@ SUB_SKILLS = [
                                                                # read — same discipline as target-intrinsic's 12 elsewhere-HOME'd
                                                                # cards). Needs AWS_PROFILE=cbg for HCMI/PDXE S3 reads (already
                                                                # required for the DEFAULT-ON --ground substrate chain).
+    ("literature-context",             "literature_context"),  # GATELESS descriptive PEER (wired 2026-09-02),
+                                                               # EXACT target-intrinsic / translational-readiness precedent.
+                                                               # literature-context/run.py passes verdict_fn=None (DESCRIPTIVE —
+                                                               # cited-literature co-occurrence + relation direction is CONTEXT/
+                                                               # CONFIDENCE, never a nomination gate; RISK_ASSESSMENT_INTEGRATION.md
+                                                               # §4), so verdict=None; and it is DELIBERATELY absent from
+                                                               # _SHORT_TO_GATE → gate=None. verdict=None + gate=None satisfies the
+                                                               # must-not-gate requirement STRUCTURALLY → overall_recommendation +
+                                                               # confidence stay byte-identical (only a new descriptive
+                                                               # sub_verdict=None row appears). Composes ONE card
+                                                               # (cited-literature-evidence) reached via NO other path — it PROMOTES
+                                                               # the former cited_literature_evidence.json tp_grounding side-channel
+                                                               # (auto_cited_evidence, now REMOVED) to a first-class fan-out input.
+                                                               # Needs AWS_PROFILE=cbg for the OT europepmc / PubTator3 S3 reads
+                                                               # (already required for the DEFAULT-ON --ground substrate chain).
 ]
 
 # Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
@@ -807,6 +822,15 @@ SUB_SKILL_CARDS = {
         "target-model-availability",          # per-indication HCMI patient-derived model coverage (indication-grain)
         "target-genotype-matched-model",      # does an available HCMI model carry THIS target's alteration?
         "target-pdx-drug-response",           # Novartis PDXE in-vivo drug-response (target-grain)
+    ],
+    "literature-context": [               # GATELESS descriptive peer (wired 2026-09-02), target-intrinsic /
+                                          # translational-readiness precedent. Its SINGLE card is reached via NO
+                                          # other path — it PROMOTES the former cited_literature_evidence.json
+                                          # tp_grounding side-channel (auto_cited_evidence, now REMOVED) to a
+                                          # first-class fan-out input. No gate is scoped to this entry
+                                          # (literature_context ∉ _SHORT_TO_GATE), so the resolver-dependency guard
+                                          # does not apply; the card is verdict-inert (fires no nomination rung).
+        "cited-literature-evidence",          # OT europepmc co-occurrence + PubTator3 relation direction (gene×indication)
     ],
 }
 

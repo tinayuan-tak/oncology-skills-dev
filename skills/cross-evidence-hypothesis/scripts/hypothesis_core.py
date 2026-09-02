@@ -176,6 +176,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     # Keeps DIMENSION_CARDS == SUB_SKILL_CARDS ∘ SUB_SKILLS (test_dimension_cards_matches_spine).
     "translational_readiness": frozenset({
         "target-model-availability", "target-genotype-matched-model", "target-pdx-drug-response"}),
+    # 2026-09-02 — literature-context wired into the fan-out as a GATELESS DESCRIPTIVE peer
+    # (verdict=None, absent from _SHORT_TO_GATE), so this mirror must carry its single card
+    # (test_dimension_cards_matches_spine). Promotes the former cited_literature_evidence.json side-channel.
+    "literature_context": frozenset({"cited-literature-evidence"}),
 }
 # normalized: dim_norm -> {card_norm}. Used to expand a dimension token to its member cards when
 # deciding whether a contradiction was surfaced (dimension-grain OR card-grain both count).

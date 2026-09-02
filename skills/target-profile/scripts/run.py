@@ -796,13 +796,14 @@ def main() -> int:
     # (their orchestrators swallow + WARN on any failure → None) so a missing Bedrock/network degrades to
     # "not shown" and never blocks the profile. An explicit --risk-rollup / --risk-assessment file wins.
     if run_risk and ep_path is not None:
-        from tp_grounding import auto_risk_rollup, auto_risk_assessment, auto_cited_evidence
+        from tp_grounding import auto_risk_rollup, auto_risk_assessment
         if risk_rollup is None:
             risk_rollup = auto_risk_rollup(ep_path, args.modality, grounded_by_axis, args.out)
         if risk_assessment is None:
             risk_assessment = auto_risk_assessment(args.target, ground_ind, ep_path, args.out)
-        # verdict-INERT cited gene×indication literature card (pinned products, no LLM); best-effort
-        auto_cited_evidence(args.target, ground_ind, args.out)
+        # NOTE: the verdict-INERT cited gene×indication literature card is no longer written here as a
+        # side-channel (cited_literature_evidence.json) — it is now the first-class literature-context
+        # fan-out member composing the cited-literature-evidence card (2026-09-02).
 
     # [3B] the cross-evidence hypothesis (display-only / verdict-INERT; when present it REPLACES the
     # Tier-3 exec-summary/tension in the HTML render). Consumes the shared substrate + the 6-dim risk read

@@ -28,6 +28,7 @@
         "./skills/functional-requirement",
         "./skills/genomic-alteration-profile",
         "./skills/immune-context",
+        "./skills/literature-context",
         "./skills/literature-risk-assessment",
         "./skills/mechanism-and-pharmacology",
         "./skills/on-target-safety-liability",

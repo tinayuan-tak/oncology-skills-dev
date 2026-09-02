@@ -225,23 +225,10 @@ def auto_risk_assessment(target: str, indication: str, pkg_path, out_dir, *,
         return None
 
 
-def auto_cited_evidence(target: str, indication: str, out_dir, *, top_cited: int = 8) -> Optional[dict]:
-    """Verdict-INERT gene×indication CITED-LITERATURE card (literature-risk-assessment/cited_evidence):
-    composes the OT europepmc cited-evidence product (volume/recency/top cited sentences) + the PubTator
-    typed-relation DIRECTION product into one card. Writes cited_literature_evidence.json into out_dir.
-    Reproducible (pinned catalogued products, no LLM). Best-effort: analysis-methods/products absent →
-    'not shown', never blocks. Carries NO verdict — pure display/confidence context."""
-    try:
-        ce = _load_sibling("tp_sib_cited_evidence", "literature-risk-assessment", "cited_evidence.py")
-        res = ce.cited_evidence(target, indication, top_cited=top_cited)
-        (Path(out_dir) / "cited_literature_evidence.json").write_text(json.dumps(res, indent=2, default=str))
-        print(f"[target-profile] cited-literature evidence → cited_literature_evidence.json in {out_dir}",
-              file=sys.stderr)
-        return res
-    except Exception as e:  # noqa: BLE001 — verdict-inert display context, never blocks a run
-        print(f"[target-profile] WARN: cited-literature evidence failed "
-              f"({type(e).__name__}: {e}); continuing without the cited-literature card", file=sys.stderr)
-        return None
+# NOTE: the former auto_cited_evidence bolt-on was REMOVED 2026-09-02. The verdict-inert cited
+# gene×indication literature card is now a first-class fan-out member (skills/literature-context/,
+# composing the target-contracts cited-literature-evidence card) rather than a side-channel writing
+# cited_literature_evidence.json here — so the card/skill validators + the emission guard see it.
 
 
 def auto_hypothesis(pkg_path, out_dir, *, modality: Optional[str] = None,
@@ -269,4 +256,4 @@ def auto_hypothesis(pkg_path, out_dir, *, modality: Optional[str] = None,
 
 
 __all__ = ["ENGINE_AXES", "PSEUDO_AXES", "resolve_axes", "auto_ground", "plan_substrate",
-           "auto_risk_rollup", "auto_risk_assessment", "auto_cited_evidence", "auto_hypothesis"]
+           "auto_risk_rollup", "auto_risk_assessment", "auto_hypothesis"]

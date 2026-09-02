@@ -148,22 +148,26 @@ is the contribution. clinical/commercial are engine-blind (literature-only).
 
 clinical and commercial are ENGINE-BLIND — no deterministic card measures them — so they are PSEUDO-CARDS in AXIS_CONFIG (verdict_key=None, cards=[], pseudo_card=True): ground_axis runs literature-only with no anchor and emits escalate-only findings (failed/discontinued trials, class tox, crowded landscape, IP/FTO). risk_rollup derives a COARSE literature-only bin for these dims (escalator kind -> HIGH; any finding -> MED; none -> LOW), tagged bin_basis='literature-only (uncalibrated)'. Both the hypothesis and the risk matrix consume them. UPGRADE PATH: when a clinical-trials / commercial data source is ingested, add real `cards` to the config -> the dim gains a deterministic bin like any engine axis (zero rework).
 
-## cited_evidence — verdict-INERT gene×indication cited-literature card (scripts/cited_evidence.py)
+## cited_evidence — PROMOTED to a first-class card (scripts/cited_evidence.py is now a shim)
 
-A sibling entrypoint (context-tier, like ground_axis/risk_rollup — NO verdict, no card, no gate input)
-that composes TWO pinned, catalogued literature products into a "what does the literature say about
-{target} in {indication}, with citations" card:
+The verdict-INERT gene×indication cited-literature composer that used to live here as a sibling
+entrypoint was PROMOTED (2026-09-02) to a first-class card, `cited-literature-evidence` (target-
+contracts), with its compose logic moved to analysis-methods
+(`methods/cited_literature_evidence/read.py`, the single source of truth) and its home skill the new
+verdict-inert `literature-context` fan-out member. This is because the compose logic joins two
+analysis-methods readers (so it belongs in the method layer) and the promotion makes it visible to the
+card/skill validators + the emission guard — replacing the former `cited_literature_evidence.json`
+target-profile side-channel (`tp_grounding.auto_cited_evidence`, now removed).
 
-  - opentargets-europepmc-evidence-per-target-v1 (via analysis-methods opentargets_europepmc_evidence):
-    OT co-occurrence literature VOLUME + RECENCY + the top cited statements (pmid/pmc/year/section/sentence).
-  - pubtator3-gene-disease-relations-per-gene-v1 (via analysis-methods pubtator3_gene_disease_relations):
-    PubTator BioREx typed relation DIRECTION (associate / cause / positive_correlate / negative_correlate
-    / stimulate / inhibit) + per-type publication counts + PMIDs. Indication-scoped via the
-    indication_crosswalk `mesh_ids` lane.
+`scripts/cited_evidence.py` remains as a thin BACK-COMPAT shim re-exporting `build_cited_evidence_card`
++ `cited_evidence` (and the standalone CLI below) from the analysis-methods module. It composes:
 
-Reproducible (pinned products, no LLM). Both lanes best-effort — an absent method/product/creds degrades
-that half to null and is recorded in `notes`, never raising. It composes into target-profile as the
-best-effort, verdict-inert `cited_literature_evidence.json` (auto_cited_evidence, gated with the rest of
-the substrate chain so the offline/fast/machine modes stay byte-identical).
+  - opentargets-europepmc-evidence-per-target-v1 : OT co-occurrence literature VOLUME + RECENCY + the
+    top cited statements (pmid/pmc/year/section/sentence).
+  - pubtator3-gene-disease-relations-per-gene-v1 : PubTator BioREx typed relation DIRECTION + PMIDs.
+
+Reproducible (pinned products, no LLM); both lanes best-effort (absent product/creds → that half null,
+recorded in `notes`, never raising). For the composed profile use the `literature-context` skill /
+`cited-literature-evidence` card; this CLI stays for standalone/ad-hoc use:
 
     python3 scripts/cited_evidence.py --target KRAS --indication COADREAD [--top-cited 8]

@@ -68,6 +68,10 @@ _ALWAYS_WIRED = [
     "immune-context",                    # TCE effector-arm; gateless additive (indication-level v1).
     "combination-and-vulnerability",     # consolidated relational annex; verdict=None descriptive.
     "translational-readiness",           # HCMI model-availability; descriptive (verdict=None).
+    "literature-context",                # cited-literature-evidence (OT europepmc + PubTator3); descriptive
+                                         # (verdict=None). Wired 2026-09-02 — promotes the former
+                                         # cited_literature_evidence.json tp_grounding side-channel to a
+                                         # first-class fan-out member. SHAPE-only (mints no verdict).
     # patient-population-and-access DELETED 2026-07-14 (prevalence folded into
     # genomic-alteration-profile; was a thin re-projection of one shared card).
 ]
