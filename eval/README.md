@@ -8,6 +8,10 @@ This directory **orchestrates** existing instruments — it does not reimplement
 live where they belong (structural health + calibration + discrimination + ledger in
 `target-contracts`; the runs-clean smoke in `skills/_skills_common`); `eval/` is the single door.
 
+**Framework-level definition of done:** see [`RELEASE_GATE.md`](RELEASE_GATE.md) — the release-readiness
+bar (health/runs-clean/calibration/discrimination/backtest all green + canonical panel regenerates
+clean + case log triaged), with `run_scorecard.py` as its machine engine.
+
 ## One command
 
 ```bash
