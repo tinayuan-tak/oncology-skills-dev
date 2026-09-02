@@ -12,4 +12,4 @@ prefixes: feat/ fix/ chore/ feature/
 default_base: v2-architecture
 
 # Human-readable top-level scope roots.
-scope_roots: skills/ libs/ notebooks/ tests/
+scope_roots: skills/ libs/ notebooks/ tests/ eval/
