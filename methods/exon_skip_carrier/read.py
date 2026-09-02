@@ -146,3 +146,68 @@ def carriers_from_observations(observations: Iterable[VariantObs], event_id: str
         "carrier_samples": sorted(carriers), "n_carriers": len(carriers),
         "method_version": METHOD_VERSION,
     }
+
+
+def _events_for_gene(gene: str) -> list:
+    g = (gene or "").strip().upper()
+    return [e for e in EXON_SKIP_EVENTS.values() if e.gene.upper() == g]
+
+
+def exon_skip_landscape_summary(target: str, indication: str, _carrier_probe: bool = True) -> dict:
+    """Genomic-alteration LANDSCAPE facet: does {target} have a curated exon-skipping DRIVER event
+    (e.g. METex14) that is oncogenic in {indication}, and is it live-confirmed in DepMap carriers?
+
+    This is the substrate-fidelity signal that keeps a splice-skipping driver (MET/LUAD METex14)
+    from being mischaracterized as a neutral missense-dominant pattern. Curated-event-anchored
+    (the exon-skip registry names the oncogenic indication scope + GoF direction), confirmed by the
+    live DepMap carrier count. Returns splice_exon_skip_class:
+
+      recurrent_splice_driver   — {target} has a registered exon-skip event that is a CURATED driver
+                                   in {indication} (the verdict-driving positive).
+      splice_event_off_indication — {target} has a registered event, but {indication} is not in its
+                                   curated oncogenic scope (present, not asserted a driver here).
+      no_registered_event       — no curated exon-skip event for {target} (the common case; neutral).
+
+    Verdict-relevant only for recurrent_splice_driver. DepMap carrier count is confirmatory context
+    (never required — the curated oncogenic assertion stands even where the DepMap panel is thin).
+    """
+    ind = (indication or "").strip().upper()
+    events = _events_for_gene(target)
+    if not events:
+        return {
+            "splice_exon_skip_class": "no_registered_event",
+            "event_id": None, "gene": (target or "").strip().upper(), "indication": ind,
+            "driver_direction": None, "n_depmap_carriers": None, "depmap_carrier_samples": [],
+            "oncogenic_indications": [], "splice_context": None,
+            "method_version": METHOD_VERSION,
+        }
+    ev = events[0]   # one registered event per gene today (METex14); first-match if extended
+    on_indication = ind in {i.upper() for i in ev.oncogenic_indications}
+    n_carriers, carrier_samples = None, []
+    if _carrier_probe:
+        try:
+            c = depmap_carriers(ev.event_id)
+            n_carriers, carrier_samples = c["n_carriers"], c["carrier_samples"]
+        except Exception:  # noqa: BLE001 — carrier confirmation is best-effort context, never required
+            n_carriers, carrier_samples = None, []
+    cls = "recurrent_splice_driver" if on_indication else "splice_event_off_indication"
+    conf = (f"{n_carriers} DepMap carrier line(s)" if n_carriers is not None else "carrier count unavailable")
+    ctx = (
+        f"{ev.gene} {ev.event_id} is a curated {ev.driver_direction} exon-skipping driver in {ind} "
+        f"({conf}) — genomic driver class is SPLICE-skipping, not missense-dominant."
+        if on_indication else
+        f"{ev.gene} carries a registered {ev.event_id} exon-skip event, but {ind} is not in its "
+        f"curated oncogenic scope ({sorted(ev.oncogenic_indications)})."
+    )
+    return {
+        "splice_exon_skip_class": cls,
+        "event_id": ev.event_id,
+        "gene": ev.gene,
+        "indication": ind,
+        "driver_direction": ev.driver_direction,
+        "n_depmap_carriers": n_carriers,
+        "depmap_carrier_samples": carrier_samples,
+        "oncogenic_indications": sorted(ev.oncogenic_indications),
+        "splice_context": ctx,
+        "method_version": METHOD_VERSION,
+    }

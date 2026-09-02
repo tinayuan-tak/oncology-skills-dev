@@ -43,6 +43,14 @@ class ExonSkipEvent:
     # cell lines / samples that are UNIVERSALLY-agreed positives — used as test anchors and
     # as a build-time sanity assertion, NOT as the classification rule.
     canonical_positive_samples: frozenset = field(default_factory=frozenset)
+    # hg19/GRCh37 window (patient MAFs — TCGA MC3, GENIE public — are GRCh37-aligned, unlike the
+    # hg38 DepMap arm). None when not curated. Same acceptor/exon/donor span, lifted to hg19.
+    window_start_hg19: int = None
+    window_end_hg19: int = None
+    # CURATED oncogenic scope: indications where this exon-skip event is an established DRIVER
+    # (OncoTree/framework codes). Drives the genomic-alteration splice-driver characterization.
+    oncogenic_indications: frozenset = field(default_factory=frozenset)
+    driver_direction: str = ""         # activating | loss_of_function (METex14 = activating/GoF)
     note: str = ""
 
 
@@ -69,6 +77,14 @@ METEX14 = ExonSkipEvent(
         "splice_donor_variant", "splice_acceptor_variant", "splice_region_variant",  # VEP
     }),
     canonical_positive_samples=frozenset({"ACH-000616", "ACH-000628"}),  # EBC-1, Hs746T
+    # hg19 window (TCGA MC3 / GENIE public are GRCh37): exon 14 ≈ chr7:116,411,850-116,411,990;
+    # cluster empirically observed in MC3 at 116,411,551 (intron-13 acceptor side) + 116,412,042-045
+    # (intron-14 donor). Window spans the acceptor/branch → donor, excluding distal MET splice sites
+    # (116,397,691 / 116,403,323 / 116,422,041 / 116,423,356 / 116,435,707).
+    window_start_hg19=116_411_500,
+    window_end_hg19=116_412_100,
+    oncogenic_indications=frozenset({"LUAD", "LUSC", "NSCLC"}),   # curated METex14 driver scope
+    driver_direction="activating",
     note="MET exon-14 skipping — FDA companion-Dx biomarker for capmatinib/tepotinib; "
          "removes the CBL degron (GAIN-of-function stabilization, not loss).",
 )

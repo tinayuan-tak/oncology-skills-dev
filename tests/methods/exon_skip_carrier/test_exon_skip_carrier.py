@@ -16,6 +16,7 @@ sys.path.insert(0, str(REPO))
 
 from methods.exon_skip_carrier import (  # noqa: E402
     EXON_SKIP_EVENTS, VariantObs, carriers_for_event, carriers_from_observations,
+    exon_skip_landscape_summary,
 )
 from methods.exon_skip_carrier.read import _observations_from_maf  # noqa: E402
 
@@ -159,3 +160,43 @@ def test_builder_missing_column_raises():
     bad = [["Hugo_Symbol", "Start_Position", "Variant_Classification", "ModelID"]]  # no Chromosome
     with pytest.raises(ValueError):
         splice_rows_from_maf(iter(bad))
+
+
+# ------------------------- landscape reader (genomic-alt substrate) -------------------------
+
+def test_landscape_met_luad_is_recurrent_splice_driver():
+    r = exon_skip_landscape_summary("MET", "LUAD", _carrier_probe=False)
+    assert r["splice_exon_skip_class"] == "recurrent_splice_driver"
+    assert r["event_id"] == "METex14"
+    assert r["driver_direction"] == "activating"
+    assert "SPLICE-skipping" in r["splice_context"]
+
+
+def test_landscape_met_off_indication():
+    r = exon_skip_landscape_summary("MET", "COADREAD", _carrier_probe=False)
+    assert r["splice_exon_skip_class"] == "splice_event_off_indication"
+    assert r["event_id"] == "METex14"
+
+
+def test_landscape_met_nsclc_composite():
+    r = exon_skip_landscape_summary("MET", "NSCLC", _carrier_probe=False)
+    assert r["splice_exon_skip_class"] == "recurrent_splice_driver"
+
+
+def test_landscape_no_registered_event():
+    r = exon_skip_landscape_summary("KRAS", "LUAD", _carrier_probe=False)
+    assert r["splice_exon_skip_class"] == "no_registered_event"
+    assert r["event_id"] is None
+
+
+def test_metex14_event_has_dual_build_and_oncogenic_scope():
+    ev = EXON_SKIP_EVENTS["METex14"]
+    assert ev.window_start_hg19 and ev.window_end_hg19          # hg19 window curated
+    assert ev.window_start_hg19 < ev.window_end_hg19
+    assert ev.oncogenic_indications == frozenset({"LUAD", "LUSC", "NSCLC"})
+    assert ev.driver_direction == "activating"
+
+
+def test_landscape_case_insensitive_target():
+    r = exon_skip_landscape_summary("met", "luad", _carrier_probe=False)
+    assert r["splice_exon_skip_class"] == "recurrent_splice_driver"
