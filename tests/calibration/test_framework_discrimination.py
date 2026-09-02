@@ -46,8 +46,12 @@ def test_headline_metrics_pinned(metrics):
     # is a NON-CELL-AUTONOMOUS secreted-enzyme metabolic dependency conditioned on trans KEAP1-LoF/NRF2-GoF
     # — genuinely out-of-scope (unmeasurable in monoculture DepMap), not a wiring false-negative.
     assert len(metrics["silent_false_negatives"]) == 11
-    # blind on the deciding axis for the large majority of known targets
-    assert metrics["blind_rate"] >= 0.7
+    # blind on the deciding axis for the large majority of known targets.
+    # 0.7 → 0.68 (2026-09-02): WRN (MSI-H synthetic-lethal molecular-subtype anchor) promoted into
+    # reference_profiles as a CAPTURED advanced target (framework reads partner_conditional_dependent +
+    # subtype_fit subtype_specific_non_dependence), which legitimately lowers the blind fraction
+    # (0.705 → 0.689 at n=45). A captured add improving coverage is the intended direction.
+    assert metrics["blind_rate"] >= 0.68
 
 
 def test_silent_fn_split_by_outcome_trust(metrics):

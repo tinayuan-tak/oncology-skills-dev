@@ -443,3 +443,87 @@ reference_profiles:
   SCD1:    {indication: CRC, modality: small_molecule, outcome: active, deciding_axis: lineage_selectivity, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "lone gate-C win in the SL cohort — lineage-context is the one flavor the wired card handles."}
   BRAF:    {indication: SKCM, modality: small_molecule, outcome: approved_class, deciding_axis: V600E_addiction, deciding_axis_coverage: partial, agreement: agree_fragile, severity: validated_lane, note: "melanoma-concentrated tail near 5% floor — fragile pass."}
   EGFR:    {indication: LUAD, modality: small_molecule, outcome: approved_class, deciding_axis: mutation_context, deciding_axis_coverage: partial, agreement: agree_conditional, severity: validated_lane, note: "captured ONLY if v1.2.0 biomarker-suppressor fires + stratum powered; else false-negative."}
+  WRN:     {indication: COADREAD, modality: small_molecule, outcome: advanced, deciding_axis: synthetic_lethal_MSI_H, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "MOLECULAR-subtype-primary anchor (promoted from staging 2026-09-02, VERIFIED live --subtypes MSI_H,MSS): WRN is a dependency ONLY in MSI-H. Framework CAPTURES it — dependency=partner_conditional_dependent (WRN×MSI SL card) + subtype_fit=subtype_specific_non_dependence (flags MSS non-dependence). Caveat: subtype_fit is NEGATIVE-SELECTION-only (frames MSS non-dependence as hold; never mints a POSITIVE per-stratum MSI_H nomination). The clean subtype_fit positive control."}
+
+# =============================================================================================
+# reference_profiles_staging — DRAFT panel-expansion entries (2026-09-02). NOT YET CONSUMED.
+#
+# Read by NO consumer yet (the discrimination harness + eval/run_known_target_panel both read
+# `reference_profiles`, not this block), so staging here cannot shift the pinned discrimination
+# metrics or break CI. Promotion to `reference_profiles` is a COORDINATED follow-up that must:
+#   (1) VERIFY each entry with a live emit (agreement/severity below are PROVISIONAL — measured:false);
+#   (2) update the PINNED counts in tests/calibration/test_framework_discrimination.py (adding
+#       profiles shifts n_approved / silent_false_negatives / blind_rate);
+#   (3) land AFTER the parallel METex14/CNDP2 session's calibration flip (same file) — apply --3way.
+#
+# SCOPE NOTE (two senses of "subtype"): the framework's `subtype_fit` axis is MOLECULAR subtype
+# (CMS / MSI / CIMP — the --subtypes path axis). MUTATION-subtypes (KRAS-G12C, EGFR-ex19del,
+# BRAF-V600E, ERBB2-amp, PIK3CA-mut, METex14) are the GENOMIC-ALTERATION axis (the parallel
+# session's territory) — cross-referenced under tier_s_mutation_subtype_XREF, NOT added here as
+# subtype_fit entries, to avoid colliding with that work.
+# =============================================================================================
+reference_profiles_staging:
+
+  # --- Tier-S: WRN PROMOTED 2026-09-02 → live reference_profiles above (subtype_fit positive control). ---
+  # (The `subtype` field is a panel-emit hint; reference_profiles has no subtype field, so the panel's
+  #  emit-subtype-aware path reads it from staging — WRN's live emit already passed --subtypes MSI_H,MSS.)
+
+  # --- Tier-2: NEGATIVES + DECOYS — STAY IN STAGING (do NOT promote to reference_profiles) ---
+  # MEASUREMENT-INTEGRITY: the discrimination harness's blind_rate / by_outcome count EVERY
+  # reference_profile. Decoys are CAPTURED non-targets (pan-essential housekeeping) — folding them into
+  # reference_profiles would DILUTE blind_rate (gaming a metric meant for real nomination targets) and
+  # inflate the negative_declined class with non-biological controls. Decoys belong in a SEPARATE
+  # specificity block that the eval PANEL scores (does the framework nominate noise?) but the
+  # discrimination harness IGNORES. FOLLOW-UP: add `decoy_controls:` (panel reads; harness excludes) +
+  # teach run_known_target_panel to score it; until then decoys are verified here but unpromoted.
+  ACTB:                                  # decoy: pan-essential housekeeping, NOT a therapeutic target
+    indication: COADREAD
+    modality: small_molecule
+    outcome: not_a_target
+    deciding_axis: pan_essential_housekeeping
+    deciding_axis_coverage: captured
+    agreement: agree                     # VERIFIED 2026-09-02: hold via safety:highly_constrained,
+    severity: decoy_true_negative        #   never nominated. Specificity holds.
+    measured: true
+    note: "VERIFIED decoy true-negative: beta-actin correctly HELD (safety:highly_constrained_safety_
+      concern), never nominated. Note the guard fires on SAFETY (gnomAD constraint), not a
+      pan_essential dependency veto — either route is correct specificity behavior for a decoy."
+  GAPDH:
+    indication: COADREAD
+    modality: small_molecule
+    outcome: not_a_target
+    deciding_axis: pan_essential_housekeeping
+    deciding_axis_coverage: captured
+    agreement: agree                     # VERIFIED 2026-09-02: hold via safety, never nominated
+    severity: decoy_true_negative
+    measured: true
+    note: "VERIFIED decoy true-negative: correctly HELD (safety:normal_tissue_protein_safety_concern),
+      never nominated."
+  MMP9:                                  # historic oncology failure (matrix metalloproteinase inhibitors)
+    indication: multi
+    modality: small_molecule
+    outcome: declined
+    deciding_axis: TME_protease_failed_class
+    deciding_axis_coverage: blind
+    agreement: PROVISIONAL               # UNVERIFIED: 2026-09-02 emit did not write a package
+    severity: PROVISIONAL                #   (failed/timeout) — retry before promoting.
+    measured: false
+    note: "Failed-class negative: MMP inhibitors were a repeated oncology failure. UNVERIFIED — the
+      2026-09-02 verification emit produced no package (retry). SEED — expand the
+      negative class from curated ct.gov terminated Ph2/3 trials (negatives are the scarce, high-value
+      class the panel most needs)."
+
+  # --- Tier-S MUTATION-subtype cross-reference (GENOMIC-ALTERATION axis; coordinate, do NOT add here) ---
+  tier_s_mutation_subtype_XREF:
+    note: "These ARE subtype-primary but on the genomic-alteration / mutation-stratified axis, not
+      subtype_fit — owned by the parallel METex14/GoF session. Handle/verify WITH that work:
+      KRAS-G12C (LUAD/COADREAD), EGFR-ex19del/L858R/ex20ins (LUAD), BRAF-V600E (SKCM vs COADREAD),
+      ERBB2-amp-vs-mut (BRCA/STAD), PIK3CA-mut (BRCA), METex14 (LUAD — parallel CASE-002, real splice GoF),
+      IDH1-R132 neomorphic-GoF (parallel). NOTE: CNDP2 REMOVED from this GoF group — it has NO GoF
+      mutation (see CNDP2_corrected below); the parallel 'CNDP2 GoF' scope was misdirected."
+
+  # --- CASE-006 CORRECTION: CNDP2 is NOT a neomorphic GoF (curator biology 2026-09-02) ---
+  # CNDP2_corrected — SUPERSEDED 2026-09-02: the parallel session already landed this exact correction
+  # to the LIVE reference_profiles CNDP2 entry (deciding_axis noncell_autonomous_metabolic_dependency_
+  # KEAP1_NRF2, out_of_scope_tier2, honest_blind) + re-pinned discrimination (silent_FN 12→11). Our
+  # staging draft converged on the identical biology; nothing to promote. (Retained as a pointer.)
