@@ -50,8 +50,13 @@ _CONTRACTS_REPO = Path(
 # exposed by each sub-skill's underlying card summaries (audited empirically).
 PHASE_METRIC_FIELDS: dict[str, list[tuple[str, str]]] = {
     "expression": [
-        ("median_log2tpm_panel",    "median log2TPM (pan-cancer)"),
-        ("fraction_expressed",       "fraction expressed"),
+        # INV-3: name the sample_context of every number. `median_log2tpm` is the TUMOR-tissue median
+        # (tumor-rna-distribution); `median_log2tpm_panel` is the DepMap CELL-LINE panel median
+        # (cellline-rna-distribution) — the previous "(pan-cancer)" label conflated the two and surfaced
+        # the cell-line value as if it were tumor prevalence. Lead with the tumor lens.
+        ("median_log2tpm",          "median log2TPM (tumor)"),
+        ("median_log2tpm_panel",    "median log2TPM (cell-line panel)"),
+        ("fraction_expressed",       "fraction expressed (cell-line panel)"),
         ("log2_fc",                  "log2FC tumor vs adj"),
         ("q_value",                  "q-value (tumor vs adj)"),
     ],

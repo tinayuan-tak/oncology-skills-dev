@@ -115,17 +115,30 @@ _TUMOR_RNA = [
 ]
 
 
-def test_cell_line_vs_tumor_discordant_unreachable_total():
-    """Over EVERY (cell-line rung × tumor rung) pair, run the real collapse + per-modality build + lens
-    discordance: the flag must be False for all of them. A ladder edit that re-anchored cell-line over
-    tumor (making the cell-line lens win while the tumor lens reads a higher tier) would fail here — the
-    total proof the LOW-2 finding asked for, replacing the 4-case spot check."""
+def test_cell_line_vs_tumor_discordant_is_tier_inequality_total():
+    """BIDIRECTIONAL (INV-2): over EVERY (cell-line rung × tumor rung) pair, the flag fires IFF the
+    cell-line lens anchored the headline AND both RNA lenses are measured AND they read DIFFERENT tiers.
+    Both directions are legible — understatement (tumor higher; FOLR1 de-diff) and overstatement
+    (cell-line higher; USP8) — each with its matching `direction`. This replaces the old 'always-False'
+    invariant, which modeled only the understatement (re-anchor) direction and was blind to a cell-line
+    lens OVER-stating tumor presence."""
     for cl_rid, _clv in _CELL_LINE_RNA:
         for tu_rid, tu_card in _TUMOR_RNA:
             fired = [_fr(cl_rid, "cellline-rna-distribution"), _fr(tu_rid, tu_card)]
             v, drv = tp._verdict(fired)
             pm = tp._per_modality_verdicts(fired, None)
-            _lens, discordant = tp._headline_lens_discordance(drv, pm)
-            assert discordant is False, (
-                f"cell_line_vs_tumor_discordant became reachable for cl={cl_rid} tu={tu_rid} "
-                f"(collapsed={v}, drv={drv}) — the re-anchor invariant regressed.")
+            lens, discordant, direction = tp._headline_lens_discordance(drv, pm)
+            cl_b = pm.get(tp._BULK_RNA_CELL_LINE) or {}
+            tv_b = pm.get(tp._BULK_RNA_TUMOR) or {}
+            cl_tier = tp._PRESENCE_TIER.get(cl_b.get("verdict"))
+            tu_tier = tp._PRESENCE_TIER.get(tv_b.get("verdict"))
+            expect = bool(lens == tp._BULK_RNA_CELL_LINE and tv_b.get("evidence_state") == "measured"
+                          and cl_tier is not None and tu_tier is not None and cl_tier != tu_tier)
+            assert discordant is expect, (
+                f"discordant={discordant} expected {expect} for cl={cl_rid} tu={tu_rid} "
+                f"(collapsed={v}, drv={drv}, cl_tier={cl_tier}, tu_tier={tu_tier}).")
+            if discordant:
+                assert direction == ("cell_line_understates_tumor" if tu_tier > cl_tier
+                                     else "cell_line_overstates_tumor")
+            else:
+                assert direction is None

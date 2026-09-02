@@ -536,7 +536,29 @@ STROMAL_MICROENVIRONMENT_PRESENT = "stromal_microenvironment_present"        # P
 CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT = "conflicted_protein_present_rna_absent"  # ALB: protein detected, RNA/sc absent
 
 
-def reconcile_presence_verdict(raw_verdict: str | None, presence_state: dict | None) -> str | None:
+# SIGNAL-DERIVED tier cap (INV-1 / signals-first). A presence-positive ladder word can read a HIGHER
+# abundance tier than the integrated SIGNAL supports — the pan-cancer cell-line RNA lens fires
+# `broadly_high_expression` (tier 3) while the tumor-tissue abundance signal (claim A, from
+# tumor-rna-distribution) is only moderate (USP8/NSCLC). The collapsed ladder deliberately keeps
+# cell-line `broadly_high` at the top (frozen by test_reanchor_flip_matrix / test_ladder_invariants —
+# the RAW ladder is UNTOUCHED here), but the ONE WORD consumers read must not out-rank the signal. We
+# cap the emitted word DOWN to the tier the CLAIM-A abundance signal supports, staying in the SAME lens
+# family so _PRESENCE_TIER / polarity / phrase lookups still resolve. We key on claim A's SIGNAL (not
+# presence_state.abundance_level, which is contaminated by the abundance_FLOOR flag — a bottom-decile
+# ABSOLUTE-abundance signal orthogonal to the relative distribution tier: EPCAM reads A=strong yet
+# floor=present_low_abundance, and must NOT be capped). strong→tier 3 (EPCAM/ERBB2 byte-stable);
+# moderate/weak→tier 2 (USP8). We cap only tier-3→tier-2 (never into the tier-1 measured-NEGATIVE
+# tokens: absolute-abundance concerns stay on abundance_floor_flag, and must not flip PRESENT→absent).
+_CLAIM_A_TO_TIER = {"strong": 3, "moderate": 2, "weak": 2}
+_TIER3_TO_TIER2 = {                       # within-lens-family tier-3 → tier-2 demotion
+    "broadly_high_expression":       "broadly_moderate_expression",   # cell-line RNA panel
+    "strongly_upregulated_in_tumor": "modestly_upregulated_in_tumor", # tumor-vs-adjacent contrast
+    "tumor_broadly_expressed":       "tumor_moderately_expressed",    # tumor-tissue distribution
+}
+
+
+def reconcile_presence_verdict(raw_verdict: str | None, presence_state: dict | None,
+                               claim_vector: dict | None = None) -> str | None:
     """Demote a raw presence-POSITIVE word that DISAGREES with presence_state to a caveated token; leave
     agreeing positives and all raw negatives/gaps unchanged. See the block comment above."""
     if not _is_presence_positive(raw_verdict) or not isinstance(presence_state, dict):
@@ -548,6 +570,12 @@ def reconcile_presence_verdict(raw_verdict: str | None, presence_state: dict | N
         return CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT
     if p == "no":
         return "absent"                                      # raw positive but state measured-absent
+    # SIGNAL-DERIVED tier cap: a tier-3 word whose CLAIM-A abundance signal reads only moderate/weak is
+    # demoted to its tier-2 lens sibling so the emitted word cannot over-rank the signal package (INV-1).
+    a_sig = ((claim_vector or {}).get("A") or {}).get("signal")
+    allowed = _CLAIM_A_TO_TIER.get(a_sig)
+    if allowed is not None and _PRESENCE_TIER.get(raw_verdict) == 3 and allowed < 3:
+        return _TIER3_TO_TIER2.get(raw_verdict, raw_verdict)
     return raw_verdict
 
 
@@ -876,25 +904,31 @@ _PRESENCE_TIER = {
 
 
 def _headline_lens_discordance(driving_rule_id: str | None, per_modality: dict):
-    """Which bucket drove the collapsed headline, and does the tumor-tissue RNA lens read a HIGHER
-    presence tier than the cell-line lens that anchored it? Returns (headline_lens_key_or_None,
-    cell_line_vs_tumor_discordant_bool). Additive / verdict-inert."""
+    """Which bucket drove the collapsed headline, and do the cell-line and tumor-tissue RNA lenses read
+    DIFFERENT presence tiers? Returns (headline_lens_key_or_None, cell_line_vs_tumor_discordant_bool,
+    direction) where direction ∈ {None, 'cell_line_understates_tumor', 'cell_line_overstates_tumor'}.
+    BIDIRECTIONAL (INV-2): the original guard flagged only the understatement direction (a cell-line-
+    anchored headline BELOW the tumor lens — antigens that de-differentiate in 2D, e.g. FOLR1). The
+    OPPOSITE — cell-line OVER-stating tumor presence (USP8: cell-line broadly_high, tumor only moderate)
+    — is the more dangerous direction and was previously invisible. Additive / verdict-inert."""
     lens = None
     if driving_rule_id is not None:
         for key, b in (per_modality or {}).items():
             if isinstance(b, dict) and b.get("driving_rule_id") == driving_rule_id:
                 lens = key
                 break
-    discordant = False
+    discordant, direction = False, None
     if lens == _BULK_RNA_CELL_LINE:
         cl = (per_modality or {}).get(_BULK_RNA_CELL_LINE) or {}
         tv = (per_modality or {}).get(_BULK_RNA_TUMOR) or {}
         if tv.get("evidence_state") == "measured":
             cl_tier = _PRESENCE_TIER.get(cl.get("verdict"))
             tumor_tier = _PRESENCE_TIER.get(tv.get("verdict"))
-            if cl_tier is not None and tumor_tier is not None and tumor_tier > cl_tier:
+            if cl_tier is not None and tumor_tier is not None and tumor_tier != cl_tier:
                 discordant = True
-    return lens, discordant
+                direction = ("cell_line_understates_tumor" if tumor_tier > cl_tier
+                             else "cell_line_overstates_tumor")
+    return lens, discordant, direction
 
 
 def _top_essential_cell_types(flags, n: int = 8) -> list[dict]:
@@ -1005,12 +1039,18 @@ def _protein_confirmation_state(per_modality: dict, collapsed_verdict: str | Non
     contradicted by a measured protein absence, or is protein simply UNTESTED? See the block comment."""
     if not _is_presence_positive(collapsed_verdict):
         return "not_applicable"
-    measured = [b.get("verdict") for k in (_BULK_PROTEIN_MS_TUMOR, _BULK_PROTEIN_MS_CELL_LINE)
-                for b in [(per_modality or {}).get(k) or {}]
-                if b.get("evidence_state") == "measured"]
-    if any(v in _PROTEIN_PRESENT_VERDICTS for v in measured):
+    tb = (per_modality or {}).get(_BULK_PROTEIN_MS_TUMOR) or {}
+    cb = (per_modality or {}).get(_BULK_PROTEIN_MS_CELL_LINE) or {}
+    tumor_v = tb.get("verdict") if tb.get("evidence_state") == "measured" else None
+    cl_v = cb.get("verdict") if cb.get("evidence_state") == "measured" else None
+    # INV-8: distinguish TUMOR-tissue protein confirmation from cell-line-only. A cell-line MS
+    # present-call with the tumor protein UNTESTED (no CPTAC cohort, USP8/NSCLC) is not tumor
+    # confirmation — label it so a consumer is not falsely reassured that protein is confirmed IN TUMOR.
+    if tumor_v in _PROTEIN_PRESENT_VERDICTS:
         return "confirmed"
-    if any(v in _PROTEIN_ABSENT_VERDICTS for v in measured):
+    if cl_v in _PROTEIN_PRESENT_VERDICTS:
+        return "confirmed_cell_line_only"
+    if tumor_v in _PROTEIN_ABSENT_VERDICTS or cl_v in _PROTEIN_ABSENT_VERDICTS:
         return "measured_absent"
     return "untested"
 
@@ -1071,16 +1111,26 @@ def _attach_subtype_firstclass(subgroup_signals, claim_vector_by_subtype):
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
-    # Legibility flag for a cell-line-anchored headline that understates the tumor-tissue lens.
-    _headline_lens, _cl_tumor_discordant = _headline_lens_discordance(drv, per_modality)
+    # Legibility flag for a cell-line-anchored headline whose tier DIFFERS from the tumor-tissue lens
+    # (bidirectional — understatement OR overstatement; see _headline_lens_discordance).
+    _headline_lens, _cl_tumor_discordant, _cl_tumor_direction = _headline_lens_discordance(drv, per_modality)
     _tumor_bucket = (per_modality or {}).get(_BULK_RNA_TUMOR) or {}
-    _presence_interpretation_note = (
-        ("presence_verdict inherits the pan-cancer cell-line RNA lens; the tumor-tissue lens "
-         f"reads a higher presence tier ({_tumor_bucket.get('verdict')}). Read "
-         "presence_verdict_by_modality['bulk_rna/tumor'] — the one-word headline understates "
-         "tumor-tissue presence for this target (typical of antigens that de-differentiate in "
-         "2D culture).")
-        if _cl_tumor_discordant else None)
+    _cl_bucket = (per_modality or {}).get(_BULK_RNA_CELL_LINE) or {}
+    _presence_interpretation_note = None
+    if _cl_tumor_direction == "cell_line_understates_tumor":
+        _presence_interpretation_note = (
+            "presence_verdict inherits the pan-cancer cell-line RNA lens; the tumor-tissue lens "
+            f"reads a HIGHER presence tier ({_tumor_bucket.get('verdict')}). Read "
+            "presence_verdict_by_modality['bulk_rna/tumor'] — the one-word headline understates "
+            "tumor-tissue presence for this target (typical of antigens that de-differentiate in "
+            "2D culture).")
+    elif _cl_tumor_direction == "cell_line_overstates_tumor":
+        _presence_interpretation_note = (
+            f"the pan-cancer cell-line RNA lens reads a HIGHER presence tier ({_cl_bucket.get('verdict')}) "
+            f"than the tumor-tissue lens ({_tumor_bucket.get('verdict')}); the emitted presence_verdict is "
+            "capped DOWN to the tumor-supported tier so the one-word headline does not over-state "
+            "tumor presence. Read presence_verdict_by_modality['bulk_rna/tumor'] and the claim-vector "
+            "abundance signal — cell-line expression alone is not evidence of tumor abundance.")
     # M2 legibility (verdict-INERT): the collapse can read `insufficient` while a bucket is MEASURED-present
     # — e.g. a CPTAC-flat-only target, where `protein_present_not_elevated` is rescued in the per-modality
     # map but fires NO ladder rung, so it cannot lift the collapsed word off `insufficient`. List those
@@ -1112,6 +1162,7 @@ def _headline(cards, fired, verdict_pair):
         # guard: it should be False for every target (see CONTRACT.md § "Headline lens").
         "headline_lens":                 _headline_lens,
         "cell_line_vs_tumor_discordant": _cl_tumor_discordant,
+        "cell_line_vs_tumor_direction":  _cl_tumor_direction,
         # Robustness guards (verdict-inert). presence_headline_conflict surfaces a MEASURED
         # presence-negative that the positive-over-negative collapse buried under the headline word.
         "presence_headline_conflict":            _hl_conflict,
@@ -1279,7 +1330,7 @@ def _headline(cards, fired, verdict_pair):
     # and still drives presence_verdict_by_modality + the facets above. Runs before headline_block so its
     # verdict.call = the reconciled token. Verdict-INERT to the nomination spine.
     if isinstance(hl.get("presence_state"), dict) and hl["presence_state"].get("present"):
-        _reconciled = reconcile_presence_verdict(v, hl["presence_state"])
+        _reconciled = reconcile_presence_verdict(v, hl["presence_state"], hl.get("claim_vector"))
         if _reconciled != v:
             hl["presence_verdict_ladder"] = v
             hl["presence_verdict"] = _reconciled
@@ -1320,8 +1371,10 @@ def _headline(cards, fired, verdict_pair):
 # (presence stays out of target-profile's _SHORT_TO_GATE).
 _SYNTHESIS_FACET_KEYS = (
     "presence_verdict", "driving_rule_id",
+    "presence_verdict_ladder",            # RAW pre-cap ladder word (audit) when the emitted word was capped
     "presence_verdict_by_modality",       # the 7-bucket cross-modal matrix (the key object)
-    "headline_lens", "cell_line_vs_tumor_discordant", "presence_interpretation_note",
+    "headline_lens", "cell_line_vs_tumor_discordant", "cell_line_vs_tumor_direction",
+    "presence_interpretation_note",
     # Robustness guards — a buried measured-negative and a bottom-decile-abundance present call are
     # exactly the cross-modal tensions the composed reasoner must weigh.
     "presence_headline_conflict", "presence_headline_conflict_note", "presence_headline_conflict_modalities",

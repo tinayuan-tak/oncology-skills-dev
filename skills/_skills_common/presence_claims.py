@@ -159,7 +159,10 @@ def _claim_B(h, c):
 
 def _claim_C(h, c):
     cls = h.get("sc_expression_class") or c.get("tumor-scrna-celltype-expression", {}).get("sc_expression_class")
-    frac, n = h.get("sc_malignant_detection_fraction"), h.get("sc_n_donor_groups")
+    # INV-4: the malignant detection fraction is computed over the MALIGNANT-compartment donors
+    # (malignant_n_donors), NOT the union donor-groups across all 5 compartments (n_donor_groups) —
+    # cite the denominator that matches the fraction, and the field the evidence_atom below lists.
+    frac, n = h.get("sc_malignant_detection_fraction"), h.get("sc_malignant_n_donors")
     if not cls or cls == "data_unavailable":
         return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no single-cell for indication", "conflict": None, "informs": CLAIM_INFORMS["C"]}
     sig = {"malignant_broadly_detected": "strong", "malignant_subset_detected": "weak",
@@ -258,7 +261,7 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
                 bits.append(f"protein-confirmed (CPTAC effect {_f(cp['protein_effect_size'])}, q={_pq:.0e})")
             return ("Tumor-elevated vs normal — " + "; ".join(bits) + " [DGE + CPTAC]") if bits else None
         if k == "C":
-            return f"Expressed in cancer cells — {_f((headline.get('sc_malignant_detection_fraction') or 0)*100,0)}% of malignant cells (n={headline.get('sc_n_donor_groups')} donors) [single-cell]"
+            return f"Expressed in cancer cells — {_f((headline.get('sc_malignant_detection_fraction') or 0)*100,0)}% of malignant cells (n={headline.get('sc_malignant_n_donors')} donors) [single-cell]"
         if k == "D":
             ne, nt = br.get("n_cohorts_elevated"), br.get("n_cohorts_tested")
             return f"Broad — protein-elevated in {ne}/{nt} cancer cohorts [tumor-elevation-breadth]" if isinstance(ne, int) and isinstance(nt, int) else None
@@ -341,12 +344,17 @@ def derive_presence_state(headline: dict) -> dict:
     scc = headline.get("sc_expression_class")
     bc = headline.get("tumor_elevation_breadth_class")
 
+    # `confirmed_cell_line_only` (tumor protein untested, cell-line MS present) is treated as a protein
+    # confirmation for the coarse present-state (keeps present='yes' → no phrase/label cascade); the
+    # cell-line-only qualifier is carried by the protein_confirmation_state facet itself (INV-8).
+    _confirmed = pcs in ("confirmed", "confirmed_cell_line_only")
     if A in _PS_POS_SIG:
-        present = {"confirmed": "yes", "measured_absent": "rna_only_protein_absent"}.get(pcs, "rna_only")
+        present = ("yes" if _confirmed else
+                   "rna_only_protein_absent" if pcs == "measured_absent" else "rna_only")
     elif A in ("absent", "negative"):
-        present = "protein_only_rna_absent" if pcs == "confirmed" else "no"
+        present = "protein_only_rna_absent" if _confirmed else "no"
     else:                                                     # abundance unmeasured
-        present = "protein_only" if pcs == "confirmed" else "untested"
+        present = "protein_only" if _confirmed else "untested"
 
     abundance_level = ("low" if floor == "present_low_abundance"
                        else "high" if A == "strong"

@@ -16,6 +16,39 @@ def test_agreeing_positive_is_byte_stable():
         assert tp.reconcile_presence_verdict(raw, {"present": "yes", "malignant_intrinsic": "yes"}) == raw
 
 
+def test_tier3_capped_to_tier2_when_claim_a_moderate():
+    # USP8/NSCLC: cell-line ladder fires broadly_high (tier 3) but claim-A abundance signal is only
+    # weak/moderate → the emitted word is capped DOWN to its tier-2 lens sibling (INV-1 / signals-first).
+    st = {"present": "yes", "malignant_intrinsic": "yes"}
+    for a_sig in ("weak", "moderate"):
+        cv = {"A": {"signal": a_sig}}
+        assert tp.reconcile_presence_verdict("broadly_high_expression", st, cv) == "broadly_moderate_expression"
+        assert tp.reconcile_presence_verdict("strongly_upregulated_in_tumor", st, cv) == "modestly_upregulated_in_tumor"
+        assert tp.reconcile_presence_verdict("tumor_broadly_expressed", st, cv) == "tumor_moderately_expressed"
+
+
+def test_tier3_not_capped_when_claim_a_strong():
+    # EPCAM: A=strong → tier 3 is signal-supported → NO cap (byte-stable), EVEN IF a low absolute-abundance
+    # floor is present (abundance_floor is orthogonal — it must not demote a strongly-present target).
+    st = {"present": "yes", "malignant_intrinsic": "yes", "abundance_level": "low"}
+    cv = {"A": {"signal": "strong"}}
+    assert tp.reconcile_presence_verdict("broadly_high_expression", st, cv) == "broadly_high_expression"
+    assert tp.reconcile_presence_verdict("tumor_broadly_expressed", st, cv) == "tumor_broadly_expressed"
+
+
+def test_no_cap_without_claim_vector():
+    # No claim_vector supplied → cap cannot fire → byte-stable (the enrichment is best-effort).
+    st = {"present": "yes", "malignant_intrinsic": "yes"}
+    assert tp.reconcile_presence_verdict("broadly_high_expression", st) == "broadly_high_expression"
+
+
+def test_tier2_raw_is_never_capped():
+    # A tier-2 word already agrees with a moderate signal → left alone (cap only touches tier-3).
+    st = {"present": "yes", "malignant_intrinsic": "yes"}
+    cv = {"A": {"signal": "weak"}}
+    assert tp.reconcile_presence_verdict("broadly_moderate_expression", st, cv) == "broadly_moderate_expression"
+
+
 def test_stromal_demotes():
     # PECAM1: raw positive but the signal is microenvironment/stromal, not malignant-cell.
     assert tp.reconcile_presence_verdict(

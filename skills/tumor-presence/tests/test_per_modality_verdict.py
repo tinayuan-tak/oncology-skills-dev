@@ -710,20 +710,37 @@ def test_reanchor_resolves_the_cellline_moderate_but_tumor_broad_case():
     fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
              _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
     v, _ = tp._verdict(fired)
-    lens, discordant = _lens_disc(fired)
+    lens, discordant, direction = _lens_disc(fired)
     assert v == "tumor_broadly_expressed"      # re-anchor: tumor lens drives the headline
     assert lens == "bulk_rna/tumor"
     assert discordant is False                  # nothing to flag — the headline reflects tumor tissue
+    assert direction is None
 
 
 def test_not_discordant_when_both_lenses_broad():
-    """ERBB2/MET pattern: headline already broadly_high (tier 3); tumor tissue is not a
-    HIGHER tier, so the headline does not understate → no flag."""
+    """ERBB2/MET pattern: headline already broadly_high (tier 3); tumor tissue is the SAME
+    tier, so the lenses agree → no flag (bidirectional check keys on tier inequality)."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
-    lens, discordant = _lens_disc(fired)
+    lens, discordant, direction = _lens_disc(fired)
     assert lens == "bulk_rna/cell_line"
     assert discordant is False
+    assert direction is None
+
+
+def test_discordant_when_cell_line_overstates_tumor():
+    """USP8/NSCLC pattern: cell-line RNA fires broadly_high (tier 3) while the tumor-tissue lens
+    is only broadly_moderate (tier 2). The one-word headline OVER-states tumor presence — the
+    bidirectional guard (INV-2) must flag it with direction=cell_line_overstates_tumor. The RAW
+    ladder still collapses to broadly_high_expression (untouched); the cap lives in _headline."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+             _fr("tumor-expression-broadly-moderate-neutral", "tumor-rna-distribution")]
+    v, _ = tp._verdict(fired)
+    lens, discordant, direction = _lens_disc(fired)
+    assert v == "broadly_high_expression"       # RAW ladder collapse is untouched
+    assert lens == "bulk_rna/cell_line"
+    assert discordant is True
+    assert direction == "cell_line_overstates_tumor"
 
 
 def test_not_discordant_when_headline_is_tumor_anchored():
@@ -731,18 +748,20 @@ def test_not_discordant_when_headline_is_tumor_anchored():
     so there is nothing to flag even though the cell-line lens is lineage_restricted."""
     fired = [_fr("expression-lineage-restricted-supportive", "cellline-rna-distribution"),
              _fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent")]
-    lens, discordant = _lens_disc(fired)
+    lens, discordant, direction = _lens_disc(fired)
     assert lens == "bulk_rna/tumor"
     assert discordant is False
+    assert direction is None
 
 
 def test_not_discordant_when_tumor_lens_unmeasured():
     """Target-only query: cell-line measured, tumor bucket data_unavailable → no tumor tier
     to compare, so the flag stays False (never fabricated off a missing lens)."""
     fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution")]
-    lens, discordant = _lens_disc(fired)
+    lens, discordant, direction = _lens_disc(fired)
     assert lens == "bulk_rna/cell_line"
     assert discordant is False
+    assert direction is None
 
 
 # --- single-cell detail surfacing (per-compartment / CAF / homogeneity) -----
