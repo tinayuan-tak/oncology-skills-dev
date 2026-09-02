@@ -186,6 +186,30 @@ def extract_signal_ledger(pkg: dict) -> dict:
     }
 
 
+def extract_subtype_signal(pkg: dict) -> dict:
+    """The SUBTYPE signal, extracted + headlined for subtype-primary targets. Present only when the
+    emit was subtype-scoped (--subtypes). subtype_fit is the negative-selection verdict (a measured
+    non-dependent stratum → hold); subtype_resolved carries the per-stratum resolution."""
+    syn = pkg.get("synthesis") or {}
+    sf = (syn.get("sub_verdicts") or {}).get("subtype_fit")
+    resolved = pkg.get("subtype_resolved")
+    if not sf and not resolved:
+        return {"scoped": False, "captured": False}
+    per_stratum = (resolved or {}).get("per_stratum") if isinstance(resolved, dict) else None
+    requested = (resolved or {}).get("requested_strata") if isinstance(resolved, dict) else None
+    verdict = (sf or {}).get("verdict")
+    return {
+        "scoped": True,
+        "subtype_fit_verdict": verdict,
+        "driving_rule_id": (sf or {}).get("driving_rule_id"),
+        "fired_rule_ids": (sf or {}).get("fired_rule_ids") or [],
+        "requested_strata": requested or [],
+        "n_strata_resolved": len(per_stratum) if isinstance(per_stratum, list) else 0,
+        # captured = the framework produced a real subtype verdict (not None / not data_unavailable)
+        "captured": bool(verdict) and verdict not in ("data_unavailable", "not_in_scope", None),
+    }
+
+
 def extract_signal_vector(pkg: dict) -> dict:
     """The compact, diffable signal substrate a reasoner would join on — not just the recommendation."""
     syn = pkg.get("synthesis") or {}
@@ -255,6 +279,7 @@ def score_profile(name: str, prof: dict, pkg) -> dict:
     sv = extract_signal_vector(pkg)
     row["signal_vector"] = sv
     row["signal_ledger"] = extract_signal_ledger(pkg)   # positive vs negative signals
+    row["subtype_signal"] = extract_subtype_signal(pkg)  # subtype_fit + resolved (subtype-primary)
     reco = sv["recommendation"]
     row["reco"] = reco
     row["dependency_verdict"] = sv["gate_verdicts"].get("dependency")
@@ -355,6 +380,16 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
             "total_negative_suppressed": sum(l["counts"]["negative_suppressed"] for l in ledgers),
         }
 
+    # Subtype-capture rollup — the headlined subtype-fidelity metric for subtype-primary targets.
+    subtyped = [r for r in rows if (r.get("subtype_signal") or {}).get("scoped")]
+    subtype_rollup = None
+    if subtyped:
+        subtype_rollup = {
+            "n_subtype_scoped": len(subtyped),
+            "n_captured": sum(1 for r in subtyped if r["subtype_signal"]["captured"]),
+            "verdict_tally": _tally(r["subtype_signal"].get("subtype_fit_verdict") for r in subtyped),
+        }
+
     return {
         "schema_version": "1.0.0",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -365,6 +400,7 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
                    "accuracy": round(len(hits) / len(scored), 3) if scored else None},
         "signal_substrate": substrate,
         "signal_ledger_rollup": signal_ledger_rollup,
+        "subtype_rollup": subtype_rollup,
         "fresh_errors": fresh_errors,
         "drift_vs_curated": drifts,
         "rows": rows,
@@ -388,15 +424,21 @@ def emit_packages(profiles: dict, pkg_dir: Path, timeout: int, only: set | None)
         # biologics modality is declared (modality_scoped branch). Emitting modality-blind under-powers
         # the backtest and manufactures false silent-FNs. dedup identical (target, code); a collision
         # keeps the first modality (reference_profiles have one modality per key).
-        jobs.setdefault(job, prof.get("modality"))
+        # Carry MODALITY (above) + SUBTYPE. subtype_fit is opt-in via --subtypes; a subtype-PRIMARY
+        # target (KRAS-G12C, EGFR-ex19) carries its defining axis in the profile's `subtype` field, so
+        # the emit passes --subtypes and the subtype signal (subtype_fit + subtype_resolved) is
+        # actually produced + scored. Emitting subtype-blind leaves that signal absent.
+        jobs.setdefault(job, (prof.get("modality"), prof.get("subtype") or prof.get("subtypes")))
     print(f"[known-panel] emitting {len(jobs)} unique (target, code) jobs", flush=True)
-    for i, ((et, code), modality) in enumerate(sorted(jobs.items()), 1):
+    for i, ((et, code), (modality, subtype)) in enumerate(sorted(jobs.items()), 1):
         out = pkg_dir / f"_emit__{et}__{_slug(code)}"
         out.mkdir(exist_ok=True)
         argv = [sys.executable, str(RUN_PY), "--target", et, "--indication", code,
                 "--emit", "evidence-package", "--out", str(out)]
         if modality:
             argv += ["--modality", str(modality)]   # run.py normalizes; unrecognized → warn + ignore
+        if subtype:
+            argv += ["--subtypes", str(subtype)]     # subtype-primary targets → subtype_fit tier
         t0 = time.time()
         try:
             r = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=timeout)
@@ -443,6 +485,10 @@ def main(argv=None) -> int:
         print(f"  signal ledger ({lr['n_with_ledger']} targets): avg {lr['avg_positive']} positive / "
               f"{lr['avg_negative']} negative signals; negatives {lr['total_negative_surviving']} surviving "
               f"(drove hold/veto) vs {lr['total_negative_suppressed']} suppressed (modality-cleared)")
+    sr = report.get("subtype_rollup")
+    if sr:
+        print(f"  subtype-primary ({sr['n_subtype_scoped']} scoped): {sr['n_captured']} captured a "
+              f"subtype_fit verdict; verdicts {sr['verdict_tally']}")
     for e in report["fresh_errors"]:
         print(f"    FRESH-ERROR {e}")
     for d in report["drift_vs_curated"]:
