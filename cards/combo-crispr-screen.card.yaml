@@ -44,15 +44,25 @@ outputs:
     - strongest_co_target_class          # robust_combination | supported_combination | context_combination
     - top_co_targets                     # list<struct> — ranked co-targets w/ shift, n_models, n_significant
     - combination_context                # narrative summary (measured-vs-null honest)
+    - combination_opportunity_class_prefloor  # RAW pre-power-floor class (audit) — same vocab as combination_opportunity_class
+    - drug_anchor_n_models_max           # widest cell-line panel behind the call (int)
+    - drug_anchor_underpowered           # bool — True iff the min-cell-line power floor demoted the call
 
   summary_fields_vocabulary:
     combination_opportunity_class:
-      - strong_combination_opportunity   # >=1 robust co-target (deep shift, significant in >=50% models)
-      - combination_opportunity          # else >=1 supported co-target
-      - context_combination_opportunity  # else >=1 context co-target (single-model strong shift)
+      - strong_combination_opportunity   # >=1 robust co-target on a POWERED panel (>=MIN_POWERED_MODELS lines)
+      - combination_opportunity          # else >=1 supported co-target (powered)
+      - context_combination_opportunity  # else >=1 context co-target, OR a positive signal capped by the power floor
       - no_combination_signal            # anchor screened, no co-target passed
       - no_anchor_screen                 # target has NO anchor drug (COVERAGE GAP, not negative)
       - data_unavailable                 # product read failure
+    combination_opportunity_class_prefloor:  # RAW pre-floor call (audit) — identical value space
+      - strong_combination_opportunity
+      - combination_opportunity
+      - context_combination_opportunity
+      - no_combination_signal
+      - no_anchor_screen
+      - data_unavailable
 
   figures:
     - id: combination_cotarget_ranking

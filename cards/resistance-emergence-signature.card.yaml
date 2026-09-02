@@ -54,15 +54,25 @@ outputs:
     - tahoe_adaptation_class             # induced_resistance_programs | no_induced_programs | not_in_tahoe | data_unavailable
     - tahoe_induced_programs             # list<struct> — induced program + its genes + max induction
     - tahoe_adaptation_note              # narrative (verdict-inert)
+    - resistance_emergence_class_prefloor  # RAW pre-power-floor class (audit) — same vocab as resistance_emergence_class
+    - drug_anchor_n_models_max           # widest cell-line panel behind the call (int)
+    - drug_anchor_underpowered           # bool — True iff the min-cell-line power floor demoted the call
 
   summary_fields_vocabulary:
     resistance_emergence_class:
-      - strong_resistance_signal         # >=1 robust rescuer (broad rescue, significant in >=50% models)
-      - resistance_signal                # else >=1 supported rescuer
-      - context_resistance_signal        # else >=1 context rescuer (single-model strong rescue)
+      - strong_resistance_signal         # >=1 robust rescuer on a POWERED panel (>=MIN_POWERED_MODELS lines)
+      - resistance_signal                # else >=1 supported rescuer (powered)
+      - context_resistance_signal        # else >=1 context rescuer, OR a positive signal capped by the power floor
       - no_resistance_signal             # anchor screened, no non-self rescuer passed (real negative)
       - no_anchor_screen                 # target has NO anchor drug (COVERAGE GAP, not negative)
       - data_unavailable                 # product read failure
+    resistance_emergence_class_prefloor:  # RAW pre-floor call (audit) — identical value space
+      - strong_resistance_signal
+      - resistance_signal
+      - context_resistance_signal
+      - no_resistance_signal
+      - no_anchor_screen
+      - data_unavailable
     tahoe_adaptation_class:              # VERDICT-INERT secondary sub-signal
       - induced_resistance_programs      # anchor drug induces >=1 curated resistance program (efflux/NRF2/EMT/anti-apoptotic)
       - no_induced_programs              # anchor drug in Tahoe, no resistance program induced
