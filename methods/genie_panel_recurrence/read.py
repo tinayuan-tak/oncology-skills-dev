@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on p
 
 
 from methods.target_id_sidecar import ensure_aws_profile
+from methods.indication_aliases import to_cohort_canonical
 
 
 @lru_cache(maxsize=8)
@@ -113,6 +114,7 @@ def _covered_gene_frequencies(indication: str) -> tuple:
     Genes with n_covered < _MIN_COVERED are excluded from the null (too thin to rank).
     Returns a tuple of (gene, freq, n_covered, n_mutated) — hashable/cache-safe."""
     from methods.genie_panel_coverage.read import load_sample_panel_map, load_panel_gene_sets
+    indication = to_cohort_canonical(indication)   # LUAD/LUSC -> NSCLC (GENIE CANCER_TYPE grain)
     df = _load_genie_maf(indication)
     if df is None or len(df) == 0:
         return tuple()
@@ -147,6 +149,7 @@ def genie_recurrence_for_gene(target: str, indication: str, cutoffs: dict = None
     (NOT frequency 0). n_covered below the min → percentile None (too thin to rank), freq still emitted.
     """
     from methods.genie_panel_coverage.read import load_sample_panel_map, load_panel_gene_sets
+    indication = to_cohort_canonical(indication)   # LUAD/LUSC -> NSCLC (GENIE CANCER_TYPE grain)
     df = _load_genie_maf(indication)
     if df is None:
         return {"genie_driver_recurrence_class": "data_unavailable",

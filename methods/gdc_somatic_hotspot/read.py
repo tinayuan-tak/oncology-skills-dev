@@ -68,6 +68,7 @@ INDICATION_TO_GDC_PROJECTS = {
 
 
 from methods.target_id_sidecar import ensure_aws_profile
+from methods.indication_aliases import to_cohort_canonical
 
 
 # --- Derived-manifest resolution ----------------------------------------------
@@ -254,6 +255,7 @@ def read_hotspot_summary(
     lists with a structured note.
     """
     ensure_aws_profile()
+    indication = to_cohort_canonical(indication)   # LUAD/LUSC -> NSCLC (patient-cohort canonical grain)
     if aggregate_path is None:
         aggregate_path = _resolve_aggregate_path(indication)
 

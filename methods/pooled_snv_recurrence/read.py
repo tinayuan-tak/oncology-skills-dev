@@ -22,6 +22,7 @@ from functools import lru_cache
 from typing import Optional
 
 from methods.catalog_query.read import s3_uri_for
+from methods.indication_aliases import to_cohort_canonical
 
 DEFAULT_CUTOFFS = {"top_1pct": 99.0, "top_decile": 90.0, "bottom_decile": 10.0}
 _MIN_COVERED = 20  # pooled n_cov floor to rank a gene (mirrors the GENIE per-cohort floor)
@@ -165,6 +166,7 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
     Prefers the precomputed per-(indication, gene) product (pushdown; avoids rebuilding the pooled null
     LIVE — the MSK-CHORD + GENIE panel-coverage loads). Falls back to the live computation when the
     product is unreachable or the gene is not a rankable product row. Byte-identical either way."""
+    indication = to_cohort_canonical(indication)   # LUAD/LUSC -> NSCLC (patient-cohort canonical grain)
     prod = _pooled_from_product(target, indication, cutoffs)
     if prod is not None:
         return prod
