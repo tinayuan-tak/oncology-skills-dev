@@ -70,6 +70,15 @@ outputs:
     - absolute_density_grade                         # 'A'|'A-'|'B'|'B-'|'E' — corpus evidence grade (E = un-anchored)
     - absolute_measurement_semantics                 # ABC | molecule_count | monovalent_epitope | dSTORM | PE_equivalent
     - absolute_n_measurements                        # int; admissible corpus rows for this target
+    # --- B1 (2026-09-02) ADDITIVE absolute-abundance PROXY — genome-wide ProCan cell-line proteomics
+    #     all-gene percentile. A MEASURED absolute signal (unlike the tumor-vs-normal ratio) that fills
+    #     the grade-E `no_absolute_measurement` gap for non-corpus antigens + surfaces corpus-vs-cellline
+    #     discordance. Explicitly a CELL-LINE proxy (not tumor copies-per-cell); VERDICT-INERT (no
+    #     resolver rung reads it — promotion to deciding-axis capture is a deliberate second pass). ---
+    - absolute_abundance_proxy_class                 # 'high'|'moderate'|'low'|'very_low'|'data_unavailable' (ProCan all-gene pct)
+    - absolute_abundance_proxy_percentile            # float; ProCan cell-line all-gene abundance percentile, or null
+    - absolute_abundance_proxy_source                # provenance: procan-cellline-protein-abundance-per-protein-v1
+    - absolute_abundance_proxy_note                  # cell-line-proxy disclaimer (not tumor copies-per-cell; additive)
     - density_floor_verdict                          # standing vs the cited modality floors (see vocab)
     - method_version
 
