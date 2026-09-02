@@ -56,7 +56,10 @@ def test_headline_metrics_pinned(metrics):
     # liability that matches each decline) + IDO1 as an out_of_scope honest_blind. 4 non-blind adds at
     # unchanged blind count (31) drop blind_rate 0.689 → 0.633 at n=49. Adding negatives the framework CAN
     # correctly reject is the intended direction (specificity gain); the floor tracks the honest fraction.
-    assert metrics["blind_rate"] >= 0.63
+    # 0.63 → 0.58 (2026-09-02 round-2): +4 more CAPTURED validated_lane negatives — MCL1 (safety-axis
+    # load-bearing despite all-positive efficacy) + WEE1/CHEK1/KIF11 (pan-essential-veto family). 31/53 =
+    # 0.585. Same intended direction (specificity-stress negatives the framework correctly declines).
+    assert metrics["blind_rate"] >= 0.58
 
 
 def test_silent_fn_split_by_outcome_trust(metrics):
