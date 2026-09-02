@@ -28,7 +28,18 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "translational-readiness"
-SKILL_VERSION = "1.3.0"
+SKILL_VERSION = "1.4.0"
+
+# The organoid-crispr-dependency card documents min_organoid_models: 20 as the cohort below which the
+# organoid dependency fraction is uninterpretable, but its `small_organoid_cohort` warning keys on the
+# PAN-organoid n_models_screened (~114 for most genes → effectively never fires). The INDICATION-matched
+# per-lineage read is where the small cohorts actually surface: the two smallest emitted organoid lineages
+# (Prostate n=9, Breast n=16 in 26Q1) sit BELOW that floor, yet the reader emits a full organoid_lineage_class
+# for them with no caveat. Surface a small-cohort flag HERE (verdict-inert, this skill's own surface) so a
+# consumer reading organoid_lineage_class knows the indication-matched fraction rests on a thin cohort. The
+# per-gene matrix is dense (min n_screened == the lineage cohort, ≥9), so this is a low-cohort RELIABILITY
+# caveat, not a thin-N-artifact floor — the class is left unchanged.
+_ORGANOID_LINEAGE_MIN_MODELS = 20  # mirrors the organoid card's THRESHOLD.min_organoid_models
 
 CARDS = [
     "target-model-availability",   # scientific-gap #1 (2026-08-14): per-indication HCMI patient-derived
@@ -75,6 +86,8 @@ def _headline(cards, fired, verdict_pair):
     """Descriptive translational-readiness context — model-availability fields from the composed card.
     No verdict spine (verdict_fn=None): translational readiness informs confidence/context, not a
     nomination. A composed consumer reads these as indication-grain translational context."""
+    organoid_lineage_n_screened = get_card_field(cards, "organoid-crispr-dependency",
+                                                  "organoid_lineage_n_screened")
     return {
         "model_availability_class":  get_card_field(cards, "target-model-availability",
                                           "model_availability_class"),
@@ -109,6 +122,12 @@ def _headline(cards, fired, verdict_pair):
                                               "organoid_lineage_frac_dependent"),
         "organoid_lineage_class":          get_card_field(cards, "organoid-crispr-dependency",
                                               "organoid_lineage_class"),
+        # thin-cohort reliability caveat on the indication-matched per-lineage read (see the module note):
+        # organoid_lineage_class computed over a lineage cohort below the organoid card's own
+        # min_organoid_models=20 floor (e.g. Prostate n=9, Breast n=16) is a low-confidence read.
+        "organoid_lineage_n_screened":     organoid_lineage_n_screened,
+        "organoid_lineage_small_cohort":   (organoid_lineage_n_screened is not None
+                                            and organoid_lineage_n_screened < _ORGANOID_LINEAGE_MIN_MODELS),
     }
 
 

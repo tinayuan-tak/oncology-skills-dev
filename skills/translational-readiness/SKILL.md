@@ -21,7 +21,7 @@ description: |
   remain un-wired (those catalogs are not in data-catalog).
 
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -84,6 +84,10 @@ When invoked, it emits `decision.json` with:
   - `organoid_lineage` / `organoid_lineage_frac_dependent` / `organoid_lineage_class`: the
     indication-matched organoid lineage read (the strongest translational signal; `null` when the
     indication has no mapped organoid lineage)
+  - `organoid_lineage_n_screened` / `organoid_lineage_small_cohort`: the indication-matched lineage's
+    screened-organoid count and a reliability caveat — `true` when that cohort is below the organoid
+    card's `min_organoid_models` (20) floor (e.g. Prostate n=9, Breast n=16 in 26Q1), so the per-lineage
+    class rests on a thin cohort. Verdict-inert; the class itself is unchanged.
 - `partial_status_note`: the still-un-wired legs.
 
 ## What this skill wires
