@@ -122,6 +122,69 @@ def _dep_verdict(pkg: dict):
 # the one-word recommendation as just ONE facet.
 _SIGNAL_ORDER = {"strong": 3, "moderate": 2, "weak": 1, "unmeasured": 0, None: 0}
 
+# Directional polarity of a fired rule, read from its id SUFFIX (the framework's uniform convention:
+# <rule>-supportive / -opposing / -killer / -veto / -warning / -neutral / -insufficient). This is how
+# the substrate encodes what argues FOR vs AGAINST a nomination — per signal, across every skill.
+_POSITIVE_SUFFIXES = {"supportive", "favorable"}
+_NEGATIVE_SUFFIXES = {"veto", "killer", "opposing", "warning"}
+_CONTEXT_SUFFIXES = {"neutral", "insufficient", "context", "screened", "screen"}
+
+
+def _rule_polarity(rule_id: str) -> str:
+    suf = str(rule_id).rsplit("-", 1)[-1]
+    if suf in _POSITIVE_SUFFIXES:
+        return "positive"
+    if suf in _NEGATIVE_SUFFIXES:
+        return "negative"
+    return "context"
+
+
+def extract_signal_ledger(pkg: dict) -> dict:
+    """Per-target POSITIVE vs NEGATIVE signal ledger — what argues FOR the target vs AGAINST it.
+
+    Reads the directional fired-rule suffixes per axis (the substrate's polarity convention), then
+    overlays the gate's suppression status so a negative that FIRED but was CLEARED (modality/context
+    escape — e.g. a biologic's non_dependent) is distinguished from one that SURVIVED to force a
+    hold/veto. This is the substrate-fidelity view: the evidence ledger, not the collapsed word.
+    """
+    syn = pkg.get("synthesis") or {}
+    sub = syn.get("sub_verdicts") or {}
+    rg = syn.get("recommendation_gate") or {}
+
+    # Gate-level: which negative axis VERDICTS survived to drive the call vs were suppressed.
+    surviving = {(h.get("short"), h.get("verdict")) for h in (rg.get("triggered_by") or [])}
+    suppressed = {(h.get("short"), h.get("verdict")) for h in (rg.get("suppressed_vetoes") or [])}
+
+    positive, negative = [], []
+    counts = {"positive": 0, "negative": 0, "context": 0}
+    for axis, sv in sub.items():
+        verdict = (sv or {}).get("verdict")
+        for rid in ((sv or {}).get("fired_rule_ids") or []):
+            pol = _rule_polarity(rid)
+            counts[pol] += 1
+            if pol == "positive":
+                positive.append({"axis": axis, "rule_id": rid})
+            elif pol == "negative":
+                # gate status of the axis verdict this negative belongs to
+                if (axis, verdict) in surviving:
+                    status = "surviving"          # drove a hold/veto
+                elif (axis, verdict) in suppressed:
+                    status = "suppressed"         # fired but cleared (modality/context escape)
+                else:
+                    status = "within_axis"        # shaped the axis verdict, not a gate kill
+                negative.append({"axis": axis, "rule_id": rid, "gate_status": status})
+
+    n_surviving = sum(1 for n in negative if n["gate_status"] == "surviving")
+    return {
+        "positive": positive,
+        "negative": negative,
+        "counts": {**counts,
+                   "negative_surviving": n_surviving,
+                   "negative_suppressed": sum(1 for n in negative if n["gate_status"] == "suppressed")},
+        "gate_surviving_verdicts": sorted(f"{s}:{v}" for s, v in surviving),
+        "gate_suppressed_verdicts": sorted(f"{s}:{v}" for s, v in suppressed),
+    }
+
 
 def extract_signal_vector(pkg: dict) -> dict:
     """The compact, diffable signal substrate a reasoner would join on — not just the recommendation."""
@@ -191,6 +254,7 @@ def score_profile(name: str, prof: dict, pkg) -> dict:
     # Capture the FULL signal vector (substrate), not just the collapsed word.
     sv = extract_signal_vector(pkg)
     row["signal_vector"] = sv
+    row["signal_ledger"] = extract_signal_ledger(pkg)   # positive vs negative signals
     reco = sv["recommendation"]
     row["reco"] = reco
     row["dependency_verdict"] = sv["gate_verdicts"].get("dependency")
@@ -275,6 +339,19 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
             "deciding_axis_capture_tally": deciding_bands,
         }
 
+    # Positive/negative signal-ledger rollup across the panel — the substrate-fidelity headline.
+    ledgers = [r["signal_ledger"] for r in rows if r.get("signal_ledger")]
+    signal_ledger_rollup = None
+    if ledgers:
+        m = len(ledgers)
+        signal_ledger_rollup = {
+            "n_with_ledger": m,
+            "avg_positive": round(sum(l["counts"]["positive"] for l in ledgers) / m, 1),
+            "avg_negative": round(sum(l["counts"]["negative"] for l in ledgers) / m, 1),
+            "total_negative_surviving": sum(l["counts"]["negative_surviving"] for l in ledgers),
+            "total_negative_suppressed": sum(l["counts"]["negative_suppressed"] for l in ledgers),
+        }
+
     return {
         "schema_version": "1.0.0",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -284,6 +361,7 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
         "scored": {"n": len(scored), "hit": len(hits),
                    "accuracy": round(len(hits) / len(scored), 3) if scored else None},
         "signal_substrate": substrate,
+        "signal_ledger_rollup": signal_ledger_rollup,
         "fresh_errors": fresh_errors,
         "drift_vs_curated": drifts,
         "rows": rows,
@@ -357,6 +435,11 @@ def main(argv=None) -> int:
               f"{sub['avg_strong']} strong, conflict-rate {sub['any_conflict_rate']}")
         print(f"    recommendations: {sub['recommendation_tally']}   confidence: {sub['confidence_tally']}")
         print(f"    deciding-axis capture: {sub['deciding_axis_capture_tally']}")
+    lr = report.get("signal_ledger_rollup")
+    if lr:
+        print(f"  signal ledger ({lr['n_with_ledger']} targets): avg {lr['avg_positive']} positive / "
+              f"{lr['avg_negative']} negative signals; negatives {lr['total_negative_surviving']} surviving "
+              f"(drove hold/veto) vs {lr['total_negative_suppressed']} suppressed (modality-cleared)")
     for e in report["fresh_errors"]:
         print(f"    FRESH-ERROR {e}")
     for d in report["drift_vs_curated"]:

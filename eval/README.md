@@ -62,6 +62,16 @@ recommendation/confidence tallies). The one-word recommendation is scored as jus
 target the framework now `nominate`s that curation called a silent-FN is surfaced as **drift** (flip
 the calibration entry, don't fail).
 
+**Positive/negative signal ledger** (`extract_signal_ledger`, per-target `signal_ledger`): the
+signals are the product, so each target carries an explicit ledger of what argues FOR the target vs
+AGAINST it, read from the substrate's directional fired-rule suffix convention
+(`-supportive`/`-favorable` = positive; `-veto`/`-killer`/`-opposing`/`-warning` = negative;
+`-neutral`/`-insufficient` = context). Each negative is tagged with its GATE STATUS — `surviving`
+(drove a hold/veto), `suppressed` (fired but cleared by modality/context escape, e.g. a biologic's
+`non_dependent`), or `within_axis` (shaped the axis verdict, not a gate kill). The rollup reports
+avg positive / negative signal counts and the surviving-vs-suppressed negative split — the
+substrate-fidelity headline (an LLM-free, deterministic read; synthesis adds prose, never signals).
+
 ```bash
 # slow: populate/refresh packages (one live run per target; needs AWS_PROFILE=cbg)
 python eval/run_known_target_panel.py --emit                 # all in-scope profiles
