@@ -44,8 +44,13 @@ metadata:
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
-    - AWS_PROFILE=cbg
-    - AWS_REGION=us-east-1  # Bedrock
+    # The fan-out reads the onc-compbio bucket via the boto3 DEFAULT credential chain.
+    # No AWS_PROFILE is required: all that matters is the resolved identity is in an
+    # onc-compbio account (default 557690623046; override the set via ONC_COMPBIO_ACCOUNT_IDS).
+    # A SageMaker execution role in that account resolves automatically. On a local-dev box
+    # whose default chain points elsewhere, `export AWS_PROFILE=cbg` (or any profile in that
+    # account) — the preflight validates by ACCOUNT, not profile name.
+    - AWS_REGION=us-east-1  # Bedrock (only for the --synthesis LLM step)
 
 composition:
   data_mode: derived_read
@@ -278,10 +283,13 @@ When called as `/target-profile`, Claude should:
    `therapeutic-hypothesis`, and/or molecular `subtypes`/subgroups from the
    user's natural-language prompt if named.
 2. Pick an `out` directory (default `/tmp/target-profile/{target}-{indication}`).
-3. Run (the `export AWS_PROFILE=cbg` prefix is only needed when the LLM synthesis
-   runs — i.e. NOT for `--emit evidence-package`, `--verdict-only`, or `--no-synthesis`):
+3. Run. The S3 reads use the boto3 DEFAULT credential chain — no profile export is
+   needed when the ambient identity already resolves to an onc-compbio account (e.g. a
+   SageMaker execution role in account 557690623046). Only prefix `export AWS_PROFILE=cbg &&`
+   on a local-dev box whose default chain points elsewhere (and where a `cbg` profile is
+   configured); the preflight validates by ACCOUNT, not profile name, so it fails loudly
+   rather than silently degrading if the identity is wrong.
    ```
-   export AWS_PROFILE=cbg && \
    python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/target-profile/scripts/run.py \
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```

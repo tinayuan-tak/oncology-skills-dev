@@ -362,7 +362,9 @@ def main() -> int:
                   f"  {_pf_detail}\n"
                   "  Every sub-skill reads derived products from the onc-compbio bucket; without\n"
                   "  access, ALL verdicts silently degrade to `insufficient` (a hollow profile).\n"
-                  "  FIX:   export AWS_PROFILE=cbg   (then re-run)\n"
+                  "  FIX:   ensure the ambient AWS creds resolve to an onc-compbio account\n"
+                  f"         {sorted(_ONC_COMPBIO_ACCOUNT_IDS)} — e.g. a SageMaker execution role in\n"
+                  "         that account (no profile needed), or on a local box `export AWS_PROFILE=cbg`.\n"
                   "  Offline/cache-only run? pass --allow-degraded-data to skip this check.\n"
                   + "=" * 78, file=sys.stderr)
             _restore_run_log()
