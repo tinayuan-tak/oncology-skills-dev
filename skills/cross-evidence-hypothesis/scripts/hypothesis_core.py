@@ -91,6 +91,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
         "copy-number-stratified-dependency", "ddr-deficiency-context", "functional-gene-state",
         "fusion-rearrangement-landscape", "fusion-stratified-dependency", "genomic-event-model-match",
+        "splice-exon-skip-landscape",   # CASE-002 verdict-driving splice axis; mirrors SUB_SKILL_CARDS[genomic-alteration-profile]
         "genomic-instability-state", "mutation-drug-response", "mutation-hotspot-frequency",
         "mutation-stratified-dependency", "mutation-type-counts", "mutational-signature-context",
         "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation",

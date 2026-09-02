@@ -25,7 +25,7 @@ description: |
   --modality flag. See CHANGELOG.md for development history.
 
 metadata:
-  version: 2.12.0
+  version: 2.13.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -49,6 +49,9 @@ composition:
                                              # rungs together with a mutation/CN driver rule
     - fusion-rearrangement-landscape         # recurrent TCGA fusion driver (tcga-fusion-consensus-v1); a
                                              # recurrent_fusion_driver fusion_class fires the fusion rung
+    - splice-exon-skip-landscape             # curated exon-skip DRIVER (METex14) oncogenic in-indication +
+                                             # live DepMap carriers; recurrent_splice_driver fires the
+                                             # splice_exon_skip_driver rung (CASE-002 signal-vector fidelity)
     - mutation-drug-response                 # genotype → on-target drug response (PRISM); the STRONG class
                                              # (mutant_strongly_drug_sensitive) fires the drug_response_biomarker rung
     # RECURRENCE — VERDICT-DRIVING as of Phase 2: the POOLED multi-cohort pooled_driver_recurrence_class
@@ -98,6 +101,7 @@ composition:
     - mutation_drug_response                 # mutation-drug-response (VERDICT-DRIVING: strong class → drug_response_biomarker)
     - fusion_rearrangement                   # fusion-rearrangement-landscape (VERDICT-DRIVING: recurrent_fusion_driver rung)
                                              # + subgroup-stratified-fusion (subtype view, display-only)
+    - splice_exon_skip                       # splice-exon-skip-landscape (VERDICT-DRIVING: recurrent_splice_driver → splice_exon_skip_driver rung)
     - variant_level_interpretation           # variant-level-interpretation
     - variant_functional_effect_mave         # variant-effect-mave-mavedb (MEASURED MAVE functional effect; verdict-inert)
     - mutation_clonality                     # target-clonality (#2: ccf-based truncality; verdict-inert)
@@ -122,6 +126,8 @@ composition:
     - alteration-role
     - fusion-rearrangement-landscape         # resolver §3c: fusion_class==recurrent_fusion_driver fires
                                              # fusion-landscape-recurrent-driver-supportive → recurrent_fusion_driver
+    - splice-exon-skip-landscape             # resolver §3b: splice_exon_skip_class==recurrent_splice_driver fires
+                                             # splice-exon-skip-driver-supportive → splice_exon_skip_driver
     - mutation-drug-response                 # resolver §2d-drug: drug_response_stratification_class==
                                              # mutant_strongly_drug_sensitive fires mutation-drug-response-strongly-
                                              # sensitive-supportive → drug_response_biomarker (STRONG class only)

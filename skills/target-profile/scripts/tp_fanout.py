@@ -581,6 +581,8 @@ SUB_SKILL_CARDS = {
                                              # here so that rung can fire in the target-profile (else the
                                              # verdict was dead-in-composition — the composer guard caught it).
         "fusion-rearrangement-landscape",    # LIVE (tcga-fusion-consensus-v1); additive signal-only
+        "splice-exon-skip-landscape",        # CASE-002: curated exon-skip DRIVER (METex14) → splice_exon_skip_driver
+                                             # rung; composer-consistency with genomic-alteration-profile CARDS
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)
         "functional-gene-state",             # allele-count / biallelic two-hit state (2026-07-22) —

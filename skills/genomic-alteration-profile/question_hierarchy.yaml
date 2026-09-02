@@ -1,3 +1,6 @@
+# GENERATED from target-contracts vocabularies/target_profiling_axes.yaml (question_hierarchies).
+# Do NOT hand-edit: edit the governed source there and run skills/tools/sync_question_hierarchies.py --write.
+# The paired drift test (skills/tests/test_question_hierarchy_drift.py) fails CI on divergence.
 skill: genomic-alteration-profile
 sub_groups:
 - id: SNV
@@ -29,6 +32,7 @@ sub_groups:
     measurement_types:
     - fusion_rearrangement
     - fusion_stratified_dependency
+    - splice_exon_skip
     - tumor_splice_dysregulation
     - tumor_splice_expression
 - id: DEP

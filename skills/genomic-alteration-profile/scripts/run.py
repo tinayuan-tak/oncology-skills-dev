@@ -80,7 +80,7 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.12.0"   # +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.13.0"   # +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -100,6 +100,10 @@ CARDS = [
     # ── Fusion / rearrangement ───────────────────────────────────────────────
     "fusion-stratified-dependency",    # verdict-driving: are fusion-positive lines more dependent? (EWSR1-FLI1)
     "fusion-rearrangement-landscape",  # verdict-driving: recurrent TCGA fusion driver (tcga-fusion-consensus-v1)
+
+    # ── Splice exon-skipping ─────────────────────────────────────────────────
+    "splice-exon-skip-landscape",      # verdict-driving (CASE-002): curated exon-skip DRIVER (METex14) oncogenic
+                                       # in-indication + live DepMap carriers → splice_exon_skip_driver rung
 
     # ── Genotype × drug response ─────────────────────────────────────────────
     "mutation-drug-response",          # verdict-driving (STRONG class only): mutant lines more drug-sensitive (PRISM)
@@ -544,6 +548,7 @@ _GENOMIC_VERDICT_PHRASE = {
     "recurrent_fusion_driver":         "Recurrent fusion driver",
     "recurrent_snv_driver":            "Recurrent SNV/indel driver",
     "recurrent_snv_subclonal_uncertain": "Recurrent SNV — subclonal, uncertain driver",
+    "splice_exon_skip_driver":         "Splice exon-skipping driver (e.g. METex14)",
     # variant-class spectrum shape
     "lof_dominant_pattern":            "LoF-dominant mutation pattern",
     "missense_dominant_pattern":       "Missense-dominant mutation pattern",
@@ -570,6 +575,7 @@ _GENOMIC_POSITIVE_VERDICTS = frozenset({
     "biomarker_stratified_dependency", "moderate_biomarker_dependency", "multi_class_driver",
     "confirmed_driver", "drug_response_biomarker", "recurrent_amplification_driver",
     "recurrent_deletion_driver", "recurrent_fusion_driver", "recurrent_snv_driver",
+    "splice_exon_skip_driver",   # curated oncogenic exon-skip driver (METex14, GoF) — a positive driver call
 })
 _GENOMIC_NEGATIVE_VERDICTS = frozenset({"passenger_pattern"})
 
@@ -761,7 +767,7 @@ _CERTAINTY_CORROBORATION_CARDS = frozenset({"variant-level-interpretation"})
 _GA_STRONG_POS = {"biomarker_stratified_dependency", "multi_class_driver", "multi_class_lof_driver"}
 _GA_MOD_POS = {"moderate_biomarker_dependency", "confirmed_driver", "confirmed_lof_driver",
                "drug_response_biomarker", "recurrent_amplification_driver", "recurrent_deletion_driver",
-               "recurrent_fusion_driver", "recurrent_snv_driver"}
+               "recurrent_fusion_driver", "recurrent_snv_driver", "splice_exon_skip_driver"}
 _GA_WEAK_POS = {"lof_dominant_pattern", "missense_dominant_pattern"}
 _GA_NEG = {"passenger_pattern"}
 _GA_NEUTRAL = {"mixed_pattern"}

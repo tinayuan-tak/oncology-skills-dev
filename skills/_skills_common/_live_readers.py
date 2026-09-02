@@ -303,6 +303,18 @@ def _dispatch_fusion_rearrangement_landscape(target: str, indication: str) -> Op
     return mod.read_target_summary(target, indication)
 
 
+def _dispatch_splice_exon_skip_landscape(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: splice-exon-skip-landscape card -> exon_skip_carrier.exon_skip_landscape_summary.
+
+    Does {target} carry a curated exon-skipping DRIVER event (METex14) that is oncogenic in
+    {indication}, confirmed by live DepMap carriers? splice_exon_skip_class in
+    {recurrent_splice_driver | splice_event_off_indication | no_registered_event}. Curated-event-
+    anchored + DepMap carrier confirmation over depmap-somatic-splice-variants-v1. The splice
+    alteration class of the genomic gate (CASE-002 signal-vector fidelity)."""
+    mod = _import_method("exon_skip_carrier")
+    return mod.exon_skip_landscape_summary(target, indication)
+
+
 # ---- Subgroup-panorama dispatchers (descriptive; 2026-07-16) ------------------
 # These route the two NEW live subgroup cards to the per-sample panorama BUILDERS
 # (not the scalar readers above). They fire only when subgroups are in scope
@@ -1670,6 +1682,7 @@ CARD_DISPATCHERS = {
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
     "fusion-rearrangement-landscape": _dispatch_fusion_rearrangement_landscape,
+    "splice-exon-skip-landscape": _dispatch_splice_exon_skip_landscape,   # genomic splice-exon-skip axis (CASE-002)
     "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,

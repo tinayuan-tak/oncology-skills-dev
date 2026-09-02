@@ -325,7 +325,13 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
         # Defensive: a skill with no declarable rules_scope -> treat every
         # consumed card as verdict-bearing so the guard never loses teeth.
         verdict_bearing = {(c.get("card_id") or c.get("id")) for c in cards}
-    absence_class_values = set(SENTINELS) | {"", "no_partner_mapped"}
+    # Non-driving "no signal here" class values fire no resolver rung by design, so they are NOT
+    # informative verdict-driving data for the collapse heuristic (like data_unavailable). Without
+    # this, splice-exon-skip-landscape's no_registered_event (real, S3-free) would be the lone
+    # "informative" card in a creds-less env and defeat the skip guard (KRAS/COADREAD has no METex14).
+    absence_class_values = set(SENTINELS) | {
+        "", "no_partner_mapped", "no_registered_event", "splice_event_off_indication",
+    }
 
     def _card_has_informative_verdict_data(card: dict) -> bool:
         """A resolved card carries verdict-driving data iff at least one of its

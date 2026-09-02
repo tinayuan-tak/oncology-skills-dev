@@ -4,6 +4,19 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-02 (v2.13.0)
+- **splice-exon-skip-landscape** card wired as a VERDICT-DRIVING genomic axis (CASE-002). A curated
+  exon-skipping DRIVER event (METex14) that is oncogenic in-indication + live DepMap carrier
+  confirmation fires `splice-exon-skip-driver-supportive` → `splice_exon_skip_driver` (genomic
+  resolver v1.8.0, priority 36 — above the variant-class-shape rungs). So MET/LUAD reads a
+  splice-skipping driver instead of a NEUTRAL `missense_dominant_pattern`: the signal-vector
+  FIDELITY fix (the nomination veto was already resolved — this fixes WHY MET matters, per
+  `eval/CASE_LOG.md` CASE-002). Backed by analysis-methods `exon_skip_carrier` (#551/#552/#554)
+  over `depmap-somatic-splice-variants-v1` (#548). SURGICAL blast radius: fires only for a gene with
+  a registered exon-skip event in its curated oncogenic indication (today: MET in LUAD/LUSC/NSCLC) —
+  backtest-verified MET/LUAD flips; KRAS/COADREAD + EGFR/LUAD unchanged. New verdict phrase +
+  positive polarity; question-hierarchy FUS binding + resolver golden regenerated.
+
 ## 2026-09-01 (v2.12.0)
 - EMITTED-verdict reconciliation with the signal package (`reconcile_genomic_verdict`), mirroring
   tumor-presence's `reconcile_presence_verdict` (#860). The raw resolver ladder collapse (`_verdict`)
