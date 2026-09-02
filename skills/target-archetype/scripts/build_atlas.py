@@ -51,6 +51,19 @@ ANCHOR_SETS = {
     "dependency_essential": [("AURKA", "BRCA"), ("PLK1", "LUAD"), ("BIRC5", "LUAD"), ("WEE1", "OV")],
     "immune_checkpoint": [("PDCD1", "LUAD"), ("CD28", "BRCA"), ("ICOSLG", "BRCA")],  # immune-synapse set
     "control_housekeeping": [("GAPDH", "LUAD"), ("ACTB", "COADREAD"), ("RPL13A", "OV")],
+    # fusion/rearrangement-driver phenotype. Members were LIVE-verified to read `fusion:
+    # recurrent_fusion_driver` (strong FUS) in their canonical fusion indication (RET/NSCLC + NTRK1/LUAD
+    # were REJECTED — sporadic/absent there). ⚠️ NOT ACTIVATED (kept aspirational; exemplar runs live under
+    # a separate tp_runs_fusion corpus, NOT the shipped --runs, so build SKIPS it). WHY DEFERRED: a
+    # 2026-09-02 re-freeze that DID activate it regressed the panel — the exemplars correctly land on the
+    # anchor (ALK 97%, NTRK1 88%, RET 83%, ROS1 67%), BUT because FUS is ONE sparse feature of 108 and every
+    # recurrent-fusion driver is an RTK, the anchor centroid encodes RTK-ness not rearrangement, bleeding
+    # spurious fusion mass into non-fusion RTK/surface targets (MET flipped fusion-DOMINANT; ERBB2 35%; EGFR
+    # 20%; CLDN18 — not even a kinase — 31%). Activating this cleanly needs the fusion signal made SEPARABLE
+    # (e.g. FUS-feature up-weighting in the embedding) first, not just adding exemplars. See
+    # project_target_archetype_augment memory.
+    "fusion_driver": [("ALK", "LUAD"), ("ROS1", "LUAD"), ("RET", "THCA"), ("FGFR2", "CHOL"),
+                      ("NTRK1", "THCA")],
 }
 
 
@@ -123,10 +136,18 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     # anchors: each label's coord = CENTROID (mean embedding) of its present exemplar-set members
     idx_of = {(t, i): r for r, (t, i) in enumerate(zip(targets, indications))}
     anchors = []
+    skipped_anchors = []
     for label, members in ANCHOR_SETS.items():
         present = [(t, i) for (t, i) in members if (t, i) in idx_of]
         if not present:
-            raise SystemExit(f"anchor {label}: no members present in corpus — {members}")
+            # An ASPIRATIONAL anchor (its exemplars are not yet in the corpus, e.g. fusion_driver awaiting
+            # ALK/ROS1/NTRK-fusion runs) is SKIPPED with a warning rather than aborting the whole build —
+            # so the exemplar spec can carry the target panel forward and the anchor activates once its
+            # runs land. A wrongly-typo'd exemplar surfaces the same way (empty → skipped + warned).
+            skipped_anchors.append(label)
+            print(f"WARN: anchor '{label}' skipped — no exemplar members present in corpus: {members}",
+                  file=sys.stderr)
+            continue
         rows = [idx_of[(t, i)] for (t, i) in present]
         centroid = corpus_emb[rows].mean(axis=0)
         rep_t, rep_i = present[0]      # canonical representative (shown in payload)
@@ -172,6 +193,7 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             "emb_dim": int(m),
             "classes": sorted(set(labels)),
             "anchor_phenotypes": [a["label"] for a in anchors],
+            "anchor_phenotypes_skipped": skipped_anchors,   # aspirational anchors awaiting exemplar runs
             "corpus": "+".join(os.path.basename(str(r)) for r in runs_dirs),
             "build_date": build_date,
             "build_git_sha": _git_sha(),
@@ -188,7 +210,7 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     _a = Atlas(doc)
     soft = []
     for e in _a.corpus_emb:
-        votes, _ = _a._membership(e)
+        votes, _hull, _recon = _a._membership(e)
         soft.append(max(votes, key=votes.get) if votes else "?")
     doc["soft_labels"] = soft
     return doc

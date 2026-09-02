@@ -22,7 +22,7 @@ description: |
   missing evidence?" — the phenotype-landscape companion, not a call.
 
 metadata:
-  version: 0.4.0            # MUST equal SKILL_VERSION in scripts/run.py
+  version: 0.5.0            # MUST equal SKILL_VERSION in scripts/run.py
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -62,18 +62,39 @@ no classification claim.
    - **phenotype_mixture** — a convex membership to the canonical anchors (`min ||e − w·Z||` on the
      simplex); a *distribution* over phenotypes, never a hard label. Aliased as `soft_membership` (keyed by
      the archetype vocabulary) so the D1 scorecard consumes it unchanged.
-   - **nearest_analogs** — the k closest reference targets (embedding distance) + labels;
-   - **rule_precedent** — reference targets with the most-overlapping fired-rule signature (Jaccard);
+   - **nearest_analogs** — the k closest reference targets (embedding distance) + labels, DEDUPED BY TARGET
+     (a target present in several indications no longer floods the list — the old "KRAS, KRAS, KRAS");
+   - **rule_precedent** — reference targets with the most-overlapping fired-rule signature, **IDF-weighted**
+     (rare rungs dominate the match; a shared ubiquitous rung no longer inflates overlap) + `top_shared_rules`;
    - **missingness** — axes entirely unmeasured for this target (the acquisition backlog);
-   - **novelty** — **hull_residual** (distance from the anchor convex hull = a signature INCONSISTENT with
-     any canonical phenotype) + a local-density flag. This fixes the old global-NN metric that flagged
-     merely-EXTREME targets (e.g. EGFR) as "novel".
+   - **mixture_uncertainty** — an axis-JACKKNIFE stability band on the mixture (re-solve dropping each
+     measured axis; per-anchor [min,max] envelope + a scalar `stability` in [0,1]). Turns an over-confident
+     point mixture (the pre-fix EGFR failure: amp-dominant only because the SNV axis was silently 0) into an
+     honestly-caveated one. Skippable on hot paths (`with_uncertainty=False`).
+   - **novelty** — the `inconsistent_flag` now keys off a **SCALE-INVARIANT relative** hull-residual
+     (`hull_residual / ‖e‖`) vs the corpus p90, so an EXTREME-but-canonical blend (EGFR = amp+SNV RTK) is no
+     longer flagged "novel" merely for being far from the origin — only a signature whose *shape* fits no
+     anchor mix trips it. Plus `multimodal` / `mixture_entropy` (a genuine multi-phenotype blend vs truly
+     weird) and the local-density flag. (`hull_residual` + `hull_residual_absolute_flag` retained.)
 5. It also emits a **D1 nomination-readiness SCORECARD** (`nomination_scorecard`): an interpretable,
    glass-box, PHENOTYPE-CONDITIONED score. Each of the 13 axes' z-scored position (vs the frozen corpus
    `axis_ref`) is signed (+favorable / −liability, e.g. safety) and weighted by a phenotype-mixture blend of
    per-archetype weight profiles (ILLUSTRATIVE + SHOWN, not learned), so a surface antigen is scored on its
    OWN route rather than penalised for "not being a driver". Emits per-axis contributions + driving axes +
-   a **route-conditioned counterfactual gap** ("closest to nominatable except axis X").
+   a **route-conditioned counterfactual gap** ("closest to nominatable except axis X") + a ranked
+   **value_of_information** backlog (for every UNMEASURED axis, the projected score gain if it came back
+   favourable — the general form of the counterfactual gap).
+
+STALENESS GUARD: `scripts/atlas_health.py` (+ `archetype_core.vocabulary_drift`) — a CI-wireable check that
+the frozen embedding still re-projects every corpus row onto its stored coord, that provenance is complete,
+and (given a live run) that no live claim key is silently absent from the frozen `feature_order`. The
+`fusion_driver` anchor is registered ASPIRATIONALLY (build_atlas skips-not-crashes on absent exemplars). Its
+5 exemplar runs were generated + FUS-verified, but a trial re-freeze that activated it REGRESSED the panel:
+the exemplars land correctly (ALK 97%, NTRK1 88%, RET 83%, ROS1 67%) but — because FUS is one sparse feature
+of 108 and every recurrent-fusion driver is an RTK — the anchor encodes RTK-ness, bleeding spurious fusion
+mass into non-fusion RTK/surface targets (MET flipped fusion-dominant; ERBB2 35%; CLDN18, not a kinase, 31%).
+It stays deferred until the fusion signal is made SEPARABLE in the embedding (e.g. FUS-feature up-weighting),
+not merely supplied with exemplars.
 
 RETIRED: the former outcome-trained approval-propensity score (D2/D3, `nomination_predictive_score`) was
 removed. An ablation showed its signal was carried by advancement / study-depth features, not disease

@@ -344,3 +344,78 @@ def test_standalone_cli_runs_and_emits_scorecard(tmp_path):
     sc = doc["nomination_scorecard"]
     assert sc["verdict"] is None
     assert sc["score"] is None or 0.0 <= sc["score"] <= 1.0
+
+
+# ---- augmentation: scale-invariant novelty (#1) --------------------------------------------------
+def test_novelty_is_scale_invariant_relative(atlas: Atlas):
+    """inconsistent_flag keys off the RELATIVE residual (hull/||e||) vs the corpus p90, so an
+    EXTREME-but-canonical signature is not false-flagged 'novel' merely for being far from the origin."""
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    nov = atlas.companion(feat)["novelty"]
+    assert "hull_residual_relative" in nov and "multimodal" in nov and "mixture_entropy" in nov
+    assert nov["inconsistent_flag"] == (nov["hull_residual_relative"] is not None
+                                        and nov["hull_residual_relative"] > atlas._rel_thr)
+    assert "scale-invariant" in nov["metric"]
+
+
+def test_relative_residual_and_entropy_primitives():
+    # extreme-but-aligned recon -> small relative residual; entropy 0 for a pure mixture
+    assert Atlas._relative_residual([3.0, 4.0], 0.0) == 0.0
+    assert Atlas._relative_residual([0.0, 0.0], 5.0) == 0.0          # guard: zero norm
+    assert Atlas._mixture_entropy({"a": 1.0}) == pytest.approx(0.0, abs=1e-9)
+    assert Atlas._mixture_entropy({"a": 0.5, "b": 0.5}) == pytest.approx(math.log(2), abs=1e-9)
+
+
+def test_multimodal_flag_tracks_blend(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    c = atlas.companion(feat)
+    n_dom = sum(1 for w in c["soft_membership"].values() if w >= 0.2)
+    assert c["novelty"]["n_dominant_phenotypes"] == n_dom
+    assert c["novelty"]["multimodal"] == (n_dom >= 2)
+
+
+# ---- augmentation: mixture uncertainty (#4) ------------------------------------------------------
+def test_mixture_uncertainty_band(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    unc = atlas.companion(feat, with_uncertainty=True)["mixture_uncertainty"]
+    assert 0.0 <= unc["stability"] <= 1.0
+    for lb, w in atlas.companion(feat)["soft_membership"].items():
+        lo, hi = unc["per_anchor_envelope"][lb]
+        assert lo <= w <= hi                          # full-mixture weight lies inside its jackknife band
+
+
+def test_uncertainty_can_be_skipped(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    unc = atlas.companion(feat, with_uncertainty=False)["mixture_uncertainty"]
+    assert unc["stability"] is None                   # hot-path skip
+
+
+# ---- augmentation: analog dedup by target (#5) ---------------------------------------------------
+def test_nearest_analogs_deduped_by_target(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    analogs = atlas.companion(feat, k=8)["nearest_analogs"]
+    tgts = [a["target"] for a in analogs]
+    assert len(tgts) == len(set(tgts))                # no target repeats (was "KRAS, KRAS, KRAS")
+
+
+# ---- augmentation: IDF-weighted rule precedent ---------------------------------------------------
+def test_rule_precedent_is_idf_weighted(atlas: Atlas):
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[3]) if v is not None}
+    c = atlas.companion(feat, k=5, query_rules=set(atlas.rule_fingerprints[3]) or {"x"})
+    prec = c.get("rule_precedent", [])
+    if prec:
+        assert {"weighted_jaccard", "jaccard", "top_shared_rules"} <= set(prec[0])
+        wj = [p["weighted_jaccard"] for p in prec]
+        assert wj == sorted(wj, reverse=True)
+
+
+# ---- augmentation: value-of-information in the scorecard (VoI) ------------------------------------
+def test_scorecard_value_of_information(atlas: Atlas):
+    # a query missing an entire axis must surface that axis in the ranked VoI backlog
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None
+            and not k.startswith("surface_modality")}
+    m = atlas.companion(feat, with_uncertainty=False)["soft_membership"]
+    voi = ac.nomination_scorecard(feat, m, atlas)["value_of_information"]
+    gains = [v["projected_score_gain"] for v in voi]
+    assert gains == sorted(gains, reverse=True)
+    assert "surface_modality" in {v["axis"] for v in voi}   # the dropped axis is an acquisition candidate

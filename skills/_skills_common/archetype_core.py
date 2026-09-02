@@ -139,12 +139,31 @@ class Atlas:
         self.meta: dict = doc.get("meta", {})
         # corpus nearest-neighbour distance distribution (in embedding) for the local-density novelty flag
         self._nn_ref = self._corpus_nn_distances()
-        # corpus hull-residual distribution for the novelty threshold — computed ONCE at load (not per
+        # corpus hull-residual distributions for the novelty threshold — computed ONCE at load (not per
         # companion() call): each residual is an anchored-membership solve, so recomputing it every call
         # made companion O(n) and a portfolio scan O(n^2). Cached here → companion() is O(1) in the corpus.
-        self._hull_ref = sorted(self._membership_hull(c) for c in self.corpus_emb) if self.corpus_emb else []
+        # Build BOTH the absolute hull residual (legacy) and the scale-invariant RELATIVE residual in one
+        # pass; the relative one drives inconsistent_flag (fixes extreme-but-canonical false novelty).
+        _hulls, _rels = [], []
+        for c in self.corpus_emb:
+            h = self._membership_hull(c)
+            _hulls.append(h)
+            _rels.append(self._relative_residual(c, h))
+        self._hull_ref = sorted(_hulls)
+        self._rel_ref = sorted(_rels)
         self._hull_thr = (self._hull_ref[min(len(self._hull_ref) - 1, int(0.9 * len(self._hull_ref)))]
                           if self._hull_ref else math.inf)
+        self._rel_thr = (self._rel_ref[min(len(self._rel_ref) - 1, int(0.9 * len(self._rel_ref)))]
+                         if self._rel_ref else math.inf)
+        # rule-fingerprint IDF (rarity weighting for the precedent overlay): a common rung (fires for
+        # nearly every target) is near-uninformative; a rare rung is a strong precedent signal. Weighted
+        # Jaccard with these weights stops precedent being dominated by ubiquitous rungs.
+        n_corp = max(len(self.rule_fingerprints), 1)
+        df: dict = {}
+        for rf in self.rule_fingerprints:
+            for r in set(rf):
+                df[r] = df.get(r, 0) + 1
+        self._rule_idf = {r: math.log((n_corp + 1.0) / (d + 1.0)) + 1.0 for r, d in df.items()}
 
     @classmethod
     def load(cls, path) -> "Atlas":
@@ -187,11 +206,13 @@ class Atlas:
     def _membership(self, e: list, iters: int = 400) -> tuple:
         """Convex mixture of the anchors nearest e: min ||e - w·Z||^2 s.t. w>=0, sum w=1 (projected grad).
 
-        Returns (weights_by_label: dict, hull_residual: float). Labels reuse the archetype vocabulary."""
+        Returns (weights_by_label: dict, hull_residual: float, recon: list). Labels reuse the archetype
+        vocabulary. `recon` = the anchor-hull reconstruction of e (used for the scale-invariant novelty
+        metric — an EXTREME-but-consistent target reconstructs in the same DIRECTION, only larger)."""
         Z = [a["coord"] for a in self.anchors]
         k = len(Z)
         if not k:
-            return {}, math.inf
+            return {}, math.inf, [0.0] * len(e)
         m = len(e)
         w = [1.0 / k] * k
         step = 1.0
@@ -211,13 +232,33 @@ class Atlas:
         votes: dict = {}
         for j, a in enumerate(self.anchors):
             votes[a["label"]] = votes.get(a["label"], 0.0) + w[j]      # collapse duplicate-label anchors
-        return {kk: round(vv, 3) for kk, vv in sorted(votes.items(), key=lambda x: -x[1])}, hull
+        return {kk: round(vv, 3) for kk, vv in sorted(votes.items(), key=lambda x: -x[1])}, hull, recon
+
+    @staticmethod
+    def _relative_residual(e: list, hull: float) -> float:
+        """Scale-invariant novelty: hull residual / ||e||. An extreme-but-canonical target (large ||e||)
+        has a SMALL relative residual because its reconstruction points the same way, only larger — so it
+        is no longer false-flagged 'novel' merely for being far from the origin (the EGFR failure mode)."""
+        norm = math.sqrt(sum(x * x for x in e))
+        return hull / norm if norm > 1e-9 else 0.0
+
+    @staticmethod
+    def _mixture_entropy(weights: dict) -> float:
+        """Shannon entropy (nats) of the phenotype mixture — high = a genuine multi-phenotype BLEND,
+        low = a single dominant phenotype. Distinguishes 'off-hull because multi-modal' from 'truly weird'."""
+        ws = [w for w in weights.values() if w > 0]
+        return -sum(w * math.log(w) for w in ws) if ws else 0.0
 
     def companion(self, feat: dict, k: int = DEFAULT_K,
-                  query_rules: Optional[set] = None, exclude_self: bool = True) -> dict:
-        """Descriptive phenotype-landscape companion for a query feature dict. VERDICT-INERT payload."""
+                  query_rules: Optional[set] = None, exclude_self: bool = True,
+                  with_uncertainty: bool = True) -> dict:
+        """Descriptive phenotype-landscape companion for a query feature dict. VERDICT-INERT payload.
+
+        with_uncertainty runs the axis-jackknife mixture-stability band (default on); pass False on hot
+        paths that only need soft_membership (e.g. the scorecard's internal companion call)."""
         e = self._embed(feat)
-        # nearest analogs in the embedding
+        # nearest analogs in the embedding — DEDUPED BY TARGET (keep the nearest occurrence) so a target
+        # present in several indications no longer floods the list (the "KRAS, KRAS, KRAS" artifact).
         dists = [math.sqrt(sum((x - y) ** 2 for x, y in zip(e, c))) for c in self.corpus_emb]
         order = sorted(range(len(dists)), key=lambda i: dists[i])
         if exclude_self:
@@ -225,7 +266,14 @@ class Atlas:
             # far below the real inter-target spacing (>~5 in this embedding), so only self / exact
             # duplicates are dropped, never a genuine neighbour.
             order = [i for i in order if dists[i] > 1e-3]
-        nn = order[:k]
+        nn, _seen_targets = [], set()
+        for i in order:
+            if self.targets[i] in _seen_targets:
+                continue
+            _seen_targets.add(self.targets[i])
+            nn.append(i)
+            if len(nn) >= k:
+                break
         # analog label: curated panel label when present; else the data-derived soft label (trailing "~")
         def _analog_label(i):
             return self.labels[i] if self.labels[i] not in ("?", "", None) else f"{self.soft_labels[i]}~"
@@ -233,7 +281,7 @@ class Atlas:
                     "archetype_label": _analog_label(i), "label_is_derived": self.labels[i] in ("?", "", None),
                     "distance": round(dists[i], 3)} for i in nn]
 
-        membership, hull = self._membership(e)
+        membership, hull, _recon = self._membership(e)
 
         # missingness map (acquisition backlog): axes entirely unmeasured for this target
         by_tot: dict = {}
@@ -245,15 +293,29 @@ class Atlas:
                 by_missing[ax] = by_missing.get(ax, 0) + 1
         missing_axes = sorted(ax for ax in by_tot if by_missing.get(ax, 0) == by_tot[ax])
 
-        # novelty: hull-residual (INCONSISTENT with any canonical mix) + local-density flag (embedding NN)
+        # novelty: SCALE-INVARIANT relative hull-residual (INCONSISTENT with any canonical mix) + a
+        # multi-modal descriptor + local-density flag. The inconsistent_flag now keys off the RELATIVE
+        # residual (hull/||e||) vs the corpus, so an extreme-but-canonical blend (EGFR = amp+SNV RTK) is
+        # NOT flagged merely for being far from the origin — only a signature whose SHAPE fits no anchor
+        # mix trips it. mixture_entropy separates 'off-hull because a genuine multi-phenotype blend' from
+        # 'off-hull because truly weird'.
         nn_dist = dists[nn[0]] if nn else math.inf
-        hull_thr = self._hull_thr                        # precomputed at load (was O(n) per call)
+        rel = self._relative_residual(e, hull) if math.isfinite(hull) else math.inf
+        entropy = self._mixture_entropy(membership)
+        n_modes = sum(1 for w in membership.values() if w >= 0.2)
         novelty = {
             "hull_residual": None if not math.isfinite(hull) else round(hull, 3),
-            "inconsistent_flag": bool(math.isfinite(hull) and hull > hull_thr),
+            "hull_residual_relative": None if not math.isfinite(rel) else round(rel, 3),
+            "inconsistent_flag": bool(math.isfinite(rel) and rel > self._rel_thr),
+            "hull_residual_absolute_flag": bool(math.isfinite(hull) and hull > self._hull_thr),
+            "mixture_entropy": round(entropy, 3),
+            "multimodal": bool(n_modes >= 2),
+            "n_dominant_phenotypes": n_modes,
             "nearest_neighbour_distance": None if not math.isfinite(nn_dist) else round(nn_dist, 3),
             "local_density_flag": bool(math.isfinite(nn_dist) and nn_dist > self._novelty_threshold()),
-            "metric": "hull_residual=inconsistent_with_canonical_phenotypes; nn_distance=local_density",
+            "metric": ("inconsistent_flag=relative_hull_residual(hull/||e||)_vs_corpus_p90 "
+                       "(scale-invariant, extreme!=novel); multimodal=>=2 anchors at >=0.2; "
+                       "nn_distance=local_density"),
         }
 
         out = {
@@ -264,6 +326,8 @@ class Atlas:
             "missingness": {"unmeasured_axes": missing_axes,
                             "n_features_measured": sum(1 for v in feat.values() if v is not None),
                             "n_features_total": len(self.feature_order)},
+            "mixture_uncertainty": (self._mixture_uncertainty(feat, membership) if with_uncertainty
+                                    else {"stability": None, "note": "not computed (with_uncertainty=False)"}),
             "novelty": novelty,
             "anchors": [{"label": a["label"], "target": a["target"], "indication": a["indication"]}
                         for a in self.anchors],
@@ -277,23 +341,83 @@ class Atlas:
             ),
         }
         if query_rules:
+            # IDF-WEIGHTED Jaccard: rare rungs (high IDF) dominate the precedent match, so a shared
+            # ubiquitous rung no longer inflates overlap. Falls back to unit weights for rules unseen in
+            # the corpus. Plain jaccard retained alongside for continuity/auditability.
+            def _idf(r):
+                return self._rule_idf.get(r, 1.0)
             prec = []
             for i, rf in enumerate(self.rule_fingerprints):
                 rs = set(rf)
                 if not rs:
                     continue
-                inter = len(query_rules & rs)
-                union = len(query_rules | rs) or 1
-                prec.append((inter / union, i))
+                inter_set = query_rules & rs
+                union_set = query_rules | rs
+                wj = (sum(_idf(r) for r in inter_set) / (sum(_idf(r) for r in union_set) or 1.0))
+                j = len(inter_set) / (len(union_set) or 1)
+                if wj > 0:
+                    prec.append((wj, j, i, sorted(inter_set, key=_idf, reverse=True)[:3]))
             prec.sort(key=lambda x: -x[0])
             out["rule_precedent"] = [{"target": self.targets[i], "indication": self.indications[i],
-                                      "archetype_label": self.labels[i], "jaccard": round(j, 3)}
-                                     for j, i in prec[:k] if j > 0]
+                                      "archetype_label": self.labels[i], "weighted_jaccard": round(wj, 3),
+                                      "jaccard": round(j, 3), "top_shared_rules": shared}
+                                     for wj, j, i, shared in prec[:k]]
         return out
 
     def _membership_hull(self, e: list) -> float:
         """Hull residual for a corpus point (used to build the novelty reference distribution)."""
         return self._membership(e, iters=200)[1]
+
+    def _mixture_uncertainty(self, feat: dict, full_weights: dict) -> dict:
+        """Axis-jackknife stability of the phenotype mixture. Re-solves the mixture with each MEASURED
+        axis dropped in turn; the spread quantifies how much the mixture leans on any single axis and how
+        much the mean-imputation of missing axes could be masking. This is what turns an over-confident
+        point mixture (the pre-fix EGFR failure: amp-dominant only because the SNV axis was silently 0)
+        into an honestly-caveated one. Emits per-anchor [min,max] envelope + a scalar stability in [0,1]
+        (1 = mixture invariant to dropping any one axis)."""
+        axes = sorted({k.split("::")[0] for k, v in feat.items() if v is not None})
+        labels = list(full_weights.keys())
+        if len(axes) < 2 or not labels:
+            return {"stability": 1.0, "per_anchor_envelope": {}, "n_axes_jackknifed": len(axes),
+                    "note": "too few measured axes to jackknife"}
+        env = {lb: [full_weights[lb], full_weights[lb]] for lb in labels}
+        tvs = []
+        for drop in axes:
+            sub = {k: v for k, v in feat.items() if k.split("::")[0] != drop}
+            w, _h, _r = self._membership(self._embed(sub))
+            tvs.append(0.5 * sum(abs(w.get(lb, 0.0) - full_weights.get(lb, 0.0)) for lb in labels))
+            for lb in labels:
+                wl = w.get(lb, 0.0)
+                env[lb][0] = min(env[lb][0], wl)
+                env[lb][1] = max(env[lb][1], wl)
+        stability = 1.0 - (sum(tvs) / len(tvs))          # mean total-variation distance across folds
+        return {
+            "stability": round(max(0.0, min(1.0, stability)), 3),
+            "per_anchor_envelope": {lb: [round(env[lb][0], 3), round(env[lb][1], 3)] for lb in labels},
+            "n_axes_jackknifed": len(axes),
+            "note": "leave-one-axis-out jackknife; stability=1-mean(total-variation vs full mixture)",
+        }
+
+
+def vocabulary_drift(atlas: "Atlas", subskill_claim_vectors: dict) -> dict:
+    """STALENESS guard. A live claim key absent from the FROZEN feature_order is silently mean-imputed
+    (z=0) and never reaches the embedding — so a substrate change that adds/renames a claim (e.g. a new
+    genomic splice class) degrades the atlas invisibly. This surfaces that: given a live set of claim
+    vectors, report the feature keys present LIVE but MISSING from the atlas (→ 're-freeze the atlas').
+
+    Returns {missing_keys, missing_axes, covered, note}. missing_keys empty ⇒ atlas vocabulary is current."""
+    live = set(claim_features(subskill_claim_vectors).keys())
+    frozen = set(atlas.feature_order)
+    missing = sorted(live - frozen)
+    return {
+        "missing_keys": missing,
+        "missing_axes": sorted({k.split("::")[0] for k in missing}),
+        "covered": not missing,
+        "n_live": len(live),
+        "n_frozen": len(frozen),
+        "note": ("live claim keys absent from the frozen feature_order are dropped from the embedding; "
+                 "a non-empty missing_keys means the substrate drifted → re-freeze via build_atlas.py"),
+    }
 
 
 def companion_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT_K) -> dict:
@@ -322,6 +446,13 @@ ARCH_W = {
     "snv_driver": {"genomic_alteration": 1.3, "tractability_sm": 1.2, "dependency": 1.0, "mechanism": 0.9,
                    "safety": 0.9, "differentiation": 0.6, "expression": 0.3, "selectivity": 0.3,
                    "surface_modality": 0.2},
+    # fusion/rearrangement driver — genomic-driven like snv, but the actionability leans on the
+    # rearrangement (a mutation-defined patient subgroup) + tractability of the fusion partner kinase.
+    # Route vocabulary is forward-ready; the matching atlas anchor activates on the next re-freeze once
+    # ALK/ROS1/NTRK-fusion exemplar runs exist (see build_atlas.ANCHOR_SETS).
+    "fusion_driver": {"genomic_alteration": 1.3, "tractability_sm": 1.2, "dependency": 1.0, "mechanism": 0.9,
+                      "differentiation": 0.7, "safety": 0.8, "selectivity": 0.4, "expression": 0.3,
+                      "surface_modality": 0.2},
     "amp_driver": {"genomic_alteration": 1.3, "dependency": 1.0, "tractability_sm": 1.0, "expression": 0.9,
                    "surface_modality": 0.5, "safety": 0.8, "mechanism": 0.7, "selectivity": 0.4},
     "tsg_loss": {"genomic_alteration": 1.1, "combination_vulnerability": 1.2, "differentiation": 0.7,
@@ -388,6 +519,20 @@ def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
                              else " — UNMEASURED; acquiring this axis's evidence would resolve the gap.")),
             "axis_measured": measured,
         }
+    # VALUE OF INFORMATION: for each UNMEASURED axis, how much would the readiness score rise if that
+    # axis came back FAVOURABLE (a +1σ signed position)? A route-conditioned acquisition backlog, ranked —
+    # the general form of counterfactual_gap (which reports only the single limiting axis). Weighted by the
+    # phenotype route, so a surface antigen ranks 'acquire surface_modality' above 'acquire genomic'.
+    voi = []
+    for ax in SCORECARD_AXES:
+        if ax in ascore:
+            continue                                   # already measured — nothing to acquire
+        w_ax = eff_w[ax]
+        raw_if = (sum(contrib.values()) + w_ax * 1.0) / ((wsum + w_ax) or 1.0)
+        gain = 1.0 / (1.0 + math.exp(-raw_if)) - score01
+        voi.append({"axis": ax, "projected_score_gain": round(gain, 3), "route_weight": round(w_ax, 3)})
+    voi.sort(key=lambda x: -x["projected_score_gain"])
+
     return {
         "verdict": None,
         "score": round(score01, 3),
@@ -397,6 +542,7 @@ def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
         "driving_axes": driving,
         "limiting_axis": {"axis": limiting[0], "contribution": round(limiting[1], 3)} if limiting[0] else None,
         "counterfactual_gap": counterfactual,
+        "value_of_information": voi,
         "weights_note": ("ILLUSTRATIVE expert-set weights, phenotype-mixture-blended per-archetype (SHOWN, "
                          "not learned). Interpretable D1 layer; safety is a liability axis (sign −1)."),
         "disclaimer": ("DESCRIPTIVE, verdict-inert nomination-READINESS score. Glass-box: score = "
@@ -411,5 +557,5 @@ def scorecard_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT
     feat = vector_from_sub_results(sub_results)
     membership = (companion or {}).get("soft_membership")
     if membership is None:
-        membership = atlas.companion(feat, k=k).get("soft_membership")
+        membership = atlas.companion(feat, k=k, with_uncertainty=False).get("soft_membership")
     return nomination_scorecard(feat, membership, atlas)

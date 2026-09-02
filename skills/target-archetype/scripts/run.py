@@ -29,7 +29,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.archetype_core import Atlas, claim_features, nomination_scorecard  # noqa: E402
 
 SKILL_NAME = "target-archetype"
-SKILL_VERSION = "0.4.0"    # DESCRIPTIVE companion, verdict-INERT. MUST equal SKILL.md metadata.version.
+SKILL_VERSION = "0.5.0"    # DESCRIPTIVE companion, verdict-INERT. MUST equal SKILL.md metadata.version.
 
 _DEFAULT_ATLAS = SKILLS_DIR / "target-archetype" / "atlas" / "atlas.json"
 
@@ -86,12 +86,19 @@ def main():
     print(f"  soft membership : {mem}")
     print(f"  nearest analogs : {an}")
     nov = companion["novelty"]
-    print(f"  novelty         : hull_residual={nov['hull_residual']} "
-          f"(inconsistent={nov['inconsistent_flag']}, low_density={nov['local_density_flag']})")
+    print(f"  novelty         : inconsistent={nov['inconsistent_flag']} "
+          f"(rel_residual={nov['hull_residual_relative']}), multimodal={nov['multimodal']}"
+          f"({nov['n_dominant_phenotypes']}), entropy={nov['mixture_entropy']}, "
+          f"low_density={nov['local_density_flag']}")
+    print(f"  mixture stab.   : {companion['mixture_uncertainty'].get('stability')}")
     print(f"  unmeasured axes : {companion['missingness']['unmeasured_axes']}")
     cf = (scorecard.get("counterfactual_gap") or {}).get("limiting_axis")
+    voi = scorecard.get("value_of_information") or []
+    top_voi = ", ".join(f"{v['axis']}(+{v['projected_score_gain']})" for v in voi[:3])
     print(f"  D1 readiness    : score={scorecard.get('score')} coverage={scorecard.get('coverage')} "
           f"route={scorecard.get('dominant_archetype_soft')} limiting_axis={cf}")
+    if top_voi:
+        print(f"  value-of-info   : {top_voi}")
     print(f"  wrote {out}")
 
 
