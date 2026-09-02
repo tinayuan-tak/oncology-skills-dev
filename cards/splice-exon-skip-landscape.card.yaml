@@ -1,0 +1,60 @@
+# Card — SPLICE EXON-SKIP LANDSCAPE
+#
+# The splice-exon-skipping axis of the genomic-alteration-profile skill (SNV + CN + fusion + SPLICE).
+# Answers: does the target carry a curated exon-skipping DRIVER event (e.g. MET exon-14 skipping /
+# METex14) that is oncogenic in the indication? Exon-skipping drivers are invisible to the
+# missense/hotspot-centric genomics layer — METex14 is a splice-site subset (~3-4% of NSCLC) that
+# reads as a NEUTRAL missense-dominant pattern without this card, mis-stating WHY the target matters
+# (eval/CASE_LOG CASE-002). This card supplies the splice driver-class characterization.
+#
+# BASIS: curated-event-anchored + live DepMap carrier confirmation. The exon-skip registry
+# (analysis-methods methods/exon_skip_carrier events.py) names the event's genomic window, its curated
+# oncogenic INDICATION scope, and its GoF/LoF direction; the DepMap splice-variant product
+# (depmap-somatic-splice-variants-v1) confirms carriers live. NOT a nomination-gate change — the
+# MET/LUAD veto was already resolved; this is a signal-vector FIDELITY fix (right call, right WHY).
+
+card_id: splice-exon-skip-landscape
+version: 0.1.0
+question: "Does {target.symbol} carry a curated exon-skipping driver event (e.g. METex14) that is oncogenic in {indication.label}?"
+
+applies_when: []   # LIVE: the reader returns no_registered_event gracefully for genes with no curated event
+
+required_inputs:
+  - product_id: depmap-somatic-splice-variants-v1    # live carrier confirmation (hg38, gene-sorted pushdown)
+
+methods:
+  - call: exon-skip-landscape
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - splice_exon_skip_class        # PRIMARY categorical driving the rule
+    - event_id                      # e.g. METex14 (nullable when no registered event)
+    - driver_direction              # activating | loss_of_function (nullable)
+    - n_depmap_carriers             # live DepMap carrier count (confirmatory; nullable when panel unreachable)
+    - depmap_carrier_samples        # ModelIDs of the confirmed carriers
+    - oncogenic_indications         # curated indication scope for the event
+    - splice_context                # one-line human-readable characterization
+  summary_fields_vocabulary:
+    splice_exon_skip_class:
+      - recurrent_splice_driver     # curated exon-skip driver oncogenic in THIS indication (verdict-driving)
+      - splice_event_off_indication # registered event present, but indication NOT in its curated oncogenic scope
+      - no_registered_event         # no curated exon-skip event for the target (neutral; the common case)
+    driver_direction:               # non-null tiers only (field is null for no_registered_event)
+      - activating
+      - loss_of_function
+
+caveats:
+  - "Curated-event-anchored: the exon-skip registry names WHICH gene/indication/event is a driver (METex14 = MET, LUAD/LUSC/NSCLC, activating). Only registered events emit a signal — an unregistered gene reads no_registered_event (neutral), NOT a measured negative."
+  - "recurrent_splice_driver requires the indication to be in the event's curated oncogenic scope; a registered event OFF its oncogenic indication reads splice_event_off_indication (present, not asserted a driver here)."
+  - "n_depmap_carriers is CONFIRMATORY context (DepMap 26Q1, hg38), never required — the curated oncogenic assertion stands even where the cell-line panel is thin (e.g. Hs746T is absent from CRISPRGeneEffect). A null carrier count is a panel/coverage gap, not absence of the event."
+  - "PATIENT-recurrence prevalence (TCGA-MC3 + GENIE, GRCh37) is an ADDITIVE enhancement not yet wired — the hg19 window is curated in the registry for that follow-up. This card's driver call is curated-scope + cell-line-confirmed, not a patient frequency."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `splice_exon_skip` claim. Routes to the genomic gate
+# (genomic-alteration-profile splice axis); a splice-skipping driver informs SM (TKI) + degrader routing.
+measurement_type: splice_exon_skip
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target_indication]
+schema_version: 1

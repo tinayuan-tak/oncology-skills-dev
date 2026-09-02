@@ -439,6 +439,20 @@ measurement_types:
       # 2026-08-04: was mis-declared as derived_from at #108, failing the vocab validator on main since.
       - {kind: dataset, source: tcga-fusion-consensus-v1, method: tcga_fusion_consensus, evidence_tier: measured}   # LIVE 2026-07-23: pan-TCGA 3-caller consensus (TumorFusions/Gao/cBioPortal SV)
 
+  splice_exon_skip:
+    claim: "Does target carry a curated exon-skipping DRIVER event (e.g. METex14) that is oncogenic in the indication?"
+    # The splice-skipping alteration class of the genomic gate (beyond missense/hotspot/CN/fusion).
+    # Curated-event-anchored (analysis-methods exon_skip_carrier registry names the event's genomic
+    # window, oncogenic indication scope, and GoF/LoF direction) + live DepMap carrier confirmation.
+    # Supplies the splice_exon_skip_driver characterization so a splice-skipping driver (MET/LUAD
+    # METex14) is not mischaracterized as a neutral missense-dominant pattern (eval/CASE_LOG CASE-002).
+    entity_grains: [target_indication]
+    cards: [splice-exon-skip-landscape]
+    providers:
+      # kind: dataset — depmap-somatic-splice-variants-v1 is a RAW data-catalog product (position-bearing
+      # splice-variant slice), not a composition of upstream measurement_types (cf. fusion_rearrangement).
+      - {kind: dataset, source: depmap-somatic-splice-variants-v1, method: exon_skip_carrier, evidence_tier: measured}
+
   fusion_status:
     claim: "Does the cell line carry a fusion INVOLVING the target (target as 5' or 3' partner), per line (a per-line boolean, the fusion biomarker axis)?"
     # A1-fusion (2026-08-06): the CELL-LINE fusion-involvement boolean — the DepMap analog of

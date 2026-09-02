@@ -23,7 +23,12 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.7.0   # 2026-08-28: subclonal-recurrence guard (distillation assessment change-3, backtest-gated) —
+version: 1.8.0   # 2026-09-02: splice_exon_skip_driver rung (CASE-002) — a curated exon-skip driver (METex14)
+                 # oncogenic in-indication + live DepMap carriers fires splice-exon-skip-driver-supportive →
+                 # splice_exon_skip_driver (priority 36, above drug_response + the variant-class-shape rungs), so a splice-
+                 # skipping oncogene reads a driver-class call not a neutral missense_dominant_pattern.
+                 # Surgical blast radius (only genes w/ a registered exon-skip event in curated oncogenic scope).
+                 # 1.7.0 2026-08-28: subclonal-recurrence guard (distillation assessment change-3, backtest-gated) —
                  # a MEASURED predominantly-subclonal top-1% recurrent SNV with no other corroboration demotes
                  # recurrent_snv_driver → recurrent_snv_subclonal_uncertain (new rung priority 44, via
                  # snv-clonality-subclonal-opposing + snv-recurrence-top-driver-supportive). Clonal/unavailable unaffected.
@@ -99,20 +104,30 @@ resolve:
   - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive, priority: 34}
   - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-deleted-supportive, priority: 35}
 
+  # ── 3b. splice_exon_skip_driver — curated exon-skipping driver (CASE-002 substrate fidelity) ─────
+  #    A curated exon-skip DRIVER event (METex14) that is oncogenic in the indication, confirmed by live
+  #    DepMap carriers, is a bona-fide GoF driver-class characterization. Ranks just below confirmed_driver
+  #    (35) and ABOVE drug_response (36) + the variant-class-shape rungs (37/38), so a splice-skipping
+  #    oncogene (MET/LUAD) reads splice_exon_skip_driver rather than a NEUTRAL missense_dominant_pattern
+  #    (signal-vector fidelity, eval/CASE_LOG CASE-002 — the veto itself was already resolved; this fixes
+  #    WHY, not the nomination). SURGICAL blast radius: only a gene with a registered exon-skip event in
+  #    its curated oncogenic indication (today: MET in LUAD/LUSC/NSCLC) can fire it. NOT a killer.
+  - {verdict: splice_exon_skip_driver, when_fired: splice-exon-skip-driver-supportive, priority: 36}
+
   # ── 4. drug_response_biomarker — genotype-selective drug sensitivity ─────────────────────────────
   #    A distinct verdict, never conflated with biomarker_stratified_dependency (drug sensitivity is
   #    not CRISPR-KO dependency). Below the KO-dependency family (the more mechanism-anchored call) but
   #    above the bare variant-class-pattern rungs. Only the STRONG class drives a verdict; the moderate
   #    class stays a signal-only facet.
-  - {verdict: drug_response_biomarker, when_fired: mutation-drug-response-strongly-sensitive-supportive, priority: 36}
+  - {verdict: drug_response_biomarker, when_fired: mutation-drug-response-strongly-sensitive-supportive, priority: 37}
 
   # ── 5. Variant-class pattern (mutation-spectrum SHAPE, no dependency test) ───────────────────────
   #    Fires from mutation-type-counts variant-class dominance (>=70% missense / >=50% truncating among
   #    coding variants in >=5 cell lines). These measure the SHAPE of the spectrum, not patient
   #    recurrence — "recurrent" is reserved for signals that literally count sample recurrence (cn-
   #    recurrently-*, fusion-landscape). Below the dependency family, above the CN-landscape rungs.
-  - {verdict: lof_dominant_pattern, when_fired: mut-lof-dominant-supportive, priority: 37}
-  - {verdict: missense_dominant_pattern, when_fired: mut-missense-dominant-supportive, priority: 38}
+  - {verdict: lof_dominant_pattern, when_fired: mut-lof-dominant-supportive, priority: 38}
+  - {verdict: missense_dominant_pattern, when_fired: mut-missense-dominant-supportive, priority: 39}
 
   # ── 6. CN-only and fusion-landscape recurrent drivers (landscape recurrence, no dependency line) ──
   #    Cell-line CN before patient-focal CN (cell-line wins first-match when both fire); amplified
@@ -120,11 +135,11 @@ resolve:
   #    nominating positive_signals — they keep an amplification/deletion/fusion-driven oncogene with no
   #    DepMap dependency line (e.g. ERBB2/MYC amp, EWSR1-FLI1 / EML4-ALK fusion) from collapsing to
   #    passenger, mirroring how the copy-number reframe rescued amplification-driven targets.
-  - {verdict: recurrent_amplification_driver, when_fired: cn-recurrently-amplified-supportive, priority: 39}
-  - {verdict: recurrent_deletion_driver, when_fired: cn-recurrently-deleted-supportive, priority: 40}
-  - {verdict: recurrent_amplification_driver, when_fired: cn-patient-focal-amplified-supportive, priority: 41}
-  - {verdict: recurrent_deletion_driver, when_fired: cn-patient-focal-deleted-supportive, priority: 42}
-  - {verdict: recurrent_fusion_driver, when_fired: fusion-landscape-recurrent-driver-supportive, priority: 43}
+  - {verdict: recurrent_amplification_driver, when_fired: cn-recurrently-amplified-supportive, priority: 40}
+  - {verdict: recurrent_deletion_driver, when_fired: cn-recurrently-deleted-supportive, priority: 41}
+  - {verdict: recurrent_amplification_driver, when_fired: cn-patient-focal-amplified-supportive, priority: 42}
+  - {verdict: recurrent_deletion_driver, when_fired: cn-patient-focal-deleted-supportive, priority: 43}
+  - {verdict: recurrent_fusion_driver, when_fired: fusion-landscape-recurrent-driver-supportive, priority: 44}
   #    SNV landscape recurrence (scope-coherence Phase 2): a top-1% pooled multi-cohort recurrent SNV
   #    driver with no KO-dependency, no variant-class dominance, and no CN/fusion landscape event. LAST
   #    in tier 6 so it fires only when no CN/fusion landscape driver did — a dually-altered gene keeps
@@ -140,10 +155,10 @@ resolve:
   #    regardless of clonality, so it PRE-EMPTS the subclonal demotion (ranks above it) → keep
   #    recurrent_snv_driver. (Role alone fires no higher confirmed_driver rung — that needs a CN/dep
   #    co-signal — so without this a role-confirmed subclonal recurrent SNV would wrongly demote.)
-  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-gof-driver-supportive], driving_rule: snv-recurrence-top-driver-supportive, priority: 44}
-  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-lof-driver-neutral], driving_rule: snv-recurrence-top-driver-supportive, priority: 45}
-  - {verdict: recurrent_snv_subclonal_uncertain, when_all_fired: [snv-recurrence-top-driver-supportive, snv-clonality-subclonal-opposing], driving_rule: snv-clonality-subclonal-opposing, priority: 46}
-  - {verdict: recurrent_snv_driver, when_fired: snv-recurrence-top-driver-supportive, priority: 47}
+  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-gof-driver-supportive], driving_rule: snv-recurrence-top-driver-supportive, priority: 45}
+  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-lof-driver-neutral], driving_rule: snv-recurrence-top-driver-supportive, priority: 46}
+  - {verdict: recurrent_snv_subclonal_uncertain, when_all_fired: [snv-recurrence-top-driver-supportive, snv-clonality-subclonal-opposing], driving_rule: snv-clonality-subclonal-opposing, priority: 47}
+  - {verdict: recurrent_snv_driver, when_fired: snv-recurrence-top-driver-supportive, priority: 48}
 
   # ── 7. mixed / passenger fallback, with a double-data-gap guard ──────────────────────────────────
   #    passenger_pattern is a substantive "not a driver" call, but its trigger fires on a rarely-mutated
@@ -152,9 +167,9 @@ resolve:
   #    amplification reframe was built to kill. The engine has no negation predicate, so the guard is
   #    precedence: no-mutations + CN-unavailable resolves to insufficient (an honest coverage gap). A
   #    MEASURED-neutral CN + no mutations still reads passenger_pattern (an informative not-a-driver call).
-  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 48}
-  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 49}
-  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 50}
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 49}
+  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 50}
+  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 51}
 
 default: insufficient
 evaluation: match_all_reduce

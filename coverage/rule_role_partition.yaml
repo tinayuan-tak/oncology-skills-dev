@@ -2,8 +2,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 409
-  gating: 126
+  total: 410
+  gating: 127
   display: 283
 gating:
 - adc-preferred-supportive
@@ -117,6 +117,7 @@ gating:
 - sl-no-partner-neutral
 - snv-clonality-subclonal-opposing
 - snv-recurrence-top-driver-supportive
+- splice-exon-skip-driver-supportive
 - strong-mutual-exclusivity-supportive
 - strong-paralog-buffering-degrader-preferred
 - strongly-selective-supportive

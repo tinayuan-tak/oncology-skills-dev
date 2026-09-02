@@ -43,6 +43,7 @@ resolver_consumed_cards:
 - sc-normal-celltype-expression
 - shed-ectodomain-liability
 - signaling-network-mechanism
+- splice-exon-skip-landscape
 - structure-features-static
 - surface-abundance-density
 - synthetic-lethal-partners
@@ -311,6 +312,11 @@ detail:
     - mechanism-partial-neutral
     - mechanism-sparse-warning
     - mechanism-well-characterized-supportive
+  splice-exon-skip-landscape:
+    resolvers:
+    - genomic_alteration
+    rules:
+    - splice-exon-skip-driver-supportive
   structure-features-static:
     resolvers:
     - tractability_small_molecule

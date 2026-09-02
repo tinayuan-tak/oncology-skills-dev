@@ -527,6 +527,33 @@ rules:
       read passenger (EWSR1-FLI1, BCR-ABL1, EML4-ALK). NOT a killer — recurrence establishes driver
       status, the modality-fit + dependency threads carry the tractability story.
 
+  # SPLICE exon-skip driver (2026-09-02, CASE-002). Reads splice-exon-skip-landscape: a CURATED
+  # exon-skipping driver event (METex14) that is oncogenic in the indication, confirmed by live DepMap
+  # carriers. Fires the splice_exon_skip_driver resolver rung, which ranks ABOVE the variant-class-shape
+  # rungs (missense/lof_dominant_pattern) — so MET/LUAD reads a splice-skipping DRIVER rather than a
+  # neutral missense-dominant pattern (the signal-vector fidelity fix; the veto itself was already
+  # resolved, so this changes the WHY, not the nomination). Blast radius is surgical: only genes with a
+  # registered exon-skip event IN their curated oncogenic indication can fire it (today: MET in
+  # LUAD/LUSC/NSCLC). NOT a killer — it establishes driver-class, the dependency/modality threads carry
+  # tractability. The DepMap carrier count is confirmatory, not required (curated scope stands alone).
+  - rule_id: splice-exon-skip-driver-supportive
+    when:
+      card_id: splice-exon-skip-landscape
+      field: splice_exon_skip_class
+      equals: recurrent_splice_driver
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target carries a curated exon-skipping DRIVER event (e.g. MET exon-14 skipping / METex14)
+      that is oncogenic in the indication (curated scope: LUAD/LUSC/NSCLC for METex14), confirmed by
+      live DepMap carrier lines. Exon-14 skipping removes the CBL degron → constitutive MET signaling
+      (GAIN-of-function), the FDA companion-Dx biomarker for capmatinib/tepotinib. This is a SPLICE
+      alteration class invisible to the missense/hotspot-centric genomics — without it the target reads
+      a neutral missense-dominant pattern, mis-stating WHY it matters. Fires splice_exon_skip_driver,
+      which outranks the variant-class-shape rungs. NOT a killer; a catalytic-domain-retained splice
+      driver supports small-molecule inhibition + (bindable/degradable) degraders.
+
   - rule_id: snv-recurrence-top-driver-supportive
     when:
       card_id: mutation-hotspot-frequency
