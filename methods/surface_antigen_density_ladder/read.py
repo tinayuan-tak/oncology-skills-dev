@@ -283,6 +283,33 @@ def _empty(note: str) -> dict:
     }
 
 
+def _absolute_abundance_proxy(sym: str) -> dict:
+    """ADDITIVE, verdict-INERT genome-wide absolute-abundance PROXY (B1 2026-09-02). The curated
+    density corpus covers only ~181 antigens → grade-E `no_absolute_measurement` for the rest
+    (FOLR1/TROP2/CD22 …). ProCan cell-line proteomics gives an absolute all-gene abundance percentile
+    for ANY protein — a real MEASURED absolute signal (unlike the tumor-vs-normal RATIO the density
+    class otherwise rests on), so it fills the gap as CONTEXT. Explicitly a CELL-LINE proxy (not tumor
+    copies-per-cell) and NOT verdict-moving (no fit_class rung reads it) — promotion to deciding-axis
+    capture is a deliberate second pass. Best-effort: any failure → data_unavailable, never raises."""
+    out = {"absolute_abundance_proxy_class": "data_unavailable",
+           "absolute_abundance_proxy_percentile": None,
+           "absolute_abundance_proxy_source": "procan-cellline-protein-abundance-per-protein-v1",
+           "absolute_abundance_proxy_note": "cell-line proteomics all-gene percentile; NOT tumor "
+                                            "copies-per-cell; additive context, verdict-inert"}
+    try:
+        from methods.procan_protein_abundance.read import read_target_summary as _procan
+        s = _procan(target=sym) or {}
+        pct = s.get("allgene_percentile")
+        if isinstance(pct, (int, float)):
+            out["absolute_abundance_proxy_percentile"] = round(float(pct), 1)
+            out["absolute_abundance_proxy_class"] = (
+                "high" if pct >= 75 else "moderate" if pct >= 50
+                else "low" if pct >= 25 else "very_low")
+    except Exception:
+        pass                                   # verdict-inert context — degrade silently to data_unavailable
+    return out
+
+
 def read_absolute_density(target: str, indication: str = None,
                           partitions: tuple = ("native_patient", "native_cell_line"),
                           corpus_path: Optional[Path] = None) -> dict:
@@ -303,6 +330,9 @@ def read_absolute_density(target: str, indication: str = None,
     if not rows:
         return _empty("corpus_empty_or_absent")
 
+    # Additive absolute-abundance PROXY (verdict-inert) — fills the grade-E gap for non-corpus antigens.
+    proxy = _absolute_abundance_proxy(sym)
+
     want = frozenset(partitions)
     admissible = []
     for row in rows:
@@ -315,7 +345,7 @@ def read_absolute_density(target: str, indication: str = None,
             admissible.append(row)
 
     if not admissible:
-        return _empty("no_admissible_measurement_for_target_in_partition")
+        return {**_empty("no_admissible_measurement_for_target_in_partition"), **proxy}
 
     ind = str(indication or "").upper().strip()
 
@@ -358,6 +388,7 @@ def read_absolute_density(target: str, indication: str = None,
             for m in admissible
         ],
         "method_version": METHOD_VERSION,
+        **proxy,
     }
 
 
