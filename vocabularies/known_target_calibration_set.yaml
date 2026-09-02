@@ -445,6 +445,13 @@ reference_profiles:
   EGFR:    {indication: LUAD, modality: small_molecule, outcome: approved_class, deciding_axis: mutation_context, deciding_axis_coverage: partial, agreement: agree_conditional, severity: validated_lane, note: "captured ONLY if v1.2.0 biomarker-suppressor fires + stratum powered; else false-negative."}
   WRN:     {indication: COADREAD, modality: small_molecule, outcome: advanced, deciding_axis: synthetic_lethal_MSI_H, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "MOLECULAR-subtype-primary anchor (promoted from staging 2026-09-02, VERIFIED live --subtypes MSI_H,MSS): WRN is a dependency ONLY in MSI-H. Framework CAPTURES it — dependency=partner_conditional_dependent (WRN×MSI SL card) + subtype_fit=subtype_specific_non_dependence (flags MSS non-dependence). Caveat: subtype_fit is NEGATIVE-SELECTION-only (frames MSS non-dependence as hold; never mints a POSITIVE per-stratum MSI_H nomination). The clean subtype_fit positive control."}
 
+  # --- Tier-2 NEGATIVES: real declined/failed programs the framework must NOT nominate (promoted from
+  #     staging 2026-09-02, each VERIFIED by a live LLM-free emit; expands the scarce negative class). ---
+  PLK1:    {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, PLK1/COADREAD SM → forced_recommendation=veto). PLK1 inhibitors (volasertib Ph3 AML, onvansertib) failed on a narrow therapeutic index. Framework CAPTURES the liability: dependency=pan_essential_killer (PLK1 is genuinely pan-essential — the mitotic kinase) + safety=highly_constrained + selectivity no-therapeutic-window-veto → declines for the pan-essential/no-window reason, MATCHING the declined outcome (RBM39 pattern, high fidelity)."}
+  AURKA:   {indication: SCLC, modality: small_molecule, outcome: declined, deciding_axis: constrained_safety_normal_liability, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, AURKA/SCLC SM → forced_recommendation=hold). Alisertib (AURKA inhibitor) failed Ph3 (PTCL) + mixed SCLC on tox/insufficient efficacy. Framework does NOT nominate: safety=highly_constrained + selectivity=selective_with_normal_liability (sc-normal-critical-organ-veto) + dependency=discordant → holds on the broad-proliferating-tissue liability (the real tox mode). Correctly cautious."}
+  MMP9:    {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: no_therapeutic_window_broad_normal, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined failed-class negative (VERIFIED live 2026-09-02, MMP9/COADREAD SM → forced_recommendation=veto). Broad-spectrum MMP inhibitors were a repeated oncology failure (musculoskeletal-syndrome tox + lack of efficacy). Framework vetoes on non_dependent (MMP9 is a SECRETED protease — non-cell-autonomous, so monoculture CRISPR reads non-dependent) + no-therapeutic-window (broadly normal expression) + normal-tissue safety. FIDELITY NUANCE: the non_dependent leg is the secreted→non_dependent inversion (low fidelity, cf POSTN), but the no-window/normal-tissue-liability leg has REAL fidelity to the broad-expression tox that actually sank the class — so scored validated_lane (correctly declines on a genuine liability), not honest_blind."}
+  IDO1:    {indication: SKCM, modality: small_molecule, outcome: declined, deciding_axis: IO_immune_efficacy_ECHO301, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind, note: "RIGHT-ANSWER, ORTHOGONAL-REASON (VERIFIED live 2026-09-02, IDO1/SKCM SM → forced_recommendation=veto). IDO1's decline (epacadostat ECHO-301 melanoma Ph3 fail) was an IO-COMBINATION EFFICACY failure — IDO1 is an immunomodulatory kynurenine-pathway enzyme, NOT a tumor-cell-autonomous dependency. Framework vetoes on cell-autonomous non_dependent + no-window (matches 'don't nominate as a cytotoxic tumor target') but is BLIND to the IO mechanism that was the actual hypothesis AND the actual failure. Same class as POSTN/CTHRC1 (secreted/TME, C inverts → non_dependent, matches decline with zero fidelity to why). NOT scored (honest_blind) — a documented out-of-scope gap, not a specificity win."}
+
 # =============================================================================================
 # reference_profiles_staging — DRAFT panel-expansion entries (2026-09-02). NOT YET CONSUMED.
 #
@@ -469,24 +476,15 @@ reference_profiles_staging:
   #  emit-subtype-aware path reads it from staging — WRN's live emit already passed --subtypes MSI_H,MSS.)
 
   # --- Tier-2: DECOYS moved 2026-09-02 → the top-level `decoy_controls:` block (end of file). ---
-  # MEASUREMENT-INTEGRITY (why not reference_profiles): the discrimination harness counts EVERY
+  # MEASUREMENT-INTEGRITY (why decoys are NOT reference_profiles): the discrimination harness counts EVERY
   # reference_profile in blind_rate / by_outcome; captured non-target decoys would DILUTE blind_rate and
   # inflate negative_declined. So decoys live in their own block the eval PANEL scores for specificity
-  # ("does the framework nominate noise?") but the discrimination harness IGNORES. ACTB/GAPDH promoted
-  # there; MMP9 (a real failed-CLASS negative) stays a staging SEED below until its emit is verified.
-  MMP9:                                  # historic oncology failure (matrix metalloproteinase inhibitors)
-    indication: multi
-    modality: small_molecule
-    outcome: declined
-    deciding_axis: TME_protease_failed_class
-    deciding_axis_coverage: blind
-    agreement: PROVISIONAL               # UNVERIFIED: 2026-09-02 emit did not write a package
-    severity: PROVISIONAL                #   (failed/timeout) — retry before promoting.
-    measured: false
-    note: "Failed-class negative: MMP inhibitors were a repeated oncology failure. UNVERIFIED — the
-      2026-09-02 verification emit produced no package (retry). SEED — expand the
-      negative class from curated ct.gov terminated Ph2/3 trials (negatives are the scarce, high-value
-      class the panel most needs)."
+  # ("does the framework nominate noise?") but the discrimination harness IGNORES. ACTB/GAPDH promoted there.
+  #
+  # MMP9 PROMOTED 2026-09-02 → live reference_profiles above. Retry emit succeeded (MMP9/COADREAD SM →
+  # forced_recommendation=veto via non_dependent-killer + no-therapeutic-window-veto + normal-tissue
+  # safety). It is a real failed-CLASS program (a genuine outcome), not a synthetic decoy, so it belongs
+  # in reference_profiles (like CEACAM5/MUC13/GRIN2D), scored as a validated_lane negative.
 
   # --- Tier-S MUTATION-subtype cross-reference (GENOMIC-ALTERATION axis; coordinate, do NOT add here) ---
   tier_s_mutation_subtype_XREF:

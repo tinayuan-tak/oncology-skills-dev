@@ -51,7 +51,12 @@ def test_headline_metrics_pinned(metrics):
     # reference_profiles as a CAPTURED advanced target (framework reads partner_conditional_dependent +
     # subtype_fit subtype_specific_non_dependence), which legitimately lowers the blind fraction
     # (0.705 → 0.689 at n=45). A captured add improving coverage is the intended direction.
-    assert metrics["blind_rate"] >= 0.68
+    # 0.68 → 0.63 (2026-09-02): Tier-2 negative-class expansion — PLK1/AURKA/MMP9 promoted as CAPTURED
+    # correctly-declined validated_lane negatives (framework reads the pan-essential/no-window/normal-tissue
+    # liability that matches each decline) + IDO1 as an out_of_scope honest_blind. 4 non-blind adds at
+    # unchanged blind count (31) drop blind_rate 0.689 → 0.633 at n=49. Adding negatives the framework CAN
+    # correctly reject is the intended direction (specificity gain); the floor tracks the honest fraction.
+    assert metrics["blind_rate"] >= 0.63
 
 
 def test_silent_fn_split_by_outcome_trust(metrics):
