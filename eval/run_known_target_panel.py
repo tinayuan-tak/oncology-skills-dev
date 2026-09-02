@@ -301,16 +301,24 @@ def emit_packages(profiles: dict, pkg_dir: Path, timeout: int, only: set | None)
         if job is None:
             print(f"  SKIP {name} ({reason})", flush=True)
             continue
-        jobs[job] = True                     # dedup identical (target, code)
+        # Carry the profile's curated MODALITY. Critical: a surface antigen that is not a genetic
+        # dependency (DLL3/FOLR1/TROP2) is correctly HELD without a declared modality (the gate's
+        # conservative no-modality branch), but the non_dependent veto is fully suppressed once the
+        # biologics modality is declared (modality_scoped branch). Emitting modality-blind under-powers
+        # the backtest and manufactures false silent-FNs. dedup identical (target, code); a collision
+        # keeps the first modality (reference_profiles have one modality per key).
+        jobs.setdefault(job, prof.get("modality"))
     print(f"[known-panel] emitting {len(jobs)} unique (target, code) jobs", flush=True)
-    for i, (et, code) in enumerate(sorted(jobs), 1):
+    for i, ((et, code), modality) in enumerate(sorted(jobs.items()), 1):
         out = pkg_dir / f"_emit__{et}__{_slug(code)}"
         out.mkdir(exist_ok=True)
+        argv = [sys.executable, str(RUN_PY), "--target", et, "--indication", code,
+                "--emit", "evidence-package", "--out", str(out)]
+        if modality:
+            argv += ["--modality", str(modality)]   # run.py normalizes; unrecognized → warn + ignore
         t0 = time.time()
         try:
-            r = subprocess.run([sys.executable, str(RUN_PY), "--target", et, "--indication", code,
-                                "--emit", "evidence-package", "--out", str(out)],
-                               env=env, capture_output=True, text=True, timeout=timeout)
+            r = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=timeout)
             ep = out / "evidence_package.json"
             if r.returncode == 0 and ep.exists():
                 (pkg_dir / f"{et}__{_slug(code)}.json").write_text(ep.read_text())
