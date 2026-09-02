@@ -50,9 +50,14 @@ def run_mode(args) -> str:
 
 def expected_artifacts(args) -> frozenset:
     """The set of dashboard/spine artifact KINDS this run should produce = base mode + modifiers.
-    `--ground` and (PR-4) `--full-package` add the evidence_package envelope as substrate."""
+    `--ground`, `--full-package`, AND the DEFAULT-ON grounded-substrate chain each add the
+    evidence_package envelope as substrate. The chain assembles the evidence_package as its grounding
+    input, so a *default* run legitimately emits it (run.py:764) — mirror run.py's exact write predicate
+    by reading the `substrate_chain_on` it stashes on args from tp_grounding.plan_substrate, so this
+    guard cannot drift from the writer."""
     kinds = set(MODE_WRITE_SETS[run_mode(args)])
-    if getattr(args, "ground", None) or getattr(args, "full_package", False):
+    if (getattr(args, "ground", None) or getattr(args, "full_package", False)
+            or getattr(args, "substrate_chain_on", False)):
         kinds.add("evidence_package")
     return frozenset(kinds)
 

@@ -69,6 +69,35 @@ def test_gate_action_rank_matches_vocab_action_precedence():
         f"{vocab_prec} — update the fallback so an unreadable-vocab run still ranks veto>hold correctly.")
 
 
+def test_gating_axis_supportive_and_suppressor_verdicts_are_recognized():
+    """A gating axis (subtype_fit/dependency/safety) can legitimately emit not only its veto/hold gate
+    verdicts but also SUPPORTIVE positives and veto-SUPPRESSOR verdicts declared elsewhere in the vocab
+    (positive_signals[_modality_scoped], veto_suppressors.when_present). Those must ALSO live in
+    _RECOGNIZED_GATING_VERDICTS[axis] — otherwise the fail-closed recommendation gate reads a legitimate
+    positive as an UNRECOGNIZED verdict and forces the axis's least-permissive action. This is the
+    KRAS/COADREAD --subtypes regression (2026-09-02): subtype_fit:subtype_restricted_dependency (a
+    supportive positive + veto-suppressor, NOT in the gates block) was absent from the recognized set,
+    so every subtype-tier positive fail-closed to `hold`. The pre-existing coupling test only scanned
+    the `gates` block, so it could not catch a non-gate verdict."""
+    v = _vocab()
+    gating = tp_gates._GATING_AXES
+    referenced: set[tuple[str, str]] = set()
+    for block in ("positive_signals", "positive_signals_modality_scoped"):
+        for e in (v.get(block) or []):
+            if isinstance(e, dict) and e.get("sub_skill") in gating and e.get("verdict"):
+                referenced.add((e["sub_skill"], e["verdict"]))
+    for s in (v.get("veto_suppressors") or []):
+        for wp in (s.get("when_present") or []):
+            if isinstance(wp, dict) and wp.get("sub_skill") in gating and wp.get("verdict"):
+                referenced.add((wp["sub_skill"], wp["verdict"]))
+    missing = [f"{ss}:{vd}" for (ss, vd) in sorted(referenced)
+               if vd not in tp_gates._RECOGNIZED_GATING_VERDICTS.get(ss, frozenset())]
+    assert not missing, (
+        "vocab declares supportive/suppressor verdicts for gating axes that are NOT in "
+        "_RECOGNIZED_GATING_VERDICTS — the recommendation gate will fail-closed (force hold/veto) on "
+        "them (add each to tp_gates.py):\n  " + "\n  ".join(missing))
+
+
 def test_gating_constants_are_internally_complete():
     """Every _GATING_AXES member has both a recognized-verdicts set AND a fail-closed action (no half-
     declared gating axis that would KeyError or read an empty recognized set at runtime)."""

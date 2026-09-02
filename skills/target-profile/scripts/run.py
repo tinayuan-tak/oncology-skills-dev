@@ -417,6 +417,10 @@ def main() -> int:
         no_hypothesis=args.no_hypothesis,
     )
     substrate_chain_on = _plan["chain_on"]
+    # Record on args so the artifact write-set guard (tp_emit.expected_artifacts) reads the IDENTICAL
+    # substrate-chain decision that gates the evidence_package write below (run.py:764) — a default-on
+    # chain emits evidence_package.json, and the guard must expect it without re-deriving the predicate.
+    args.substrate_chain_on = substrate_chain_on
     run_ground, ground_spec = _plan["run_ground"], _plan["ground_spec"]
     run_risk, run_hypothesis = _plan["run_risk"], _plan["run_hypothesis"]
     if substrate_chain_on:

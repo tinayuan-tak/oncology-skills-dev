@@ -165,7 +165,12 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
     }),
     "subtype_fit": frozenset({
         "subtype_specific_non_dependence",                            # the hold
-        "insufficient",
+        "subtype_restricted_dependency",                              # SUPPORTIVE positive + veto-suppressor
+        "insufficient",                                               # (vocab: positive_signals + veto_suppressors,
+        #                                                               NOT gates/kill_capable → recognized, non-gating:
+        #                                                               falls through as a permissive pass, never forces
+        #                                                               hold. Was missing → fail-closed hold on --subtypes
+        #                                                               runs where the subtype tier fired positive.)
     }),
 }
 
