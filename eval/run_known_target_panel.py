@@ -49,9 +49,15 @@ EVAL_DIR = Path(__file__).resolve().parent
 PKG_DIR = EVAL_DIR / "known-target-packages"          # gitignored (generated, large)
 OUT_PATH = EVAL_DIR / "known_target_panel_report.json"
 
-# Target symbol the resolver accepts (profile key -> gene symbol). Composite / non-gene keys are
-# SKIPPED (reported as out-of-scope, never silently passed).
-TARGET_CANON = {"HER2": "ERBB2", "TROP2": "TACSTD2", "BCMA": "TNFRSF17", "TACSTD1": "EPCAM"}
+# Target symbol the resolver accepts (profile key -> HGNC-canonical gene symbol). Composite /
+# non-gene keys are SKIPPED (reported as out-of-scope, never silently passed).
+# CANONICALIZATION MATTERS FOR SPEED, not just resolution: the DepMap parquet fast path
+# (depmap_common.parquet.get_chronos_column, ~1-2MB column read) is keyed by the HGNC symbol. A
+# non-canonical ALIAS misses it and falls through to the uncached full-CSV S3 read
+# (~564MB, re-read per card × stratum) — the CASE-007 slowness. The 4 chronically-slow targets
+# (SCD1/CD20/HIF2A/ADAR1) were ALL aliases; mapping them to HGNC canonical restores the fast path.
+TARGET_CANON = {"HER2": "ERBB2", "TROP2": "TACSTD2", "BCMA": "TNFRSF17", "TACSTD1": "EPCAM",
+                "SCD1": "SCD", "CD20": "MS4A1", "HIF2A": "EPAS1", "ADAR1": "ADAR"}
 _COMPOSITE = {  # multi-gene or non-gene profile keys — not a single-target run
     "CLDN18.2_LRRC15", "EGFR_cMET_VEGF", "MARK2_3", "CDK4_6", "MLLT1_3", "KAT2A_B",
     "POSTN_PDL1", "CTHRC1_PDL1", "panRAF_MEK_FAK", "CA19_9", "CLDN18.2",
