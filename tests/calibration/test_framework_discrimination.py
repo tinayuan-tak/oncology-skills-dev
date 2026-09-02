@@ -41,19 +41,24 @@ def test_headline_metrics_pinned(metrics):
     # axis is now captured (dependency pan_essential_killer VETO + pan-essential-broad-tox safety),
     # verified by a live run, so the framework declines it for the real window liability (matches outcome).
     assert len(metrics["dangerous_false_positives"]) == 3
-    assert len(metrics["silent_false_negatives"]) == 12
+    # 12 → 11 (2026-09-02): CNDP2 reclassified silent_false_negative → honest_blind (out_of_scope). It
+    # was mislabeled neomorphic_gain_of_function; CNDP2 is WT (no somatic driver) and its actionability
+    # is a NON-CELL-AUTONOMOUS secreted-enzyme metabolic dependency conditioned on trans KEAP1-LoF/NRF2-GoF
+    # — genuinely out-of-scope (unmeasurable in monoculture DepMap), not a wiring false-negative.
+    assert len(metrics["silent_false_negatives"]) == 11
     # blind on the deciding axis for the large majority of known targets
     assert metrics["blind_rate"] >= 0.7
 
 
 def test_silent_fn_split_by_outcome_trust(metrics):
-    """The 12 silent-FNs are NOT 12 drug losses: only 5 have an approved-drug outcome (unambiguous),
-    the other 7 are advanced/active PROGRAM-STATUS entries whose target quality is unvalidated
+    """The 11 silent-FNs are NOT 11 drug losses: only 5 have an approved-drug outcome (unambiguous),
+    the other 6 are advanced/active PROGRAM-STATUS entries whose target quality is unvalidated
     (e.g. MARK2/3, which never beat YAP/TAZ efficacy). The harness must report them separately so the
-    'would veto a drug' headline — and the regression floor — key off the drug-backed subset only."""
+    'would veto a drug' headline — and the regression floor — key off the drug-backed subset only.
+    (2026-09-02: advanced_active 7 → 6 — CNDP2 reclassified out to honest_blind; see test above.)"""
     sfn_by = metrics["silent_false_negatives_by_outcome"]
     assert set(sfn_by["positive_approved"]) == {"PARP1", "BCL2", "XPO1", "PSMB5", "CDK4_6"}
-    assert len(sfn_by["advanced_active"]) == 7
+    assert len(sfn_by["advanced_active"]) == 6
     # the two subsets partition the total, no leakage into negative_declined
     assert len(sfn_by["positive_approved"]) + len(sfn_by["advanced_active"]) == len(metrics["silent_false_negatives"])
     # home-turf engine: approved-drug deciding-axis capture is very low
