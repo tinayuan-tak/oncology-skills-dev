@@ -193,6 +193,13 @@ def genotype_product(tmp_path):
          "variant_classes_present": "Missense_Mutation",
          "hgvsp_examples": "p.G12D", "genotype_matched_class": "matched_deep",
          "source": "HCMI-CMDC-DR45"},
+        # COADREAD present as a COVERED indication (with a driver row) so a MISS on a different gene in
+        # COADREAD is an honest 'none', distinguishable from an uncovered indication → data_unavailable.
+        {"gene_symbol": "APC", "indication": "COADREAD", "n_models_in_indication": 209,
+         "n_models_with_alteration": 140, "n_models_with_recurrent_hotspot": 40,
+         "variant_classes_present": "Frame_Shift_Del",
+         "hgvsp_examples": "p.R1450*", "genotype_matched_class": "matched_deep",
+         "source": "HCMI-CMDC-DR45"},
     ]).to_parquet(p)
     return str(p)
 
@@ -218,17 +225,21 @@ def test_genotype_read_defaults_indication_to_ALL_rollup(genotype_product):
     assert r["n_models_with_recurrent_hotspot"] == 121
 
 
-def test_genotype_read_absent_gene_is_honest_none(genotype_product):
-    # a (gene, indication) pair not in the product = honest NEGATIVE (none), NOT data_unavailable
+def test_genotype_read_absent_gene_in_covered_indication_is_honest_none(genotype_product):
+    # gene absent but the indication IS covered (COADREAD has an APC row) → honest NEGATIVE (none),
+    # NOT data_unavailable: HCMI COADREAD models exist, none carry a functional alteration in this gene.
     r = read_genotype_matched_model(target="ZZZ3FAKE", indication="COADREAD", product_path=genotype_product)
     assert r["genotype_matched_class"] == "none"
     assert r["n_models_with_alteration"] == 0
     assert "no HCMI model" in r["_missing_reason"]
 
 
-def test_genotype_read_noncore_indication_is_none(genotype_product):
+def test_genotype_read_uncovered_indication_is_data_unavailable(genotype_product):
+    # PRAD is NOT in the HCMI genotype crosswalk → data_unavailable (a coverage GAP), NOT 'none'. A 'none'
+    # here would falsely assert "no HCMI model carries the alteration" when we simply have no PRAD models.
     r = read_genotype_matched_model(target="KRAS", indication="PRAD", product_path=genotype_product)
-    assert r["genotype_matched_class"] == "none"
+    assert r["genotype_matched_class"] == "data_unavailable"
+    assert "not in the HCMI indication crosswalk" in r["_missing_reason"]
 
 
 def test_genotype_read_missing_product_is_data_unavailable(tmp_path):
@@ -263,3 +274,46 @@ def test_genotype_kras_is_matched_deep_in_pancreatic_and_colorectal():
 def test_genotype_dispatch_contract_accepts_target_and_indication(genotype_product):
     r = read_genotype_matched_model(target="KRAS", indication="PAAD", product_path=genotype_product)
     assert r["genotype_matched_class"] == "matched_deep"
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# INDICATION NORMALIZATION (2026-09-02): OncoTree LEAF codes → the products' COMPOSITE indication keys.
+# Before this, an exact-match read MISSED common leaves (EGFR/LUAD reported 0 models though 27 NSCLC HCMI
+# models exist; ERBB2/STAD reported 0 though GC=25) — a false "no models" the organoid leg never made.
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+from methods.hcmi_model_availability.read import normalize_indication
+
+
+@pytest.mark.parametrize("leaf,composite", [
+    ("LUAD", "NSCLC"), ("LUSC", "NSCLC"), ("STAD", "GC"), ("ESCC", "ESCA"),
+    ("COAD", "COADREAD"), ("READ", "COADREAD"), ("PDAC", "PAAD"),
+    ("luad", "NSCLC"),                 # case-insensitive
+    ("NSCLC", "NSCLC"), ("COADREAD", "COADREAD"), ("GC", "GC"),  # already-composite: idempotent no-op
+    ("PRAD", "PRAD"), ("GBM", "GBM"),  # not in the alias map → passthrough unchanged
+    (None, None), ("", ""),
+])
+def test_normalize_indication_leaf_to_composite(leaf, composite):
+    assert normalize_indication(leaf) == composite
+
+
+def test_availability_leaf_code_resolves_via_normalization(product):
+    # STAD → GC (the fixture's gastric row): a LEAF query now resolves to the composite bucket instead of
+    # falsely reporting data_unavailable.
+    r = read_model_availability("STAD", product_path=product)
+    assert r["model_availability_class"] == "moderate_model_coverage"
+    assert r["n_patient_derived_models"] == 25
+
+
+def test_availability_leaf_normalizes_but_composite_absent_notes_the_mapping(product):
+    # LUAD → NSCLC, but the fixture product has no NSCLC row → honest data_unavailable, and the reason
+    # discloses the leaf→composite mapping that was attempted (so it reads as coverage, not a typo).
+    r = read_model_availability("LUAD", product_path=product)
+    assert r["model_availability_class"] == "data_unavailable"
+    assert "LUAD→NSCLC" in r["_missing_reason"]
+
+
+def test_genotype_leaf_code_resolves_via_normalization(genotype_product):
+    # STAD → GC: KRAS is a matched_sparse hit in the fixture's GC row; a leaf query now resolves it.
+    r = read_genotype_matched_model(target="KRAS", indication="STAD", product_path=genotype_product)
+    assert r["genotype_matched_class"] == "matched_sparse"
+    assert r["n_models_with_alteration"] == 2

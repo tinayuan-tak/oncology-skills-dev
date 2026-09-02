@@ -41,6 +41,34 @@ _GENOTYPE_NONE = {
 _GENOTYPE_UNAVAILABLE = dict(_GENOTYPE_NONE, genotype_matched_class="data_unavailable")
 
 
+# Indication normalization (2026-09-02, translational-readiness assessment). The HCMI products are keyed
+# on the framework's COMPOSITE indication vocabulary (COADREAD / NSCLC / GC / ESCA / …; see the build
+# crosswalk cli.crosswalk_indication), but consumers (target-profile fan-out, the example gallery) query
+# with OncoTree LEAF codes (LUAD, STAD, COAD, …). An exact-match read therefore MISSED common leaves —
+# e.g. EGFR/LUAD reported 0 patient-derived models though 27 NSCLC HCMI models exist, and ERBB2/STAD
+# reported 0 though GC=25 — a false "no models" that the sibling organoid leg (which DOES alias
+# STAD→Esophagus/Stomach) does not make. Normalize leaf→composite here, reusing the framework's existing
+# convention (methods/dge_deseq2 + methods/gdc_somatic_hotspot both encode NSCLC={LUAD,LUSC}). Conservative:
+# only UNAMBIGUOUS single-composite expansions; a genuinely composite/leaf code already matching a product
+# key (NSCLC, GC, COADREAD, …) passes through unchanged (the map is a no-op for it).
+_INDICATION_ALIAS = {
+    "LUAD": "NSCLC", "LUSC": "NSCLC",   # non-small-cell lung: pooled NSCLC (dge_deseq2/gdc_somatic_hotspot)
+    "STAD": "GC",                        # stomach adenocarcinoma → gastric (product tags gastric 'GC')
+    "ESCC": "ESCA",                      # esophageal (squamous) → esophageal-carcinoma product key
+    "COAD": "COADREAD", "READ": "COADREAD",  # colon / rectum → pooled colorectal
+    "PDAC": "PAAD",                      # pancreatic ductal adenocarcinoma
+}
+
+
+def normalize_indication(indication: "Optional[str]") -> "Optional[str]":
+    """Map an OncoTree leaf code to the composite indication key the HCMI products are built on.
+    Idempotent: a code that is already a product key (or unknown) is returned unchanged. Case-preserving
+    on miss, upper-cased on the alias lookup so lower-case callers still resolve."""
+    if not indication:
+        return indication
+    return _INDICATION_ALIAS.get(indication.strip().upper(), indication)
+
+
 from methods.target_id_sidecar import ensure_aws_profile
 
 
@@ -81,11 +109,13 @@ def read_model_availability(indication: "Optional[str]" = None, product_path: "O
     df = _load_product(product_path)
     if df is None or df.empty:
         return dict(_UNAVAILABLE, _missing_reason="no HCMI model-availability product materialized/reachable")
-    hit = df[df["indication"] == indication]
+    norm = normalize_indication(indication)
+    hit = df[df["indication"] == norm]
     if hit.empty:
+        _via = f" (normalized {indication}→{norm})" if norm != indication else ""
         return dict(_UNAVAILABLE,
                     _missing_reason=f"{indication} not in the HCMI (primary_site, disease_type) crosswalk "
-                                    f"(no mapped patient-derived models)")
+                                    f"(no mapped patient-derived models){_via}")
     row = hit.iloc[0]
     return {
         "model_availability_class": row["model_availability_class"],
@@ -111,12 +141,22 @@ def read_genotype_matched_model(target: "Optional[str]" = None, indication: "Opt
                     _missing_reason="no HCMI genotype-matched-model product materialized/reachable")
     if not target:
         return dict(_GENOTYPE_UNAVAILABLE, _missing_reason="no target gene supplied")
-    ind = indication or "ALL"
+    ind = normalize_indication(indication) or "ALL"
+    # Disambiguate the two honest-negative-vs-gap cases (previously both collapsed to 'none'):
+    #   - the indication IS covered by the HCMI crosswalk but no model carries a functional alteration in
+    #     the target  → genotype_matched_class 'none' (a real translational negative);
+    #   - the indication is NOT in the HCMI crosswalk at all → 'data_unavailable' (a coverage gap, not a
+    #     negative — a 'none' here would falsely assert "no model carries the alteration").
+    covered = set(df["indication"].unique())
     hit = df[(df["gene_symbol"] == target) & (df["indication"] == ind)]
     if hit.empty:
+        if ind not in covered:
+            _via = f" (normalized {indication}→{ind})" if ind != (indication or "ALL") else ""
+            return dict(_GENOTYPE_UNAVAILABLE,
+                        _missing_reason=f"{indication} not in the HCMI indication crosswalk"
+                                        f" — genotype-matched coverage unavailable{_via}")
         return dict(_GENOTYPE_NONE,
-                    _missing_reason=f"no HCMI model with a functional alteration in {target} mapped to "
-                                    f"{ind} (or {ind} not in the HCMI indication crosswalk)")
+                    _missing_reason=f"no HCMI model with a functional alteration in {target} mapped to {ind}")
     row = hit.iloc[0]
     return {
         "genotype_matched_class": row["genotype_matched_class"],
