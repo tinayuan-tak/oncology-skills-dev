@@ -29,6 +29,7 @@ and test_envelope_integrity.py).
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 
@@ -365,7 +366,15 @@ def assemble_evidence_package(
     data_mode = ctx["data_mode"]
     release_pin = ctx.get("release_pin") or "unpinned"
 
-    package_id = f"ep-{target}-{indication}-{release_pin}-{data_mode}-001".lower()
+    # Slugify: the evidence_package.schema constrains package_id to `^ep-[a-z0-9_-]+$`, so a
+    # multi-word indication ("Non-Small Cell Lung Cancer") or any target/indication carrying spaces,
+    # slashes, parens, etc. would fail validation with a bare .lower(). Replace every run of
+    # disallowed chars with a single '-' (underscores + dashes are allowed, so existing single-token
+    # ids like `ep-kras-coadread-...` are byte-unchanged), then collapse repeats and trim.
+    package_id = re.sub(
+        r"-+", "-",
+        re.sub(r"[^a-z0-9_-]+", "-",
+               f"ep-{target}-{indication}-{release_pin}-{data_mode}-001".lower())).strip("-")
 
     # Determine concurrence absence — ships without concurrence by default.
     # 2026-08-10 fix: do NOT advertise governance.lockfile_ref="lockfile.yaml" —
