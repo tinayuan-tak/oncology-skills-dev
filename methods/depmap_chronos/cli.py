@@ -30,6 +30,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
@@ -57,9 +58,20 @@ DEPMAP_LOCAL_FALLBACK_DIRS = [
 ]
 
 
+@lru_cache(maxsize=32)
 def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, list]:
     """Same loader pattern as depmap_chronos_distribution.cli — local cache, then S3.
-    Returns (chronos_by_model_id, model_metadata_by_id, load_errors)."""
+    Returns (chronos_by_model_id, model_metadata_by_id, load_errors).
+
+    PROCESS-CACHED (lru_cache, keyed by the pinned release + target): the target-profile fan-out
+    calls this once per card × stratum for the SAME target — 6+ cards (dependency, 3 stratified
+    siblings, cis-coherence, combination) across up to 14 COADREAD strata. Uncached, a parquet-MISS
+    (an alias like SCD1→SCD, or a gene absent from the fast-path column) re-read the full ~564MB
+    CRISPRGeneEffect CSV on EVERY call (observed 12× per run → the ~535s stall). Caching collapses
+    that to one read. SAFE: the returned dicts are consumed READ-ONLY (callers only iterate
+    chronos_by_model.items() / model_metadata.get(...)); release_pin pins the data so cross-run
+    staleness is a non-issue. (Canonical targets already hit the cached parquet fast path via
+    get_chronos_column; this closes the fallback-path over-read too.)"""
     import pandas as pd
 
     crispr_path = None
