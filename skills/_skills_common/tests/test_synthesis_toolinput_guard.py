@@ -64,6 +64,46 @@ def test_defects_flags_array_arrived_as_string_and_dropped_field():
     assert "top_arguments_against" not in defects  # absent + optional
 
 
+_ENUM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "risk_level": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "not_assessed"]},
+        "grade": {"type": "string", "enum": ["strong", "moderate", "weak"]},  # no null-ish member
+        "justification": {"type": "string"},
+    },
+    "required": ["risk_level", "justification"],
+}
+
+
+def test_defects_flags_off_enum_value():
+    # an off-enum categorical is a defect (was silently stored verbatim before)
+    defects = LLM._tool_input_defects(
+        {"risk_level": "moderate-high", "justification": "j"}, _ENUM_SCHEMA)
+    assert "risk_level" in defects
+
+
+def test_valid_enum_value_is_not_a_defect():
+    assert LLM._tool_input_defects(
+        {"risk_level": "not_assessed", "justification": "j"}, _ENUM_SCHEMA) == []
+
+
+def test_salvage_enum_prefers_nullish_member():
+    payload = {"risk_level": "moderate-high", "justification": "j"}
+    defects = LLM._tool_input_defects(payload, _ENUM_SCHEMA)
+    out = LLM._salvage_tool_input(payload, _ENUM_SCHEMA, defects)
+    # honest abstention, and schema-VALID (in the enum) — not "" which is off-enum
+    assert out["risk_level"] == "not_assessed"
+    assert out["risk_level"] in _ENUM_SCHEMA["properties"]["risk_level"]["enum"]
+    assert "risk_level" in out["_malformed_fields"]
+
+
+def test_salvage_enum_without_nullish_uses_first_member():
+    payload = {"risk_level": "not_assessed", "grade": "bogus", "justification": "j"}
+    defects = LLM._tool_input_defects(payload, _ENUM_SCHEMA)
+    out = LLM._salvage_tool_input(payload, _ENUM_SCHEMA, defects)
+    assert out["grade"] == "strong"   # no null-ish member → first declared, still schema-valid
+
+
 def test_defects_flags_missing_required():
     payload = {"top_arguments_for": ["ok"]}  # missing both required fields
     defects = LLM._tool_input_defects(payload, _SCHEMA)

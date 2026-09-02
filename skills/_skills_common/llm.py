@@ -201,8 +201,12 @@ def _tool_input_defects(payload: dict, tool_schema: dict) -> list[str]:
     Catches the malformed-tool-use failure mode (a model that lapsed into the XML
     `<parameter>` dialect): a field the schema declares an `array` that arrived as a
     non-list, a `string` field carrying leaked tool-call markup, a missing required
-    field, or ANY string value (at any depth) carrying leaked markup. VALIDATION-ONLY —
-    never mutates payload. The caller decides whether to retry or salvage.
+    field, or ANY string value (at any depth) carrying leaked markup. ALSO catches an
+    OFF-ENUM value on a top-level string field declaring an `enum` — a categorical the
+    downstream consumers validate against a fixed vocabulary (e.g. risk_level,
+    overall_recommendation, proposed_verdict); an off-enum value used to be stored
+    verbatim, silently violating the canonical-enum contract. VALIDATION-ONLY — never
+    mutates payload. The caller decides whether to retry or salvage.
     """
     props = tool_schema.get("properties", {}) or {}
     required = tool_schema.get("required", []) or []
@@ -217,10 +221,13 @@ def _tool_input_defects(payload: dict, tool_schema: dict) -> list[str]:
             continue
         val = payload[name]
         declared = spec.get("type")
+        enum = spec.get("enum")
         if declared == "array" and not isinstance(val, list):
             defects.append(name)
         elif declared == "string" and (not isinstance(val, str) or _leaks_toolcall_markup(val)):
             defects.append(name)
+        elif enum and isinstance(val, str) and val not in enum:
+            defects.append(name)   # off-enum categorical — violates the fixed vocabulary
         elif isinstance(val, str) and _leaks_toolcall_markup(val):
             defects.append(name)
         elif isinstance(val, list) and any(
@@ -316,18 +323,48 @@ def _recover_leaked_toolcall(payload: dict, tool_schema: dict, defects: list[str
     return payload
 
 
-def _salvage_tool_input(payload: dict, tool_schema: dict, defects: list[str]) -> dict:
-    """Coerce malformed fields to schema-valid EMPTIES and record the loss visibly.
+# Enum members that honestly express "could not determine" — preferred as the salvage default for a
+# defective ENUM field so the loss reads as an abstention, not a fabricated decision. Ordered by
+# preference; matched case-insensitively against the field's declared enum.
+_NULLISH_ENUM_MEMBERS = (
+    "not_assessed", "insufficient_evidence", "insufficient", "data_unavailable",
+    "unknown", "none", "neither_viable", "insufficient_cis_coherence",
+)
 
-    Last resort after retries are exhausted: an `array` defect becomes `[]`, a `string`
-    defect becomes `""`, anything else becomes None. The dropped fields are recorded on
-    `_malformed_fields` so the loss is AUDITABLE (never a silent garbage string in the
-    package). Mirrors the framework's fail-visible ethos.
+
+def _salvage_enum(enum: list):
+    """The salvage default for a defective enum field: a null-ish member if the enum offers one
+    (an honest abstention), else the first declared member (recorded in _malformed_fields either way)."""
+    lowered = {str(e).lower(): e for e in enum}
+    for cand in _NULLISH_ENUM_MEMBERS:
+        if cand in lowered:
+            return lowered[cand]
+    return enum[0] if enum else None
+
+
+def _salvage_tool_input(payload: dict, tool_schema: dict, defects: list[str]) -> dict:
+    """Coerce malformed fields to schema-valid values and record the loss visibly.
+
+    Last resort after retries are exhausted: an `array` defect becomes `[]`, an ENUM defect becomes a
+    null-ish enum member (honest abstention) or the first member, a plain `string` defect becomes `""`,
+    anything else becomes None. Using a null-ish enum member (not `""`, which is NOT in the enum) keeps
+    the salvaged payload schema-VALID and reads as "could not determine" rather than a fabricated
+    decision. The dropped fields are recorded on `_malformed_fields` so the loss is AUDITABLE (never a
+    silent garbage string, and never a silent off-enum value). Mirrors the framework's fail-visible ethos.
     """
     props = tool_schema.get("properties", {}) or {}
     for name in defects:
-        declared = (props.get(name) or {}).get("type")
-        payload[name] = [] if declared == "array" else ("" if declared == "string" else None)
+        spec = props.get(name) or {}
+        declared = spec.get("type")
+        enum = spec.get("enum")
+        if enum:
+            payload[name] = _salvage_enum(enum)
+        elif declared == "array":
+            payload[name] = []
+        elif declared == "string":
+            payload[name] = ""
+        else:
+            payload[name] = None
     payload["_malformed_fields"] = list(defects)
     return payload
 
