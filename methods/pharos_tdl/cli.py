@@ -17,9 +17,14 @@ import io
 from functools import lru_cache
 from typing import Optional
 
-METHOD_VERSION = "0.1.0"
-_SRC = ("s3://onc-compbio/data-catalog/sources/pharos-idg-tcrd/snapshot-2026-08-10/"
-        "pharos_tdl_per_gene.parquet")
+METHOD_VERSION = "0.1.1"   # 0.1.1: resolve source via the data-catalog manifest (catalog_query) instead of a hardcoded s3:// URI — same parquet, byte-identical output.
+
+# Source resolved through the data-catalog single-source-of-truth (catalog_query.bucket_prefix_for),
+# NOT a hand-typed s3:// constant — so a snapshot relocation follows the manifest, mirroring the
+# depmap_paralog_aggregator / gnomad_constraint sibling convention. The manifest s3_uri is a directory
+# (trailing slash), so bucket_prefix_for + the file path reconstruct the object key.
+_TDL_SOURCE_MANIFEST_ID = "pharos-idg-tcrd-snapshot-2026-08-10"
+_TDL_PARQUET_FILENAME = "pharos_tdl_per_gene.parquet"
 
 # TDL → a compact druggability-tier interpretation
 _TDL_MEANING = {
@@ -37,7 +42,9 @@ def _load_table():
     loads or the card honestly errors via the live-read seam (never a silent empty)."""
     import pandas as pd
     from methods.target_id_sidecar import s3_client
-    bucket, key = _SRC[len("s3://"):].split("/", 1)   # _SRC is an s3:// URI
+    from methods.catalog_query.read import bucket_prefix_for
+    bucket, prefix = bucket_prefix_for(_TDL_SOURCE_MANIFEST_ID)   # manifest s3_uri (dir) → (bucket, key_prefix)
+    key = f"{prefix}{_TDL_PARQUET_FILENAME}"
     body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body)).set_index("gene_symbol")
 
