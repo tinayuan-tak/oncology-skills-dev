@@ -44,19 +44,25 @@ def test_escalate_only_shape_no_risk_score():
     assert g["anchor_verdict"] == DET["verdict"]
 
 
-def test_unwraps_structured_output_and_tolerates_string_finding():
+def test_unwraps_structured_output_and_quarantines_uncited_finding():
+    # A bare-string finding carries NO citations; under the cite-or-abstain grounding contract it is
+    # quarantined into dropped_uncited_findings (never kept as a live escalate-only finding on
+    # hallucinated/absent support). A finding whose cited PMID is in the retrieved set is kept.
     out = {"findings": {"value": ["CRS liability",
                 {"finding": "hepatic", "kind": "liver", "cited_pmids": {"value": ["222"]}}], "_source": "llm"},
            "corroborations": {"value": []}, "contradicts_deterministic": {"value": True}}
     g = ga.build_grounded_block(DET, out, {"222"}, corpus_pin={}, n_retrieved=2)
     findings = [f["finding"] for f in g["findings"]]
-    assert "CRS liability" in findings and "hepatic" in findings
+    assert findings == ["hepatic"]
+    quarantined = [f["finding"] for f in g["dropped_uncited_findings"]]
+    assert "CRS liability" in quarantined
     assert g["contradicts_deterministic"] is True
 
 
 def test_severity_passthrough_and_safe_default():
-    # a valid severity is carried through verbatim; a missing/off-enum severity (and a bare-string
-    # finding) defaults to 'moderate' so the pseudo-card bin never crashes or silently escalates.
+    # a valid severity is carried through verbatim; a missing/off-enum severity defaults to 'moderate'
+    # so the pseudo-card bin never crashes or silently escalates. A bare-string (uncited) finding is
+    # quarantined out of the live findings list (grounding-integrity: no bin on uncited support).
     out = {"findings": [
         {"finding": "Ph3 discontinued", "kind": "x", "severity": "high", "cited_pmids": ["1"]},
         {"finding": "some context", "kind": "x", "severity": "bogus", "cited_pmids": ["1"]},
@@ -65,7 +71,8 @@ def test_severity_passthrough_and_safe_default():
         "corroborations": [], "contradicts_deterministic": False, "notes": ""}
     g = ga.build_grounded_block(DET, out, {"1"}, corpus_pin={}, n_retrieved=1)
     sev = [f["severity"] for f in g["findings"]]
-    assert sev == ["high", "moderate", "moderate", "moderate"]
+    assert sev == ["high", "moderate", "moderate"]
+    assert [f["finding"] for f in g["dropped_uncited_findings"]] == ["bare string finding"]
     # single source of truth: the enum + escalator token are exported for the consumer (risk_rollup)
     assert ga.SEVERITY_HIGH in ga.SEVERITY_LEVELS
     assert not hasattr(ga, "PSEUDO_ESCALATOR_KINDS")  # dead duplicate removed

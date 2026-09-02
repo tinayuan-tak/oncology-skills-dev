@@ -42,6 +42,54 @@ def test_containment_handles_none_and_ints():
     assert good == ["111"] and bad == ["222"]
 
 
+def test_containment_normalizes_misformatted_pmid():
+    # a real-but-misformatted citation ('PMID 111', 'PMID: 222') must NOT be dropped as confabulated
+    good, bad = rc._contain(["PMID 111", "PMID: 222", "PMID 999"], {"111", "222"})
+    assert set(good) == {"111", "222"}
+    assert bad == ["999"]
+
+
+class _Ab:
+    def __init__(self, pmid):
+        self.pmid, self.year, self.title, self.abstract = pmid, 2020, "t", "body"
+
+
+class _Res:
+    def __init__(self, by_cat):
+        self.abstracts_by_category = by_cat
+
+
+def test_run_downgrades_grade_with_only_confabulated_citations(monkeypatch):
+    # A HIGH grade whose only cited PMID was confabulated (not retrieved) must be downgraded to
+    # not_assessed rather than shipping an ungrounded risk level (P0.2 grounding-integrity).
+    monkeypatch.setattr(rc.ps, "search_pubmed",
+                        lambda *a, **k: _Res({"safety": [_Ab("111")]}))
+    monkeypatch.setattr(rc.ps, "SEARCH_PATTERNS_BY_CATEGORY",
+                        {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False)
+    monkeypatch.setattr(rc, "synthesize_structured",
+                        lambda *a, **k: {"risk_level": "HIGH", "justification": "j",
+                                         "interpretation": "i", "cited_pmids": ["999"],
+                                         "contradicts_deterministic": False})
+    res = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)
+    d = res["dimensions"]["safety"]
+    assert d["risk_level"] == "not_assessed"
+    assert d["risk_level_pre_containment"] == "HIGH"
+    assert d["confabulated_dropped"] == ["999"] and d["cited_pmids"] == []
+
+
+def test_run_keeps_grade_with_surviving_citation(monkeypatch):
+    monkeypatch.setattr(rc.ps, "search_pubmed",
+                        lambda *a, **k: _Res({"safety": [_Ab("111")]}))
+    monkeypatch.setattr(rc.ps, "SEARCH_PATTERNS_BY_CATEGORY",
+                        {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False)
+    monkeypatch.setattr(rc, "synthesize_structured",
+                        lambda *a, **k: {"risk_level": "HIGH", "justification": "j",
+                                         "interpretation": "i", "cited_pmids": ["111"],
+                                         "contradicts_deterministic": False})
+    d = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)["dimensions"]["safety"]
+    assert d["risk_level"] == "HIGH" and "risk_level_pre_containment" not in d
+
+
 def test_six_dimensions_and_overlap_anchors():
     assert set(rc.DIMENSIONS) == {"biological", "druggability", "translational",
                                   "clinical", "safety", "commercial"}
