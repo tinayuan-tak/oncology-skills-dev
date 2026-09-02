@@ -391,7 +391,7 @@ selectivity_cases:
 reference_profiles:
 
   # --- DANGEROUS: framework would CONFIDENTLY ADVANCE what biology declines ---
-  ADAR1:   {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: interferon_IO_context, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "real ISG-high dependency → gate C says selective_dependent; IO-context decline invisible. Abstention would NOT save it."}
+  ADAR1:   {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: interferon_IO_context, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "real ISG-high dependency → gate C says selective_dependent; IO-context decline invisible. Abstention would NOT save it. VERIFIED-STANDS 2026-09-02 (do NOT flip to agree): live ADAR reads dependency=lineage_selective and only HOLDS via safety:highly_constrained_safety_concern (gnomAD WT-loss) — an INCIDENTAL wrong-reason save, NOT a principled IO-context decline; the deciding IO-axis is still blind and it would advance absent the safety hold. A panel drift-heuristic ('dangerous_FP but live does not nominate → caught up') is TOO OPTIMISTIC here — the collapsed word 'hold' hides that the save is off-axis. Right-answer-wrong-reason (cf POSTN/CTHRC1_PDL1)."}
   RBM39:   {indication: multi, modality: molecular_glue, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "CORRECTED 2026-08-30 (was dangerous_false_positive/framework_false_positive): the pan-essential axis is now CAPTURED — live functional-requirement reads dependency_verdict=pan_essential_killer (a VETO in nomination_verdict_gate; veto>hold) + on-target-safety fires pan-essential-broad-tox-safety-warning → the framework now DECLINES RBM39 for the pan-essential/no-window liability, MATCHING the declined outcome. Frontier caveat: a pan-essential gene with a real therapeutic index can still be a valid glue-degrader target (indisulam) — the veto is honest about the liability, not a claim the target is undruggable."}
   CLDN18.2_LRRC15: {indication: PAAD, modality: bite_tce, outcome: declined, deciding_axis: bispecific_avidity_coexpression, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "epithelial CLDN18.2 vs stromal-CAF LRRC15 — NOT co-expressed same cell; framework sees two green antigens, avidity axis ABSENT → verdict FLIPS wrong."}
   EGFR_cMET_VEGF: {indication: NSCLC, modality: biologics, outcome: declined, deciding_axis: bispecific_avidity_format, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "trispecific; VEGF secreted; avidity/format axis absent."}
@@ -468,37 +468,12 @@ reference_profiles_staging:
   # (The `subtype` field is a panel-emit hint; reference_profiles has no subtype field, so the panel's
   #  emit-subtype-aware path reads it from staging — WRN's live emit already passed --subtypes MSI_H,MSS.)
 
-  # --- Tier-2: NEGATIVES + DECOYS — STAY IN STAGING (do NOT promote to reference_profiles) ---
-  # MEASUREMENT-INTEGRITY: the discrimination harness's blind_rate / by_outcome count EVERY
-  # reference_profile. Decoys are CAPTURED non-targets (pan-essential housekeeping) — folding them into
-  # reference_profiles would DILUTE blind_rate (gaming a metric meant for real nomination targets) and
-  # inflate the negative_declined class with non-biological controls. Decoys belong in a SEPARATE
-  # specificity block that the eval PANEL scores (does the framework nominate noise?) but the
-  # discrimination harness IGNORES. FOLLOW-UP: add `decoy_controls:` (panel reads; harness excludes) +
-  # teach run_known_target_panel to score it; until then decoys are verified here but unpromoted.
-  ACTB:                                  # decoy: pan-essential housekeeping, NOT a therapeutic target
-    indication: COADREAD
-    modality: small_molecule
-    outcome: not_a_target
-    deciding_axis: pan_essential_housekeeping
-    deciding_axis_coverage: captured
-    agreement: agree                     # VERIFIED 2026-09-02: hold via safety:highly_constrained,
-    severity: decoy_true_negative        #   never nominated. Specificity holds.
-    measured: true
-    note: "VERIFIED decoy true-negative: beta-actin correctly HELD (safety:highly_constrained_safety_
-      concern), never nominated. Note the guard fires on SAFETY (gnomAD constraint), not a
-      pan_essential dependency veto — either route is correct specificity behavior for a decoy."
-  GAPDH:
-    indication: COADREAD
-    modality: small_molecule
-    outcome: not_a_target
-    deciding_axis: pan_essential_housekeeping
-    deciding_axis_coverage: captured
-    agreement: agree                     # VERIFIED 2026-09-02: hold via safety, never nominated
-    severity: decoy_true_negative
-    measured: true
-    note: "VERIFIED decoy true-negative: correctly HELD (safety:normal_tissue_protein_safety_concern),
-      never nominated."
+  # --- Tier-2: DECOYS moved 2026-09-02 → the top-level `decoy_controls:` block (end of file). ---
+  # MEASUREMENT-INTEGRITY (why not reference_profiles): the discrimination harness counts EVERY
+  # reference_profile in blind_rate / by_outcome; captured non-target decoys would DILUTE blind_rate and
+  # inflate negative_declined. So decoys live in their own block the eval PANEL scores for specificity
+  # ("does the framework nominate noise?") but the discrimination harness IGNORES. ACTB/GAPDH promoted
+  # there; MMP9 (a real failed-CLASS negative) stays a staging SEED below until its emit is verified.
   MMP9:                                  # historic oncology failure (matrix metalloproteinase inhibitors)
     indication: multi
     modality: small_molecule
@@ -527,3 +502,32 @@ reference_profiles_staging:
   # to the LIVE reference_profiles CNDP2 entry (deciding_axis noncell_autonomous_metabolic_dependency_
   # KEAP1_NRF2, out_of_scope_tier2, honest_blind) + re-pinned discrimination (silent_FN 12→11). Our
   # staging draft converged on the identical biology; nothing to promote. (Retained as a pointer.)
+
+
+# =============================================================================================
+# decoy_controls — SPECIFICITY controls (2026-09-02). NOT read by the discrimination harness.
+#
+# Non-target genes that a correct framework must NEVER nominate (pan-essential housekeeping,
+# etc.). Consumed by eval/run_known_target_panel.py to score SPECIFICITY (a decoy that comes
+# back `nominate` is a false-positive; hold/veto/None = pass). Deliberately SEPARATE from
+# reference_profiles: the discrimination harness (validate_framework_discrimination) reads only
+# reference_profiles, so decoys here cannot dilute blind_rate / by_outcome (a captured non-target
+# would otherwise game a metric meant for real nomination targets).
+# =============================================================================================
+decoy_controls:
+
+  ACTB:
+    indication: COADREAD
+    modality: small_molecule
+    expect_not: nominate                 # a correct framework never nominates a housekeeping gene
+    measured: true
+    note: "VERIFIED 2026-09-02: beta-actin (pan-essential housekeeping) correctly HELD via
+      safety:highly_constrained_safety_concern, never nominated. Specificity pass. (The guard fires on
+      SAFETY / gnomAD constraint, not a pan_essential dependency veto — either route is correct.)"
+  GAPDH:
+    indication: COADREAD
+    modality: small_molecule
+    expect_not: nominate
+    measured: true
+    note: "VERIFIED 2026-09-02: correctly HELD via safety:normal_tissue_protein_safety_concern, never
+      nominated. Specificity pass."
