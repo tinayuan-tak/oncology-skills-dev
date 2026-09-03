@@ -973,6 +973,9 @@ def _headline(cards, fired, verdict_pair):
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
+            # FOR-WHAT projection onto the spine (the SAME dict the claim_record_shadow carries), so
+            # target_report.modality_fit rolls up the degrader channel FROM the report, not a reach-in.
+            modality_scope=_dep_modality_scope(cards),
         )
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"

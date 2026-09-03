@@ -789,6 +789,10 @@ def _headline(cards, fired, verdict_pair):
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
+            # FOR-WHAT projection onto the spine (the SAME dict the claim_record_shadow carries: the
+            # verdict's native per-biologic-modality preference), so target_report.modality_fit rolls
+            # up the ADC/TCE channels FROM the report, not a reach-in.
+            modality_scope=_sm_modality_scope(_v),
             canonical_polarity_override=("killer" if _v in _FIT_CLASS_NEGATIVE else None),
         )
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine

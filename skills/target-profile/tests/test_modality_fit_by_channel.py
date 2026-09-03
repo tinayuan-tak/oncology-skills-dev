@@ -13,11 +13,16 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tp_facets import _modality_fit_by_channel  # noqa: E402
+from tp_facets import _modality_fit_by_channel, _modality_scope_by_axis  # noqa: E402
 
 
 def _rec(axis, modality_scope):
     return {"claim_record_shadow": {"axis": axis, "finding": {}, "modality_scope": modality_scope}}
+
+
+def _spine(axis, modality_scope):
+    """A sub_result carrying modality_scope on the skill_report[] SPINE (no shadow)."""
+    return {"synthesis_facet": {"skill_report": {"role": "gating", "modality_scope": modality_scope}}}
 
 
 def test_kras_like_per_modality_split():
@@ -115,3 +120,32 @@ def test_uncurated_axis_does_not_mask():
                                   {"small_molecule": "favorable", "biologics": "na"})}
     out = _modality_fit_by_channel(sr, axis_info=unknown)
     assert out["small_molecule"]["fit"] == "favorable"               # no curated axis → no mask
+
+
+# ── SPINE re-point (contract §100-128): modality_scope is now read from the skill_report[] spine ──────
+def test_modality_scope_read_from_spine():
+    # modality_scope lives ONLY on the skill_report (no claim_record_shadow) → the rollup still sees it.
+    sr = {"tractability_sm": _spine("tractability_small_molecule",
+                                    {"small_molecule": "favorable", "biologics": "na"})}
+    assert _modality_scope_by_axis(sr) == {"tractability_sm": {"small_molecule": "favorable", "biologics": "na"}}
+    out = _modality_fit_by_channel(sr)
+    assert out["small_molecule"]["fit"] == "favorable"
+    assert out["small_molecule"]["limiting_axis"] == "tractability_sm"
+
+
+def test_spine_wins_over_shadow_when_both_present():
+    # spine-first precedence: a report carrying modality_scope shadows the legacy claim_record_shadow.
+    both = {"synthesis_facet": {"skill_report": {"modality_scope": {"small_molecule": "favorable",
+                                                                    "biologics": "na"}}},
+            "claim_record_shadow": {"axis": "tractability_small_molecule",
+                                    "modality_scope": {"small_molecule": "unfavorable", "biologics": "na"}}}
+    assert _modality_scope_by_axis({"tractability_sm": both})["tractability_sm"]["small_molecule"] == "favorable"
+
+
+def test_shadow_fallback_when_report_lacks_scope():
+    # a report present but WITHOUT a modality_scope slot (predates the migration) → legacy shadow fills in.
+    mixed = {"synthesis_facet": {"skill_report": {"role": "gating"}},   # no modality_scope
+             "claim_record_shadow": {"axis": "safety",
+                                     "modality_scope": {"small_molecule": "conditional", "biologics": "unfavorable"}}}
+    got = _modality_scope_by_axis({"safety": mixed})
+    assert got == {"safety": {"small_molecule": "conditional", "biologics": "unfavorable"}}

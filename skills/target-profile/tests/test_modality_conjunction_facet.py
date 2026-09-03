@@ -58,3 +58,28 @@ def test_verdict_inert_shape():
     assert set(f) >= {"ADC", "TCE", "inputs", "safety_signal", "_disclaimer"}
     assert "recommendation" not in f and "verdict" not in f
     assert "VERDICT-INERT" in f["_disclaimer"]
+
+
+def _sr_spine(A, C, hom, sel, surf, safe="tolerant"):
+    """Presence A/C/homogeneity carried on the skill_report[] SPINE (chips + claim_scalars), not the raw
+    claim_vector — the contract §100-128 read path."""
+    return {
+        "expression": {"synthesis_facet": {"skill_report": {
+            "claim_chips": [{"key": "A", "signal": A}, {"key": "C", "signal": C}],
+            "claim_scalars": {"homogeneity": hom}}}},
+        "selectivity": {"verdict": (sel, "r")},
+        "surface_modality": {"verdict": (surf, "r")},
+        "safety": {"verdict": (safe, "r")},
+    }
+
+
+def test_presence_inputs_read_from_spine():
+    # No raw claim_vector anywhere — the facet must reconstruct A/C/homogeneity from the skill_report spine.
+    f = _modality_conjunction_facet(_sr_spine("moderate", "strong", "homogeneous",
+                                              "strong_tumor_selective", "both_viable"))
+    assert f is not None
+    assert f["ADC"]["call"] == "PASS" and f["TCE"]["call"] == "PASS"
+    # heterogeneous on the spine still drives the TCE homogeneity killer
+    g = _modality_conjunction_facet(_sr_spine("weak", "weak", "heterogeneous",
+                                              "selective_but_broadly_normal", "neither_viable"))
+    assert g["TCE"]["call"] == "FAIL" and g["TCE"]["weakest_gate"] == "homogeneity"

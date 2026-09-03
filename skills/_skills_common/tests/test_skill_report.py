@@ -75,3 +75,20 @@ def test_bad_role_rejected():
     import pytest
     with pytest.raises(ValueError):
         build_skill_report(role="bogus", verdict=None)
+
+
+def test_claim_scalars_carry_non_atom_coordinates():
+    # non-atom entries (e.g. presence homogeneity) are dropped from chips but preserved in claim_scalars,
+    # so the spine is a lossless carrier of the claim vector; private `_`-keys are excluded.
+    r = build_skill_report(role=ROLE_DESCRIPTIVE, verdict=None, claim_vector=_CV)
+    assert [c["key"] for c in r["claim_chips"]] == ["A"]          # atoms → chips
+    assert r["claim_scalars"] == {"homogeneity": "n/a"}          # scalar preserved, _disclaimer excluded
+
+
+def test_modality_scope_is_first_class_on_the_spine():
+    # the FOR-WHAT projection rides the spine as a top-level slot (the modality_fit rollup reads it here,
+    # not a claim_record_shadow reach-in); None for a modality-blind skill that passes nothing.
+    ms = {"small_molecule": "favorable", "biologics": "na", "_refinements": {"degrader": "conditional"}}
+    r = build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB, modality_scope=ms)
+    assert r["modality_scope"] == ms
+    assert build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB)["modality_scope"] is None

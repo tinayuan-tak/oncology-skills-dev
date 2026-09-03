@@ -547,6 +547,9 @@ def _headline(cards, fired, verdict_pair):
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
+            # FOR-WHAT projection onto the spine (the SAME dict the claim_record_shadow carries), so
+            # target_report.modality_fit rolls up the per-channel WT-loss safety FROM the report.
+            modality_scope=_safety_modality_scope(fired or []),
         )
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"

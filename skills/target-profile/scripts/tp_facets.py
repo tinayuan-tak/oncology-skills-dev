@@ -639,6 +639,26 @@ def _skill_reports_by_short(sub_results: dict) -> dict:
     return out
 
 
+def _modality_scope_by_axis(sub_results: dict) -> dict:
+    """{short: modality_scope} — the per-axis FOR-WHAT projection, read FROM THE skill_report[] SPINE
+    (`synthesis_facet.skill_report.modality_scope`) rather than the legacy `claim_record_shadow`
+    reach-in. The spine value is emitted by the SAME per-skill helper the shadow uses, so this is
+    byte-identical to `_claim_record_shadow_by_axis(...)[short]['modality_scope']`; the shadow is a
+    FALLBACK only for an axis whose report is absent (e.g. the facet-less subtype tier) or predates the
+    modality_scope slot. Spine-first is the migration (contract §100-128): the modality_fit rollup now
+    reads the wired spine, not a raw sub_results reach-in."""
+    reports = _skill_reports_by_short(sub_results)
+    shadow = _claim_record_shadow_by_axis(sub_results)
+    out: dict = {}
+    for short in {*reports, *shadow}:
+        ms = (reports.get(short) or {}).get("modality_scope")
+        if not isinstance(ms, dict):
+            ms = (shadow.get(short) or {}).get("modality_scope")   # spine absent → legacy fallback
+        if isinstance(ms, dict) and ms:
+            out[short] = ms
+    return out
+
+
 # canonical polarity → ordinal rank (mirrors _skills_common.ordinal_view; off-scale states unranked)
 _SKILL_REPORT_POLARITY_RANK = {"killer": -3, "opposing": -1, "neutral": 0, "supportive": 2}
 # recommendation tokens that read as a POSITIVE (go) call, across the gate + LLM vocabularies
@@ -759,8 +779,12 @@ def _modality_fit_by_channel(sub_results: dict, axis_info: Optional[dict] = None
     'na' when no axis constrains it; limiting_axis names the axis that set the worst.
 
     biology-axis mask: when `axis_info` is a curated, single-axis target, a channel outside the axis's
-    `plausible_modalities` is overridden to 'not_applicable_by_axis' (a category error, not a call)."""
-    shadow = _claim_record_shadow_by_axis(sub_results)
+    `plausible_modalities` is overridden to 'not_applicable_by_axis' (a category error, not a call).
+
+    Reads each axis's modality_scope from the skill_report[] SPINE (`_modality_scope_by_axis`,
+    contract §100-128) — byte-identical to the former `claim_record_shadow` reach-in (same source), now
+    sourced from the wired spine so the rollup provenance links back to the per-skill report."""
+    scope_by_axis = _modality_scope_by_axis(sub_results)
     ax = axis_info or {}
     plausible = set(ax.get("plausible_modalities") or [])
     mask_active = bool(ax.get("curated")) and not ax.get("multi_axis") and bool(plausible)
@@ -773,10 +797,7 @@ def _modality_fit_by_channel(sub_results: dict, axis_info: Optional[dict] = None
                             "masked_by_axis": ax.get("biology_axis")}
             continue
         by_axis: dict = {}
-        for short, rec in shadow.items():
-            ms = (rec or {}).get("modality_scope")
-            if not isinstance(ms, dict):
-                continue
+        for short, ms in scope_by_axis.items():
             v = _channel_value(ms, channel)
             if v is not None:
                 by_axis[short] = v
@@ -825,14 +846,38 @@ def _sub_verdict(sub_results, key):
     return v[0] if isinstance(v, (list, tuple)) and v else (v if isinstance(v, str) else None)
 
 
+def _presence_signal_from_spine(sub_results: dict, key: str) -> Optional[str]:
+    """The presence claim-`key` (A/C) signal read from the tumor-presence skill_report[] SPINE
+    (`skill_report.claim_chips[key].signal`), or None if the report/chip is absent. The chip signal is
+    the SAME value the presence claim_vector atom carries (chips are a projection of it), so this is a
+    byte-identical spine read of what `_modality_conjunction_facet` used to reach into the raw
+    claim_vector for (contract §100-128)."""
+    sr = ((sub_results or {}).get("expression", {}).get("synthesis_facet") or {}).get("skill_report")
+    for chip in ((sr or {}).get("claim_chips") or []):
+        if isinstance(chip, dict) and chip.get("key") == key:
+            return chip.get("signal")
+    return None
+
+
 def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
     facet = (sub_results or {}).get("expression", {}).get("synthesis_facet") or {}
-    cv = facet.get("claim_vector")
-    if not isinstance(cv, dict):
-        return None
-    A = _modality_gate((cv.get("A") or {}).get("signal"))
-    C = _modality_gate((cv.get("C") or {}).get("signal"))
-    hom = cv.get("homogeneity")
+    cv = facet.get("claim_vector") if isinstance(facet.get("claim_vector"), dict) else {}
+    # Read the presence inputs FROM THE SPINE (skill_report claim_chips for A/C signals, claim_scalars for
+    # the homogeneity coordinate), falling back to the raw claim_vector for a report that predates those
+    # slots. Byte-identical (the spine is a lossless projection of the claim_vector). The three GATING
+    # verdicts below stay on `_sub_verdict` — they read the raw resolved `verdict_pair`, which is NOT the
+    # (sometimes reconciled) skill_report.call, so re-pointing them would change the mapped window/surface.
+    sr = facet.get("skill_report") or {}
+    if not cv and not sr.get("claim_chips"):
+        return None                                   # no presence claim vector on EITHER path → graceful
+    scalars = sr.get("claim_scalars") if isinstance(sr.get("claim_scalars"), dict) else {}
+    _a_sig = _presence_signal_from_spine(sub_results, "A")
+    _c_sig = _presence_signal_from_spine(sub_results, "C")
+    a_raw = _a_sig if _a_sig is not None else (cv.get("A") or {}).get("signal")
+    c_raw = _c_sig if _c_sig is not None else (cv.get("C") or {}).get("signal")
+    A = _modality_gate(a_raw)
+    C = _modality_gate(c_raw)
+    hom = scalars.get("homogeneity", cv.get("homogeneity"))
     hom_gate = {"homogeneous": "pass", "moderately_homogeneous": "conditional",
                 "heterogeneous": "fail"}.get(hom, "unknown")
     sel_v = _sub_verdict(sub_results, "selectivity")
@@ -855,7 +900,7 @@ def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
                   ("surface", tce_s), ("window", tce_w)])
     return {
         "ADC": adc, "TCE": tce,
-        "inputs": {"presence_A": (cv.get("A") or {}).get("signal"), "presence_C": (cv.get("C") or {}).get("signal"),
+        "inputs": {"presence_A": a_raw, "presence_C": c_raw,
                    "homogeneity": hom, "selectivity_verdict": sel_v, "surface_fit_class": surf_v},
         "safety_signal": safe_v,
         "_disclaimer": (

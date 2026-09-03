@@ -63,6 +63,24 @@ def _chips_from_claim_vector(claim_vector: Optional[dict], axis_labels: Optional
     return chips
 
 
+def _scalars_from_claim_vector(claim_vector: Optional[dict]) -> dict:
+    """The claim vector's NON-ATOM entries (scalars) — the part `_chips_from_claim_vector` drops. A claim
+    vector carries atom claims (A/B/C/D → chips) AND plain scalar coordinates (e.g. tumor-presence's
+    `homogeneity`); a target_report rollup that reads the spine (e.g. `_modality_conjunction_facet`'s
+    homogeneity gate) needs those scalars too, so the skill_report is a LOSSLESS carrier of the claim
+    vector. Skips atoms (they are chips) and private `_`-prefixed keys (disclaimers). Best-effort."""
+    if not isinstance(claim_vector, dict):
+        return {}
+    out: dict = {}
+    for key, val in claim_vector.items():
+        if key.startswith("_"):
+            continue                                   # private (e.g. `_disclaimer`) — not a signal
+        if isinstance(val, dict) and "signal" in val:
+            continue                                   # an atom claim → already a chip
+        out[key] = val
+    return out
+
+
 def canonical_polarity(role: str, headline_block: Optional[dict],
                        explicit: Optional[str] = None) -> str:
     """The one normalized direction for the call. descriptive/inert → `not_scored`; otherwise map the
@@ -87,6 +105,7 @@ def build_skill_report(*, role: str,
                        per_phase_metrics: Optional[list] = None,
                        figures: Optional[list] = None,
                        axis_labels: Optional[dict] = None,
+                       modality_scope: Optional[dict] = None,
                        canonical_polarity_override: Optional[str] = None) -> dict:
     """Assemble the canonical `skill_report`. Pure projection over already-computed objects; never moves
     a verdict. `verdict` is None for gateless skills. See docs/UNIFIED_OUTPUT_CONTRACT.md."""
@@ -103,6 +122,15 @@ def build_skill_report(*, role: str,
         "confidence": hb.get("confidence"),
         "top_tension": hb.get("top_tension"),
         "claim_chips": _chips_from_claim_vector(claim_vector, axis_labels),
+        # the claim vector's NON-ATOM scalars (e.g. presence `homogeneity`), so the spine is a LOSSLESS
+        # carrier of the claim vector for rollups that read a scalar coordinate off it. {} when none.
+        "claim_scalars": _scalars_from_claim_vector(claim_vector),
+        # FOR-WHAT projection (the claim_record's modality_scope): per-channel favorability
+        # {small_molecule, biologics, _refinements{...}} for the skills that speak to modality
+        # (tractability / surface / safety / dependency-degrader). None when the skill is modality-blind.
+        # First-class on the spine so `target_report.modality_fit` rolls it up FROM the report, not a
+        # legacy claim_record_shadow reach-in. VERDICT-INERT (a projection, never the recommendation).
+        "modality_scope": modality_scope,
         "question_table": list(question_table) if question_table else [],
         "per_phase_metrics": list(per_phase_metrics) if per_phase_metrics else [],
         # figures the skill already emits (hero + card plots), made FIRST-CLASS + selectable like text so
