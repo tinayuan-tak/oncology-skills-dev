@@ -59,13 +59,18 @@ def expected_artifacts(args) -> frozenset:
     if (getattr(args, "ground", None) or getattr(args, "full_package", False)
             or getattr(args, "substrate_chain_on", False)):
         kinds.add("evidence_package")
+    # --reports emits a report_render bundle (report_<preset>.* under <out>/reports/). It is written
+    # directly (not via write_artifact — its filenames are per-preset, not one-per-kind), so it is a
+    # SINGLE 'reports' kind here + BEST_EFFORT (render-fallible, must not abort the run).
+    if getattr(args, "reports", None):
+        kinds.add("reports")
     return frozenset(kinds)
 
 
 # Artifacts whose emitter is BEST-EFFORT (fail-open): the write-set guard requires everything ELSE, but
 # tolerates these being absent (e.g. the HTML render is wrapped try/except — a render failure must not
 # abort a run that already wrote its md/nomination/provenance).
-BEST_EFFORT_ARTIFACTS = frozenset({"html"})
+BEST_EFFORT_ARTIFACTS = frozenset({"html", "reports"})
 
 
 def write_artifact(out: Path, kind: str, text: str, written: Optional[set] = None) -> Path:

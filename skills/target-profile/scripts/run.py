@@ -209,6 +209,14 @@ def main() -> int:
                          "package.json + a MANIFEST (.json/.md) index tying every artifact together. "
                          "Additive + verdict-inert; for team review where all outputs must persist in "
                          "one portable tree. Pairs well with --self-contained.")
+    ap.add_argument("--reports", default=None, metavar="PRESETS",
+                    help="Also emit report_render bundles from the nomination: a comma-separated list "
+                         "of presets (exec-brief,reviewer-dossier,deck,full), written to "
+                         "<out>/reports/report_<preset>.<ext>. Additive + verdict-inert + best-effort "
+                         "(a render failure never aborts the run). e.g. --reports exec-brief,deck")
+    ap.add_argument("--report-backends", default=None, metavar="BACKENDS",
+                    help="Comma-separated backends for --reports (default: markdown,html,json; add "
+                         "'pptx' for a pandoc deck, 'text' for plain text).")
     ap.add_argument("--self-contained", action="store_true",
                     help="Render target_profile.html as a fully OFFLINE, portable artifact: per-card "
                          "figures embed as inline base64 SVG data-URIs (no interactive Plotly, no CDN "
@@ -1101,6 +1109,20 @@ def main() -> int:
         "grounded_axes": sorted(grounded_by_axis),
     }
     write_artifact(args.out, "provenance", yaml.safe_dump(provenance, sort_keys=False), _written)
+
+    # --reports: OPTIONAL report_render bundle(s) from the assembled nomination (spine). Additive +
+    # verdict-inert + BEST-EFFORT — wrapped so a render failure can never abort a run that already wrote
+    # its md/nomination/provenance (the 'reports' kind is BEST_EFFORT in tp_emit). Recorded into
+    # _written so assert_write_set (below) accounts for it.
+    if getattr(args, "reports", None):
+        try:
+            import tp_reports
+            presets = [p.strip() for p in args.reports.split(",") if p.strip()]
+            backends = ([b.strip() for b in args.report_backends.split(",") if b.strip()]
+                        if args.report_backends else None)
+            _written |= tp_reports.write_reports(args.out, nomination, presets, backends)
+        except Exception:
+            pass  # best-effort: never let report rendering abort the run
     # Guard: the artifacts WRITTEN THIS RUN match this mode's declared MODE_WRITE_SET (html is
     # best-effort; evidence_package was recorded above when --ground/--full-package).
     assert_write_set(args, _written)
