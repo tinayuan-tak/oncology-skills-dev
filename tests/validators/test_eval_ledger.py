@@ -16,7 +16,8 @@ sys.path.insert(0, str(REPO / "validators"))
 import build_eval_ledger as bel  # noqa: E402
 
 
-def _mk_nomination(root: Path, target, indication, rec, sub, fragility=None, release_pin=None):
+def _mk_nomination(root: Path, target, indication, rec, sub, fragility=None, release_pin=None,
+                   fragility_nested=False):
     d = root / "docs" / "examples" / f"tp-{target}-{indication}"
     d.mkdir(parents=True, exist_ok=True)
     nm = {
@@ -27,7 +28,12 @@ def _mk_nomination(root: Path, target, indication, rec, sub, fragility=None, rel
         "llm_synthesis": {"overall_recommendation": {"value": rec}},
     }
     if fragility:
-        nm["fragility"] = fragility
+        # fragility_nested mimics a post-Wave-3 nomination that dropped the top-level `fragility` key and
+        # carries it only under target_report.robustness.fragility.
+        if fragility_nested:
+            nm["target_report"] = {"robustness": {"fragility": fragility}}
+        else:
+            nm["fragility"] = fragility
     (d / "nomination.json").write_text(json.dumps(nm))
 
 
@@ -138,6 +144,20 @@ def test_build_rows_normalizes_both_sources(tmp_path):
     ep = next(r for r in rows if r["source"] == "evidence_package")
     assert ep["input_manifest_ids"] == ["m1", "m2"]          # federation key; excluded card excluded
     assert ep["recommendation"] is None                      # evidence_package has no composed rec
+
+
+def test_build_rows_reads_fragility_from_target_report_when_top_level_absent(tmp_path):
+    # Forward-compat: a post-Wave-3 nomination drops the top-level `fragility` key and carries it only under
+    # target_report.robustness.fragility. The ledger must still populate the fragility row (same object).
+    skills, products = tmp_path / "skills", tmp_path / "products"
+    _mk_nomination(skills, "KRAS", "COADREAD", "nominate",
+                   {"dependency": {"verdict": "lineage_selective", "driving_rule_id": "r1",
+                                   "fired_rule_ids": ["r1"], "cards_used": [], "cards_missing": []}},
+                   fragility={"target_index": 0.57, "recommendation_fragility_index": 0.05, "contested": False},
+                   fragility_nested=True)
+    rows = bel.build_rows({"skills": skills, "products": products})
+    tp = next(r for r in rows if r["source"] == "target_profile")
+    assert tp["fragility"] == {"target_index": 0.57, "recommendation_fragility_index": 0.05, "contested": False}
 
 
 def test_indexes_rule_cohort_and_trend(tmp_path):

@@ -105,7 +105,12 @@ def row_from_nomination(path: Path, nm: dict) -> dict:
             "cards_used": d.get("cards_used") or [],       # present on runs >= skills #390
             "cards_missing": d.get("cards_missing") or [],
         })
-    frag = nm.get("fragility") or {}
+    # fragility is being relocated from the top-level nomination key onto target_report.robustness.fragility
+    # (skills Wave-3 legacy-facet retirement). Read the top-level key first (current runs), else fall back to
+    # the target_report nest (post-retirement runs) — the SAME object, so the ledger row is unchanged either way.
+    frag = (nm.get("fragility")
+            or ((nm.get("target_report") or {}).get("robustness") or {}).get("fragility")
+            or {})
     return {
         "source": "target_profile",
         "artifact_path": _rel(path),
