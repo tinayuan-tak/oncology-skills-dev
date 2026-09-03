@@ -24,7 +24,12 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field
+from _skills_common import get_card_field, card_summary
+from _skills_common.translational_readiness_claims import (
+    translational_readiness_claim_vector, translational_readiness_key_signals)
+from _skills_common.translational_readiness_question_table import translational_readiness_question_table
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 
 
 SKILL_NAME = "translational-readiness"
@@ -82,13 +87,40 @@ PARTIAL_STATUS_NOTE = (
 )
 
 
+# Canonical headline spec (DESCRIPTIVE MODE — verdict_token=None). The four translational legs, in
+# display order; MODEL (can I validate at all?) is the coverage-critical axis that floors confidence.
+_TRANSLATIONAL_HEADLINE_SPEC = HeadlineSpec(
+    gate="translational_readiness",
+    axis_labels={"MODEL": "HCMI models", "GENOTYPE": "genotype-matched",
+                 "ORGANOID": "organoid (ex-vivo)", "PDX": "PDX (in-vivo)"},
+    axis_keys=("MODEL", "GENOTYPE", "ORGANOID", "PDX"),
+    critical_axes=("MODEL",),
+)
+
+
+def _build_headline_block(headline: dict) -> dict:
+    """Canonical Headline block in DESCRIPTIVE MODE — translational-readiness is gateless (verdict_fn=None),
+    so verdict_token=None and the deterministic key_signals.headline dominant-signal summary is the
+    descriptive_phrase (call stays None, polarity defaults neutral). Never moves a spine (there is none)."""
+    ks = headline.get("key_signals") or {}
+    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
+                          spec=_TRANSLATIONAL_HEADLINE_SPEC, verdict_token=None,
+                          descriptive_phrase=ks.get("headline"))
+
+
 def _headline(cards, fired, verdict_pair):
     """Descriptive translational-readiness context — model-availability fields from the composed card.
     No verdict spine (verdict_fn=None): translational readiness informs confidence/context, not a
     nomination. A composed consumer reads these as indication-grain translational context."""
-    organoid_lineage_n_screened = get_card_field(cards, "organoid-crispr-dependency",
-                                                  "organoid_lineage_n_screened")
-    return {
+    # organoid-crispr-dependency is HOME'd under functional-requirement (composed there, not double-read
+    # under this skill's composer entry — tp_fanout SUB_SKILL_CARDS comment). So read it GRACEFULLY
+    # (card_summary → {} when absent) rather than the strict get_card_field (which RAISES on a missing
+    # card): in the composed fan-out this card is legitimately absent here, so the ORGANOID leg is an
+    # honest `unmeasured`; standalone (its CARDS list composes it) the leg is populated. The other three
+    # legs' cards ARE in this skill's composer entry, so they stay on the strict accessor.
+    _org = card_summary(cards, "organoid-crispr-dependency")
+    organoid_lineage_n_screened = _org.get("organoid_lineage_n_screened")
+    hl = {
         "model_availability_class":  get_card_field(cards, "target-model-availability",
                                           "model_availability_class"),
         "n_patient_derived_models":  get_card_field(cards, "target-model-availability",
@@ -112,16 +144,11 @@ def _headline(cards, fired, verdict_pair):
         # the dependency axis, read here as translational validation-readiness. The indication-matched
         # organoid_lineage_frac_dependent is the strongest translational read; the pan-organoid
         # frac_dependent + class are the fallback when the indication has no mapped organoid lineage.
-        "organoid_dependency_class":       get_card_field(cards, "organoid-crispr-dependency",
-                                              "organoid_dependency_class"),
-        "organoid_frac_dependent":         get_card_field(cards, "organoid-crispr-dependency",
-                                              "frac_dependent"),
-        "organoid_lineage":                get_card_field(cards, "organoid-crispr-dependency",
-                                              "organoid_lineage"),
-        "organoid_lineage_frac_dependent": get_card_field(cards, "organoid-crispr-dependency",
-                                              "organoid_lineage_frac_dependent"),
-        "organoid_lineage_class":          get_card_field(cards, "organoid-crispr-dependency",
-                                              "organoid_lineage_class"),
+        "organoid_dependency_class":       _org.get("organoid_dependency_class"),
+        "organoid_frac_dependent":         _org.get("frac_dependent"),
+        "organoid_lineage":                _org.get("organoid_lineage"),
+        "organoid_lineage_frac_dependent": _org.get("organoid_lineage_frac_dependent"),
+        "organoid_lineage_class":          _org.get("organoid_lineage_class"),
         # thin-cohort reliability caveat on the indication-matched per-lineage read (see the module note):
         # organoid_lineage_class computed over a lineage cohort below the organoid card's own
         # min_organoid_models=20 floor (e.g. Prostate n=9, Breast n=16) is a low-confidence read.
@@ -129,6 +156,68 @@ def _headline(cards, fired, verdict_pair):
         "organoid_lineage_small_cohort":   (organoid_lineage_n_screened is not None
                                             and organoid_lineage_n_screened < _ORGANOID_LINEAGE_MIN_MODELS),
     }
+    # ── verdict-INERT signals-first projections (mirrors the other descriptive skills) ─────────────
+    # claim_vector (MODEL/GENOTYPE/ORGANOID/PDX) + deterministic key_signals over the fields just built.
+    hl["claim_vector"] = translational_readiness_claim_vector(hl, cards)
+    hl["key_signals"] = translational_readiness_key_signals(hl, cards)
+    # The per-question (data·signal·confidence) LEADING table + the canonical DESCRIPTIVE headline block
+    # + the UNIFIED skill_report. All best-effort + verdict-INERT — a formatting/read fault must NEVER
+    # discard the translational-context fields already built in `hl` (tumor-presence degrade discipline).
+    try:
+        hl["question_table"] = translational_readiness_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the context spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — translational-readiness is a GATELESS
+    # DESCRIPTIVE skill (verdict_fn=None → no call), so role=descriptive + verdict=None → call=None,
+    # polarity=not_scored; the reader-useful content is the honest_phrase + claim_chips.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=None,
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
+    return hl
+
+
+# ── OPTIONAL cross-modal synthesis facet (lifts the claim_vector to the composed target-profile) ────
+# translational-readiness is DESCRIPTIVE (verdict_fn=None); this carries the verdict-INERT translational
+# claim_vector + headline_block + question_table + skill_report to the composed target-profile synthesis
+# (which reads getattr(module, "_synthesis_facet")). Never moves a verdict (there is none).
+_SYNTHESIS_FACET_KEYS = (
+    "model_availability_class", "n_patient_derived_models", "primary_site_breakdown",
+    "genotype_matched_class", "n_models_with_alteration",
+    "pdx_drug_response_class", "pdx_responder_fraction", "pdx_most_active_treatment",
+    "organoid_dependency_class", "organoid_frac_dependent", "organoid_lineage",
+    "organoid_lineage_frac_dependent", "organoid_lineage_class", "organoid_lineage_n_screened",
+    "organoid_lineage_small_cohort",
+    "claim_vector", "key_signals", "question_table", "headline_block", "skill_report",
+)
+
+
+def _synthesis_facet(cards, fired, verdict_pair=None):
+    """Compact, VERDICT-INERT translational facet for the composed target-profile synthesis. Reuses
+    _headline (single source). Gateless — no verdict."""
+    h = _headline(cards, fired, verdict_pair)
+    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
+    facet["_facet_note"] = ("Deterministic translational-readiness facet; claim_vector is the four public "
+                            "readiness legs (MODEL/GENOTYPE/ORGANOID/PDX). Gateless — no verdict.")
+    return facet
 
 
 if __name__ == "__main__":
