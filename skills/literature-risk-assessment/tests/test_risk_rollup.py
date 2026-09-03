@@ -78,8 +78,9 @@ def test_new_target_biology_axes_fold_into_biological_dim():
 
 
 def test_differentiation_folds_into_translational_dim():
-    # follow-up: differentiation (patient-selection) now escalates the TRANSLATIONAL dim, completing the
-    # 6-dim map. translational is engine-blind → its bin is the coarse literature bin from the findings.
+    # differentiation (patient-selection) maps to the TRANSLATIONAL dim (completing the 6-dim map). Since
+    # the 2026-09-03 grounding demotion, translational is engine-blind and STAYS ENGINE-BLIND — a grounded
+    # finding attaches as an annotation but never moves the bin.
     assert rr.AXIS_TO_DIM["differentiation"] == "translational"
     pkg = _pkg("tolerant_reduced_safety_risk", {})
     dims_no_sub = rr.project(pkg, "small_molecule")
@@ -90,8 +91,8 @@ def test_differentiation_folds_into_translational_dim():
         "contradicts_deterministic": False}}}
     tr = rr.project(pkg, "small_molecule", substrate)["translational"]
     assert tr["grounded_findings"][0]["finding"] == "KRAS co-mutation predicts resistance"
-    assert tr["bin"] in ("MED", "HIGH")                             # a finding raises the coarse lit bin
-    assert tr["bin_basis"] == "literature-only (uncalibrated)"
+    assert tr["bin"] == "ENGINE-BLIND"        # grounding ANNOTATES; it NEVER moves the bin (demoted 2026-09-03)
+    assert "bin_basis" not in tr               # no manufactured coarse literature bin
 
 
 def test_engine_blind_dims_present():
@@ -106,21 +107,27 @@ def test_tolerates_both_substrate_field_names():
     assert rr.project(pkg, "adc", sub)["safety"]["grounded_findings"]
 
 
-def test_pseudo_card_dims_get_coarse_literature_bin():
+def test_pseudo_card_dims_stay_engine_blind_grounding_annotates_only():
+    """Grounding demotion (locked decision #1, 2026-09-03): grounding ANNOTATES confidence only — it
+    NEVER moves a risk_6dim bin. An engine-blind pseudo-card dim (clinical/commercial/translational) with
+    no deterministic engine leg STAYS ENGINE-BLIND even with a severity=high finding; the finding + the
+    discordance flag attach as an annotation, NOT a coarse manufactured literature bin."""
     pkg = _pkg("tolerant_reduced_safety_risk", {})
     # no substrate -> engine-blind
     assert rr.project(pkg, "adc")["clinical"]["bin"] == "ENGINE-BLIND"
-    # a severity=high finding escalates the clinical pseudo-card to HIGH (literature-only). This keys on
-    # the controlled `severity` enum, NOT a substring-grep of `kind` — so prose that doesn't contain an
-    # escalator token (e.g. "lack of clinical validation") no longer silently under-bins.
+    # a severity=high finding NO LONGER escalates the pseudo-card bin; it attaches as an annotation.
     sub = {"clinical": {"grounded": {"findings": [
-        {"finding": "Ph3 failed", "kind": "failed_trial", "severity": "high", "cited_pmids": ["1"]}]}}}
+        {"finding": "Ph3 failed", "kind": "failed_trial", "severity": "high", "cited_pmids": ["1"]}],
+        "contradicts_deterministic": True}}}
     out = rr.project(pkg, "adc", sub)["clinical"]
-    assert out["bin"] == "HIGH" and out["bin_basis"] == "literature-only (uncalibrated)"
-    # a moderate-severity finding -> MED; no findings -> LOW
+    assert out["bin"] == "ENGINE-BLIND"                 # NOT moved to HIGH
+    assert "bin_basis" not in out                        # no manufactured literature bin
+    assert out["grounded_findings"][0]["finding"] == "Ph3 failed"   # finding attaches as annotation
+    assert out["engine_literature_discordance"] is True             # discordance flag still surfaces
+    # a moderate finding on another pseudo dim likewise leaves it ENGINE-BLIND
     sub2 = {"commercial": {"grounded": {"findings": [
         {"finding": "lack of clinical validation", "kind": "no_validation", "severity": "moderate", "cited_pmids": []}]}}}
-    assert rr.project(pkg, "adc", sub2)["commercial"]["bin"] == "MED"
+    assert rr.project(pkg, "adc", sub2)["commercial"]["bin"] == "ENGINE-BLIND"
 
 
 def test_pan_essential_is_MED_biological_not_high():
