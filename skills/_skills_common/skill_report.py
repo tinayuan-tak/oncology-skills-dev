@@ -106,6 +106,7 @@ def build_skill_report(*, role: str,
                        figures: Optional[list] = None,
                        axis_labels: Optional[dict] = None,
                        modality_scope: Optional[dict] = None,
+                       claim_chips_by_subtype: Optional[list] = None,
                        canonical_polarity_override: Optional[str] = None) -> dict:
     """Assemble the canonical `skill_report`. Pure projection over already-computed objects; never moves
     a verdict. `verdict` is None for gateless skills. See docs/UNIFIED_OUTPUT_CONTRACT.md."""
@@ -131,6 +132,12 @@ def build_skill_report(*, role: str,
         # First-class on the spine so `target_report.modality_fit` rolls it up FROM the report, not a
         # legacy claim_record_shadow reach-in. VERDICT-INERT (a projection, never the recommendation).
         "modality_scope": modality_scope,
+        # per-molecular-subtype sub-vector — the skill's per_subgroup panorama rows (stratum ×
+        # evidence_state × metric) for its subtype-grain card. `target_report.subtype_convergence` reads
+        # this off the spine to detect strata multiple axes agree on (contract §197-223: subtype is a
+        # CONDITIONING axis whose rollup is a cross-axis convergence JOIN). None/[] when the skill emits
+        # no subtype-grain panorama (the whole-cohort spine). VERDICT-INERT.
+        "claim_chips_by_subtype": list(claim_chips_by_subtype) if claim_chips_by_subtype else None,
         "question_table": list(question_table) if question_table else [],
         "per_phase_metrics": list(per_phase_metrics) if per_phase_metrics else [],
         # figures the skill already emits (hero + card plots), made FIRST-CLASS + selectable like text so

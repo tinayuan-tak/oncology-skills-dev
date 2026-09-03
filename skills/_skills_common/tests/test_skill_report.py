@@ -85,6 +85,14 @@ def test_claim_scalars_carry_non_atom_coordinates():
     assert r["claim_scalars"] == {"homogeneity": "n/a"}          # scalar preserved, _disclaimer excluded
 
 
+def test_claim_chips_by_subtype_rides_the_spine():
+    rows = [{"stratum": "MSI", "evidence_state": "measured", "dependency_class": "dependent"}]
+    r = build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB, claim_chips_by_subtype=rows)
+    assert r["claim_chips_by_subtype"] == rows
+    # None (not []) when the skill emits no subtype panorama — the whole-cohort spine
+    assert build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB)["claim_chips_by_subtype"] is None
+
+
 def test_modality_scope_is_first_class_on_the_spine():
     # the FOR-WHAT projection rides the spine as a top-level slot (the modality_fit rollup reads it here,
     # not a claim_record_shadow reach-in); None for a modality-blind skill that passes nothing.

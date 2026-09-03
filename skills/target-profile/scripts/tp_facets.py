@@ -937,6 +937,26 @@ def _first_card_per_subgroup(sub_result: dict, card_id: str) -> list:
     return []
 
 
+def _subtype_rows(sub_results: dict, short: str, card_id: str) -> list:
+    """The per-molecular-subtype panorama rows for one axis, read spine-first (contract §197-223): a
+    sub-skill that carries its subtype sub-vector on the skill_report[] SPINE
+    (`synthesis_facet.skill_report.claim_chips_by_subtype`) is preferred; otherwise fall back to the
+    card `per_subgroup_metrics` under the per-gate short, then the composed subtype tier (SUBTYPE_SHORT,
+    where the target-profile fan-out centralizes the subtype cards — that tier carries no skill_report).
+    Byte-identical: the spine sub-vector is the SAME per_subgroup rows the card emits."""
+    r = sub_results.get(short) or {}
+    spine = ((r.get("synthesis_facet") or {}).get("skill_report") or {}).get("claim_chips_by_subtype")
+    if spine:
+        return list(spine)
+    for _src in (short, SUBTYPE_SHORT):
+        rr = sub_results.get(_src)
+        if rr:
+            rows = _first_card_per_subgroup(rr, card_id)
+            if rows:
+                return rows
+    return []
+
+
 def _subtype_stratum_key(rec: dict) -> str | None:
     """The molecular-subtype identity of a per_subgroup_metrics record. subgroup_common panorama rows
     (dependency / mutation-frequency) use `stratum`; the tumor-rna-distribution-by-subtype reader
@@ -1004,23 +1024,17 @@ def _subtype_facet(sub_results: dict, indication: str = None,
     per_subtype: dict = {}
     axes_seen: set = set()
     any_rows = False
+    chips_by_subtype: dict = {}          # {axis: rows} — the per-axis subtype spine (exposed for the renderer)
     for short, card_id, axis in _SUBTYPE_INPUTS:
-        # Production (_run_sub_skills) resolves the dependency + mutation-frequency subtype
-        # cards under the single SUBTYPE_SHORT ('subtype_fit') result, NOT under their per-gate
-        # short (the expression subtype card lives under 'expression' / tumor-presence). Search
-        # the per-gate short first (matches the synthetic test fixtures), then fall back to
-        # subtype_fit (matches production). Without the fallback the dependency + genomic axes
-        # were always empty, so >=2-axis convergence was structurally unreachable.
-        rows: list = []
-        for _src in (short, SUBTYPE_SHORT):
-            r = sub_results.get(_src)
-            if r:
-                rows = _first_card_per_subgroup(r, card_id)
-                if rows:
-                    break
+        # Read the axis's subtype panorama SPINE-FIRST (`skill_report.claim_chips_by_subtype`), falling
+        # back to the card `per_subgroup_metrics` under the per-gate short, then SUBTYPE_SHORT where the
+        # target-profile fan-out centralizes the subtype cards (that composed tier carries no
+        # skill_report). See `_subtype_rows`. Byte-identical to the former direct card reach-in.
+        rows = _subtype_rows(sub_results, short, card_id)
         if rows:
             any_rows = True
             axes_seen.add(axis)
+            chips_by_subtype[axis] = rows
         for rec in rows:
             subtype = _subtype_stratum_key(rec)
             if not subtype:
@@ -1092,6 +1106,10 @@ def _subtype_facet(sub_results: dict, indication: str = None,
         "n_subtypes_evaluated": len(per_subtype),
         "axes_available": sorted(axes_seen),
         "per_subtype": per_subtype,
+        # the per-axis subtype spine that fed the convergence JOIN ({axis: per_subgroup rows}), exposed so
+        # the renderer + roll-up provenance read the SAME rows off target_report.subtype_convergence
+        # rather than re-reaching into cards (contract §197-223). Empty when no subtype panorama reached.
+        "claim_chips_by_subtype": chips_by_subtype,
         "_disclaimer": ("Subtype is a FACET, not a gate: it converges the per-molecular-subtype "
                         "panoramas (expression / dependency / mutation-frequency) BY SUBTYPE to "
                         "surface cross-axis patient-selection strata. It informs confidence + "

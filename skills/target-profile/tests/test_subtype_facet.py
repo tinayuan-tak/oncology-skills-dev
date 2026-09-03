@@ -84,6 +84,36 @@ def test_facet_is_verdict_inert_shape():
     assert f["verdict"] == "subtype_axis_unavailable"   # empty sub_results → nothing reached
 
 
+def _sr_spine(**rows_by_short):
+    """sub_results carrying the subtype rows on the skill_report[] SPINE (claim_chips_by_subtype), no cards."""
+    return {short: {"synthesis_facet": {"skill_report": {"claim_chips_by_subtype": rows}}}
+            for short, rows in rows_by_short.items()}
+
+
+def test_convergence_read_from_skill_report_spine():
+    # SAME MSI convergence as the card test, but the rows ride the skill_report spine (no cards at all).
+    sr = _sr_spine(
+        dependency=[_row("MSI", dependency_class="dependent"), _row("MSS", state="absent")],
+        genomic_alteration=[_row("MSI", frequency=0.42), _row("MSS", frequency=0.05)],
+    )
+    f = run._subtype_facet(sr)
+    assert f["verdict"] == "convergent_stratification"
+    assert f["convergent_subtypes"] == ["MSI"]
+    # the per-axis spine is EXPOSED for the renderer / roll-up provenance
+    assert set(f["claim_chips_by_subtype"]) == {"dependency", "mutation_frequency"}
+    assert f["claim_chips_by_subtype"]["dependency"][0]["stratum"] == "MSI"
+
+
+def test_spine_preferred_over_card_rows():
+    # a skill carrying BOTH → the spine sub-vector wins (cards are only a fallback for the subtype tier).
+    sr = {"dependency": {
+        "synthesis_facet": {"skill_report": {"claim_chips_by_subtype": [_row("MSI", dependency_class="dependent")]}},
+        "cards": [{"card_id": "subgroup-stratified-dependency",
+                   "summary": {"per_subgroup_metrics": [_row("MSS", state="absent")]}}]}}
+    f = run._subtype_facet(sr)
+    assert "MSI" in f["per_subtype"] and "MSS" not in f["per_subtype"]   # read the spine, not the card
+
+
 def _tmp_registry(tmp_path):
     """Write a minimal subtype_crosswalk.yaml with an MSI_H↔CMS1 association (DepMap dep ↔ TCGA expr,
     a cohort bridge) so the association tier can be exercised hermetically."""
