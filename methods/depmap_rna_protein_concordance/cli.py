@@ -42,6 +42,31 @@ def _load_style(contracts_dir):
         pass
 
 
+def _pal(contracts_dir):
+    """Load the mplstyle + return the takeda_palette module (figure_frame / colors). None if absent."""
+    _load_style(contracts_dir)
+    try:
+        import sys as _sys
+        p = str(Path(contracts_dir) / "plot_styles")
+        if p not in _sys.path:
+            _sys.path.insert(0, p)
+        import takeda_palette  # type: ignore
+        return takeda_palette
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _proxy_takeaway(target, r, cls):
+    """rna_as_biomarker class → one-line finding (r rounded)."""
+    rr = f"{float(r):.2f}" if r is not None else "n/a"
+    return {
+        "adequate_proxy": f"RNA is an adequate proxy for {target} protein (r={rr}).",
+        "partial_proxy": f"RNA is only a partial proxy for {target} protein (r={rr}).",
+        "poor_proxy": f"RNA is a poor proxy for {target} protein (r={rr}).",
+        "discordant": f"RNA and {target} protein are discordant (r={rr}).",
+    }.get(cls)
+
+
 def emit_svg(target: str, indication, summary: dict, out_dir: Path,
              contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None):
     """Tier-3 SVG: per-model RNA (x) vs protein (y) scatter with the fitted trend + r annotation.
@@ -51,9 +76,8 @@ def emit_svg(target: str, indication, summary: dict, out_dir: Path,
     no live re-read. None = read live (legacy)."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import numpy as np
-    _load_style(contracts_dir)
+    pal = _pal(contracts_dir)
     out_path = Path(out_dir) / "figure_rna_protein_concordance.svg"
     if presampled is not None:
         pts = presampled
@@ -62,24 +86,38 @@ def emit_svg(target: str, indication, summary: dict, out_dir: Path,
         pts = scatter.get("points") or []
         if not scatter.get("available"):
             return None
-    if len(pts) < _read.MIN_PAIRED_MODELS:
-        return None
+    if len(pts) < _read.MIN_PAIRED_MODELS or pal is None:
+        return _emit_scatter_fallback(out_path, pts, target) if pal is None else None
     x = np.array([p["rna"] for p in pts]); y = np.array([p["protein"] for p in pts])
+    r = summary.get("rna_protein_r"); cls = summary.get("rna_as_biomarker", "")
+    with pal.figure_frame(target, None, "cell-line RNA vs. protein", out_path=out_path, kind="scatter",
+                          provenance=f"DepMap 26Q1 RNA  ·  Gygi TMT MS protein  ·  "
+                                     f"n={summary.get('n_paired_models')} paired cell lines",
+                          takeaway=_proxy_takeaway(target, r, cls)) as F:
+        ax = F.ax
+        ax.scatter(x, y, s=16, color=pal.TUMOR_FILL, edgecolor=pal.TUMOR_LINE, linewidth=0.4,
+                   alpha=0.5, zorder=3)
+        if len(pts) >= 2 and np.ptp(x) > 0:
+            m, b = np.polyfit(x, y, 1); xs = np.array([x.min(), x.max()])
+            ax.plot(xs, m * xs + b, color="#33383D", linewidth=1.6, zorder=4)
+        if r is not None:
+            ax.text(0.02, 0.03, f"Pearson r = {r}", transform=ax.transAxes, fontsize=8,
+                    color="#33383D", va="bottom", ha="left")
+        ax.grid(alpha=0.25, linewidth=0.4)
+        F.axis_label("x", "RNA", "log2(TPM + 1), DepMap")
+        F.axis_label("y", "Protein", "log2 abundance, Gygi MS")
+    return out_path
+
+
+def _emit_scatter_fallback(out_path, pts, target):
+    """Minimal honest fallback when the palette/frame is unavailable."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(5.6, 4.8))
-    ax.scatter(x, y, s=14, color=_FILL, edgecolor=_LINE, linewidth=0.4, alpha=0.55, zorder=3)
-    # least-squares trend
-    if len(pts) >= 2 and np.ptp(x) > 0:
-        m, b = np.polyfit(x, y, 1)
-        xs = np.linspace(float(x.min()), float(x.max()), 50)
-        ax.plot(xs, m * xs + b, color="#cf2828", linewidth=1.2, zorder=4)
-    r = summary.get("rna_protein_r")
-    cls = summary.get("rna_as_biomarker", "")
-    ax.set_xlabel(f"{target} RNA — log2(TPM+1), DepMap")
-    ax.set_ylabel(f"{target} protein — log2-abundance, Gygi MS")
-    ax.set_title(f"{target} — cell-line RNA↔protein concordance\n"
-                 f"Pearson r={r} ({cls}); n={summary.get('n_paired_models')}")
-    ax.grid(alpha=0.25, linewidth=0.4)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    ax.scatter([p["rna"] for p in pts], [p["protein"] for p in pts], s=14, alpha=0.55)
+    ax.set_xlabel("RNA"); ax.set_ylabel("Protein")
+    fig.savefig(out_path); plt.close(fig)
     return out_path
 
 
@@ -124,9 +162,8 @@ def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT
     presampled (figure Stage 6): OPT-IN per-tumor points ([{rna, protein}]) + summary → OFFLINE."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import numpy as np
-    _load_style(contracts_dir)
+    pal = _pal(contracts_dir)
     out_path = Path(out_dir) / "figure_rna_protein_concordance_tumor.svg"
     if presampled is not None:
         pts = presampled
@@ -135,24 +172,28 @@ def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT
         pts = scatter.get("points") or []
         if not scatter.get("available"):
             return None
-    if len(pts) < _read.MIN_PAIRED_TUMORS:
-        return None
+    if len(pts) < _read.MIN_PAIRED_TUMORS or pal is None:
+        return _emit_scatter_fallback(out_path, pts, target) if pal is None else None
     x = np.array([p["rna"] for p in pts]); y = np.array([p["protein"] for p in pts])
     if summary is None:
         summary = _read.read_tumor_rna_protein_concordance(target, indication)
-    fig, ax = plt.subplots(figsize=(5.6, 4.8))
-    ax.scatter(x, y, s=16, color="#7b4a8f", edgecolor="#553f7a", linewidth=0.4, alpha=0.6, zorder=3)
-    if len(pts) >= 2 and np.ptp(x) > 0:
-        m, b = np.polyfit(x, y, 1)
-        xs = np.linspace(float(x.min()), float(x.max()), 50)
-        ax.plot(xs, m * xs + b, color="#cf2828", linewidth=1.2, zorder=4)
-    ax.set_xlabel(f"{target} RNA — log2(TPM+1), CPTAC")
-    ax.set_ylabel(f"{target} protein — log2-abundance, CPTAC")
-    ax.set_title(f"{target} in {indication} — TUMOR RNA↔protein concordance\n"
-                 f"Pearson r={summary.get('rna_protein_r')} ({summary.get('rna_as_biomarker','')}); "
-                 f"n={summary.get('n_paired_tumors')} ({summary.get('cptac_cohort')})")
-    ax.grid(alpha=0.25, linewidth=0.4)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    r = summary.get("rna_protein_r"); cls = summary.get("rna_as_biomarker", "")
+    with pal.figure_frame(target, indication, "tumor RNA vs. protein", out_path=out_path, kind="scatter",
+                          provenance=f"CPTAC {summary.get('cptac_cohort','')} tumor (RNA + TMT MS)  ·  "
+                                     f"n={summary.get('n_paired_tumors')} paired tumors",
+                          takeaway=_proxy_takeaway(target, r, cls)) as F:
+        ax = F.ax
+        ax.scatter(x, y, s=18, color=pal.TUMOR_FILL, edgecolor=pal.TUMOR_LINE, linewidth=0.4,
+                   alpha=0.5, zorder=3)
+        if len(pts) >= 2 and np.ptp(x) > 0:
+            m, b = np.polyfit(x, y, 1); xs = np.array([x.min(), x.max()])
+            ax.plot(xs, m * xs + b, color="#33383D", linewidth=1.6, zorder=4)
+        if r is not None:
+            ax.text(0.02, 0.03, f"Pearson r = {r}", transform=ax.transAxes, fontsize=8,
+                    color="#33383D", va="bottom", ha="left")
+        ax.grid(alpha=0.25, linewidth=0.4)
+        F.axis_label("x", "RNA", "log2(TPM + 1), CPTAC")
+        F.axis_label("y", "Protein", "log2 abundance, CPTAC")
     return out_path
 
 
