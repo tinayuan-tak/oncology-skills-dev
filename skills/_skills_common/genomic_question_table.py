@@ -24,6 +24,7 @@ _CLASS_Q = [
     ("snv_indel",   ("SNV",    "Recurrent SNV/indel driver, or biomarker-stratified dependency?")),
     ("copy_number", ("CN",     "Copy-number driver — focal amplification or deletion?")),
     ("fusion",      ("Fusion", "Recurrent fusion / rearrangement driver?")),
+    ("splice",      ("Splice", "Recurrent exon-skipping driver (e.g. METex14)?")),
 ]
 
 _POSITIVE_STRONG = ("recurrent", "driver", "amplif", "focal_amp", "deletion", "homozygous")
@@ -60,7 +61,8 @@ def _class_conf(entry: dict) -> dict:
 def _support(entry: dict) -> str:
     bits = []
     for k in ("recurrence_class", "patient_class", "stratified_dependency_class",
-              "amp_expr_dependency_class", "genie_sv_recurrence_class"):
+              "amp_expr_dependency_class", "genie_sv_recurrence_class",
+              "event_id", "n_depmap_carriers"):   # splice-class support fields
         val = (entry or {}).get(k)
         if val and val != "data_unavailable":
             bits.append(f"{k.replace('_class', '').replace('_', ' ')}: {val}")

@@ -40,14 +40,15 @@ def test_amplification_driven_class_is_isolated():
         _card("fusion-stratified-dependency", fusion_stratification_class="not_fusion_stratified"),
     ]
     bc = gap._genomic_alteration_by_class(cards)
-    assert set(bc) == {"snv_indel", "copy_number", "fusion"}
+    assert set(bc) == {"snv_indel", "copy_number", "fusion", "splice"}
     assert bc["snv_indel"]["verdict"] == "missense_dominant"
     assert bc["snv_indel"]["stratified_dependency_class"] == "mutant_moderately_dependent"
     # the copy-number class isolates the amplification-addiction signal
     assert bc["copy_number"]["stratified_dependency_class"] == "amplified_strongly_dependent"
     assert bc["copy_number"]["amp_expr_dependency_class"] == "amplified_overexpressed_strongly_dependent"
-    # every present class is measured
-    assert all(bc[c]["evidence_state"] == "measured" for c in bc)
+    # every class WITH A CARD in this fixture is measured (splice card not provided → data_unavailable gap)
+    assert all(bc[c]["evidence_state"] == "measured" for c in ("snv_indel", "copy_number", "fusion"))
+    assert bc["splice"]["evidence_state"] == "data_unavailable"
 
 
 def test_absent_class_is_named_data_unavailable_not_fabricated():

@@ -28,7 +28,7 @@ def _headline():
 
 def test_rows_one_per_class_in_order():
     rows = genomic_question_table(_headline())
-    assert [r["id"] for r in rows] == ["SNV", "CN", "Fusion"]
+    assert [r["id"] for r in rows] == ["SNV", "CN", "Fusion", "Splice"]
 
 
 def test_signal_tiers_by_class():
@@ -46,7 +46,7 @@ def test_signal_tiers_by_class():
 
 def test_absent_by_class_yields_full_unmeasured_ladder():
     rows = genomic_question_table({})  # no by_class at all
-    assert [r["id"] for r in rows] == ["SNV", "CN", "Fusion"]
+    assert [r["id"] for r in rows] == ["SNV", "CN", "Fusion", "Splice"]
     assert all(r["signal"]["tier"] == "unmeasured" for r in rows)
 
 

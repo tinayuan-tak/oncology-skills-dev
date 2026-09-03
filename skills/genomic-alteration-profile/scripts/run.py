@@ -85,13 +85,15 @@ _GENOMIC_VALUE_TIERS = {
     "amplified_overexpressed_strongly_dependent": "strong",
     "fusion_positive_moderately_dependent": "moderate", "fusion_positive_strongly_dependent": "strong",
     "no_recurrent_fusion": "absent", "tumor_shifted": "moderate", "no_splice_shift": "absent",
+    # curated oncogenic exon-skip DRIVER (splice_exon_skip_class; METex14) — a positive splice signal
+    "recurrent_splice_driver": "strong", "no_exon_skip": "absent",
 }
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.14.0"   # +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.15.0"   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -211,6 +213,18 @@ _ALTERATION_CLASS_FIELDS: dict[str, tuple] = {
         ("fusion-rearrangement-landscape", "fusion_class"),
         {"stratified_dependency_class": ("fusion-stratified-dependency", "fusion_stratification_class"),
          "genie_sv_recurrence_class": ("fusion-rearrangement-landscape", "genie_sv_recurrence_class")},
+    ),
+    # SPLICE exon-skipping — the fourth alteration class, graduated to VERDICT-DRIVING in v2.13.0
+    # (CASE-002, splice_exon_skip_driver rung §3b) but historically absent from this decomposition.
+    # A curated oncogenic exon-skip DRIVER (splice_exon_skip_class==recurrent_splice_driver, e.g. METex14)
+    # oncogenic in-indication + live DepMap carrier confirmation. Added so the "which class drives"
+    # breakdown NAMES the splice class when it is the driver (was previously invisible → the decomposition
+    # showed only SNV/CN/fusion for a splice_exon_skip_driver verdict).
+    "splice": (
+        ("splice-exon-skip-landscape", "splice_exon_skip_class"),
+        {"event_id":         ("splice-exon-skip-landscape", "event_id"),
+         "driver_direction": ("splice-exon-skip-landscape", "driver_direction"),
+         "n_depmap_carriers": ("splice-exon-skip-landscape", "n_depmap_carriers")},
     ),
 }
 
@@ -433,6 +447,11 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     ("genie_sv_recurrence_class",           "fusion-rearrangement-landscape", "genie_sv_recurrence_class"),
     ("genie_sv_frequency",                  "fusion-rearrangement-landscape", "genie_sv_frequency"),
     ("genie_sv_recurrent_partners",         "fusion-rearrangement-landscape", "genie_sv_recurrent_partners"),
+
+    # ── Splice exon-skipping axis (verdict-driving as of v2.13.0; now also surfaced in by_class/claim_vector) ──
+    ("splice_exon_skip_class",              "splice-exon-skip-landscape",     "splice_exon_skip_class"),
+    ("splice_event_id",                     "splice-exon-skip-landscape",     "event_id"),
+    ("splice_n_depmap_carriers",            "splice-exon-skip-landscape",     "n_depmap_carriers"),
 
     # ── Typed driver role (OncoKB × IntOGen) ─────────────────────────────────
     ("alteration_role",                     "alteration-role",                "alteration_role"),

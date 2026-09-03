@@ -4,6 +4,31 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-03 (v2.15.0)
+Verdict-INERT signals-first fidelity fixes surfaced by the KRAS/COADREAD-vs-MET/LUAD literature-benchmark
+review (follow-up to v2.14.0 #982). The multi-class resolver spine is byte-stable throughout.
+- **SPLICE promoted to a first-class member of the signals-first layer.** `splice-exon-skip-landscape`
+  became VERDICT-DRIVING in v2.13.0 (CASE-002, `splice_exon_skip_driver` rung) but the SURFACING layer was
+  never extended, so a splice-driven verdict had NO representation in the class decomposition, claim vector,
+  question table, key-signals headline, or narrator lead — for MET/LUAD the deterministic
+  `key_signals.headline` read "Multi-class alteration driver (SNV/indel + Fusion)", naming two non-driving
+  classes and omitting the splice class that IS the verdict. Now added:
+  `genomic_alteration_by_class['splice']` (primary `splice_exon_skip_class` + event_id/driver_direction/
+  n_depmap_carriers), a `SPL` claim-vector axis (`genomic_claims`, signal from `splice_exon_skip_class`,
+  corroboration from DepMap-carrier confirmation), a question-table row, `key_signals` driver-naming, the
+  `GENOMIC_ALTERATION` lens `axis_labels`, and headline lifts (`splice_exon_skip_class`, `splice_event_id`,
+  `splice_n_depmap_carriers`).
+- **Confidence-aware FUS downgrade (verdict-INERT).** A `recurrent_fusion_driver` claim flagged
+  `fusion_recurrence_confidence == moderate_promiscuous` (promiscuous recurrence, no recurrent partner — the
+  mixed bucket that also catches amplicon-artifact SVs) now downgrades `strong`→`weak` in the claim vector,
+  so the signals-first layer stops over-reading a thin/promiscuous fusion as a co-driver (MET/LUAD n=3,
+  literature-contradicted). The resolver rung is untouched — that verdict-moving fusion-competence/CN gate
+  is tracked in #983.
+- **Blast radius contained:** the `HeadlineSpec` hero axes stay `(SNV, CN, FUS, DEP)`, so `headline_block` /
+  confidence / the hero figure are byte-stable for every target (SPL is surfaced via the claim vector /
+  by_class / question_table / narrator, not the hero). Verified: KRAS/COADREAD verdict+headline_block
+  byte-identical; MET/LUAD `key_signals.headline` now leads with the splice class.
+
 ## 2026-09-03 (v2.14.0)
 - **OPTIONAL `--literature` lane** wired into the hand-rolled `main()` (this skill does NOT use
   `run_wired_skill`, so it attaches the lane itself, mirroring the dispatcher seam and tumor-presence

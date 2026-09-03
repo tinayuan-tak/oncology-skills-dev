@@ -41,6 +41,9 @@ _CN_FOCAL_POS = {"recurrent_focal_amplification", "recurrent_focal_deletion"}
 # fusion_class
 _FUS_SIGNAL = {"recurrent_fusion_driver": "strong", "sporadic_fusion": "weak",
                "no_recurrent_fusion": "absent", "data_unavailable": "unmeasured"}
+# splice_exon_skip_class (splice-exon-skip-landscape) — curated oncogenic exon-skip DRIVER (METex14)
+_SPLICE_SIGNAL = {"recurrent_splice_driver": "strong", "no_exon_skip": "absent",
+                  "data_unavailable": "unmeasured"}
 # the four stratified-dependency classes → "does the ALTERATION-positive subgroup selectively depend?"
 # POSITIVE (alteration-positive dependent) vs NEGATIVE (WT/neutral dependent = alteration doesn't confer)
 _STRAT_SIGNAL = {
@@ -73,6 +76,7 @@ _INFORMS = {
     "SNV": "recurrent SNV/indel driver — patient-selection (mutation-defined subgroup)",
     "CN": "copy-number driver — amplification/deletion biomarker",
     "FUS": "fusion driver — rearrangement-defined subgroup",
+    "SPL": "splice exon-skip driver — a transcript-form driver (e.g. METex14), rearrangement-independent",
     "DEP": "alteration confers a genetic dependency — the actionability 'so what' (biomarker-stratified)",
 }
 
@@ -150,7 +154,33 @@ def _cn_corroboration(h, c):
 def _fus_signal(h, c):
     bc = _by_class(h).get("fusion") or {}
     cls = bc.get("verdict")   # fusion_class
-    return _FUS_SIGNAL.get(cls, "unmeasured"), f"fusion: {cls or 'data_unavailable'}", None
+    sig = _FUS_SIGNAL.get(cls, "unmeasured")
+    # VERDICT-INERT confidence-aware downgrade: a `recurrent_fusion_driver` call flagged
+    # `fusion_recurrence_confidence == moderate_promiscuous` rests on a promiscuous recurrence with NO
+    # recurrent partner — the mixed bucket that also catches amplicon-artifact SVs at amplified oncogenes
+    # (SKILL.md). Downgrade strong->weak so the signals-first layer + key_signals headline stop over-reading
+    # a thin/promiscuous fusion as a co-driver (MET/LUAD: n=3 promiscuous, contradicted by literature). This
+    # does NOT touch the resolver rung — that verdict-moving fusion-competence/CN gate is tracked in #983.
+    if sig == "strong" and h.get("fusion_recurrence_confidence") == "moderate_promiscuous":
+        return "weak", f"fusion: {cls} (low-confidence: moderate_promiscuous — no recurrent partner)", None
+    return sig, f"fusion: {cls or 'data_unavailable'}", None
+
+
+def _spl_signal(h, c):
+    bc = _by_class(h).get("splice") or {}
+    cls = bc.get("verdict")   # splice_exon_skip_class
+    sig = _SPLICE_SIGNAL.get(cls, "unmeasured" if cls in (None, "data_unavailable") else "absent")
+    ev = f"splice exon-skip: {cls or 'data_unavailable'}" + (f" ({bc.get('event_id')})" if bc.get("event_id") else "")
+    return sig, ev, None
+
+
+def _spl_corroboration(h, c):
+    bc = _by_class(h).get("splice") or {}
+    if _SPLICE_SIGNAL.get(bc.get("verdict"), "unmeasured") == "unmeasured":
+        return "unmeasured"
+    # a curated oncogenic exon-skip driver with live DepMap carrier confirmation is well-corroborated
+    n = bc.get("n_depmap_carriers")
+    return "high" if isinstance(n, (int, float)) and n >= 1 else "moderate"
 
 
 def _fus_corroboration(h, c):
@@ -233,7 +263,7 @@ def _dep_corroboration(h, c):
     return base
 
 
-SNV, CN, FUS, DEP = "SNV", "CN", "FUS", "DEP"
+SNV, CN, FUS, SPL, DEP = "SNV", "CN", "FUS", "SPL", "DEP"
 
 
 # ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────
@@ -291,12 +321,18 @@ GENOMIC_CLAIM_SPEC = [
     ClaimSpec(SNV, "recurrent SNV/indel driver", _snv_signal, _snv_corroboration, _INFORMS["SNV"], _snv_atom),
     ClaimSpec(CN, "copy-number driver", _cn_signal, _cn_corroboration, _INFORMS["CN"], _cn_atom),
     ClaimSpec(FUS, "fusion driver", _fus_signal, _fus_corroboration, _INFORMS["FUS"], _fus_atom),
+    # SPLICE exon-skip driver (METex14): the verdict-driving class added to the resolver in v2.13.0 but
+    # historically absent from the claim vector — so a splice_exon_skip_driver verdict had no signal-layer
+    # representation (the narrator led with SNV/fusion, not the driving splice class). No atom_fn yet
+    # (curated event, not a numeric anchor). Verdict-INERT.
+    ClaimSpec(SPL, "splice exon-skip driver", _spl_signal, _spl_corroboration, _INFORMS["SPL"]),
     ClaimSpec(DEP, "alteration confers dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"], _gdep_atom),
 ]
 
 _DISCLAIMER = (
     "Verdict-INERT projection of the alteration cards into orthogonal per-class claims (SNV recurrent "
-    "SNV/indel driver / CN copy-number driver / FUS fusion driver / DEP alteration-confers-dependency), "
+    "SNV/indel driver / CN copy-number driver / FUS fusion driver / SPL splice exon-skip driver / "
+    "DEP alteration-confers-dependency), "
     "each signal×corroboration. Claims are NOT additive; genomic-alteration is a MIX — a strong CN does "
     "not degrade a weak SNV, and the strongest class is what drives. DEP asks whether the ALTERATION "
     "confers a genetic dependency (a WT/neutral-dependent signal is `absent` here). corroboration is a "
@@ -304,7 +340,7 @@ _DISCLAIMER = (
 
 
 def genomic_claim_vector(headline: dict, cards: list) -> dict:
-    """The verdict-inert claim vector {SNV,CN,FUS,DEP: {signal, corroboration, evidence, conflict,
+    """The verdict-inert claim vector {SNV,CN,FUS,SPL,DEP: {signal, corroboration, evidence, conflict,
     informs}, _disclaimer}. Projection over the computed headline."""
     return build_claim_vector(GENOMIC_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
@@ -326,6 +362,12 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
     def sup_fus(claim):
         return f"Fusion driver — {(_by_class(h).get('fusion') or {}).get('verdict')} [fusion-rearrangement-landscape]"
 
+    def sup_spl(claim):
+        bc = _by_class(h).get("splice") or {}
+        n = bc.get("n_depmap_carriers")
+        return (f"Splice exon-skip driver — {bc.get('verdict')} ({bc.get('event_id') or 'event'}"
+                + (f", {n} DepMap carriers" if n is not None else "") + ") [splice-exon-skip-landscape]")
+
     def sup_dep(claim):
         return (f"Alteration confers a dependency — {vec['DEP']['evidence'].split('= ')[-1]} "
                 f"(drug-response {h.get('drug_response_stratification_class')}) [stratified-dependency + drug-response]")
@@ -336,19 +378,27 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
     def cav_cn(claim):
         return f"No recurrent copy-number alteration — {(_by_class(h).get('copy_number') or {}).get('verdict')} [copy-number-distribution]"
 
+    def cav_spl(claim):
+        return "No recurrent splice exon-skip driver [splice-exon-skip-landscape]"
+
     def cav_dep(claim):
         return "Alteration does not confer a measured genetic dependency (WT/neutral or not-stratified) [stratified-dependency]"
 
+    # The alteration-CLASS keys whose (moderate+) signal names a driver — now includes SPL so a
+    # splice_exon_skip_driver (METex14) verdict is NAMED in the headline (was previously omitted, and a
+    # spuriously-strong promiscuous fusion led the line instead — see _fus_signal downgrade + #983).
+    _CLASS_KEYS = (SNV, CN, FUS, SPL)
+
     def head(v, supports):
-        drivers = [k for k in (SNV, CN, FUS) if sig_ge(v[k]["signal"], "moderate")]
-        names = {SNV: "SNV/indel", CN: "Copy-number", FUS: "Fusion"}
+        drivers = [k for k in _CLASS_KEYS if sig_ge(v[k]["signal"], "moderate")]
+        names = {SNV: "SNV/indel", CN: "Copy-number", FUS: "Fusion", SPL: "Splice exon-skip"}
         if len(drivers) >= 2:
             base = "Multi-class alteration driver (" + " + ".join(names[k] for k in drivers) + ")."
         elif len(drivers) == 1:
             base = f"{names[drivers[0]]}-driven alteration."
-        elif any(v[k]["signal"] == "weak" for k in (SNV, CN, FUS)):
+        elif any(v[k]["signal"] == "weak" for k in _CLASS_KEYS):
             base = "Sub-threshold alteration signal (passenger-leaning)."
-        elif all(v[k]["signal"] in ("absent", "unmeasured") for k in (SNV, CN, FUS)):
+        elif all(v[k]["signal"] in ("absent", "unmeasured") for k in _CLASS_KEYS):
             base = "No recurrent alteration (passenger / not altered)."
         else:
             base = "Alteration profile largely unmeasured."
@@ -366,12 +416,12 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
 
     return build_key_signals(
         vec,
-        rank_keys=(SNV, CN, FUS, DEP),
-        support_fns={SNV: sup_snv, CN: sup_cn, FUS: sup_fus, DEP: sup_dep},
+        rank_keys=(SNV, CN, FUS, SPL, DEP),
+        support_fns={SNV: sup_snv, CN: sup_cn, FUS: sup_fus, SPL: sup_spl, DEP: sup_dep},
         # DEP first: the decision-critical caveat for a genomic call is "the alteration is a passenger /
         # confers no dependency"; then the class drivers.
-        critical_keys=(DEP, SNV, CN, FUS),
-        caveat_fns={SNV: cav_snv, CN: cav_cn, FUS: cav_cn, DEP: cav_dep},
+        critical_keys=(DEP, SNV, CN, FUS, SPL),
+        caveat_fns={SNV: cav_snv, CN: cav_cn, FUS: cav_cn, SPL: cav_spl, DEP: cav_dep},
         headline_fn=head,
     )
 

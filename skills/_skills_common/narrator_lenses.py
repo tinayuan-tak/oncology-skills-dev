@@ -98,7 +98,8 @@ GENOMIC_ALTERATION = LensConfig(
            "targeted agent), surfaced in the DEP claim's actionability read.",
     relevance_prompt="judge how the genomic-alteration evidence supports this target, naming which class "
                      "drives and surfacing any variant-level therapy-resistance actionability.",
-    axis_labels={"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion", "DEP": "alteration-conferred dependency"},
+    axis_labels={"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion",
+                 "SPL": "splice exon-skip", "DEP": "alteration-conferred dependency"},
     scope_exclusions=("therapeutic modality", "expression as presence"),
     mode="verdict",
     verdict_key="genomic_alteration_profile",   # the RESOLVED multi-class verdict token (run.py headline
