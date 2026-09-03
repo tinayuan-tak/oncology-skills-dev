@@ -409,9 +409,18 @@ class figure_frame:
     def __exit__(self, exc_type, exc, tb):
         import matplotlib.pyplot as plt
         if exc_type is None:
-            figure_title(self.fig, self.target, self.indication, self.view, x=self.title_x)
-            provenance_tag(self.fig, self.provenance_text, x=self.title_x)
-            takeaway(self.fig, self.takeaway_text, x=self.title_x)
+            # Title/provenance/takeaway y default to the ~3.5in-tuned fractions. For a TALL figure
+            # those fixed fractions drift into the plot, so position them by ABSOLUTE inches instead
+            # (title 0.30in from top, provenance 0.56in, takeaway 0.16in from bottom). Standard-height
+            # figures keep the exact prior fractions → byte-identical to already-landed figures.
+            h = self.fig.get_figheight()
+            if h > 4.2:
+                ty, py, ky = 1 - 0.30 / h, 1 - 0.56 / h, 0.16 / h
+            else:
+                ty, py, ky = 0.95, 0.884, None
+            figure_title(self.fig, self.target, self.indication, self.view, x=self.title_x, y=ty)
+            provenance_tag(self.fig, self.provenance_text, x=self.title_x, y=py)
+            takeaway(self.fig, self.takeaway_text, x=self.title_x, y=ky)
             self.fig.savefig(self.out_path)
         plt.close(self.fig)
         return False
@@ -433,15 +442,16 @@ def verdict_badge(fig, status, *, loc="upper right", pad=0.012):
              zorder=1000)
 
 
-def takeaway(fig, text, *, x=0.10):
+def takeaway(fig, text, *, x=0.10, y=None):
     """The key quantitative finding, one plain sentence, bottom-left (wraps to figure width; never
     clips to a data coordinate). NO 'Takeaway:' label — just the sentence. A thin neutral rule marks
     it as a caption (the rule is NOT status-colored — the verdict lives in the report layer)."""
     if not text:
         return
     # bottom-most line (provenance now lives under the title), so it sits low with clear spacing.
-    fig.text(x - 0.02, 0.026, "▎", ha="left", va="bottom", fontsize=11, color=INK_MUTED)
-    fig.text(x, 0.028, text, ha="left", va="bottom", fontsize=8.5, color=INK_SECONDARY, wrap=True)
+    yy = 0.028 if y is None else y
+    fig.text(x - 0.02, yy - 0.002, "▎", ha="left", va="bottom", fontsize=11, color=INK_MUTED)
+    fig.text(x, yy, text, ha="left", va="bottom", fontsize=8.5, color=INK_SECONDARY, wrap=True)
 
 
 # back-compat alias (old name); prefer takeaway()
