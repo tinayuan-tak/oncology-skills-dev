@@ -241,18 +241,52 @@ def _load_style(contracts_dir):
         pass
 
 
-def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> Path:
-    """Tier-3 SVG: tumor vs matched-normal per-sample distribution (box + strip), with the
-    normal-p95 line + fraction-above annotation.
+def _pal(contracts_dir):
+    """Load the mplstyle + return the takeda_palette module (verdict badge / takeaway / colors).
+    Idempotent; returns None if the palette is unavailable (draws degrade to no-badge)."""
+    _load_style(contracts_dir)
+    try:
+        import sys as _sys
+        p = str(Path(contracts_dir) / "plot_styles")
+        if p not in _sys.path:
+            _sys.path.insert(0, p)
+        import takeda_palette  # type: ignore
+        return takeda_palette
+    except Exception:  # noqa: BLE001
+        return None
 
-    presampled (figure Stage 6): OPT-IN (tumor, normal, tissue) vectors from persisted plot_data →
-    draw OFFLINE with no live re-read. None = read live (legacy)."""
+
+# tumor_expression_class -> plain-English phrase for the title (no machine tokens on the figure).
+_TUMOR_CLASS_PHRASE = {
+    "broadly_high":      "RNA is highly expressed across tumors",
+    "broadly_detected":  "RNA is detected across tumors",
+    "subset_high":       "RNA is high in a tumor subset",
+    "broadly_moderate":  "RNA is moderately expressed across tumors",
+    "low_or_absent":     "RNA is low or absent in tumors",
+    "data_unavailable":  "tumor RNA expression",
+}
+# fallback signal when fired_rules aren't threaded in (keeps the badge honest, not a fabricated call).
+_TUMOR_CLASS_SIGNAL = {
+    "broadly_high": "supportive", "broadly_detected": "supportive", "subset_high": "supportive",
+    "broadly_moderate": "neutral", "low_or_absent": "opposing", "data_unavailable": "insufficient",
+}
+
+
+def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
+             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None, status=None) -> Path:
+    """Tier-3 SVG: tumor vs matched-normal per-sample distribution (box + strip), in the shared
+    figure grammar — plain-English title, source subtitle, reserved verdict BADGE (top-right),
+    a data-derived one-line takeaway, normal-p95 as a NEUTRAL orientation line.
+
+    presampled: OPT-IN (tumor, normal, tissue) vectors from persisted plot_data → draw OFFLINE.
+    status: OPT-IN status dict (from takeda_palette.status_for_card over the run's fired_rules) so
+            the badge == the narrative verdict. When None, a fallback signal is derived from the
+            card's tumor_expression_class (honest, but the fired-rule route is preferred)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
-    _load_style(contracts_dir)
+    pal = _pal(contracts_dir)
     out_path = Path(out_dir) / "figure_expression_distribution.svg"
 
     if presampled is not None:
@@ -266,34 +300,54 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
                 va="center", fontsize=10, color="#777"); ax.set_axis_off()
         fig.savefig(out_path); plt.close(fig); return out_path
 
-    groups, labels, colors = [tumor], [f"TCGA tumor\n(n={len(tumor)})"], [(_TUMOR_FILL, _TUMOR_LINE)]
-    if normal:
-        groups.append(normal); labels.append(f"GTEx {tissue}\n(n={len(normal)})")
-        colors.append((_NORMAL_FILL, _NORMAL_LINE))
+    if pal is None:                       # palette/frame unavailable → minimal honest fallback
+        fig, ax = plt.subplots(figsize=(7.0, 3.5))
+        ax.boxplot([normal, tumor] if normal else [tumor], orientation="horizontal", showfliers=False)
+        ax.set_xlabel("Expression — log2(TPM + 1)")
+        fig.savefig(out_path); plt.close(fig); return out_path
 
-    fig, ax = plt.subplots(figsize=(7.2, 3.6))
-    bp = ax.boxplot(groups, orientation="horizontal", widths=0.55, patch_artist=True,
-                    showfliers=False, medianprops={"color": "#222", "linewidth": 1.3})
-    for patch, (fill, line) in zip(bp["boxes"], colors):
-        patch.set(facecolor=fill, edgecolor=line, alpha=0.5, linewidth=1.0)
-    rng = np.random.default_rng(seed=42)
-    for i, (vals, (fill, line)) in enumerate(zip(groups, colors)):
-        yy = rng.uniform(i + 1 - 0.16, i + 1 + 0.16, size=len(vals))
-        ax.scatter(vals, yy, s=5, color=line, alpha=0.35, edgecolor="none", zorder=3)
-    # normal p95 line + fraction-above annotation
+    tfill, tline = pal.TUMOR_FILL, pal.TUMOR_LINE
+    nfill, nline = pal.NORMAL_FILL, pal.NORMAL_LINE
+    # tumor on top, normal below → the eye reads the tumor shift against normal.
+    groups, labels, colors = [], [], []
+    if normal:
+        groups.append(normal); labels.append(f"Normal\n({tissue.title()})"); colors.append((nfill, nline))
+    groups.append(tumor); labels.append("Tumor"); colors.append((tfill, tline))
+
     p95 = summary.get("normal_p95_log2tpm")
     fa95 = summary.get("fraction_tumor_above_normal_p95")
-    if p95 is not None:
-        ax.axvline(p95, color="#cf2828", linewidth=1.0, linestyle="--", zorder=1)
-        if fa95 is not None:
-            ax.text(p95, len(groups) + 0.5, f"{fa95*100:.0f}% of tumors > normal p95",
-                    color="#cf2828", fontsize=7, ha="left", va="bottom")
-    ax.set_yticks(range(1, len(labels) + 1)); ax.set_yticklabels(labels, fontsize=8)
-    ax.set_xlabel("log2(TPM + 1) — recount3 / GENCODE v26 (per sample)")
-    ax.set_title(f"{target} in {indication} — per-sample expression "
-                 f"({summary.get('tumor_expression_class', '')}, {summary.get('distribution_pattern','')})")
-    ax.grid(axis="x", alpha=0.25, linewidth=0.4)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    take = (f"{fa95*100:.0f}% of {indication} tumors express {target} above the normal 95th percentile."
+            if (fa95 is not None and p95 is not None) else None)
+
+    # figure_frame owns figsize/margins/title/provenance/takeaway + save; the emitter only draws data.
+    with pal.figure_frame(
+        target, indication, "tumor vs. normal expression", out_path=out_path, kind="single",
+        provenance=f"TCGA {indication} tumor  ·  GTEx {tissue.title()} normal  ·  recount3 / GENCODE v26",
+        takeaway=take,
+    ) as F:
+        ax = F.ax
+        bp = ax.boxplot(groups, orientation="horizontal", widths=0.55, patch_artist=True,
+                        showfliers=False, medianprops={"color": "#222", "linewidth": 1.4})
+        for patch, (fill, line) in zip(bp["boxes"], colors):
+            patch.set(facecolor=fill, edgecolor=line, alpha=0.55, linewidth=1.0)
+        for element in ("whiskers", "caps"):
+            for artist in bp[element]:
+                artist.set(color="#5A626A", linewidth=1.0)
+        rng = np.random.default_rng(seed=42)
+        for i, (vals, (fill, line)) in enumerate(zip(groups, colors)):
+            yy = rng.uniform(i + 1 - 0.15, i + 1 + 0.15, size=len(vals))
+            ax.scatter(vals, yy, s=5, color=line, alpha=0.30, edgecolor="none", zorder=3)
+        # normal p95 = a NEUTRAL orientation marker (its meaning is carried by the takeaway).
+        if p95 is not None:
+            ax.axvline(p95, zorder=1, **pal.REFLINE_NEUTRAL)
+            ax.annotate("normal p95", xy=(p95, 0.5), xycoords=("data", "axes fraction"),
+                        fontsize=7, color="#666666", ha="center", va="bottom",
+                        xytext=(0, 2), textcoords="offset points")
+        ax.set_yticks(range(1, len(labels) + 1)); ax.set_yticklabels(labels, fontsize=8.5)
+        ax.set_ylim(0.4, len(labels) + 0.6)
+        ax.grid(axis="x", alpha=0.25, linewidth=0.4); ax.grid(axis="y", visible=False)
+        F.axis_label("x", "Expression", "log2(TPM + 1), per RNA-seq sample")
+        F.n_on_boxes([len(g) for g in groups])       # per-sample distribution → n on the boxes
     return out_path
 
 

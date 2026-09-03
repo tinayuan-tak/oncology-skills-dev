@@ -12,12 +12,13 @@ from . import read as _read
 METHOD_VERSION = "0.1.0"
 DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
-_CLASS_COLORS = {
-    "tumor_intrinsic":             ("#0a2540", "#061829"),   # reassuring — cancer-cell signal
-    "purity_independent":          ("#4a7c9e", "#2f5670"),
-    "microenvironment_confounded": ("#a63d2e", "#7a2c20"),   # caution — stromal/immune signal
-    "insufficient_paired_samples": ("#bbbbbb", "#8f8f8f"),
-    "data_unavailable":            ("#d9dbdd", "#a9adb1"),
+# purity_confound_class -> (title phrase, fallback signal for the badge).
+_CLASS_PHRASE = {
+    "tumor_intrinsic":             ("expression tracks tumor content (tumor-intrinsic)", "supportive"),
+    "purity_independent":          ("expression is independent of tumor purity", "supportive"),
+    "microenvironment_confounded": ("expression rises in low-purity tumors (microenvironment confound)", "opposing"),
+    "insufficient_paired_samples": ("too few paired tumors to test a purity confound", "insufficient"),
+    "data_unavailable":            ("purity confound — data unavailable", "insufficient"),
 }
 
 
@@ -27,46 +28,88 @@ def build_summary(target: str, indication: str) -> dict:
     return summary
 
 
-def _load_style(contracts_dir):
-    import matplotlib.pyplot as plt
-    style = Path(contracts_dir) / "figure-style" / "matplotlibrc"
-    if style.exists():
-        try:
+def _pal(contracts_dir):
+    """Load the mplstyle + return the takeda_palette module (badge/takeaway/colors). None if absent."""
+    try:
+        import sys as _sys
+        import matplotlib.pyplot as plt
+        style = Path(contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
+        if style.exists():
             plt.style.use(str(style))
-        except Exception:  # noqa: BLE001
-            pass
+        p = str(Path(contracts_dir) / "plot_styles")
+        if p not in _sys.path:
+            _sys.path.insert(0, p)
+        import takeda_palette  # type: ignore
+        return takeda_palette
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS):
-    """Tier-3 SVG: purity-confound evidence card (class + expression↔purity correlation). None if
-    no correlation computed."""
+             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None, status=None):
+    """Tier-3 SVG: expression↔purity SCATTER (per paired tumor) with fitted trend, Pearson r/p,
+    median-purity marker, reserved verdict BADGE + one-line takeaway. Replaces the old text-card.
+    None if no correlation was computed.
+
+    presampled: OPT-IN (expr_values, purity_values) parallel arrays → draw the real scatter OFFLINE.
+                When None the summary carries only the aggregate stats, so the scatter cannot be drawn
+                and we return None (the card still renders its text; a figure needs the points).
+    status: OPT-IN status dict (from takeda_palette.status_for_card); falls back to the class signal."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    _load_style(contracts_dir)
+    import numpy as np
     cls = summary.get("purity_confound_class")
     r = summary.get("expression_purity_pearson_r")
     if cls in (None, "data_unavailable", "insufficient_paired_samples") or r is None:
         return None
+    if presampled is None:
+        return None                       # no per-sample points → cannot honestly draw a scatter
+    expr, purity = (list(presampled[0]), list(presampled[1]))
+    if len(expr) < 2 or len(expr) != len(purity):
+        return None
+
+    pal = _pal(contracts_dir)
     out_path = Path(out_dir) / "figure_expression_purity_confound.svg"
-    fill, line = _CLASS_COLORS.get(cls, _CLASS_COLORS["data_unavailable"])
-    fig, ax = plt.subplots(figsize=(6.4, 3.0)); ax.set_axis_off()
-    ax.add_patch(plt.Rectangle((0.02, 0.58), 0.96, 0.38, facecolor=fill, edgecolor=line,
-                               alpha=0.5, linewidth=1.2, transform=ax.transAxes))
-    ax.text(0.5, 0.80, f"{target} in {indication} — purity confound", ha="center", va="center",
-            fontsize=10.5, weight="bold", transform=ax.transAxes)
-    ax.text(0.5, 0.66, cls.replace("_", " ").upper(), ha="center", va="center",
-            fontsize=11, weight="bold", color=line, transform=ax.transAxes)
-    lines = [
-        f"expression vs tumor purity: Pearson r = {r}",
-        f"Spearman r: {summary.get('expression_purity_spearman_r', 'n/a')}  (p={summary.get('expression_purity_pearson_p','n/a')})",
-        f"paired tumors: {summary.get('n_paired_samples', 'n/a')}  |  median purity: {summary.get('median_purity','n/a')}",
-        "cellular source unresolved from bulk (flag, not proof)",
-    ]
-    for i, t in enumerate(lines):
-        ax.text(0.06, 0.46 - i * 0.11, t, ha="left", va="center", fontsize=8.5, transform=ax.transAxes)
-    fig.savefig(out_path, bbox_inches="tight"); plt.close(fig)
+    e = np.asarray(expr, dtype=float); p = np.asarray(purity, dtype=float)
+
+    if pal is None:                       # palette/frame unavailable → minimal honest fallback
+        fig, ax = plt.subplots(figsize=(7.0, 3.5))
+        ax.scatter(p, e, s=16, alpha=0.45); ax.set_xlabel("Tumor purity"); ax.set_ylabel("Expression")
+        fig.savefig(out_path); plt.close(fig); return out_path
+
+    med = summary.get("median_purity")
+    pear_p = summary.get("expression_purity_pearson_p")
+    rr = f"{float(r):.2f}"
+    take = {
+        "purity_independent": f"{target} expression is independent of tumor purity (r={rr}) — not a stromal/immune artifact.",
+        "tumor_intrinsic": f"{target} expression rises with tumor content (r={rr}) — a cancer-cell-intrinsic signal.",
+        "microenvironment_confounded": f"{target} expression is higher in low-purity tumors (r={rr}) — may arise from stroma/immune.",
+    }.get(cls)
+
+    with pal.figure_frame(
+        target, indication, "expression vs. tumor purity", out_path=out_path, kind="scatter",
+        provenance=f"tumor RNA recount3  ·  purity PanCanAtlas ABSOLUTE  ·  "
+                   f"n={summary.get('n_paired_samples', len(e))} paired tumors",
+        takeaway=take,
+    ) as F:
+        ax = F.ax
+        ax.scatter(p, e, s=16, color=pal.TUMOR_FILL, alpha=0.45, edgecolor=pal.TUMOR_LINE,
+                   linewidth=0.3, zorder=3)
+        if np.ptp(p) > 0:
+            b, a = np.polyfit(p, e, 1); xs = np.array([p.min(), p.max()])
+            ax.plot(xs, a + b * xs, color="#33383D", linewidth=1.6, zorder=4)
+        if med is not None:
+            ax.axvline(float(med), zorder=1, **pal.REFLINE_NEUTRAL)
+            ax.annotate(f"median purity {med:.2f}", xy=(float(med), 1.0),
+                        xycoords=("data", "axes fraction"), fontsize=7, color="#666666",
+                        ha="left", va="top", xytext=(3, -3), textcoords="offset points")
+        ax.text(0.02, 0.03, f"Pearson r = {r}" + (f"  (p = {pear_p})" if pear_p is not None else "")
+                + f"\nSpearman r = {summary.get('expression_purity_spearman_r','n/a')}",
+                transform=ax.transAxes, fontsize=8, color="#33383D", va="bottom", ha="left")
+        ax.grid(alpha=0.25, linewidth=0.4)
+        F.axis_label("x", "Tumor purity", "ABSOLUTE — fraction tumor cells")
+        F.axis_label("y", "Expression", "log2(TPM + 1)")
     return out_path
 
 

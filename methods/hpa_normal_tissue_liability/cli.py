@@ -236,19 +236,41 @@ def _load_takeda_style(target_contracts_dir):
     return takeda_palette
 
 
-def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_contracts_dir):
-    """Emit the normal_tissue_expression_heatmap figure for normal-tissue-liability.
+# Breadth is the PRIMARY categorical (the specific-tissue list is ~51%-covered and often sparse —
+# a lone bar misrepresents a broadly-expressed gene). Render it as an ordered risk LADDER (more
+# normal tissues = more on-target-off-tumor liability), with the target's cell marked, and hang the
+# enriched-tissue detail + safety flags off it.
+_BREADTH_LADDER = [
+    ("not_detected_in_normal",    "Not detected"),
+    ("restricted_normal_expression", "Single tissue"),
+    ("moderate_normal_expression",   "Some tissues"),
+    ("broad_normal_expression",      "Many / all tissues"),
+]
+# breadth -> fallback badge signal (a safety axis: broad normal footprint argues AGAINST a clean
+# therapeutic window; a narrow/absent footprint supports one). An essential-organ hit escalates to
+# killer below.
+_BREADTH_SIGNAL = {
+    "broad_normal_expression": "opposing", "moderate_normal_expression": "neutral",
+    "restricted_normal_expression": "supportive", "not_detected_in_normal": "supportive",
+    "data_unavailable": "insufficient",
+}
 
-    A horizontal bar of per-tissue IHC intensities (from specific_tissues), tissues
-    colored RED if essential (on-target-off-tumor risk) else navy, sorted by intensity.
-    Title carries the breadth class. Summary-driven (no reload). When there is no
-    specific-tissue list (a broad gene, or Not detected), emits an informative panel
-    stating the breadth class — because breadth, not the per-tissue list, carries the
-    liability there.
-    """
+
+def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_contracts_dir,
+                           *, status=None):
+    """Emit the normal-tissue-liability figure in the shared grammar.
+
+    Hero = a 4-step breadth LADDER (Not detected → Single → Some → Many/all) with the target's IHC
+    breadth cell highlighted; below it, the tissue-ENRICHED bars (essential = red, GI = amber, other
+    = navy) when the specific-intensity list is populated. Reserved verdict BADGE (top-right) + a
+    plain-language takeaway. Summary-driven (no reload).
+
+    status: OPT-IN status dict (takeda_palette.status_for_card over the run's fired_rules); when None,
+            a fallback signal is derived from the breadth class (+ essential-organ escalation)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.patches import FancyBboxPatch
     from pathlib import Path as _Path
 
     pal = _load_takeda_style(target_contracts_dir)
@@ -259,35 +281,80 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
     breadth = summary.get("normal_tissue_breadth_class", "data_unavailable")
     specific = summary.get("specific_tissues") or []
     essential_set = set(summary.get("essential_tissues_flagged") or [])
+    gi_set = {"intestine", "stomach"}
+    flags = summary.get("safety_tissue_flags") or []
 
-    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-    rows = [(t.get("tissue"), t.get("intensity")) for t in specific
-            if t.get("intensity") is not None]
-    rows.sort(key=lambda r: r[1], reverse=True)
+    rows = sorted([(t.get("tissue"), t.get("intensity")) for t in specific
+                   if t.get("intensity") is not None], key=lambda r: r[1], reverse=True)
 
-    if not rows:
-        ax.axis("off")
-        msg = {
-            "broad_normal_expression": "detected broadly across normal tissues (IHC 'all/many')\n— on-target-off-tumor liability; no tissue-specific list.",
-            "not_detected_in_normal": "NOT detected in normal tissues (IHC)\n— favorable therapeutic window.",
-        }.get(breadth, f"breadth class = {breadth}")
-        ax.text(0.5, 0.5, f"{target_symbol} — normal-tissue liability\n{msg}",
-                ha="center", va="center", fontsize=10)
-        fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
-        return out_path
+    # takeaway (verdict itself is a REPORT-layer badge, not on the figure); computed before the frame.
+    take = None
+    if breadth == "broad_normal_expression":
+        organ = " incl. GI tract" if any(r[0] in gi_set for r in rows) else ""
+        take = f"Broad normal footprint — {target_symbol} spans many normal tissues{organ}."
+    elif breadth == "not_detected_in_normal":
+        take = f"{target_symbol} protein is not detected in normal tissue — a favorable window."
+    elif essential_set:
+        take = (f"{target_symbol} is expressed in essential organ(s): "
+                f"{', '.join(sorted(essential_set))} — a strict-modality safety veto.")
 
-    labels = [r[0] for r in rows]
-    vals = [r[1] for r in rows]
-    colors = [pal.REFLINE_KILLER["color"] if lab in essential_set else "#0a2540"
-              for lab in labels]
-    ypos = range(len(labels))
-    ax.barh(list(ypos), vals, color=colors, height=0.6)
-    ax.set_yticks(list(ypos)); ax.set_yticklabels(labels, fontsize=8)
-    ax.invert_yaxis()
-    ax.set_xlabel("HPA IHC tissue-specific intensity")
-    ax.set_title(f"{target_symbol} — normal-tissue protein footprint  [{breadth}]\n"
-                 f"(red = essential tissue)", fontsize=9)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    # multi-panel → frame makes only the styled fig (make_ax=False) + owns title/provenance/takeaway
+    # + save on exit; the emitter adds the 2-row gridspec (ladder over enriched-tissue bars).
+    with pal.figure_frame(target_symbol, None, "normal-tissue protein footprint", out_path=out_path,
+                          kind="tall", make_ax=False,
+                          provenance="HPA v25  ·  IHC (pathologist-scored)", takeaway=take) as F:
+        fig = F.fig
+        gs = fig.add_gridspec(2, 1, height_ratios=[1.0, max(1.4, 0.4 * len(rows) + 0.6)], hspace=0.6)
+        ax_l = fig.add_subplot(gs[0]); ax_b = fig.add_subplot(gs[1])
+
+        # ---- breadth ladder (sequential DATA ramp: more tissues = darker; target cell bold-bordered) ----
+        active_idx = next((i for i, (c, _) in enumerate(_BREADTH_LADDER) if c == breadth), None)
+        for i, (cls, lab) in enumerate(_BREADTH_LADDER):
+            on = active_idx is not None and i <= active_idx
+            is_target = i == active_idx
+            base = ["#E7ECEF", "#CBD8DE", "#9DB6C2", "#5B7F99"][i]
+            rect = FancyBboxPatch((i, 0), 0.92, 1, boxstyle="round,pad=0.02,rounding_size=0.06",
+                                  facecolor=base if on else "#F2F4F6",
+                                  edgecolor=("#33383D" if is_target else "#C9CED3"),
+                                  linewidth=1.8 if is_target else 0.6, transform=ax_l.transData)
+            ax_l.add_patch(rect)
+            ax_l.text(i + 0.46, 0.5, lab, ha="center", va="center", fontsize=7.5,
+                      color=("#FFFFFF" if (on and i >= 3) else "#33383D"),
+                      weight="bold" if is_target else "normal")
+        ax_l.set_xlim(-0.1, len(_BREADTH_LADDER)); ax_l.set_ylim(-0.15, 1.15); ax_l.axis("off")
+        ax_l.text(0, 1.35, "IHC breadth across normal tissues (HPA) →", fontsize=7.5, color="#5A626A")
+
+        # ---- enriched-tissue bars ----
+        if rows:
+            labels = [r[0] for r in rows]; vals = [r[1] / 1e6 for r in rows]   # ×10⁶ → drop 1e7 offset
+            def _col(lab):
+                if lab in essential_set: return pal.REFLINE_KILLER["color"]     # essential organ = red
+                if lab in gi_set:        return "#E08214"                       # GI tract = amber
+                return pal.TUMOR_LINE
+            ypos = list(range(len(labels)))
+            ax_b.barh(ypos, vals, color=[_col(l) for l in labels], height=0.62,
+                      edgecolor="#FFFFFF", linewidth=0.6)
+            ax_b.set_yticks(ypos); ax_b.set_yticklabels([l.title() for l in labels], fontsize=8)
+            ax_b.invert_yaxis()
+            pal.axis_label(ax_b, "x", "Protein level", "HPA IHC intensity (×10⁶, tissue-enriched)")
+            ax_b.grid(axis="x", alpha=0.25, linewidth=0.4); ax_b.grid(axis="y", visible=False)
+            if len(rows) == 1:
+                ax_b.set_title("only 1 tissue is IHC-enriched — breadth (above) carries the signal",
+                               fontsize=7, color="#8A8F94", style="italic", loc="left", pad=3)
+            from matplotlib.patches import Patch
+            leg = []
+            if any(l in essential_set for l in labels):
+                leg.append(Patch(facecolor=pal.REFLINE_KILLER["color"], label="essential organ"))
+            if any(l in gi_set for l in labels):
+                leg.append(Patch(facecolor="#E08214", label="GI tract"))
+            if leg:
+                ax_b.legend(handles=leg, loc="lower right", fontsize=7, frameon=False)
+        else:
+            ax_b.axis("off")
+            note = {"broad_normal_expression": "broadly expressed; no single tissue is IHC-enriched",
+                    "not_detected_in_normal": "not detected in normal tissue — favorable window",
+                    }.get(breadth, f"breadth: {breadth.replace('_', ' ')}")
+            ax_b.text(0.5, 0.6, note, ha="center", va="center", fontsize=9, color="#5A626A")
     return out_path
 
 
