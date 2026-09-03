@@ -112,6 +112,12 @@ outputs:
     - tce_antigen_escape_class                   # combined escape-risk call (see vocabulary)
     - malignant_detection_donor_iqr              # inter-donor IQR of malignant detection fraction (None if <3 donors)
     - fraction_donors_broadly_detecting          # fraction of donors with malignant detection >= 0.5 (None if <3 donors)
+    # QC + malignant-annotation PROVENANCE (2026-09-03, #984 Tier-1) — reader-emitted trust qualifiers that
+    # temper how much a malignant-DETECTION call should be believed. Display/confidence-only here (consumed
+    # by tumor-presence claim-C corroboration + caveat, VERDICT-INERT — no ladder rung keys off them).
+    - ambient_contamination_risk                 # G8 soup-leakage heuristic on a malignant-subset call
+    - malignant_annotation_method                # provenance of the malignant label (curated > inferred > proxy)
+    - entity_purity                              # was the cube entity-specific or multi-entity pooled?
     - indication
     - product_id
 
@@ -167,6 +173,19 @@ outputs:
       - escape_risk_high                        # within-tumour coverage LOW (<0.5) — escape reservoir (coverage-first)
       - coverage_high_donor_underpowered        # high coverage but too few donors to test consistency (honest gap)
       - data_unavailable                        # no malignant compartment / detection
+    ambient_contamination_risk:                  # G8 soup-leakage QC on a malignant-subset detection call
+      - possible                                # detection may be ambient/soup leakage — trust-tempering
+      - low                                     # unlikely to be ambient
+      - data_unavailable                        # not assessed (e.g. not a malignant-subset call)
+    malignant_annotation_method:                 # provenance of the per-cell malignant label
+      - curated                                 # author-curated malignant annotation (most trustworthy)
+      - infercnv                                # inferred from CNV signal
+      - phenotype_proxy                         # proxy label (least trustworthy) — corroboration-tempering
+      - unspecified                             # provenance not recorded
+    entity_purity:                               # was the pseudobulk cube entity-specific or pooled?
+      - entity_specific                         # single (target, indication) entity
+      - multi_entity_pooled                     # pooled across entities — a coarser read
+      - unspecified
 
   figures:
     - id: sc_compartment_detection
