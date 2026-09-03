@@ -1860,14 +1860,16 @@ def build_target_call(recommendation_gate: dict, confidence_tier: dict, deciding
                       gate_scorecard: "Optional[dict]" = None,
                       overall_recommendation: "Optional[object]" = None,
                       target_rollup: "Optional[dict]" = None) -> dict:
-    """target_call.v1 — the unified DECISION view for `target_report` (docs/UNIFIED_OUTPUT_CONTRACT.md).
+    """target_call.v1 — the unified DECISION view for `target_report`, and the CANONICAL OWNER of the
+    decision-spine objects (docs/UNIFIED_OUTPUT_CONTRACT.md).
 
-    ADDITIVE + VERDICT-INERT: a composed VIEW that references the existing decision-spine objects
-    (recommendation_gate / confidence_tier / deciding_axis / gate_scorecard) — which STAY top-level until
-    renderers migrate. It does NOT recompute the recommendation: `recommendation_gate` remains the SOLE
-    owner (Wave-1 additive step; the 158-ref full-nest is deferred). Adds two things a reader needs that
-    no single spine object carries: the authoritative recommendation VALUE, and a `dissent` block naming
-    where independent signals disagree with the gate (the honest 'why not higher / why not lower')."""
+    FULL-NEST (2026-09-03): the four decision-spine objects nest UNDER target_call
+    (recommendation_gate→`gate`, confidence_tier→`confidence`, deciding_axis→`deciding_axis`,
+    gate_scorecard→`gate_scorecard`) and are NO LONGER emitted as top-level nomination keys — this retires
+    the #932 dual-exposure scaffold, giving one canonical home. VERDICT-INERT: it recomputes nothing;
+    `recommendation_gate` remains the SOLE owner of the recommendation VALUE. Adds two things no single
+    spine object carries: the authoritative recommendation VALUE, and a `dissent` block naming where
+    independent signals disagree with the gate (the honest 'why not higher / why not lower')."""
     rg = recommendation_gate or {}
     rec_val = (overall_recommendation.get("value") if isinstance(overall_recommendation, dict)
                else overall_recommendation)
@@ -1895,9 +1897,10 @@ def build_target_call(recommendation_gate: dict, confidence_tier: dict, deciding
         "deciding_axis": deciding_axis,     # ← deciding_axis
         "gate_scorecard": gate_scorecard,   # ← gate_scorecard
         "dissent": dissent,                 # NEW: independent signals that disagree with the gate
-        "_note": ("Unified DECISION view (target_report.target_call). VERDICT-INERT COMPOSITION over the "
-                  "existing spine objects; recommendation_gate remains the sole owner of the "
-                  "recommendation. Originals stay top-level until renderers migrate (Wave-1 additive)."),
+        "_note": ("Unified DECISION view + CANONICAL OWNER of the decision spine (target_report.target_call). "
+                  "VERDICT-INERT COMPOSITION; recommendation_gate remains the sole owner of the "
+                  "recommendation. The four spine objects nest here and are no longer top-level "
+                  "nomination keys (full-nest 2026-09-03)."),
     }
 
 

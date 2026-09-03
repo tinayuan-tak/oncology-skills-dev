@@ -965,16 +965,18 @@ def main() -> int:
             }
             for short, r in sub_results.items()
         },
-        # target_report.v1 — the unified per-target object (additive; references the facets below, which
-        # stay top-level until consumers migrate). See docs/UNIFIED_OUTPUT_CONTRACT.md.
+        # target_report.v1 — the unified per-target object (additive; references the facets below).
+        # See docs/UNIFIED_OUTPUT_CONTRACT.md.
         "target_report": target_report,
-        # target_report.target_call — the unified DECISION view (additive composition over the four keys
-        # below, which stay for now). See docs/UNIFIED_OUTPUT_CONTRACT.md.
+        # target_call — the unified DECISION view and the CANONICAL OWNER of the four decision-spine
+        # objects: recommendation_gate→target_call.gate, confidence_tier→target_call.confidence,
+        # deciding_axis→target_call.deciding_axis, gate_scorecard→target_call.gate_scorecard. The FULL-NEST
+        # (2026-09-03): those four are NO LONGER emitted as top-level nomination keys — they live only
+        # under target_call, retiring the #932 dual-exposure scaffold. recommendation_gate is still the
+        # sole owner of the recommendation VALUE (build_target_call recomputes nothing). See
+        # docs/UNIFIED_OUTPUT_CONTRACT.md. (provenance.json + the evidence_package synthesis block carry
+        # their own copies for reproducibility / the cross-evidence contract — unchanged.)
         "target_call": target_call,
-        "recommendation_gate": recommendation_gate,
-        "confidence_tier": confidence_tier,
-        "deciding_axis": deciding_axis,
-        "gate_scorecard": scorecard,
         "ordinal_matrix_view": ordinal_matrix,
         # Biomarker convergence facet (Q12, Part 3c): corroboration + stratification + preferred_assay.
         # A FACET (not a gate) — informs confidence + patient-selection; never mints a nominate.

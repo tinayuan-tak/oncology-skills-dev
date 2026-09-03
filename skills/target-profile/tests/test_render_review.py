@@ -59,3 +59,23 @@ def test_why_verdict_panel_removed(tmp_path):
     html = rr.build_html(_run_dir(tmp_path))
     assert "Why this verdict" not in html
     assert "No narrative for this axis" not in html
+
+
+def test_reads_decision_spine_from_nested_target_call(tmp_path):
+    """Full-nest (2026-09-03): the decision spine lives under target_call, NOT top-level. render_review
+    must read the recommendation from target_call.gate when the top-level keys are absent (the new shape)."""
+    nom = {
+        "target": "BRAF", "indication": "COADREAD", "llm_synthesis": {},
+        # NEW shape: no top-level recommendation_gate/confidence_tier — nested under target_call only.
+        "target_call": {"schema": "target_call.v1", "recommendation": "hold",
+                        "gate": {"fired": True}, "confidence": {"tier": "high"}},
+    }
+    (tmp_path / "nomination.json").write_text(json.dumps(nom))
+    (tmp_path / "evidence_package.json").write_text(
+        json.dumps({"context": {"target": "BRAF", "indication": "COADREAD"}}))
+    sub = tmp_path / "subskills" / "safety"
+    sub.mkdir(parents=True)
+    (sub / "package.json").write_text(json.dumps({"verdict": "x", "fired_rules": [], "cards": []}))
+    html = rr.build_html(tmp_path)
+    # gate.fired True (read from the NESTED location) → the "hold / block" recommendation renders
+    assert "hold / block" in html

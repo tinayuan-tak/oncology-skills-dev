@@ -641,12 +641,15 @@ def build_html(run_dir: Path) -> str:
         if isinstance(ls, dict) and "_synthesis_error" not in ls and not ls.get("_synthesis_skipped"):
             n_synth += 1
 
+    # Full-nest (2026-09-03): the decision spine lives under target_call. Fall back to the legacy
+    # top-level keys so review still renders PRE-nest nomination.json files from older runs.
+    _tc = (nom or {}).get("target_call") or {}
     syn = (nom or {}).get("llm_synthesis") or {}
     rec = _scalar(syn.get("overall_recommendation"))
     if not rec:
-        rg = (nom or {}).get("recommendation_gate") or {}
+        rg = _tc.get("gate") or (nom or {}).get("recommendation_gate") or {}
         rec = "hold / block" if rg.get("fired") else "nominate"
-    conf = ((nom or {}).get("confidence_tier") or {})
+    conf = _tc.get("confidence") or (nom or {}).get("confidence_tier") or {}
     conf = conf.get("tier") if isinstance(conf, dict) else conf
     return f"""<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">

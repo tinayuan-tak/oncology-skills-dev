@@ -93,19 +93,22 @@ def main(argv=None) -> int:
     figures_dir = dash_dir / "figures"
     composite = figures_dir / "target_profile_at_a_glance.svg"
 
+    # Full-nest (2026-09-03): the decision-spine objects live under target_call. Fall back to the legacy
+    # top-level keys so rerender still works on PRE-nest nomination.json files from older runs.
+    _tc = nomination.get("target_call") or {}
     html = _render_target_profile_html(
         nomination.get("target"), nomination.get("indication"), sub_results,
         nomination.get("llm_synthesis") or {}, nomination.get("invoked_lenses") or {},
-        deciding_axis=nomination.get("deciding_axis"),
+        deciding_axis=_tc.get("deciding_axis") or nomination.get("deciding_axis"),
         ordinal_matrix=nomination.get("ordinal_matrix_view"),
-        scorecard=nomination.get("gate_scorecard"),
+        scorecard=_tc.get("gate_scorecard") or nomination.get("gate_scorecard"),
         composite_svg_path=composite if composite.exists() else None,
         catalogue_rows=_catalogue_rows_from_sub_results(sub_results),
-        recommendation_gate=nomination.get("recommendation_gate"),
+        recommendation_gate=_tc.get("gate") or nomination.get("recommendation_gate"),
         card_figures=nomination.get("card_figures"), figures_dir=figures_dir,
         presence_facet=nomination.get("presence_facet"),
         grounded_by_axis=grounded_by_axis, hypothesis=hypothesis,
-        confidence_tier=nomination.get("confidence_tier"),
+        confidence_tier=_tc.get("confidence") or nomination.get("confidence_tier"),
         addressable_population=nomination.get("addressable_population"),
     )
     if args.plotly_cdn:

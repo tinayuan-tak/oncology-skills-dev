@@ -1,6 +1,7 @@
-"""target_call.v1 — the unified DECISION view (target_report consolidation, Wave 1, ADDITIVE).
-Verdict-inert composition over recommendation_gate/confidence_tier/deciding_axis/gate_scorecard +
-target_rollup.block; recommendation_gate stays the sole owner. Pure over synthetic inputs (no S3/LLM).
+"""target_call.v1 — the unified DECISION view AND canonical OWNER of the decision spine (full-nest
+2026-09-03). Verdict-inert composition that nests recommendation_gate→gate / confidence_tier→confidence /
+deciding_axis / gate_scorecard (the four are no longer top-level nomination keys) + target_rollup.block;
+recommendation_gate stays the sole owner of the recommendation value. Pure over synthetic inputs.
 """
 from __future__ import annotations
 import sys
