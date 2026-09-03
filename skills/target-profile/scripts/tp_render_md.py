@@ -163,33 +163,12 @@ def _render_phenotype_landscape(companion: Optional[dict],
     return out
 
 
-# risk_rollup bin vocab (LOW/MED/HIGH/ENGINE-BLIND) → the md table's level vocab.
-_ROLLUP_BIN_TO_MD_LEVEL = {"LOW": "LOW", "MED": "MEDIUM", "HIGH": "HIGH",
-                           "ENGINE-BLIND": "insufficient_evidence"}
-# fixed 6-dim order for the md risk table (matches the historical _risk_by_category ordering).
-_RISK_DIM_ORDER = ("biological", "druggability", "translational", "clinical", "safety", "commercial")
-
-
-def _risk_rows_from_rollup(risk_rollup: Optional[dict]) -> Optional[list[tuple[str, str, str]]]:
-    """Adapt the CANONICAL deterministic risk_rollup (dims) into the md (category, level, driver) rows,
-    so the md table renders the SAME 6-dim risk the HTML report + risk_rollup.json already show — instead
-    of the md's own parallel `_risk_by_category_from_sub_verdicts` mapping (which could diverge). Returns
-    None when the rollup is absent/misshaped → the renderer falls back to the local mapping (e.g. a
-    --no-substrate run where risk_rollup was never produced)."""
-    dims = risk_rollup.get("dims") if isinstance(risk_rollup, dict) and "dims" in risk_rollup else risk_rollup
-    if not isinstance(dims, dict):
-        return None
-    rows: list[tuple[str, str, str]] = []
-    for dim in _RISK_DIM_ORDER:
-        d = dims.get(dim)
-        if not isinstance(d, dict) or "bin" not in d:
-            continue
-        level = _ROLLUP_BIN_TO_MD_LEVEL.get(d.get("bin"), d.get("bin") or "insufficient_evidence")
-        chain = d.get("chain") or []
-        driver = (f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2
-                  else (d.get("pillar") or ""))
-        rows.append((dim, level, driver))
-    return rows or None
+# `_risk_rows_from_rollup` (+ its _RISK_DIM_ORDER / _ROLLUP_BIN_TO_MD_LEVEL constants) was RE-HOMED to
+# _skills_common/risk_projection.py 2026-09-03 (Wave-3 legacy-renderer retirement) so render_review no
+# longer imports it FROM this renderer. Re-exported here for back-compat with existing importers until
+# this md renderer itself retires.
+from _skills_common.risk_projection import (   # noqa: E402
+    _risk_rows_from_rollup, _RISK_DIM_ORDER, _ROLLUP_BIN_TO_MD_LEVEL)
 
 
 def _render_target_profile_md(

@@ -40,7 +40,7 @@ for _p in (str(_HERE), str(_SKILLS_ROOT)):
 # _risk_rows_from_rollup the md report uses. The deterministic engine (deterministic_bins) is the
 # re-homed shared core; render_review prefers the emitted risk_rollup.json, else recomputes it here.
 try:
-    from tp_render_md import _risk_rows_from_rollup as _risk_rows
+    from _skills_common.risk_projection import _risk_rows_from_rollup as _risk_rows
 except Exception:  # noqa: BLE001
     _risk_rows = None
 try:

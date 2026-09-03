@@ -223,5 +223,38 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     return dims
 
 
+# ── (category, level, driver) row adaptation ─────────────────────────────────────────────────────
+# Re-homed here 2026-09-03 (Wave-3 legacy-renderer retirement) from tp_render_md so the standalone
+# render_review reviewer + the (retiring) md report share ONE risk-row source without importing the
+# renderer. Presentation-neutral: adapts the canonical deterministic risk_rollup `dims` into
+# (category, level, driver) rows. Both the md table + render_review render the SAME 6-dim risk this way.
+_ROLLUP_BIN_TO_MD_LEVEL = {"LOW": "LOW", "MED": "MEDIUM", "HIGH": "HIGH",
+                           "ENGINE-BLIND": "insufficient_evidence"}
+# fixed 6-dim order (matches the historical _risk_by_category ordering).
+_RISK_DIM_ORDER = ("biological", "druggability", "translational", "clinical", "safety", "commercial")
+
+
+def _risk_rows_from_rollup(risk_rollup):
+    """Adapt the CANONICAL deterministic risk_rollup (dims) into (category, level, driver) rows, so a
+    consumer renders the SAME 6-dim risk the HTML report + risk_rollup.json show — instead of a parallel
+    per-consumer mapping that could diverge. Returns None when the rollup is absent/misshaped → the caller
+    falls back to its local mapping (e.g. a --no-substrate run where risk_rollup was never produced)."""
+    dims = risk_rollup.get("dims") if isinstance(risk_rollup, dict) and "dims" in risk_rollup else risk_rollup
+    if not isinstance(dims, dict):
+        return None
+    rows = []
+    for dim in _RISK_DIM_ORDER:
+        d = dims.get(dim)
+        if not isinstance(d, dict) or "bin" not in d:
+            continue
+        level = _ROLLUP_BIN_TO_MD_LEVEL.get(d.get("bin"), d.get("bin") or "insufficient_evidence")
+        chain = d.get("chain") or []
+        driver = (f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2
+                  else (d.get("pillar") or ""))
+        rows.append((dim, level, driver))
+    return rows or None
+
+
 __all__ = ["RANK", "INV", "SURFACE", "AXIS_TO_DIM", "_mod", "_sv", "_calls", "_card", "_q",
-           "assemble_risk_package", "deterministic_bins"]
+           "assemble_risk_package", "deterministic_bins",
+           "_risk_rows_from_rollup", "_RISK_DIM_ORDER", "_ROLLUP_BIN_TO_MD_LEVEL"]
