@@ -4,6 +4,18 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.20.0
+- **`--literature` retriever → `default_retrieve` (multi-source, lens-specific queries).** Shared
+  `_skills_common/literature_retrieval.py` gains (1) `pubtator3_retrieve` (NCBI PubTator3 entity-index
+  search) + `default_retrieve` = Europe PMC → PubTator3 **fallback chain**, so a transient single-source
+  outage no longer collapses grounding to internal-knowledge/unverified (the failure mode seen on the
+  1.19.0 validation run); (2) **per-subskill query specificity + variations** — `_build_query_variations`
+  issues a broad gene∧disease query AND a lens-specific query whose terms come from the LensConfig's own
+  `axis_labels` + a curated per-lens map (selectivity → therapeutic window / normal-tissue / IHC), merged
+  and deduped by PMID; (3) a `verify_citations` NCBI E-utilities fallback. tumor-selectivity flips its
+  `retrieve_fn` from `europe_pmc_retrieve` to `default_retrieve`. VERDICT-INERT / best-effort — spine
+  untouched. (Shared-module change; coordinated with the presence literature arc.)
+
 ## 1.19.0
 - **OPTIONAL `--literature` lane (VERDICT-INERT), Phase-5 fast-follow to 1.18.0.** Wires the shared
   `_skills_common` literature lane (`make_literature_fn`) into `run_wired_skill(literature_fn=…)`, scoped

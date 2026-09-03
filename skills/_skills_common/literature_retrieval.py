@@ -1,34 +1,40 @@
-"""literature_retrieval — Europe PMC grounding + PMID verification for the literature lane.
+"""literature_retrieval — multi-source grounding + PMID verification for the literature lane.
 
-Two best-effort, stdlib-only (urllib) helpers wired into `literature_synthesis`:
+Best-effort, stdlib-only (urllib) helpers wired into `literature_synthesis`:
 
-  * ``europe_pmc_retrieve(target, indication, lens)`` — query the public Europe PMC REST API for the most
-    relevant papers on the (target, indication) and return a compact GROUNDING CORPUS string (PMID +
-    citation + truncated abstract per paper). Injected into the synthesis prompt so the model cites REAL
-    papers present in the corpus (and may mark those ``verified=true``).
+  * ``europe_pmc_retrieve`` / ``pubtator3_retrieve`` — return a compact GROUNDING CORPUS string
+    (PMID + citation + snippet per paper) for a (target, indication, lens). LENS-AWARE + VARIED: the
+    query is SPECIALISED to what the skill's lens measures (its ``axis_labels`` + a curated per-lens
+    term map) and issued as VARIATIONS — a broad gene∧disease query AND a lens-specific query — whose
+    hits are merged/deduped by PMID. So each subskill's grounding is specific to its own question
+    (selectivity → therapeutic window / normal-tissue; dependency → CRISPR / essential; safety →
+    loss-of-function / haploinsufficiency; …), not one generic string.
+  * ``default_retrieve`` — the RECOMMENDED retriever: Europe PMC first, then PubTator3 on failure, so a
+    transient outage of one source no longer collapses grounding to internal-knowledge/unverified.
+  * ``verify_citations`` — reconcile every citation's ``verified`` flag against GROUND TRUTH (Europe PMC,
+    with an NCBI E-utilities fallback), recording a ``_verification`` summary.
 
-  * ``verify_citations(result)`` — after synthesis, reconcile every citation's ``verified`` flag against
-    GROUND TRUTH: a PMID is ``verified=true`` iff Europe PMC actually returns that identifier. This makes
-    ``verified`` trustworthy regardless of what the model claimed (a hallucinated PMID flips to false), and
-    records a ``_verification`` summary on the result.
-
-BEST-EFFORT / NEVER-BREAK: every network path has a short timeout and degrades on ANY failure
-(no network, DNS, non-200, parse error) — retrieval returns None (→ internal-knowledge mode), verification
-leaves the model's flags and marks ``_verification: {"status": "unavailable"}``. The literature lane itself
-is already optional + verdict-inert, so a retrieval/verification outage can never touch the spine.
+BEST-EFFORT / NEVER-BREAK: every network path has a short timeout (+ one retry) and degrades on ANY
+failure (no network, DNS, non-200, parse error) — retrieval returns None (→ internal-knowledge mode),
+verification leaves the model's flags and marks ``_verification: {"status": "unavailable"}``. The
+literature lane itself is already optional + verdict-inert, so a retrieval/verification outage can never
+touch the spine.
 """
 from __future__ import annotations
 import json
+import re
 import urllib.parse
 import urllib.request
 from typing import Optional
 
 _EPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+_PUBTATOR_SEARCH = "https://www.ncbi.nlm.nih.gov/research/pubtator3-api/search/"
+_NCBI_ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 _UA = {"User-Agent": "onc-compbio-skills-literature-lane/1.0 (mailto:noreply@takeda.com)"}
 
 # Minimal OncoTree-ish code → readable phrase for the query (best-effort; unknown codes fall back to the
-# raw code + "cancer", which Europe PMC free-text still ranks usefully). Kept tiny + local on purpose —
-# this is a query hint, not a canonical vocabulary.
+# raw code + "cancer", which free-text still ranks usefully). Kept tiny + local on purpose — this is a
+# query hint, not a canonical vocabulary.
 _INDICATION_PHRASE = {
     "COADREAD": "colorectal cancer", "COAD": "colon cancer", "READ": "rectal cancer",
     "LUAD": "lung adenocarcinoma", "LUSC": "lung squamous carcinoma", "NSCLC": "non-small cell lung cancer",
@@ -38,6 +44,31 @@ _INDICATION_PHRASE = {
     "GBM": "glioblastoma", "AML": "acute myeloid leukemia", "BLCA": "bladder cancer",
 }
 
+# Per-subskill query SPECIFICITY: curated domain terms keyed by LensConfig.name, ADDED to the lens's own
+# axis_labels (which the skill already declares). Each subskill therefore queries the literature for what
+# IT measures — not a generic gene∧disease string. Small + reviewable; unknown lenses fall back to
+# axis_labels only (or bare gene∧disease when no lens is supplied).
+_LENS_QUERY_TERMS = {
+    "tumor-selectivity":          ["tumor versus normal expression", "therapeutic window",
+                                   "normal tissue expression", "immunohistochemistry"],
+    "tumor-presence":             ["overexpression", "protein abundance", "expression"],
+    "functional-requirement":     ["genetic dependency", "essential gene", "CRISPR knockout",
+                                   "RNA interference"],
+    "on-target-safety-liability": ["loss-of-function intolerance", "haploinsufficiency",
+                                   "knockout phenotype", "germline"],
+    "mechanism-and-pharmacology": ["signaling pathway", "mechanism of action"],
+    "genomic-alteration-profile": ["somatic mutation", "copy number amplification", "gene fusion",
+                                   "driver mutation"],
+    "surface-modality-fit":       ["cell surface", "antibody-drug conjugate", "internalization"],
+    "tractability-small-molecule": ["small molecule inhibitor", "druggability"],
+    "differentiation-landscape":  ["co-mutation", "mutual exclusivity"],
+    "immune-context":             ["tumor-infiltrating lymphocytes", "CD8 T cell"],
+    "combination-and-vulnerability": ["synthetic lethality", "combination therapy"],
+    "translational-readiness":    ["patient-derived organoid", "patient-derived xenograft"],
+    "target-intrinsic":           ["protein structure", "gene expression atlas"],
+    "cis-feature-coherence":      ["copy-number-driven expression", "promoter methylation silencing"],
+}
+
 
 def _indication_phrase(indication: Optional[str]) -> str:
     if not indication:
@@ -45,65 +76,219 @@ def _indication_phrase(indication: Optional[str]) -> str:
     return _INDICATION_PHRASE.get(indication.upper(), f"{indication} cancer")
 
 
-def _http_get_json(url: str, timeout: float) -> Optional[dict]:
-    try:
-        req = urllib.request.Request(url, headers=_UA)
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            if getattr(r, "status", 200) != 200:
-                return None
-            return json.loads(r.read().decode("utf-8"))
-    except Exception:  # noqa: BLE001 — best-effort; ANY failure → degrade to None
-        return None
+def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:
+    """The lens-specific query terms: the LensConfig's own axis_labels (what the skill declares it
+    measures) PLUS the curated per-lens supplement. Deduped (case-insensitive), capped. [] when no lens."""
+    if lens is None:
+        return []
+    seen: set = set()
+    out: list[str] = []
+    def _add(t):
+        t = (t or "").strip()
+        k = t.lower()
+        if t and k not in seen:
+            seen.add(k)
+            out.append(t)
+    for v in (getattr(lens, "axis_labels", {}) or {}).values():
+        _add(v)
+    for t in _LENS_QUERY_TERMS.get(getattr(lens, "name", ""), []):
+        _add(t)
+    return out[:max_terms]
+
+
+def _build_query_variations(target: str, indication: Optional[str], lens) -> list[str]:
+    """Ordered query VARIATIONS for (target, indication, lens): a broad gene∧disease query for recall,
+    then a lens-SPECIFIC query (gene ∧ disease ∧ (term1 OR term2 …)) for precision. Both AND/OR/quoted
+    syntax is accepted by Europe PMC and PubTator3 free-text search. Deduped."""
+    phrase = _indication_phrase(indication)
+    base = f'("{target}") AND ("{phrase}")'
+    variations = [base]
+    terms = _lens_terms(lens)
+    if terms:
+        or_clause = " OR ".join(f'"{t}"' for t in terms)
+        variations.append(f'{base} AND ({or_clause})')
+    return variations
+
+
+def _strip_tags(s: str) -> str:
+    return re.sub(r"<[^>]+>", "", s or "").strip()
+
+
+def _clean_pubtator_hl(s: str) -> str:
+    """PubTator3 `text_hl` carries bioconcept markup — highlighted spans as ``@@@matched text@@@`` and
+    inline entity tokens like ``@DISEASE_Colorectal_Neoplasms`` / ``@DISEASE_MESH:D015179``. Unwrap the
+    spans (keep the human text), drop the entity tokens + any HTML tags, and collapse whitespace so the
+    grounding snippet reads as prose."""
+    s = re.sub(r"@@@(.*?)@@@", r"\1", s or "")        # unwrap highlighted spans → keep inner text
+    s = re.sub(r"@[A-Za-z]+_\S+", "", s)              # drop @TYPE_Identifier bioconcept tokens
+    return re.sub(r"\s+", " ", _strip_tags(s)).strip()
+
+
+def _first_author(authors) -> str:
+    """First-author surname-ish from a list (str or {name}) or an authorString."""
+    if isinstance(authors, list) and authors:
+        a = authors[0]
+        if isinstance(a, dict):
+            a = a.get("name") or a.get("fullName") or a.get("lastName") or ""
+        a = str(a).strip()
+        return a or "?"
+    if isinstance(authors, str) and authors.strip():
+        return authors.split(",")[0].strip()
+    return "?"
+
+
+def _year_from(date) -> str:
+    s = str(date or "")
+    return s[:4] if s[:4].isdigit() else "?"
+
+
+def _http_get_json(url: str, timeout: float, *, retries: int = 1) -> Optional[dict]:
+    """GET + parse JSON, with ONE retry on transient failure. Returns None on any error (best-effort)."""
+    for attempt in range(retries + 1):
+        try:
+            req = urllib.request.Request(url, headers=_UA)
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                if getattr(r, "status", 200) != 200:
+                    return None
+                return json.loads(r.read().decode("utf-8"))
+        except Exception:  # noqa: BLE001 — best-effort; retry once, then degrade to None
+            if attempt < retries:
+                continue
+            return None
 
 
 def _search(query: str, *, page_size: int, result_type: str, timeout: float) -> Optional[dict]:
+    """Europe PMC search (kept as `_search` — the monkeypatch seam the tests pin)."""
     params = urllib.parse.urlencode({"query": query, "format": "json",
                                      "resultType": result_type, "pageSize": page_size})
     return _http_get_json(f"{_EPMC_SEARCH}?{params}", timeout)
 
 
-def europe_pmc_retrieve(target, indication, lens=None, *, max_results: int = 8,
-                        abstract_chars: int = 420, timeout: float = 8.0) -> Optional[str]:
-    """Return a compact grounding corpus (str) of the top Europe PMC hits for (target, indication), or None
-    on any failure / no hits. `lens` is accepted for the retrieve_fn signature but not required."""
-    if not target:
-        return None
-    phrase = _indication_phrase(indication)
-    # bias toward reviews + primary papers with abstracts; free-text is robust to the OncoTree code.
-    query = f'("{target}") AND ("{phrase}") AND (HAS_ABSTRACT:Y)'
-    data = _search(query, page_size=max_results, result_type="core", timeout=timeout)
-    results = ((data or {}).get("resultList") or {}).get("result") or []
-    lines = []
-    for r in results:
-        pmid = r.get("pmid")           # ONLY a real PMID — never fall back to `id` (a PPR/preprint id is
-        if not pmid:                   # not PMID-verifiable and must not be mislabelled [PMID:...]).
+# ── grounding-corpus assembly (shared across sources) ──────────────────────────────────────────────
+def _fmt_corpus(source_label: str, target: str, phrase: str, records: list[dict], max_results: int) -> Optional[str]:
+    """Dedupe records by PMID (preserving first-seen order across query variations), cap, and format the
+    compact grounding corpus. None when no PMID-bearing hit survived."""
+    seen: set = set()
+    kept: list[dict] = []
+    for r in records:
+        pmid = str(r.get("pmid") or "").strip()
+        if not pmid or pmid in seen:
             continue
-        auth = (r.get("authorString") or "").split(",")[0].strip() or "?"
-        cite = f"{auth} {r.get('pubYear', '?')}, {r.get('journalTitle') or r.get('source') or '?'}"
-        title = (r.get("title") or "").strip().rstrip(".")
-        abstract = (r.get("abstractText") or "").replace("\n", " ").strip()
-        if len(abstract) > abstract_chars:
-            abstract = abstract[:abstract_chars].rsplit(" ", 1)[0] + "…"
-        lines.append(f"[PMID:{pmid}] {cite} — {title}. {abstract}".strip())
-    if not lines:
+        seen.add(pmid)
+        kept.append(r)
+        if len(kept) >= max_results:
+            break
+    if not kept:
         return None
-    header = (f"Top Europe PMC results for {target} in {phrase} (cite these PMIDs; you MAY mark verified=true "
-              f"only for identifiers listed here):")
+    header = (f"Top {source_label} results for {target} in {phrase} (cite these PMIDs; you MAY mark "
+              f"verified=true only for identifiers listed here):")
+    lines = []
+    for r in kept:
+        cite = f"{r.get('author', '?')} {r.get('year', '?')}, {r.get('journal', '?')}"
+        title = (r.get("title") or "").strip().rstrip(".")
+        snip = (r.get("snippet") or "").strip()
+        lines.append(f"[PMID:{r['pmid']}] {cite} — {title}." + (f" {snip}" if snip else ""))
     return header + "\n" + "\n".join(f"  {ln}" for ln in lines)
 
 
-def _pmid_exists(pmid: str, timeout: float) -> Optional[bool]:
-    """True/False if Europe PMC does/doesn't return the id; None if the check itself could not run."""
+def _truncate(s: str, n: int) -> str:
+    s = (s or "").replace("\n", " ").strip()
+    return s[:n].rsplit(" ", 1)[0] + "…" if len(s) > n else s
+
+
+# ── retrievers ─────────────────────────────────────────────────────────────────────────────────────
+def europe_pmc_retrieve(target, indication, lens=None, *, max_results: int = 8,
+                        abstract_chars: int = 420, timeout: float = 8.0) -> Optional[str]:
+    """Grounding corpus of the top Europe PMC hits for (target, indication), LENS-AWARE (see
+    _build_query_variations). None on any failure / no hits."""
+    if not target:
+        return None
+    phrase = _indication_phrase(indication)
+    records: list[dict] = []
+    for query in _build_query_variations(target, indication, lens):
+        data = _search(f"{query} AND (HAS_ABSTRACT:Y)", page_size=max_results,
+                       result_type="core", timeout=timeout)
+        for r in (((data or {}).get("resultList") or {}).get("result") or []):
+            pmid = r.get("pmid")           # ONLY a real PMID — never fall back to `id` (a PPR/preprint id
+            if not pmid:                   # is not PMID-verifiable and must not be mislabelled [PMID:...]).
+                continue
+            records.append({
+                "pmid": pmid,
+                "author": _first_author(r.get("authorString")),
+                "year": r.get("pubYear", "?"),
+                "journal": r.get("journalTitle") or r.get("source") or "?",
+                "title": r.get("title") or "",
+                "snippet": _truncate(r.get("abstractText") or "", abstract_chars),
+            })
+    return _fmt_corpus("Europe PMC", target, phrase, records, max_results)
+
+
+def pubtator3_retrieve(target, indication, lens=None, *, max_results: int = 8,
+                       snippet_chars: int = 420, timeout: float = 8.0) -> Optional[str]:
+    """Grounding corpus from NCBI PubTator3 search (entity/bioconcept-index-ranked), LENS-AWARE. Uses the
+    relevance-highlighted `text_hl` snippet (tags stripped) as the grounding text. None on failure / no hits.
+    A drop-in `retrieve_fn` (same signature as europe_pmc_retrieve) — the fallback source in default_retrieve."""
+    if not target:
+        return None
+    phrase = _indication_phrase(indication)
+    records: list[dict] = []
+    for query in _build_query_variations(target, indication, lens):
+        data = _http_get_json(f"{_PUBTATOR_SEARCH}?{urllib.parse.urlencode({'text': query})}", timeout)
+        for r in ((data or {}).get("results") or []):
+            pmid = r.get("pmid")
+            if not pmid:
+                continue
+            records.append({
+                "pmid": str(pmid),
+                "author": _first_author(r.get("authors")),
+                "year": _year_from(r.get("date")),
+                "journal": r.get("journal") or "?",
+                "title": r.get("title") or "",
+                "snippet": _truncate(_clean_pubtator_hl(r.get("text_hl") or ""), snippet_chars),
+            })
+    return _fmt_corpus("NCBI PubTator3", target, phrase, records, max_results)
+
+
+def default_retrieve(target, indication, lens=None, *, max_results: int = 8, timeout: float = 8.0) -> Optional[str]:
+    """RECOMMENDED retriever: Europe PMC first, PubTator3 on failure — a transient outage of one source
+    no longer collapses grounding to internal-knowledge/unverified. Both are lens-aware."""
+    return (europe_pmc_retrieve(target, indication, lens, max_results=max_results, timeout=timeout)
+            or pubtator3_retrieve(target, indication, lens, max_results=max_results, timeout=timeout))
+
+
+# ── PMID verification (Europe PMC primary, NCBI E-utilities fallback) ───────────────────────────────
+def _pmid_exists_epmc(pmid: str, timeout: float) -> Optional[bool]:
     data = _search(f"EXT_ID:{pmid} AND SRC:MED", page_size=1, result_type="idlist", timeout=timeout)
     if data is None:
         return None
     return int(data.get("hitCount") or 0) >= 1
 
 
+def _pmid_exists_ncbi(pmid: str, timeout: float) -> Optional[bool]:
+    """NCBI E-utilities esummary fallback: the PMID exists iff it appears in result.uids with no error."""
+    url = f"{_NCBI_ESUMMARY}?{urllib.parse.urlencode({'db': 'pubmed', 'id': pmid, 'retmode': 'json'})}"
+    data = _http_get_json(url, timeout)
+    if data is None:
+        return None
+    res = data.get("result") or {}
+    if str(pmid) not in [str(u) for u in (res.get("uids") or [])]:
+        return False
+    return "error" not in (res.get(str(pmid)) or {})
+
+
+def _pmid_exists(pmid: str, timeout: float) -> Optional[bool]:
+    """True/False if the PMID does/doesn't exist; None if NEITHER source could run. Europe PMC first,
+    NCBI E-utilities as the fallback so verification survives a single-source outage."""
+    r = _pmid_exists_epmc(pmid, timeout)
+    if r is not None:
+        return r
+    return _pmid_exists_ncbi(pmid, timeout)
+
+
 def verify_citations(result: dict, *, timeout: float = 8.0) -> dict:
-    """Reconcile every citation.verified against Europe PMC ground truth (in place) + stamp a
-    `_verification` summary. Best-effort: if the checks cannot run, leave flags and mark status
-    'unavailable'. A citation with no PMID stays verified=false (identifier not checkable here)."""
+    """Reconcile every citation.verified against ground truth (in place) + stamp a `_verification`
+    summary. Best-effort: if the checks cannot run, leave flags and mark status 'unavailable'. A citation
+    with no PMID stays verified=false (identifier not checkable here)."""
     if not isinstance(result, dict):
         return result
     cites = []
@@ -124,7 +309,7 @@ def verify_citations(result: dict, *, timeout: float = 8.0) -> dict:
         if pmid not in seen:
             seen[pmid] = _pmid_exists(pmid, timeout)
         exists = seen[pmid]
-        if exists is None:                     # the check could not run — leave the model's flag
+        if exists is None:                     # neither source could run — leave the model's flag
             continue
         ran = True
         checked += 1
@@ -133,9 +318,12 @@ def verify_citations(result: dict, *, timeout: float = 8.0) -> dict:
         verified += 1 if exists else 0
         flipped += 1 if was != exists else 0
     result["_verification"] = ({"status": "unavailable",
-                                "note": "Europe PMC PMID verification could not run (no network / API error); "
+                                "note": "PMID verification could not run (no network / API error); "
                                         "citation.verified reflects the model's self-report, treat as unconfirmed."}
                                if (cites and not ran) else
                                {"status": "checked", "source": "europe_pmc",
                                 "n_pmid_checked": checked, "n_verified": verified, "n_flipped": flipped})
     return result
+
+
+__all__ = ["europe_pmc_retrieve", "pubtator3_retrieve", "default_retrieve", "verify_citations"]

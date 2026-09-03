@@ -85,3 +85,65 @@ def test_synthesize_runs_verify_fn(monkeypatch):
     out = fn({"target": "EPCAM", "indication": "COADREAD", "headline": {"claim_vector": {}}})
     assert out["_verification"]["status"] == "checked"
     assert out["axes"][0]["citations"][1]["verified"] is False           # hallucinated flipped by verify_fn
+
+
+# ── per-subskill query SPECIFICITY + VARIATIONS ─────────────────────────────────────────────────────
+def test_query_variations_are_lens_specific():
+    from _skills_common.narrator_lenses import TUMOR_SELECTIVITY, TUMOR_PRESENCE
+    vs_sel = lr._build_query_variations("EPCAM", "COADREAD", TUMOR_SELECTIVITY)
+    # a broad recall query + a lens-specific precision query
+    assert vs_sel[0] == '("EPCAM") AND ("colorectal cancer")'
+    assert len(vs_sel) == 2 and "therapeutic window" in vs_sel[1]
+    # a DIFFERENT subskill produces a DIFFERENT specific query (specificity per lens)
+    vs_pres = lr._build_query_variations("EPCAM", "COADREAD", TUMOR_PRESENCE)
+    assert vs_pres[1] != vs_sel[1]
+    # no lens → just the broad query (byte-compatible with the pre-lens behavior)
+    assert lr._build_query_variations("EPCAM", "COADREAD", None) == ['("EPCAM") AND ("colorectal cancer")']
+
+
+# ── PubTator3 retriever ─────────────────────────────────────────────────────────────────────────────
+_PUBTATOR_CANNED = {"results": [
+    {"pmid": "41357552", "title": "Construction of EpCAM overexpression vectors",
+     "journal": "Front Genome Ed", "authors": ["Wang B", "Li Q"], "date": "2025-11-20T00:00:00Z",
+     "doi": "10.x/y",
+     "text_hl": "@@@EpCAM@@@ is overexpressed in @DISEASE_Colorectal_Neoplasms @DISEASE_MESH:D015179 @@@colorectal cancer@@@ cells"},
+    {"title": "no pmid, dropped"},
+]}
+
+
+def test_pubtator3_retrieve_parses_and_cleans_markup(monkeypatch):
+    monkeypatch.setattr(lr, "_http_get_json", lambda *a, **k: _PUBTATOR_CANNED)
+    corpus = lr.pubtator3_retrieve("EPCAM", "COADREAD", LENS)
+    assert "NCBI PubTator3" in corpus
+    assert "[PMID:41357552] Wang B 2025, Front Genome Ed" in corpus
+    # text_hl bioconcept markup stripped to clean prose (spans unwrapped, @TYPE_ tokens dropped)
+    assert "EpCAM is overexpressed in colorectal cancer cells" in corpus
+    assert "@@@" not in corpus and "@DISEASE" not in corpus and "no pmid, dropped" not in corpus
+
+
+def test_default_retrieve_falls_back_to_pubtator(monkeypatch):
+    monkeypatch.setattr(lr, "_search", lambda *a, **k: None)             # Europe PMC unavailable
+    monkeypatch.setattr(lr, "_http_get_json", lambda *a, **k: _PUBTATOR_CANNED)  # PubTator up
+    corpus = lr.default_retrieve("EPCAM", "COADREAD", LENS)
+    assert corpus is not None and "NCBI PubTator3" in corpus             # fell back, did not return None
+
+
+def test_default_retrieve_prefers_europe_pmc(monkeypatch):
+    canned = {"resultList": {"result": [
+        {"pmid": "16404366", "authorString": "Went P", "pubYear": "2006",
+         "journalTitle": "Br J Cancer", "title": "t", "abstractText": "a"}]}}
+    monkeypatch.setattr(lr, "_search", lambda *a, **k: canned)
+    monkeypatch.setattr(lr, "_http_get_json", lambda *a, **k: _PUBTATOR_CANNED)
+    corpus = lr.default_retrieve("EPCAM", "COADREAD", LENS)
+    assert "Europe PMC" in corpus and "NCBI PubTator3" not in corpus     # primary wins when it returns hits
+
+
+# ── verification NCBI fallback ──────────────────────────────────────────────────────────────────────
+def test_pmid_exists_falls_back_to_ncbi(monkeypatch):
+    monkeypatch.setattr(lr, "_pmid_exists_epmc", lambda pmid, timeout: None)   # EPMC check can't run
+    monkeypatch.setattr(lr, "_pmid_exists_ncbi", lambda pmid, timeout: True)   # NCBI confirms
+    assert lr._pmid_exists("16404366", 8.0) is True
+    # a DEFINITIVE Europe PMC answer short-circuits (no NCBI call needed)
+    monkeypatch.setattr(lr, "_pmid_exists_epmc", lambda pmid, timeout: False)
+    monkeypatch.setattr(lr, "_pmid_exists_ncbi", lambda pmid, timeout: (_ for _ in ()).throw(AssertionError("should not call")))
+    assert lr._pmid_exists("99999999", 8.0) is False
