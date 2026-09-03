@@ -27,6 +27,7 @@ from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE as _LENS
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
+from _skills_common.cis_coherence_question_table import cis_coherence_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.skill_report import build_skill_report, ROLE_INERT
 from _skills_common.headline_hero import emit_headline_hero
@@ -302,6 +303,13 @@ def _headline(cards, fired, verdict_pair):
     # verdict echo, so it stays verdict-inert (byte-stable).
     hl["claim_vector"] = cis_coherence_claim_vector(hl, cards)
     hl["key_signals"] = cis_coherence_key_signals(hl, cards)
+    # The per-question (data·signal·confidence) LEADING table — verdict-INERT projection over the leg
+    # claim_vector just built (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT); best-effort (never abort the spine).
+    try:
+        hl["question_table"] = cis_coherence_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
@@ -324,6 +332,7 @@ def _headline(cards, fired, verdict_pair):
             driving_rule_id=hl.get("driving_rule_id"),
             headline_block=hl.get("headline_block"),
             claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
@@ -341,6 +350,8 @@ _SYNTHESIS_FACET_KEYS = (
     "cis_protein_dosage_class", "mrna_vs_protein_dosage_slope_ratio", "abundance_dependency_class",
     "patient_dosage_agrees_with_cellline", "patient_silencing_agrees_with_cellline",
     "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
     # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 inert-role adoption

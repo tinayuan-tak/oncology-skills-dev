@@ -27,6 +27,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import IMMUNE_CONTEXT as _LENS
 from _skills_common import get_card_field
+from _skills_common.immune_context_question_table import immune_context_question_table
 from _skills_common.immune_context_claims import (
     immune_context_claim_vector, immune_context_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -234,6 +235,13 @@ def _headline(cards, fired, verdict_pair):
     # cross-evidence reasoner. immune-context is gateless (absent from _SHORT_TO_GATE); verdict-inert.
     hl["claim_vector"] = immune_context_claim_vector(hl, cards)
     hl["key_signals"] = immune_context_key_signals(hl, cards)
+    # The per-question (data·signal·confidence) LEADING table — verdict-INERT projection over the IMMUNE
+    # claim_vector just built; best-effort (never abort the effector-context spine already built in `hl`).
+    try:
+        hl["question_table"] = immune_context_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
     # headline message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
     # projection over the claim_vector / key_signals just built. Best-effort: a formatting/read fault must
@@ -256,6 +264,7 @@ def _headline(cards, fired, verdict_pair):
             driving_rule_id=hl.get("driving_rule_id"),
             headline_block=hl.get("headline_block"),
             claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
@@ -271,6 +280,8 @@ _SYNTHESIS_FACET_KEYS = (
     "median_total_t_cell_fraction", "n_samples",
     "til_fraction_class", "median_til_percentage", "til_cibersort_agreement",
     "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
     # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 descriptive adoption

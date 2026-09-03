@@ -30,6 +30,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import TARGET_INTRINSIC as _LENS
 from _skills_common import get_card_field
+from _skills_common.target_intrinsic_question_table import target_intrinsic_question_table
 from _skills_common.target_intrinsic_claims import (
     target_intrinsic_claim_vector, target_intrinsic_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -231,6 +232,13 @@ def _headline(cards, fired, verdict_pair):
     # modality fit. Both source cards are in the composer entry, so this populates in the COMPOSED profile.
     hl["claim_vector"] = target_intrinsic_claim_vector(hl, cards)
     hl["key_signals"] = target_intrinsic_key_signals(hl, cards)
+    # The per-question (data·signal·confidence) LEADING table — verdict-INERT projection over the
+    # claim_vector just built (MODALITY_ROUTING/TRACTABILITY_PRECEDENT); best-effort (never abort dossier).
+    try:
+        hl["question_table"] = target_intrinsic_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the dossier
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
     # Canonical HEADLINE block (DESCRIPTIVE MODE — no gate verdict): a verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort (a formatting/read fault must NEVER discard the
     # descriptive dossier already built in `hl`, mirroring the fleet's degrade-on-exception discipline).
@@ -252,6 +260,7 @@ def _headline(cards, fired, verdict_pair):
             driving_rule_id=hl.get("driving_rule_id"),
             headline_block=hl.get("headline_block"),
             claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
@@ -277,6 +286,13 @@ def _synthesis_facet(cards, fired, verdict_pair=None):
         "_facet_note": ("Deterministic target-intrinsic facet; claim_vector is a DESCRIPTIVE modality-routing "
                         "+ tractability-precedent projection (direction/meaning in the atoms). Gateless — no verdict."),
     }
+    # The per-question LEADING table, built from THIS facet's self-contained cv (same reason as the
+    # headline_block below — the facet dict is the fan-out carrier, so it must be assembled here too).
+    try:
+        facet["question_table"] = target_intrinsic_question_table(facet, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the facet
+        facet.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        facet["question_table"] = None
     # Canonical HEADLINE block (DESCRIPTIVE MODE) — flows to the composed fan-out IDENTICALLY to
     # claim_vector / key_signals (this facet is target-intrinsic's fan-out carrier — the skill exposes NO
     # _SYNTHESIS_FACET_KEYS tuple). Built from THIS facet's self-contained cv/ks (not _headline, which
@@ -299,6 +315,7 @@ def _synthesis_facet(cards, fired, verdict_pair=None):
             verdict=None,
             headline_block=facet.get("headline_block"),
             claim_vector=facet.get("claim_vector"),
+            question_table=facet.get("question_table"),
             fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
             cards_used=_used or CARDS,
             cards_missing=_missing,
