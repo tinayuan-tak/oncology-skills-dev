@@ -989,27 +989,17 @@ def main() -> int:
         # skill_report[] spine under target_report.skill_reports.dependency.)
         # ("modality_conjunction" RETIRED 2026-09-03 — duplicated target_report.modality_fit.conjunction,
         # no reader; still nested there + passed in-memory to build_target_report.)
-        # Competitor cross-reference facet (2026-08-24): OT competitor field vs the framework's own
-        # surface-modality-fit verdict — competition density + modality validated/contrarian +
-        # differentiation hooks. A FACET (not a gate); never moves the recommendation. None when
-        # differentiation supplied no competitor signal.
-        "competitor_crossref": competitor_crossref,
-        # Fragility facet (verdict-inert flip-stability): worst-case single-rule flip-fragility over the
-        # decision-relevant axes + a `contested` flag (declarative threshold). A structural sensitivity
-        # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or
-        # moves a recommendation (target_index/contested touch neither the gate nor confidence).
-        "fragility": fragility,
-        # ("heterogeneity" RETIRED 2026-09-03 — duplicated target_report.robustness.heterogeneity, no
-        # reader; still nested there + passed in-memory to build_target_report.)
-        # Cross-gate shared-evidence (verdict-inert): which gate verdicts share an input card (correlated,
-        # not independent corroboration) — the measured cross-gate redundancy made visible for the roll-up.
-        "cross_gate_shared_evidence": cross_gate_shared_evidence,
-        "addressable_population": addressable_population,
-        "actionability_mode": actionability_mode,
-        # Per-axis (strength, certainty) sidecar (CERTAINTY_MODEL), keyed by sub-skill short. A
-        # verdict-INERT reliability projection (coverage + verdict-disjoint corroboration +
-        # coverage-gap unknown_mass) for the reader/panel; NOT in sub_verdicts, never moves the gate.
-        "certainty_by_axis": certainty_by_axis,
+        # (Wave-3 legacy-facet retirement 2026-09-03) The top-level "competitor_crossref", "fragility",
+        # "cross_gate_shared_evidence", "actionability_mode", and "certainty_by_axis" nomination keys were
+        # DUPLICATES of their target_report nests (competitive_positioning / robustness.fragility /
+        # robustness.correlated_evidence / actionability_mode / robustness.certainty_by_axis — the SAME
+        # objects) and had NO top-level-key reader: the synthesis prompt + MD renderer take them in-memory,
+        # and cross-evidence reads certainty/cross_gate/competitor/fragility via the EVIDENCE-PACKAGE
+        # decision_facets (tp_evidence_package, unchanged), not the nomination. Dropped. `fragility`'s only
+        # cross-repo reader (target-contracts eval ledger) now reads target_report.robustness.fragility as a
+        # forward-compat fallback (target-contracts #618). All still nested under target_report + passed
+        # in-memory to build_target_report / the prompt / the evidence package.
+        "addressable_population": addressable_population,   # kept: still read by tools/rerender.py (retires later)
         # Per-axis NARRATIVE (interpretability), keyed by sub-skill short: movers / dissenters /
         # flip_conditions / gaps / rule_sentences per decision-relevant verdict. ADDITIVE / verdict-inert
         # — the citeable substrate for the dashboard 'why this verdict' panel + Tier-3 synthesis.
