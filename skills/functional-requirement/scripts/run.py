@@ -31,6 +31,7 @@ from _skills_common.dependency_claims import dependency_claim_vector, dependency
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.subgroup_derivation import make_value_classifier
 # Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
 from _skills_common.scope import DEFAULT_CONTRACTS_REPO
@@ -951,6 +952,31 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         hl["question_table"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, assembled
+    # from the verdict + claim_vector + headline_block + question_table just built. functional-requirement
+    # is a GATING skill (∈ target-profile _SHORT_TO_GATE); its dependency polarity is clean 3-band with no
+    # veto-killer verdict (pan_essential_killer is mapped to NEUTRAL — a liability that routes to safety,
+    # not a dependency veto), so the helper's negative→opposing floor is correct and no
+    # canonical_polarity_override is needed. Best-effort + verdict-INERT.
+    try:
+        # Provenance from the REAL resolved-card state (not the static declared CARDS), so a chip whose
+        # card resolved ABSENT is distinguishable from one that ran-but-indeterminate.
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=hl.get("dependency_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -986,6 +1012,9 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — dependency is the second
+    # gating adopter after safety (the Wave-3 skill_report adoption arc)
+    "skill_report",
 )
 
 
