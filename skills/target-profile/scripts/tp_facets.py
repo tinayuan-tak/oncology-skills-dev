@@ -957,6 +957,38 @@ def _subtype_rows(sub_results: dict, short: str, card_id: str) -> list:
     return []
 
 
+def _backfill_subtype_spine(sub_results: dict) -> None:
+    """Composed-path fast-follow (contract §197-223, fast-follow to the #953 spine re-point): populate
+    each OWNING skill's `skill_report.claim_chips_by_subtype` from the resolved subtype-grain rows, so the
+    per-skill spine carries its own subtype sub-vector in the COMPOSED profile — not only the
+    `target_report.subtype_convergence` rollup. Mutates sub_results in place; VERDICT-INERT; idempotent.
+
+    WHY a composer-side back-fill (not per-skill emission): the target-profile fan-out resolves the
+    dependency + mutation-frequency subtype cards CENTRALLY under `subtype_fit` (they are not re-run inside
+    functional-requirement / genomic-alteration), so those skills' own `_synthesis_facet` has no subtype
+    rows to emit — per-skill emission cannot fix the composed path. The expression subtype card DOES resolve
+    inside tumor-presence, but its `skill_report` still leaves the slot None. This reads each axis's rows via
+    the SINGLE source of truth (`_subtype_rows`, spine-first with the card fallback) and writes them onto the
+    OWNING short's `skill_report`, so `_subtype_rows`' spine-first branch fires in production rather than the
+    `SUBTYPE_SHORT` card fallback.
+
+    BYTE-IDENTICAL: the written rows EQUAL what `_subtype_facet` already reads via `_subtype_rows` (the
+    card fallback), so `subtype_convergence` + the nomination are unchanged; only the previously-None
+    per-skill slot fills. No-op without a `--subtypes` scope (no subtype rows resolve → nothing written).
+    Idempotent: a short whose skill_report already carries a sub-vector (e.g. a standalone-emitting skill)
+    is left untouched (`_subtype_rows` would return that same spine anyway)."""
+    for short, card_id, _axis in _SUBTYPE_INPUTS:
+        r = sub_results.get(short)
+        if not isinstance(r, dict):
+            continue
+        sr = (r.get("synthesis_facet") or {}).get("skill_report")
+        if not isinstance(sr, dict) or sr.get("claim_chips_by_subtype"):
+            continue  # no skill_report to fill, or a sub-vector already present (idempotent)
+        rows = _subtype_rows(sub_results, short, card_id)
+        if rows:
+            sr["claim_chips_by_subtype"] = list(rows)
+
+
 def _subtype_stratum_key(rec: dict) -> str | None:
     """The molecular-subtype identity of a per_subgroup_metrics record. subgroup_common panorama rows
     (dependency / mutation-frequency) use `stratum`; the tumor-rna-distribution-by-subtype reader
@@ -2165,6 +2197,7 @@ __all__ = [
     '_load_subtype_crosswalk',
     '_norm_entropy',
     '_ordinal_matrix',
+    '_backfill_subtype_spine',
     '_strongest_signal_for_modality',
     '_subgroup_flip_view',
     '_subtype_facet',

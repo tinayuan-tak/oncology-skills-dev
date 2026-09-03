@@ -65,7 +65,7 @@ from tp_facets import (
     _deciding_axis, _dependency_facet,
     _cross_gate_shared_evidence,
     _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
-    _selectivity_facet, _subtype_facet,
+    _selectivity_facet, _subtype_facet, _backfill_subtype_spine,
     build_target_rollup, build_target_coherence, build_target_call, build_target_report,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
@@ -494,6 +494,13 @@ def main() -> int:
     # to surface cross-axis patient-selection strata. Like the biomarker facet: deterministic,
     # additive, verdict-inert; computed before the prompt so synthesis can reason over it, and
     # emitted in nomination.json. One-directional — informs confidence, never mints a nominate.
+    # First back-fill each owning skill's skill_report.claim_chips_by_subtype from the resolved subtype
+    # rows (fast-follow to the #953 spine re-point): the dependency + mutation-frequency subtype cards
+    # resolve CENTRALLY under `subtype_fit`, so those per-skill reports would otherwise leave the slot
+    # None in the composed profile. VERDICT-INERT + byte-identical — the written rows equal what
+    # `_subtype_facet` reads anyway (see `_backfill_subtype_spine`); this only makes `_subtype_rows`'
+    # spine-first branch fire in production and lets target_report.skill_reports carry the sub-vector.
+    _backfill_subtype_spine(sub_results)
     subtype_facet = _subtype_facet(sub_results, indication=args.indication)
 
     # Presence cross-modal reconciliation facet (2026-08-17): tumor-presence's own deterministic

@@ -264,6 +264,70 @@ def test_convergence_reachable_in_production_sub_results_shape():
     assert f["per_subtype"]["MSI"]["n_axes_measured"] == 3
 
 
+def _prod_shape_with_reports():
+    """PRODUCTION sub_results shape for the back-fill: the dependency + mutation-frequency subtype cards
+    resolve CENTRALLY under `subtype_fit`, the expression subtype card under `expression`; each OWNING
+    short carries a skill_report with an UNFILLED claim_chips_by_subtype slot (as it does in the composed
+    fan-out before the back-fill)."""
+    def _rep():   # a minimal skill_report carrier with the reserved (None) subtype slot
+        return {"synthesis_facet": {"skill_report": {"claim_chips_by_subtype": None}}}
+    return {
+        "expression": {**_rep(), "cards": [{"card_id": "tumor-rna-distribution-by-subtype",
+                       "summary": {"per_subgroup_metrics": [_row("MSI", median_log2tpm=7.0)]}}]},
+        "dependency": _rep(),
+        "genomic_alteration": _rep(),
+        "subtype_fit": {"cards": [
+            {"card_id": "subgroup-stratified-dependency",
+             "summary": {"per_subgroup_metrics": [_row("MSI", dependency_class="dependent")]}},
+            {"card_id": "subgroup-stratified-mutation-frequency",
+             "summary": {"per_subgroup_metrics": [_row("MSI", frequency=0.4)]}},
+        ]},
+    }
+
+
+def test_backfill_populates_owning_skill_reports_from_centralized_tier():
+    # After the back-fill each owning short's skill_report carries ITS axis's subtype rows — sourced from
+    # the centralized subtype_fit tier (dependency + mutation-frequency) and its own card (expression).
+    sr = _prod_shape_with_reports()
+    run._backfill_subtype_spine(sr)
+    def _spine(short):
+        return sr[short]["synthesis_facet"]["skill_report"]["claim_chips_by_subtype"]
+    assert _spine("expression")[0]["stratum"] == "MSI" and "median_log2tpm" in _spine("expression")[0]
+    assert _spine("dependency")[0]["dependency_class"] == "dependent"
+    assert _spine("genomic_alteration")[0]["frequency"] == 0.4
+
+
+def test_backfill_is_byte_identical_to_the_card_fallback_facet():
+    # The facet computed AFTER the back-fill (spine-first branch fires) equals the facet from the raw
+    # card-fallback shape — the back-fill only relocates the SAME rows onto the per-skill spine.
+    before = run._subtype_facet(_prod_shape_with_reports())          # card fallback path
+    sr = _prod_shape_with_reports()
+    run._backfill_subtype_spine(sr)
+    after = run._subtype_facet(sr)                                   # spine-first path
+    assert after == before
+    assert after["verdict"] == "convergent_stratification" and after["per_subtype"]["MSI"]["n_axes_measured"] == 3
+
+
+def test_backfill_idempotent_and_leaves_prefilled_vectors():
+    # A short already carrying its own sub-vector is left untouched (idempotent); a second pass is a no-op.
+    sr = _prod_shape_with_reports()
+    own = [_row("MSS", dependency_class="dependent")]
+    sr["dependency"]["synthesis_facet"]["skill_report"]["claim_chips_by_subtype"] = own
+    run._backfill_subtype_spine(sr)
+    assert sr["dependency"]["synthesis_facet"]["skill_report"]["claim_chips_by_subtype"] is own  # untouched
+    snapshot = run._subtype_facet(sr)
+    run._backfill_subtype_spine(sr)                                  # second pass
+    assert run._subtype_facet(sr) == snapshot
+
+
+def test_backfill_noop_without_subtype_scope():
+    # No subtype rows resolve (no subtype_fit tier, no expression subtype card) → nothing written, the
+    # reserved None slot stays None (byte-identical to a non-subtypes run).
+    sr = {"dependency": {"synthesis_facet": {"skill_report": {"claim_chips_by_subtype": None}}}}
+    run._backfill_subtype_spine(sr)
+    assert sr["dependency"]["synthesis_facet"]["skill_report"]["claim_chips_by_subtype"] is None
+
+
 def test_three_axis_convergence_and_metrics_carried():
     sr = _sr(
         expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("MSI", median_log2tpm=7.0)]}},
