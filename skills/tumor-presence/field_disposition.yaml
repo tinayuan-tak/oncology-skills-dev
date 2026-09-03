@@ -385,6 +385,9 @@ tumor-elevation-breadth:
     role: signal
     reason: magnitude/categorical signal
 tumor-scrna-celltype-expression:
+  ambient_contamination_risk:
+    role: signal
+    reason: QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)
   caf_abundance_log1p_cp10k:
     role: signal
     reason: magnitude/categorical signal
@@ -400,6 +403,9 @@ tumor-scrna-celltype-expression:
   compartment_detection:
     role: display
     reason: human-facing detail / large container
+  entity_purity:
+    role: provenance
+    reason: cube entity purity — confidence qualifier for claim-C (#984 Tier-1)
   fraction_donors_broadly_detecting:
     role: signal
     reason: magnitude/categorical signal
@@ -409,6 +415,9 @@ tumor-scrna-celltype-expression:
   inter_donor_consistency_class:
     role: signal
     reason: magnitude/categorical signal
+  malignant_annotation_method:
+    role: provenance
+    reason: malignant-label provenance — tempers claim-C corroboration (#984 Tier-1)
   malignant_abundance_log1p_cp10k:
     role: signal
     reason: magnitude/categorical signal

@@ -265,7 +265,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.16.0"   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.17.0"   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -1314,6 +1314,11 @@ def _headline(cards, fired, verdict_pair):
         # cube or a thin pooled one — the power behind the detection fraction, not just the fraction.
         "sc_malignant_n_cells":                get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_n_cells"),
         "sc_malignant_n_donors":               get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_n_donors"),
+        # Tier-1 sc utilization (#984): QC + malignant-annotation PROVENANCE — surfaced so the package
+        # exposes them and claim-C can temper corroboration on a soup-possible / phenotype-proxy call.
+        "sc_ambient_contamination_risk":       get_card_field(cards, "tumor-scrna-celltype-expression", "ambient_contamination_risk"),
+        "sc_malignant_annotation_method":      get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_annotation_method"),
+        "sc_entity_purity":                    get_card_field(cards, "tumor-scrna-celltype-expression", "entity_purity"),
         "sc_tce_homogeneity_class":            get_card_field(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class"),
         # Two-axis TCE antigen-escape readout (verdict-inert context; supersedes the lenient single-number
         # tce_homogeneity_class above). within-tumour coverage + INTER-donor consistency → escape class.

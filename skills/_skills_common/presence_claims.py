@@ -232,10 +232,30 @@ def _claim_C(h, c):
     if isinstance(frac_broad, (int, float)):
         _hbits.append(f"{_f(frac_broad * 100, 0)}% donors broadly detecting")
     homogeneity_detail = "; ".join(_hbits) or None
+    # Tier-1 sc utilization (#984): the reader also emits an ambient soup-leakage QC flag + the
+    # malignant-annotation provenance + entity purity — signals that temper how much a malignant-detection
+    # call should be TRUSTED but which no skill consumed. Fold them into claim-C CORROBORATION (a possible-
+    # soup or phenotype-proxy call is less trustworthy) + surface a qc_detail caveat. VERDICT-INERT — this
+    # only moves the claim-vector corroboration + adds a caveat; the sc ladder / presence_verdict is untouched.
+    _CORR_DOWN = {"high": "moderate", "moderate": "low", "low": "low"}
+    ambient = scd.get("ambient_contamination_risk")
+    annot = scd.get("malignant_annotation_method")
+    purity = scd.get("entity_purity")
+    _qc = []
+    if ambient == "possible":
+        _qc.append("ambient-contamination:possible"); rel = _CORR_DOWN.get(rel, rel)
+    if annot in ("phenotype_proxy", "unspecified"):
+        _qc.append(f"malignant-annotation:{annot}"); rel = _CORR_DOWN.get(rel, rel)
+    elif annot:
+        _qc.append(f"malignant-annotation:{annot}")       # curated/infercnv — provenance note, no downgrade
+    if purity == "multi_entity_pooled":
+        _qc.append("entity:multi_entity_pooled")
+    qc_detail = "; ".join(_qc) or None
     return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["C"],
-            "homogeneity_detail": homogeneity_detail,
+            "homogeneity_detail": homogeneity_detail, "qc_detail": qc_detail,
             "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)"
-                        + (f"; {homogeneity_detail}" if homogeneity_detail else ""),
+                        + (f"; {homogeneity_detail}" if homogeneity_detail else "")
+                        + (f"; QC[{qc_detail}]" if qc_detail else ""),
             "evidence_atom": _patom("tumor-scrna-celltype-expression",
                                     c.get("tumor-scrna-celltype-expression", {}),
                                     ("sc_expression_class", "malignant_detection_fraction",
