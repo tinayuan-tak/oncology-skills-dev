@@ -849,6 +849,22 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
         return "strong_tumor_selective"
     if direction == "up" and supporting_frac >= 2 / 3 and raw_max_lfc >= 0.5:
         return "modest_tumor_selective"
+    # FIX 3 (field-effect, adjacent-FLAT variant — 2026-09-03, FAP/PDAC-driven):
+    # FIX 2 above rescues the DISCORDANT adjacent-DOWN + GTEx-strongly-up field-cancerization signature.
+    # The SAME high-normal-baseline biology also presents NON-discordantly as adjacent-FLAT — the adjacent
+    # comparator RAN but reached no significance (so it is neither a support vote nor a discordant down-vote)
+    # while GTEx (cell C) is SIGNIFICANTLY + strongly up. Without this, such a row collapses to
+    # not_informative on the low support count (single_comparator), hiding a target that IS tumour-selective
+    # vs population-normal — and leaving the normal-breadth / stromal-confound veto armed-but-moot (the
+    # FAP/PDAC stroma-driven false window read not_informative instead of field_effect → veto → stromal-
+    # confound). Gated on cell C being significantly up AND >= 1.5 so a weak/non-significant single comparator
+    # still reads not_informative (batch-artifact guard; same GTEx-anchored caveat as FIX 2).
+    c_lfc = row.get("log2fc_cell_c")
+    if (direction == "up"
+            and _family_direction(row, _GTEX_CELLS) == "up"
+            and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5
+            and _family_direction(row, _ADJACENT_CELLS) in (None, "down")):
+        return "field_effect_tumor_selective"
     if supporting <= 1:
         return "not_informative"
     # 2/3 supporting but below magnitude/direction gates → not_informative

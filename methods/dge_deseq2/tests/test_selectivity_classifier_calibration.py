@@ -91,6 +91,34 @@ def test_discordant_but_gtex_only_weakly_up_stays_discordant():
     assert dge._classify_selectivity_from_sensitivity(r) == "discordant_across_comparators"
 
 
+# --- FIX 3: field-effect, adjacent-FLAT (non-discordant) variant (FAP/PDAC-driven, 2026-09-03) ---
+
+def test_field_effect_adjacent_flat_recovers_selective():
+    # FAP/PDAC pattern: NON-discordant, adjacent A/B ran but flat/non-significant + GTEx C significantly,
+    # strongly up. Was collapsing to not_informative (single_comparator); now field_effect_tumor_selective.
+    r = _row(cells_supporting=1, dominant_direction="up",
+             log2fc_cell_a=-0.02, q_value_cell_a=0.62,     # adjacent ran but flat / non-sig
+             log2fc_cell_b=-0.03, q_value_cell_b=0.71,
+             log2fc_cell_c=3.10, q_value_cell_c=1e-30, max_abs_log2fc=3.10)
+    assert dge._classify_selectivity_from_sensitivity(r) == "field_effect_tumor_selective"
+
+
+def test_field_effect_adjacent_flat_requires_significant_strong_gtex():
+    # BATCH-ARTIFACT GUARD: adjacent flat + GTEx up but < 1.5 → NOT rescued; stays not_informative.
+    r = _row(cells_supporting=1, dominant_direction="up",
+             log2fc_cell_a=-0.02, q_value_cell_a=0.62,
+             log2fc_cell_c=1.1, q_value_cell_c=0.001, max_abs_log2fc=1.1)
+    assert dge._classify_selectivity_from_sensitivity(r) == "not_informative"
+
+
+def test_field_effect_adjacent_flat_requires_gtex_significance():
+    # a large cell C log2FC that is NOT significant (q high) is a batch-artifact risk → not rescued.
+    r = _row(cells_supporting=1, dominant_direction="up",
+             log2fc_cell_a=-0.02, q_value_cell_a=0.62,
+             log2fc_cell_c=3.0, q_value_cell_c=0.40, max_abs_log2fc=3.0)
+    assert dge._classify_selectivity_from_sensitivity(r) == "not_informative"
+
+
 # --- regression: unchanged bands ---
 
 def test_down_all_cells_not_selective():
