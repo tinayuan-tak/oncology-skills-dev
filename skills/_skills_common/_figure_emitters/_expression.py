@@ -42,7 +42,6 @@ def _emit_expression_distribution(
         return []
     recomputed = e3acli.compute_summary_stats(tpm_by_model, model_metadata)
     e3acli.emit_density_plot(tpm_by_model, target, recomputed, out_dir, TARGET_CONTRACTS)
-    e3acli.emit_waterfall_plot(tpm_by_model, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3acli.emit_lineage_strip(tpm_by_model, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3acli.emit_plot_data(tpm_by_model, model_metadata, 1.0, out_dir)
     e3acli.emit_manifest(target, "26q1", recomputed, out_dir, [])
@@ -51,8 +50,6 @@ def _emit_expression_distribution(
          "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
          "type": "per_lineage_strip_plot", "primary": False},
-        {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
-         "type": "ranked_waterfall", "primary": False},
     ]
     figures += _plotly_from(e3acli, "emit_plotly_specs", tpm_by_model, model_metadata,
                             target, recomputed, out_dir, TARGET_CONTRACTS, indication)
