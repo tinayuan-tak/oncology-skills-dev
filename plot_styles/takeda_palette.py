@@ -323,11 +323,11 @@ def axis_label(ax, which, concept, scale=None):
                         textcoords="offset points", ha="center", va="top",
                         fontsize=8.5, color=INK_MUTED, annotation_clip=False)
     else:
-        ax.set_ylabel(concept, fontsize=11.5, labelpad=8, color=INK_SECONDARY)
+        # concept sits OUTER (labelpad past the tick labels); the muted scale sits to its RIGHT (inner,
+        # between concept and ticks) — reads as a sub-label of the main concept, not a separate outer line.
+        ax.set_ylabel(concept, fontsize=11.5, labelpad=34, color=INK_SECONDARY)
         if scale:
-            # offset past the concept label; -58pt clears wide y-tick labels (e.g. "29.0") so the
-            # muted scale never overlaps the concept, while staying inside a ≥0.15 left margin.
-            ax.annotate(scale, xy=(0, 0.5), xytext=(-58, 0), xycoords="axes fraction",
+            ax.annotate(scale, xy=(0, 0.5), xytext=(-36, 0), xycoords="axes fraction",
                         textcoords="offset points", ha="center", va="center", rotation=90,
                         fontsize=8.5, color=INK_MUTED, annotation_clip=False)
 
