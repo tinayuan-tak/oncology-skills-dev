@@ -64,6 +64,8 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
     if cls in (None, "data_unavailable", "insufficient_paired_samples") or r is None:
         return None
     if presampled is None:
+        presampled = _read.read_purity_points(target, indication)   # refetch points (no offline seam yet)
+    if presampled is None:
         return None                       # no per-sample points → cannot honestly draw a scatter
     expr, purity = (list(presampled[0]), list(presampled[1]))
     if len(expr) < 2 or len(expr) != len(purity):

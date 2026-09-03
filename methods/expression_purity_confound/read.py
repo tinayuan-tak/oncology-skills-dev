@@ -86,6 +86,29 @@ def classify_purity_confound(pearson_r: Optional[float], pearson_p: Optional[flo
     return "purity_independent"
 
 
+def read_purity_points(target: str, indication: str):
+    """Per-paired-tumor (expression, purity) points for the scatter figure — the SAME case-level join
+    read_expression_purity_confound correlates. Returns (expr_list, purity_list) or None (no data /
+    read error). Used by cli.emit_svg to draw the scatter when no persisted points are passed."""
+    try:
+        ensure_aws_profile()
+        from methods.tcga_gtex_expression_distribution.read import read_tumor_samples_with_case
+        expr = read_tumor_samples_with_case(target.upper().strip(), indication)
+        if expr is None or len(expr) == 0:
+            return None
+        purity_by_case = _load_purity_by_case()
+        if not purity_by_case:
+            return None
+        df = expr.groupby("case", as_index=False)["log2_tpm"].mean()
+        df["purity"] = df["case"].map(purity_by_case)
+        df = df.dropna(subset=["purity"])
+        if len(df) < 2:
+            return None
+        return (df["log2_tpm"].astype(float).tolist(), df["purity"].astype(float).tolist())
+    except Exception:  # noqa: BLE001 — figure is best-effort; a read failure just yields no scatter
+        return None
+
+
 def read_expression_purity_confound(target: str, indication: str) -> dict:
     """Q9 — correlate target per-sample tumor expression with tumor purity for a (target,indication).
     Returns the confound class + stats. data_unavailable-safe."""
