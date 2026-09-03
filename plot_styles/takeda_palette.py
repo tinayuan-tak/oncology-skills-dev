@@ -317,19 +317,19 @@ def axis_label(ax, which, concept, scale=None):
     label (auto-clears ticks); the scale is a POINTS-offset annotation past it — points (not axes
     fraction) so it sits correctly on a short/multi-panel axis too. `scale` None → concept only."""
     if which == "x":
-        ax.set_xlabel(concept, fontsize=10.5, labelpad=6, color=INK_SECONDARY)
+        ax.set_xlabel(concept, fontsize=11.5, labelpad=6, color=INK_SECONDARY)
         if scale:
             ax.annotate(scale, xy=(0.5, 0), xytext=(0, -34), xycoords="axes fraction",
                         textcoords="offset points", ha="center", va="top",
-                        fontsize=7.5, color=INK_MUTED, annotation_clip=False)
+                        fontsize=8.5, color=INK_MUTED, annotation_clip=False)
     else:
-        ax.set_ylabel(concept, fontsize=10.5, labelpad=8, color=INK_SECONDARY)
+        ax.set_ylabel(concept, fontsize=11.5, labelpad=8, color=INK_SECONDARY)
         if scale:
             # offset past the concept label; -58pt clears wide y-tick labels (e.g. "29.0") so the
             # muted scale never overlaps the concept, while staying inside a ≥0.15 left margin.
             ax.annotate(scale, xy=(0, 0.5), xytext=(-58, 0), xycoords="axes fraction",
                         textcoords="offset points", ha="center", va="center", rotation=90,
-                        fontsize=7.5, color=INK_MUTED, annotation_clip=False)
+                        fontsize=8.5, color=INK_MUTED, annotation_clip=False)
 
 
 # ============================================================================

@@ -138,10 +138,8 @@ outputs:
       type: per_lineage_strip_plot
       description: "Per-lineage log2(TPM+1) strip plot, lineages ordered by median expression descending (n≥5 only). Lineage-restriction visible as bimodal-by-lineage pattern; red tick = lineage median."
       preferred_surfaces: [markdown, ppt]
-    - id: waterfall_expression
-      type: ranked_waterfall
-      description: "Per-cell-line log2(TPM+1) sorted ascending. Preserves per-line resolution that density bins out; secondary to the density panel."
-      preferred_surfaces: [markdown, ppt]
+  # (ranked_waterfall retired 2026-09-03 — redundant with the density panel, which now annotates the
+  # fraction-above-threshold + median directly; the per-lineage strip carries the complementary view.)
   plot_data: per_cell_line_expression_with_lineage_tags
 
 thresholds:
