@@ -34,6 +34,7 @@ from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
 from _skills_common.surface_modality_question_table import surface_modality_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -768,6 +769,31 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         hl["question_table"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, from the
+    # fit_class verdict + claim_vector + headline_block + question_table just built. surface-modality-fit
+    # is a GATING skill (∈ target-profile _SHORT_TO_GATE); like tumor-selectivity it carries a VETO
+    # verdict — `neither_viable` (neither ADC nor TCE viable = the surface-axis KILL) — so it passes
+    # canonical_polarity_override="killer" for that (via _FIT_CLASS_NEGATIVE) so the veto survives the
+    # helper's 3-band→canonical negative→opposing floor. Best-effort + verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        _v = hl.get("fit_class")
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=_v,
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+            canonical_polarity_override=("killer" if _v in _FIT_CLASS_NEGATIVE else None),
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -784,6 +810,9 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 skill_report
+    # adoption (8th/last gating adopter; killer override on neither_viable)
+    "skill_report",
 )
 
 
