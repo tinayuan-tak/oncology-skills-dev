@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "skill_report.schema.json",
+  "title": "skill_report",
+  "description": "One per-skill signal object (docs/UNIFIED_OUTPUT_CONTRACT.md). additionalProperties is TRUE on purpose: the spine grows additively (e.g. modality_scope / claim_scalars from the spine-repoint workstream), and a new slot must not red-fail this schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["role", "polarity", "claim_chips", "provenance"],
+  "properties": {
+    "call": {"type": ["string", "null"], "description": "per-skill verdict token; null for gateless skills"},
+    "role": {"enum": ["gating", "descriptive", "inert"]},
+    "polarity": {"enum": ["killer", "opposing", "neutral", "supportive", "not_applicable", "insufficient", "not_scored", null]},
+    "honest_phrase": {"type": ["string", "null"]},
+    "confidence": {
+      "type": ["object", "null"],
+      "properties": {
+        "level": {"type": ["string", "null"]},
+        "basis": {"type": ["string", "null"]},
+        "coverage": {"type": ["string", "null"]}
+      }
+    },
+    "top_tension": {
+      "type": ["object", "null"],
+      "properties": {
+        "text": {"type": ["string", "null"]},
+        "source": {"type": ["string", "null"]},
+        "severity": {"type": ["string", "null"]}
+      }
+    },
+    "claim_chips": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "key": {"type": ["string", "null"]},
+          "label": {"type": ["string", "null"]},
+          "signal": {"type": ["string", "null"]},
+          "corroboration": {"type": ["string", "null"]},
+          "conflict": {"type": ["string", "null"]},
+          "evidence": {"type": ["string", "null"]},
+          "cites": {"type": "array"}
+        }
+      }
+    },
+    "question_table": {"type": "array"},
+    "per_phase_metrics": {"type": "array"},
+    "figures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "slot": {"type": ["string", "null"]},
+          "kind": {"type": ["string", "null"]},
+          "path": {"type": ["string", "null"]},
+          "caption": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "driving_rule_id": {"type": ["string", "null"]},
+        "fired_rule_ids": {"type": "array"},
+        "cards_used": {"type": "array"},
+        "cards_missing": {"type": "array"}
+      }
+    }
+  }
+}

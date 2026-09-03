@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "report_view.schema.json",
+  "title": "report_view.v1",
+  "description": "The JSON backend's output — a spec-applied, tiered serialization of the report IR. The stable machine 'report view' + golden-snapshot surface.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "spec", "header", "sections", "about", "target", "indication", "deciding_short"],
+  "properties": {
+    "schema": {"const": "report_view.v1"},
+    "target": {"type": ["string", "null"]},
+    "indication": {"type": ["string", "null"]},
+    "deciding_short": {"type": ["string", "null"]},
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "medium", "scope", "lead", "bump_deciding"],
+      "properties": {
+        "level": {"enum": ["L0", "L1", "L2", "L3"]},
+        "medium": {"enum": ["text", "figure", "both"]},
+        "scope": {"type": ["string", "array"]},
+        "lead": {"enum": ["recommendation", "deciding_axis", "none"]},
+        "bump_deciding": {"type": "boolean"}
+      }
+    },
+    "header": {"$ref": "#/definitions/block"},
+    "about": {"oneOf": [{"$ref": "#/definitions/block"}, {"type": "null"}]},
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["short", "title", "role", "is_deciding", "blocks"],
+        "properties": {
+          "short": {"type": "string"},
+          "title": {"type": "string"},
+          "role": {"enum": ["gating", "descriptive", "inert"]},
+          "is_deciding": {"type": "boolean"},
+          "blocks": {"type": "array", "items": {"$ref": "#/definitions/block"}}
+        }
+      }
+    }
+  },
+  "definitions": {
+    "block": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": ["report_header", "skill_header", "confidence", "tension", "claim_chips",
+                   "question_table", "phase_metrics", "figure", "provenance", "unmeasured", "about"]
+        }
+      }
+    }
+  }
+}

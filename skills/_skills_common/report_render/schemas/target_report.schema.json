@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "target_report.schema.json",
+  "title": "target_report",
+  "description": "The per-target rollup object (docs/UNIFIED_OUTPUT_CONTRACT.md). Only the slots this renderer consumes are constrained; additionalProperties TRUE keeps the many additive rollup slots (risk_6dim, modality_fit, robustness, …) and future ones valid.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["skill_reports"],
+  "properties": {
+    "schema": {"type": "string"},
+    "skill_reports": {
+      "type": "object",
+      "description": "{short: skill_report} — the spine collection the renderer reads. Each value is validated against skill_report.schema.json separately (kept as a shallow object here to avoid cross-file $ref resolution across jsonschema versions).",
+      "additionalProperties": {"type": "object"}
+    },
+    "target_call": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "schema": {"type": "string"},
+        "recommendation": {"type": ["string", "null"]},
+        "confidence": {"type": ["object", "string", "null"]},
+        "deciding_axis": {"type": ["object", "null"]},
+        "dissent": {"type": "array"},
+        "gate": {"type": ["object", "null"]}
+      }
+    },
+    "skill_report_rollup": {"type": ["object", "null"]}
+  }
+}
