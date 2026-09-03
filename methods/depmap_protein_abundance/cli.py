@@ -598,47 +598,65 @@ def _panel_high_cutoff(vals: list) -> Optional[float]:
     return s[lo] * (1 - frac) + s[min(lo + 1, len(s) - 1)] * frac
 
 
+# protein_expression_class → one-line takeaway. {T} = target.
+_PROTEIN_PHRASE = {
+    "broadly_high": "{T} protein is highly abundant across cancer cell lines.",
+    "broadly_moderate": "{T} protein is broadly detected at moderate abundance across cell lines.",
+    "lineage_restricted": "{T} protein detection is concentrated in a few lineages.",
+    "broadly_low": "{T} protein is detected in few cell lines.",
+}
+
+
+def _protein_take(target_symbol, summary):
+    p = _PROTEIN_PHRASE.get(summary.get("protein_expression_class"))
+    return p.format(T=target_symbol) if p else None
+
+
 def emit_density_protein(abundance_by_model: dict, target_symbol: str, summary: dict,
                          out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
-    """PRIMARY figure: KDE + histogram of log2 protein abundance across detected DepMap lines,
-    with the panel-relative HIGH cutoff + the panel median as reference lines. Sparse MS detection
-    means the x-axis is detected-lines-only; fraction_detected (in the title) is load-bearing."""
+    """PRIMARY figure: histogram + KDE of log2 protein abundance across detected DepMap lines, in the
+    shared grammar. Panel median + panel-relative HIGH (p70) as directly-labeled reference lines (no
+    legend); % detected — the metric behind the class — carried in provenance + at the median."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import numpy as np
     from scipy.stats import gaussian_kde
 
-    _load_takeda_style(target_contracts_dir)
+    pal = _load_takeda_style(target_contracts_dir)
     out_path = out_dir / "figure_density_protein_abundance.svg"
     vals = np.array(list((abundance_by_model or {}).values()), dtype=float)
-    if vals.size == 0:
+    if vals.size == 0 or pal is None:
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target_symbol} — not quantified in the Gygi MS panel",
                 ha="center", va="center", fontsize=10, color="#777"); ax.set_axis_off()
         fig.savefig(out_path); plt.close(fig); return out_path
 
-    fig, ax = plt.subplots(figsize=(7, 4.2))
-    ax.hist(vals, bins=40, density=True, alpha=0.45, color="#0a2540", edgecolor="white")
-    if vals.size >= 10:
-        kde = gaussian_kde(vals)
-        xs = np.linspace(vals.min() - 0.2, vals.max() + 0.2, 500)
-        ax.plot(xs, kde(xs), color="#cf2828", linewidth=2)
     med = summary.get("median_log2_abundance_panel")
     hi = _panel_high_cutoff(list(vals))
-    if med is not None:
-        ax.axvline(med, color="#888", linestyle=":", linewidth=1, label=f"panel median ({med:.2f})")
-    if hi is not None:
-        ax.axvline(hi, color="#f0a020", linestyle="--", linewidth=1,
-                   label=f"panel-high (p70={hi:.2f})")
     frac = summary.get("fraction_detected")
-    ax.set_xlabel("log2 protein abundance (Gygi TMT MS)")
-    ax.set_ylabel("Density")
-    ax.set_title(f"{target_symbol} — cell-line protein abundance "
-                 f"(n={vals.size} detected"
-                 + (f", {frac:.0%} of panel)" if frac is not None else ")"))
-    ax.legend(loc="upper right", fontsize=8)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    prov = f"DepMap 26Q1  ·  Gygi TMT MS  ·  n={vals.size} detected" + (
+        f" ({frac:.0%} of panel)" if frac is not None else "")
+    with pal.figure_frame(target_symbol, None, "cell-line protein abundance", out_path=out_path,
+                          kind="scatter", provenance=prov,
+                          takeaway=_protein_take(target_symbol, summary)) as F:
+        ax = F.ax
+        ax.hist(vals, bins=40, density=True, alpha=0.5, color=pal.TUMOR_FILL, edgecolor="white")
+        if vals.size >= 10:
+            kde = gaussian_kde(vals)
+            xs = np.linspace(vals.min() - 0.2, vals.max() + 0.2, 500)
+            ax.plot(xs, kde(xs), color=pal.TUMOR_LINE, linewidth=2)
+        # the two reference lines can sit close together → label median to its LEFT, p70 to its RIGHT
+        # so the text never collides.
+        for xv, lab, ha, dx in ((med, f"median {med:.1f}" if med is not None else None, "right", -3),
+                                (hi, f"panel-high (p70) {hi:.1f}" if hi is not None else None, "left", 3)):
+            if xv is None:
+                continue
+            ax.axvline(xv, **pal.REFLINE_NEUTRAL)
+            ax.annotate(lab, xy=(xv, 0.99), xycoords=("data", "axes fraction"), ha=ha, va="top",
+                        xytext=(dx, -2), textcoords="offset points", fontsize=8, color=pal.INK_MUTED)
+        F.axis_label("x", "Protein abundance", "log2 (Gygi TMT MS, detected lines)")
+        F.axis_label("y", "Density")
     return out_path
 
 
@@ -648,7 +666,6 @@ def emit_lineage_strip_protein(abundance_by_model: dict, lineage_by_model: dict,
     """Per-lineage strip plot of log2 protein abundance, lineages ordered by median desc (n>=5)."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
 
@@ -657,7 +674,8 @@ def emit_lineage_strip_protein(abundance_by_model: dict, lineage_by_model: dict,
     records = [{"lineage": lineage_by_model.get(mid) or "unknown", "abund": v}
                for mid, v in (abundance_by_model or {}).items()]
     df = pd.DataFrame(records)
-    if df.empty:
+    if df.empty or pal is None:
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target_symbol} — no MS detection", ha="center", va="center",
                 fontsize=10, color="#777"); ax.set_axis_off()
@@ -666,22 +684,29 @@ def emit_lineage_strip_protein(abundance_by_model: dict, lineage_by_model: dict,
     lm = df.groupby("lineage")["abund"].agg(["median", "count"])
     lm = lm[lm["count"] >= MIN_LINEAGE_SIZE].sort_values("median", ascending=False)
     ordered = list(lm.index)
-    fig_h = min(max(3.5, len(ordered) * 0.2), 7.0)
-    fig, ax = plt.subplots(figsize=(7, fig_h))
-    for i, lin in enumerate(ordered):
-        scores = df[df["lineage"] == lin]["abund"].values
-        jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
-        color = pal.get_lineage_color(lin) if hasattr(pal, "get_lineage_color") else "#0a2540"
-        ax.scatter(scores, np.full(len(scores), i) + jitter, alpha=0.5, s=8, color=color)
-        ax.scatter([np.median(scores)], [i], color="#B22222", s=30, marker="|", zorder=5)
     hi = _panel_high_cutoff(list(df["abund"].values))
-    if hi is not None:
-        ax.axvline(hi, color="#f0a020", linestyle="--", linewidth=1)
-    ax.set_yticks(range(len(ordered))); ax.set_yticklabels(ordered, fontsize=8)
-    ax.invert_yaxis()
-    ax.set_xlabel("log2 protein abundance (Gygi TMT MS)")
-    ax.set_title(f"{target_symbol} — per-lineage protein abundance (n≥5; top=highest median)")
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    fig_h = min(max(3.8, len(ordered) * 0.24 + 1.4), 7.6)
+    with pal.figure_frame(target_symbol, None, "cell-line protein abundance by lineage", out_path=out_path,
+                          figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h), left=0.24,
+                          top=1 - 0.72 / fig_h, bottom=0.95 / fig_h,
+                          provenance=f"DepMap 26Q1 Gygi TMT MS  ·  n={len(df)} detected lines  ·  lineages with n≥{MIN_LINEAGE_SIZE}",
+                          takeaway=_protein_take(target_symbol, summary)) as F:
+        ax = F.ax
+        for i, lin in enumerate(ordered):
+            scores = df[df["lineage"] == lin]["abund"].values
+            jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
+            ax.scatter(scores, np.full(len(scores), i) + jitter, alpha=0.5, s=8,
+                       color=pal.get_lineage_color(lin))
+            ax.scatter([np.median(scores)], [i], color=pal.INK_SECONDARY, s=34, marker="|", zorder=5)
+        if hi is not None:
+            ax.axvline(hi, **pal.REFLINE_NEUTRAL)
+            ax.annotate(f"panel-high p70 {hi:.1f}", xy=(hi, 1.0), xycoords=("data", "axes fraction"),
+                        ha="center", va="bottom", xytext=(0, 2), textcoords="offset points",
+                        fontsize=7.5, color=pal.INK_MUTED)
+        ax.set_yticks(range(len(ordered))); ax.set_yticklabels(ordered, fontsize=7.5)
+        ax.set_ylim(-0.8, len(ordered) - 0.2); ax.invert_yaxis()
+        ax.grid(axis="x", alpha=0.25, linewidth=0.4); ax.grid(axis="y", visible=False)
+        F.axis_label("x", "Protein abundance", "log2 (Gygi TMT MS)")
     return out_path
 
 
