@@ -43,6 +43,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import europe_pmc_retrieve, verify_citations
 from _skills_common.narrator_lenses import TUMOR_PRESENCE as _LENS
 from _skills_common import get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record
@@ -263,7 +265,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.15.0"   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.16.0"   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -998,20 +1000,64 @@ _LEVEL_ANCHOR_CARDS = (
 )
 
 
+_ORTHOGONAL_HIGH_ANCHOR_CLASSES = ("top_1pct", "top_decile")
+
+
 def _abundance_floor(cards, collapsed_verdict):
     """VERDICT-INERT (Principle 2 — breadth != level): a presence-POSITIVE call whose absolute abundance
     LEVEL reads bottom-decile (allgene percentile) in at least one lens. The presence classes are
     breadth-of-detection dominant (e.g. a protein detected in 100% of cell lines but bottom-decile
     abundance still classes `broadly_moderate`), so `broadly_moderate` must never be read as `abundant`
-    without checking the level anchor. Returns (flag_or_None, [low_lens_dicts])."""
+    without checking the level anchor.
+
+    QUORUM-AWARE (P0): a HARD floor (`present_low_abundance`) requires either >=2 low-abundance lenses OR
+    a single low lens with NO orthogonal disagreement. A LONE bottom-decile lens that is contradicted by
+    an independent protein platform (ProCan), antibody-IHC (HPA), or a top-decile RNA/level anchor is a
+    detection-sensitivity artifact (e.g. a heavily-glycosylated membrane antigen on one TMT panel), not
+    genuinely low abundance — it is demoted to the SOFT `present_low_abundance_single_lens` flag, which
+    downstream `== present_low_abundance` checks treat as NOT a hard floor (so it neither caps claim-A
+    corroboration nor forces abundance_level=low, nor becomes the headline top-tension). Both the low
+    lens(es) and the overriding evidence are recorded so the observation is surfaced, not hidden.
+
+    Returns (flag_or_None, [low_lens_dicts])."""
     if not _is_presence_positive(collapsed_verdict):
         return None, []
-    low = []
+    low, high = [], []
     for card_id, label in _LEVEL_ANCHOR_CARDS:
         klass = get_card_field(cards, card_id, "allgene_percentile_class")
         if klass == "bottom_decile":
             low.append({"lens": label, "card_id": card_id, "allgene_percentile_class": klass})
-    return ("present_low_abundance" if low else "adequate_abundance"), low
+        elif klass in _ORTHOGONAL_HIGH_ANCHOR_CLASSES:
+            high.append({"lens": label, "card_id": card_id, "allgene_percentile_class": klass})
+    if not low:
+        return "adequate_abundance", []
+    if len(low) >= 2:                                    # genuine multi-lens low → HARD floor
+        for d in low:
+            d["quorum"] = "multi_lens"
+        return "present_low_abundance", low
+    # Exactly one low lens: demote to a SOFT flag only if orthogonally CONTRADICTED by SAME-DOMAIN evidence
+    # (a lone bottom-decile reading is a detection-sensitivity artifact, not genuine low abundance). A low
+    # PROTEIN panel needs orthogonal PROTEIN evidence (antibody-IHC or a 2nd MS platform) — a high RNA anchor
+    # does NOT override a protein floor (RNA != protein). A low RNA/level anchor needs another top-decile anchor.
+    lens = low[0]
+    orthogonal = []
+    if lens["card_id"] == "cellline-protein-abundance":
+        # optional orthogonal PROTEIN cards — safe .get (they may be absent from a minimal card set;
+        # get_card_field is strict and raises on an absent card_id).
+        _by = {c["card_id"]: (c.get("summary") or {}) for c in cards}
+        if (_by.get("hpa-pathology-cancer-ihc") or {}).get("protein_presence_class") == "ihc_detected_high":
+            orthogonal.append("HPA-IHC ihc_detected_high")
+        _procan = (_by.get("cellline-protein-abundance-procan") or {}).get("allgene_percentile_class")
+        if _procan and _procan != "bottom_decile":
+            orthogonal.append(f"ProCan protein {_procan}")
+    else:
+        orthogonal += [f"{d['lens']} {d['allgene_percentile_class']}" for d in high]
+    if not orthogonal:
+        lens["quorum"] = "single_lens_unopposed"
+        return "present_low_abundance", low
+    lens["quorum"] = "single_lens_overridden"
+    lens["overridden_by"] = orthogonal
+    return "present_low_abundance_single_lens", low
 
 
 # ─── Protein-confirmation state (VERDICT-INERT headline facet) ───────────────
@@ -1488,6 +1534,12 @@ if __name__ == "__main__":
         # Presence narrates through its OWN synthesizer, passed explicitly (no dispatcher fallback):
         # the dispatcher no longer defaults a narrator-less skill to the presence lens.
         synthesize_fn=make_synthesize_fn(_LENS),
+        # OPT-IN --literature: attach a verdict-INERT published-literature lane (per-axis read +
+        # agreement-vs-omics + omics-blind signals) through this skill's OWN lens, and feed it to the
+        # --synthesize narrator. Normal-tissue LIABILITY axes are routed to tumor-selectivity, NOT here
+        # (this lens's scope_exclusions + thesis keep the presence literature on the presence axes).
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=europe_pmc_retrieve,
+                                          verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the Presence × Context hero matrix + the
         # claim-vector (signal × reliability) figure. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,

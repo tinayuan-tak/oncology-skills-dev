@@ -81,6 +81,10 @@ def _system(lens: LensConfig) -> str:
         s.append("SCOPE — do NOT discuss: " + "; ".join(lens.scope_exclusions) + ".")
     s.append("REGISTER: scientific-publication voice; declarative, precise; report numbers with scale + direction; "
              "no promotional language.")
+    s.append("If a LITERATURE LANE is provided below, use it to CORROBORATE or CHALLENGE the omics signals and "
+             "to surface omics-blind signals; attribute literature-derived claims explicitly (they are external, "
+             "not from this package), treat any [unverified] citation with caution, and NEVER let the literature "
+             "move the fixed verdict.")
     return " ".join(s) + _EVIDENCE_ONLY_DIRECTIVE
 
 
@@ -117,6 +121,36 @@ def _render_capsules(pkg: dict) -> str:
     return "\n".join(lines)
 
 
+def _render_literature(decision: dict) -> str:
+    """Compact render of the OPTIONAL verdict-inert literature lane (decision['literature_synthesis'],
+    attached upstream by the --literature dispatcher seam). Empty string when absent or errored, so the
+    narrator prompt is byte-identical to a no-literature run in that case."""
+    lit = decision.get("literature_synthesis") or {}
+    if not isinstance(lit, dict) or any(k in lit for k in ("_literature_error", "_literature_skipped")):
+        return ""
+    axes = lit.get("axes") or []
+    if not axes and not lit.get("blind_spots"):
+        return ""
+    lines = ["LITERATURE LANE (EXTERNAL published-literature reads — verdict-INERT corroboration/contradiction; "
+             "attribute as literature-derived, NOT omics; the class labels + numbers above remain authoritative):"]
+    for ax in axes:
+        if not isinstance(ax, dict):
+            continue
+        cites = "; ".join(
+            (c.get("label", "") + (f" PMID:{c['pmid']}" if c.get("pmid") else "")
+             + ("" if c.get("verified") else " [unverified]"))
+            for c in (ax.get("citations") or [])[:2] if isinstance(c, dict))
+        lines.append(f"  · axis {ax.get('axis_key')}: lit={ax.get('literature_read')} vs omics="
+                     f"{ax.get('agreement_vs_omics')} (conf {ax.get('confidence')}) — {ax.get('assertion', '')}"
+                     + (f"  [{cites}]" if cites else ""))
+    for bs in (lit.get("blind_spots") or [])[:3]:
+        if isinstance(bs, dict):
+            lines.append(f"  ⚠ OMICS-BLIND: {bs.get('signal')} — {bs.get('why_omics_blind')}")
+    if lit.get("key_divergence"):
+        lines.append(f"  KEY DIVERGENCE: {lit['key_divergence']} (overall consistency: {lit.get('overall_consistency')})")
+    return "\n".join(lines)
+
+
 def build_capsule_prompt(decision: dict, lens: LensConfig) -> str:
     h = decision.get("headline", {}) or {}
     target, indication = decision.get("target"), decision.get("indication")
@@ -134,6 +168,7 @@ def build_capsule_prompt(decision: dict, lens: LensConfig) -> str:
         render_narrator_signals(h, axis_labels=lens.axis_labels),
         "",
         _render_capsules(pkg),
+        *(["", _render_literature(decision)] if _render_literature(decision) else []),
         "",
         f"COLLAPSED VERDICT (compressed label, fixed upstream — narrate, do not change): {_collapsed}",
         "",

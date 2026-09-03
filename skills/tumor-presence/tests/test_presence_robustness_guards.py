@@ -90,14 +90,43 @@ def _cards(**pct_by_card):
 
 
 def test_abundance_floor_fires_on_bottom_decile_level_lens():
-    """EPCAM shape: presence-positive, but cell-line PROTEIN abundance level is bottom-decile (detected
-    everywhere yet low absolute level). The flag must fire and name the low lens."""
+    """UNOPPOSED single-lens case: presence-positive, cell-line PROTEIN bottom-decile, and NO orthogonal
+    protein contradiction (no ProCan / IHC in this minimal card set). A high RNA anchor does NOT override
+    a protein floor (RNA != protein), so the HARD floor fires and names the low lens."""
     cards = _cards(**{"tumor-rna-distribution": "top_1pct",
                       "cellline-rna-distribution": "mid",
                       "cellline-protein-abundance": "bottom_decile"})
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
     assert flag == "present_low_abundance"
     assert [x["card_id"] for x in lenses] == ["cellline-protein-abundance"]
+    assert lenses[0]["quorum"] == "single_lens_unopposed"
+
+
+def test_abundance_floor_single_lens_demoted_by_orthogonal_protein():
+    """QUORUM (P0): a LONE bottom-decile PROTEIN panel orthogonally contradicted by the 2nd protein
+    platform (ProCan `mid`) is a detection-sensitivity artifact — demoted to the SOFT single-lens flag
+    (still named + overriding evidence recorded), NOT a hard floor. This is the true EPCAM shape."""
+    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
+                      "cellline-rna-distribution": "mid",
+                      "cellline-protein-abundance": "bottom_decile",
+                      "cellline-protein-abundance-procan": "mid"})
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
+    assert flag == "present_low_abundance_single_lens"
+    assert lenses[0]["card_id"] == "cellline-protein-abundance"
+    assert lenses[0]["quorum"] == "single_lens_overridden"
+    assert any("ProCan" in o for o in (lenses[0].get("overridden_by") or []))
+
+
+def test_abundance_floor_multi_lens_stays_hard():
+    """Two independent bottom-decile level lenses = genuine low abundance → HARD floor (multi_lens),
+    never demoted regardless of orthogonal signals."""
+    cards = _cards(**{"tumor-rna-distribution": "mid",
+                      "cellline-rna-distribution": "bottom_decile",
+                      "cellline-protein-abundance": "bottom_decile",
+                      "cellline-protein-abundance-procan": "mid"})
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
+    assert flag == "present_low_abundance"
+    assert {x["quorum"] for x in lenses} == {"multi_lens"}
 
 
 def test_abundance_floor_adequate_when_no_bottom_decile_level():

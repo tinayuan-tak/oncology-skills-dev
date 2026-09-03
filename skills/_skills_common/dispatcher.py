@@ -397,6 +397,7 @@ def run_wired_skill(
     partial_status_note: Optional[str] = None,
     isoform_check_target: bool = False,
     synthesize_fn: Optional[SynthesizeFn] = None,
+    literature_fn: Optional[Callable[[dict, Optional[str]], dict]] = None,
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
     extra_axes: Optional[list[str]] = None,
     verdict_cards: Optional[list[str]] = None,
@@ -481,6 +482,14 @@ def run_wired_skill(
                          "verdict spine (the decision is byte-identical without this flag).")
     ap.add_argument("--synthesis-model", default=None,
                     help="Override the Bedrock synthesis model id (default: framework Opus).")
+    ap.add_argument("--literature", action="store_true",
+                    help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
+                         "per axis + agreement-vs-omics + omics-blind signals) under "
+                         "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
+                         "corroboration/contradiction lane. Requires the skill to supply a literature_fn; "
+                         "NEVER alters the verdict spine (byte-identical without this flag).")
+    ap.add_argument("--literature-model", default=None,
+                    help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
     ap.add_argument("--subtype", default=None,
                     help="OPTIONAL synthesis-grain selector: name a molecular subtype (e.g. MSI_H) to "
                          "have the narration FOREGROUND that stratum's position, in addition to the "
@@ -555,6 +564,7 @@ def run_wired_skill(
     _cards_to_read = list(verdict_cards) if _lean else cards
     if _lean:
         args.synthesize = False   # verdict-only skips narration too
+        args.literature = False   # ... and the (verdict-inert) literature lane
         print(f"[dispatcher] --verdict-only: reading {len(_cards_to_read)}/{len(cards)} "
               f"verdict-relevant cards (enrichment reads skipped; verdict byte-identical)",
               file=sys.stderr)
@@ -771,6 +781,30 @@ def run_wired_skill(
     # per-modality decomposition, not just the one-word verdict."
     decision["consolidation"] = _consolidation_fidelity(
         fired, verdict_pair[1] if verdict_pair else None)
+
+    # 8a-iii. OPT-IN LLM LITERATURE lane (verdict-INERT). Attached as a SIBLING key
+    # decision['literature_synthesis'] AFTER the deterministic decision is composed and BEFORE the
+    # --synthesize narrator below, so the narrator can CITE it as a corroboration/contradiction lane.
+    # Requires the skill to supply a literature_fn (via _skills_common.literature_synthesis.
+    # make_literature_fn(<LENS>)); when --literature is passed but none is declared, honest-skip. A
+    # failure degrades to a note — the deterministic run must never break because a network/Bedrock
+    # layer is unavailable. Structurally cannot move the verdict (attached after the spine).
+    if getattr(args, "literature", False):
+        if literature_fn is None:
+            decision["literature_synthesis"] = {
+                "_literature_skipped": "no_literature_lens_declared",
+                "_note": ("This skill declares no literature lens, so --literature is a no-op. The "
+                          "deterministic decision above is complete."),
+            }
+        else:
+            try:
+                decision["literature_synthesis"] = literature_fn(
+                    decision, getattr(args, "literature_model", None))
+            except Exception as e:  # noqa: BLE001 — the literature lane is optional; never break the spine
+                decision["literature_synthesis"] = {
+                    "_literature_error": f"{type(e).__name__}: {e}",
+                    "_note": "LLM literature synthesis unavailable; the deterministic verdict above is unaffected.",
+                }
 
     # 8b. OPT-IN LLM synthesis (two-slot design). Attaches a provenance-tagged narration
     # as a SIBLING key decision['llm_synthesis'] AFTER the deterministic decision is composed,

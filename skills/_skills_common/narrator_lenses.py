@@ -49,11 +49,16 @@ ON_TARGET_SAFETY = LensConfig(
 TUMOR_PRESENCE = LensConfig(
     name="tumor-presence",
     thesis="how much the EXPRESSION/PRESENCE lens informs whether the target is a relevant drug target — "
-           "abundant + tumor-elevated/selective supports it; merely present but ubiquitous is uninformative.",
+           "abundant + tumor-elevated/selective supports it; merely present but ubiquitous is uninformative "
+           "and (when the normal comparators read HIGH_LIABILITY) flags a therapeutic-window liability whose "
+           "VERDICT is owned by the tumor-selectivity + on-target-safety lenses — note the hand-off, do not "
+           "adjudicate the window here.",
     relevance_prompt="judge how much the presence evidence supports this target's relevance in this cancer "
                      "(indication and, where measured, subtype grain).",
     axis_labels={"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"},
-    scope_exclusions=("therapeutic modality", "surface accessibility"),
+    scope_exclusions=("therapeutic modality", "surface accessibility",
+                      "the normal-tissue-liability VERDICT (owned by tumor-selectivity / on-target-safety) — "
+                      "note the hand-off but do not make the window call"),
     mode="verdict",
     verdict_key="presence_verdict",   # the collapsed word lives here (was mis-read as driving_rule_id)
 )

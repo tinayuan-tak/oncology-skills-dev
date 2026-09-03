@@ -89,13 +89,30 @@ def _claim_A(h, c):
     proxy = h.get("bulk_rna_proxy_quality")
     rel = "high" if proxy == "rna_confirmed_by_protein" else "moderate" if proxy == "rna_positive_proxy_partial" else "low"
     conflict = None
+    note = None
     # LEVEL != breadth (Principle 2): if a level anchor reads bottom-decile while the abundance claim is
     # positive, cap corroboration and surface it — a `broadly_moderate` presence class can sit on a
-    # bottom-decile absolute abundance (e.g. a protein detected everywhere but low-abundance).
+    # bottom-decile absolute abundance (e.g. a protein detected everywhere but low-abundance). QUORUM-AWARE
+    # (P0): only a HARD floor caps corroboration + raises the tension; a single-lens floor that upstream
+    # demoted (orthogonally contradicted by IHC / 2nd platform / a top-decile anchor) is a soft NOTE, not a
+    # corroboration-capping conflict — so a lone MS-panel artifact no longer leads the headline.
+    _lenses = h.get("abundance_floor_low_lenses") or []
     if h.get("abundance_floor_flag") == "present_low_abundance":
-        low = ", ".join(x.get("lens", "?") for x in (h.get("abundance_floor_low_lenses") or []))
+        low = ", ".join(x.get("lens", "?") for x in _lenses)
         conflict = f"abundance-level floor: bottom-decile in {low} (breadth-positive but low absolute level)"
         rel = "low"
+    elif h.get("abundance_floor_flag") == "present_low_abundance_single_lens":
+        low = ", ".join(x.get("lens", "?") for x in _lenses)
+        opp = ", ".join((_lenses[0].get("overridden_by") or [])) if _lenses else ""
+        note = (f"single-lens low-abundance ({low}) overridden by orthogonal protein-present evidence"
+                + (f" ({opp})" if opp else "") + " — not read as low")
+    # P1: antibody-IHC (HPA Pathology) is the MS-INDEPENDENT protein-in-tumor leg. When protein presence is
+    # IHC-confirmed high it corroborates abundance (and lifts a proxy-floored corroboration off the floor),
+    # resolving the "protein magnitude unsettled" read a bottom-decile MS panel would otherwise leave.
+    if (c.get("hpa-pathology-cancer-ihc", {}) or {}).get("protein_presence_class") == "ihc_detected_high":
+        note = ((note + "; ") if note else "") + "protein-present (HPA-IHC detected_high, MS-independent)"
+        if rel == "low":
+            rel = "moderate"
     # Corroboration for A (the RNA→protein proxy quality) comes from a DIFFERENT card than the signal
     # (tumor-rna-distribution): the RNA↔protein-concordance card for whichever arm the proxy was read
     # from (tumor CPTAC vs cell-line). Record it as a role-tagged corr_cite so the chip's corroboration
@@ -106,7 +123,8 @@ def _claim_A(h, c):
     corr_cite = {"card_id": _corr_card, "fields": ["rna_as_biomarker"]} if (_corr_card and proxy) else None
     return {"signal": sig, "corroboration": rel, "conflict": conflict, "informs": CLAIM_INFORMS["A"],
             "corr_cite": corr_cite,
-            "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}",
+            "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}"
+                        + (f"; {note}" if note else ""),
             "evidence_atom": _patom("tumor-rna-distribution", trd,
                                     ("tumor_expression_class", "control_position_class", "allgene_percentile",
                                      "median_log2tpm", "p95_log2tpm", "distribution_pattern"),
@@ -157,7 +175,25 @@ def _claim_B(h, c):
     else:
         sig, rel = "absent", "moderate"
     ev = "; ".join(f"{n}:{d[0]}(fc/eff={_f(fc)},q={q:.0e})" if isinstance(q, (int, float)) else f"{n}:{d[0]}" for n, d, fc, q in arms)
+    # TWO-COMPARATOR surfacing (P1): the primary tier stays the MATCHED-adjacent (+CPTAC) call, but the DGE
+    # card also carries a population/GTEx-normal contrast + the fraction of tumours above matched-normal p95
+    # that a flat-vs-adjacent read silently drops. A flat-vs-adjacent with strong-vs-population elevation is
+    # the signature of a target whose ADJACENT tissue already expresses it (the comparator, not the biology);
+    # surface both comparators so the signal is legible and the narrator/question-table can cite it.
+    gtex_fc, gtex_q = tva.get("gtex_log2_fc"), tva.get("gtex_q_value")
+    frac_p95 = c.get("tumor-rna-distribution", {}).get("fraction_tumor_above_normal_p95")
+    _cbits = []
+    if isinstance(tva.get("log2_fc"), (int, float)):
+        _cbits.append(f"vs matched-adjacent {_f(tva['log2_fc'], 2)} log2FC")
+    if isinstance(gtex_fc, (int, float)):
+        _cbits.append(f"vs GTEx-population {_f(gtex_fc, 2)} log2FC" + (f" (q={gtex_q:.0e})" if isinstance(gtex_q, (int, float)) else ""))
+    if isinstance(frac_p95, (int, float)):
+        _cbits.append(f"{_f(frac_p95 * 100, 0)}% tumours > matched-normal p95")
+    comparator_detail = "; ".join(_cbits) or None
+    if sig == "absent" and isinstance(gtex_fc, (int, float)) and gtex_fc >= 1.0:
+        ev += " [flat vs adjacent but elevated vs GTEx-population — comparator-dependent]"
     return {"signal": sig, "corroboration": rel, "evidence": ev, "conflict": conflict, "informs": CLAIM_INFORMS["B"],
+            "comparator_detail": comparator_detail,
             # cite the DGE arm (tumor-rna-vs-adjacent) with its values; the CPTAC protein arm is
             # corroboration (in the tier + evidence string), not double-cited under one card_id.
             "evidence_atom": _patom("tumor-rna-vs-adjacent", tva,
@@ -177,8 +213,29 @@ def _claim_C(h, c):
     sig = {"malignant_broadly_detected": "strong", "malignant_subset_detected": "weak",
            "microenvironment_dominant": "negative", "broadly_low": "absent"}.get(cls, "weak")
     rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 20 else "low"
+    # P2: the single-cell card carries antigen-ESCAPE risk + inter-donor consistency + the fraction of donors
+    # broadly detecting — decision-critical for a TCE/CAR read but collapsed to one `homogeneity` string
+    # elsewhere. Surface them here as a homogeneity_detail so the malignant-intrinsic claim is not read as a
+    # bare detection fraction (89% detected + escape_risk_low + consistent across donors is a very different
+    # antigen than 89% detected + high escape risk).
+    scd = c.get("tumor-scrna-celltype-expression", {})
+    escape = h.get("sc_tce_antigen_escape_class") or scd.get("tce_antigen_escape_class")
+    consistency = h.get("sc_inter_donor_consistency_class") or scd.get("inter_donor_consistency_class")
+    frac_broad = h.get("sc_fraction_donors_broadly_detecting")
+    if frac_broad is None:
+        frac_broad = scd.get("fraction_donors_broadly_detecting")
+    _hbits = []
+    if escape:
+        _hbits.append(f"antigen-escape:{escape}")
+    if consistency:
+        _hbits.append(f"inter-donor:{consistency}")
+    if isinstance(frac_broad, (int, float)):
+        _hbits.append(f"{_f(frac_broad * 100, 0)}% donors broadly detecting")
+    homogeneity_detail = "; ".join(_hbits) or None
     return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["C"],
-            "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)",
+            "homogeneity_detail": homogeneity_detail,
+            "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)"
+                        + (f"; {homogeneity_detail}" if homogeneity_detail else ""),
             "evidence_atom": _patom("tumor-scrna-celltype-expression",
                                     c.get("tumor-scrna-celltype-expression", {}),
                                     ("sc_expression_class", "malignant_detection_fraction",
@@ -289,8 +346,13 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
             caveat = f"Antigen-heterogeneous — only {_f((headline.get('sc_malignant_detection_fraction') or 0)*100,0)}% of malignant cells express it [single-cell]"
         elif k == "B" and tier <= 1:
             caveat = "Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC]"
-    if caveat is None and "broad" in str(headline.get("normal_tissue_ihc_breadth_class") or ""):
-        caveat = "Broadly expressed in normal tissue -> therapeutic-window liability [normal comparators]"
+    # Breadcrumb (not an adjudication): presence carries the normal comparators but the therapeutic-window
+    # VERDICT is owned by tumor-selectivity / on-target-safety. Surface the hand-off when EITHER the HPA
+    # normal-tissue breadth is broad OR the single-cell normal footprint reads HIGH_LIABILITY.
+    if caveat is None and ("broad" in str(headline.get("normal_tissue_ihc_breadth_class") or "")
+                           or headline.get("sc_normal_expression_class") == "HIGH_LIABILITY"):
+        caveat = ("Broadly expressed in normal tissue → therapeutic-window liability; the window VERDICT is "
+                  "owned by tumor-selectivity / on-target-safety [normal comparators]")
     # deterministic headline from the vector (NOT the LLM)
     sa, sb = vec["A"]["signal"], vec["B"]["signal"]
     if _SIG_ORD.get(sa) and _SIG_ORD.get(sb) and _SIG_ORD[sa] >= 2 and _SIG_ORD[sb] >= 2:

@@ -175,17 +175,24 @@ def test_replay_cptac_standardized_effect_wired(epcam_decision):
 def test_replay_robustness_guards_wired(epcam_decision):
     """End-to-end wiring of the verdict-inert robustness guards over the REAL EPCAM/COADREAD summaries
     (the helpers are unit-tested; this proves _headline emits them from a real run):
-      * abundance_floor_flag = present_low_abundance — EPCAM cell-line PROTEIN is bottom-decile
-        (allgene pct 8.6) while presence is positive: the breadth-vs-level guard must fire and name it.
+      * abundance_floor_flag = present_low_abundance_single_lens — EPCAM cell-line Gygi PROTEIN is
+        bottom-decile (allgene pct 8.6), but that is a LONE MS-panel reading orthogonally contradicted by
+        the 2nd protein platform (ProCan `mid`) and antibody-IHC: the QUORUM guard demotes it to the SOFT
+        single-lens flag (a detection-sensitivity artifact, not genuine low abundance) rather than a hard
+        floor, so it no longer caps corroboration or leads the headline. The low lens is still NAMED, with
+        its overriding evidence recorded.
       * presence_headline_conflict = False — CPTAC is `ns` (present-not-elevated), a measured NEUTRAL,
         not a killer, so the conflict flag must stay silent (no false alarm).
       * presence_abundance_is_relative = True — the standing capability-ceiling flag."""
     h = epcam_decision.get("headline") or {}
-    assert h.get("abundance_floor_flag") == "present_low_abundance", (
-        f"expected present_low_abundance (EPCAM cell-line protein is bottom-decile); "
+    assert h.get("abundance_floor_flag") == "present_low_abundance_single_lens", (
+        f"expected present_low_abundance_single_lens (lone Gygi bottom-decile overridden by ProCan/IHC); "
         f"got {h.get('abundance_floor_flag')!r}")
     low = h.get("abundance_floor_low_lenses") or []
-    assert any(x.get("card_id") == "cellline-protein-abundance" for x in low)
+    _prot = [x for x in low if x.get("card_id") == "cellline-protein-abundance"]
+    assert _prot, "the Gygi cell-line protein lens must still be NAMED as the (demoted) low lens"
+    assert _prot[0].get("quorum") == "single_lens_overridden"
+    assert _prot[0].get("overridden_by"), "the orthogonal protein evidence that demoted the floor must be recorded"
     assert h.get("presence_headline_conflict") is False
     assert h.get("presence_headline_conflict_note") is None
     assert h.get("presence_abundance_is_relative") is True
@@ -211,8 +218,10 @@ def test_replay_headline_block_populated_and_verdict_inert(epcam_decision):
       * verdict.call == the collapsed presence_verdict, verdict.driving_rule_id == the spine's (inert);
       * confidence is a real level, not 'insufficient' (full coverage);
       * the hero carries all four claim axes;
-      * the sharpest tension surfaces the bottom-decile abundance floor (claim A conflict) — EPCAM's
-        cell-line protein is bottom-decile while presence is positive."""
+      * the sharpest tension is the HONEST one — after the quorum guard demotes EPCAM's lone Gygi
+        bottom-decile (an MS artifact, orthogonally contradicted by ProCan/IHC), the top tension is no
+        longer a spurious abundance floor but the tumor-vs-normal-elevation caveat (present, not selective;
+        the window verdict is owned by tumor-selectivity)."""
     h = epcam_decision.get("headline") or {}
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
         f"headline_block degraded on the canonical EPCAM replay: "
@@ -225,4 +234,8 @@ def test_replay_headline_block_populated_and_verdict_inert(epcam_decision):
     assert blk["confidence"]["level"] in ("strong", "moderate", "weak")   # measured — never insufficient here
     assert [a["key"] for a in blk["hero"]["axes"]] == ["A", "B", "C", "D"]
     assert blk["headline_text"].endswith(".")
-    assert blk["top_tension"] and "abundance" in blk["top_tension"]["text"].lower()
+    # the demoted single-lens floor must NOT be the headline tension; the honest tension is the
+    # tumor-vs-normal-elevation caveat (or another real axis conflict), never the spurious abundance floor.
+    _tt = (blk.get("top_tension") or {}).get("text", "").lower()
+    assert blk["top_tension"], "a top tension should still surface"
+    assert "bottom-decile" not in _tt, f"the demoted single-lens abundance floor must not lead the headline; got {_tt!r}"
