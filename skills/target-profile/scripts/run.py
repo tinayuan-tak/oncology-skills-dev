@@ -870,6 +870,8 @@ def main() -> int:
         actionability_mode=actionability_mode,
         archetype_companion=archetype_companion,
         nomination_scorecard=nomination_scorecard_facet,
+        risk_rollup=risk_rollup,   # canonical 6-dim risk (same source as HTML); md falls back to its
+                                   # local mapping when the substrate chain didn't produce it
     )
     write_artifact(args.out, "markdown", md, _written)
 

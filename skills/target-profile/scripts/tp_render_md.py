@@ -265,6 +265,35 @@ def _render_phenotype_landscape(companion: Optional[dict],
     return out
 
 
+# risk_rollup bin vocab (LOW/MED/HIGH/ENGINE-BLIND) → the md table's level vocab.
+_ROLLUP_BIN_TO_MD_LEVEL = {"LOW": "LOW", "MED": "MEDIUM", "HIGH": "HIGH",
+                           "ENGINE-BLIND": "insufficient_evidence"}
+# fixed 6-dim order for the md risk table (matches the historical _risk_by_category ordering).
+_RISK_DIM_ORDER = ("biological", "druggability", "translational", "clinical", "safety", "commercial")
+
+
+def _risk_rows_from_rollup(risk_rollup: Optional[dict]) -> Optional[list[tuple[str, str, str]]]:
+    """Adapt the CANONICAL deterministic risk_rollup (dims) into the md (category, level, driver) rows,
+    so the md table renders the SAME 6-dim risk the HTML report + risk_rollup.json already show — instead
+    of the md's own parallel `_risk_by_category_from_sub_verdicts` mapping (which could diverge). Returns
+    None when the rollup is absent/misshaped → the renderer falls back to the local mapping (e.g. a
+    --no-substrate run where risk_rollup was never produced)."""
+    dims = risk_rollup.get("dims") if isinstance(risk_rollup, dict) and "dims" in risk_rollup else risk_rollup
+    if not isinstance(dims, dict):
+        return None
+    rows: list[tuple[str, str, str]] = []
+    for dim in _RISK_DIM_ORDER:
+        d = dims.get(dim)
+        if not isinstance(d, dict) or "bin" not in d:
+            continue
+        level = _ROLLUP_BIN_TO_MD_LEVEL.get(d.get("bin"), d.get("bin") or "insufficient_evidence")
+        chain = d.get("chain") or []
+        driver = (f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2
+                  else (d.get("pillar") or ""))
+        rows.append((dim, level, driver))
+    return rows or None
+
+
 def _render_target_profile_md(
     target: str,
     indication: str,
@@ -278,6 +307,7 @@ def _render_target_profile_md(
     actionability_mode: Optional[dict] = None,
     archetype_companion: Optional[dict] = None,
     nomination_scorecard: Optional[dict] = None,
+    risk_rollup: Optional[dict] = None,
 ) -> str:
     """Render target_profile.md with clearly-tagged LLM sections + per-phase
     evidence tables + risk-by-category summary + deciding-axis routing + the
@@ -379,7 +409,11 @@ def _render_target_profile_md(
     lines.append("")
     lines.append("| Category | Risk level | Driver |")
     lines.append("|---|---|---|")
-    for cat, level, driver in _risk_by_category_from_sub_verdicts(sub_results):
+    # Prefer the CANONICAL deterministic risk_rollup (same source the HTML report + risk_rollup.json use)
+    # so the md risk table can't diverge from them; fall back to the local mapping only when the rollup
+    # wasn't produced (e.g. --no-substrate / --verdict-only).
+    _risk_rows = _risk_rows_from_rollup(risk_rollup) or _risk_by_category_from_sub_verdicts(sub_results)
+    for cat, level, driver in _risk_rows:
         lines.append(f"| **{cat}** | `{level}` | {driver} |")
     lines.append("")
 
