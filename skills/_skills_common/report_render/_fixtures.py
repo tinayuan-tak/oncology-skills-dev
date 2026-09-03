@@ -89,6 +89,11 @@ def make_nomination() -> dict:
                              "resolved_to": "hold"}],
                 "gate": {"recommendation_gate": "hold"},
             },
+            "risk_6dim": {
+                "biological": {"bin": "LOW"}, "druggability": {"bin": "MED"},
+                "safety": {"bin": "HIGH"}, "translational": {"bin": "LOW"},
+                "clinical": {"bin": "MED"}, "commercial": {"bin": "ENGINE-BLIND"},
+            },
             "skill_report_rollup": {
                 "by_role": {"gating": [{"short": "safety", "call": "lof_constrained", "polarity": "killer"},
                                        {"short": "dependency", "call": "genetic_dependency",

@@ -34,6 +34,7 @@ class JsonBackend:
             },
             "deciding_short": ir.deciding_short,
             "header": {"kind": ir.header.kind, **ir.header.payload},
+            "overview": [{"kind": b.kind, **b.payload} for b in ir.overview],
             "sections": [
                 {
                     "short": sec.short,

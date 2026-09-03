@@ -107,15 +107,20 @@ FIGURE = "figure"                 # a figure reference (+ caption + text fallbac
 PROVENANCE = "provenance"         # driving/fired rules + cards used/missing
 UNMEASURED = "unmeasured"         # fail-soft placeholder: an expected slot was empty (coverage, honest)
 ABOUT = "about"                   # the honesty legend / disclaimer
+# report-level overview blocks (absorbed from the tp_dashboard v2 design, spine-sourced):
+SIGNALS_OVERVIEW = "signals_overview"  # one row per scored skill: diverging signal strip (the lead)
+RISK_6DIM = "risk_6dim"                # the 6-category deterministic risk rollup (tiles)
 
 BLOCK_KINDS: frozenset = frozenset({
     REPORT_HEADER, SKILL_HEADER, CONFIDENCE, TENSION, CLAIM_CHIPS, QUESTION_TABLE,
-    PHASE_METRICS, FIGURE, PROVENANCE, UNMEASURED, ABOUT,
+    PHASE_METRICS, FIGURE, PROVENANCE, UNMEASURED, ABOUT, SIGNALS_OVERVIEW, RISK_6DIM,
 })
 
 # min level int at which each block kind is shown.
 TIER: dict[str, int] = {
     REPORT_HEADER: 0,
+    SIGNALS_OVERVIEW: 0,   # the lead — a one-glance read across all scored skills
+    RISK_6DIM: 1,          # governance risk rollup — summary depth up
     SKILL_HEADER: 0,
     ABOUT: 1,
     CONFIDENCE: 1,
@@ -172,5 +177,6 @@ __all__ = [
     "BLOCK_KINDS", "TIER", "CHIP_LIMIT_BY_LEVEL",
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
+    "SIGNALS_OVERVIEW", "RISK_6DIM",
     "polarity_glyph", "polarity_label", "polarity_rank", "polarity_legend",
 ]

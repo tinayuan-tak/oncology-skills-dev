@@ -65,6 +65,21 @@ figcaption { color:var(--muted); font-size:13px; margin-top:4px; }
 .prov { color:var(--muted); font-size:13px; }
 .about { color:var(--muted); font-size:13px; margin-top:22px; }
 .section-label { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.signal-strip { margin:4px 0; overflow-x:auto; }
+.so-foot { color:var(--muted); font-size:13px; margin:8px 0 0; }
+.risk-tiles { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:6px 0 2px; }
+@media (max-width:760px) { .risk-tiles { grid-template-columns:repeat(3,1fr); } }
+.risk-tile { border:1px solid var(--line); border-top-width:3px; border-radius:9px; padding:9px 8px;
+             text-align:center; }
+.risk-tile .rt-dim { font-size:11px; font-weight:650; color:var(--muted); line-height:1.25; }
+.risk-tile .rt-bin { font-size:16px; font-weight:750; margin-top:3px; }
+.risk-tile.rt-high { border-top-color:var(--killer); }
+.risk-tile.rt-high .rt-bin { color:var(--killer); }
+.risk-tile.rt-med { border-top-color:var(--opposing); }
+.risk-tile.rt-med .rt-bin { color:var(--opposing); }
+.risk-tile.rt-low { border-top-color:var(--supportive); }
+.risk-tile.rt-low .rt-bin { color:var(--supportive); }
+.risk-tile.rt-blind .rt-bin { color:var(--muted); font-size:13px; font-weight:600; }
 """.strip()
 
 
@@ -82,6 +97,8 @@ class HtmlBackend:
             vocab.PROVENANCE: self._provenance,
             vocab.UNMEASURED: self._unmeasured,
             vocab.ABOUT: self._about,
+            vocab.SIGNALS_OVERVIEW: self._signals_overview,
+            vocab.RISK_6DIM: self._risk_6dim,
         }
 
     def handled_kinds(self) -> set:
@@ -96,6 +113,8 @@ class HtmlBackend:
             f"<title>{title}</title><style>{_CSS}</style></head><body><div class='wrap'>",
         ]
         parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
+        for b in ir.overview:
+            parts.append(self._wrap_card("".join(self._emit(b))))
         for sec in ir.sections:
             parts.append(self._emit_section(sec))
         if ir.about is not None:
@@ -222,6 +241,81 @@ class HtmlBackend:
             bits.append(f"Spec: level={_esc(spec.get('level'))} · medium={_esc(spec.get('medium'))} · "
                         f"scope={_esc(spec.get('scope'))} · lead={_esc(spec.get('lead'))}.")
         return [f"<div class='about'>{'<br>'.join(bits)}</div>"]
+
+    # -- report-level overview (absorbed tp_dashboard v2 IA, spine-sourced) --------------------
+    def _signals_overview(self, p: dict) -> list:
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        c = p.get("counts") or {}
+        svg = _signal_strip_svg(rows, p.get("deciding_short"))
+        foot = (f"<p class='so-foot'>{c.get('support', 0)} support · {c.get('neutral', 0)} neutral · "
+                f"{c.get('against', 0)} against")
+        desc = p.get("descriptive") or []
+        if desc:
+            foot += " · descriptive: " + _esc(", ".join(desc))
+        foot += "</p>"
+        return [f"<h2>Signals across skills</h2><div class='signal-strip'>{svg}</div>{foot}"]
+
+    def _risk_6dim(self, p: dict) -> list:
+        dims = p.get("dims") or []
+        if not dims:
+            return []
+        tiles = []
+        for d in dims:
+            rank = d.get("rank")
+            cls = {3: "rt-high", 2: "rt-med", 1: "rt-low"}.get(rank, "rt-blind")
+            lab = d.get("bin") or "n/e"
+            tiles.append(f"<div class='risk-tile {cls}'><div class='rt-dim'>{_esc(str(d.get('dim')).title())}"
+                         f"</div><div class='rt-bin'>{_esc(lab)}</div></div>")
+        return [f"<h2>Risk by dimension</h2><div class='risk-tiles'>{''.join(tiles)}</div>"]
+
+
+def _signal_strip_svg(rows, deciding_short) -> str:
+    """Inline diverging-strip SVG (self-contained, both embed modes): one row per scored skill, bars
+    right = supports / left = counts-against, width ∝ |ordinal level|; neutral = a dot, off-scale = a
+    dashed hollow square (a gap, NOT 'worst'). Direction is encoded by side + label too (CVD-safe).
+    Ported from the tp_dashboard v2 design; fed from the spine's canonical polarity level."""
+    def _key(r):
+        lv = r.get("level")
+        return (0, -lv) if lv is not None else (1, 0)
+    rows = sorted(rows, key=_key)
+    n = len(rows)
+    LBL, AX = 300, 122
+    UNIT = AX / 3.0
+    W, RH, TOP, BOT = LBL + 2 * AX + 16, 34, 30, 10
+    H, cx = TOP + n * RH + BOT, LBL + AX
+    pos, neg, neu, gap, ink, muted, line = ("#1a6b1a", "#a1231d", "#8a5a00", "#8592a0",
+                                            "#141c26", "#6b7783", "#d5dde4")
+    s = [f"<svg viewBox='0 0 {W} {H}' width='100%' role='img' aria-label='Signal per skill' "
+         f"style='font-family:-apple-system,Segoe UI,sans-serif'>",
+         f"<text x='{cx-6}' y='16' text-anchor='end' font-size='10.5' font-weight='700' fill='{neg}'>"
+         f"◀ counts against</text>",
+         f"<text x='{cx+6}' y='16' text-anchor='start' font-size='10.5' font-weight='700' fill='{pos}'>"
+         f"supports ▶</text>",
+         f"<line x1='{cx}' y1='{TOP-4}' x2='{cx}' y2='{H-BOT+2}' stroke='{line}' stroke-width='1.5'/>"]
+    for i, r in enumerate(rows):
+        cyr = TOP + i * RH + RH / 2
+        lv = r.get("level")
+        dec = "  ◆ deciding" if r.get("is_deciding") else ""
+        call = r.get("call") or r.get("polarity") or ""
+        s.append(f"<text x='{LBL-14}' y='{cyr-2:.1f}' text-anchor='end' font-size='12.5' fill='{ink}'>"
+                 f"{_esc(r.get('title'))}</text>")
+        vline = _esc(str(call)) + ("  · not evaluated" if lv is None else "") + dec
+        s.append(f"<text x='{LBL-14}' y='{cyr+12:.1f}' text-anchor='end' font-size='10.5' "
+                 f"fill='{muted}'>{vline}</text>")
+        if lv is None:
+            s.append(f"<rect x='{cx-6}' y='{cyr-6:.1f}' width='12' height='12' rx='2' fill='none' "
+                     f"stroke='{gap}' stroke-width='1.5' stroke-dasharray='2 2'/>")
+        elif lv == 0:
+            s.append(f"<circle cx='{cx}' cy='{cyr:.1f}' r='5.5' fill='none' stroke='{neu}' stroke-width='2'/>")
+        else:
+            w = abs(lv) * UNIT
+            col = pos if lv > 0 else neg
+            bx = cx if lv > 0 else cx - w
+            s.append(f"<rect x='{bx:.1f}' y='{cyr-7:.1f}' width='{w:.1f}' height='14' rx='4' fill='{col}'/>")
+    s.append("</svg>")
+    return "".join(s)
 
 
 # reuse the text backend's shape-tolerant summarizers (single source, no vocab drift).

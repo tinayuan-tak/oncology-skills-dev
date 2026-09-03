@@ -5,7 +5,7 @@
   "description": "The JSON backend's output — a spec-applied, tiered serialization of the report IR. The stable machine 'report view' + golden-snapshot surface.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "spec", "header", "sections", "about", "target", "indication", "deciding_short"],
+  "required": ["schema", "spec", "header", "overview", "sections", "about", "target", "indication", "deciding_short"],
   "properties": {
     "schema": {"const": "report_view.v1"},
     "target": {"type": ["string", "null"]},
@@ -24,6 +24,7 @@
       }
     },
     "header": {"$ref": "#/definitions/block"},
+    "overview": {"type": "array", "items": {"$ref": "#/definitions/block"}},
     "about": {"oneOf": [{"$ref": "#/definitions/block"}, {"type": "null"}]},
     "sections": {
       "type": "array",
@@ -49,7 +50,8 @@
       "properties": {
         "kind": {
           "enum": ["report_header", "skill_header", "confidence", "tension", "claim_chips",
-                   "question_table", "phase_metrics", "figure", "provenance", "unmeasured", "about"]
+                   "question_table", "phase_metrics", "figure", "provenance", "unmeasured", "about",
+                   "signals_overview", "risk_6dim"]
         }
       }
     }

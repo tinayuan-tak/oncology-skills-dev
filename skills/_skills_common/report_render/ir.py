@@ -43,10 +43,12 @@ class ReportIR:
     sections: list                # list[Section]
     about: Optional[Block]        # ABOUT | None
     deciding_short: Optional[str]
+    overview: list = field(default_factory=list)  # report-level blocks (signals_overview, risk_6dim)
 
     def present_kinds(self) -> set:
         """Every block kind actually present — the parity/coverage contract surface."""
         kinds = {self.header.kind}
+        kinds.update(b.kind for b in self.overview)
         if self.about is not None:
             kinds.add(self.about.kind)
         for sec in self.sections:
@@ -194,6 +196,64 @@ def _sort_key(short: str, role: str, polarity: Optional[str], is_deciding: bool,
 # --------------------------------------------------------------------------------------------------
 # entry point
 # --------------------------------------------------------------------------------------------------
+def _signals_overview_block(selected, deciding_short) -> Optional[Block]:
+    """The lead diverging-strip: one row per SCORED skill (gating, on-scale polarity), descriptive
+    peers as a footnote. Signal polarity is the spine's canonical `skill_report.polarity` (killer-aware)
+    — cleaner than parsing driving-rule-id suffixes. Carries the ordinal level for the bar length.
+    (Design absorbed from the tp_dashboard v2 signals-first layout, re-sourced from the spine.)"""
+    rows, descriptive = [], []
+    for short, report, role in selected:
+        polarity = report.get("polarity")
+        title = vocab.skill_title(short)
+        if role != "gating" or polarity in (None, "not_scored"):
+            descriptive.append(title)          # context, not a bar
+            continue
+        rows.append({"short": short, "title": title, "polarity": polarity,
+                     "level": vocab.polarity_rank(polarity), "call": report.get("call"),
+                     "is_deciding": short == deciding_short})
+    if not rows:
+        return None
+    return Block(vocab.SIGNALS_OVERVIEW, {
+        "rows": rows, "descriptive": descriptive,
+        "counts": {"support": sum(1 for r in rows if (r["level"] or 0) > 0),
+                   "neutral": sum(1 for r in rows if r["level"] == 0),
+                   "against": sum(1 for r in rows if (r["level"] or 0) < 0)},
+        "deciding_short": deciding_short,
+    })
+
+
+_RISK6_ORDER = ("biological", "druggability", "safety", "translational", "clinical", "commercial")
+# ENGINE-BLIND is deliberately OFF-SCALE (→ None), never rank 0: "not evidenced" is a coverage gap,
+# not the lowest risk (same measured-vs-null discipline as ordinal_view's off-scale signals).
+_RISK6_RANK = {"HIGH": 3, "MED": 2, "MEDIUM": 2, "LOW": 1}
+
+
+def _risk_6dim_block(risk_6dim) -> Optional[Block]:
+    """The deterministic 6-category risk rollup → {dims:[{dim,bin,rank}]}. Reads target_report.risk_6dim
+    ({dim:{bin,…}} or a list); fail-soft on shape. 'rank' None = engine-blind / unrecognized bin."""
+    if not risk_6dim:
+        return None
+    dims = []
+
+    def _emit(dim, v):
+        b = str(v.get("bin") or "") if isinstance(v, dict) else (v if isinstance(v, str) else "")
+        dims.append({"dim": dim, "bin": b or None, "rank": _RISK6_RANK.get(b.upper())})
+
+    if isinstance(risk_6dim, dict):
+        seen = set()
+        for d in _RISK6_ORDER:
+            if d in risk_6dim:
+                _emit(d, risk_6dim[d]); seen.add(d)
+        for d, v in risk_6dim.items():
+            if d not in seen and not str(d).startswith("_"):
+                _emit(d, v)
+    elif isinstance(risk_6dim, list):
+        for item in risk_6dim:
+            if isinstance(item, dict):
+                _emit(item.get("dimension") or item.get("dim") or "?", item)
+    return Block(vocab.RISK_6DIM, {"dims": dims}) if dims else None
+
+
 def build_ir(nomination: dict, spec: ReportSpec,
              target: Optional[str] = None, indication: Optional[str] = None) -> ReportIR:
     """Project a nomination + spec into the presentation IR. Pure, deterministic, fail-soft."""
@@ -237,8 +297,18 @@ def build_ir(nomination: dict, spec: ReportSpec,
     sections = [_build_section(short, report, spec, is_deciding=(short == deciding_short))
                 for short, report, role in selected]
 
+    overview = []
+    if spec.level_int >= vocab.TIER[vocab.SIGNALS_OVERVIEW]:
+        sov = _signals_overview_block(selected, deciding_short)
+        if sov:
+            overview.append(sov)
+    if spec.level_int >= vocab.TIER[vocab.RISK_6DIM]:
+        r6 = _risk_6dim_block(tr.get("risk_6dim"))
+        if r6:
+            overview.append(r6)
     return ReportIR(target=target, indication=indication, spec=spec, header=header,
-                    sections=sections, about=_about_block(spec), deciding_short=deciding_short)
+                    sections=sections, about=_about_block(spec), deciding_short=deciding_short,
+                    overview=overview)
 
 
 def _about_block(spec: ReportSpec) -> Optional[Block]:

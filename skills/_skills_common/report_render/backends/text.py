@@ -27,6 +27,8 @@ class TextBackend:
             vocab.PROVENANCE: self._provenance,
             vocab.UNMEASURED: self._unmeasured,
             vocab.ABOUT: self._about,
+            vocab.SIGNALS_OVERVIEW: self._signals_overview,
+            vocab.RISK_6DIM: self._risk_6dim,
         }
 
     def handled_kinds(self) -> set:
@@ -36,6 +38,9 @@ class TextBackend:
     def render(self, ir: ReportIR) -> str:
         lines: list = []
         lines += self._emit(ir.header)
+        for b in ir.overview:
+            lines.append("")
+            lines += self._emit(b)
         for sec in ir.sections:
             lines.append("")
             lines += self._emit_section(sec)
@@ -196,6 +201,32 @@ class TextBackend:
             out.append(f"Spec: level={spec.get('level')} · medium={spec.get('medium')} · "
                        f"scope={spec.get('scope')} · lead={spec.get('lead')}.")
         return out
+
+
+    def _signals_overview(self, p: dict) -> list:
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        c = p.get("counts") or {}
+        out = self._h2("Signals across skills")
+        out.append(f"{c.get('support', 0)} support · {c.get('neutral', 0)} neutral · "
+                   f"{c.get('against', 0)} against")
+        for r in rows:
+            g = vocab.polarity_glyph(r.get("polarity"))
+            call = r.get("call") or vocab.polarity_label(r.get("polarity"))
+            tail = "  [deciding]" if r.get("is_deciding") else ""
+            out.append(self._bullet(f"{g} {r.get('title')} — {call}{tail}"))
+        desc = p.get("descriptive") or []
+        if desc:
+            out.append(f"descriptive (context): {', '.join(desc)}")
+        return out
+
+    def _risk_6dim(self, p: dict) -> list:
+        dims = p.get("dims") or []
+        if not dims:
+            return []
+        rows = [[d.get("dim"), (d.get("bin") or "not evidenced")] for d in dims]
+        return [f"{self._b('Risk by dimension')}:"] + self._table(["dimension", "risk"], rows)
 
 
 # ------------------------------------------------------------------------------------------------
