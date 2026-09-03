@@ -39,10 +39,15 @@ def test_headline_emits_gating_skill_report():
     assert sr["call"] == "well_characterized"                    # verbatim verdict — no recompute
     assert sr["polarity"] in ("supportive", "neutral", "opposing", "insufficient", "not_applicable")
     assert sr["polarity"] != "killer"                            # mechanism has no veto-killer verdict
-    assert sr["question_table"] == []                            # mechanism has no question_table
+    # mechanism NOW has a question_table (component parity) — 5 rows (NETWORK/PHOSPHO/PATHWAY/
+    # PERTURBATION/PREDICTABILITY), carried into the skill_report
+    assert isinstance(sr["question_table"], list) and len(sr["question_table"]) == 5
+    assert [r["id"] for r in sr["question_table"]] == ["Q1", "Q2", "Q3", "Q4", "Q5"]
+    assert all(r["signal"]["polarity"] in ("informs", "none") for r in sr["question_table"])
     assert sr["provenance"]["driving_rule_id"] == "mechanism-well-characterized"
     assert "_enrichment_errors" not in hl
     assert "skill_report" in mech._SYNTHESIS_FACET_KEYS
+    assert "question_table" in mech._SYNTHESIS_FACET_KEYS
 
 
 def test_skill_report_fault_degrades_not_aborts(monkeypatch):
