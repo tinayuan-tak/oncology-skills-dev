@@ -363,39 +363,47 @@ def _load_takeda_style(target_contracts_dir: Path):
     return takeda_palette
 
 
+# expression_class → one-line takeaway (cell-line RNA). {T} = target.
+_CELLLINE_PHRASE = {
+    "broadly_high": "{T} is highly expressed across cancer cell lines.",
+    "broadly_moderate": "{T} is broadly expressed at moderate levels across cell lines.",
+    "subset_high": "{T} is highly expressed in a subset of cell lines.",
+    "low_or_absent": "{T} is low or absent across cell lines.",
+    "broadly_low": "{T} is low across cell lines.",
+}
+
+
+def _cellline_take(target_symbol, summary):
+    p = _CELLLINE_PHRASE.get(summary.get("expression_class"))
+    return p.format(T=target_symbol) if p else None
+
+
 def emit_density_plot(tpm_by_model: dict, target_symbol: str, summary: dict,
                        out_dir: Path, target_contracts_dir: Path) -> Path:
-    """Emit pan-cancer KDE + histogram density plot — PRIMARY figure for E3.a.
-
-    Histogram + KDE overlay with threshold reference lines at log2(TPM+1)=1.0
-    ('expressed') and =5.0 ('highly expressed'). Mirrors the depmap-portal
-    convention for the per-gene expression panel.
-    """
+    """Emit the pan-cancer histogram + KDE density (PRIMARY figure) in the shared grammar.
+    Threshold reference lines at log2(TPM+1)=1 ('expressed') and =5 ('highly expressed')."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import numpy as np
     from scipy.stats import gaussian_kde
 
     pal = _load_takeda_style(target_contracts_dir)
     scores = np.array(list(tpm_by_model.values()))
-
-    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-    ax.hist(scores, bins=50, density=True, alpha=0.45, color="#0a2540", edgecolor="white")
-    if len(scores) >= 10:
-        kde = gaussian_kde(scores)
-        xs = np.linspace(scores.min() - 0.2, scores.max() + 0.2, 500)
-        ax.plot(xs, kde(xs), color="#cf2828", linewidth=2)
-    ax.axvline(1.0, color="#f0a020", linestyle="--", linewidth=1, label="expressed (≥1.0)")
-    ax.axvline(5.0, color="#cf2828", linestyle="--", linewidth=1, label="highly expressed (≥5.0)")
-    ax.set_xlabel("log2(TPM+1)")
-    ax.set_ylabel("Density")
-    ax.set_title(f"{target_symbol} — pan-cancer expression distribution (n={len(scores)})")
-    ax.legend(loc="upper right", fontsize=8)
-    fig.tight_layout()
     out_path = out_dir / "figure_density_expression.svg"
-    fig.savefig(out_path)
-    plt.close(fig)
+    with pal.figure_frame(target_symbol, None, "cell-line expression distribution", out_path=out_path,
+                          kind="scatter", provenance=f"DepMap 26Q1 RNA  ·  n={len(scores)} cancer cell lines",
+                          takeaway=_cellline_take(target_symbol, summary)) as F:
+        ax = F.ax
+        ax.hist(scores, bins=50, density=True, alpha=0.5, color=pal.TUMOR_FILL, edgecolor="white")
+        if len(scores) >= 10:
+            kde = gaussian_kde(scores)
+            xs = np.linspace(scores.min() - 0.2, scores.max() + 0.2, 500)
+            ax.plot(xs, kde(xs), color=pal.TUMOR_LINE, linewidth=2)
+        ax.axvline(1.0, label="expressed ≥1", **pal.REFLINE_NEUTRAL)
+        ax.axvline(5.0, label="highly expressed ≥5", **pal.REFLINE_NEUTRAL)
+        ax.legend(loc="upper right", fontsize=7, frameon=False)
+        F.axis_label("x", "Expression", "log2(TPM + 1), DepMap cell lines")
+        F.axis_label("y", "Density")
     return out_path
 
 
@@ -409,30 +417,21 @@ def emit_waterfall_plot(tpm_by_model: dict, model_metadata: dict, target_symbol:
     """
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import pandas as pd
 
     pal = _load_takeda_style(target_contracts_dir)
-
-    records = []
-    for model_id, log2tpm in tpm_by_model.items():
-        meta = model_metadata.get(model_id, {})
-        lineage = meta.get("OncotreeLineage") or "unknown"
-        records.append({"model_id": model_id, "lineage": lineage, "log2tpm": log2tpm})
-    df = pd.DataFrame(records).sort_values("log2tpm").reset_index(drop=True)
-
-    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-    ax.bar(range(len(df)), df["log2tpm"], width=1.0, color="#0a2540", linewidth=0)
-    ax.axhline(1.0, color="#f0a020", linestyle="--", linewidth=1, label="expressed (≥1.0)")
-    ax.axhline(5.0, color="#cf2828", linestyle="--", linewidth=1, label="highly expressed (≥5.0)")
-    ax.set_xlabel(f"Cell lines (n={len(df)}, sorted by expression)")
-    ax.set_ylabel("log2(TPM+1)")
-    ax.set_title(f"{target_symbol} — pan-cancer expression (ranked waterfall)")
-    ax.legend(loc="upper left", fontsize=8)
-    fig.tight_layout()
+    df = pd.DataFrame([{"log2tpm": v} for v in tpm_by_model.values()]).sort_values("log2tpm").reset_index(drop=True)
     out_path = out_dir / "figure_waterfall_expression.svg"
-    fig.savefig(out_path)
-    plt.close(fig)
+    with pal.figure_frame(target_symbol, None, "cell-line expression, ranked", out_path=out_path,
+                          kind="scatter", provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines (sorted)",
+                          takeaway=_cellline_take(target_symbol, summary)) as F:
+        ax = F.ax
+        ax.bar(range(len(df)), df["log2tpm"], width=1.0, color=pal.TUMOR_LINE, linewidth=0)
+        ax.axhline(1.0, label="expressed ≥1", **pal.REFLINE_NEUTRAL)
+        ax.axhline(5.0, label="highly expressed ≥5", **pal.REFLINE_NEUTRAL)
+        ax.legend(loc="upper left", fontsize=7, frameon=False)
+        F.axis_label("x", "Cell lines", "ranked by expression")
+        F.axis_label("y", "Expression", "log2(TPM + 1)")
     return out_path
 
 
@@ -443,45 +442,38 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
     n_lineages — most targets give 25-30 lineages, each ~0.2in vertical."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
 
     pal = _load_takeda_style(target_contracts_dir)
-
-    records = []
-    for model_id, log2tpm in tpm_by_model.items():
-        meta = model_metadata.get(model_id, {})
-        lineage = meta.get("OncotreeLineage") or "unknown"
-        records.append({"lineage": lineage, "log2tpm": log2tpm})
+    records = [{"lineage": (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"),
+                "log2tpm": v} for mid, v in tpm_by_model.items()]
     df = pd.DataFrame(records)
+    med = df.groupby("lineage")["log2tpm"].agg(["median", "count"])
+    med = med[med["count"] >= 5].sort_values("median", ascending=False)
+    lineages_ordered = list(med.index)
 
-    lineage_medians = df.groupby("lineage")["log2tpm"].agg(["median", "count"])
-    lineage_medians = lineage_medians[lineage_medians["count"] >= 5].sort_values("median", ascending=False)
-    lineages_ordered = list(lineage_medians.index)
-
-    # Vertical sizing: scale n_lineages * 0.2in but cap to a reasonable max so it
-    # never dwarfs the rest of the dashboard layout
-    fig_h = min(max(3.5, len(lineages_ordered) * 0.2), 7.0)
-    fig, ax = plt.subplots(figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h))
-    for i, lin in enumerate(lineages_ordered):
-        scores = df[df["lineage"] == lin]["log2tpm"].values
-        xs = np.full(len(scores), i)
-        jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
-        ax.scatter(scores, xs + jitter, alpha=0.5, s=8, color=pal.get_lineage_color(lin))
-        ax.scatter([np.median(scores)], [i], color="#B22222", s=30, marker="|", zorder=5)
-    ax.axvline(1.0, color="#f0a020", linestyle="--", linewidth=1)
-    ax.axvline(5.0, color="#cf2828", linestyle="--", linewidth=1)
-    ax.set_yticks(range(len(lineages_ordered)))
-    ax.set_yticklabels(lineages_ordered, fontsize=8)
-    # Invert y-axis so highest-median lineage is on top (matches ordered-by-median-desc semantics)
-    ax.invert_yaxis()
-    ax.set_xlabel("log2(TPM+1)")
-    ax.set_title(f"{target_symbol} — per-lineage expression (n≥5; ordered by median, top=highest)")
-    fig.tight_layout()
+    # tall, variable height (n_lineages * 0.24in, capped) → figure_frame positions the title/provenance/
+    # takeaway by absolute inches for tall figs; margins passed as inch-derived fractions.
+    fig_h = min(max(3.8, len(lineages_ordered) * 0.24 + 1.4), 7.6)
     out_path = out_dir / "figure_lineage_strip_expression.svg"
-    fig.savefig(out_path)
-    plt.close(fig)
+    with pal.figure_frame(target_symbol, None, "cell-line expression by lineage", out_path=out_path,
+                          figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h), left=0.24,
+                          top=1 - 0.72 / fig_h, bottom=0.95 / fig_h,
+                          provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines  ·  lineages with n≥5",
+                          takeaway=_cellline_take(target_symbol, summary)) as F:
+        ax = F.ax
+        for i, lin in enumerate(lineages_ordered):
+            scores = df[df["lineage"] == lin]["log2tpm"].values
+            jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
+            ax.scatter(scores, np.full(len(scores), i) + jitter, alpha=0.5, s=8,
+                       color=pal.get_lineage_color(lin))
+            ax.scatter([np.median(scores)], [i], color=pal.INK_SECONDARY, s=34, marker="|", zorder=5)
+        ax.axvline(1.0, **pal.REFLINE_NEUTRAL); ax.axvline(5.0, **pal.REFLINE_NEUTRAL)
+        ax.set_yticks(range(len(lineages_ordered))); ax.set_yticklabels(lineages_ordered, fontsize=7.5)
+        ax.set_ylim(-0.8, len(lineages_ordered) - 0.2); ax.invert_yaxis()
+        ax.grid(axis="x", alpha=0.25, linewidth=0.4); ax.grid(axis="y", visible=False)
+        F.axis_label("x", "Expression", "log2(TPM + 1)")
     return out_path
 
 
