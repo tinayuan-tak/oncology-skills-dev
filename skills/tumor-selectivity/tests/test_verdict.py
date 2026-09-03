@@ -461,3 +461,42 @@ def test_coverage_falls_back_to_cell_count_when_concordance_absent():
     sc = ts._strength_certainty(_sel_cards("strong_tumor_selective", protein=False),
                                 verdict_pair=("strong_tumor_selective", "x"))
     assert sc["certainty"]["coverage"] == "high"
+
+
+# ── measurement_caveat: coverage-gap verdict that actually rests on a measured signal (VERDICT-INERT) ──
+def _cv(dist=None, win=None, intr=None):
+    return {"DIST": {"signal": dist}, "WIN": {"signal": win}, "INT": {"signal": intr}}
+
+
+def test_measurement_caveat_flags_stromal_false_window():
+    """FAP/PDAC archetype: resolved not_informative (axis-A abstained) but strongly present (DIST) and
+    stroma-driven (INT negative / stromal_confounded) → a MEASURED false window, not an unmeasured gap."""
+    hl = {"selectivity_class": "not_informative",
+          "sc_stromal_confound_class": "stromal_confounded",
+          "claim_vector": _cv(dist="strong", intr="negative")}
+    mc = ts._measurement_caveat(hl)
+    assert mc and mc["verdict_is_coverage_gap"] and mc["measured_signal_present"]
+    assert mc["reason"] == "stromal_confounded_false_window"
+
+
+def test_measurement_caveat_present_but_not_selective():
+    """Present tumor-side (DIST) with no stromal signal but a gap verdict → present_but_not_tumor_selective."""
+    hl = {"selectivity_class": "not_informative", "claim_vector": _cv(dist="strong")}
+    assert ts._measurement_caveat(hl)["reason"] == "present_but_not_tumor_selective"
+
+
+def test_measurement_caveat_none_for_genuine_gap():
+    """A genuine coverage gap (gap verdict + no decisive signal) → None (nothing to disambiguate)."""
+    hl = {"selectivity_class": "data_unavailable", "claim_vector": _cv()}
+    assert ts._measurement_caveat(hl) is None
+
+
+def test_measurement_caveat_none_for_measured_call():
+    """A MEASURED call (discordant / not_selective / selective) is not a coverage gap → None."""
+    for v in ("discordant_across_comparators", "not_selective", "strong_tumor_selective"):
+        hl = {"selectivity_class": v, "claim_vector": _cv(dist="strong", intr="negative")}
+        assert ts._measurement_caveat(hl) is None, v
+
+
+def test_measurement_caveat_in_synthesis_facet_keys():
+    assert "measurement_caveat" in ts._SYNTHESIS_FACET_KEYS

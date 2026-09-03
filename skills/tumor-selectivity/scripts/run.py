@@ -71,7 +71,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.20.0"   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.21.0"   # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -215,6 +215,53 @@ def _rna_protein_tvn_concordance(rna_direction, protein_effect_size, protein_q):
     rna_up = rna_direction == "up"
     protein_up = protein_effect_size > 0
     return "rna_protein_concordant" if protein_up == rna_up else "rna_protein_discordant"
+
+
+# Coverage-GAP verdict tokens: the resolver returned NO measured selectivity CALL (distinct from a
+# measured negative like not_selective / discordant_across_comparators). A downstream consumer that
+# treats these as "unmeasured" would miss a target that IS decisively measured but simply not
+# tumor-cell-selective — most sharply the FAP/PDAC archetype (strongly present tumor-side but the
+# single-cell/spatial attribution is stroma/CAF; the aggregate axis-A card abstains on the single-
+# comparator field effect, so the stromal-confound veto is armed-but-moot and the class reads
+# not_informative). The verdict-inert caveat below names that so the class token is not mistaken for a gap.
+_COVERAGE_GAP_VERDICTS = {"not_informative", "insufficient", "data_unavailable", None}
+_PRESENT_TIERS = {"strong", "moderate"}
+
+
+def _measurement_caveat(hl: dict) -> dict | None:
+    """VERDICT-INERT projection: flag the case where the RESOLVED selectivity_class is a coverage-GAP
+    token yet the claim vector carries a DECISIVE measured signal — so the composed layer need not treat
+    it as an unmeasured gap. Returns None for a measured call (nothing to disambiguate) or a genuine gap
+    (no decisive signal). Never touches the verdict / normal-breadth / stromal-confound veto spine — a
+    read over the already-built claim_vector + headline (the same discipline as the other _headline
+    projections; byte-stable resolver)."""
+    if hl.get("selectivity_class") not in _COVERAGE_GAP_VERDICTS:
+        return None
+    cv = hl.get("claim_vector") or {}
+    dist = (cv.get("DIST") or {}).get("signal")
+    win = (cv.get("WIN") or {}).get("signal")
+    stromal = (hl.get("sc_stromal_confound_class") == "stromal_confounded"
+               or (cv.get("INT") or {}).get("signal") == "negative")
+    present = dist in _PRESENT_TIERS or win in _PRESENT_TIERS
+    if not (present or stromal):
+        return None                                  # a genuine coverage gap — nothing to disambiguate
+    reason = ("stromal_confounded_false_window" if (stromal and present)
+              else "stroma_dominant_signal" if stromal
+              else "present_but_not_tumor_selective")
+    note = {
+        "stromal_confounded_false_window":
+            "Verdict is a coverage-gap token, but the target IS strongly present tumor-side while single-"
+            "cell/spatial attribute the signal to stroma/CAF — a MEASURED false window for a tumor-cell-"
+            "targeted modality, NOT an unmeasured gap.",
+        "stroma_dominant_signal":
+            "Verdict is a coverage-gap token, but single-cell/spatial show the signal is stroma/CAF-"
+            "driven — a MEASURED stromal read, NOT an unmeasured gap.",
+        "present_but_not_tumor_selective":
+            "Verdict is a coverage-gap token, but per-sample / effect-size signals show the target IS "
+            "present tumor-side — the aggregate axis-A call abstained (e.g. single-comparator field "
+            "effect), NOT an unmeasured gap.",
+    }[reason]
+    return {"verdict_is_coverage_gap": True, "measured_signal_present": True, "reason": reason, "note": note}
 
 
 # ── The canonical HEADLINE layer (verdict + confidence + top-tension) ─────────────────────────────
@@ -640,6 +687,10 @@ def _headline(cards, fired, verdict_pair):
     # replay guard). See _skills_common/selectivity_claims.py + claim_vector_core.py.
     hl["claim_vector"] = selectivity_claim_vector(hl, cards)
     hl["key_signals"] = selectivity_key_signals(hl, cards)
+    # VERDICT-INERT: when the resolved class is a coverage-GAP token but the claim vector carries a
+    # decisive measured signal (e.g. FAP = strongly present but stroma-driven → not_informative), name
+    # it so the composed profile need not treat it as an unmeasured gap. None otherwise. Byte-stable spine.
+    hl["measurement_caveat"] = _measurement_caveat(hl)
     # The 8-question LEADING GRAPHIC (Q × primary-signal / supporting / confidence) — the selectivity
     # analogue of presence's question_table, rendered by the SHARED render_question_table_html. A
     # verdict-INERT projection over the headline + claim_vector (WIN/DIST/INT/SAFE); never touches the
@@ -697,6 +748,7 @@ _SYNTHESIS_FACET_KEYS = (
     "rna_protein_tvn_concordance",
     "sc_normal_safety_essential_class",              # the veto input (why a target down-graded)
     "claim_vector", "key_signals",
+    "measurement_caveat",   # verdict-inert: coverage-gap class token that actually rests on a measured signal (stromal false window)
     # carry the 8-question leading table + the tumor-vs-normal WINDOW gate fields so the
     # composed target-profile dashboard can render the "Selectivity at a glance" leading table. All are
     # produced by _headline (single source of truth); absent ones project to None (verdict-inert).

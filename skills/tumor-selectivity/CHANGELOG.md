@@ -4,6 +4,22 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.21.0
+- **`measurement_caveat` — disambiguate a coverage-gap verdict that rests on a measured signal (VERDICT-INERT).**
+  A live FAP/PDAC pass exposed that a decisively **stroma-driven** target resolves to `not_informative`
+  (the aggregate axis-A card abstains on the single-comparator field effect, so the stromal-confound veto
+  is armed-but-moot) — the same token used for "unmeasured", so the composed profile (which treats
+  `not_informative` like a gap) would miss the decisive INT-negative that lives only in the claim_vector.
+  New `_measurement_caveat` (in `_headline`) flags, when the resolved class is a coverage-gap token
+  (`not_informative`/`insufficient`/`data_unavailable`) yet the claim vector carries a decisive measured
+  signal: `reason` ∈ {`stromal_confounded_false_window`, `stroma_dominant_signal`,
+  `present_but_not_tumor_selective`} + a human note. Emitted as `headline.measurement_caveat` and added to
+  the synthesis facet so the composed layer *can* read it. `None` for a measured call or a genuine gap.
+- **Verdict-INERT / additive:** a projection over the already-built claim_vector — never touches the
+  `selectivity_class` / normal-breadth / stromal-confound veto spine (resolver golden-stable; CEACAM5/
+  TACSTD2 replay unchanged). Actually consuming it in the composed gate (so a stromal false window scores
+  as a negative, not a gap) is a deliberate spine follow-up, NOT in this change.
+
 ## 1.20.0
 - **`--literature` retriever → `default_retrieve` (multi-source, lens-specific queries).** Shared
   `_skills_common/literature_retrieval.py` gains (1) `pubtator3_retrieve` (NCBI PubTator3 entity-index
