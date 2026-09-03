@@ -143,3 +143,52 @@ def test_calibration_surfaces_raw_anchoring_quantities():
     dims = rr.deterministic_bins(pkg, "small_molecule")
     assert any("LOEUF=0.23" in str(n[1]) for n in dims["safety"]["chain"])       # raw LOEUF surfaced
     assert any("Pharos TDL=Tclin" in str(n[1]) for n in dims["druggability"]["chain"])  # raw TDL surfaced
+
+
+# ── coverage-wiring fixes (2026-09-02): druggability strong verdicts, clinical & commercial engine bins ──
+def _pkg2(sub_verdicts: dict, card_summaries: dict | None = None):
+    return {"synthesis": {"sub_verdicts": {k: {"verdict": v} for k, v in sub_verdicts.items()}},
+            "cards": [{"card_id": k, "summary": s} for k, s in (card_summaries or {}).items()]}
+
+
+def test_druggability_strong_tractability_is_low():
+    # BUG FIX: measured_potent_ligand / chemically_confirmed_genetic are STRONG positives — previously
+    # missing from the lookup, so they silently defaulted to MED. They must read LOW.
+    for v in ("measured_potent_ligand", "chemically_confirmed_genetic", "well_covered", "chemically_active"):
+        dims = rr.deterministic_bins(_pkg2({"tractability_sm": v}), "small_molecule")
+        assert dims["druggability"]["bin"] == "LOW", (v, dims["druggability"])
+    # a caveated moderate rung stays MED via the default; a negative is HIGH
+    assert rr.deterministic_bins(_pkg2({"tractability_sm": "structurally_ligandable"}), "small_molecule")["druggability"]["bin"] == "MED"
+    assert rr.deterministic_bins(_pkg2({"tractability_sm": "chemically_unhit"}), "small_molecule")["druggability"]["bin"] == "HIGH"
+
+
+def test_clinical_bin_from_precedent_card():
+    approved = _pkg2({}, {"clinical-precedent": {"highest_clinical_stage": "approved"}})
+    assert rr.deterministic_bins(approved, "small_molecule")["clinical"]["bin"] == "LOW"
+    early = _pkg2({}, {"clinical-precedent": {"highest_clinical_stage": "phase_1"}})
+    assert rr.deterministic_bins(early, "small_molecule")["clinical"]["bin"] == "MED"
+    failed = _pkg2({}, {"clinical-precedent": {"highest_clinical_stage": "phase_2", "notable_failures": ["drugX"]}})
+    assert rr.deterministic_bins(failed, "small_molecule")["clinical"]["bin"] == "HIGH"
+    # absent card → stays engine-blind (literature-only)
+    assert rr.deterministic_bins(_pkg2({}), "small_molecule")["clinical"]["bin"] == "ENGINE-BLIND"
+
+
+def test_commercial_bin_from_competitor_card():
+    crowded = _pkg2({}, {"competitor-landscape": {"competitor_class": "approved_competitor", "n_competitor_programs": 5}})
+    assert rr.deterministic_bins(crowded, "small_molecule")["commercial"]["bin"] == "HIGH"
+    whitespace = _pkg2({}, {"competitor-landscape": {"competitor_class": "no_known_competitor", "n_competitor_programs": 0}})
+    assert rr.deterministic_bins(whitespace, "small_molecule")["commercial"]["bin"] == "LOW"
+    # insufficient / absent → engine-blind
+    assert rr.deterministic_bins(_pkg2({}, {"competitor-landscape": {"competitor_class": "insufficient"}}),
+                                 "small_molecule")["commercial"]["bin"] == "ENGINE-BLIND"
+
+
+def test_clinical_commercial_engine_bins_not_clobbered_by_project():
+    # a real engine bin must survive project() (deterministic wins; literature attaches, never overwrites)
+    pkg = _pkg2({}, {"clinical-precedent": {"highest_clinical_stage": "approved"},
+                     "competitor-landscape": {"competitor_class": "no_known_competitor"}})
+    substrate = {"clinical": {"grounded": {"findings": [{"finding": "f", "severity": "high", "cited_pmids": ["1"]}]}}}
+    dims = rr.project(pkg, "small_molecule", substrate)
+    assert dims["clinical"]["bin"] == "LOW"                 # NOT escalated to HIGH by the finding
+    assert dims["commercial"]["bin"] == "LOW"
+    assert dims["clinical"]["grounded_findings"][0]["finding"] == "f"   # finding still attached

@@ -75,14 +75,17 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
         return "MEDIUM", "mixed signals across A/B/C"
 
     def _druggability():
-        if trk_v in ("well_covered", "chemically_confirmed_genetic"):
-            return "LOW", trk_r or "PRISM-CRISPR triangulated"
-        if trk_v in ("chemically_active",):
-            return "LOW-MEDIUM", trk_r or "clinically-active compounds"
+        # STRONG-positive tractability verdicts (tractability-small-molecule _TRACT_STRONG) → LOW. Prior
+        # to 2026-09 `measured_potent_ligand` was OMITTED here (as in risk_rollup) so a potent measured
+        # ligand fell to insufficient_evidence ("tractability sub-verdict absent") — the USP8/NSCLC symptom.
+        if trk_v in ("well_covered", "chemically_confirmed_genetic", "measured_potent_ligand"):
+            return "LOW", trk_r or "PRISM-CRISPR triangulated / measured potent ligand"
+        if trk_v in ("chemically_active", "clinical_precedent_only", "structurally_ligandable"):
+            return "LOW-MEDIUM", trk_r or "clinically-active / structurally-ligandable chemistry"
         if trk_v in ("tool_compound_only", "weakly_active"):
             return "MEDIUM-HIGH", trk_r or "tool compounds only"
-        if trk_v in ("chemically_unhit", "discordant"):
-            return "HIGH", trk_r or "no compound hits or discordant"
+        if trk_v in ("chemically_unhit", "discordant", "structurally_intractable"):
+            return "HIGH", trk_r or "no compound hits / discordant / structurally intractable"
         return "insufficient_evidence", "tractability sub-verdict absent"
 
     def _safety():

@@ -137,22 +137,65 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
              "neither_viable": 2}.get(sv.get("surface_modality"), 1)
         chain.append(("surface-modality-fit", sv.get("surface_modality"), INV[r])); blind = ["ADC linker/payload", "internalization"]
     else:
-        r = {"well_covered": 0, "chemically_active": 0, "discordant": 1, "chemically_unhit": 2,
+        # LOW-risk = a viable chemical start point. The lookup previously omitted the STRONG-positive
+        # tractability verdicts (measured_potent_ligand, chemically_confirmed_genetic) — so the strongest
+        # druggability calls silently defaulted to MED (the USP8/NSCLC symptom: measured_potent_ligand →
+        # MED). Aligned with tractability-small-molecule's polarity: _TRACT_STRONG → LOW(0); the caveated
+        # moderate rungs (structurally_ligandable / clinical_precedent_only / tool_compound_only /
+        # weakly_active) stay MED(1) via the default; negatives → HIGH(2).
+        r = {"well_covered": 0, "chemically_confirmed_genetic": 0, "chemically_active": 0,
+             "measured_potent_ligand": 0,
+             "discordant": 1, "chemically_unhit": 2,
              "structurally_intractable": 2}.get(sv.get("tractability_sm"), 1)
         _tdl = _q(pkg, "target-development-level", "tdl_class")   # raw Pharos tier (Tclin>Tchem>Tbio>Tdark)
         chain.append(("tractability-SM", f"{sv.get('tractability_sm')} [Pharos TDL={_tdl}]", INV[r]))
         blind = ["PK/exposure", "CNS penetration", "synthesis"]
     dims["druggability"] = {"pillar": "Right Molecule", "bin": INV[r], "chain": chain, "mitigation": None, "blind_spots": blind}
 
-    # engine-BLIND dims (literature-only via grounded/Tier-2). translational (patient-selection /
-    # readiness) is engine-blind HERE even though `differentiation` carries a sub-verdict: that verdict
-    # is a co-mutation/patient-selection LANDSCAPE, not a risk ordinal, and the translational-readiness
-    # engine leg is a placeholder — so the dim is honestly literature-only until a translational engine
-    # bin exists (mirrors clinical/commercial). Its grounded differentiation findings set the coarse
-    # literature bin in project().
+    # CLINICAL — precedent from the LIVE public AACT/ClinicalTrials `clinical-precedent` card (wired
+    # 2026-09; the card is composed into the evidence-package by differentiation-landscape). Risk =
+    # clinical-translation uncertainty / failure precedent: an approved-or-late-stage engaging agent =
+    # validated (LOW); an asserted notable failure = a real de-risking-required signal (HIGH); anything
+    # in-between / no precedent = MED. Only the trial-precedent leg is engine-fed; deeper clinical risk
+    # (trial design / endpoint) stays literature-only. Absent card → falls through to ENGINE-BLIND below.
+    cp = _card(pkg, "clinical-precedent")
+    _stage = cp.get("highest_clinical_stage")
+    if cp and (_stage is not None or cp.get("notable_failures")):
+        c = 2 if cp.get("notable_failures") else (0 if _stage in ("approved", "phase_3", "pivotal") else 1)
+        dims["clinical"] = {"pillar": "Right Patient (clinical precedent)", "bin": INV[c],
+                            "chain": [("clinical-precedent",
+                                       f"highest_clinical_stage={_stage}; notable_failures={bool(cp.get('notable_failures'))}",
+                                       INV[c])],
+                            "mitigation": None,
+                            "blind_spots": ["trial design / endpoint risk (literature-only)"]}
+
+    # COMMERCIAL — the COMPETITION leg from the LIVE Open Targets `competitor-landscape` card (CC0). Only
+    # competitive intensity is engine-fed; market size / revenue / IP freedom-to-operate remain a genuine
+    # DATA gap (Cortellis/IQVIA unlicensed). Direction per the card's own framing: an approved competitor
+    # = crowded = high differentiation risk (HIGH); no known competitor = whitespace / first-mover (LOW).
+    cl = _card(pkg, "competitor-landscape")
+    _klass = cl.get("competitor_class") if cl else None
+    _cbin = {"approved_competitor": 2, "active_clinical_competitor": 1,
+             "early_or_preclinical_competitor": 1, "no_known_competitor": 0}.get(_klass)
+    if _cbin is not None:
+        dims["commercial"] = {"pillar": "Right Commercial", "bin": INV[_cbin],
+                              "chain": [("competitor-landscape",
+                                         f"competitor_class={_klass}; n_programs={cl.get('n_competitor_programs')}",
+                                         INV[_cbin])],
+                              "mitigation": None,
+                              "blind_spots": ["market size / revenue / IP freedom-to-operate (unlicensed data)"]}
+
+    # engine-BLIND dims (literature-only via grounded/Tier-2) — set ONLY if not already engine-fed above.
+    # translational (patient-selection / readiness) is engine-blind: `differentiation` carries a
+    # co-mutation/patient-selection LANDSCAPE sub-verdict, not a risk ordinal, and the
+    # translational-readiness engine leg is still a placeholder — so the dim is honestly literature-only
+    # until a translational engine bin exists. clinical/commercial fall here only when their card is
+    # absent/insufficient. Grounded findings set the coarse literature bin in project().
     for d, pil in [("clinical", "Right Patient (clinical precedent)"),
                    ("commercial", "Right Commercial"),
                    ("translational", "Right Patient (translational readiness / patient-selection)")]:
+        if d in dims:
+            continue
         dims[d] = {"pillar": pil, "bin": "ENGINE-BLIND", "chain": [], "mitigation": None,
                    "blind_spots": ["entire dim — literature-only"]}
     return dims
