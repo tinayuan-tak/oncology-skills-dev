@@ -22,6 +22,8 @@ from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE as _LENS
 from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
+from _skills_common.differentiation_question_table import differentiation_question_table
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -399,6 +401,37 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # The per-question (data · signal · confidence) LEADING table — a verdict-INERT projection over the
+    # just-built headline + claim_vector (COMUT/SURVIVAL/NODE + clinical/competitor precedent), giving
+    # differentiation component-parity with the other skills. Best-effort: a fault degrades to None +
+    # _enrichment_errors, never aborts the differentiation spine.
+    try:
+        hl["question_table"] = differentiation_question_table(hl, cards)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
+        hl["question_table"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, from the
+    # verdict + claim_vector + headline_block + question_table just built. differentiation-landscape is a
+    # GATING skill (∈ target-profile _SHORT_TO_GATE) with a clean 3-band polarity and no veto-killer verdict
+    # (a co-mutation/survival landscape raises no cross-target veto), so the helper's negative→opposing
+    # floor is correct (no canonical_polarity_override). Best-effort + verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=hl.get("differentiation_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -411,8 +444,13 @@ _SYNTHESIS_FACET_KEYS = (
     "n_competitor_programs", "competitor_approved_agents", "competitor_late_stage_non_approved",
     "competitor_modalities_in_development", "competitor_modality_landscape",
     "claim_vector", "key_signals",
+    # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
+    "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 skill_report
+    # adoption (6th gating adopter)
+    "skill_report",
 )
 
 
