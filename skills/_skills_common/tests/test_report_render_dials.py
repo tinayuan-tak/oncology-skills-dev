@@ -20,6 +20,20 @@ def test_render_is_byte_stable():
                render_report(nom, preset="full", backend=name), f"non-deterministic: {name!r}"
 
 
+def test_question_table_cells_render_label_not_dict_repr():
+    # question_table_core puts DICTS in the signal/confidence cells ({tier,fill/dots,polarity,label}).
+    # The HUMAN-READABLE backends must surface the `label`, never str(dict) — a real defect the earlier
+    # string-cell fixture masked. json is EXCLUDED: it legitimately serializes the structured row dicts.
+    nom = make_nomination()
+    for name in [b for b in string_backend_names() if b != "json"]:
+        out = render_report(nom, preset="reviewer-dossier", backend=name)
+        assert "Questions" in out or "question" in out.lower(), f"{name}: no question table rendered"
+        assert "'tier'" not in out and '"tier":' not in out, f"{name}: raw dict repr leaked into cells"
+        assert "'polarity'" not in out, f"{name}: raw dict repr leaked into cells"
+        assert "constrained" in out, f"{name}: signal label not surfaced"
+        assert "gnomAD v4: high" in out, f"{name}: confidence label not surfaced"
+
+
 def test_level_is_progressive_disclosure():
     nom = make_nomination()
     k = {lvl: build_ir(nom, resolve_spec(level=lvl, scope="all")).present_kinds()

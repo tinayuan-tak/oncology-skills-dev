@@ -243,16 +243,26 @@ def _qt_question(r) -> str:
     return str(r.get("question") or r.get("q") or r.get("label") or r.get("key") or "")
 
 
+def _qt_cell(v) -> str:
+    """Display text for a question-table signal/confidence cell. `question_table_core.row()` puts a DICT
+    there — signal `{tier, fill, polarity, label}`, confidence `{tier, dots, label}` — so surface its
+    human `label` (else the `tier`), not the raw dict repr. A plain string cell (older shapes) passes
+    through; None → empty."""
+    if isinstance(v, dict):
+        return str(v.get("label") or v.get("tier") or "")
+    return "" if v is None else str(v)
+
+
 def _qt_signal(r) -> str:
     if not isinstance(r, dict):
         return ""
-    return str(r.get("signal") or r.get("call") or r.get("answer") or r.get("value") or "")
+    return _qt_cell(r.get("signal") or r.get("call") or r.get("answer") or r.get("value"))
 
 
 def _qt_conf(r) -> str:
     if not isinstance(r, dict):
         return ""
-    return str(r.get("confidence") or r.get("conf") or "")
+    return _qt_cell(r.get("confidence") or r.get("conf"))
 
 
 __all__ = ["TextBackend"]

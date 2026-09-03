@@ -35,9 +35,15 @@ def _skill(*, call, role, polarity, honest_phrase="phrase", with_evidence=False,
              "conflict": None, "evidence": "no burden signal",
              "cites": [{"role": "signal", "card_id": "ot-burden"}], "cite": {"card_id": "ot-burden"}},
         ]
+        # REAL question-table shape (question_table_core.row/conf): signal + confidence are DICTS
+        # ({tier, fill/dots, polarity, label}), NOT strings. The renderer must surface their `label`.
         r["question_table"] = [
-            {"question": "LoF-constrained?", "signal": "yes", "confidence": "high"},
-            {"question": "population burden?", "signal": "none", "confidence": "moderate"},
+            {"id": "Q1", "question": "LoF-constrained?", "primary": "pLI 0.99", "support": "",
+             "signal": {"tier": "strong", "fill": 5, "polarity": "supports", "label": "constrained"},
+             "confidence": {"tier": "high", "dots": 3, "label": "gnomAD v4: high"}},
+            {"id": "Q2", "question": "population burden?", "primary": "no enrichment", "support": "",
+             "signal": {"tier": "absent", "fill": 1, "polarity": "opposes", "label": "absent"},
+             "confidence": {"tier": "moderate", "dots": 2, "label": "moderate"}},
         ]
         r["per_phase_metrics"] = [
             {"metric": "pLI", "value": 0.99, "sample_context": "gnomAD v4 (n=807k)"},
