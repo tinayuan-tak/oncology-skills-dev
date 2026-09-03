@@ -29,6 +29,11 @@ class TextBackend:
             vocab.ABOUT: self._about,
             vocab.SIGNALS_OVERVIEW: self._signals_overview,
             vocab.RISK_6DIM: self._risk_6dim,
+            vocab.SYNTHESIS: self._synthesis,
+            vocab.COHERENCE: self._coherence,
+            vocab.MODALITY_MATRIX: self._modality_matrix,
+            vocab.LITERATURE_RISK: self._literature_risk,
+            vocab.DECIDING_AXIS: self._deciding_axis,
         }
 
     def handled_kinds(self) -> set:
@@ -226,7 +231,54 @@ class TextBackend:
         if not dims:
             return []
         rows = [[d.get("dim"), (d.get("bin") or "not evidenced")] for d in dims]
-        return [f"{self._b('Risk by dimension')}:"] + self._table(["dimension", "risk"], rows)
+        return self._h2("Risk by dimension") + self._table(["dimension", "risk"], rows)
+
+    def _synthesis(self, p: dict) -> list:
+        out = self._h2("Synthesis (AI-generated)")
+        if p.get("executive_summary"):
+            out.append(str(p["executive_summary"]))
+        if p.get("tension_analysis"):
+            out.append(f"{self._b('Tensions')}: {p['tension_analysis']}")
+        for a in (p.get("arguments") or []):
+            out.append(self._bullet(_arg_summary(a)))
+        return out
+
+    def _coherence(self, p: dict) -> list:
+        bits = []
+        if p.get("thesis"):
+            bits.append(f"{self._b('Thesis')}: {_humanize(p['thesis'])}")
+        if p.get("coherence"):
+            bits.append(f"{self._b('Coherence')}: {p['coherence']}")
+        return bits
+
+    def _modality_matrix(self, p: dict) -> list:
+        from ...ordinal_view import _cell_glyph  # single-source glyphs (backends → report_render → _skills_common)
+        cols, rows = p.get("columns") or [], p.get("rows") or []
+        if not rows or not cols:
+            return []
+        body = []
+        for r in rows:
+            cells = r.get("cells") or {}
+            glyphs = [_cell_glyph(cells.get(m) or {}) for m in cols]
+            body.append([vocab.skill_title(r.get("short"))] + glyphs
+                        + [_humanize(r.get("verdict")) if r.get("verdict") else "—"])
+        return self._h2("Modality-fit matrix") + self._table(["gate"] + list(cols) + ["verdict"], body)
+
+    def _literature_risk(self, p: dict) -> list:
+        dims = p.get("dims") or []
+        if not dims:
+            return []
+        rows = [[d.get("dim"), d.get("risk_level") or "—", (d.get("interpretation") or "")[:80]]
+                for d in dims]
+        return self._h2("Literature risk (context)") + self._table(["dimension", "risk", "note"], rows)
+
+    def _deciding_axis(self, p: dict) -> list:
+        line = f"{self._b('Deciding axis')}: {p.get('title') or p.get('short') or '—'}"
+        if p.get("routing"):
+            line += f" — {p['routing']}"
+        elif p.get("basis"):
+            line += f" ({p['basis']})"
+        return [line]
 
 
 # ------------------------------------------------------------------------------------------------
@@ -294,6 +346,16 @@ def _qt_conf(r) -> str:
     if not isinstance(r, dict):
         return ""
     return _qt_cell(r.get("confidence") or r.get("conf"))
+
+
+def _humanize(x) -> str:
+    return str(x).replace("_", " ") if x is not None else ""
+
+
+def _arg_summary(a) -> str:
+    if not isinstance(a, dict):
+        return str(a)
+    return str(a.get("claim") or a.get("text") or a.get("argument") or a)
 
 
 __all__ = ["TextBackend"]

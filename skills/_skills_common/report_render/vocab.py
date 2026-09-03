@@ -110,10 +110,17 @@ ABOUT = "about"                   # the honesty legend / disclaimer
 # report-level overview blocks (absorbed from the tp_dashboard v2 design, spine-sourced):
 SIGNALS_OVERVIEW = "signals_overview"  # one row per scored skill: diverging signal strip (the lead)
 RISK_6DIM = "risk_6dim"                # the 6-category deterministic risk rollup (tiles)
+# parity blocks (bring report_render to content-parity with the legacy target_profile.html/.md):
+SYNTHESIS = "synthesis"                # LLM narrative (executive summary / tensions / arguments)
+COHERENCE = "coherence"                # target thesis + cross-axis coherence
+MODALITY_MATRIX = "modality_matrix"    # gate × modality ordinal evidence matrix
+LITERATURE_RISK = "literature_risk"    # literature-derived risk-by-dimension (context, never a gate)
+DECIDING_AXIS = "deciding_axis"        # what the call hinges on (router basis)
 
 BLOCK_KINDS: frozenset = frozenset({
     REPORT_HEADER, SKILL_HEADER, CONFIDENCE, TENSION, CLAIM_CHIPS, QUESTION_TABLE,
     PHASE_METRICS, FIGURE, PROVENANCE, UNMEASURED, ABOUT, SIGNALS_OVERVIEW, RISK_6DIM,
+    SYNTHESIS, COHERENCE, MODALITY_MATRIX, LITERATURE_RISK, DECIDING_AXIS,
 })
 
 # min level int at which each block kind is shown.
@@ -121,6 +128,11 @@ TIER: dict[str, int] = {
     REPORT_HEADER: 0,
     SIGNALS_OVERVIEW: 0,   # the lead — a one-glance read across all scored skills
     RISK_6DIM: 1,          # governance risk rollup — summary depth up
+    SYNTHESIS: 1,          # LLM narrative — summary depth up (suppressed by --no-synthesis upstream)
+    COHERENCE: 1,
+    DECIDING_AXIS: 1,
+    MODALITY_MATRIX: 2,    # evidence depth
+    LITERATURE_RISK: 2,
     SKILL_HEADER: 0,
     ABOUT: 1,
     CONFIDENCE: 1,
@@ -177,6 +189,7 @@ __all__ = [
     "BLOCK_KINDS", "TIER", "CHIP_LIMIT_BY_LEVEL",
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
-    "SIGNALS_OVERVIEW", "RISK_6DIM",
+    "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",
+    "LITERATURE_RISK", "DECIDING_AXIS",
     "polarity_glyph", "polarity_label", "polarity_rank", "polarity_legend",
 ]

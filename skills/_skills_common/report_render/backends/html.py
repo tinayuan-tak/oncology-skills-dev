@@ -80,6 +80,9 @@ figcaption { color:var(--muted); font-size:13px; margin-top:4px; }
 .risk-tile.rt-low { border-top-color:var(--supportive); }
 .risk-tile.rt-low .rt-bin { color:var(--supportive); }
 .risk-tile.rt-blind .rt-bin { color:var(--muted); font-size:13px; font-weight:600; }
+.tag { display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+       font-weight:700; color:var(--muted); border:1px solid var(--line); border-radius:6px;
+       padding:1px 7px; margin-bottom:6px; }
 """.strip()
 
 
@@ -99,6 +102,11 @@ class HtmlBackend:
             vocab.ABOUT: self._about,
             vocab.SIGNALS_OVERVIEW: self._signals_overview,
             vocab.RISK_6DIM: self._risk_6dim,
+            vocab.SYNTHESIS: self._synthesis,
+            vocab.COHERENCE: self._coherence,
+            vocab.MODALITY_MATRIX: self._modality_matrix,
+            vocab.LITERATURE_RISK: self._literature_risk,
+            vocab.DECIDING_AXIS: self._deciding_axis,
         }
 
     def handled_kinds(self) -> set:
@@ -270,6 +278,62 @@ class HtmlBackend:
                          f"</div><div class='rt-bin'>{_esc(lab)}</div></div>")
         return [f"<h2>Risk by dimension</h2><div class='risk-tiles'>{''.join(tiles)}</div>"]
 
+    def _synthesis(self, p: dict) -> list:
+        out = ["<span class='tag'>AI-generated</span><h2>Synthesis</h2>"]
+        if p.get("executive_summary"):
+            out.append(f"<p>{_esc(p['executive_summary'])}</p>")
+        if p.get("tension_analysis"):
+            out.append(f"<p class='kv'><b>Tensions:</b> {_esc(p['tension_analysis'])}</p>")
+        args = p.get("arguments") or []
+        if args:
+            out.append("<ul class='chips'>"
+                       + "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args) + "</ul>")
+        return out
+
+    def _coherence(self, p: dict) -> list:
+        out = []
+        if p.get("thesis"):
+            out.append(f"<p class='kv'><b>Thesis:</b> {_esc(_humanize(p['thesis']))}</p>")
+        if p.get("coherence"):
+            out.append(f"<p class='kv'><b>Coherence:</b> {_esc(p['coherence'])}</p>")
+        return out
+
+    def _modality_matrix(self, p: dict) -> list:
+        from ...ordinal_view import _cell_glyph
+        cols, rows = p.get("columns") or [], p.get("rows") or []
+        if not rows or not cols:
+            return []
+        head = "".join(f"<th>{_esc(c)}</th>" for c in cols)
+        trs = []
+        for r in rows:
+            cells = r.get("cells") or {}
+            tds = "".join(f"<td>{_esc(_cell_glyph(cells.get(m) or {}))}</td>" for m in cols)
+            trs.append(f"<tr><td>{_esc(vocab.skill_title(r.get('short')))}</td>{tds}"
+                       f"<td>{_esc(_humanize(r.get('verdict')) if r.get('verdict') else '—')}</td></tr>")
+        disc = f"<p class='prov'>{_esc(p.get('disclaimer'))}</p>" if p.get("disclaimer") else ""
+        return [f"<h2>Modality-fit matrix</h2><table><thead><tr><th>Gate</th>{head}<th>Verdict</th></tr>"
+                f"</thead><tbody>{''.join(trs)}</tbody></table>{disc}"]
+
+    def _literature_risk(self, p: dict) -> list:
+        dims = p.get("dims") or []
+        if not dims:
+            return []
+        trs = []
+        for d in dims:
+            pm = d.get("pmids") or []
+            pmtxt = f" <span class='prov'>({len(pm)} PMIDs)</span>" if pm else ""
+            trs.append(f"<tr><td>{_esc(d.get('dim'))}</td><td>{_esc(d.get('risk_level') or '—')}</td>"
+                       f"<td>{_esc(d.get('interpretation') or '')}{pmtxt}</td></tr>")
+        return ["<h2>Literature risk <span class='so-foot'>— context, never a gate</span></h2>"
+                f"<table><thead><tr><th>Dimension</th><th>Risk</th><th>Interpretation</th></tr></thead>"
+                f"<tbody>{''.join(trs)}</tbody></table>"]
+
+    def _deciding_axis(self, p: dict) -> list:
+        title = _esc(p.get("title") or p.get("short") or "—")
+        detail = _esc(p.get("routing") or p.get("basis") or "")
+        return [f"<h2>Deciding axis</h2><p class='kv'><b>{title}</b>"
+                + (f" — {detail}" if detail else "") + "</p>"]
+
 
 def _signal_strip_svg(rows, deciding_short) -> str:
     """Inline diverging-strip SVG (self-contained, both embed modes): one row per scored skill, bars
@@ -319,7 +383,7 @@ def _signal_strip_svg(rows, deciding_short) -> str:
 
 
 # reuse the text backend's shape-tolerant summarizers (single source, no vocab drift).
-from .text import (_chip_summary, _confidence_summary, _dissent_summary,  # noqa: E402
-                   _qt_conf, _qt_question, _qt_signal)
+from .text import (_arg_summary, _chip_summary, _confidence_summary, _dissent_summary,  # noqa: E402
+                   _humanize, _qt_conf, _qt_question, _qt_signal)
 
 __all__ = ["HtmlBackend"]

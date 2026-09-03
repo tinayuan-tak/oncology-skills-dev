@@ -65,6 +65,17 @@ def make_nomination() -> dict:
     return {
         "target": "USP8",
         "indication": "COADREAD",
+        "llm_synthesis": {
+            "executive_summary": "USP8 is a selective MSI-high dependency but highly LoF-constrained.",
+            "tension_analysis": "Supportive dependency vs a killer safety constraint.",
+            "top_arguments": [{"claim": "Selective dependency in MSI-high lines"},
+                              {"claim": "Full-KO safety risk from LoF constraint"}],
+        },
+        "risk_assessment": {"dimensions": {
+            "safety": {"risk_level": "HIGH", "interpretation": "gnomAD LoF-constrained",
+                       "cited_pmids": ["12345678", "23456789"]},
+            "clinical": {"risk_level": "MEDIUM", "interpretation": "no approved precedent"},
+        }},
         "target_report": {
             "schema": "target_report.v1",
             "skill_reports": {
@@ -93,6 +104,26 @@ def make_nomination() -> dict:
                 "biological": {"bin": "LOW"}, "druggability": {"bin": "MED"},
                 "safety": {"bin": "HIGH"}, "translational": {"bin": "LOW"},
                 "clinical": {"bin": "MED"}, "commercial": {"bin": "ENGINE-BLIND"},
+            },
+            "thesis": {"thesis": {"primary": "selective_dependency_with_safety_ceiling"},
+                       "coherence": "locus→expression→dependency coherent in MSI-high"},
+            "evidence_matrix": {
+                "axes": {"columns": ["small_molecule", "degrader", "adc", "bite_tce"]},
+                "rows": [
+                    {"short": "safety", "verdict": "lof_constrained",
+                     "cells": {"small_molecule": {"signal": "opposing", "ordinal": -1, "on_scale": True},
+                               "degrader": {"signal": "killer", "ordinal": -3, "on_scale": True},
+                               "adc": {"signal": None, "ordinal": None, "on_scale": False},
+                               "bite_tce": {"signal": "not_applicable", "ordinal": None, "on_scale": False}}},
+                    {"short": "dependency", "verdict": "genetic_dependency",
+                     "cells": {"small_molecule": {"signal": "supportive", "ordinal": 2, "on_scale": True},
+                               "degrader": {"signal": "supportive", "ordinal": 2, "on_scale": True},
+                               "adc": {"signal": None, "ordinal": None, "on_scale": False},
+                               "bite_tce": {"signal": None, "ordinal": None, "on_scale": False}}},
+                ],
+                "legend": {"on_scale": {"supportive": 2, "neutral": 0, "opposing": -1, "killer": -3},
+                           "off_scale": ["insufficient", "not_applicable"]},
+                "_disclaimer": "ORDINAL VIEW — display/ranking only, not calibrated measurement.",
             },
             "skill_report_rollup": {
                 "by_role": {"gating": [{"short": "safety", "call": "lof_constrained", "polarity": "killer"},

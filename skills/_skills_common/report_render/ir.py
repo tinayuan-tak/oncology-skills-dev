@@ -254,6 +254,72 @@ def _risk_6dim_block(risk_6dim) -> Optional[Block]:
     return Block(vocab.RISK_6DIM, {"dims": dims}) if dims else None
 
 
+# --- parity blocks (content-parity with the legacy target_profile.html/.md) --------------------
+def _llm_val(llm: dict, key):
+    raw = llm.get(key)
+    return raw.get("value") if isinstance(raw, dict) else raw
+
+
+def _synthesis_block(nomination: dict) -> Optional[Block]:
+    """The LLM narrative (advisory / verdict-inert): executive summary + tension analysis + top
+    arguments. Sourced from `llm_synthesis` (else the legacy `llm_output`)."""
+    llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
+    if not isinstance(llm, dict):
+        return None
+    exec_summary = _llm_val(llm, "executive_summary")
+    tension = _llm_val(llm, "tension_analysis")
+    args = _llm_val(llm, "top_arguments") or _llm_val(llm, "arguments")
+    if not (exec_summary or tension or args):
+        return None
+    return Block(vocab.SYNTHESIS, {"executive_summary": exec_summary, "tension_analysis": tension,
+                                   "arguments": args if isinstance(args, list) else None})
+
+
+def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
+    tc = tr.get("thesis") or nomination.get("target_coherence") or {}
+    if not isinstance(tc, dict):
+        return None
+    th = tc.get("thesis")
+    thesis = th.get("primary") if isinstance(th, dict) else tc.get("primary")
+    coherence = tc.get("coherence")
+    if (not thesis or thesis == "insufficient_thesis") and not coherence:
+        return None
+    return Block(vocab.COHERENCE, {"thesis": thesis, "coherence": coherence})
+
+
+def _modality_matrix_block(tr: dict, nomination: dict) -> Optional[Block]:
+    mtx = tr.get("evidence_matrix") or nomination.get("ordinal_matrix")
+    if not isinstance(mtx, dict) or not mtx.get("rows"):
+        return None
+    return Block(vocab.MODALITY_MATRIX, {
+        "columns": (mtx.get("axes") or {}).get("columns") or [],
+        "rows": mtx.get("rows") or [], "legend": mtx.get("legend") or {},
+        "disclaimer": mtx.get("_disclaimer"),
+    })
+
+
+def _literature_risk_block(nomination: dict, tr: dict) -> Optional[Block]:
+    ra = nomination.get("risk_assessment") or tr.get("literature_risk") or {}
+    dims = ra.get("dimensions") if isinstance(ra, dict) else None
+    if not isinstance(dims, dict) or not dims:
+        return None
+    rows = [{"dim": d, "risk_level": v.get("risk_level"), "interpretation": v.get("interpretation"),
+             "pmids": v.get("cited_pmids") or v.get("pmids") or []}
+            for d, v in dims.items() if isinstance(v, dict)]
+    return Block(vocab.LITERATURE_RISK, {"dims": rows}) if rows else None
+
+
+def _deciding_axis_block(target_call: dict, nomination: dict, deciding_short) -> Optional[Block]:
+    da = (target_call or {}).get("deciding_axis") or nomination.get("deciding_axis")
+    if not isinstance(da, dict) or not da:
+        return None
+    return Block(vocab.DECIDING_AXIS, {
+        "short": deciding_short,
+        "title": vocab.skill_title(deciding_short) if deciding_short else None,
+        "routing": da.get("routing"), "basis": da.get("basis"),
+    })
+
+
 def build_ir(nomination: dict, spec: ReportSpec,
              target: Optional[str] = None, indication: Optional[str] = None) -> ReportIR:
     """Project a nomination + spec into the presentation IR. Pure, deterministic, fail-soft."""
@@ -298,14 +364,18 @@ def build_ir(nomination: dict, spec: ReportSpec,
                 for short, report, role in selected]
 
     overview = []
-    if spec.level_int >= vocab.TIER[vocab.SIGNALS_OVERVIEW]:
-        sov = _signals_overview_block(selected, deciding_short)
-        if sov:
-            overview.append(sov)
-    if spec.level_int >= vocab.TIER[vocab.RISK_6DIM]:
-        r6 = _risk_6dim_block(tr.get("risk_6dim"))
-        if r6:
-            overview.append(r6)
+
+    def _add(kind, block):
+        if block is not None and spec.level_int >= vocab.TIER[kind]:
+            overview.append(block)
+
+    _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short))
+    _add(vocab.COHERENCE, _coherence_block(tr, nomination))
+    _add(vocab.SYNTHESIS, _synthesis_block(nomination))
+    _add(vocab.RISK_6DIM, _risk_6dim_block(tr.get("risk_6dim")))
+    _add(vocab.MODALITY_MATRIX, _modality_matrix_block(tr, nomination))
+    _add(vocab.LITERATURE_RISK, _literature_risk_block(nomination, tr))
+    _add(vocab.DECIDING_AXIS, _deciding_axis_block(target_call, nomination, deciding_short))
     return ReportIR(target=target, indication=indication, spec=spec, header=header,
                     sections=sections, about=_about_block(spec), deciding_short=deciding_short,
                     overview=overview)
