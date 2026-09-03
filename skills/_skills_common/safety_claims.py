@@ -181,15 +181,29 @@ def _paness_corr(h, c):
     return "high" if _PANESS_SIGNAL.get(h.get("dependency_class"), "unmeasured") not in ("unmeasured",) else "unmeasured"
 
 
+# When the ESSENTIAL-tissue flag is indeterminate (`unknown`) but the card DID measure normal-tissue
+# breadth, fall back to breadth so a MEASURED on-target-off-tumor liability is not reported as a data gap
+# (`unmeasured`). Broad normal expression = broad off-tumor liability for a full-KO agent (measured,
+# moderate); tumor-restricted / not-detected-in-normal is the clean case (owned by the `absent` flag).
+_NORMALTISSUE_BREADTH_FALLBACK = {"broad_normal_expression": "moderate"}
+
+
+def _normaltissue_sig(h) -> str:
+    """Resolved NORMAL_TISSUE liability signal: essential-tissue flag first, else measured breadth."""
+    sig = _NORMALTISSUE_SIGNAL.get(h.get("essential_tissue_flag"), "unmeasured")
+    if sig == "unmeasured":
+        sig = _NORMALTISSUE_BREADTH_FALLBACK.get(h.get("normal_tissue_breadth_class"), "unmeasured")
+    return sig
+
+
 def _normaltissue_signal(h, c):
-    flag = h.get("essential_tissue_flag")
-    ev = (f"HPA-IHC: essential_tissue_flag={flag or 'data_unavailable'}, "
+    ev = (f"HPA-IHC: essential_tissue_flag={h.get('essential_tissue_flag') or 'data_unavailable'}, "
           f"tissues={h.get('essential_tissues_flagged')}, breadth={h.get('normal_tissue_breadth_class')}")
-    return _NORMALTISSUE_SIGNAL.get(flag, "unmeasured"), ev, None
+    return _normaltissue_sig(h), ev, None
 
 
 def _normaltissue_corr(h, c):
-    return "moderate" if _NORMALTISSUE_SIGNAL.get(h.get("essential_tissue_flag"), "unmeasured") != "unmeasured" else "unmeasured"
+    return "moderate" if _normaltissue_sig(h) != "unmeasured" else "unmeasured"
 
 
 # ── citable evidence atoms (read from the source card summaries; cite each card) ────────────────────

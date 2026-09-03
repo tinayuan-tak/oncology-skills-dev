@@ -96,7 +96,16 @@ def _claim_A(h, c):
         low = ", ".join(x.get("lens", "?") for x in (h.get("abundance_floor_low_lenses") or []))
         conflict = f"abundance-level floor: bottom-decile in {low} (breadth-positive but low absolute level)"
         rel = "low"
+    # Corroboration for A (the RNA→protein proxy quality) comes from a DIFFERENT card than the signal
+    # (tumor-rna-distribution): the RNA↔protein-concordance card for whichever arm the proxy was read
+    # from (tumor CPTAC vs cell-line). Record it as a role-tagged corr_cite so the chip's corroboration
+    # is traceable to its own source card, not silently attributed to the signal card.
+    _proxy_src = h.get("bulk_rna_proxy_quality_source")
+    _corr_card = ("rna-protein-concordance-tumor" if _proxy_src == "tumor"
+                  else "cellline-rna-protein-concordance" if _proxy_src == "cell_line" else None)
+    corr_cite = {"card_id": _corr_card, "fields": ["rna_as_biomarker"]} if (_corr_card and proxy) else None
     return {"signal": sig, "corroboration": rel, "conflict": conflict, "informs": CLAIM_INFORMS["A"],
+            "corr_cite": corr_cite,
             "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}",
             "evidence_atom": _patom("tumor-rna-distribution", trd,
                                     ("tumor_expression_class", "control_position_class", "allgene_percentile",

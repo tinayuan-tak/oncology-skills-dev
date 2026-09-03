@@ -18,6 +18,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, card_summary
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.safety_question_table import safety_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
@@ -526,6 +527,30 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         hl["question_table"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, assembled
+    # from the verdict + claim_vector + headline_block + question_table just built. safety is a GATING
+    # skill (∈ target-profile _SHORT_TO_GATE). First adopter of the contract. Best-effort + verdict-INERT.
+    try:
+        # Provenance from the REAL resolved-card state (not the static declared CARDS list): a card that
+        # resolved absent carries `_missing` (dispatcher scaffolds {card_id, _missing:True}). Splitting
+        # used vs missing makes the report's coverage auditable — and lets a consumer tell an `unmeasured`
+        # chip whose card is ABSENT from one whose card ran-but-indeterminate.
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=hl.get("safety_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -545,6 +570,8 @@ _SYNTHESIS_FACET_KEYS = (
     # the per-verdict narrative (movers / dissenters / flip_conditions / rule_sentences) — the citeable
     # substrate the composed "why this verdict" panel + Tier-3 synthesis consume (Stage C wires those)
     "narrative",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — safety is the first adopter
+    "skill_report",
 )
 
 
