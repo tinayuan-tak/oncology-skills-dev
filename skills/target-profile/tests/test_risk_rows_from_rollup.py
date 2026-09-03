@@ -13,7 +13,7 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tp_render_md import _risk_rows_from_rollup  # noqa: E402
+from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: E402
 
 
 def _dims():

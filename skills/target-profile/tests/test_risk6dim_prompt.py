@@ -15,7 +15,6 @@ for _p in (str(SKILLS), str(SCRIPTS)):
         sys.path.insert(0, _p)
 
 from tp_synthesis_prompt import _render_risk_6dim_block, _build_user_prompt  # noqa: E402
-from tp_render_md import _render_target_profile_md  # noqa: E402
 
 
 def _dims():
@@ -59,23 +58,8 @@ def test_build_user_prompt_includes_risk_block_when_passed():
     assert "6-dimension risk roll-up" not in without    # additive — absent when not supplied
 
 
-def _min_llm_output(rec="nominate"):
-    return {"executive_summary": {"value": "x"}, "tension_analysis": {"value": "y"},
-            "overall_recommendation": {"value": rec}, "confidence": {"value": "moderate"},
-            "top_arguments_for": {"value": []}, "top_arguments_against": {"value": []}}
-
-
-def test_md_recommendation_is_advisory_and_surfaces_gate_disagreement():
-    sr = {"safety": {"verdict": ("highly_constrained_safety_concern", "r"), "skill_dir": "d"}}
-    # gate OVERRODE the LLM (LLM said nominate; gate forced hold)
-    rg = {"fired": True, "overridden": True, "llm_recommendation": "nominate", "forced_recommendation": "hold"}
-    md = _render_target_profile_md("KRAS", "COADREAD", sr, _min_llm_output("hold"), {},
-                                   recommendation_gate=rg)
-    assert "advisory (does not set the call)" in md
-    assert "recommendation of record" in md
-    assert "LLM↔gate disagreement" in md and "nominate" in md and "hold" in md
-    # no disagreement line when the gate did not override
-    md2 = _render_target_profile_md("KRAS", "COADREAD", sr, _min_llm_output("nominate"), {},
-                                    recommendation_gate={"fired": False})
-    assert "LLM↔gate disagreement" not in md2
-    assert "advisory (does not set the call)" in md2
+# (test_md_recommendation_is_advisory_and_surfaces_gate_disagreement was removed with the retirement of
+# tp_render_md 2026-09-03 — it asserted the md renderer's advisory-recommendation + LLM↔gate-disagreement
+# wording. That advisory framing is now report_render's responsibility (contract §llm_synthesis); flagged
+# to the render owner as a parity item. The FEED-side invariant — risk_6dim is fed into the prompt — is
+# still guarded by the prompt tests above.)

@@ -18,7 +18,7 @@ Inputs (one --full-package run dir; the rest optional / auto-detected):
   <T>-<I>-literature-risk/risk_assessment.json     literature 6-dim (auto-found beside run, or --literature)
   --grounded-dir DIR                               grounded_<axis>.json for the modality grounded column
 
-Stdlib only; self-contained output. Reuses tp_render_md's 6-dim reshape so the review never drifts.
+Stdlib only; self-contained output. Reuses _skills_common.risk_projection's 6-dim reshape so the review never drifts.
 """
 from __future__ import annotations
 

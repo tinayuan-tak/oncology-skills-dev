@@ -75,14 +75,7 @@ def test_gate_clamps_into_skipped_stub_like_a_real_synthesis():
     assert stub["overall_recommendation"]["value"] == "veto"
 
 
-def test_render_md_with_skipped_stub_is_wellformed():
-    """The markdown report renders from the skipped stub without a real synthesis: the narrative
-    degrades to the skip note, and the render does not raise."""
-    stub = tp._skipped_synthesis_output()
-    sr = _sr()
-    da = tp._deciding_axis(sr, None, [], positive_hits=[])
-    mx = tp._ordinal_matrix(sr)
-    md = tp._render_target_profile_md("KRAS", "COADREAD", sr, stub, {},
-                                      deciding_axis=da, ordinal_matrix=mx)
-    assert isinstance(md, str) and md
-    assert "synthesis skipped" in md.lower()   # the reader sees WHY the narrative is absent
+# (test_render_md_with_skipped_stub_is_wellformed was removed with the retirement of tp_render_md
+# 2026-09-03 — it asserted the md renderer degrades to a "synthesis skipped" note in verdict-only mode.
+# report_render renders the skipped stub now; the MODE itself (_skipped_synthesis_output) is still
+# guarded by the stub tests above.)

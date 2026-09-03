@@ -71,11 +71,11 @@ from tp_facets import (
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool,
                                   _build_user_prompt, validate_synthesis_anchors)
-from tp_render_md import *           # noqa: F401,F403
-from tp_render_md import _render_target_profile_md
-# tp_render_html RETIRED 2026-09-03 (Wave-3): the default html render path is report_render (PR #963);
-# run.py no longer calls the legacy html renderer, so its imports are gone. Its live non-render invariants
-# (gate-scorecard projection, risk-6dim single-source parity) are tested renderer-free.
+# tp_render_md + tp_render_html RETIRED 2026-09-03 (Wave-3): the default md/html render path is
+# report_render (PR #963); run.py no longer calls either legacy renderer. `_risk_rows_from_rollup` (the
+# category/level/driver row projection) was re-homed to _skills_common/risk_projection in #970 — re-exposed
+# here so `tp._risk_rows_from_rollup` stays available to the risk-parity guards that read it off this module.
+from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
 from tp_evidence_package import *    # noqa: F401,F403
 from tp_evidence_package import (
     _catalogue_rows_from_sub_results, _emit_card_figures, _validation_summary_from_sub_results,
