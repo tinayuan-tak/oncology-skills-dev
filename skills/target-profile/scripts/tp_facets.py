@@ -486,11 +486,6 @@ def _selectivity_facet(sub_results: dict) -> Optional[dict]:
 # certainty roll-up is the SEPARATE certainty_by_axis sidecar; this is the SIGNAL half.
 # VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
 # Returns None when functional-requirement is absent / supplied no facet.
-def _dependency_facet(sub_results: dict) -> Optional[dict]:
-    dep = (sub_results or {}).get("dependency") or {}
-    return dep.get("synthesis_facet")
-
-
 # ── Competitor cross-reference facet (2026-08-24) ─────────────────────────────────────────────
 # The competitor-landscape VALUE-ADD: cross-reference the Open Targets competitor field (carried on
 # the differentiation facet as competitor_modality_landscape) against the framework's OWN

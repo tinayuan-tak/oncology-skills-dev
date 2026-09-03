@@ -62,7 +62,7 @@ from tp_facets import (
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
     _skill_reports_by_short,
     _modality_fit_by_channel, _magnitude_borderline,
-    _deciding_axis, _dependency_facet,
+    _deciding_axis,
     _cross_gate_shared_evidence,
     _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet, _backfill_subtype_spine,
@@ -516,11 +516,11 @@ def main() -> int:
     # composed dashboard. VERDICT-INERT — selectivity's verdict is owned by its resolver + veto clamp.
     selectivity_facet = _selectivity_facet(sub_results)
 
-    # Dependency claim-vector facet (2026-08-18): functional-requirement's SIGNAL
-    # decomposition (claim_vector DEP/SEL/COND/CHEM + key_signals + confidence annotations), parallel to
-    # presence_facet. The SIGNAL half of the reconciliation; the certainty roll-up is certainty_by_axis.
-    # VERDICT-INERT — dependency's verdict is owned by its resolver; this projection never moves it.
-    dependency_facet = _dependency_facet(sub_results)
+    # (The former `dependency_facet` nomination key — a verbatim passthrough of
+    # sub_results['dependency']['synthesis_facet'] — was RETIRED 2026-09-03 (Wave-3 legacy-facet
+    # retirement): it had no consumer beyond render_review's question-table, which now reads the
+    # question_table off the skill_report[] spine (target_report.skill_reports.dependency). The same
+    # synthesis_facet is still carried through the fan-out at sub_results['dependency']['synthesis_facet'].)
 
     # Modality-conjunction facet (2026-08-18): completes the modality nomination presence can't mint —
     # the presence claim vector conjoined with the cross-lens surface / window / safety gates. Like the
@@ -1020,10 +1020,9 @@ def main() -> int:
         # the tumor-vs-normal WINDOW gate. A FACET (not a gate) — selectivity's verdict is owned by its
         # resolver + veto clamp; never moves the recommendation. None when tumor-selectivity supplied none.
         "selectivity_facet": selectivity_facet,
-        # Dependency claim-vector facet (P2 phase 3-claim): functional-requirement's SIGNAL decomposition
-        # (claim_vector + key_signals + confidence annotations). A FACET (not a gate) — the SIGNAL half;
-        # the per-axis certainty roll-up is certainty_by_axis. None when FR supplied no facet.
-        "dependency_facet": dependency_facet,
+        # ("dependency_facet" RETIRED 2026-09-03 — see the facet-build block; functional-requirement's
+        # synthesis_facet is still carried at sub_results['dependency']['synthesis_facet'] + on the
+        # skill_report[] spine under target_report.skill_reports.dependency.)
         "modality_conjunction": modality_conjunction,
         # Competitor cross-reference facet (2026-08-24): OT competitor field vs the framework's own
         # surface-modality-fit verdict — competition density + modality validated/contrarian +

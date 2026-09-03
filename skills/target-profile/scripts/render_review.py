@@ -66,8 +66,12 @@ SUBSKILL_ORDER = [
     ("translational_readiness", "Translational readiness (models / PDX)"),
 ]
 SUBSKILL_LABEL = dict(SUBSKILL_ORDER)
-QUESTION_TABLE_FACET = {"expression": "presence_facet", "selectivity": "selectivity_facet",
-                        "dependency": "dependency_facet"}
+# The focused-question sub-skills that surface a Q→output table. Read the question_table off the
+# skill_report[] SPINE (target_report.skill_reports.<short>.question_table) rather than the legacy
+# per-facet nomination keys — byte-identical rows (the facet's question_table == the skill_report's),
+# and it no longer couples this reviewer to the (retiring) presence_facet / selectivity_facet /
+# dependency_facet top-level keys. `dependency_facet` was retired 2026-09-03.
+QUESTION_TABLE_SHORTS = ("expression", "selectivity", "dependency")
 RISK_INPUT_AXES = {
     "biological": ["expression", "selectivity", "dependency", "genomic_alteration"],
     "druggability": ["tractability_sm", "surface_modality"], "safety": ["safety"],
@@ -421,8 +425,11 @@ def _synthesis_html(pkg: dict) -> str:
 
 
 def _question_table_html(short: str, nom: Optional[dict]) -> str:
-    facet_key = QUESTION_TABLE_FACET.get(short)
-    qt = ((nom or {}).get(facet_key) or {}).get("question_table") if facet_key else None
+    if short in QUESTION_TABLE_SHORTS:
+        sr = (((nom or {}).get("target_report") or {}).get("skill_reports") or {}).get(short) or {}
+        qt = sr.get("question_table")
+    else:
+        qt = None
     if not isinstance(qt, list) or not qt:
         return ("<p class=muted>No key-question table for this sub-skill (only the focused-question "
                 "skills — presence, selectivity, dependency — emit one).</p>")
