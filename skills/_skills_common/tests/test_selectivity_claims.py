@@ -231,6 +231,99 @@ def test_field_names_are_corroboration_not_reliability():
     assert "corroboration" in vec["WIN"] and "reliability" not in vec["WIN"]
 
 
+# ── PROTEIN-layer corroboration quorum for the WIN axis (CPTAC + TPHP tumor-vs-normal MS) ────────────
+def _rna_up_concordant_win():
+    """A clean RNA window (comparator-concordant, non-discordant) so the WIN corroboration base = high —
+    isolating the protein-quorum effect."""
+    h = _ceacam5_headline()
+    h.update({"axis_a_selectivity_class": "strong_tumor_selective", "cells_supporting": 3.0,
+              "cells_ran": 3.0, "discordant": False, "comparator_concordance": "concordant"})
+    return h
+
+
+def test_win_corroboration_capped_when_protein_contradicts():
+    """RNA-up but the protein layer is significantly DOWN (rna_protein_discordant): an active
+    cross-platform contradiction caps WIN corroboration at low and flags the conflict."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_discordant"
+    vec = selectivity_claim_vector(h, [])
+    assert vec["WIN"]["corroboration"] == "low"
+    assert "CONTRADICTS" in (vec["WIN"]["conflict"] or "")
+
+
+def test_win_corroboration_capped_when_two_protein_platforms_silent():
+    """Both proteomic platforms (CPTAC + TPHP) fail to confirm the RNA window → a 2-platform
+    non-corroboration caps WIN corroboration at low (the EPCAM/COADREAD signature)."""
+    h = _rna_up_concordant_win()
+    h.update({"rna_protein_tvn_concordance": "protein_not_significant",
+              "rna_protein_tvn_concordance_tphp": "protein_not_significant"})
+    vec = selectivity_claim_vector(h, [])
+    assert vec["WIN"]["corroboration"] == "low"
+    assert "does NOT corroborate" in (vec["WIN"]["conflict"] or "")
+
+
+def test_win_corroboration_one_silent_protein_caps_moderate():
+    """A single non-corroborating platform is a weaker signal than two → caps at moderate, not low."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "protein_not_significant"
+    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "moderate"
+
+
+def test_win_corroboration_protein_corroborated_leaves_high():
+    """A fully corroborating protein layer imposes NO cap — the clean RNA window stays high."""
+    h = _rna_up_concordant_win()
+    h.update({"rna_protein_tvn_concordance": "rna_protein_concordant",
+              "rna_protein_tvn_concordance_tphp": "rna_protein_concordant"})
+    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "high"
+
+
+def test_win_corroboration_unaffected_when_protein_unmeasured():
+    """Byte-stability: no protein reads in the headline (the synthetic CEACAM5 fixture) → no cap, no
+    conflict note (the enrichment is a no-op when its inputs are absent)."""
+    h = _rna_up_concordant_win()          # no rna_protein_* keys
+    vec = selectivity_claim_vector(h, [])
+    assert vec["WIN"]["corroboration"] == "high"
+    assert "protein" not in (vec["WIN"]["conflict"] or "")
+
+
+def test_win_evidence_surfaces_field_effect_from_per_cell_log2fc():
+    """The adjacent-vs-distant split the collapsed class hides: cell A (adjacent) flat/down + cell C
+    (distant GTEx) up → a high-normal-baseline field effect, surfaced in WIN evidence + conflict."""
+    h = _ceacam5_headline()
+    h["axis_a_selectivity_class"] = "discordant_across_comparators"
+    cards = [{"card_id": "tumor-vs-normal-selectivity",
+              "summary": {"log2fc_cell_a": -0.33, "log2fc_cell_c": 2.09}}]
+    vec = selectivity_claim_vector(h, cards)
+    assert "field effect" in (vec["WIN"]["evidence"] or "")
+    assert "field effect" in (vec["WIN"]["conflict"] or "")
+
+
+# ── in-situ SPATIAL region-RNA quorum for the INT axis ───────────────────────────────────────────────
+def test_int_corroboration_lifted_by_agreeing_spatial():
+    """A single-cell INT read of only moderate corroboration is LIFTED to high when in-situ spatial
+    region-RNA independently agrees (tumour_enriched_rna) — single-cell + spatial quorum."""
+    h = _ceacam5_headline()
+    h.update({"sc_caf_vs_malignant_class": "caf_low", "purity_confound_class": None,   # base = moderate
+              "spatial_rna_class": "tumour_enriched_rna"})
+    vec = selectivity_claim_vector(h, [])
+    assert vec["INT"]["corroboration"] == "high"
+    assert "in-situ spatial" in (vec["INT"]["evidence"] or "")
+
+
+def test_int_corroboration_capped_by_disagreeing_spatial():
+    """A TME-enriched in-situ spatial read caps the INT corroboration and flags the attribution conflict."""
+    h = _ceacam5_headline()
+    h["spatial_rna_class"] = "tme_enriched_rna"          # base would be high (caf_low + purity_independent)
+    vec = selectivity_claim_vector(h, [])
+    assert vec["INT"]["corroboration"] == "low"
+    assert "spatial" in (vec["INT"]["conflict"] or "")
+
+
+def test_int_corroboration_unaffected_when_spatial_absent():
+    """Byte-stability: no spatial read → INT corroboration is the single-cell base (high for CEACAM5)."""
+    assert selectivity_claim_vector(_ceacam5_headline(), [])["INT"]["corroboration"] == "high"
+
+
 # ── citable evidence atoms (values bound to {card_id, fields} + entity) ──────────────────────────────
 def _selectivity_cards():
     """Minimal selectivity source-card summaries mirroring the real COADREAD package fields."""

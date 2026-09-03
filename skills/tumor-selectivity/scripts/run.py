@@ -66,7 +66,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.17.0"   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.18.0"   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -851,4 +851,11 @@ if __name__ == "__main__":
         # Signals-first: tuned sub-group reader for the selectivity vocabulary (correct polarity).
         # Verdict-INERT — feeds subgroup_signals / the narrator.
         subgroup_classify=make_value_classifier(_SELECTIVITY_VALUE_TIERS),
+        # PENDING (Phase 5, blocked on feat/presence-literature-and-claims): once that branch merges the
+        # shared --literature dispatcher seam (run_wired_skill(literature_fn=...) + the --literature flag +
+        # narrator-feed of decision['literature_synthesis']), opt in here with ONE line —
+        #     literature_fn=make_literature_fn(_LENS),
+        # (import make_literature_fn from _skills_common.literature_synthesis). This skill's _LENS is
+        # already literature-ready: build_literature_prompt consumes its thesis/axis_labels/polarity_note +
+        # the WIN/DIST/INT/SAFE claim_vector axes. The lane is NOT re-implemented here (shared module, read-only).
     ))

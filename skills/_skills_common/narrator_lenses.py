@@ -61,12 +61,23 @@ TUMOR_PRESENCE = LensConfig(
 TUMOR_SELECTIVITY = LensConfig(
     name="tumor-selectivity",
     thesis="whether the target is TUMOR-SELECTIVE enough to open a therapeutic window (tumor-enriched vs "
-           "normal tissue), the decisive axis being the normal-tissue comparator.",
+           "normal tissue), the decisive axis being the normal-tissue comparator — and, critically, whether "
+           "that window is CORROBORATED across independent platforms (bulk-RNA comparators, tumor-vs-normal "
+           "PROTEIN by CPTAC/TPHP mass-spec, and in-situ SPATIAL region-RNA) or is only a HIGH-NORMAL-"
+           "BASELINE FIELD EFFECT (tumor≈adjacent-normal but tumor>distant-normal — a genuine but NARROW window).",
     relevance_prompt="judge the tumor-selectivity / therapeutic-window support for this target.",
     axis_labels={"WIN": "therapeutic window", "DIST": "normal-tissue distribution",
                  "INT": "tumor-intrinsic", "SAFE": "safety"},
     scope_exclusions=("absolute abundance as presence", "therapeutic modality",
                       "on-target safety severity / nomination call"),
+    # NARRATOR RULE: lead with cross-platform corroboration of the window, then the field-effect vs
+    # wide-window distinction, then the normal-tissue liability — the three things the RNA-only class hides.
+    polarity_note=("LEAD by stating whether INDEPENDENT platforms corroborate the RNA tumor-vs-normal "
+                   "window: name the PROTEIN-layer (CPTAC/TPHP MS) and in-situ SPATIAL agreement or "
+                   "disagreement explicitly, and distinguish a high-normal-baseline FIELD EFFECT "
+                   "(adjacent-normal flat/down, distant-normal up) from a broadly wide window. A "
+                   "critical-organ normal-tissue liability (SAFE negative) NARROWS the window regardless "
+                   "of tumor-side signal strength — never let a strong tumor-side signal mask it."),
     mode="verdict",
     verdict_key="selectivity_class",   # the RESOLVED (post-veto) class token; else the collapsed-verdict
                                        # prompt line fell through to driving_rule_id (a rule-id string),

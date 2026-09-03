@@ -4,6 +4,39 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.18.0
+- **Multi-platform corroboration folded into the claim vector (VERDICT-INERT signals-first enrichment).**
+  The WIN/INT axes were single-lane (WIN = bulk-RNA comparators only; INT = single-cell only), so the
+  claim vector — which the narrator LEADS with — was blind to signals the headline already computes.
+  Three quorum-aware additions (`_skills_common/selectivity_claims.py`):
+  - **WIN protein quorum.** The two tumor-vs-normal PROTEIN cards (CPTAC TMT + TPHP DIA-MS) now cap WIN
+    corroboration when they FAIL to corroborate the RNA window (2 non-significant platforms → `low`; 1 →
+    `moderate`; a significant OPPOSITE direction → `low`) and surface it as a WIN conflict. A fully
+    corroborating protein layer imposes no cap. Catches the RNA-up / protein-flat false positive
+    (EPCAM/COADREAD: CPTAC not-significant + TPHP tumor<normal → the RNA window is not confirmed at protein).
+  - **INT spatial quorum.** In-situ `spatial-region-rna-expression` is now an independent arm of the
+    malignant-compartment attribution: an agreeing `tumour_enriched_rna` lifts INT corroboration one step
+    (single-cell + spatial concur); a `tme_enriched_rna` caps it and flags the conflict.
+  - **WIN field-effect signature.** The per-comparator log2FCs (`log2fc_cell_a` adjacent vs `log2fc_cell_c`
+    distant GTEx) the collapsed class hides are surfaced as a HIGH-NORMAL-BASELINE FIELD EFFECT note
+    (tumor≈adjacent-normal but tumor>distant-normal — a genuine but NARROW window) — the EPCAM/CEACAM
+    epithelial-marker archetype.
+- **Narrator rule + thesis (LensConfig).** `TUMOR_SELECTIVITY` thesis extended to name the corroboration
+  lanes; a new `polarity_note` instructs the synthesis to LEAD with whether independent platforms (protein
+  MS + in-situ spatial) corroborate the RNA window, and to distinguish a field effect from a broadly wide
+  window. Verified on a live EPCAM/COADREAD `--synthesize` run: the narrative now frames the field effect
+  and cites the 2-platform protein non-corroboration.
+- **Byte-stability:** all additions gate on the new headline fields (protein-concordance / spatial /
+  per-cell log2FC), so they are NO-OPs when those inputs are absent; the CEACAM5/TACSTD2 replay fixtures'
+  `selectivity_class` + normal-breadth/stromal-confound veto spine are untouched (resolver golden-stable).
+  Corroboration *tiers* on the three curated fixtures are unchanged (already ≤ the protein cap; INT already
+  high); only evidence/conflict strings enrich. Full `_skills_common` suite green (1038 passed).
+- **PENDING fast-follow (Phase 5, blocked on `feat/presence-literature-and-claims`):** a `--literature`
+  lane reusing the shared `_skills_common/literature_synthesis.py` (`make_literature_fn(TUMOR_SELECTIVITY)`)
+  lands once that branch merges its `run_wired_skill(literature_fn=...)` + `--literature` dispatcher seam.
+  This skill's LensConfig is already literature-ready (its thesis/axis_labels/polarity_note + the enriched
+  WIN/INT claim axes are exactly what `build_literature_prompt` consumes). The lane is NOT re-implemented here.
+
 ## 1.17.0
 - **INT-axis stromal-confound veto (verdict-MOVING, backtest-gated).** `tumor-scrna-celltype-expression`
   is now verdict-driving: its provenance-gated `stromal_confound_class == stromal_confounded` fires the

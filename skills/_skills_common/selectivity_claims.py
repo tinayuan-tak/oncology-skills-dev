@@ -28,7 +28,7 @@ the `cards` param is accepted for contract-uniformity but unused here.
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              cap_corroboration, sig_ge)
+                                              bump_corroboration, cap_corroboration, sig_ge)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # tumor-vs-normal-selectivity.selectivity_class (raw pre-veto tumor-vs-origin class)
@@ -79,6 +79,58 @@ def _f(v, nd=2):
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
 
 
+# ── multi-platform corroboration of the tumor-vs-normal WINDOW (verdict-inert helpers) ─────────────
+# selectivity's most dangerous false positive is an RNA "window" that no other platform sees. Two extra
+# lanes the collapsed axis-A class hides: (1) the PROTEIN layer (CPTAC TMT + TPHP DIA-MS tumor-vs-normal),
+# and (2) the per-comparator ADJACENT-vs-DISTANT split. Both are already in the headline; these fold them
+# into the WIN axis so the claim vector (which the narrator LEADS with) is quorum-aware, not RNA-only.
+_PROTEIN_CORROBORATED = "rna_protein_concordant"
+_PROTEIN_CONTRADICTED = "rna_protein_discordant"
+
+
+def _protein_window_quorum(h) -> dict:
+    """Quorum over the TWO independent tumor-vs-normal PROTEIN platforms (CPTAC TMT-MS +
+    TPHP DIA-MS): does the protein layer corroborate the RNA window? Returns {status, n_measured, cap,
+    note}. status ∈ {corroborated, mixed, not_corroborated, contradicted, unmeasured}. `cap` is the
+    corroboration ceiling a non-corroborating protein layer imposes (None = no cap). Verdict-INERT —
+    reads the two rna_protein_tvn_concordance_* projections the headline already carries."""
+    reads = [h.get("rna_protein_tvn_concordance"), h.get("rna_protein_tvn_concordance_tphp")]
+    measured = [r for r in reads if r and r != "protein_unmeasured"]
+    n = len(measured)
+    if n == 0:
+        return {"status": "unmeasured", "n_measured": 0, "cap": None, "note": None}
+    n_conc = sum(r == _PROTEIN_CORROBORATED for r in measured)
+    n_disc = sum(r == _PROTEIN_CONTRADICTED for r in measured)
+    plat = "platform" if n == 1 else "platforms"
+    if n_disc:
+        return {"status": "contradicted", "n_measured": n, "cap": "low",
+                "note": f"protein layer CONTRADICTS the RNA window (tumor-vs-normal protein down; {n_disc}/{n} MS {plat})"}
+    if n_conc == n:                                          # every measured platform confirms
+        return {"status": "corroborated", "n_measured": n, "cap": None, "note": None}
+    if n_conc:                                               # some confirm, some silent
+        return {"status": "mixed", "n_measured": n, "cap": "moderate",
+                "note": f"protein corroboration MIXED — {n_conc}/{n} MS {plat} confirm the RNA window"}
+    return {"status": "not_corroborated", "n_measured": n,   # all measured platforms non-significant
+            "cap": "low" if n >= 2 else "moderate",
+            "note": f"protein layer does NOT corroborate the RNA window (not significant on {n} MS {plat})"}
+
+
+def _field_effect_note(c) -> str | None:
+    """Split the collapsed multi-comparator class into its ADJACENT-vs-DISTANT signature from the
+    per-cell log2FCs the aggregate class hides. Normal tissue-of-origin is often ALREADY high (the
+    EPCAM/CEACAM epithelial-marker archetype), so tumor-vs-ADJACENT (cell A) reads flat/down while
+    tumor-vs-DISTANT GTEx (cell C) reads up — a HIGH-NORMAL-BASELINE FIELD EFFECT: a genuine but NARROW
+    window, NOT noise. Verdict-INERT; None when the per-cell fields are absent (synthetic/older summaries)."""
+    s = c.get("tumor-vs-normal-selectivity") or {}
+    a, cc = s.get("log2fc_cell_a"), s.get("log2fc_cell_c")
+    if not isinstance(a, (int, float)) or not isinstance(cc, (int, float)):
+        return None
+    if a <= 0.5 and cc >= 1.0 and (cc - a) >= 1.0:
+        return (f"high-normal-baseline field effect: tumor≈adjacent-normal (log2FC {a:.1f}) "
+                f"but tumor>distant-normal (log2FC {cc:.1f})")
+    return None
+
+
 # ── the four claims (signal_fn -> (tier, evidence, conflict); corroboration_fn -> tier) ───────────
 def _win_signal(h, c):
     cls = h.get("axis_a_selectivity_class")
@@ -90,6 +142,17 @@ def _win_signal(h, c):
         conflict = "selective vs origin but broadly expressed in normal — therapeutic-window liability"
     ev = (f"tumor-vs-normal: {cls or 'data_unavailable'}, max|log2FC|={_f(h.get('max_abs_log2fc'), 1)}, "
           f"{h.get('cells_supporting')}/{h.get('cells_ran')} comparators")
+    # Adjacent-vs-distant field-effect signature (surfaces the per-comparator split the class collapses).
+    fe = _field_effect_note(c)
+    if fe:
+        ev += f"; {fe}"
+        conflict = (f"{conflict} ({fe})" if conflict else fe)
+    # PROTEIN-layer corroboration quorum (CPTAC + TPHP): an RNA window the protein layer fails to
+    # corroborate (or contradicts) is a weaker window — surface it as a WIN conflict. The tier cap is
+    # applied in _win_corroboration. Verdict-INERT.
+    pq = _protein_window_quorum(h)
+    if pq["note"]:
+        conflict = (f"{conflict}; {pq['note']}" if conflict else pq["note"])
     return sig, ev, conflict
 
 
@@ -112,6 +175,15 @@ def _win_corroboration(h, c):
         base = cap_corroboration(base, "low")         # the two families disagree
     if h.get("discordant"):
         base = cap_corroboration(base, "low")   # disagreeing comparators cap corroboration
+    # PROTEIN-layer quorum: an independent proteomic platform that FAILS to corroborate (or CONTRADICTS)
+    # the RNA tumor-vs-normal window caps the WIN corroboration (2 non-corroborating platforms → low;
+    # 1 → moderate; a significant OPPOSITE direction → low). A fully corroborating protein layer imposes
+    # no cap (agreement is not inflated here — the RNA comparator agreement already carries the positive
+    # case). This closes the gap where WIN corroboration was RNA-comparator-only and blind to the two
+    # tumor-vs-normal protein cards the headline already computes. Verdict-INERT.
+    pq = _protein_window_quorum(h)
+    if pq["cap"]:
+        base = cap_corroboration(base, pq["cap"])
     return base
 
 
@@ -143,6 +215,14 @@ def _int_signal(h, c):
             sig = "weak"   # purity contradicts an apparent intrinsic single-cell signal → downgrade
     ev = (f"single-cell: {cls or 'data_unavailable'}, malignant frac {_f(h.get('sc_malignant_detection_fraction'))}, "
           f"CAF={h.get('sc_caf_vs_malignant_class')}, purity={purity}")
+    # In-situ SPATIAL region-RNA is a deconvolution-free read of the SAME malignant-compartment question.
+    # Surface it in the evidence, and flag a conflict when it DISAGREES with an apparent intrinsic signal.
+    spatial = h.get("spatial_rna_class")
+    if spatial and spatial != "data_unavailable":
+        ev += f", in-situ spatial={spatial}"
+        if spatial == "tme_enriched_rna" and sig_ge(sig, "moderate"):
+            conflict = conflict or ("in-situ spatial RNA is TME-enriched — the malignant-compartment "
+                                    "attribution is not confirmed spatially")
     return sig, ev, conflict
 
 
@@ -153,7 +233,17 @@ def _int_corroboration(h, c):
     if caf == "caf_dominant" or purity == "microenvironment_confounded":
         return "low"     # a disagreeing arm (stroma-dominant / purity-confounded) caps corroboration
     agree = caf in ("malignant_dominant", "caf_low") and purity in ("tumor_intrinsic", "purity_independent")
-    return "high" if agree else "moderate"
+    base = "high" if agree else "moderate"
+    # QUORUM: in-situ spatial region-RNA is an INDEPENDENT, deconvolution-free arm of the same
+    # malignant-compartment attribution. An AGREEING spatial arm (tumour_enriched_rna) lifts corroboration
+    # one step (single-cell + spatial concur — no longer a single-lens read); a DISAGREEING arm
+    # (tme_enriched_rna) caps it. No-op when spatial is absent/unavailable. Verdict-INERT.
+    spatial = h.get("spatial_rna_class")
+    if spatial == "tumour_enriched_rna":
+        base = bump_corroboration(base, True)
+    elif spatial == "tme_enriched_rna":
+        base = cap_corroboration(base, "low")
+    return base
 
 
 # The modality-therapeutic-window KILL arms: tumor BELOW the worst critical/full normal (the
