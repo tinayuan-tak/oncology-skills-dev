@@ -60,6 +60,7 @@ from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
     _actionability_mode_facet,
     _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
+    _skill_reports_by_short,
     _modality_fit_by_channel, _magnitude_borderline,
     _deciding_axis, _dependency_facet,
     _cross_gate_shared_evidence,
@@ -550,6 +551,10 @@ def main() -> int:
     # for the reader/panel, NEVER in sub_verdicts or the recommendation spine. {} until an axis opts in
     # (functional-requirement `dependency` is the reference axis).
     certainty_by_axis = _certainty_by_axis(sub_results)
+    # The per-skill skill_report[] SPINE ({short: report}) — assembled from each sub-skill's synthesis_facet
+    # so target_report can ROLL IT UP (docs/UNIFIED_OUTPUT_CONTRACT.md). Verdict-inert; the consumer that
+    # closes the emitted-but-not-read gap.
+    skill_reports = _skill_reports_by_short(sub_results)
 
     # (target_report consolidation, Wave 0) The aggregated `claim_record_shadow` nomination KEY was an
     # M1 render-equivalence-proof substrate that nothing ever consumed (empty until an axis opts in,
@@ -940,7 +945,7 @@ def main() -> int:
         certainty_by_axis=certainty_by_axis, addressable_population=addressable_population,
         actionability_mode=actionability_mode, competitor_crossref=competitor_crossref,
         archetype_companion=archetype_companion, nomination_scorecard=nomination_scorecard_facet,
-        nomination_predictive_score=nomination_predictive_score)
+        nomination_predictive_score=nomination_predictive_score, skill_reports=skill_reports)
 
     nomination = {
         "skill": SKILL_NAME,

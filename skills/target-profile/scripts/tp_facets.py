@@ -619,6 +619,67 @@ def _claim_record_shadow_by_axis(sub_results: dict) -> dict:
     return out
 
 
+# --- skill_report[] SPINE + roll-up (docs/UNIFIED_OUTPUT_CONTRACT.md, target_report section) ----------
+# Every wired skill emits a per-skill `skill_report` (via _skills_common.skill_report.build_skill_report),
+# carried at sub_results[short]['synthesis_facet']['skill_report']. These two readers are the FIRST
+# consumers of that spine inside target_report: `_skill_reports_by_short` assembles the {short: report}
+# spine, and `build_skill_report_rollup` PROJECTS it — grouping by role and cross-checking target-level
+# INV-6 (the recommendation must not read more favorable than the gating signals support). VERDICT-INERT:
+# they read only the emitted reports + the already-built target_call, and NEVER mutate the recommendation
+# spine (target_call stays the sole owner). This closes the "emitted-but-not-consumed" gap: the rollups
+# begin reading the skill_report[] spine rather than only the legacy sub_results reach-ins.
+def _skill_reports_by_short(sub_results: dict) -> dict:
+    """The per-skill skill_report[] spine as an ordered {short: report} dict (SUB_SKILLS order), from each
+    sub-result's synthesis_facet. Tolerant of None / missing / non-dict / the facet-less subtype tier."""
+    out = {}
+    for short, r in (sub_results or {}).items():
+        sr = ((r or {}).get("synthesis_facet") or {}).get("skill_report")
+        if isinstance(sr, dict) and sr:
+            out[short] = sr
+    return out
+
+
+# canonical polarity → ordinal rank (mirrors _skills_common.ordinal_view; off-scale states unranked)
+_SKILL_REPORT_POLARITY_RANK = {"killer": -3, "opposing": -1, "neutral": 0, "supportive": 2}
+# recommendation tokens that read as a POSITIVE (go) call, across the gate + LLM vocabularies
+_POSITIVE_RECOMMENDATIONS = frozenset({"nominate", "go", "advance"})
+
+
+def build_skill_report_rollup(skill_reports_by_short: dict, target_call: "Optional[dict]" = None) -> dict:
+    """VERDICT-INERT projection over the skill_report[] spine. Groups the per-skill reports by role
+    (gating / descriptive / inert), records the GATING skills' canonical polarities + the peak
+    (most-favorable) gating signal, and cross-checks target-level INV-6: the recommendation must not read
+    MORE favorable than the gating signals support — a gating `killer` polarity alongside a POSITIVE
+    recommendation is surfaced as `recommendation_exceeds_signals`. This is a coherence FLAG for the
+    reader; it NEVER mutates target_call (the sole recommendation owner)."""
+    by_role: dict = {"gating": [], "descriptive": [], "inert": []}
+    gating_polarities: dict = {}
+    for short, sr in (skill_reports_by_short or {}).items():
+        role = sr.get("role")
+        by_role.setdefault(role, []).append(
+            {"short": short, "call": sr.get("call"), "polarity": sr.get("polarity")})
+        if role == "gating":
+            gating_polarities[short] = sr.get("polarity")
+    ranks = [_SKILL_REPORT_POLARITY_RANK[p] for p in gating_polarities.values()
+             if p in _SKILL_REPORT_POLARITY_RANK]
+    peak = max(ranks) if ranks else None            # most-favorable gating signal on the ordinal scale
+    killer_axes = [s for s, p in gating_polarities.items() if p == "killer"]
+    rec = target_call.get("recommendation") if isinstance(target_call, dict) else None
+    positive_rec = str(rec).lower() in _POSITIVE_RECOMMENDATIONS
+    return {
+        "by_role": by_role,
+        "gating_polarities": gating_polarities,
+        "peak_gating_rank": peak,
+        "killer_axes": killer_axes,
+        "recommendation": rec,
+        # INV-6 at the target level (verdict-inert coherence flag): a killer gating signal should have
+        # forced a non-positive recommendation; surface — never silently allow — the mismatch.
+        "recommendation_exceeds_signals": bool(killer_axes) and positive_rec,
+        "_note": ("VERDICT-INERT projection over the skill_report[] spine; groups by role + flags any "
+                  "target-level INV-6 breach. target_call remains the sole recommendation owner."),
+    }
+
+
 # --- MODALITY-FIT-BY-CHANNEL rollup (M4 move #4; VERDICT_REPRESENTATION §8 / migration §3) ----------
 # The SECOND factored-record consumer, and the answer to the KRAS motivating case: a target is not
 # "safe/unsafe" or "druggable/undruggable" as a SCALAR — it is favorable for SOME modalities and not
@@ -1963,7 +2024,8 @@ def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = 
                         competitor_crossref: "Optional[dict]" = None,
                         archetype_companion: "Optional[dict]" = None,
                         nomination_scorecard: "Optional[dict]" = None,
-                        nomination_predictive_score: "Optional[object]" = None) -> dict:
+                        nomination_predictive_score: "Optional[object]" = None,
+                        skill_reports: "Optional[dict]" = None) -> dict:
     """target_report.v1 — the unified per-target object (docs/UNIFIED_OUTPUT_CONTRACT.md).
 
     ADDITIVE + VERDICT-INERT: a composed VIEW that REFERENCES the existing target-level facets (which
@@ -1974,6 +2036,12 @@ def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = 
     tr = target_rollup or {}
     return {
         "schema": "target_report.v1",
+        # the per-skill skill_report[] SPINE + its role-grouped roll-up — target_report's FIRST consumer of
+        # the unified per-skill signals (docs/UNIFIED_OUTPUT_CONTRACT.md). Verdict-inert; the rollup carries
+        # a target-level INV-6 coherence flag but never moves the recommendation (target_call owns it).
+        "skill_reports": skill_reports,
+        "skill_report_rollup": (build_skill_report_rollup(skill_reports, target_call)
+                                if skill_reports else None),
         "target_call": target_call,                       # DECISION (recommendation owner = target_call.gate)
         "risk_6dim": risk_rollup,                         # ← risk_rollup (deterministic 6-dim; None w/o substrate)
         "axis_rollup": tr.get("axes"),                    # ← target_rollup.axes (A/B/D/E bands)
