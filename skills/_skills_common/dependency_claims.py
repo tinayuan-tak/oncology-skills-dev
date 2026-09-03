@@ -5,8 +5,10 @@ The SECOND concrete instance of the shared claim_vector_core contract (presence_
 Declares functional-requirement's four axes as a ClaimSpec list:
 
   DEP  genetic dependency          — CRISPR distribution (dependency_class), RNAi as an orthogonal-LoF
-                                      within-claim corroboration; corroboration from CRISPR×RNAi concordance
-                                      + Broad↔Sanger cross-consortium replication + omics-predictability.
+                                      within-claim corroboration; corroboration is QUORUM-aware over the
+                                      independent perturbation channels — CRISPR×RNAi concordance + PRISM
+                                      chemical-genetic triangulation + Broad↔Sanger cross-consortium
+                                      replication + omics-predictability.
   SEL  context-selectivity         — lineage-selectivity enrichment_class; corroboration from n lineages.
   COND conditional / synthetic-SL  — partner-conditional-dependency (WRN×MSI-style rescue); corroboration
                                       from the partner-deficient stratification q + n.
@@ -114,6 +116,13 @@ def _dep_corroboration(h, c):
     rnai = h.get("rnai_call")
     # sub-additive: independent orthogonal-assay (RNAi) agreement lifts corroboration one step
     base = bump_corroboration(base, crispr_dep and rnai in _RNAI_DEP)
+    # QUORUM-awareness (2026-09-03): the PRISM chemical-genetic arm is a THIRD independent perturbation
+    # channel (small-molecule kill vs genetic LoF). `triangulated_target_engaged` = BOTH CRISPR and RNAi
+    # track the compound kill → an orthogonal agreeing arm that lifts corroboration one step (never the
+    # signal tier). Gated on the genetic dependency being present (crispr_dep) so a compound-kill read on
+    # a genetically non-dependent target does not manufacture DEP corroboration. Placed BEFORE the
+    # disagreement cap below, so an RNAi non-corroboration still caps the quorum (no over-claim).
+    base = bump_corroboration(base, crispr_dep and h.get("prism_concordance_class") == "triangulated_target_engaged")
     # independent CONSORTIUM replication (Sanger Project Score vs Broad) — stronger than intra-Broad
     cc = h.get("cross_consortium_class")
     if cc == "concordant_dependent":
@@ -337,6 +346,20 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
     dep_conflict = (vec.get("DEP") or {}).get("conflict")
     if dep_conflict:
         ks["caveat"] = dep_conflict
+    # Paralog-buffering caveat (2026-09-03): a STRONG paralog buffer is a decision-relevant caveat the
+    # claim vector's four axes do not carry — a single-gene KO/KD dependency can be UNDER-called because a
+    # redundant paralog compensates (Dede 2020; Parrish 2021), and a present dependency may need combined
+    # paralog loss or an upstream pan-family node (e.g. RAS→SOS1/SHP2; Hofmann 2021) to be fully realised.
+    # Surfaced ONLY when there is no MORE-critical DEP conflict (pan-essential broad-tox / RNAi
+    # non-corroboration outrank it) so it never masks the sharper caveat. Verdict-INERT: the resolver's
+    # non_dependent_paralog_buffered rung already owns the veto-suppression; this only surfaces the note.
+    # Gated on the paralog_buffering_class HEADLINE field → no-op when absent (byte-stable on fixtures that
+    # omit it, incl. the KRAS/COADREAD unit fixture); fires on the live run (KRAS paralog=strong, NRAS).
+    elif h.get("paralog_buffering_class") == "strong":
+        _par = h.get("strongest_paralog_symbol")
+        ks["caveat"] = ("Strong paralog buffering" + (f" ({_par})" if _par else "")
+                        + " — the single-gene dependency may be redundancy-masked; combined paralog loss "
+                          "or an upstream pan-family node may be required [paralog-buffering]")
     return ks
 
 

@@ -11,12 +11,32 @@ from _skills_common.narrator_engine import LensConfig
 FUNCTIONAL_REQUIREMENT = LensConfig(
     name="functional-requirement",
     thesis="how much the DEPENDENCY lens informs whether the target is worth pursuing — a SELECTIVE genetic "
-           "dependency supports it, a pan-essential read argues AGAINST (broad tox), non-dependent is uninformative.",
+           "dependency supports it, a pan-essential read argues AGAINST (broad tox), non-dependent is "
+           "uninformative — and, critically, whether the call is CORROBORATED across the independent "
+           "perturbation channels (CRISPR-KO + RNAi + PRISM chemical-genetic + Broad↔Sanger cross-consortium) "
+           "or rests on a single screen, and whether it is buffered by a redundant PARALOG (single-gene KO can "
+           "under-call a real dependency).",
     relevance_prompt="judge how much the dependency lens supports pursuing this target in this indication; "
                      "foreground the SELECTIVE-vs-PAN-ESSENTIAL distinction and any CRISPR/RNAi disagreement.",
     axis_labels={"DEP": "genetic dependency", "SEL": "context-selectivity",
                  "COND": "conditional/SL", "CHEM": "chemical-genetic"},
     scope_exclusions=("therapeutic modality", "expression/abundance as a presence claim", "mutation frequency"),
+    # NARRATOR RULE: lead with cross-channel corroboration (the quorum), then selective-vs-pan-essential,
+    # then paralog buffering, then the two data-shape reconciliations — the things a single-card read hides.
+    polarity_note=(
+        "LEAD by stating whether the dependency is CORROBORATED across the independent perturbation "
+        "channels — CRISPR-KO, RNAi (orthogonal LoF), PRISM chemical-genetic triangulation, and Broad↔Sanger "
+        "cross-consortium replication (a QUORUM) — or rests on a single screen; name which channels agree "
+        "vs disagree. Then make the SELECTIVE-vs-PAN-ESSENTIAL call: a pan-/common-essential read is a "
+        "broad-toxicity LIABILITY, not support, and must key on the CURATED common-essential control "
+        "(depmap_curated_common_essential), NOT a raw dependent-fraction (the 'oncogene reads pan-essential' "
+        "trap) — a selective dependency sitting between the essential/non-essential controls is the win. "
+        "Flag STRONG paralog buffering (paralog_buffering_class): the single-gene dependency may be "
+        "redundancy-masked and need combined paralog loss or an upstream pan-family node. Finally, do NOT "
+        "over-read two data-shape artifacts: (1) a `*_concordant_non_dependent` CRISPR↔RNAi concordance "
+        "alongside both distributions reading a selective class is a POOLED-SCOPE selective signature "
+        "(concordance_scope_note), not a modality contradiction; (2) a decisive single-arm signal held at a "
+        "coverage-gap verdict (measurement_caveat) is decisive-but-unconfirmed, not measured-absent."),
     mode="verdict",
     verdict_key="dependency_verdict",   # the RESOLVED dependency verdict token; else the collapsed-verdict
                                         # prompt line fell through to driving_rule_id (a rule-id string, e.g.

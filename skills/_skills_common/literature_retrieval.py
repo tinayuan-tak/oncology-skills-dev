@@ -53,7 +53,7 @@ _LENS_QUERY_TERMS = {
                                    "normal tissue expression", "immunohistochemistry"],
     "tumor-presence":             ["overexpression", "protein abundance", "expression"],
     "functional-requirement":     ["genetic dependency", "essential gene", "CRISPR knockout",
-                                   "RNA interference"],
+                                   "RNA interference", "oncogene addiction", "selective dependency"],
     "on-target-safety-liability": ["loss-of-function intolerance", "haploinsufficiency",
                                    "knockout phenotype", "germline"],
     "mechanism-and-pharmacology": ["signaling pathway", "mechanism of action"],

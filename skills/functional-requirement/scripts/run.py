@@ -27,6 +27,8 @@ from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -38,7 +40,7 @@ from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
                           #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
                           # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
                           # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
@@ -854,6 +856,63 @@ def _build_headline_block(headline: dict) -> dict:
                           certainty=_headline_certainty(headline))
 
 
+# ── verdict-INERT signal-surfacing flags (2026-09-03 enrichment) ──────────────────────────────────
+# Both are NEW headline fields → None (no-op) except in the specific case each names, so every existing
+# fixture/golden (both arms measured, positive verdict) is byte-stable and the dependency_verdict spine
+# is untouched. They make deterministic two data-shape reconciliations the LLM previously had to derive
+# ad hoc (graded in the KRAS/COADREAD narrative FIDELITY pass).
+
+# A DECISIVE single-arm dependency call (pan-essential / selective / broadly-dependent magnitude).
+_DECISIVE_DEP_CALLS = frozenset({"common_essential", "strongly_selective", "broadly_dependent"})
+# An UNMEASURED arm — a coverage gap, distinct from a measured floor (`non_dependent`).
+_UNMEASURED_ARM = frozenset({"data_unavailable", None})
+# The coverage-gap verdicts the resolver returns when it cannot make a call.
+_COVERAGE_GAP_VERDICTS = frozenset({"insufficient", "insufficient_underpowered",
+                                    "insufficient_underpowered_pan_essential"})
+
+
+def _measurement_caveat(verdict, crispr_call, rnai_call) -> str | None:
+    """Coverage-ASYMMETRY caveat (mirrors tumor-selectivity's measurement_caveat, v1.21.0): one
+    perturbation arm returns a DECISIVE dependency call while the other is UNMEASURED, and the resolver —
+    correctly — holds the verdict at a coverage-gap token rather than carry a positive call on a single
+    arm. Names the decisive-but-unconfirmed signal so it is not misread as `measured-absent`. VERDICT-
+    INERT: reports WHY the spine returned a gap; never changes it. Returns None unless the pattern holds
+    (→ byte-stable on every both-arms-measured / positive-verdict fixture)."""
+    if verdict not in _COVERAGE_GAP_VERDICTS:
+        return None
+    crispr_decisive = crispr_call in _DECISIVE_DEP_CALLS
+    rnai_decisive = rnai_call in _DECISIVE_DEP_CALLS
+    if rnai_decisive and crispr_call in _UNMEASURED_ARM:
+        return (f"RNAi indicates a dependency ({rnai_call}) but the trusted CRISPR arm is UNMEASURED "
+                "(absent from the screen panel) — the resolver holds the verdict at a coverage gap "
+                "because RNAi alone (seed/off-target-prone) never carries a positive call. The signal is "
+                "decisive-but-unconfirmed, NOT measured-absent; re-run when CRISPR coverage lands.")
+    if crispr_decisive and rnai_call in _UNMEASURED_ARM:
+        return (f"CRISPR indicates a dependency ({crispr_call}) but the orthogonal RNAi arm is UNMEASURED "
+                "— the call rests on a single perturbation channel (no orthogonal-LoF corroboration). "
+                "Decisive-but-single-arm, NOT measured-absent.")
+    return None
+
+
+def _concordance_scope_note(concordance_call, crispr_call, rnai_call) -> str | None:
+    """Pooled-SCOPE reconciliation: the crispr-rnai-dependency-concordance card can read
+    `*_concordant_non_dependent` while BOTH distribution cards read a selective/dependent class — because
+    the concordance card measures POOLED per-line agreement (most pan-cancer lines are non-dependent, the
+    correct signature of a lineage-selective oncogene like KRAS), NOT a cross-modality contradiction. The
+    KRAS/COADREAD narrative had to reason through this ad hoc; encode it so it never depends on the model.
+    VERDICT-INERT new field → None unless the pattern holds (byte-stable elsewhere)."""
+    if concordance_call not in ("moderately_concordant_non_dependent", "strongly_concordant_non_dependent"):
+        return None
+    if crispr_call in _DECISIVE_DEP_CALLS and rnai_call in _DECISIVE_DEP_CALLS:
+        return ("The CRISPR↔RNAi concordance card reads "
+                f"`{concordance_call}`, but BOTH distribution cards independently score the target as a "
+                f"selective/dependent class (CRISPR {crispr_call}, RNAi {rnai_call}). That label reflects "
+                "the POOLED per-line agreement (most pan-cancer lines are non-dependent — the expected "
+                "signature of a lineage-selective dependency), NOT a cross-modality contradiction: read it "
+                "as corroboration of the selective pattern, not evidence against the dependency.")
+    return None
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
@@ -921,6 +980,12 @@ def _headline(cards, fired, verdict_pair):
         "n_compounds_evaluated":     get_card_field(cards, "prism-crispr-concordance", "n_compounds_evaluated"),
         "n_lineages_evaluated":      get_card_field(cards, "dependency-lineage-selectivity", "n_lineages_evaluated"),
     }
+    # Verdict-INERT signal-surfacing flags (2026-09-03). Both are None on the KRAS-shaped positive /
+    # both-arms-measured case except concordance_scope_note (which fires for KRAS — pooled non-dependent
+    # vs selective distributions). measurement_caveat fires only on a coverage-gap verdict with an
+    # unmeasured arm (POLR2A: CRISPR data_unavailable + RNAi common_essential). Neither touches the spine.
+    hl["measurement_caveat"] = _measurement_caveat(v, hl["crispr_call"], hl["rnai_call"])
+    hl["concordance_scope_note"] = _concordance_scope_note(hl["concordance_call"], hl["crispr_call"], hl["rnai_call"])
     # Additive, verdict-INERT (2026-08-18): the modality-blind claim vector (DEP/SEL/COND/CHEM
     # signal×reliability) + a brief cited key-signals read — the WITHIN-lens evidence integration this
     # subskill owns, built on the SHARED claim_vector_core contract (dependency is the second concrete
@@ -1018,6 +1083,10 @@ _SYNTHESIS_FACET_KEYS = (
     # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — dependency is the second
     # gating adopter after safety (the Wave-3 skill_report adoption arc)
     "skill_report",
+    # verdict-INERT signal-surfacing flags (2026-09-03): coverage-asymmetry caveat (decisive single-arm
+    # signal held at a coverage-gap verdict) + pooled-scope concordance reconciliation. Fed to the
+    # narrator so the synthesis cites them deterministically instead of re-deriving them.
+    "measurement_caveat", "concordance_scope_note",
 )
 
 
@@ -1119,6 +1188,13 @@ if __name__ == "__main__":
         # bespoke synthesize_dependency). Same two-slot / verdict-inert contract; now reads the evidence
         # capsules (bounded raw data) alongside the signal vector.
         synthesize_fn=make_synthesize_fn(_FR_LENS),
+        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane. Attaches
+        # decision['literature_synthesis'] (Europe PMC → PubTator3 fallback grounding + a post-synthesis
+        # verify_citations pass) and feeds the --synthesize narrator. The _LENS_QUERY_TERMS entry for
+        # "functional-requirement" (genetic dependency / essential gene / CRISPR knockout / RNA
+        # interference) is already declared in literature_retrieval.py. Same two-slot / spine-untouched
+        # contract as --synthesize (dispatcher attaches it after the deterministic decision is composed).
+        literature_fn=make_literature_fn(_FR_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Opt-in --subtypes resolves the DESCRIPTIVE dependency-by-molecular-subgroup panorama
         # (subgroup-stratified-dependency; e.g. MSI_H vs MSS). Verdict-inert: its cards touch no
         # resolver rung, so the dependency verdict is byte-identical without --subtypes.

@@ -21,7 +21,7 @@ description: |
   is modality-independent.
 
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -157,6 +157,16 @@ WITHOUT the flag is byte-identical). The dependency narrator reads the FULL evid
 axes, and foregrounds the **selective-vs-pan-essential** distinction (a pan-essential
 read argues AGAINST the target). A Bedrock failure degrades to a `_synthesis_error` note
 — the deterministic verdict is unaffected.
+
+## Optional literature corroboration (`--literature`)
+
+Opt-in `--literature` attaches a provenance-tagged, citation-verified literature synthesis under
+`decision['literature_synthesis']` (Europe PMC → PubTator3 fallback grounding + a post-synthesis
+`verify_citations` pass; `_verification` reports n_pmid_checked / n_verified / n_flipped) and feeds the
+`--synthesize` narrator. It is **verdict-inert** and two-slot (attached after the deterministic decision
+is composed), so a run without the flag is byte-identical. The dependency query terms (genetic
+dependency / essential gene / CRISPR knockout / RNA interference / oncogene addiction / selective
+dependency) are declared per-lens in `_skills_common/literature_retrieval.py`.
 
 ## Verdict resolution
 

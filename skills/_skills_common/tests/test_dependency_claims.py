@@ -128,6 +128,45 @@ def test_prism_off_target_is_negative_with_conflict():
     assert "off-target" in (vec["CHEM"]["conflict"] or "")
 
 
+def test_prism_quorum_lifts_dep_corroboration():
+    """QUORUM-awareness (2026-09-03): PRISM `triangulated_target_engaged` is a THIRD independent
+    perturbation channel — with the genetic dependency present it lifts DEP corroboration one step. The
+    only difference between the two headlines is the PRISM class (byte-isolated to the new arm)."""
+    h = {"crispr_call": "strongly_selective", "rnai_call": None,
+         "concordance_call": "moderately_concordant_dependent",
+         "cross_consortium_class": "single_consortium_only",
+         "predictability_class": "unpredictable",
+         "prism_concordance_class": "triangulated_target_engaged", "n_compounds_evaluated": 15}
+    assert dependency_claim_vector(h, [])["DEP"]["corroboration"] == "high"
+    h2 = dict(h, prism_concordance_class="thin_evidence")
+    assert dependency_claim_vector(h2, [])["DEP"]["corroboration"] == "moderate"  # no PRISM arm → not lifted
+
+
+def test_prism_quorum_no_bump_without_genetic_dependency():
+    """The PRISM bump is gated on the genetic dependency being present — a compound-kill read on a
+    non-dependent target must NOT manufacture DEP corroboration."""
+    h = {"crispr_call": "non_dependent", "rnai_call": "non_dependent",
+         "concordance_call": "moderately_concordant_dependent",
+         "prism_concordance_class": "triangulated_target_engaged"}
+    assert dependency_claim_vector(h, [])["DEP"]["corroboration"] == "moderate"  # base, un-bumped
+
+
+def test_strong_paralog_surfaces_caveat_when_no_primary_conflict():
+    """A STRONG paralog buffer is a decision-relevant caveat the four axes don't carry — surfaced in
+    key_signals when no more-critical DEP conflict outranks it. Gated on the paralog_buffering_class
+    HEADLINE field, so the KRAS unit fixture (which omits it → test_kras_key_signals_deterministic sees
+    caveat=None) stays byte-stable; here we add the field to exercise the arm."""
+    h = dict(_kras_headline(), paralog_buffering_class="strong", strongest_paralog_symbol="NRAS")
+    ks = dependency_key_signals(h, [])
+    assert ks["caveat"] and "paralog" in ks["caveat"].lower() and "NRAS" in ks["caveat"]
+
+
+def test_pan_essential_conflict_outranks_paralog_caveat():
+    """The sharper DEP conflict (pan-essential broad-tox) must win the single caveat slot over paralog."""
+    h = dict(_kras_headline(), crispr_call="common_essential", paralog_buffering_class="strong")
+    assert "pan-essential" in dependency_key_signals(h, [])["caveat"]
+
+
 def test_partner_conditional_strong_signal():
     h = _kras_headline()
     h["partner_conditional_class"] = "partner_conditional_moderately_dependent"
