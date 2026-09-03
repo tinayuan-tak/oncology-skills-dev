@@ -31,6 +31,7 @@ from _skills_common.selectivity_hero import emit_selectivity_hero
 # the already-computed selectivity_class + claim_vector / key_signals; emit_headline_hero renders the
 # offline figure_headline_hero.* twin (COMPLEMENTS emit_selectivity_hero — both fire under --figures).
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -254,6 +255,15 @@ def _selectivity_verdict_polarity(v) -> str:
     if v in ("selective_but_broadly_normal", "selective_but_stromal_confound", "not_selective"):
         return "negative"
     return "neutral"
+
+
+# The two normal-breadth / stromal-confound VETO outcomes are KILLs — no therapeutic window
+# (broadly_normal) / a false window (stromal_confound). They are canonical `killer` (a veto), NOT merely
+# `opposing`. The 3-band headline polarity above collapses both to `negative` (→ the skill_report helper
+# floors them to `opposing`), so we pass an explicit canonical_polarity_override="killer" for exactly
+# these to keep the killer distinction in skill_report.polarity. `not_selective` is a plain measured
+# negative (opposing), not a veto.
+_SELECTIVITY_KILLER_VERDICTS = frozenset({"selective_but_broadly_normal", "selective_but_stromal_confound"})
 
 
 def _selectivity_tension_extra(headline: dict):
@@ -640,6 +650,31 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, from the
+    # RESOLVED (post-veto) selectivity_class + claim_vector + headline_block + question_table just built.
+    # tumor-selectivity is a GATING skill (∈ target-profile _SHORT_TO_GATE) and — UNLIKE the earlier
+    # adopters — carries genuine VETO verdicts, so it passes canonical_polarity_override="killer" for the
+    # two KILL outcomes (broadly_normal / stromal_confound) so the killer distinction survives the helper's
+    # 3-band→canonical floor. Best-effort + verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        _v = hl.get("selectivity_class")
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=_v,
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+            canonical_polarity_override=("killer" if _v in _SELECTIVITY_KILLER_VERDICTS else None),
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -669,6 +704,9 @@ _SYNTHESIS_FACET_KEYS = (
     "sc_stromal_confound_class",   # the INT-axis veto input (why a stroma-driven target down-graded)
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 skill_report
+    # adoption (7th gating adopter; first with a killer-verdict override)
+    "skill_report",
 )
 
 
