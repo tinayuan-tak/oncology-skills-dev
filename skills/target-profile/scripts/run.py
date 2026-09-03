@@ -65,7 +65,7 @@ from tp_facets import (
     _deciding_axis,
     _cross_gate_shared_evidence,
     _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
-    _selectivity_facet, _subtype_facet, _backfill_subtype_spine,
+    _subtype_facet, _backfill_subtype_spine,
     build_target_rollup, build_target_coherence, build_target_call, build_target_report,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
@@ -512,10 +512,12 @@ def main() -> int:
     # hands the reasoner the skill's computed reconciliation. VERDICT-INERT (presence ∉ _SHORT_TO_GATE).
     presence_facet = _presence_facet(sub_results)
 
-    # Selectivity facet: tumor-selectivity's 8-question leading table (WIN/DIST/INT/SAFE) +
-    # the tumor-vs-normal WINDOW gate. Parallel to presence_facet; rendered as the leading table in the
-    # composed dashboard. VERDICT-INERT — selectivity's verdict is owned by its resolver + veto clamp.
-    selectivity_facet = _selectivity_facet(sub_results)
+    # (Wave-3 legacy-facet retirement 2026-09-03) `_selectivity_facet` (a verbatim passthrough of
+    # sub_results['selectivity']['synthesis_facet']) was RETIRED: once the legacy md/html renderers were
+    # gone its only reader was its own nomination key, and render_review reads the selectivity question_table
+    # off the skill_report[] spine (target_report.skill_reports.selectivity). The synthesis_facet itself is
+    # still carried by the fan-out + on the spine. presence_facet is KEPT here — it is still an in-memory
+    # input to the synthesis prompt (a capped reconciliation facet); only its redundant nomination key drops.
 
     # (The former `dependency_facet` nomination key — a verbatim passthrough of
     # sub_results['dependency']['synthesis_facet'] — was RETIRED 2026-09-03 (Wave-3 legacy-facet
@@ -980,16 +982,11 @@ def main() -> int:
         # None on a default run without the lit-risk lane. VERDICT-INERT — literature is context, never a
         # gate. (Was previously passed only to the now-deprecated legacy html renderer, never persisted.)
         "risk_assessment": risk_assessment,
-        # Presence cross-modal reconciliation facet (2026-08-17): tumor-presence's per-modality
-        # presence matrix + RNA→protein proxy-quality + normal-tissue comparators. A FACET (not a
-        # gate) — surfaces cross-modal tension the one-word presence verdict hides + frames tumor
-        # presence against the normal-tissue window. Presence ∉ _SHORT_TO_GATE, so it never moves
-        # the recommendation. None when tumor-presence supplied no facet.
-        "presence_facet": presence_facet,
-        # Selectivity facet: tumor-selectivity's 8-question leading table + WIN/DIST/INT/SAFE +
-        # the tumor-vs-normal WINDOW gate. A FACET (not a gate) — selectivity's verdict is owned by its
-        # resolver + veto clamp; never moves the recommendation. None when tumor-selectivity supplied none.
-        "selectivity_facet": selectivity_facet,
+        # ("presence_facet" + "selectivity_facet" RETIRED 2026-09-03, Wave-3: the legacy md/html renderers
+        # that consumed them are gone. presence_facet stays an IN-MEMORY input to the synthesis prompt
+        # (see _build_user_prompt below) — only its redundant top-level nomination key drops; the selectivity
+        # question_table is on the skill_report[] spine (target_report.skill_reports.selectivity). Both
+        # skills' synthesis_facets remain carried by the fan-out under sub_results[<short>].)
         # ("dependency_facet" RETIRED 2026-09-03 — see the facet-build block; functional-requirement's
         # synthesis_facet is still carried at sub_results['dependency']['synthesis_facet'] + on the
         # skill_report[] spine under target_report.skill_reports.dependency.)
@@ -1005,7 +1002,9 @@ def main() -> int:
         # cross-repo reader (target-contracts eval ledger) now reads target_report.robustness.fragility as a
         # forward-compat fallback (target-contracts #618). All still nested under target_report + passed
         # in-memory to build_target_report / the prompt / the evidence package.
-        "addressable_population": addressable_population,   # kept: still read by tools/rerender.py (retires later)
+        # ("addressable_population" top-level key RETIRED 2026-09-03 — its last non-render reader
+        # (tools/rerender.py) retired with the legacy html renderer; still nested at
+        # target_report.addressable_population + passed in-memory to build_target_report.)
         # Per-axis NARRATIVE (interpretability), keyed by sub-skill short: movers / dissenters /
         # flip_conditions / gaps / rule_sentences per decision-relevant verdict. ADDITIVE / verdict-inert
         # — the citeable substrate for the dashboard 'why this verdict' panel + Tier-3 synthesis.

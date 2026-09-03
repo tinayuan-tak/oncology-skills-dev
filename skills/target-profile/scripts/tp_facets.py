@@ -468,15 +468,10 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
     return expr.get("synthesis_facet")
 
 
-# Selectivity facet: tumor-selectivity's `_synthesis_facet`, carried by the fan-out as
-# sub_results['selectivity']['synthesis_facet']. Parallel to _presence_facet — a thin reader surfacing
-# the selectivity 8-question `question_table` (WIN/DIST/INT/SAFE) + the tumor-vs-normal WINDOW gate for
-# the composed dashboard's leading table. VERDICT-INERT (selectivity's verdict is owned by its resolver
-# + veto clamp; this projection never moves the nomination spine). None when tumor-selectivity is
-# absent / supplied no facet.
-def _selectivity_facet(sub_results: dict) -> Optional[dict]:
-    sel = (sub_results or {}).get("selectivity") or {}
-    return sel.get("synthesis_facet")
+# (_selectivity_facet RETIRED 2026-09-03, Wave-3: a thin passthrough of
+# sub_results['selectivity']['synthesis_facet'] whose only consumers — the legacy md/html renderers — are
+# gone; render_review reads the selectivity question_table off the skill_report[] spine. The synthesis_facet
+# itself is still carried by the fan-out + on target_report.skill_reports.selectivity.)
 
 
 # Dependency claim-vector facet: functional-requirement's `_synthesis_facet`,
