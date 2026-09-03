@@ -111,3 +111,65 @@ def test_system_prompt_instructs_verdict_inert_literature_use():
     sys = ne._system(LENS)
     assert "LITERATURE LANE" in sys
     assert "never let the literature move the fixed verdict" in sys.lower()
+
+
+def test_coerce_axes_dict_to_list_and_unwrap_scalars():
+    """A model may emit `axes`/`blind_spots` as an OBJECT keyed by axis letter (not the declared array);
+    _coerce_shapes normalizes dict→list (injecting axis_key) and unwraps provenance-stamped scalars, so
+    every consumer sees the contract shape."""
+    r = {"axes": {"A": {"literature_read": "supports", "citations": [{"label": "x", "pmid": "1", "verified": True}]},
+                  "B": {"axis_key": "B", "literature_read": "mixed", "citations": []}},
+         "blind_spots": {"0": {"signal": "s", "why_omics_blind": "w"}},
+         "overall_consistency": {"value": "concordant", "_source": "llm_synthesized"},
+         "key_divergence": {"value": "none", "_source": "llm_synthesized"}}
+    lit._coerce_shapes(r)
+    assert isinstance(r["axes"], list) and {a["axis_key"] for a in r["axes"]} == {"A", "B"}
+    assert isinstance(r["blind_spots"], list) and r["blind_spots"][0]["signal"] == "s"
+    assert r["overall_consistency"] == "concordant" and r["key_divergence"] == "none"
+
+
+def test_coerce_unwraps_provenance_stamped_fields():
+    """The REAL shape from synthesize_structured: every top-level list/str is stamped as
+    {"value": <orig>, "_source": "llm_synthesized", ...}. _coerce_shapes must unwrap axes/blind_spots/
+    scalars back to their content (so verify + render work) while preserving provenance at the result top
+    level. Regression for the live-caught bug (stamped `axes` wrapper → 0 citations checked)."""
+    stamp = lambda v: {"value": v, "_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}
+    stamped = {"axes": stamp([{"axis_key": "A", "literature_read": "supports",
+                               "citations": [{"label": "x", "pmid": "1", "verified": False}]}]),
+               "blind_spots": stamp([{"signal": "s", "why_omics_blind": "w"}]),
+               "overall_consistency": stamp("concordant"), "key_divergence": stamp("none")}
+    lit._coerce_shapes(stamped)
+    assert isinstance(stamped["axes"], list) and stamped["axes"][0]["axis_key"] == "A"
+    assert stamped["axes"][0]["citations"][0]["pmid"] == "1"
+    assert isinstance(stamped["blind_spots"], list) and stamped["blind_spots"][0]["signal"] == "s"
+    assert stamped["overall_consistency"] == "concordant" and stamped["key_divergence"] == "none"
+    assert stamped["_source"] == "llm_synthesized" and stamped["_model_id"] == "m" and stamped["_prompt_hash"] == "h"
+
+
+def test_synthesize_coerces_dict_axes_before_verify(monkeypatch):
+    """Regression for the live-caught bug: model returned axes as a dict keyed by axis, so verify_citations
+    checked 0 PMIDs. After coercion the verify pass must reach each per-axis citation."""
+    from _skills_common import literature_retrieval as lr
+    dict_shaped = {"axes": {"A": {"literature_read": "supports", "agreement_vs_omics": "agree",
+                                  "confidence": "high",
+                                  "citations": [{"label": "Went", "pmid": "16404366", "verified": False}]}},
+                   "blind_spots": [], "overall_consistency": "concordant", "key_divergence": "none"}
+    monkeypatch.setattr("_skills_common.llm.synthesize_structured", lambda **k: dict_shaped)
+    monkeypatch.setattr(lr, "_pmid_exists", lambda pmid, timeout: True)
+    out = lit.make_literature_fn(LENS, verify_fn=lr.verify_citations)(_decision())
+    assert isinstance(out["axes"], list) and out["axes"][0]["axis_key"] == "A"
+    assert out["axes"][0]["citations"][0]["verified"] is True
+    assert out["_verification"]["n_pmid_checked"] == 1
+
+
+def test_narrator_renders_dict_shaped_axes_after_coerce():
+    """The narrator renderer must not choke if a raw dict-shaped literature block reaches it — build the
+    prompt through _coerce_shapes first (mirrors the synthesize path)."""
+    d = _decision()
+    d["literature_synthesis"] = lit._coerce_shapes({
+        "axes": {"C": {"axis_key": "C", "literature_read": "strongly_supports", "agreement_vs_omics": "agree",
+                       "confidence": "high", "assertion": "EpCAM marks CRC stem cells",
+                       "citations": [{"label": "Dalerba 2007", "pmid": "17548814", "verified": True}]}},
+        "blind_spots": [], "overall_consistency": "concordant", "key_divergence": "none"})
+    prompt = ne.build_capsule_prompt(d, LENS)
+    assert "LITERATURE LANE" in prompt and "EpCAM marks CRC stem cells" in prompt and "PMID:17548814" in prompt

@@ -130,6 +130,52 @@ def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
     return "\n".join(lines)
 
 
+def _unwrap_stamped(v):
+    """`_stamp_llm_provenance` wraps EVERY top-level str/list field as {"value": <orig>, "_source":
+    "llm_synthesized", "_model_id":.., "_prompt_hash":..}. Unwrap that back to <orig> for the literature
+    fields the consumers read; a non-stamped value passes through."""
+    if isinstance(v, dict) and "value" in v and v.get("_source") == "llm_synthesized":
+        return v["value"]
+    return v
+
+
+def _coerce_shapes(result: dict) -> dict:
+    """Normalize model + provenance-stamping shape variance so every consumer (verify_citations, the
+    narrator renderer) sees the contract shape, in place.
+
+      1. UNWRAP provenance stamping: synthesize_structured stamps each top-level field, so `axes`/
+         `blind_spots` arrive as {"value": [...], "_source": "llm_synthesized", ...} (a 4-key wrapper) and
+         the scalars as {"value": "...", ...}. Provenance is preserved by re-attaching _source/_model_id/
+         _prompt_hash at the RESULT top level (audit trail intact) before the per-field values are unwrapped.
+      2. COERCE `axes`/`blind_spots` to a LIST: the schema declares arrays, but a model may emit an OBJECT
+         keyed by axis letter ({"A": {...}}) — coerce dict → list of its dict values (injecting axis_key).
+         A missing/odd shape degrades to []."""
+    if not isinstance(result, dict):
+        return result
+    # (1) lift provenance to the result top level (once), then unwrap each field.
+    if "_source" not in result:
+        for v in result.values():
+            if isinstance(v, dict) and v.get("_source") == "llm_synthesized":
+                for pk in ("_source", "_model_id", "_prompt_hash"):
+                    if pk in v:
+                        result[pk] = v[pk]
+                break
+    for key, id_field in (("axes", "axis_key"), ("blind_spots", None)):
+        v = _unwrap_stamped(result.get(key))
+        if isinstance(v, dict):                       # keyed-by-axis object → list of its dict values
+            norm = []
+            for k, item in v.items():
+                if isinstance(item, dict):
+                    if id_field and not item.get(id_field):
+                        item[id_field] = k
+                    norm.append(item)
+            v = norm
+        result[key] = v if isinstance(v, list) else []
+    for scalar in ("overall_consistency", "key_divergence"):
+        result[scalar] = _unwrap_stamped(result.get(scalar))
+    return result
+
+
 def synthesize_literature(decision: dict, lens: LensConfig, model_id: Optional[str] = None,
                           retrieve_fn: Optional[RetrieveFn] = None,
                           verify_fn: Optional[Callable[[dict], dict]] = None) -> dict:
@@ -153,6 +199,7 @@ def synthesize_literature(decision: dict, lens: LensConfig, model_id: Optional[s
                      "ONLY for identifiers present here):\n" + corpus)
     result = synthesize_structured(system_prompt=_system(lens), user_prompt=user,
                                    tool_name=tool_name, tool_schema=tool_schema, model_id=model_id)
+    _coerce_shapes(result)
     if verify_fn is not None and isinstance(result, dict):
         try:
             result = verify_fn(result)
