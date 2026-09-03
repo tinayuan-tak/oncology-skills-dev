@@ -56,11 +56,10 @@ def test_renders_three_svgs_from_persisted_parquet(tmp_path, monkeypatch):
     descs = f.render_from_plot_data(parquet, summary, out, "MYGENE")
 
     assert _svg_ok(out / "figure_density_expression.svg")
-    assert _svg_ok(out / "figure_waterfall_expression.svg")
     assert _svg_ok(out / "figure_lineage_strip_expression.svg")
 
     static_ids = {d["id"] for d in descs if not d.get("dynamic")}
-    assert static_ids == {"density_expression", "waterfall_expression", "lineage_strip_expression"}
+    assert static_ids == {"density_expression", "lineage_strip_expression"}   # waterfall retired 2026-09-03
     primary = [d for d in descs if d.get("primary")]
     assert len(primary) == 1 and primary[0]["id"] == "density_expression"
     # any plotly descriptors returned are flagged dynamic (mirrors the skills _plotly_from wrapping)

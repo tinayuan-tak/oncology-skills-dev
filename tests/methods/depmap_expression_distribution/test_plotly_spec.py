@@ -56,14 +56,14 @@ def _fixture():
     return tpm, meta, summary
 
 
-def test_emits_three_valid_plotly_specs():
-    """density + waterfall + lineage (the per-lineage box added for the dashboard, 2026-07-21)."""
+def test_emits_two_valid_plotly_specs():
+    """density + lineage (waterfall retired 2026-09-03 — redundant with the annotated density)."""
     tpm, meta, summary = _fixture()
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
         written = cli.emit_plotly_specs(tpm, meta, "KRAS", summary, out, CONTRACTS)
         ids = {w["id"] for w in written}
-        assert ids == {"density_expression", "waterfall_expression", "lineage_expression"}
+        assert ids == {"density_expression", "lineage_expression"}
         for w in written:
             obj = json.loads((out / w["path"]).read_text())
             assert "data" in obj and "layout" in obj and obj["data"], f"{w['id']} not a Plotly spec"
@@ -96,7 +96,7 @@ def test_lineage_plot_highlights_indication_lineage():
         assert reds == ["Bowel"], f"expected Bowel highlighted, got {reds}"
 
 
-def test_no_drift_density_and_waterfall_series_match_input():
+def test_no_drift_density_series_matches_input():
     """The chart series must equal the input tpm values — the interactive figure can't diverge from
     the data (or the SVG / plot_data_expression.parquet drawn from the same source)."""
     tpm, meta, summary = _fixture()
@@ -106,13 +106,11 @@ def test_no_drift_density_and_waterfall_series_match_input():
         cli.emit_plotly_specs(tpm, meta, "KRAS", summary, out, CONTRACTS)
         dens = json.loads((out / "figure_density_expression.plotly.json").read_text())
         assert sorted(_decode(dens["data"][0]["x"])) == expect     # raw scores, any order
-        wf = json.loads((out / "figure_waterfall_expression.plotly.json").read_text())
-        assert _decode(wf["data"][0]["y"]) == expect               # bars sorted ascending
 
 
 def test_reference_lines_present_at_expression_thresholds():
-    """The 1.0 (expressed) / 5.0 (highly-expressed) log2(TPM+1) reference lines mirror the SVGs —
-    density draws them as vertical shapes, waterfall as horizontal shapes."""
+    """The 1.0 (expressed) / 5.0 (highly-expressed) log2(TPM+1) reference lines mirror the SVG —
+    the density draws them as vertical shapes."""
     tpm, meta, summary = _fixture()
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
@@ -120,6 +118,3 @@ def test_reference_lines_present_at_expression_thresholds():
         dens = json.loads((out / "figure_density_expression.plotly.json").read_text())
         xvals = {round(s.get("x0", -99), 2) for s in dens["layout"].get("shapes", [])}
         assert {1.0, 5.0} <= xvals, f"missing expression reflines on density; got {xvals}"
-        wf = json.loads((out / "figure_waterfall_expression.plotly.json").read_text())
-        yvals = {round(s.get("y0", -99), 2) for s in wf["layout"].get("shapes", [])}
-        assert {1.0, 5.0} <= yvals, f"missing expression reflines on waterfall; got {yvals}"

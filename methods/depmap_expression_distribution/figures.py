@@ -64,7 +64,6 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     tpm_by_model, model_metadata = _reconstruct_frame(plot_data)
 
     _cli.emit_density_plot(tpm_by_model, target, summary, out_dir, tcd)
-    _cli.emit_waterfall_plot(tpm_by_model, model_metadata, target, summary, out_dir, tcd)
     _cli.emit_lineage_strip(tpm_by_model, model_metadata, target, summary, out_dir, tcd)
 
     static = [
@@ -72,8 +71,6 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
          "type": "density_histogram_with_kde", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
          "type": "per_lineage_strip_plot", "primary": False},
-        {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
-         "type": "ranked_waterfall", "primary": False},
     ]
     # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
     # We RETURN their descriptors (dynamic: True) too — mirroring the skills _plotly_from wrapping — so

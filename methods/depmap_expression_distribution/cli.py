@@ -389,8 +389,13 @@ def emit_density_plot(tpm_by_model: dict, target_symbol: str, summary: dict,
 
     pal = _load_takeda_style(target_contracts_dir)
     scores = np.array(list(tpm_by_model.values()))
+    # the metrics behind the expression_class call (what drives the takeaway): fraction of cell lines
+    # expressed (≥1) and highly (≥5), and the panel median — annotated directly on the plot.
+    frac_exp = summary.get("fraction_expressed")
+    frac_high = summary.get("fraction_highly_expressed")
+    med = summary.get("median_log2tpm_panel")
     out_path = out_dir / "figure_density_expression.svg"
-    with pal.figure_frame(target_symbol, None, "cell-line expression distribution", out_path=out_path,
+    with pal.figure_frame(target_symbol, None, "cell-line RNA expression", out_path=out_path,
                           kind="scatter", provenance=f"DepMap 26Q1 RNA  ·  n={len(scores)} cancer cell lines",
                           takeaway=_cellline_take(target_symbol, summary)) as F:
         ax = F.ax
@@ -399,39 +404,22 @@ def emit_density_plot(tpm_by_model: dict, target_symbol: str, summary: dict,
             kde = gaussian_kde(scores)
             xs = np.linspace(scores.min() - 0.2, scores.max() + 0.2, 500)
             ax.plot(xs, kde(xs), color=pal.TUMOR_LINE, linewidth=2)
-        ax.axvline(1.0, label="expressed ≥1", **pal.REFLINE_NEUTRAL)
-        ax.axvline(5.0, label="highly expressed ≥5", **pal.REFLINE_NEUTRAL)
-        ax.legend(loc="upper right", fontsize=7, frameon=False)
-        F.axis_label("x", "Expression", "log2(TPM + 1), DepMap cell lines")
+        # threshold lines annotated DIRECTLY (no legend), each carrying the % of cell lines above it —
+        # the classify metric behind the takeaway. Median marker anchors "moderate levels".
+        def _thresh(xv, label, frac):
+            ax.axvline(xv, **pal.REFLINE_NEUTRAL)
+            txt = f"{label}: {frac*100:.0f}%" if frac is not None else label
+            ax.annotate(txt, xy=(xv, 0.99), xycoords=("data", "axes fraction"), ha="center", va="top",
+                        xytext=(0, -2), textcoords="offset points", fontsize=8, color=pal.INK_MUTED)
+        _thresh(1.0, "expressed ≥1", frac_exp)
+        _thresh(5.0, "highly ≥5", frac_high)
+        if med is not None:
+            ax.axvline(med, color=pal.INK_SECONDARY, linewidth=1.4, zorder=5)
+            ax.annotate(f"median {med:.1f}", xy=(med, 0.5), xycoords=("data", "axes fraction"),
+                        ha="right", va="center", rotation=90, fontsize=8, color=pal.INK_SECONDARY,
+                        xytext=(-3, 0), textcoords="offset points")
+        F.axis_label("x", "RNA expression", "log2(TPM + 1), DepMap cell lines")
         F.axis_label("y", "Density")
-    return out_path
-
-
-def emit_waterfall_plot(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
-                         summary: dict, out_dir: Path, target_contracts_dir: Path) -> Path:
-    """Emit ranked-waterfall SVG — SECONDARY figure (demoted from primary).
-
-    Shows the per-cell-line distribution sorted ascending. Less interpretable than
-    the density plot at-a-glance but preserves the per-line resolution that
-    density bins out.
-    """
-    import matplotlib
-    matplotlib.use("Agg")
-    import pandas as pd
-
-    pal = _load_takeda_style(target_contracts_dir)
-    df = pd.DataFrame([{"log2tpm": v} for v in tpm_by_model.values()]).sort_values("log2tpm").reset_index(drop=True)
-    out_path = out_dir / "figure_waterfall_expression.svg"
-    with pal.figure_frame(target_symbol, None, "cell-line expression, ranked", out_path=out_path,
-                          kind="scatter", provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines (sorted)",
-                          takeaway=_cellline_take(target_symbol, summary)) as F:
-        ax = F.ax
-        ax.bar(range(len(df)), df["log2tpm"], width=1.0, color=pal.TUMOR_LINE, linewidth=0)
-        ax.axhline(1.0, label="expressed ≥1", **pal.REFLINE_NEUTRAL)
-        ax.axhline(5.0, label="highly expressed ≥5", **pal.REFLINE_NEUTRAL)
-        ax.legend(loc="upper left", fontsize=7, frameon=False)
-        F.axis_label("x", "Cell lines", "ranked by expression")
-        F.axis_label("y", "Expression", "log2(TPM + 1)")
     return out_path
 
 
@@ -457,7 +445,7 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
     # takeaway by absolute inches for tall figs; margins passed as inch-derived fractions.
     fig_h = min(max(3.8, len(lineages_ordered) * 0.24 + 1.4), 7.6)
     out_path = out_dir / "figure_lineage_strip_expression.svg"
-    with pal.figure_frame(target_symbol, None, "cell-line expression by lineage", out_path=out_path,
+    with pal.figure_frame(target_symbol, None, "cell-line RNA expression by lineage", out_path=out_path,
                           figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h), left=0.24,
                           top=1 - 0.72 / fig_h, bottom=0.95 / fig_h,
                           provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines  ·  lineages with n≥5",
@@ -537,31 +525,6 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         written.append({"id": "density_expression", "path": "figure_density_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
         print(f"[cellline-rna-distribution] density plotly skipped: {e}", file=sys.stderr)
-
-    # --- Ranked waterfall (mirrors emit_waterfall_plot; sorted per-cell-line bars, lineage hover) ---
-    try:
-        rows = sorted(
-            ((mid, v, (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"))
-             for mid, v in tpm_by_model.items()), key=lambda r: r[1])
-        vals = [v for _, v, _ in rows]
-        names = [model_metadata.get(mid, {}).get("CCLEName", mid) for mid, _, _ in rows]
-        lineages = [lg for _, _, lg in rows]
-        fig = go.Figure(go.Bar(
-            x=list(range(len(rows))), y=vals, marker_color="#0a2540",
-            customdata=list(zip(names, lineages)),
-            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>log2(TPM+1) %{y:.2f}<extra></extra>"))
-        for yv, col, dash, lab in reflines:
-            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
-                          annotation_text=lab, annotation_position="top left")
-        fig.update_layout(
-            title=f"{target_symbol} — pan-cancer expression (ranked waterfall)",
-            xaxis_title=f"Cell lines (n={len(rows)}, sorted by expression)",
-            yaxis_title="log2(TPM+1)", template="plotly_white", showlegend=False,
-            bargap=0, margin=dict(l=60, r=20, t=50, b=50))
-        (out_dir / "figure_waterfall_expression.plotly.json").write_text(fig.to_json())
-        written.append({"id": "waterfall_expression", "path": "figure_waterfall_expression.plotly.json", "type": "plotly"})
-    except Exception as e:  # noqa: BLE001
-        print(f"[cellline-rna-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
 
     # --- Per-lineage box (mirrors emit_lineage_strip; n>=5, ordered by median desc). The
     #     indication's DepMap lineage is highlighted (red) — the indication-specific cell-line view. ---
@@ -665,7 +628,6 @@ def main(target, release_pin, expressed_threshold, out):
     summary = compute_summary_stats(tpm_by_model, model_meta, expressed_threshold=expressed_threshold)
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     emit_density_plot(tpm_by_model, target, summary, out, DEFAULT_TARGET_CONTRACTS)
-    emit_waterfall_plot(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_lineage_strip(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     plotly_specs = emit_plotly_specs(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_plot_data(tpm_by_model, model_meta, expressed_threshold, out)
