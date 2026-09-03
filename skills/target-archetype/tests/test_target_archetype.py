@@ -200,6 +200,39 @@ def test_fired_rule_ids_from_sub_results_drops_none():
     assert ac.fired_rule_ids_from_sub_results(_fake_sub_results()) == {"expr.present.strong", "safety.tolerant"}
 
 
+def _spine_sub_results():
+    """The SAME signals as _fake_sub_results, but carried on the skill_report[] SPINE (claim_chips +
+    provenance.fired_rule_ids) — the contract §100-128 read path the archetype vectoriser now prefers."""
+    return {
+        "expression": {"synthesis_facet": {"skill_report": {
+            "claim_chips": [{"key": "TUMOR_PRESENT", "signal": "strong", "corroboration": "high"},
+                            {"key": "CELLLINE_RNA", "signal": "moderate", "corroboration": "moderate"}],
+            "provenance": {"fired_rule_ids": ["expr.present.strong"]}}}},
+        "safety": {"synthesis_facet": {"skill_report": {
+            "claim_chips": [{"key": "LOF_CONSTRAINT", "signal": "absent", "corroboration": "low"}],
+            "provenance": {"fired_rule_ids": ["safety.tolerant"]}}}},
+    }
+
+
+def test_vector_and_rules_read_from_skill_report_spine():
+    # spine-only (no raw claim_vector / fired) → the vectoriser reconstructs the SAME coordinates
+    spine = ac.vector_from_sub_results(_spine_sub_results())
+    legacy = ac.vector_from_sub_results(_fake_sub_results())
+    assert spine == legacy                                    # byte-identical: chips are a lossless projection
+    assert ac.fired_rule_ids_from_sub_results(_spine_sub_results()) == {"expr.present.strong", "safety.tolerant"}
+
+
+def test_spine_preferred_over_legacy_claim_vector():
+    # a result carrying BOTH → the skill_report spine wins (the legacy claim_vector is only a fallback)
+    r = {"expression": {"synthesis_facet": {
+        "skill_report": {"claim_chips": [{"key": "A", "signal": "strong", "corroboration": "high"}],
+                         "provenance": {"fired_rule_ids": ["spine.rule"]}},
+        "claim_vector": {"A": {"signal": "absent", "corroboration": "absent"}}},
+        "fired": [{"rule_id": "legacy.rule"}]}}
+    assert ac.vector_from_sub_results(r)["expression::claim::A::signal"] == 3.0    # strong (spine), not absent
+    assert ac.fired_rule_ids_from_sub_results(r) == {"spine.rule"}                  # spine, not legacy
+
+
 def _sub_results_from_atlas_row(atlas: Atlas, i: int) -> dict:
     """Reconstruct an in-process `sub_results` from atlas row i (signal + corrob tiers) so the query lands
     on REAL atlas coordinates and the in-process path is exercised end-to-end."""

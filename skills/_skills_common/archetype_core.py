@@ -71,27 +71,58 @@ def claim_features(subskill_claim_vectors: dict) -> dict:
     return out
 
 
+def _claim_vector_from_report(skill_report: dict) -> dict:
+    """Reconstruct the {CLAIM: {signal, corroboration}} shape `claim_features` expects from a
+    skill_report's `claim_chips` (the SPINE). A chip is a projection of a claim_vector atom, so the two
+    coordinate systems are identical: chip.key -> CLAIM, chip.signal/corroboration -> the atom's. This
+    lets the archetype vectoriser read the wired skill_report[] spine rather than the raw claim_vector
+    reach-in (contract §100-128)."""
+    out: dict = {}
+    for chip in (skill_report.get("claim_chips") or []):
+        if isinstance(chip, dict) and chip.get("key") is not None:
+            out[chip["key"]] = {"signal": chip.get("signal"), "corroboration": chip.get("corroboration")}
+    return out
+
+
 def vector_from_sub_results(sub_results: dict) -> dict:
-    """Build the query feature dict from the in-process fan-out `sub_results` (dict short -> r)."""
+    """Build the query feature dict from the in-process fan-out `sub_results` (dict short -> r).
+
+    Reads each sub-skill's claim vector FROM THE skill_report[] spine (`synthesis_facet.skill_report.
+    claim_chips`), falling back to the legacy `synthesis_facet.claim_vector` for a result that carries no
+    report (e.g. the composed subtype tier). Byte-identical to the former claim_vector read — chips are a
+    lossless projection of the claim_vector atoms — but sourced from the wired spine (contract §100-128)."""
     cvs = {}
     for short, r in (sub_results or {}).items():
         if not isinstance(r, dict):
             continue
-        cv = (r.get("synthesis_facet") or {}).get("claim_vector")
+        facet = r.get("synthesis_facet") or {}
+        sr = facet.get("skill_report")
+        cv = _claim_vector_from_report(sr) if isinstance(sr, dict) else None
+        if not cv:                                            # no report / no chips → legacy fallback
+            cv = facet.get("claim_vector")
         if isinstance(cv, dict) and cv:
             cvs[short] = cv
     return claim_features(cvs)
 
 
 def fired_rule_ids_from_sub_results(sub_results: dict) -> set:
-    """The union of fired rule_ids across sub-skills — the auditable rule-fingerprint of a target."""
+    """The union of fired rule_ids across sub-skills — the auditable rule-fingerprint of a target.
+
+    Reads each sub-skill's fired set FROM THE skill_report[] spine (`skill_report.provenance.
+    fired_rule_ids`), falling back to the raw `fired` list for a result without a report (the subtype
+    tier). Byte-identical union — the report's fired_rule_ids are the rule_ids of the same `fired`."""
     hits: set = set()
     for r in (sub_results or {}).values():
         if not isinstance(r, dict):
             continue
-        for f in (r.get("fired") or []):
-            if isinstance(f, dict) and f.get("rule_id"):
-                hits.add(f["rule_id"])
+        sr = (r.get("synthesis_facet") or {}).get("skill_report")
+        rule_ids = ((sr or {}).get("provenance") or {}).get("fired_rule_ids") if isinstance(sr, dict) else None
+        if rule_ids:
+            hits.update(rid for rid in rule_ids if rid)
+        else:                                                 # no report → legacy fired fallback
+            for f in (r.get("fired") or []):
+                if isinstance(f, dict) and f.get("rule_id"):
+                    hits.add(f["rule_id"])
     return hits
 
 
