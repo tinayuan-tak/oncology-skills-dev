@@ -700,9 +700,9 @@ def emit_lineage_strip_protein(abundance_by_model: dict, lineage_by_model: dict,
             ax.scatter([np.median(scores)], [i], color=pal.INK_SECONDARY, s=34, marker="|", zorder=5)
         if hi is not None:
             ax.axvline(hi, **pal.REFLINE_NEUTRAL)
-            ax.annotate(f"panel-high p70 {hi:.1f}", xy=(hi, 1.0), xycoords=("data", "axes fraction"),
-                        ha="center", va="bottom", xytext=(0, 2), textcoords="offset points",
-                        fontsize=7.5, color=pal.INK_MUTED)
+            ax.annotate(f"panel-high p70 {hi:.1f}", xy=(hi, 0.99), xycoords=("data", "axes fraction"),
+                        ha="center", va="top", xytext=(0, -2), textcoords="offset points",
+                        fontsize=7.5, color=pal.INK_MUTED)   # inside top edge (clears the provenance line)
         ax.set_yticks(range(len(ordered))); ax.set_yticklabels(ordered, fontsize=7.5)
         ax.set_ylim(-0.8, len(ordered) - 0.2); ax.invert_yaxis()
         ax.grid(axis="x", alpha=0.25, linewidth=0.4); ax.grid(axis="y", visible=False)
