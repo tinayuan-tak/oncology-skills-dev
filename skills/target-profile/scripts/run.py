@@ -974,6 +974,11 @@ def main() -> int:
         # thesis/coherence lens on top. Additive; never touch the spine above.
         "target_rollup": target_rollup,
         "target_coherence": target_coherence,
+        # Literature-derived risk-by-dimension (the --risk-assessment / grounded lit lane). Serialized so
+        # the report_render literature_risk block can render it (it reads nomination.risk_assessment);
+        # None on a default run without the lit-risk lane. VERDICT-INERT — literature is context, never a
+        # gate. (Was previously passed only to the now-deprecated legacy html renderer, never persisted.)
+        "risk_assessment": risk_assessment,
         # Presence cross-modal reconciliation facet (2026-08-17): tumor-presence's per-modality
         # presence matrix + RNA→protein proxy-quality + normal-tissue comparators. A FACET (not a
         # gate) — surfaces cross-modal tension the one-word presence verdict hides + frames tumor
