@@ -15,8 +15,8 @@ import json
 import sys
 from pathlib import Path
 
-from . import backend_names, render_all, render_report, resolve_spec
-from .backends import BINARY_BACKENDS, EXTENSIONS
+from . import backend_names, build_ir_auto, resolve_spec
+from .backends import BINARY_BACKENDS, EXTENSIONS, render as render_ir
 from .spec import LEVELS, MEDIA, LEADS, PRESETS
 
 
@@ -44,7 +44,10 @@ def _overrides(args) -> dict:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m _skills_common.report_render",
                                  description="Render a target report from a nomination.json spine.")
-    ap.add_argument("nomination", type=Path, help="path to a nomination.json")
+    ap.add_argument("input", type=Path,
+                    help="path to a nomination.json OR a standalone skill decision.json")
+    ap.add_argument("--target", default=None, help="override target label (for a decision.json)")
+    ap.add_argument("--indication", default=None, help="override indication label")
     ap.add_argument("--preset", choices=sorted(PRESETS), default=None)
     ap.add_argument("--backend", choices=backend_names(), default="text")
     ap.add_argument("--all-backends", action="store_true", help="render every backend (needs --out)")
@@ -57,21 +60,24 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     try:
-        nomination = json.loads(args.nomination.read_text())
+        data = json.loads(args.input.read_text())
     except (OSError, json.JSONDecodeError) as e:
-        ap.error(f"cannot read nomination {args.nomination}: {e}")
+        ap.error(f"cannot read input {args.input}: {e}")
 
     spec = resolve_spec(args.preset, **_overrides(args))
     label = args.preset or f"{spec.level}-{spec.medium}"
+    # auto-detect nomination.json (composed) vs a standalone skill decision.json.
+    ir = build_ir_auto(data, spec, target=args.target, indication=args.indication)
 
     if args.all_backends:
         if not args.out:
             ap.error("--all-backends requires --out")
-        rendered = render_all(nomination, spec=spec)
+        names = backend_names()
     else:
         if not args.out and args.backend in BINARY_BACKENDS:
             ap.error(f"the {args.backend!r} backend is binary — use --out DIR (cannot print to stdout)")
-        rendered = {args.backend: render_report(nomination, spec=spec, backend=args.backend)}
+        names = [args.backend]
+    rendered = {name: render_ir(ir, name) for name in names}
 
     if not args.out:
         sys.stdout.write(next(iter(rendered.values())))

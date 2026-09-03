@@ -51,9 +51,36 @@ GATING_SHORTS: frozenset = frozenset({
 ROLE_RANK: dict[str, int] = {"gating": 0, "descriptive": 1, "inert": 2}
 
 
+# full skill DIR name (as written in a standalone decision.json's `skill` field) → fan-out short.
+# Mirror of tp_fanout.SUB_SKILLS. Lets a standalone-skill renderer resolve a nice title/role from the
+# `decision["skill"]` value (the `short` is NOT present in a standalone artifact).
+SKILL_NAME_TO_SHORT: dict[str, str] = {
+    "tumor-presence": "expression",
+    "tumor-selectivity": "selectivity",
+    "functional-requirement": "dependency",
+    "mechanism-and-pharmacology": "mechanism",
+    "genomic-alteration-profile": "genomic_alteration",
+    "differentiation-landscape": "differentiation",
+    "tractability-small-molecule": "tractability_sm",
+    "surface-modality-fit": "surface_modality",
+    "immune-context": "immune_context",
+    "on-target-safety-liability": "safety",
+    "target-intrinsic": "target_intrinsic",
+    "cis-feature-coherence": "cis_coherence",
+    "combination-and-vulnerability": "combination_vulnerability",
+    "translational-readiness": "translational_readiness",
+    "literature-context": "literature_context",
+}
+
+
+def skill_short_for_name(name) -> Optional[str]:
+    """Map a full skill dir name (decision.json `skill`) → fan-out short, or None if unknown."""
+    return SKILL_NAME_TO_SHORT.get(name) if isinstance(name, str) else None
+
+
 def skill_title(short: str) -> str:
     """Human label for a skill short; fail-soft titleization for an unmapped short."""
-    return SKILL_DISPLAY.get(short) or short.replace("_", " ").capitalize()
+    return SKILL_DISPLAY.get(short) or short.replace("_", " ").replace("-", " ").capitalize()
 
 
 def skill_order_index(short: str) -> int:
@@ -140,8 +167,8 @@ def polarity_legend() -> dict:
 
 
 __all__ = [
-    "SKILL_DISPLAY", "SKILL_ORDER", "GATING_SHORTS", "ROLE_RANK",
-    "skill_title", "skill_order_index",
+    "SKILL_DISPLAY", "SKILL_ORDER", "GATING_SHORTS", "ROLE_RANK", "SKILL_NAME_TO_SHORT",
+    "skill_title", "skill_order_index", "skill_short_for_name",
     "BLOCK_KINDS", "TIER", "CHIP_LIMIT_BY_LEVEL",
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",

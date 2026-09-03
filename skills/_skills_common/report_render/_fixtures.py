@@ -93,6 +93,27 @@ def make_nomination() -> dict:
     }
 
 
+def make_decision_json(skill_name: str = "on-target-safety-liability", *, with_evidence: bool = True,
+                       call: str = "lof_constrained", role: str = "gating",
+                       polarity: str = "killer") -> dict:
+    """A STANDALONE skill decision.json: skill_report lives at decision['headline']['skill_report']
+    (the shared write_package path). Mirrors the real on-disk shape."""
+    return {
+        "skill": skill_name,
+        "target": "USP8",
+        "indication": "COADREAD",
+        "headline": {
+            "headline_text": "…",
+            "skill_report": _skill(call=call, role=role, polarity=polarity,
+                                   honest_phrase="Highly LoF-constrained — full-KO risk",
+                                   with_evidence=with_evidence,
+                                   tension=({"text": "constraint vs selectivity", "source": "safety",
+                                             "severity": "high"} if with_evidence else None)),
+        },
+        "run_health": {"skill_name": skill_name, "status": "ok"},
+    }
+
+
 def make_null_heavy_nomination() -> dict:
     """The fail-soft stressor: gateless call=None, empty everything, a None honest_phrase."""
     return {

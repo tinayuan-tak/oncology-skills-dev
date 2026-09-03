@@ -237,20 +237,44 @@ def build_ir(nomination: dict, spec: ReportSpec,
     sections = [_build_section(short, report, spec, is_deciding=(short == deciding_short))
                 for short, report, role in selected]
 
-    about = None
-    if spec.level_int >= vocab.TIER[vocab.ABOUT]:
-        about = Block(vocab.ABOUT, {
-            "polarity_legend": vocab.polarity_legend(),
-            "spec": {"level": spec.level, "medium": spec.medium,
-                     "scope": list(spec.scope) if isinstance(spec.scope, tuple) else spec.scope,
-                     "lead": spec.lead},
-            "note": ("Signals lead; the call is a subordinate summary. Ordinal polarity is an "
-                     "order-preserving display view, NOT calibrated measurement; 'not scored' / "
-                     "off-scale means context or a coverage gap, not a low score."),
-        })
-
     return ReportIR(target=target, indication=indication, spec=spec, header=header,
-                    sections=sections, about=about, deciding_short=deciding_short)
+                    sections=sections, about=_about_block(spec), deciding_short=deciding_short)
 
 
-__all__ = ["Block", "Section", "ReportIR", "build_ir"]
+def _about_block(spec: ReportSpec) -> Optional[Block]:
+    """The honesty legend / spec footer — shown from L1 up (kept off the one-page L0 exec brief)."""
+    if spec.level_int < vocab.TIER[vocab.ABOUT]:
+        return None
+    return Block(vocab.ABOUT, {
+        "polarity_legend": vocab.polarity_legend(),
+        "spec": {"level": spec.level, "medium": spec.medium,
+                 "scope": list(spec.scope) if isinstance(spec.scope, tuple) else spec.scope,
+                 "lead": spec.lead},
+        "note": ("Signals lead; the call is a subordinate summary. Ordinal polarity is an "
+                 "order-preserving display view, NOT calibrated measurement; 'not scored' / "
+                 "off-scale means context or a coverage gap, not a low score."),
+    })
+
+
+def build_ir_for_skill(skill_report: dict, spec: ReportSpec, *, skill_name: Optional[str] = None,
+                       short: Optional[str] = None, target: Optional[str] = None,
+                       indication: Optional[str] = None) -> ReportIR:
+    """Project a SINGLE skill's `skill_report` into a one-section report IR (for rendering a standalone
+    skill run, e.g. tumor-presence, without a full target_report). No target_call decision header — the
+    header is just the target/indication frame; the skill's own call/polarity lead its section. Same
+    tiering, medium and fail-soft as the composed path."""
+    skill_report = skill_report or {}
+    if short is None:
+        short = vocab.skill_short_for_name(skill_name) or skill_name or "skill"
+    header = Block(vocab.REPORT_HEADER, {
+        "target": target, "indication": indication,
+        "recommendation": None, "confidence": None, "deciding_axis": None,
+        "deciding_short": None, "deciding_title": None, "dissent": [], "gate": None,
+        "lead": spec.lead, "single_skill": True,
+    })
+    section = _build_section(short, skill_report, spec, is_deciding=False)
+    return ReportIR(target=target, indication=indication, spec=spec, header=header,
+                    sections=[section], about=_about_block(spec), deciding_short=None)
+
+
+__all__ = ["Block", "Section", "ReportIR", "build_ir", "build_ir_for_skill"]
