@@ -201,6 +201,7 @@ def _render_target_profile_md(
     archetype_companion: Optional[dict] = None,
     nomination_scorecard: Optional[dict] = None,
     risk_rollup: Optional[dict] = None,
+    recommendation_gate: Optional[dict] = None,
 ) -> str:
     """Render target_profile.md with clearly-tagged LLM sections + per-phase
     evidence tables + risk-by-category summary + deciding-axis routing + the
@@ -253,10 +254,21 @@ def _render_target_profile_md(
 
     rec = _val("overall_recommendation")
     conf = _val("confidence")
-    lines.append("## Recommendation *(LLM-synthesized, enum-constrained)*")
+    # The Action shown is the RECOMMENDATION OF RECORD: run.main clamps overall_recommendation.value to
+    # the deterministic recommendation-gate action, so `rec` is authoritative, not the LLM's raw pick. The
+    # LLM synthesis is ADVISORY (it narrates; it does not set the call) — label it so, and when the gate
+    # OVERRODE the LLM, surface that disagreement rather than hide it (contract rules 1-2).
+    _rg = recommendation_gate or {}
+    lines.append("## Recommendation *(deterministic gate — LLM synthesis is advisory)*")
     lines.append("")
     lines.append(f"- **Action:** `{rec}`")
     lines.append(f"- **Confidence:** `{conf}`")
+    lines.append("_The action is the deterministic recommendation gate's — the recommendation of record. "
+                 "The LLM synthesis below is **advisory (does not set the call)**._")
+    if _rg.get("overridden"):
+        lines.append(f"- **⚠ LLM↔gate disagreement:** the LLM advised "
+                     f"`{_rg.get('llm_recommendation')}`, but the deterministic gate forced "
+                     f"`{_rg.get('forced_recommendation')}` (the auditable rule wins).")
     lines.append("")
 
     # --- Target-signature landscape (deterministic, DESCRIPTIVE, verdict-inert) --------------------

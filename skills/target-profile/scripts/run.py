@@ -633,6 +633,13 @@ def main() -> int:
     else:
         print(f"[target-profile] Invoking Bedrock synthesis (biology_axis={axis_info['biology_axis']})...",
               file=sys.stderr)
+        # ABSORB (feed-only): the advisory synthesis NARRATES the deterministic 6-dim governance risk
+        # roll-up. Computed here as a DETERMINISTIC-only view (grounded_by_axis=None, no file write) — it
+        # is grounding-INVARIANT (grounding never moves a bin since the 2026-09-03 demotion), so this
+        # pre-synthesis view has bins identical to the artifact risk_rollup computed post-grounding below.
+        # Best-effort (None on failure → the prompt simply omits the block). VERDICT-INERT.
+        from tp_grounding import build_risk_6dim
+        risk_6dim_for_synthesis = build_risk_6dim(sub_results, args.modality, None, out_dir=None)
         tool_schema = _build_synthesis_tool()
         user_prompt = _build_user_prompt(
             args.target, args.indication, sub_results,
@@ -647,6 +654,7 @@ def main() -> int:
             actionability_mode=actionability_mode,
             competitor_crossref=competitor_crossref,
             narrative_by_axis=narrative_by_axis,
+            risk_6dim=risk_6dim_for_synthesis,
         )
         llm_output = synthesize_structured(
             system_prompt=_SYSTEM_PROMPT,
@@ -878,8 +886,9 @@ def main() -> int:
         actionability_mode=actionability_mode,
         archetype_companion=archetype_companion,
         nomination_scorecard=nomination_scorecard_facet,
-        risk_rollup=risk_rollup,   # canonical 6-dim risk (same source as HTML); md falls back to its
-                                   # local mapping when the substrate chain didn't produce it
+        risk_rollup=risk_rollup,   # canonical deterministic risk_6dim (the ONE source md/html/json share)
+        recommendation_gate=recommendation_gate,   # so the recommendation renders as advisory + surfaces
+                                                    # any LLM↔deterministic-gate disagreement as a tension
     )
     write_artifact(args.out, "markdown", md, _written)
 

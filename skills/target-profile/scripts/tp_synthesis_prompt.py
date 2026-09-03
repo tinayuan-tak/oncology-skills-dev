@@ -455,6 +455,41 @@ def _render_narrative_block(narrative_by_axis: Optional[dict]) -> list[str]:
     return out
 
 
+def _render_risk_6dim_block(risk_6dim: Optional[dict]) -> Optional[str]:
+    """The deterministic 6-dimension governance risk roll-up (`target_report.risk_6dim`) as ANCHORED
+    context for the narration (the ABSORB of the 6-dim risk into the advisory synthesis layer).
+
+    VERDICT-INERT: `risk_6dim` is a pure spine PROJECTION — its bins are a deterministic function of the
+    sub-verdicts, and (since the grounding demotion) literature never moves a bin — so the narration
+    reasons about WHERE risk concentrates by governance category (AstraZeneca 5R), it does NOT set the
+    call (`target_call` owns that). An `ENGINE-BLIND` dim is an honest coverage gap
+    (`insufficient_evidence`), NOT low risk — the narration must not read absence as safety."""
+    dims = risk_6dim.get("dims") if isinstance(risk_6dim, dict) and "dims" in risk_6dim else risk_6dim
+    if not isinstance(dims, dict):
+        return None
+    order = ("biological", "druggability", "safety", "translational", "clinical", "commercial")
+    rows = []
+    for d in order:
+        c = dims.get(d)
+        if not isinstance(c, dict) or "bin" not in c:
+            continue
+        b = c.get("bin")
+        label = "insufficient_evidence (engine-blind — a gap, not low risk)" if b == "ENGINE-BLIND" else b
+        chain = c.get("chain") or []
+        driver = (f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2
+                  else (c.get("pillar") or ""))
+        disc = " ⚠ literature-discordant" if c.get("engine_literature_discordance") else ""
+        rows.append(f"- **{d}**: `{label}`{disc} — {driver}")
+    if not rows:
+        return None
+    return ("### 6-dimension risk roll-up (deterministic `risk_6dim`; a FACET, not a gate)\n"
+            "Governance-category (AstraZeneca 5R) view of the SAME deterministic sub-verdicts, worst-case "
+            "per category. VERDICT-INERT — use it to frame WHERE the residual risk concentrates and to "
+            "structure the tension analysis; it NEVER moves the recommendation (`target_call` owns that). "
+            "`insufficient_evidence` = no wired engine leg (an honest gap), NOT low risk.\n"
+            + "\n".join(rows))
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -470,6 +505,7 @@ def _build_user_prompt(
     actionability_mode: Optional[dict] = None,
     competitor_crossref: Optional[dict] = None,
     narrative_by_axis: Optional[dict] = None,
+    risk_6dim: Optional[dict] = None,
 ) -> str:
     """Compose the user-message text: biology-axis governance + sub-verdicts + per-axis
     how-solid (certainty) block + modality-scoped matrix slice + biomarker convergence facet +
@@ -514,6 +550,10 @@ def _build_user_prompt(
             lines.append(f"- **{short}** ({r['skill_dir']}): "
                          f"`{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
+    _risk_block = _render_risk_6dim_block(risk_6dim)
+    if _risk_block:
+        lines.append(_risk_block)
+        lines.append("")
     if competitor_crossref is not None:
         cx = competitor_crossref
         lines.append("### Competitor cross-reference facet (deterministic; a FACET, not a gate)")
