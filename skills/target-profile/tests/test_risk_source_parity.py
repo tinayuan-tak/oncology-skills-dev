@@ -15,9 +15,7 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from _skills_common.risk_projection import deterministic_bins  # noqa: E402
-from tp_render_md import _risk_rows_from_rollup  # noqa: E402
-from tp_render_html import _render_risk_rollup_html  # noqa: E402
+from _skills_common.risk_projection import deterministic_bins, _risk_rows_from_rollup  # noqa: E402
 from tp_facets import build_target_report  # noqa: E402
 import tp_grounding  # noqa: E402
 
@@ -47,7 +45,10 @@ def test_build_risk_6dim_offline_equals_pure_projection():
     assert dims["clinical"]["bin"] == "ENGINE-BLIND"
 
 
-def test_md_html_and_target_report_share_one_source():
+def test_row_projection_and_target_report_share_one_source():
+    # (the html-render leg was removed with tp_render_html 2026-09-03; report_render renders the risk-6dim
+    # from target_report.risk_6dim now. The single-source invariant across the row projection + target_report
+    # is what this guards.)
     dims = tp_grounding.build_risk_6dim(_sub_results(), "small_molecule", None, None)
 
     # (1) target_report.risk_6dim is the SAME dims object (by reference — no recompute).
@@ -55,7 +56,8 @@ def test_md_html_and_target_report_share_one_source():
                              risk_rollup=dims)
     assert tr["risk_6dim"] is dims
 
-    # (2) the md table renders from that same dims (LOW→LOW, HIGH→HIGH, ENGINE-BLIND→insufficient_evidence).
+    # (2) the (category, level, driver) row projection renders from that same dims
+    # (LOW→LOW, HIGH→HIGH, ENGINE-BLIND→insufficient_evidence).
     rows = _risk_rows_from_rollup(dims)
     lvl = {c: l for c, l, _ in rows}
     assert lvl["safety"] == "HIGH"
@@ -63,8 +65,3 @@ def test_md_html_and_target_report_share_one_source():
     assert lvl["clinical"] == "insufficient_evidence"
     assert {c for c, _, _ in rows} == {"biological", "druggability", "translational",
                                        "clinical", "safety", "commercial"}
-
-    # (3) the HTML risk section renders from that same dims — the safety HIGH chip is present.
-    html = "".join(_render_risk_rollup_html(dims))
-    assert "HIGH" in html
-    assert "not evidenced" in html  # ENGINE-BLIND chip wording (clinical/commercial/translational)

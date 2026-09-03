@@ -94,21 +94,9 @@ def test_subtype_block_is_prominent():
     assert r2["subtype"]["prominence"] == "whole_cohort" and "Whole-cohort" in r2["subtype"]["headline"]
 
 
-def test_subtype_banner_prominent_in_html_header():
-    import tp_render_html as tph
-    sr = {"expression": {"skill_dir": "tumor-presence", "cards": [{"card_id": "rna", "summary": {}}],
-                         "verdict": ("tumor_broadly_expressed", "r"), "fired": []}}
-    llm = {"executive_summary": {"value": "e"}, "overall_recommendation": {"value": "hold"},
-           "confidence": {"value": "high"}, "tension_analysis": {"value": "t"}}
-    tr = tf.build_target_rollup(sr, {"adc": {"fit": "favorable"}},
-                                subtype_facet={"convergent_subtypes": ["MSI-H"],
-                                               "axes_available": ["expression"], "n_subtypes_evaluated": 3})
-    h = tph._render_target_profile_html("KRAS", "COADREAD", sr, llm, {}, target_rollup=tr)
-    assert "subtype-banner subtype-hit" in h and "MSI-H" in h    # prominent, in the header
-    # whole-cohort → muted banner, still present (never silently dropped)
-    tr2 = tf.build_target_rollup(sr, {"adc": {"fit": "favorable"}}, subtype_facet=None)
-    h2 = tph._render_target_profile_html("KRAS", "COADREAD", sr, llm, {}, target_rollup=tr2)
-    assert "subtype-banner subtype-muted" in h2 and "Whole-cohort" in h2
+# (test_subtype_banner_prominent_in_html_header was removed with the retirement of tp_render_html
+# 2026-09-03 — it asserted the legacy html renderer's subtype-banner markup; the subtype float-up data
+# it fed on is covered by the build_target_rollup subtype-block tests above + report_render's suite.)
 
 
 def test_assemblers_do_not_mutate_sub_results():

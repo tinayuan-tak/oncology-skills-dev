@@ -82,30 +82,5 @@ def test_md_omits_presence_table_without_facet():
     md = tp._render_target_profile_md("CEACAM5", "COADREAD", _sr(), _LLM, {})
     assert "## Presence × context" not in md
 
-
-def test_html_inlines_presence_matrix_svg_when_facet_present():
-    html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {}, presence_facet=_facet())
-    assert "Presence × context" in html
-    assert "s-presence-matrix" in html
-    assert "<svg" in html                                  # the hero SVG is inlined
-    assert "Deterministic VIEW" in html                    # honesty label
-
-
-def test_html_omits_presence_matrix_without_facet():
-    html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {})
-    assert "s-presence-matrix" not in html
-
-
-def test_html_renders_question_table_from_facet():
-    """The composed dashboard inherits the 7-question leading table from the presence facet's
-    question_table rows, via the shared renderer (same table the standalone gallery shows)."""
-    html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {}, presence_facet=_facet())
-    assert "s-presence-table" in html and "Presence at a glance" in html
-    assert "Expressed in cancers at all?" in html          # a question row
-    assert "class=\"qtable\"" in html and "class=\"seg" in html  # table + signal meter markup
-    assert "⚠ window" in html                               # the Q3 window caveat carried through
-
-
-def test_html_omits_question_table_without_facet():
-    html = tp._render_target_profile_html("CEACAM5", "COADREAD", _sr(), _LLM, {})
-    assert "s-presence-table" not in html
+# (The .html presence-matrix / question-table render assertions were removed with the retirement of
+# tp_render_html 2026-09-03 — the default html path is report_render, covered by its own suite.)

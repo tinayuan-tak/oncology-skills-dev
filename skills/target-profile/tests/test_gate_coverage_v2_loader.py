@@ -140,36 +140,7 @@ def test_scorecard_sort_tolerates_letterless_v2_rows(tmp_path):
     assert any(r.get("gate") is None for r in sc)   # the letterless modality-fit rows
 
 
-# --- reports_into breadcrumb resolver (contract-read + fallback) -------------
-
-def test_card_reports_into_reads_contract(tmp_path):
-    """_card_reports_into builds {card_id: [(label, anchor), ...]} from the contract's card-grain
-    facets (card_id + reports_into), resolving each target short to its section anchor + label."""
-    voc = tmp_path / "vocabularies"
-    voc.mkdir()
-    (voc / "gate_coverage.yaml").write_text(yaml.safe_dump(_V2))
-    m = tp._card_reports_into(tmp_path)
-    # both card-grain facets resolved by their card_id
-    assert "mutation-stratified-dependency" in m
-    assert "crispr-rnai-dependency-concordance" in m
-    # each edge points at dependency's flat subskill section (s-skill-dependency) with a human label
-    (label, anchor), = m["mutation-stratified-dependency"]
-    assert anchor == "s-skill-dependency"
-    assert "Required" in label and "(C)" in label   # gate_name + letter from the contract
-
-
-def test_card_reports_into_falls_back_when_no_facets(tmp_path):
-    """A v1-shape contract (or missing vocab) exposes no card-grain facets → the resolver falls back
-    to the static map rather than erasing the breadcrumbs (fail-open, like the loader)."""
-    voc = tmp_path / "vocabularies"
-    voc.mkdir()
-    (voc / "gate_coverage.yaml").write_text(yaml.safe_dump(
-        {"version": "1.0.0", "gates": [{"short": "expression", "gate": "A", "band": "necessity"}]}))
-    m = tp._card_reports_into(tmp_path)
-    assert m == {k: list(v) for k, v in tp._CARD_REPORTS_INTO_FALLBACK.items()}
-
-
-def test_card_reports_into_missing_vocab_still_falls_back(tmp_path):
-    """No vocabularies/ dir at all → still the static fallback (never an empty breadcrumb map)."""
-    m = tp._card_reports_into(tmp_path)   # tmp_path has no vocabularies/
-    assert "prism-crispr-concordance" in m
+# (The reports_into breadcrumb resolver tests were removed with the retirement of tp_render_html
+# 2026-09-03: `_card_reports_into` + `_CARD_REPORTS_INTO_FALLBACK` lived in that renderer and had no
+# other live consumer — report_render doesn't render reports-into breadcrumbs. Reintroducing that
+# cross-gate breadcrumb is a report_render feature-parity item, tracked with the render owner.)
