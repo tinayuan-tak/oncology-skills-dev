@@ -817,13 +817,12 @@ def main() -> int:
             print(f"[target-profile] WARN: auto-grounding failed ({type(e).__name__}: {e}); "
                   "continuing without grounded substrate", file=sys.stderr)
 
-    # [3A] the two DETERMINISTIC-anchored risk reads (display-only / verdict-INERT). Both are best-effort
-    # (their orchestrators swallow + WARN on any failure → None) so a missing Bedrock/network degrades to
-    # "not shown" and never blocks the profile. An explicit --risk-rollup / --risk-assessment file wins.
+    # The LLM literature risk read (display-only / verdict-INERT; NON-reproducible). Best-effort + gated
+    # by run_risk (needs Bedrock/network). The DETERMINISTIC risk_6dim moved OUT of this network gate — it
+    # is now computed UNCONDITIONALLY in-memory below (build_risk_6dim), so md/html/json/target_report all
+    # read one deterministic source even offline. An explicit --risk-assessment file wins.
     if run_risk and ep_path is not None:
-        from tp_grounding import auto_risk_rollup, auto_risk_assessment
-        if risk_rollup is None:
-            risk_rollup = auto_risk_rollup(ep_path, args.modality, grounded_by_axis, args.out)
+        from tp_grounding import auto_risk_assessment
         if risk_assessment is None:
             risk_assessment = auto_risk_assessment(args.target, ground_ind, ep_path, args.out)
         # NOTE: the verdict-INERT cited gene×indication literature card is no longer written here as a
@@ -851,6 +850,15 @@ def main() -> int:
         print(f"Recommendation: {gate_action or '(no gate fired)'}")
         _restore_run_log()
         return 0
+
+    # [3A] DETERMINISTIC risk_6dim (target_report.risk_6dim) — computed UNCONDITIONALLY from the in-memory
+    # sub_results (an offline-safe pure spine projection), so md / html / risk_rollup.json / target_report
+    # all read ONE source (the former md↔html divergence is gone). grounded_by_axis (populated above when
+    # --ground ran) layers escalate-only literature findings; empty offline → pure deterministic bins. An
+    # explicit --risk-rollup file (loaded near the top) wins. Verdict-INERT; target_call stays sole gate.
+    if risk_rollup is None:
+        from tp_grounding import build_risk_6dim
+        risk_rollup = build_risk_6dim(sub_results, args.modality, grounded_by_axis, args.out)
 
     # 3a. Emit figures via the single orchestrator (tp_figures): composite panel (skipped under
     # --verdict-only) + per-card registry figures + per-sub-skill heros (skipped under --no-figures).

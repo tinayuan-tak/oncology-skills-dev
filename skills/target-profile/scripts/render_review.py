@@ -35,10 +35,19 @@ for _p in (str(_HERE), str(_SKILLS_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Risk rendering is on ONE deterministic source (risk-6dim re-home 2026-09-03): the canonical
+# risk_rollup dims (target_report.risk_6dim), adapted to (category, level, driver) rows by the SAME
+# _risk_rows_from_rollup the md report uses. The deterministic engine (deterministic_bins) is the
+# re-homed shared core; render_review prefers the emitted risk_rollup.json, else recomputes it here.
 try:
-    from tp_render_md import _risk_by_category_from_sub_verdicts as _risk_reshape
+    from tp_render_md import _risk_rows_from_rollup as _risk_rows
 except Exception:  # noqa: BLE001
-    _risk_reshape = None
+    _risk_rows = None
+try:
+    from _skills_common.risk_projection import deterministic_bins as _det_bins, _mod as _mod_norm
+except Exception:  # noqa: BLE001
+    _det_bins = None
+    _mod_norm = None
 
 SUBSKILL_ORDER = [
     ("expression", "Tumor presence / expression"),
@@ -222,20 +231,27 @@ def _cross_evidence_section(hyp: Optional[dict], ep: Optional[dict], nom: Option
 
 # ---------------------------------------------------------------- (2) risk (engine + literature)
 
-_RISK_RANK = {"LOW": 0, "LOW-MEDIUM": 1, "MEDIUM": 2, "MED": 2, "MEDIUM-HIGH": 3, "HIGH": 4}
+_RISK_RANK = {"LOW": 0, "MEDIUM": 1, "MED": 1, "HIGH": 2}
 
 
 def _risk_section(ep: Optional[dict], run_dir: Path) -> str:
     """Section 2 — the 6-dimension risk view as a DETERMINISTIC-vs-LITERATURE comparison, one row per
-    pillar. Left column: the reproducible reshape of THIS run's sub-verdicts (verdict-driving). Right
-    column: the PubMed-grounded LLM literature read (risk_assessment.json; context-tier, verdict-INERT).
-    A divergence flag (Δ) marks pillars where the two disagree — the interesting talking points."""
+    pillar. Left column: the canonical deterministic `risk_6dim` roll-up for THIS run (verdict-INERT
+    governance projection). Right column: the PubMed-grounded LLM literature read (risk_assessment.json;
+    context-tier, verdict-INERT). A divergence flag (Δ) marks pillars where the two disagree."""
     if not ep:
         return ""
-    sv = (ep.get("synthesis") or {}).get("sub_verdicts") or {}
-    sub_results = {short: {"verdict": (d.get("verdict"), d.get("driving_rule_id"))}
-                   for short, d in sv.items() if isinstance(d, dict)}
-    triples = _risk_reshape(sub_results) if _risk_reshape else []
+    # ONE deterministic source: prefer the canonical risk_rollup.json this run emitted (target_report.
+    # risk_6dim); else recompute the SAME deterministic bins from the in-memory evidence package (ep
+    # already carries synthesis.sub_verdicts + cards, exactly what deterministic_bins reads).
+    dims = _load_json(run_dir / "risk_rollup.json")
+    if not isinstance(dims, dict) and _det_bins is not None:
+        mod = (((ep.get("synthesis") or {}).get("decision_facets") or {}).get("composed_modality"))
+        try:
+            dims = _det_bins(ep, _mod_norm(mod or "small_molecule"))
+        except Exception:  # noqa: BLE001 — risk view is display-only; never break the review render
+            dims = None
+    triples = (_risk_rows(dims) if (_risk_rows and dims) else None) or []
     det = {cat: (level, driver) for cat, level, driver in triples}  # deterministic per pillar
 
     ra = _load_json(run_dir / "risk_assessment.json")
@@ -275,8 +291,8 @@ def _risk_section(ep: Optional[dict], run_dir: Path) -> str:
                else "Literature (not generated)")
     return (f"<section><h2>2 · 6-dimension risk assessment "
             f"<span class=sub style='font-weight:400'>— deterministic vs literature</span></h2>"
-            f"<p class=sub>One row per pillar. <b>Deterministic</b> = reproducible reshape of this run's "
-            f"sub-verdicts (verdict-driving). <b>Literature</b> = PubMed-grounded LLM read "
+            f"<p class=sub>One row per pillar. <b>Deterministic</b> = the canonical risk_6dim roll-up for "
+            f"this run (reproducible; verdict-INERT). <b>Literature</b> = PubMed-grounded LLM read "
             f"(risk_assessment.json; display-only, verdict-INERT). <b>Δ</b> flags pillars where the two "
             f"disagree. insufficient_evidence = no wired coverage for that dimension.</p>"
             f"<table class=risk6><tr><th>Pillar</th><th>Deterministic risk</th><th>{lit_hdr}</th></tr>"

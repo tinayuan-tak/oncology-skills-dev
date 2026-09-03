@@ -180,26 +180,29 @@ def test_plan_substrate_explicit_ground_survives_no_ground_and_sets_spec():
 
 
 # =============================== [3A]/[3B] orchestrators (best-effort) ===============================
-def _minimal_pkg(tmp_path):
-    pkg = tmp_path / "evidence_package.json"
-    pkg.write_text(json.dumps({"synthesis": {"sub_verdicts": {
-        "safety": "tolerant_reduced_safety_risk", "dependency": "concordant_dependent",
-        "mechanism": "well_characterized", "tractability_sm": "well_covered"}}, "cards": []}))
-    return pkg
+def _minimal_sub_results():
+    # The in-memory fanout shape build_risk_6dim reads: {short: {"verdict": (v, rule), "cards": [...]}}.
+    return {
+        "safety": {"verdict": ("tolerant_reduced_safety_risk", "r"), "cards": []},
+        "dependency": {"verdict": ("concordant_dependent", "r"), "cards": []},
+        "mechanism": {"verdict": ("well_characterized", "r"), "cards": []},
+        "tractability_sm": {"verdict": ("well_covered", "r"), "cards": []},
+    }
 
 
-def test_auto_risk_rollup_projects_deterministic_bins_and_writes_file(tmp_path):
-    pkg = _minimal_pkg(tmp_path)
-    dims = tg.auto_risk_rollup(pkg, "small_molecule", {}, tmp_path)
+def test_build_risk_6dim_projects_deterministic_bins_and_writes_file(tmp_path):
+    # risk_6dim is now computed IN-MEMORY from sub_results (no disk round-trip). Grounding empty ({})
+    # → the pure deterministic projection (no sibling/network).
+    dims = tg.build_risk_6dim(_minimal_sub_results(), "small_molecule", {}, tmp_path)
     assert isinstance(dims, dict)
     # the deterministic 6-dim spine is present
     assert {"safety", "biological", "druggability", "clinical", "commercial", "translational"} <= set(dims)
     assert (tmp_path / "risk_rollup.json").exists()
 
 
-def test_auto_risk_rollup_is_best_effort_bad_package_returns_none(tmp_path):
-    # a nonexistent package path must degrade to None (WARN), never raise
-    assert tg.auto_risk_rollup(tmp_path / "nope.json", "small_molecule", {}, tmp_path) is None
+def test_build_risk_6dim_is_best_effort_bad_input_returns_none(tmp_path):
+    # a malformed sub_results must degrade to None (WARN), never raise
+    assert tg.build_risk_6dim("not-a-dict", "small_molecule", {}, tmp_path) is None
 
 
 def test_auto_risk_assessment_is_best_effort_on_failure(tmp_path, monkeypatch):

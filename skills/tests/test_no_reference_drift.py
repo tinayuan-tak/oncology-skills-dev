@@ -119,18 +119,21 @@ def _load_target_profile():
 
 
 def test_risk_table_and_phase_metric_short_keys_exist_in_sub_skills():
-    """Every short key _risk_by_category / PHASE_METRIC_FIELDS reads MUST be a real
-    SUB_SKILLS short — the drift class that dead-wired druggability + dropped the
-    per-phase evidence tables."""
+    """PHASE_METRIC_FIELDS keys MUST be real SUB_SKILLS shorts (the drift class that dropped the
+    per-phase evidence tables). The risk table is now the deterministic risk_6dim projection (re-homed
+    to _skills_common.risk_projection); probe it on a minimal package — it must not KeyError and must
+    yield exactly the 6 governance categories."""
     tp = _load_target_profile()
     sub_shorts = {short for _, short in tp.SUB_SKILLS}
     # PHASE_METRIC_FIELDS keys must all be real shorts.
     bad_pmf = set(tp.PHASE_METRIC_FIELDS) - sub_shorts
     assert not bad_pmf, f"PHASE_METRIC_FIELDS keys not in SUB_SKILLS: {bad_pmf}"
-    # _risk_by_category reads a fixed set of shorts via _v(...); assert the ones it
-    # consumes resolve (probe by running it on empty input — it must not KeyError and
-    # must return all 6 categories).
-    rows = tp._risk_by_category_from_sub_verdicts({})
+    # risk_6dim: deterministic_bins over an empty package → _risk_rows_from_rollup must return all 6
+    # governance categories (no dropped dim). The shorts the projection reads (safety/dependency/
+    # mechanism/surface_modality/selectivity/tractability_sm) are the SUB_SKILLS shorts.
+    from _skills_common.risk_projection import deterministic_bins
+    dims = deterministic_bins({"synthesis": {"sub_verdicts": {}}, "cards": []}, "small_molecule")
+    rows = tp._risk_rows_from_rollup(dims)
     cats = {c for c, _, _ in rows}
     assert cats == {"biological", "druggability", "translational",
                     "clinical", "safety", "commercial"}

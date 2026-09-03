@@ -25,120 +25,13 @@ from tp_common import PHASE_METRIC_FIELDS, _first_card_summary_field, _fmt_metri
 
 
 
-def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, str, str]]:
-    """Map sub-verdicts onto the 6-category risk framing (biological /
-    druggability / translational / clinical / safety / commercial),
-    producing (category, level, driver) triples. Categories with no
-    wired coverage return level=insufficient_evidence — honest coverage
-    signal for governance readers used to the 6-category shape.
-
-    This is a NON-LLM mapping — deterministic reshape of the deterministic
-    sub-verdicts. The v1 risk-assessment framing lives here as an output
-    convention, not as a re-derivation via literature.
-    """
-    def _v(short):
-        r = sub_results.get(short) or {}
-        v = r.get("verdict")
-        return v if v else (None, None)
-
-    exp_v, exp_r = _v("expression")
-    sel_v, sel_r = _v("selectivity")
-    dep_v, dep_r = _v("dependency")
-    # Short keys MUST match SUB_SKILLS (run.py:65). Fixed 2026-07-17: the
-    # 2026-07-14 restructure renamed these two shorts (mutation→genomic_alteration,
-    # tractability→tractability_sm) but this reshape wasn't updated, so _v() silently
-    # returned (None,None) — druggability was dead-wired to insufficient_evidence and
-    # the mutation signal was dropped from _biological(). A display bug (this feeds the
-    # 6-category render table, not the gate), but a real one.
-    mut_v, mut_r = _v("genomic_alteration")
-    trk_v, trk_r = _v("tractability_sm")
-    saf_v, saf_r = _v("safety")
-
-    # Biological: strongest positive across A/B/C/mut wins
-    # Simple mapping: at least one strong-supportive → LOW risk; not_selective
-    # or non_dependent → HIGH; discordant / not_informative → MEDIUM
-    def _biological():
-        signals = [exp_v, sel_v, dep_v, mut_v]
-        if any(s in ("strong_tumor_selective", "concordant_dependent",
-                      "biomarker_stratified_dependency",
-                      "broadly_high_expression") for s in signals):
-            return "LOW", "strong support across A/B/C/mut sub-verdicts"
-        if any(s in ("not_selective", "non_dependent",
-                      "broadly_low_expression", "absent") for s in signals):
-            return "HIGH", "negative signal in A/B/C sub-verdicts"
-        if any(s in ("discordant_across_comparators", "present_rna_only_protein_absent",
-                      "conflicted_protein_present_rna_absent", "stromal_microenvironment_present")
-               for s in signals):
-            return "MEDIUM", "comparator-dependent / stromal / conflicted expression signal"
-        if all(s in (None, "insufficient", "not_informative") for s in signals):
-            return "insufficient_evidence", "no rule-fired verdicts across A/B/C"
-        return "MEDIUM", "mixed signals across A/B/C"
-
-    def _druggability():
-        # STRONG-positive tractability verdicts (tractability-small-molecule _TRACT_STRONG) → LOW. Prior
-        # to 2026-09 `measured_potent_ligand` was OMITTED here (as in risk_rollup) so a potent measured
-        # ligand fell to insufficient_evidence ("tractability sub-verdict absent") — the USP8/NSCLC symptom.
-        if trk_v in ("well_covered", "chemically_confirmed_genetic", "measured_potent_ligand"):
-            return "LOW", trk_r or "PRISM-CRISPR triangulated / measured potent ligand"
-        if trk_v in ("chemically_active", "clinical_precedent_only", "structurally_ligandable"):
-            return "LOW-MEDIUM", trk_r or "clinically-active / structurally-ligandable chemistry"
-        if trk_v in ("tool_compound_only", "weakly_active"):
-            return "MEDIUM-HIGH", trk_r or "tool compounds only"
-        if trk_v in ("chemically_unhit", "discordant", "structurally_intractable"):
-            return "HIGH", trk_r or "no compound hits / discordant / structurally intractable"
-        return "insufficient_evidence", "tractability sub-verdict absent"
-
-    def _safety():
-        # on-target-safety-liability IS wired (gnomAD LoF-constraint). Fixed
-        # 2026-07-17: this row was hardcoded insufficient_evidence with a stale
-        # "gnomAD cards not wired" note, contradicting the wired safety sub-skill
-        # that already feeds the nomination gate. Map its verdict here too.
-        # Higher germline constraint → higher on-target (full-KO) safety RISK.
-        if saf_v == "highly_constrained_safety_concern":
-            return "HIGH", saf_r or "highly LoF-constrained gene (full-KO liability)"
-        if saf_v == "moderately_constrained_safety":   # C2c: middle band → MEDIUM
-            return "MEDIUM", saf_r or "moderately LoF-constrained gene (equivocal safety)"
-        if saf_v == "tolerant_reduced_safety_risk":
-            return "LOW", saf_r or "LoF-tolerant gene (reduced full-KO liability)"
-        return "insufficient_evidence", "gnomAD constraint sub-verdict absent"
-
-    def _translational():
-        # translational-readiness is now WIRED into the fan-out (2026-08-31) as a GATELESS DESCRIPTIVE
-        # peer (verdict=None) — model availability / genotype-matched / PDX drug-response is translational
-        # CONTEXT that informs confidence, not a risk verdict. So the risk LEVEL stays
-        # insufficient_evidence (a descriptive skill mints no risk call), but the NOTE now surfaces the
-        # composed context instead of the stale "data not wired" placeholder (B13-3).
-        r = sub_results.get("translational_readiness") or {}
-        mac = _first_card_summary_field(r, "model_availability_class")
-        gmc = _first_card_summary_field(r, "genotype_matched_class")
-        pdx = _first_card_summary_field(r, "pdx_drug_response_class")
-        bits = []
-        if mac:
-            bits.append(f"HCMI model availability={mac}")
-        if gmc:
-            bits.append(f"genotype-matched={gmc}")
-        if pdx:
-            bits.append(f"PDX drug-response={pdx}")
-        if bits:
-            return ("insufficient_evidence",
-                    "translational-readiness composed (descriptive / verdict-inert context): "
-                    + "; ".join(bits))
-        return ("insufficient_evidence",
-                "translational-readiness composed (descriptive) — HCMI/PDX/organoid context "
-                "unavailable this run")
-
-    # For phases we still have no wired data on, report insufficient_evidence
-    # honestly rather than fabricate:
-    return [
-        ("biological",   *_biological()),
-        ("druggability", *_druggability()),
-        ("translational", *_translational()),
-        ("clinical",      "insufficient_evidence",
-            "Phase-E (clinical precedent) placeholder — data feed not wired"),
-        ("safety",        *_safety()),
-        ("commercial",    "insufficient_evidence",
-            "Phase-E (competitive/IP) placeholder — Cortellis/IQVIA not licensed"),
-    ]
+# `_risk_by_category_from_sub_verdicts` REMOVED 2026-09-03 (risk-6dim re-home + renderer unification).
+# It was a SECOND, parallel 6-category risk mapping (with md-only LOW-MEDIUM/MEDIUM-HIGH labels) used as
+# a fallback whenever the canonical deterministic risk_rollup wasn't produced — the source of the md↔html
+# divergence. risk_6dim is now computed UNCONDITIONALLY (tp_grounding.build_risk_6dim over the in-memory
+# sub_results, offline-safe), so the md table renders the SAME risk_rollup dims the HTML report +
+# risk_rollup.json + target_report.risk_6dim use, via `_risk_rows_from_rollup` below. One source.
+# See docs/UNIFIED_OUTPUT_CONTRACT.md.
 
 
 # Phase-3 EMPHASIS routing: per actionability_mode, which axes LEAD the verbose per-skill sections.
@@ -398,23 +291,29 @@ def _render_target_profile_md(
             lines.append(f"- **Supporting axes (necessity biology evidenced):** {axes}")
         lines.append("")
 
-    # --- Risk-by-category summary (deterministic, from sub-verdicts) -------
-    lines.append("## Risk-by-category summary *(deterministic reshape "
-                 "of sub-verdicts)*")
+    # --- Risk-by-category summary (deterministic risk_6dim projection) -----
+    lines.append("## Risk-by-category summary *(deterministic risk_6dim "
+                 "projection)*")
     lines.append("")
-    lines.append("Governance-facing 6-category framing mapped from the rule-"
-                 "fired sub-verdicts below. Categories with no wired data "
-                 "return `insufficient_evidence` rather than fabricated risk "
-                 "levels.")
+    lines.append("Governance-facing 6-category framing — the canonical "
+                 "deterministic `risk_6dim` roll-up (the same `target_report."
+                 "risk_6dim` / `risk_rollup.json` the HTML report renders). "
+                 "Categories with no wired engine leg show "
+                 "`insufficient_evidence` rather than fabricated risk levels.")
     lines.append("")
     lines.append("| Category | Risk level | Driver |")
     lines.append("|---|---|---|")
-    # Prefer the CANONICAL deterministic risk_rollup (same source the HTML report + risk_rollup.json use)
-    # so the md risk table can't diverge from them; fall back to the local mapping only when the rollup
-    # wasn't produced (e.g. --no-substrate / --verdict-only).
-    _risk_rows = _risk_rows_from_rollup(risk_rollup) or _risk_by_category_from_sub_verdicts(sub_results)
-    for cat, level, driver in _risk_rows:
-        lines.append(f"| **{cat}** | `{level}` | {driver} |")
+    # ONE source: the canonical deterministic risk_rollup (target_report.risk_6dim), computed
+    # unconditionally upstream (tp_grounding.build_risk_6dim) and rendered here + in the HTML report +
+    # risk_rollup.json — no parallel md-local mapping to diverge. `_risk_rows_from_rollup` returns None
+    # only if the rollup genuinely failed to compute (best-effort None); render an honest note then.
+    _risk_rows = _risk_rows_from_rollup(risk_rollup)
+    if _risk_rows:
+        for cat, level, driver in _risk_rows:
+            lines.append(f"| **{cat}** | `{level}` | {driver} |")
+    else:
+        lines.append("| _(risk_6dim unavailable this run)_ | `insufficient_evidence` | "
+                     "deterministic risk roll-up not computed |")
     lines.append("")
 
     # --- Tension analysis (LLM) --------------------------------------------
@@ -549,5 +448,5 @@ def _render_target_profile_md(
 
 __all__ = [
     '_render_target_profile_md',
-    '_risk_by_category_from_sub_verdicts',
+    '_risk_rows_from_rollup',
 ]

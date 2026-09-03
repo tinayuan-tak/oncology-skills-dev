@@ -9,10 +9,12 @@ consumers of the shared substrate:
   - `--substrate axis=path` on risk_rollup [3A] and cross-evidence-hypothesis [3B].
 
 VERDICT-INERT BY CONSTRUCTION: grounding reads the ALREADY-FINISHED evidence package; it cannot change
-any sub-verdict, gate, or facet. DEFAULT-ON for a full nomination run (2026-08-26): grounding + both
-downstream projections (auto_risk_rollup [3A], auto_risk_assessment, auto_hypothesis [3B]) run unless
-opted out via --no-substrate (or a granular --no-ground/--no-risk/--no-hypothesis), and are auto-skipped
-in the offline/fast/machine modes (--no-synthesis / --verdict-only / --emit) which stay byte-identical.
+any sub-verdict, gate, or facet. DEFAULT-ON for a full nomination run (2026-08-26): grounding + the
+downstream projections (auto_risk_assessment [LLM literature], auto_hypothesis [3B]) run unless opted out
+via --no-substrate (or a granular --no-ground/--no-risk/--no-hypothesis), and are auto-skipped in the
+offline/fast/machine modes (--no-synthesis / --verdict-only / --emit) which stay byte-identical. NOTE
+the DETERMINISTIC risk_6dim ([3A] build_risk_6dim) is no longer part of this best-effort chain — it is a
+pure spine projection computed UNCONDITIONALLY in run.py from the in-memory sub_results (offline-safe).
 BEST-EFFORT: any failure (retrieval, Bedrock, parse, a single bad axis) degrades to 'not shown/grounded'
 and is logged — it never blocks the run's other artifacts.
 
@@ -186,22 +188,35 @@ def _load_sibling(module_key: str, skill: str, filename: str):
     return mod
 
 
-def auto_risk_rollup(pkg_path, modality: Optional[str], grounded_by_axis: Optional[dict],
-                     out_dir) -> Optional[dict]:
-    """[3A] The DETERMINISTIC 6-dim risk roll-up: modality-conditioned worst-case bins projected purely
-    from the evidence-package sub_verdicts, fused with the escalate-only grounded findings (which can
-    only RAISE a flag, never move a bin). Writes risk_rollup.json into out_dir. Returns the dims dict or
-    None on failure. The grounded substrate (axis→record) is passed through verbatim; risk_rollup keys
-    findings by axis. modality None → risk_rollup defaults it to small_molecule."""
+def build_risk_6dim(sub_results: dict, modality: Optional[str], grounded_by_axis: Optional[dict],
+                    out_dir=None) -> Optional[dict]:
+    """[3A] The DETERMINISTIC 6-dim risk roll-up — `target_report.risk_6dim`. A pure spine PROJECTION:
+    modality-conditioned worst-case bins computed STRAIGHT from the in-memory `sub_results` (no disk
+    round-trip, no network), via the re-homed `_skills_common.risk_projection`. One of three orthogonal
+    projections of the same per-skill signal set (target_call = necessity, modality_fit = route,
+    risk_6dim = governance category) — NOT a new opinion; `target_call` stays the sole go/hold/kill gate.
+
+    Computed on EVERY run that renders a profile (deterministic_bins is offline-safe), so md / html /
+    risk_rollup.json / target_report.risk_6dim all read ONE source (kills the former md↔html divergence).
+    When grounded findings are present (a --ground run) the sibling lit-risk `project()` layers the
+    escalate-only literature findings + discordance on top (findings NEVER move an engine bin); offline
+    it is the pure deterministic projection. Writes risk_rollup.json when out_dir is given (kept for the
+    standalone render_review tool). Best-effort + VERDICT-INERT: any failure degrades to None and never
+    blocks a run. modality None → small_molecule."""
     try:
-        rr = _load_sibling("tp_sib_risk_rollup", "literature-risk-assessment", "risk_rollup.py")
-        pkg = json.loads(Path(pkg_path).read_text())
-        dims = rr.project(pkg, modality or "small_molecule", grounded_by_axis or None)
-        (Path(out_dir) / "risk_rollup.json").write_text(json.dumps(dims, indent=2, default=str))
-        print(f"[target-profile] risk_rollup [3A] → risk_rollup.json in {out_dir}", file=sys.stderr)
+        from _skills_common.risk_projection import assemble_risk_package, deterministic_bins, _mod
+        pkg = assemble_risk_package(sub_results)
+        if grounded_by_axis:
+            rr = _load_sibling("tp_sib_risk_rollup", "literature-risk-assessment", "risk_rollup.py")
+            dims = rr.project(pkg, modality or "small_molecule", grounded_by_axis)
+        else:
+            dims = deterministic_bins(pkg, _mod(modality or "small_molecule"))
+        if out_dir is not None:
+            (Path(out_dir) / "risk_rollup.json").write_text(json.dumps(dims, indent=2, default=str))
+            print(f"[target-profile] risk_6dim [3A] → risk_rollup.json in {out_dir}", file=sys.stderr)
         return dims
     except Exception as e:  # noqa: BLE001 — verdict-inert display context, never blocks a run
-        print(f"[target-profile] WARN: risk_rollup [3A] failed ({type(e).__name__}: {e}); "
+        print(f"[target-profile] WARN: risk_6dim [3A] failed ({type(e).__name__}: {e}); "
               "continuing without the deterministic risk roll-up", file=sys.stderr)
         return None
 
@@ -256,4 +271,4 @@ def auto_hypothesis(pkg_path, out_dir, *, modality: Optional[str] = None,
 
 
 __all__ = ["ENGINE_AXES", "PSEUDO_AXES", "resolve_axes", "auto_ground", "plan_substrate",
-           "auto_risk_rollup", "auto_risk_assessment", "auto_hypothesis"]
+           "build_risk_6dim", "auto_risk_assessment", "auto_hypothesis"]

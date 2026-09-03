@@ -12,6 +12,14 @@ A sibling projection to the cross-evidence hypothesis. Each risk dimension =
   discordance: per-dim engine↔literature flag (from the grounded block's contradicts_deterministic).
   blind_spots: what the engine bin does not cover (→ the grounded findings / Tier-2 fill these).
 
+RE-HOME (2026-09-03): the PURE deterministic core (deterministic_bins + AXIS_TO_DIM + _mod + the package
+accessors + RANK/INV/SURFACE) MOVED to `_skills_common/risk_projection.py` so target-profile computes
+`target_report.risk_6dim` directly from in-memory sub_results (no disk round-trip / no network). This
+module RE-EXPORTS them (so this file's CLI, tests, and the gold harness are unchanged) and keeps the
+LITERATURE-GROUNDING overlay (`project()` + the escalate-only findings + the engine-blind pseudo-card
+literature bin), which needs ground_axis.SEVERITY_HIGH. The standalone CLI below is kept as a lit-only
+ad-hoc query path.
+
 THRESHOLDS ARE ILLUSTRATIVE (v0). The CONTRACT is the contribution: modality-conditioned conjunction +
 escalate-only fusion + declared blind-spots + reproducible bin. Thresholds are to be calibrated; the
 tests pin the STRUCTURE (conjunction, escalate-only, discordance), not the exact thresholds.
@@ -21,184 +29,26 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+# Path setup: the module's own scripts dir (for `ground_axis`) AND skills/ (so `_skills_common` — the
+# home of the re-homed deterministic core — resolves when this file is loaded by path in a test/CLI).
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+_SKILLS = _SCRIPTS.parents[1]        # .../skills
+if str(_SKILLS) not in sys.path:
+    sys.path.insert(0, str(_SKILLS))
+
+# The deterministic core, re-homed to the shared layer (single source of truth). Re-exported here so
+# `import risk_rollup as rr; rr.deterministic_bins` (validate_gold + tests) and the CLI keep working.
+from _skills_common.risk_projection import (  # noqa: E402,F401
+    RANK, INV, SURFACE, AXIS_TO_DIM, _mod, _sv, _calls, _card, _q, deterministic_bins,
+)
+
 # Single source of truth for pseudo-card escalation lives with the PRODUCER (ground_axis owns the
 # grounded-finding contract). Guarded, cheap import — ground_axis has no heavy/network deps at module
 # load (its Bedrock/PubMed imports are lazy). Consumer-depends-on-producer, so the severity vocabulary
 # can never drift out of sync with the schema the model is actually asked to fill.
-_SCRIPTS = str(Path(__file__).resolve().parent)
-if _SCRIPTS not in sys.path:
-    sys.path.insert(0, _SCRIPTS)
 from ground_axis import SEVERITY_HIGH  # noqa: E402
-
-RANK = {"LOW": 0, "MED": 1, "HIGH": 2}
-INV = {0: "LOW", 1: "MED", 2: "HIGH"}
-SURFACE = {"adc", "bite_tce", "tce", "antibody"}
-
-# grounded axis -> the risk dim it augments. The 12 subskills map many-to-few onto the 6 risk dims
-# (5R-style decomposition): the target-biology axes (dependency + mechanism/genomic/SL/combinatorial/
-# expression) all escalate the BIOLOGICAL (Right Target) dim; safety/selectivity escalate SAFETY; the
-# two tractability axes escalate DRUGGABILITY; `differentiation` (patient-selection) escalates the
-# TRANSLATIONAL dim; clinical/commercial are the engine-blind pseudo-card dims. This completes the
-# 6-dim map (biological/druggability/safety/translational/clinical/commercial) — every grounded axis
-# now reaches a risk dim in [3A] (parity with [3B], which is axis-agnostic).
-AXIS_TO_DIM = {"safety": "safety", "dependency": "biological", "selectivity": "safety",
-               "surface_modality": "druggability", "tractability_sm": "druggability",
-               "mechanism": "biological", "genomic_alteration": "biological",
-               # synthetic_lethal_partners / combinatorial_dependency REMOVED 2026-08-21 (consolidated
-               # into the gateless combination_vulnerability short; their ground_axis axes were dropped).
-               "expression": "biological", "differentiation": "translational",
-               "clinical": "clinical", "commercial": "commercial"}   # translational + clinical/commercial = engine-blind
-def _mod(m: str) -> str:
-    m = (m or "").lower()
-    if "adc" in m: return "adc"
-    if "tce" in m or "bispecific" in m: return "tce"
-    if "antibod" in m or "mab" in m: return "antibody"
-    if "degrad" in m or "glue" in m: return "degrader"
-    return "small_molecule"
-
-
-def _sv(pkg): return {k: (v.get("verdict") if isinstance(v, dict) else v)
-                      for k, v in pkg["synthesis"]["sub_verdicts"].items()}
-def _calls(pkg): return {c["card_id"]: c.get("interpretation_call")
-                         for c in pkg.get("cards", []) if c.get("card_id")}
-def _card(pkg, cid):
-    for c in pkg.get("cards", []):
-        if c.get("card_id") == cid: return c.get("summary") or {}
-    return {}
-def _q(pkg, cid, field):
-    """Raw anchoring quantity from a card summary, surfaced in the chain for traceability."""
-    v = _card(pkg, cid).get(field)
-    try: return round(float(v), 3)
-    except (TypeError, ValueError): return v
-
-
-def deterministic_bins(pkg: dict, modality: str) -> dict:
-    """Pure, reproducible per-dim bins. CALIBRATION (ryan.abo 2026-08-17): the bin is the spine's
-    already-CONDITIONED sub-verdict (safety = gnomAD LOEUF<0.35 THEN GoF/mutant-selective downgrade;
-    biological = DepMap Chronos<=-0.5 WITHIN the indication lineage; both applied by the resolvers) —
-    re-thresholding the raw PAN-cancer quantity would discard that conditioning and re-introduce
-    false-HIGHs. So the bin stays the conditioned verdict; the RAW anchoring quantity + published
-    threshold is SURFACED in the chain for defensibility. druggability additionally anchors to raw
-    Pharos TDL (its verdict is a lossy roll-up)."""
-    sv, calls = _sv(pkg), _calls(pkg)
-    surf = modality in SURFACE
-    dims = {}
-
-    # SAFETY — modality-conditioned conjunction (the validated false-LOW fix)
-    sig, chain = 0, []
-    ots = {"highly_constrained_safety_concern": 2, "human_genetics_safety_concern": 1,
-           "moderately_constrained_safety": 1, "moderately_constrained_safety_concern": 1,
-           "wt_constraint_mechanism_mismatch": 0, "wt_human_genetics_mechanism_mismatch": 0,
-           "tolerant_reduced_safety_risk": 0}.get(sv.get("safety"), 0)
-    _loeuf = _q(pkg, "gnomad-lof-constraint", "loeuf_score")
-    sig = max(sig, ots)
-    chain.append(("on-target-safety", f"{sv.get('safety')} [LOEUF={_loeuf}; <0.35 LoF-intolerant]", INV[ots]))
-    esc = 2 if surf else 1
-    if calls.get("normal-tissue-liability-gtex") == "critical_organ_liability":
-        sig = max(sig, esc); chain.append(("normal-tissue-gtex", "critical_organ_liability", INV[esc]))
-    if calls.get("normal-tissue-liability-gtex") in ("broad_normal_expression", "broadly_expressed_normal") \
-       or sv.get("selectivity") in ("selective_but_broadly_normal", "not_selective"):
-        sig = max(sig, esc); chain.append(("tumor-selectivity normal-breadth", "broad", INV[esc]))
-    if calls.get("sc-normal-celltype-expression") == "HIGH_LIABILITY":
-        sig = max(sig, esc); chain.append(("sc-normal", "HIGH_LIABILITY", INV[esc]))
-    if calls.get("modality-therapeutic-window") in ("essential_tissue_liability", "no_window"):
-        sig = max(sig, esc); chain.append(("therapeutic-window", calls.get("modality-therapeutic-window"), INV[esc]))
-    if surf and calls.get("shed-ectodomain-liability") == "clinically_shed":
-        sig = max(sig, 1); chain.append(("shed-ectodomain", "clinically_shed", "MED"))
-    mit = ("mitigated IF mutant-selective chemistry" if (not surf and sv.get("safety") in
-           ("wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch")) else None)
-    dims["safety"] = {"pillar": "Right Safety", "bin": INV[sig], "chain": chain, "mitigation": mit,
-                      "blind_spots": ["off-target/secondary-pharmacology", "immunogenicity",
-                                      "ADC payload tox", "PK/exposure"]}
-
-    # BIOLOGICAL — dependency (oos for surface) ∧ mechanism ∧ driver-role
-    sig, chain = 0, []
-    if not surf:
-        # pan_essential_killer = a dependency but NOT tumor-selective -> its tox routes to SAFETY (not a
-        # target-validity failure) -> MED, not HIGH. Only non_dependent is HIGH biological risk.
-        dep = {"non_dependent": 2, "pan_essential_killer": 1, "discordant": 1, "insufficient": 1,
-               "concordant_dependent": 0, "lineage_selective": 0, "selective_dependent": 0,
-               "biomarker_stratified_dependency": 0, "partner_conditional_dependent": 0,
-               "chemical_genetic_confirmed_dependent": 0, "non_dependent_paralog_buffered": 1}.get(sv.get("dependency"), 1)
-        _chr = _q(pkg, "dependency-lineage-selectivity", "median_chronos_panel")
-        sig = max(sig, dep)
-        chain.append(("dependency", f"{sv.get('dependency')} [lineage-scoped; Chronos<=-0.5 in-lineage; panel median {_chr}]", INV[dep]))
-    else:
-        chain.append(("dependency", "out-of-scope (surface)", "N/A"))
-    mech = 0 if sv.get("mechanism") == "well_characterized" else 1
-    sig = max(sig, mech); chain.append(("mechanism", sv.get("mechanism"), INV[mech]))
-    dims["biological"] = {"pillar": "Right Target", "bin": INV[sig], "chain": chain, "mitigation": None,
-                          "blind_spots": ["contradictory literature", "resistance biology"]}
-
-    # DRUGGABILITY — SM tractability (SM/degrader) or surface fit (biologics)
-    sig, chain = 0, []
-    if surf:
-        r = {"both_viable": 0, "adc_preferred_tce_unsafe": 1, "surface_viable_density_caveated": 1,
-             "neither_viable": 2}.get(sv.get("surface_modality"), 1)
-        chain.append(("surface-modality-fit", sv.get("surface_modality"), INV[r])); blind = ["ADC linker/payload", "internalization"]
-    else:
-        # LOW-risk = a viable chemical start point. The lookup previously omitted the STRONG-positive
-        # tractability verdicts (measured_potent_ligand, chemically_confirmed_genetic) — so the strongest
-        # druggability calls silently defaulted to MED (the USP8/NSCLC symptom: measured_potent_ligand →
-        # MED). Aligned with tractability-small-molecule's polarity: _TRACT_STRONG → LOW(0); the caveated
-        # moderate rungs (structurally_ligandable / clinical_precedent_only / tool_compound_only /
-        # weakly_active) stay MED(1) via the default; negatives → HIGH(2).
-        r = {"well_covered": 0, "chemically_confirmed_genetic": 0, "chemically_active": 0,
-             "measured_potent_ligand": 0,
-             "discordant": 1, "chemically_unhit": 2,
-             "structurally_intractable": 2}.get(sv.get("tractability_sm"), 1)
-        _tdl = _q(pkg, "target-development-level", "tdl_class")   # raw Pharos tier (Tclin>Tchem>Tbio>Tdark)
-        chain.append(("tractability-SM", f"{sv.get('tractability_sm')} [Pharos TDL={_tdl}]", INV[r]))
-        blind = ["PK/exposure", "CNS penetration", "synthesis"]
-    dims["druggability"] = {"pillar": "Right Molecule", "bin": INV[r], "chain": chain, "mitigation": None, "blind_spots": blind}
-
-    # CLINICAL — precedent from the LIVE public AACT/ClinicalTrials `clinical-precedent` card (wired
-    # 2026-09; the card is composed into the evidence-package by differentiation-landscape). Risk =
-    # clinical-translation uncertainty / failure precedent: an approved-or-late-stage engaging agent =
-    # validated (LOW); an asserted notable failure = a real de-risking-required signal (HIGH); anything
-    # in-between / no precedent = MED. Only the trial-precedent leg is engine-fed; deeper clinical risk
-    # (trial design / endpoint) stays literature-only. Absent card → falls through to ENGINE-BLIND below.
-    cp = _card(pkg, "clinical-precedent")
-    _stage = cp.get("highest_clinical_stage")
-    if cp and (_stage is not None or cp.get("notable_failures")):
-        c = 2 if cp.get("notable_failures") else (0 if _stage in ("approved", "phase_3", "pivotal") else 1)
-        dims["clinical"] = {"pillar": "Right Patient (clinical precedent)", "bin": INV[c],
-                            "chain": [("clinical-precedent",
-                                       f"highest_clinical_stage={_stage}; notable_failures={bool(cp.get('notable_failures'))}",
-                                       INV[c])],
-                            "mitigation": None,
-                            "blind_spots": ["trial design / endpoint risk (literature-only)"]}
-
-    # COMMERCIAL — the COMPETITION leg from the LIVE Open Targets `competitor-landscape` card (CC0). Only
-    # competitive intensity is engine-fed; market size / revenue / IP freedom-to-operate remain a genuine
-    # DATA gap (Cortellis/IQVIA unlicensed). Direction per the card's own framing: an approved competitor
-    # = crowded = high differentiation risk (HIGH); no known competitor = whitespace / first-mover (LOW).
-    cl = _card(pkg, "competitor-landscape")
-    _klass = cl.get("competitor_class") if cl else None
-    _cbin = {"approved_competitor": 2, "active_clinical_competitor": 1,
-             "early_or_preclinical_competitor": 1, "no_known_competitor": 0}.get(_klass)
-    if _cbin is not None:
-        dims["commercial"] = {"pillar": "Right Commercial", "bin": INV[_cbin],
-                              "chain": [("competitor-landscape",
-                                         f"competitor_class={_klass}; n_programs={cl.get('n_competitor_programs')}",
-                                         INV[_cbin])],
-                              "mitigation": None,
-                              "blind_spots": ["market size / revenue / IP freedom-to-operate (unlicensed data)"]}
-
-    # engine-BLIND dims (literature-only via grounded/Tier-2) — set ONLY if not already engine-fed above.
-    # translational (patient-selection / readiness) is engine-blind: `differentiation` carries a
-    # co-mutation/patient-selection LANDSCAPE sub-verdict, not a risk ordinal, and the
-    # translational-readiness engine leg is still a placeholder — so the dim is honestly literature-only
-    # until a translational engine bin exists. clinical/commercial fall here only when their card is
-    # absent/insufficient. Grounded findings set the coarse literature bin in project().
-    for d, pil in [("clinical", "Right Patient (clinical precedent)"),
-                   ("commercial", "Right Commercial"),
-                   ("translational", "Right Patient (translational readiness / patient-selection)")]:
-        if d in dims:
-            continue
-        dims[d] = {"pillar": pil, "bin": "ENGINE-BLIND", "chain": [], "mitigation": None,
-                   "blind_spots": ["entire dim — literature-only"]}
-    return dims
 
 
 def _findings_of(block: dict) -> list:
@@ -241,7 +91,6 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
 
 if __name__ == "__main__":
     import argparse, json
-    from pathlib import Path
     ap = argparse.ArgumentParser()
     ap.add_argument("--evidence-package", required=True)
     ap.add_argument("--modality", required=True)

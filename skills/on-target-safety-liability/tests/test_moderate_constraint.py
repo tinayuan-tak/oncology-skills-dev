@@ -29,10 +29,15 @@ def test_safety_verdict_maps_moderate_band():
 
 
 def test_risk_table_moderate_is_medium_not_insufficient():
+    # The risk table is now the deterministic risk_6dim projection (re-homed to
+    # _skills_common.risk_projection); a moderately-constrained safety verdict → safety bin MED → the
+    # md risk row MEDIUM (via tp._risk_rows_from_rollup, the same source md/html/json render).
     tp = _load(TP_RUN, "tp_run_c2c")
-    sr = {"safety": {"verdict": ("moderately_constrained_safety", "r")}}
-    row = next((lvl, drv) for c, lvl, drv in tp._risk_by_category_from_sub_verdicts(sr)
-               if c == "safety")
+    from _skills_common.risk_projection import deterministic_bins
+    pkg = {"synthesis": {"sub_verdicts": {"safety": {"verdict": "moderately_constrained_safety"}}},
+           "cards": []}
+    dims = deterministic_bins(pkg, "small_molecule")
+    row = next((lvl, drv) for c, lvl, drv in tp._risk_rows_from_rollup(dims) if c == "safety")
     assert row[0] == "MEDIUM"
 
 
