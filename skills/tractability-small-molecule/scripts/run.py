@@ -44,6 +44,7 @@ from _skills_common.tractability_sm_question_table import tractability_sm_questi
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -512,6 +513,30 @@ def _headline(cards, fired, verdict_pair):
     # just-built headline + claim_vector (mirrors tumor-presence / tumor-selectivity). Carried through
     # _synthesis_facet so the composed target-profile dashboard renders the same table. Best-effort.
     hl["question_table"] = _enrich("question_table", tractability_sm_question_table, hl, cards)
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, assembled
+    # from the verdict + claim_vector + headline_block + question_table just built. tractability-small-
+    # molecule is a GATING skill (∈ target-profile _SHORT_TO_GATE); its druggability polarity is clean
+    # 3-band with no veto-killer verdict (chemically_unhit / structurally_intractable are opposing, not a
+    # cross-target veto), so the helper's negative→opposing floor is correct and no
+    # canonical_polarity_override is needed. Best-effort + verdict-INERT. (build_skill_report is
+    # keyword-only → inline try/except, not the positional `_enrich` helper.)
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=hl.get("druggability_snapshot"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -524,6 +549,9 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — the Wave-3 skill_report
+    # adoption arc (3rd gating adopter after safety + functional-requirement)
+    "skill_report",
 )
 
 
