@@ -546,6 +546,23 @@ def _dep_direction(v) -> str:
     return "neutral"
 
 
+def _dep_modality_scope(cards) -> "dict | None":
+    """Wire the SM-vs-degrader discriminator into the composed modality_fit: a STRONGLY paralog-buffered
+    target resists single-agent active-site SM inhibition (the paralog compensates) but is a strong
+    complete-removal case → degrader-preferred (mirrors the intracellular-intrinsic rule
+    strong-paralog-buffering-degrader-preferred). Previously paralog-buffering reached no modality channel
+    (functional-requirement's _claim_record emitted no modality_scope). Only `strong` triggers it; degrader
+    → favorable, small_molecule → conditional (weakened, not vetoed — an allosteric/degrader ligand may
+    still hit the shared domain). VERDICT-INERT."""
+    try:
+        cls = get_card_field(cards, "paralog-buffering", "paralog_buffering_class")
+    except KeyError:
+        return None                 # paralog-buffering card absent → silent (best-effort, verdict-inert)
+    if cls == "strong":
+        return {"_refinements": {"degrader": "favorable", "small_molecule": "conditional"}}
+    return None
+
+
 def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     """M1 shadow builder — standalone, mirrors the other axes' hook."""
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
@@ -559,6 +576,7 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
         direction=_dep_direction(v),
         availability=_dep_availability(v),
         magnitude={"level": _DEP_STRENGTH_TO_LEVEL.get(_dependency_strength(v), "none")},
+        modality_scope=_dep_modality_scope(cards),
         certainty=certainty,
         fired=fired,
         cards=cards,

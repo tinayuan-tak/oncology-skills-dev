@@ -30,6 +30,7 @@ from _skills_common import get_card_field
 from _skills_common.immune_context_claims import (
     immune_context_claim_vector, immune_context_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -264,6 +265,44 @@ def _synthesis_facet(cards, fired, verdict_pair):
     facet["_facet_note"] = ("Deterministic immune-context facet; claim_vector is the TCE EFFECTOR axis "
                             "(indication-level, target-independent). Gateless — no verdict on the spine.")
     return facet
+
+
+# ── M1 claim-record: wires the CD8 effector context into the composed modality_fit bite_tce channel ──
+# immune-context is the TCE EFFECTOR arm — the CD8 companion to surface-modality-fit's antigen arm. It
+# is the ONLY axis that speaks to whether there are effector T-cells for a T-cell engager to redirect,
+# so its record contributes a bite_tce refinement ONLY (silent on every other channel). Previously
+# immune-context exposed no _claim_record, so this signal reached neither modality_fit nor the modality
+# conjunction — the TCE effector arm was unwired (2026-09 modality-coverage audit). VERDICT-INERT.
+_IMMUNE_TCE_FIT = {           # immune verdict → bite_tce favorability (modality_fit vocab)
+    "immune_hot":          "favorable",     # CD8 effector context present → TCE-favourable
+    "immune_intermediate": "conditional",   # partial effector context
+    "immune_cold":         "conditional",   # effector absence = TCE-EFFICACY RISK, but NOT a veto
+                                            # (CIBERSORT is a relative, non-spatial screen) → caveat, not kill
+}                                            # insufficient / no cohort → silent (na)
+
+
+def _immune_modality_scope(verdict: "str | None") -> "dict | None":
+    fit = _IMMUNE_TCE_FIT.get(verdict)
+    return {"_refinements": {"bite_tce": fit}} if fit else None
+
+
+def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
+    """M1 shadow builder — the effector (TCE) axis's contribution; mirrors the other axes' hook. Its
+    modality_scope is the wiring that lets the CD8 effector read reach the composed bite_tce channel."""
+    v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
+    _avail = {"immune_hot": "measured_positive", "immune_intermediate": "measured_positive",
+              "immune_cold": "measured_negative"}.get(v, "insufficient")
+    return assemble_claim_record(
+        axis="immune_context",
+        state=(v or "insufficient"),
+        direction={"immune_hot": "supports", "immune_cold": "opposes"}.get(v, "neutral"),
+        availability=_avail,
+        magnitude={"level": {"immune_hot": "strong", "immune_cold": "moderate"}.get(v, "none")},
+        modality_scope=_immune_modality_scope(v),
+        certainty={"coverage": "measured" if _avail != "insufficient" else "unmeasured"},
+        fired=fired,
+        cards=cards,
+    )
 
 
 if __name__ == "__main__":
