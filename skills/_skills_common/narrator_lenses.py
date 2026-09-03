@@ -91,9 +91,13 @@ TUMOR_SELECTIVITY = LensConfig(
 
 GENOMIC_ALTERATION = LensConfig(
     name="genomic-alteration-profile",
-    thesis="HOW the target is genomically altered (SNV/indel, copy-number, fusion, or a mix) and which "
-           "alteration CLASS carries the signal — not a single 'is it a driver' call.",
-    relevance_prompt="judge how the genomic-alteration evidence supports this target, naming which class drives.",
+    thesis="HOW the target is genomically altered (SNV/indel, copy-number, fusion, or a mix), which "
+           "alteration CLASS carries the signal (not a single 'is it a driver' call), and the variant-level "
+           "clinical interpretation of the target's own alterations — oncogenicity and any CIViC-annotated "
+           "THERAPY-RESISTANCE alleles (e.g. a mutation that is a negative predictive biomarker for a "
+           "targeted agent), surfaced in the DEP claim's actionability read.",
+    relevance_prompt="judge how the genomic-alteration evidence supports this target, naming which class "
+                     "drives and surfacing any variant-level therapy-resistance actionability.",
     axis_labels={"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion", "DEP": "alteration-conferred dependency"},
     scope_exclusions=("therapeutic modality", "expression as presence"),
     mode="verdict",

@@ -4,6 +4,33 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-03 (v2.14.0)
+- **OPTIONAL `--literature` lane** wired into the hand-rolled `main()` (this skill does NOT use
+  `run_wired_skill`, so it attaches the lane itself, mirroring the dispatcher seam and tumor-presence
+  #965 / tumor-selectivity #968). Reuses the shared `_skills_common.literature_synthesis.make_literature_fn`
+  with `retrieve_fn=default_retrieve` (Europe PMC → PubTator3 fallback chain, #975) +
+  `verify_fn=verify_citations` (Europe PMC / NCBI PMID verification). Verdict-INERT: attached as
+  `decision['literature_synthesis']` AFTER the deterministic spine and BEFORE the `--synthesize` narrator
+  (so the narration can CITE it via `narrator_engine._render_literature`); a network/Bedrock failure
+  degrades to a note and can never break the spine. The `genomic-alteration-profile` lens query terms
+  already live in `literature_retrieval._LENS_QUERY_TERMS`, and the lens's SNV/CN/FUS/DEP `axis_labels`
+  match the genomic `claim_vector`, so the literature prompt is grounded on the right axes.
+- **VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability.** A 4-facet
+  KRAS/COADREAD literature benchmark (SNV-hotspot / copy-number / fusion / dependency+drug-response, all
+  PMID-verified) confirmed the omics class-attribution is CORRECT (SNV/mutation class drives
+  `biomarker_stratified_dependency`; CN + fusion correctly `absent`) and the LLM numbers faithful — but
+  the single most clinically-important CRC-specific KRAS fact, that KRAS mutation is a NEGATIVE predictive
+  biomarker for anti-EGFR mAbs (cetuximab/panitumumab; extended-RAS testing = SoC), was INVISIBLE to the
+  narrator: it lives in `variant-level-interpretation.civic_resistance_variants` but the capsule projection
+  never surfaces `resistance_variants`, so the synthesis missed it. `genomic_claims._resistance_actionability`
+  now folds a compact, class-generic CIViC therapy-resistance clause into the DEP ("actionability so what")
+  claim's rendered `evidence` (and thereby `key_signals`), so the narrator surfaces it. Verdict spine
+  byte-stable (live KRAS/COADREAD: verdict / driving_rule / fired_rules identical). LensConfig thesis
+  extended to name variant-level clinical interpretation + therapy-resistance actionability.
+- SCOPE respected: therapeutic-window / selectivity stays owned by tumor-selectivity; dependency magnitude
+  by functional-requirement. This surfaces only clinical interpretation of the target's OWN alterations
+  (this skill's own `variant-level-interpretation` card), verdict-inert.
+
 ## 2026-09-02 (v2.13.0)
 - **splice-exon-skip-landscape** card wired as a VERDICT-DRIVING genomic axis (CASE-002). A curated
   exon-skipping DRIVER event (METex14) that is oncogenic in-indication + live DepMap carrier

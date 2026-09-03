@@ -165,6 +165,41 @@ _RECURRENCE_SIGNAL_TO_CORR = {"top_1pct": "high", "top_decile": "high", "mid": "
                               "bottom_decile": "low", "data_unavailable": "moderate"}
 
 
+def _resistance_actionability(h) -> str | None:
+    """VERDICT-INERT clinical-actionability breadcrumb from CIViC per-variant interpretation (the
+    variant-level-interpretation card, this skill's own). Summarises the THERAPY-RESISTANCE alleles
+    (`civic_resistance_variants`, already lifted onto the headline) as a compact clause the DEP claim's
+    rendered evidence surfaces to the narrator. Motivated by the KRAS/COADREAD benchmark: the single most
+    clinically-important CRC-specific KRAS fact — that KRAS mutation is a NEGATIVE predictive biomarker for
+    anti-EGFR mAbs (cetuximab/panitumumab; extended-RAS testing = standard of care) — is fully present in
+    the card but was invisible to the claim_vector / key_signals / narrator (the capsule projection does
+    not surface resistance_variants), so the LLM synthesis missed it. Class-generic (no hardcoded therapy /
+    indication); returns None when no resistance alleles are curated (axis byte-stable — no clause added).
+    This is a clinical-INTERPRETATION annotation on the target's OWN alterations, squarely within this
+    skill's variant-level-interpretation card — NOT a selectivity / therapeutic-window call (owned by
+    tumor-selectivity) and NOT a nomination input (the claim vector never feeds the genomic resolver)."""
+    rv = h.get("civic_resistance_variants") if isinstance(h, dict) else None
+    if not isinstance(rv, list) or not rv:
+        return None
+    therapies: dict[str, int] = {}
+    n_alleles = 0
+    for v in rv:
+        if not isinstance(v, dict):
+            continue
+        n_alleles += 1
+        for combo in (v.get("therapies") or []):
+            # a CIViC "therapies" entry can be a combination ("Panitumumab,Cetuximab"); count each agent
+            for t in str(combo).split(","):
+                t = t.strip()
+                if t:
+                    therapies[t] = therapies.get(t, 0) + 1
+    if not n_alleles or not therapies:
+        return None
+    top = sorted(therapies, key=lambda t: (-therapies[t], t))[:3]
+    return (f"CIViC therapy-resistance: {n_alleles} allele(s) annotated resistant to {len(therapies)} "
+            f"therapies (top: {', '.join(top)}) [variant-level-interpretation]")
+
+
 def _dep_signal(h, c):
     bc = _by_class(h)
     fields = [
@@ -175,11 +210,15 @@ def _dep_signal(h, c):
     ]
     tiers = [_STRAT_SIGNAL.get(f, "unmeasured") for f in fields if f is not None]
     measured = [t for t in tiers if SIGNAL_ORD.get(t) is not None]
+    # VERDICT-INERT clinical-actionability breadcrumb (CIViC therapy-resistance) folded into the DEP
+    # ("actionability so what") claim's rendered evidence so the narrator surfaces it; None → no clause.
+    _res = _resistance_actionability(h)
+    _res_clause = f"; {_res}" if _res else ""
     if not measured:
-        return "unmeasured", "no biomarker-stratified dependency measured", None
+        return "unmeasured", "no biomarker-stratified dependency measured" + _res_clause, None
     best = max(measured, key=lambda t: SIGNAL_ORD[t])
     fired = [f for f in fields if f and _STRAT_SIGNAL.get(f) == best]
-    return best, f"biomarker-stratified dependency: strongest = {fired[0] if fired else best}", None
+    return best, f"biomarker-stratified dependency: strongest = {fired[0] if fired else best}" + _res_clause, None
 
 
 def _dep_corroboration(h, c):

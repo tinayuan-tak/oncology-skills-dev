@@ -46,6 +46,16 @@ from _skills_common.genomic_question_table import genomic_question_table
 from _skills_common.subgroup_derivation import make_value_classifier, subgroup_signals_for
 from _skills_common.narrator_engine import narrate as _narrate
 from _skills_common.narrator_lenses import GENOMIC_ALTERATION as _LENS
+# OPTIONAL (--literature) verdict-INERT LLM literature lane, reusing the shared fleet module (the same
+# make_literature_fn wired into tumor-presence #965 / tumor-selectivity #968). This skill HAND-ROLLS
+# main() (no run_wired_skill), so it attaches the lane itself in main() — mirroring the dispatcher seam.
+# Grounded in Europe PMC (PubTator3 fallback via default_retrieve; genomic-alteration lens query terms
+# live in literature_retrieval._LENS_QUERY_TERMS) + PMID-verified via verify_citations. The lens's
+# SNV/CN/FUS/DEP axis_labels match the genomic claim_vector, so the prompt is grounded on the right axes.
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+
+_LITERATURE_FN = make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations)
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
 # This skill hand-rolls main() (no run_wired_skill), so it wires the fleet sub-group derivation itself
@@ -81,7 +91,7 @@ from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.13.0"   # +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.14.0"   # +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -260,6 +270,11 @@ _INDICATION_ANCHORED_RULES = {
     "cn-patient-focal-amplified-supportive", "cn-patient-focal-deleted-supportive",
     "fusion-landscape-recurrent-driver-supportive",
     "snv-recurrence-top-driver-supportive",   # Phase 2 (pooled patient recurrence) — forward-compat
+    # A curated exon-skip DRIVER (METex14, resolver §3b / v2.13.0) is oncogenic in its CURATED indication
+    # (indication-native, patient-tissue anchored), so its rung classifies as indication_anchored — not the
+    # `unclassified` the scope map returned before the splice rung was added here. Verdict-inert (scope
+    # decomposition never feeds a resolver rung). Surfaced by the MET/LUAD validation pass.
+    "splice-exon-skip-driver-supportive",
 }
 # ... vs pan-cancer cell-line landscape / variant-shape / pharmacology rungs.
 _PAN_CANCER_RULES = {
@@ -997,6 +1012,13 @@ def main() -> int:
                          "verdict spine (the decision is byte-identical without this flag).")
     ap.add_argument("--synthesis-model", default=None,
                     help="Override the Bedrock synthesis model id (default: framework Opus).")
+    ap.add_argument("--literature", action="store_true",
+                    help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
+                         "of the SNV/CN/FUS/DEP genomic axes, Europe-PMC-grounded + PMID-verified) under "
+                         "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
+                         "corroboration/contradiction lane. NEVER alters the verdict spine.")
+    ap.add_argument("--literature-model", default=None,
+                    help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
     args = ap.parse_args()
 
     cards = resolve_cards(CARDS, args.target, args.indication)
@@ -1065,6 +1087,22 @@ def main() -> int:
             cards, fired=fired, verdict_pair=(verdict, driving_rule))}
     except Exception as e:  # noqa: BLE001 — shadow is non-authoritative; never break the spine
         decision["claim_record_shadow"] = {"_shadow_error": f"{type(e).__name__}: {e}"}
+
+    # OPT-IN LLM LITERATURE lane (verdict-INERT). Attached as a SIBLING key
+    # decision['literature_synthesis'] AFTER the deterministic decision is composed and BEFORE the
+    # --synthesize narrator below, so the narrator can CITE it as a corroboration/contradiction lane
+    # (narrator_engine._render_literature ingests it). Mirrors the dispatcher seam (dispatcher.py 8a-iii);
+    # this skill hand-rolls main(), so it wires _LITERATURE_FN itself. Best-effort: a network/Bedrock
+    # failure degrades to a note and can never break the deterministic spine (attached after it).
+    if args.literature:
+        try:
+            decision["literature_synthesis"] = _LITERATURE_FN(
+                decision, args.literature_model)
+        except Exception as e:  # noqa: BLE001 — the literature lane is optional; never break the spine
+            decision["literature_synthesis"] = {
+                "_literature_error": f"{type(e).__name__}: {e}",
+                "_note": "LLM literature synthesis unavailable; the deterministic verdict above is unaffected.",
+            }
 
     # OPT-IN LLM synthesis. This skill hand-rolls main() (it does not use run_wired_skill), so it
     # narrates through the genomic-alteration lens here. Attached as a sibling key AFTER the
