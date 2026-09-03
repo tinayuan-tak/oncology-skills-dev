@@ -77,6 +77,7 @@ _GENOMIC_VALUE_TIERS = {
     "no_recurrent_fusion": "absent", "tumor_shifted": "moderate", "no_splice_shift": "absent",
 }
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
@@ -663,9 +664,10 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
-                    fdr_provenance: dict) -> dict:
+                    fdr_provenance: dict, fired: "list[dict] | None" = None) -> dict:
     """Assemble the deterministic headline: the computed verdict keys, every declarative field
-    lift from _HEADLINE_FIELDS, then the card-availability roll-up."""
+    lift from _HEADLINE_FIELDS, then the card-availability roll-up. `fired` (optional) supplies the
+    skill_report provenance's fired_rule_ids; all callers have it in scope."""
     card_by_id = {c["card_id"]: c for c in cards}
     headline: dict = {
         "genomic_alteration_profile":  verdict,
@@ -735,6 +737,29 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
             headline["subgroup_signals"] = _sg
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         headline.setdefault("_enrichment_errors", {})["subgroup_signals"] = f"{type(exc).__name__}: {exc}"
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, from the
+    # (reconciled) verdict + claim_vector + headline_block + question_table just built. genomic-alteration-
+    # profile is a GATING skill (∈ target-profile _SHORT_TO_GATE) with a clean 3-band polarity and no
+    # veto-killer verdict, so the helper's negative→opposing floor is correct (no override). Uses the
+    # RECONCILED genomic_alteration_profile (the emitted word, not the raw ladder). Best-effort +
+    # verdict-INERT. `fired` supplies fired_rule_ids (None → omitted).
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        headline["skill_report"] = build_skill_report(
+            role=ROLE_GATING,
+            verdict=headline.get("genomic_alteration_profile"),
+            driving_rule_id=headline.get("driving_rule_id"),
+            headline_block=headline.get("headline_block"),
+            claim_vector=headline.get("claim_vector"),
+            question_table=headline.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or [c.get("card_id") for c in (cards or []) if isinstance(c, dict)],
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        headline["skill_report"] = None
     return headline
 
 
@@ -755,6 +780,9 @@ _SYNTHESIS_FACET_KEYS = (
     "headline_block",
     # hierarchy-derived per-sub-group signals (SNV/CN/FUS/DEP; sources bound by measurement_type)
     "subgroup_signals",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 skill_report
+    # adoption (5th gating adopter)
+    "skill_report",
 )
 
 
@@ -912,7 +940,7 @@ def _synthesis_facet(cards, fired, verdict_pair):
     omitted — a within-run detail, not reconciliation-relevant) and returns claim_vector + key_signals +
     the per-class/per-scope breakdown. Never moves the verdict; safe to omit."""
     verdict, driving = verdict_pair if verdict_pair else (None, None)
-    h = _build_headline(cards, verdict, driving, {})
+    h = _build_headline(cards, verdict, driving, {}, fired=fired)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
     facet["_facet_note"] = (
         "Deterministic genomic-alteration facet (a FACET, not a gate; the multi-class genomic verdict is "
@@ -931,7 +959,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     then narrates through the genomic synthesizer. Best-effort + VERDICT-INERT (the subtype arg is
     unused — genomic narrates whole-cohort; a failure is the caller's to swallow)."""
     verdict, driving = (verdict_pair or (None, None))
-    headline = _build_headline(cards, verdict, driving, {})
+    headline = _build_headline(cards, verdict, driving, {}, fired=fired)
     # cards passed so the generic engine can build evidence capsules (bounded raw data layer).
     decision = {"target": target, "indication": indication, "headline": headline,
                 "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}} for c in cards]}
@@ -983,7 +1011,7 @@ def main() -> int:
     subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else []
     subtype_result = _resolve_subtype_panorama(args.target, args.indication, subtypes) if subtypes else None
 
-    headline = _build_headline(cards, verdict, driving_rule, fdr_provenance)
+    headline = _build_headline(cards, verdict, driving_rule, fdr_provenance, fired=fired)
 
     # Subtype panorama (only present when --subtypes was passed): surfaced for the LLM/render, but
     # not a verdict input (spine byte-stable).
