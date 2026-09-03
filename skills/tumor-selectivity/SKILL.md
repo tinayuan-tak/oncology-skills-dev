@@ -34,7 +34,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.18.0
+  version: 1.19.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

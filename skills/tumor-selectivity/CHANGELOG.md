@@ -4,6 +4,18 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.19.0
+- **OPTIONAL `--literature` lane (VERDICT-INERT), Phase-5 fast-follow to 1.18.0.** Wires the shared
+  `_skills_common` literature lane (`make_literature_fn`) into `run_wired_skill(literature_fn=…)`, scoped
+  to this skill's WIN/DIST/INT/SAFE axes via the `TUMOR_SELECTIVITY` LensConfig (its thesis / axis_labels /
+  polarity_note + the claim_vector drive the prompt). Grounded on **live Europe PMC** (`europe_pmc_retrieve`)
+  and **PMID-verified** (`verify_citations`), attached as `decision['literature_synthesis']` and fed to the
+  `--synthesize` narrator as a corroboration/contradiction lane. `--literature-model` overrides the model.
+- Reuses the shared lane READ-ONLY (landed via the tumor-presence literature arc, #965) — NOT
+  re-implemented. `--literature`/`--synthesize` need system python + `BEDROCK_AWS_PROFILE=cmp-dev`
+  (+ `AWS_PROFILE=cbg` for the card reads). Verdict-inert: the lane runs AFTER the spine and never enters
+  `fired`/the resolver/the veto; `selectivity_class` byte-stable.
+
 ## 1.18.0
 - **Multi-platform corroboration folded into the claim vector (VERDICT-INERT signals-first enrichment).**
   The WIN/INT axes were single-lane (WIN = bulk-RNA comparators only; INT = single-cell only), so the
