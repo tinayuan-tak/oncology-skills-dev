@@ -32,10 +32,10 @@ title/provenance/takeaway + save). Override any margin via kwargs only for a gen
 
 | Slot | Where | What | Rule |
 |------|-------|------|------|
-| **Title** | top-left, bold | `{TARGET} in {INDICATION} — {view}` (or `{TARGET} — {view}` for target-grain) | Describes **what the figure shows**, never the conclusion. `{view}` is a fixed short noun phrase per figure type. No class tokens (`broadly_high`), no verdict. |
+| **Title** | top-left, bold | `{TARGET} in {INDICATION} — {view}` (or `{TARGET} — {view}` for target-grain) | Describes **what the figure shows**, never the conclusion. **Be specific about the measurement type** — say "RNA" / "protein", not a bare "expression". No class tokens (`broadly_high`), no verdict. |
 | **Provenance** | muted line under the title | dataset(s) + version (+ `n=` when not on the marks) | The source caption. Light, unobtrusive. |
 | **Takeaway** | bottom-left | the key quantitative finding, one sentence | **No "Takeaway:" label** — just the sentence. Factual (a number), not a judgment. |
-| **Axis label** | on the axis | concept primary + scale/measure muted secondary | `axis_label(ax, "x", "Expression", "log2(TPM + 1)")`. Concept is plain language; the unit/scale is the small muted line. |
+| **Axis label** | on the axis | concept primary + scale/measure muted secondary | `axis_label(ax, "x", "RNA Expression", "log2(TPM + 1)")`. Concept is plain + specific; the unit/scale is the small muted line — **below** the concept (x) or to the **right/inner** of it (y). |
 
 ## Sample counts (`n=`)
 
@@ -54,12 +54,49 @@ title/provenance/takeaway + save). Override any margin via kwargs only for a gen
 - Reference lines: `REFLINE_NEUTRAL` for an orientation marker; `REFLINE_GOOD` / `REFLINE_KILLER` only
   where a threshold genuinely helps/hurts. Don't let a red line imply "bad" on a neutral plot.
 
+## Principles distilled from figure review
+
+These generalize the per-figure feedback — apply them to every figure, not just the one that
+prompted them.
+
+1. **Show WHY the conclusion holds — put the driving metric on the plot.** The takeaway states a
+   finding; the figure should carry the number(s) that produced it. A distribution → annotate the
+   fraction-above-threshold + median that set the class (e.g. "expressed ≥1: 63%", "highly ≥5: 43%",
+   median marker). A categorical/ladder → annotate the source metric that *decides* the category
+   ("decided by HPA IHC call: 'Detected in many'"). Never make the reader take the takeaway on faith.
+
+2. **No legend when the marks can be labeled directly.** ≤ ~3 reference lines / series → annotate each
+   at the line (threshold lines get their label + value at the line; flag colors get direct labels).
+   Reserve a legend box for genuinely un-labelable multi-series cases.
+
+3. **In-plot stat annotations go in an EMPTY corner, never over the data.** For a positive-correlation
+   scatter the bottom-right is clear (points ride the diagonal); pick the corner with no marks and
+   confirm by eye. An annotation that overlaps points is a bug.
+
+4. **Be specific and concise in labels.** Titles + axes name the exact measurement ("RNA Expression",
+   "Protein Expression", "Tumor purity") — specific, but no jargon strings as the primary label (the
+   unit/scale is the muted secondary line).
+
+5. **Be honest about data limits — don't fabricate a scale.** If the source has no absolute
+   High/Med/Low (e.g. HPA gives a *relative* enrichment score), say so on the axis and surface the
+   qualitative call the data *does* provide (HPA specificity) rather than inventing bands.
+
+6. **One message per figure — cut redundant views.** Two figures that carry the same message is one
+   too many (the cell-line ranked waterfall was retired — the annotated density already showed the
+   thresholds + shape; the per-lineage strip stayed because it adds a distinct dimension). Prefer
+   annotating one figure over adding a second.
+
+7. **Legibility: fonts sized for a slide, not a thumbnail.** Ticks ≥10, axis concept ~11.5, title
+   ~12.5 (set centrally in the mplstyle + `axis_label`; don't override per figure).
+
 ## Do / don't
 
-- ✅ concept-first axes · ✅ `n` on boxes for distributions · ✅ one-sentence factual takeaway ·
-  ✅ identity colors from the palette · ✅ `figure_frame` for layout.
+- ✅ concept-first + measurement-specific axes · ✅ `n` on boxes for distributions · ✅ one-sentence
+  factual takeaway · ✅ the driving metric annotated on the plot · ✅ direct mark labels over a legend ·
+  ✅ stat annotations in an empty corner · ✅ identity colors from the palette · ✅ `figure_frame` for layout.
 - ❌ class tokens or the verdict in the title · ❌ a verdict badge drawn on the figure ·
-  ❌ jargon axis strings (`log2(TPM+1) — per RNA-seq sample`) as the primary label · ❌ `n=` in axis
-  labels · ❌ hand-set margins / figsize / hardcoded hex in an emitter.
+  ❌ jargon axis strings as the primary label · ❌ a bare "expression" where "RNA"/"protein" is meant ·
+  ❌ `n=` in axis labels · ❌ an annotation over the data · ❌ a fabricated High/Med/Low the source
+  doesn't provide · ❌ two figures carrying the same message · ❌ hand-set margins/figsize/hex in an emitter.
 
 Enforced by `tests/test_figure_frame_contract.py`.
