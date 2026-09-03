@@ -325,7 +325,9 @@ def axis_label(ax, which, concept, scale=None):
     else:
         ax.set_ylabel(concept, fontsize=10.5, labelpad=8, color=INK_SECONDARY)
         if scale:
-            ax.annotate(scale, xy=(0, 0.5), xytext=(-46, 0), xycoords="axes fraction",
+            # offset past the concept label; -58pt clears wide y-tick labels (e.g. "29.0") so the
+            # muted scale never overlaps the concept, while staying inside a ≥0.15 left margin.
+            ax.annotate(scale, xy=(0, 0.5), xytext=(-58, 0), xycoords="axes fraction",
                         textcoords="offset points", ha="center", va="center", rotation=90,
                         fontsize=7.5, color=INK_MUTED, annotation_clip=False)
 
@@ -342,7 +344,7 @@ from pathlib import Path as _Path
 # + save still apply on exit).
 _FRAME_LAYOUT = {
     "single":  {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
-    "scatter": {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.13, "right": 0.965},
+    "scatter": {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
     "tall":    {"figsize": (FIGSIZE_DOUBLE_COLUMN[0], 4.4),"top": 0.78, "bottom": 0.220, "left": 0.16, "right": 0.965},
 }
 _STYLE_PATH = _Path(__file__).parent / "takeda_oncology.mplstyle"
