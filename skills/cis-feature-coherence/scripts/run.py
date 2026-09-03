@@ -28,6 +28,7 @@ from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_INERT
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -311,6 +312,25 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — cis-feature-coherence emits a verdict-SHAPED
+    # string (e.g. expressed_cis_coupled_inert) that is explicitly NOT a call, so role=INERT → the report
+    # renders as a view with polarity=not_scored, never scored. Best-effort + verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_INERT,
+            verdict=hl.get("cis_coherence_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -323,6 +343,8 @@ _SYNTHESIS_FACET_KEYS = (
     "claim_vector", "key_signals",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 inert-role adoption
+    "skill_report",
 )
 
 

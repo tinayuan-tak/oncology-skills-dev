@@ -30,6 +30,7 @@ from _skills_common import get_card_field
 from _skills_common.immune_context_claims import (
     immune_context_claim_vector, immune_context_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
@@ -243,6 +244,25 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — immune-context is a DESCRIPTIVE skill (CD8
+    # effector context for the TCE arm; role=descriptive → polarity=not_scored, excluded from gate math).
+    # Best-effort + verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=hl.get("immune_context_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -253,6 +273,8 @@ _SYNTHESIS_FACET_KEYS = (
     "claim_vector", "key_signals",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 descriptive adoption
+    "skill_report",
 )
 
 

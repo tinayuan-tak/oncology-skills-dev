@@ -33,6 +33,7 @@ from _skills_common import get_card_field
 from _skills_common.target_intrinsic_claims import (
     target_intrinsic_claim_vector, target_intrinsic_key_signals)
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 
@@ -238,6 +239,26 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the dossier
         hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         hl["headline_block"] = None
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — target-intrinsic is a GATELESS DESCRIPTIVE
+    # dossier (indication-independent; no verdict), so role=descriptive + verdict=None → call=None,
+    # polarity=not_scored; the reader-useful content is the honest_phrase + claim_chips. Best-effort +
+    # verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=None,
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the dossier
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -265,6 +286,26 @@ def _synthesis_facet(cards, fired, verdict_pair=None):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the facet
         facet.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
         facet["headline_block"] = None
+    # UNIFIED skill_report on the FACET (docs/UNIFIED_OUTPUT_CONTRACT.md). target-intrinsic exposes NO
+    # _SYNTHESIS_FACET_KEYS tuple — this self-contained facet dict IS its fan-out carrier — so skill_report
+    # must be assembled HERE (from the facet's own cv / headline_block) to reach the composed profile, in
+    # addition to the _headline path used by the standalone decision. Gateless DESCRIPTIVE → call=None,
+    # polarity=not_scored. Best-effort + verdict-INERT.
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        facet["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=None,
+            headline_block=facet.get("headline_block"),
+            claim_vector=facet.get("claim_vector"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the facet
+        facet.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        facet["skill_report"] = None
     return facet
 
 

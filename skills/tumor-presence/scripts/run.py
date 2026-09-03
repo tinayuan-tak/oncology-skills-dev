@@ -52,6 +52,7 @@ from _skills_common.presence_claims import (presence_claim_vector, presence_clai
                                             presence_strength_from_state, presence_state_phrase)
 from _skills_common.presence_question_table import presence_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_figure import emit_subgroup_figure
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
@@ -1359,6 +1360,28 @@ def _headline(cards, fired, verdict_pair):
                                      hl.get("claim_vector"))
     # First-class subtype: fold the per-stratum reads into the sub-group structure (default-surfaced).
     _enrich("subtype_firstclass", _attach_subtype_firstclass, hl.get("subgroup_signals"), hl.get("claim_vector_by_subtype"))
+    # UNIFIED skill_report (docs/UNIFIED_OUTPUT_CONTRACT.md) — the ONE cross-skill output shape, from the
+    # (reconciled) presence_verdict + claim_vector + headline_block + question_table. tumor-presence is a
+    # DESCRIPTIVE skill (expression) — role=descriptive → polarity=not_scored, EXCLUDED from gate math; it
+    # emits a real reader-useful read but no gate call. The reference impl for descriptive adoption (the
+    # signals-first origin skill). build_skill_report is keyword-only → inline try/except (not _enrich).
+    try:
+        _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
+        _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=hl.get("presence_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=_missing,
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
@@ -1416,6 +1439,9 @@ _SYNTHESIS_FACET_KEYS = (
     "headline_block",
     # hierarchy-derived per-sub-group signals (sources bound by measurement_type; confidence=agreement×n)
     "subgroup_signals",
+    # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 skill_report
+    # adoption (descriptive-role reference impl)
+    "skill_report",
 )
 
 
