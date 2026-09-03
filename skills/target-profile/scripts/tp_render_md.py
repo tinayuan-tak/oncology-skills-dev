@@ -1,4 +1,9 @@
-"""target-profile — Markdown report renderer + the risk-by-category rollup it leads with."""
+"""target-profile — Markdown report renderer + the risk-by-category rollup it leads with.
+
+DEPRECATED (2026-09-03): the DEFAULT target_profile.md now renders via the unified
+`_skills_common.report_render` engine (spine-sourced); run.py no longer calls this. Retained for the
+review tools (render_review / rerender) + its unit tests; hard-retirement is a fast-follow.
+"""
 from __future__ import annotations
 
 import argparse

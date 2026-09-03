@@ -896,45 +896,12 @@ def main() -> int:
     composite_rel = fig.composite_rel
     card_figures = fig.card_figures
 
-    # 3b. Render + emit markdown artefact (Shape A — enriched).
-    md = _render_target_profile_md(
-        args.target, args.indication, sub_results, llm_output, invoked_lenses,
-        composite_figure_relpath=composite_rel,
-        deciding_axis=deciding_axis,
-        ordinal_matrix=ordinal_matrix,
-        presence_facet=presence_facet,
-        actionability_mode=actionability_mode,
-        archetype_companion=archetype_companion,
-        nomination_scorecard=nomination_scorecard_facet,
-        risk_rollup=risk_rollup,   # canonical deterministic risk_6dim (the ONE source md/html/json share)
-        recommendation_gate=recommendation_gate,   # so the recommendation renders as advisory + surfaces
-                                                    # any LLM↔deterministic-gate disagreement as a tension
-    )
-    write_artifact(args.out, "markdown", md, _written)
-
-    # 3c. Render + emit the static HTML governance artifact (self-contained; inlines the
-    # composite SVG). Pure projection — never blocks emission on failure.
-    try:
-        composite_svg = fig.composite_svg
-        htmldoc = _render_target_profile_html(
-            args.target, args.indication, sub_results, llm_output, invoked_lenses,
-            deciding_axis=deciding_axis, ordinal_matrix=ordinal_matrix,
-            scorecard=scorecard, composite_svg_path=composite_svg,
-            catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
-            card_figures=card_figures, figures_dir=figures_dir,
-            presence_facet=presence_facet,
-            selectivity_facet=selectivity_facet,
-            risk_assessment=risk_assessment, grounded_by_axis=grounded_by_axis,
-            hypothesis=hypothesis, confidence_tier=confidence_tier,
-            risk_rollup=risk_rollup, addressable_population=addressable_population,
-            embed="self_contained" if getattr(args, "self_contained", False) else "interactive",
-            target_rollup=target_rollup, target_coherence=target_coherence,
-            full_package=getattr(args, "full_package", False),
-        )
-        write_artifact(args.out, "html", htmldoc, _written)
-        print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
-    except Exception as e:  # noqa: BLE001
-        print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
+    # 3b/3c. target_profile.md + target_profile.html now render via the UNIFIED report_render engine
+    # (spine-sourced), emitted just AFTER the nomination is assembled below (report_render reads the
+    # nomination's target_report.skill_reports spine). The legacy tp_render_md / tp_render_html are
+    # DEPRECATED — retained for the review tools (render_review / rerender) + their unit tests; hard
+    # retirement is a fast-follow. Figures above (emit_figures) still feed card_figures / --reports /
+    # the pending report_render figure-join. See `_emit_default_reports` just after the nomination write.
 
     # Governance / reproducibility. Build the governance block via the SHARED
     # _skills_common.build_governance so it can no longer drift from compose-dashboard's — same keys,
@@ -1078,6 +1045,21 @@ def main() -> int:
         "llm_synthesis": llm_output,
     }
     write_artifact(args.out, "nomination", json.dumps(nomination, indent=2, default=str), _written)
+
+    # Default target_profile.md + target_profile.html render via the UNIFIED report_render engine
+    # (preset "full"), reading the nomination's skill_report[] spine. md is required by the write-set;
+    # html is BEST-EFFORT (mirrors the legacy try/except — a render failure must never abort the run).
+    from _skills_common.report_render import render_report as _render_report
+    write_artifact(args.out, "markdown",
+                   _render_report(nomination, preset="full", backend="markdown",
+                                  target=args.target, indication=args.indication), _written)
+    try:
+        write_artifact(args.out, "html",
+                       _render_report(nomination, preset="full", backend="html",
+                                      target=args.target, indication=args.indication), _written)
+        print(f"[target-profile] wrote {args.out}/target_profile.html (report_render)", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001
+        print(f"[target-profile] WARN: report_render HTML failed: {e}", file=sys.stderr)
 
     provenance = {
         "skill": SKILL_NAME,

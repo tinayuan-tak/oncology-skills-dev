@@ -1,5 +1,11 @@
 """target-profile — self-contained HTML report renderer (CSS/JS bootstrap, gate sections,
-per-card panels, risk-category rollup)."""
+per-card panels, risk-category rollup).
+
+DEPRECATED (2026-09-03): the DEFAULT target_profile.html now renders via the unified
+`_skills_common.report_render` engine (spine-sourced); run.py no longer calls this. Retained for the
+review tools (render_review / render_real_dashboard / rerender) + its unit tests, and its low-level
+helpers are still imported by those; hard-retirement is a fast-follow.
+"""
 from __future__ import annotations
 
 import html as _html
