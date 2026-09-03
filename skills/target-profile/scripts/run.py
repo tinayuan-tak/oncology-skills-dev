@@ -965,13 +965,10 @@ def main() -> int:
         # their own copies for reproducibility / the cross-evidence contract — unchanged.)
         "target_call": target_call,
         "ordinal_matrix_view": ordinal_matrix,
-        # Biomarker convergence facet (Q12, Part 3c): corroboration + stratification + preferred_assay.
-        # A FACET (not a gate) — informs confidence + patient-selection; never mints a nominate.
-        "biomarker_facet": biomarker_facet,
-        # Subtype convergence facet (Part 3c integration layer): the per-molecular-subtype cross-axis
-        # convergence (expression / dependency / mutation-frequency). A FACET (not a gate) — defines
-        # patient-selection strata + informs confidence; never mints a nominate.
-        "subtype_facet": subtype_facet,
+        # (Wave-3 legacy-facet retirement 2026-09-03) The top-level "biomarker_facet" + "subtype_facet"
+        # nomination keys were DUPLICATES of target_report.biomarker + target_report.subtype_convergence
+        # (the SAME objects) and had no reader — dropped. They remain nested under target_report, and are
+        # still passed in-memory to the synthesis prompt / evidence package / target_rollup.
         # target_rollup.v1 + target_coherence.v1 — the VERDICT-INERT distillation layer: a 7-axis
         # roll-up + a NEGATIVE cross-axis block (no positive scalar) + a PROMINENT subtype block, and a
         # thesis/coherence lens on top. Additive; never touch the spine above.
@@ -990,7 +987,8 @@ def main() -> int:
         # ("dependency_facet" RETIRED 2026-09-03 — see the facet-build block; functional-requirement's
         # synthesis_facet is still carried at sub_results['dependency']['synthesis_facet'] + on the
         # skill_report[] spine under target_report.skill_reports.dependency.)
-        "modality_conjunction": modality_conjunction,
+        # ("modality_conjunction" RETIRED 2026-09-03 — duplicated target_report.modality_fit.conjunction,
+        # no reader; still nested there + passed in-memory to build_target_report.)
         # Competitor cross-reference facet (2026-08-24): OT competitor field vs the framework's own
         # surface-modality-fit verdict — competition density + modality validated/contrarian +
         # differentiation hooks. A FACET (not a gate); never moves the recommendation. None when
@@ -1001,9 +999,8 @@ def main() -> int:
         # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or
         # moves a recommendation (target_index/contested touch neither the gate nor confidence).
         "fragility": fragility,
-        # Heterogeneity facet (verdict-inert): cross-context dispersion (comparator / modality /
-        # subtype). A stratified-opportunity signal the pooled verdict hides; never moves the call.
-        "heterogeneity": heterogeneity,
+        # ("heterogeneity" RETIRED 2026-09-03 — duplicated target_report.robustness.heterogeneity, no
+        # reader; still nested there + passed in-memory to build_target_report.)
         # Cross-gate shared-evidence (verdict-inert): which gate verdicts share an input card (correlated,
         # not independent corroboration) — the measured cross-gate redundancy made visible for the roll-up.
         "cross_gate_shared_evidence": cross_gate_shared_evidence,
