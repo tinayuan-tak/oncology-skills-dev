@@ -163,6 +163,315 @@ CHRONOS_MODERATE_DEPENDENCY = -0.5
 CHRONOS_NO_DEPENDENCY = 0.0
 
 
+# ============================================================================
+# VERDICT-STATUS LAYER (figure-redesign 2026-09-03)
+# ----------------------------------------------------------------------------
+# A RESERVED status palette + badge/takeaway helpers so every card figure can
+# carry the verdict its card fired — sourced from the SAME fired_rules the
+# narrative reads (see status_for_card), so figure status and written verdict
+# are one fact and cannot drift.
+#
+# Discipline (matches ordinal_view + the dataviz "status is reserved" rule):
+#   * Status color is RESERVED — never reused for a data series. Data marks keep
+#     their identity colors (TUMOR_*/NORMAL_*/lineage); only the badge + verdict-
+#     aligned reference lines carry status color.
+#   * Status is NEVER color-alone — the badge always ships an icon AND a text
+#     label, so it survives CVD / greyscale print / forced-colors.
+#   * The signal vocabulary is the framework's own
+#     (supportive / neutral / opposing / killer / insufficient / not_applicable).
+# ============================================================================
+
+# Canonical identity pair for tumor vs normal (promoted here so methods stop
+# each hardcoding their own blue — the F2 "palette drift" fix).
+TUMOR_FILL, TUMOR_LINE = "#1F4E79", "#0A2540"
+NORMAL_FILL, NORMAL_LINE = "#A9C5DB", "#5B7F99"
+
+# signal -> visual treatment. `fill` = badge background, `ink` = badge text/border,
+# `icon` = a glyph present in DejaVu Sans (SVG keeps text-as-text), `label` = the
+# reader-facing word. Hues validated against white; keep distinct from the diverging
+# DATA ramp so a negative log2FC bar is never misread as a killer badge.
+VERDICT_STATUS = {
+    "supportive":     {"fill": "#1A7F5A", "ink": "#0E4A34", "icon": "●", "label": "SUPPORTS"},
+    "neutral":        {"fill": "#5B7F99", "ink": "#33505F", "icon": "◐", "label": "NEUTRAL"},
+    "opposing":       {"fill": "#C0603A", "ink": "#7A2C20", "icon": "▲", "label": "AGAINST"},
+    "killer":         {"fill": "#B2182B", "ink": "#6B0F1A", "icon": "✕", "label": "KILLER"},
+    "insufficient":   {"fill": "#9AA3AB", "ink": "#5A626A", "icon": "○", "label": "INSUFFICIENT"},
+    "not_applicable": {"fill": "#C9CED3", "ink": "#7D8288", "icon": "–", "label": "N/A"},
+    # context/descriptive figures with no fired rule — an honest "no call", not a grey killer.
+    "context":        {"fill": "#EDEFF2", "ink": "#5A626A", "icon": "◇", "label": "CONTEXT"},
+}
+
+# Display precedence when a card fires several rules: a co-fired killer dominates a
+# co-fired supportive (mirrors the ordinal-matrix cell rule); among positives the
+# stronger signal shows; off-scale ranks lowest.
+_STATUS_SEVERITY = {"killer": 4, "opposing": 3, "supportive": 2, "neutral": 1,
+                    "insufficient": 0, "not_applicable": 0, "context": -1}
+
+# Readable rule_id-suffix mnemonic → signal. This is the FALLBACK used when the
+# caller cannot pass the rule contract's authoritative `signals:` object; the
+# suffix convention is enforced across the presence/expression rule sets.
+_RULE_SUFFIX_TO_SIGNAL = [
+    ("-veto", "killer"), ("-killer", "killer"),
+    ("-opposing", "opposing"), ("-against", "opposing"), ("-caution", "opposing"),
+    ("-supportive", "supportive"), ("-support", "supportive"),
+    ("-neutral", "neutral"), ("-informative", "neutral"),
+    ("-insufficient", "insufficient"), ("-unmeasured", "insufficient"),
+]
+
+
+def resolve_status(signal):
+    """One signal string -> its badge treatment dict (fill/ink/icon/label/signal).
+    Unknown/None -> `context` (an honest no-call), never a fabricated negative."""
+    key = signal if signal in VERDICT_STATUS else "context"
+    return {"signal": key, **VERDICT_STATUS[key]}
+
+
+def _signal_from_rule_id(rule_id):
+    rid = (rule_id or "").lower()
+    for suffix, sig in _RULE_SUFFIX_TO_SIGNAL:
+        if rid.endswith(suffix) or suffix + "-" in rid or (suffix.strip("-") in rid.split("-")):
+            return sig
+    return None
+
+
+def status_for_card(card_id, fired_rules, *, signal_by_rule_id=None, takeaway=None):
+    """Derive one card's figure status from the SAME `fired_rules` the resolver produced.
+
+    fired_rules: the run's fired-rule dicts (rule_id / card_id / dominant / rationale_summary...).
+    signal_by_rule_id: optional {rule_id: signal} from the rule contracts' `signals:` (authoritative);
+                       when absent, the rule_id suffix mnemonic is used (see _RULE_SUFFIX_TO_SIGNAL).
+    takeaway: optional one-line caption the emitter supplies (usually data-derived, more informative
+              than the truncated rule rationale).
+
+    Returns the resolve_status() dict + {rule_id, takeaway}. No fired rule for the card -> `context`.
+    """
+    mine = [r for r in (fired_rules or []) if r.get("card_id") == card_id]
+    if not mine:
+        return {**resolve_status(None), "rule_id": None, "takeaway": takeaway}
+
+    def sig_of(r):
+        rid = r.get("rule_id")
+        if signal_by_rule_id and rid in signal_by_rule_id:
+            return signal_by_rule_id[rid]
+        return r.get("signal") or _signal_from_rule_id(rid) or "neutral"
+
+    # prefer the dominant rule(s); else all — then take the most-severe by display precedence.
+    dominant = [r for r in mine if r.get("dominant")]
+    pool = dominant or mine
+    chosen = max(pool, key=lambda r: _STATUS_SEVERITY.get(sig_of(r), 0))
+    st = resolve_status(sig_of(chosen))
+    if takeaway is None:
+        rs = (chosen.get("rationale_summary") or "").strip().rstrip("—-").strip()
+        takeaway = (rs.split(". ")[0][:150] or None) if rs else None
+    return {**st, "rule_id": chosen.get("rule_id"), "takeaway": takeaway}
+
+
+# ============================================================================
+# FIGURE ANNOTATION CONTRACT (unified style guide, 2026-09-03)
+# ----------------------------------------------------------------------------
+# WHERE + WHAT to annotate, one spec for every card figure. Every emitter builds
+# a figure from these four slots and NOTHING else free-floating:
+#
+#   figure_title(fig, target, indication, view)   top-left, bold. Describes WHAT
+#       the figure shows (a fixed `view` phrase per figure type) — NEVER the
+#       conclusion/verdict. Formula: "{TARGET} in {INDICATION} — {view}" for an
+#       indication-scoped figure; "{TARGET} — {view}" for a target-grain one.
+#   provenance_tag(fig, text)   bottom-right, muted, small. The ONLY place the
+#       dataset(s), version, and sample counts (n=) live. Lightly tagged.
+#   takeaway(fig, text)   bottom-left, dark grey. One plain sentence of the key
+#       quantitative finding. NO "Takeaway:" label — just the sentence.
+#   axis_label(ax, which, concept, scale)   concept-first: the plain-language
+#       concept is the label ("Expression"); the scale/measure ("log2 TPM+1") is
+#       a small muted secondary line — never the long jargon string in the label.
+#
+# The VERDICT does NOT appear on the figure. The report/dashboard layer places
+# the verdict badge (verdict_badge / status_for_card, below) BESIDE the figure
+# when it composes — so a figure reads as clean evidence and the same figure can
+# sit under different call framings without redrawing.
+# ============================================================================
+
+# muted ink tokens (text wears ink, never a series color — dataviz rule)
+INK_PRIMARY, INK_SECONDARY, INK_MUTED = "#1F2429", "#33383D", "#8A8F94"
+
+
+def figure_title(fig, target, indication, view, *, x=0.10, y=0.95, subtitle=None):
+    """Consistent title: '{TARGET} in {INDICATION} — {view}' (or '{TARGET} — {view}' when indication
+    is None). `view` describes WHAT is shown, not the conclusion. Optional muted `subtitle` line."""
+    head = f"{target} in {indication} — {view}" if indication else f"{target} — {view}"
+    fig.suptitle(head, x=x, ha="left", y=y, fontsize=12.5, weight="bold", color=INK_PRIMARY)
+    if subtitle:
+        fig.text(x, y - 0.058, subtitle, ha="left", va="top", fontsize=8, color=INK_SECONDARY)
+
+
+def provenance_tag(fig, text, *, x=0.10, y=0.884):
+    """Dataset + version (+ sample counts, where not annotated on the marks), lightly tagged as a
+    muted line directly UNDER the title (top-left). Reads as the figure's source caption."""
+    if not text:
+        return
+    fig.text(x, y, text, ha="left", va="top", fontsize=8, color=INK_MUTED)
+
+
+def axis_label(ax, which, concept, scale=None):
+    """Concept-first axis label: the plain-language CONCEPT is the primary label; the scale/measure is
+    a small muted secondary line BELOW it (x) / further out (y). The concept uses the native axis
+    label (auto-clears ticks); the scale is a POINTS-offset annotation past it — points (not axes
+    fraction) so it sits correctly on a short/multi-panel axis too. `scale` None → concept only."""
+    if which == "x":
+        ax.set_xlabel(concept, fontsize=10.5, labelpad=6, color=INK_SECONDARY)
+        if scale:
+            ax.annotate(scale, xy=(0.5, 0), xytext=(0, -34), xycoords="axes fraction",
+                        textcoords="offset points", ha="center", va="top",
+                        fontsize=7.5, color=INK_MUTED, annotation_clip=False)
+    else:
+        ax.set_ylabel(concept, fontsize=10.5, labelpad=8, color=INK_SECONDARY)
+        if scale:
+            ax.annotate(scale, xy=(0, 0.5), xytext=(-46, 0), xycoords="axes fraction",
+                        textcoords="offset points", ha="center", va="center", rotation=90,
+                        fontsize=7.5, color=INK_MUTED, annotation_clip=False)
+
+
+# ============================================================================
+# figure_frame — the ONE place figure layout + spacing lives. Emitters use it so
+# they never hand-set margins; every small adjustment (a margin, the takeaway y,
+# the per-box n pattern) is fixed HERE and propagates to every figure at once.
+# ============================================================================
+from pathlib import Path as _Path
+
+# kind -> figsize + margins. The tuned pilot spacing, defined ONCE. Bespoke figures may override any
+# margin via kwargs, or pass make_ax=False and build their own gridspec (title/provenance/takeaway
+# + save still apply on exit).
+_FRAME_LAYOUT = {
+    "single":  {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
+    "scatter": {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.13, "right": 0.965},
+    "tall":    {"figsize": (FIGSIZE_DOUBLE_COLUMN[0], 4.4),"top": 0.78, "bottom": 0.220, "left": 0.16, "right": 0.965},
+}
+_STYLE_PATH = _Path(__file__).parent / "takeda_oncology.mplstyle"
+
+
+class figure_frame:
+    """Standard card-figure scaffold: owns figsize, margins, and the title / provenance / takeaway
+    bands, so an emitter only draws data + names axes. All tuned spacing lives HERE (one definition).
+
+        with figure_frame("EPCAM", "COADREAD", "tumor vs. normal expression", out_path=p,
+                          provenance="TCGA … · recount3", takeaway="74% …", kind="single") as F:
+            F.ax.boxplot(...); F.axis_label("x", "Expression", "log2(TPM + 1)")
+            F.n_on_boxes([822, 669])                      # bottom-row first
+
+    Clean exit → draws title/provenance/takeaway (central spacing) + saves the SVG + closes.
+    Exception  → closes WITHOUT saving (no half-drawn artifact).
+    make_ax=False → frame makes only the styled fig (caller adds its own gridspec, e.g. multi-panel);
+    the title/provenance/takeaway + save still happen on exit. `indication=None` → target-grain title."""
+
+    def __init__(self, target, indication, view, *, out_path, provenance=None, takeaway=None,
+                 kind="single", make_ax=True, title_x=0.10, figsize=None,
+                 top=None, bottom=None, left=None, right=None):
+        self.target, self.indication, self.view = target, indication, view
+        self.out_path = _Path(out_path)
+        self.provenance_text, self.takeaway_text = provenance, takeaway
+        self.title_x, self.make_ax = title_x, make_ax
+        L = _FRAME_LAYOUT.get(kind, _FRAME_LAYOUT["single"])
+        self._figsize = figsize or L["figsize"]
+        self._m = {
+            "top": L["top"] if top is None else top,
+            "bottom": L["bottom"] if bottom is None else bottom,
+            "left": L["left"] if left is None else left,
+            "right": L["right"] if right is None else right,
+        }
+        self.fig = self.ax = None
+
+    def __enter__(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        if _STYLE_PATH.exists():
+            try:
+                plt.style.use(str(_STYLE_PATH))
+            except Exception:  # noqa: BLE001
+                pass
+        self.fig = plt.figure(figsize=self._figsize)
+        self.fig.subplots_adjust(**self._m)
+        if self.make_ax:
+            self.ax = self.fig.add_subplot(111)
+        return self
+
+    def axis_label(self, which, concept, scale=None):
+        axis_label(self.ax, which, concept, scale)
+
+    def n_on_boxes(self, counts):
+        """Annotate per-group n on a horizontal box/strip plot (row i sits at data-y i+1); `counts`
+        bottom-row first. This is the captured 'n on the boxes' pattern for distribution figures."""
+        for i, n in enumerate(counts):
+            self.ax.annotate(f"n = {n}", xy=(0.012, i + 1 + 0.31), xycoords=("axes fraction", "data"),
+                             ha="left", va="bottom", fontsize=7.5, color=INK_MUTED, zorder=4)
+
+    def __exit__(self, exc_type, exc, tb):
+        import matplotlib.pyplot as plt
+        if exc_type is None:
+            figure_title(self.fig, self.target, self.indication, self.view, x=self.title_x)
+            provenance_tag(self.fig, self.provenance_text, x=self.title_x)
+            takeaway(self.fig, self.takeaway_text, x=self.title_x)
+            self.fig.savefig(self.out_path)
+        plt.close(self.fig)
+        return False
+
+
+def verdict_badge(fig, status, *, loc="upper right", pad=0.012):
+    """Reserved status badge (icon + LABEL, colored). REPORT/DASHBOARD-LAYER helper — it is NOT drawn
+    on the card figure itself (the verdict is married to the figure at compose time). `context`/None
+    renders a quiet grey tag."""
+    if not status:
+        return
+    icon, label, fill, ink = status.get("icon", ""), status.get("label", ""), \
+        status.get("fill", "#EDEFF2"), status.get("ink", "#5A626A")
+    x, ha = (1 - pad, "right") if "right" in loc else (pad, "left")
+    y, va = (1 - pad, "top") if "upper" in loc else (pad, "bottom")
+    fig.text(x, y, f" {icon}  {label} ", ha=ha, va=va, fontsize=9, weight="bold",
+             color="#FFFFFF" if status.get("signal") not in ("context", "not_applicable") else ink,
+             bbox=dict(boxstyle="round,pad=0.45", facecolor=fill, edgecolor=ink, linewidth=1.0),
+             zorder=1000)
+
+
+def takeaway(fig, text, *, x=0.10):
+    """The key quantitative finding, one plain sentence, bottom-left (wraps to figure width; never
+    clips to a data coordinate). NO 'Takeaway:' label — just the sentence. A thin neutral rule marks
+    it as a caption (the rule is NOT status-colored — the verdict lives in the report layer)."""
+    if not text:
+        return
+    # bottom-most line (provenance now lives under the title), so it sits low with clear spacing.
+    fig.text(x - 0.02, 0.026, "▎", ha="left", va="bottom", fontsize=11, color=INK_MUTED)
+    fig.text(x, 0.028, text, ha="left", va="bottom", fontsize=8.5, color=INK_SECONDARY, wrap=True)
+
+
+# back-compat alias (old name); prefer takeaway()
+def takeaway_caption(fig, text, *, status=None):
+    takeaway(fig, text)
+
+
+# ---- plotly twins (keep the interactive figure in lockstep with the SVG) --------------------------
+def plotly_verdict_badge(fig, status):
+    """Add the same status badge to a plotly figure (paper-coords annotation + border)."""
+    if not status:
+        return fig
+    signal = status.get("signal")
+    txtcolor = "#FFFFFF" if signal not in ("context", "not_applicable") else status.get("ink")
+    fig.add_annotation(x=1.0, y=1.12, xref="paper", yref="paper", xanchor="right", yanchor="top",
+                       text=f"{status.get('icon','')}  <b>{status.get('label','')}</b>",
+                       showarrow=False, font=dict(size=12, color=txtcolor),
+                       bgcolor=status.get("fill"), bordercolor=status.get("ink"), borderwidth=1,
+                       borderpad=4)
+    return fig
+
+
+def plotly_takeaway(fig, text, status=None):
+    """Add the one-line takeaway under a plotly figure (paper-coords annotation)."""
+    if not text:
+        return fig
+    fig.add_annotation(x=0.0, y=-0.22, xref="paper", yref="paper", xanchor="left", yanchor="top",
+                       text=f"<b>Takeaway</b>  {text}", showarrow=False, align="left",
+                       font=dict(size=11, color="#33383D"))
+    return fig
+
+
 # ===== Provenance text helper =====
 def figure_metadata_block(card_id: str, framework_version: str,
                            target: str, indication: str,
