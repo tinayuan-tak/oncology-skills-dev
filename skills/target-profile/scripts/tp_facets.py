@@ -1946,10 +1946,60 @@ def build_target_coherence(sub_results: dict, target_rollup: "Optional[dict]" = 
     }
 
 
+def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = None,
+                        target_coherence: "Optional[dict]" = None, ordinal_matrix: "Optional[dict]" = None,
+                        modality_fit_by_channel: "Optional[dict]" = None,
+                        modality_conjunction: "Optional[dict]" = None, risk_rollup: "Optional[dict]" = None,
+                        subtype_facet: "Optional[dict]" = None, biomarker_facet: "Optional[dict]" = None,
+                        fragility: "Optional[dict]" = None, heterogeneity: "Optional[dict]" = None,
+                        cross_gate_shared_evidence: "Optional[dict]" = None,
+                        magnitude_borderline: "Optional[object]" = None,
+                        certainty_by_axis: "Optional[dict]" = None,
+                        addressable_population: "Optional[dict]" = None,
+                        actionability_mode: "Optional[dict]" = None,
+                        competitor_crossref: "Optional[dict]" = None,
+                        archetype_companion: "Optional[dict]" = None,
+                        nomination_scorecard: "Optional[dict]" = None,
+                        nomination_predictive_score: "Optional[object]" = None) -> dict:
+    """target_report.v1 — the unified per-target object (docs/UNIFIED_OUTPUT_CONTRACT.md).
+
+    ADDITIVE + VERDICT-INERT: a composed VIEW that REFERENCES the existing target-level facets (which
+    stay top-level until consumers migrate to read target_report). Recomputes NOTHING — `target_call`
+    owns the recommendation; the rollups are the already-built projections. This is the scaffold the later
+    consolidation (full-nest of the spine keys, risk_6dim migration, per-skill facet relocation) collapses
+    into — and the object the deterministic-risk / literature migrations require to exist."""
+    tr = target_rollup or {}
+    return {
+        "schema": "target_report.v1",
+        "target_call": target_call,                       # DECISION (recommendation owner = target_call.gate)
+        "risk_6dim": risk_rollup,                         # ← risk_rollup (deterministic 6-dim; None w/o substrate)
+        "axis_rollup": tr.get("axes"),                    # ← target_rollup.axes (A/B/D/E bands)
+        "block": tr.get("block"),                         # ← target_rollup.block (evidence-band shadow)
+        "thesis": target_coherence,                       # ← target_coherence
+        "evidence_matrix": ordinal_matrix,                # ← ordinal_matrix_view
+        "modality_fit": {"by_channel": modality_fit_by_channel, "conjunction": modality_conjunction},
+        "subtype_convergence": subtype_facet,             # ← subtype_facet (convergent_subtypes)
+        "biomarker": biomarker_facet,
+        "robustness": {"fragility": fragility, "heterogeneity": heterogeneity,
+                       "correlated_evidence": cross_gate_shared_evidence,
+                       "borderline": magnitude_borderline, "certainty_by_axis": certainty_by_axis},
+        "addressable_population": addressable_population,
+        "actionability_mode": actionability_mode,
+        "competitive_positioning": competitor_crossref,
+        "archetype": archetype_companion,
+        "nomination_scorecard": nomination_scorecard,
+        "predictive_score": nomination_predictive_score,
+        "_note": ("Unified per-target object (target_report.v1). VERDICT-INERT composition over the "
+                  "existing target-level facets, which remain top-level until consumers migrate. "
+                  "target_call owns the recommendation; nothing here is recomputed."),
+    }
+
+
 __all__ = [
     'build_target_rollup',
     'build_target_coherence',
     'build_target_call',
+    'build_target_report',
     '_ADDRESSABLE_POPULATION_LEGEND',
     '_BIOMARKER_INPUTS',
     '_BIOMARKER_QUANT',

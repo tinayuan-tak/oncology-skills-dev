@@ -65,7 +65,7 @@ from tp_facets import (
     _cross_gate_shared_evidence,
     _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet,
-    build_target_rollup, build_target_coherence, build_target_call,
+    build_target_rollup, build_target_coherence, build_target_call, build_target_report,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool,
@@ -910,6 +910,21 @@ def main() -> int:
         "target-profile reads live data; release auto-resolution is a deferred data-catalog "
         "follow-on, so release_pin is 'unpinned' unless supplied via --release-pin.")
 
+    # target_report.v1 (docs/UNIFIED_OUTPUT_CONTRACT.md) — ADDITIVE unified per-target object composed by
+    # REFERENCE over the target-level facets built above (target_call + the rollups). Verdict-inert;
+    # target_call owns the recommendation. The originals stay top-level until consumers migrate to read
+    # target_report; this is the scaffold the later consolidation collapses into.
+    target_report = build_target_report(
+        target_call=target_call, target_rollup=target_rollup, target_coherence=target_coherence,
+        ordinal_matrix=ordinal_matrix, modality_fit_by_channel=modality_fit_by_channel,
+        modality_conjunction=modality_conjunction, risk_rollup=risk_rollup, subtype_facet=subtype_facet,
+        biomarker_facet=biomarker_facet, fragility=fragility, heterogeneity=heterogeneity,
+        cross_gate_shared_evidence=cross_gate_shared_evidence, magnitude_borderline=magnitude_borderline,
+        certainty_by_axis=certainty_by_axis, addressable_population=addressable_population,
+        actionability_mode=actionability_mode, competitor_crossref=competitor_crossref,
+        archetype_companion=archetype_companion, nomination_scorecard=nomination_scorecard_facet,
+        nomination_predictive_score=nomination_predictive_score)
+
     nomination = {
         "skill": SKILL_NAME,
         "skill_version": SKILL_VERSION,
@@ -933,6 +948,9 @@ def main() -> int:
             }
             for short, r in sub_results.items()
         },
+        # target_report.v1 — the unified per-target object (additive; references the facets below, which
+        # stay top-level until consumers migrate). See docs/UNIFIED_OUTPUT_CONTRACT.md.
+        "target_report": target_report,
         # target_report.target_call — the unified DECISION view (additive composition over the four keys
         # below, which stay for now). See docs/UNIFIED_OUTPUT_CONTRACT.md.
         "target_call": target_call,
