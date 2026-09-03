@@ -101,11 +101,11 @@ def emit_svg(target: str, indication, summary: dict, out_dir: Path,
             m, b = np.polyfit(x, y, 1); xs = np.array([x.min(), x.max()])
             ax.plot(xs, m * xs + b, color="#33383D", linewidth=1.6, zorder=4)
         if r is not None:
-            ax.text(0.02, 0.03, f"Pearson r = {r}", transform=ax.transAxes, fontsize=8,
-                    color="#33383D", va="bottom", ha="left")
+            ax.text(0.98, 0.03, f"Pearson r = {r}", transform=ax.transAxes, fontsize=8,
+                    color="#33383D", va="bottom", ha="right")   # bottom-RIGHT (empty corner; clears the points)
         ax.grid(alpha=0.25, linewidth=0.4)
-        F.axis_label("x", "RNA", "log2(TPM + 1), DepMap")
-        F.axis_label("y", "Protein", "log2 abundance, Gygi MS")
+        F.axis_label("x", "RNA Expression", "log2(TPM + 1), DepMap")
+        F.axis_label("y", "Protein Expression", "log2 abundance, Gygi MS")
     return out_path
 
 
@@ -189,11 +189,11 @@ def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT
             m, b = np.polyfit(x, y, 1); xs = np.array([x.min(), x.max()])
             ax.plot(xs, m * xs + b, color="#33383D", linewidth=1.6, zorder=4)
         if r is not None:
-            ax.text(0.02, 0.03, f"Pearson r = {r}", transform=ax.transAxes, fontsize=8,
-                    color="#33383D", va="bottom", ha="left")
+            ax.text(0.98, 0.03, f"Pearson r = {r}", transform=ax.transAxes, fontsize=8,
+                    color="#33383D", va="bottom", ha="right")   # bottom-RIGHT (empty corner; clears the points)
         ax.grid(alpha=0.25, linewidth=0.4)
-        F.axis_label("x", "RNA", "log2(TPM + 1), CPTAC")
-        F.axis_label("y", "Protein", "log2 abundance, CPTAC")
+        F.axis_label("x", "RNA Expression", "log2(TPM + 1), CPTAC")
+        F.axis_label("y", "Protein Expression", "log2 abundance, CPTAC")
     return out_path
 
 

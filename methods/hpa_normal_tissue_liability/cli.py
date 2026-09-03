@@ -323,6 +323,16 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
                       weight="bold" if is_target else "normal")
         ax_l.set_xlim(-0.1, len(_BREADTH_LADDER)); ax_l.set_ylim(-0.15, 1.15); ax_l.axis("off")
         ax_l.text(0, 1.35, "IHC breadth across normal tissues (HPA) →", fontsize=7.5, color="#5A626A")
+        # note 3: show the DATA that decides the highlighted category — HPA's pathologist IHC
+        # distribution call (+ specificity), not a computed threshold.
+        dist = summary.get("hpa_tissue_distribution"); spec = summary.get("hpa_tissue_specificity")
+        n_spec = summary.get("n_specific_tissues")
+        decided = (f"decided by HPA IHC call: “{dist}”" if dist else "HPA IHC call unavailable")
+        if spec:
+            decided += f"   ·   specificity: {spec}"
+        if n_spec is not None:
+            decided += f"   ·   {n_spec} tissue-enriched"
+        ax_l.text(0, -0.42, decided, fontsize=7, color="#8A8F94", va="top", clip_on=False)
 
         # ---- enriched-tissue bars ----
         if rows:
@@ -336,7 +346,13 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
                       edgecolor="#FFFFFF", linewidth=0.6)
             ax_b.set_yticks(ypos); ax_b.set_yticklabels([l.title() for l in labels], fontsize=8)
             ax_b.invert_yaxis()
-            pal.axis_label(ax_b, "x", "Protein level", "HPA IHC intensity (×10⁶, tissue-enriched)")
+            # note 4: HPA gives a RELATIVE tissue-enrichment score here (no absolute High/Med/Low per
+            # tissue). Make that explicit + carry HPA's own qualitative call (specificity) as the level.
+            pal.axis_label(ax_b, "x", "Tissue-enrichment", "HPA relative IHC score (×10⁶) — no absolute H/M/L")
+            spec = summary.get("hpa_tissue_specificity")
+            if spec:
+                ax_b.annotate(f"HPA specificity: {spec}", xy=(0.99, 1.02), xycoords="axes fraction",
+                              ha="right", va="bottom", fontsize=7, color=pal.INK_MUTED, clip_on=False)
             ax_b.grid(axis="x", alpha=0.25, linewidth=0.4); ax_b.grid(axis="y", visible=False)
             if len(rows) == 1:
                 ax_b.set_title("only 1 tissue is IHC-enriched — breadth (above) carries the signal",
