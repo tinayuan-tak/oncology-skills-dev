@@ -1856,6 +1856,51 @@ def build_target_rollup(sub_results: dict, modality_fit_by_channel: "Optional[di
     }
 
 
+def build_target_call(recommendation_gate: dict, confidence_tier: dict, deciding_axis: dict,
+                      gate_scorecard: "Optional[dict]" = None,
+                      overall_recommendation: "Optional[object]" = None,
+                      target_rollup: "Optional[dict]" = None) -> dict:
+    """target_call.v1 — the unified DECISION view for `target_report` (docs/UNIFIED_OUTPUT_CONTRACT.md).
+
+    ADDITIVE + VERDICT-INERT: a composed VIEW that references the existing decision-spine objects
+    (recommendation_gate / confidence_tier / deciding_axis / gate_scorecard) — which STAY top-level until
+    renderers migrate. It does NOT recompute the recommendation: `recommendation_gate` remains the SOLE
+    owner (Wave-1 additive step; the 158-ref full-nest is deferred). Adds two things a reader needs that
+    no single spine object carries: the authoritative recommendation VALUE, and a `dissent` block naming
+    where independent signals disagree with the gate (the honest 'why not higher / why not lower')."""
+    rg = recommendation_gate or {}
+    rec_val = (overall_recommendation.get("value") if isinstance(overall_recommendation, dict)
+               else overall_recommendation)
+    dissent: list = []
+    # (1) the gate overrode the LLM's recommendation (already computed by run.py's gate assembly)
+    if rg.get("overridden"):
+        dissent.append({"source": "llm_synthesis",
+                        "detail": f"LLM recommended {rg.get('llm_recommendation')!r}; "
+                                  f"gate forced {rg.get('forced_recommendation')!r}",
+                        "resolved_to": rg.get("forced_recommendation")})
+    # (2) the verdict-inert evidence-band block (target_rollup) fired while the recommendation gate did
+    #     not — the two intentionally-independent negative reads disagree (see build_target_rollup's
+    #     "IGNORES recommendation_gate.fired" note). Surface it rather than silently collapsing.
+    blk = ((target_rollup or {}).get("block") or {})
+    if blk.get("blocked") and not rg.get("fired"):
+        dissent.append({"source": "target_rollup.block",
+                        "detail": f"evidence-band block ({blk.get('status')}) fired while the "
+                                  f"recommendation gate did not",
+                        "blocking_axes": blk.get("blocking_axes"), "resolved_to": rec_val})
+    return {
+        "schema": "target_call.v1",
+        "recommendation": rec_val,          # authoritative (gate-forced or positive-floored LLM value)
+        "gate": rg,                         # ← recommendation_gate (SOLE owner of the recommendation)
+        "confidence": confidence_tier,      # ← confidence_tier
+        "deciding_axis": deciding_axis,     # ← deciding_axis
+        "gate_scorecard": gate_scorecard,   # ← gate_scorecard
+        "dissent": dissent,                 # NEW: independent signals that disagree with the gate
+        "_note": ("Unified DECISION view (target_report.target_call). VERDICT-INERT COMPOSITION over the "
+                  "existing spine objects; recommendation_gate remains the sole owner of the "
+                  "recommendation. Originals stay top-level until renderers migrate (Wave-1 additive)."),
+    }
+
+
 def build_target_coherence(sub_results: dict, target_rollup: "Optional[dict]" = None) -> dict:
     """target_coherence.v1 — thesis classification + thesis-relative coherence, ON TOP of the rollup.
     Reads only UN-CONTAMINATED signals (cis_coherence, dependency, genomic rule-class, surface_modality);
@@ -1904,6 +1949,7 @@ def build_target_coherence(sub_results: dict, target_rollup: "Optional[dict]" = 
 __all__ = [
     'build_target_rollup',
     'build_target_coherence',
+    'build_target_call',
     '_ADDRESSABLE_POPULATION_LEGEND',
     '_BIOMARKER_INPUTS',
     '_BIOMARKER_QUANT',

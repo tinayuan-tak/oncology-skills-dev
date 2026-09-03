@@ -65,7 +65,7 @@ from tp_facets import (
     _cross_gate_shared_evidence,
     _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
     _selectivity_facet, _subtype_facet,
-    build_target_rollup, build_target_coherence,
+    build_target_rollup, build_target_coherence, build_target_call,
 )
 from tp_synthesis_prompt import *    # noqa: F401,F403
 from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool,
@@ -751,6 +751,13 @@ def main() -> int:
     # Gate scorecard (deterministic, top-of-report): 8-gate rows from the gate registry, 4-state
     # status reusing the nomination-gate policy. Also emitted in nomination.json.
     scorecard = _gate_scorecard(sub_results, deciding_axis, modality=args.modality)
+    # target_call.v1 (target_report consolidation, Wave 1 — ADDITIVE): a unified DECISION view composed
+    # over the spine objects just built (recommendation_gate/confidence_tier/deciding_axis/scorecard) +
+    # target_rollup.block, adding the authoritative recommendation value + a dissent block. Verdict-inert;
+    # recommendation_gate stays the sole owner. The spine keys remain top-level until renderers migrate.
+    target_call = build_target_call(recommendation_gate, confidence_tier, deciding_axis, scorecard,
+                                    overall_recommendation=llm_output.get("overall_recommendation"),
+                                    target_rollup=target_rollup)
     catalogue_rows = _catalogue_rows_from_sub_results(sub_results)
 
     # 5-field validation_summary — the shared evidence-package writer's contract, composed from
@@ -924,6 +931,9 @@ def main() -> int:
             }
             for short, r in sub_results.items()
         },
+        # target_report.target_call — the unified DECISION view (additive composition over the four keys
+        # below, which stay for now). See docs/UNIFIED_OUTPUT_CONTRACT.md.
+        "target_call": target_call,
         "recommendation_gate": recommendation_gate,
         "confidence_tier": confidence_tier,
         "deciding_axis": deciding_axis,
