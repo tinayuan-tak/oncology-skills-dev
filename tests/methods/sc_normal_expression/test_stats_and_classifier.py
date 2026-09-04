@@ -117,6 +117,44 @@ def test_safety_essential_class_ignores_neuronal_substring_false_match():
     assert r["sc_normal_safety_essential_class"] == "none"
 
 
+def test_islet_beta_cell_is_safety_essential():
+    """W3b: the pancreas shard was promoted always-on 'for islet safety' but no islet prefix
+    existed. The raw Census β-cell label is 'type B pancreatic cell' (NOT 'beta'/'islet'); it and
+    the other endocrine islet cells must now flag."""
+    for ct in ("type B pancreatic cell", "pancreatic A cell", "pancreatic D cell",
+               "pancreatic PP cell", "pancreatic epsilon cell"):
+        assert S._is_safety_essential(ct), ct
+    # exocrine ductal/stellate are NOT in the islet-endocrine set (a bare 'pancreatic' prefix
+    # would have over-matched them) and must stay unflagged
+    assert not S._is_safety_essential("pancreatic ductal cell")
+    assert not S._is_safety_essential("pancreatic stellate cell")
+    # podocyte + Schwann added the same wave
+    assert S._is_safety_essential("podocyte")
+    assert S._is_safety_essential("Schwann cell")
+    # exocrine acinar (pancreatic only — bare 'acinar cell' deliberately NOT used, to avoid the
+    # single-atlas lung airway-gland 'acinar cell' hit), cholangiocyte, endothelium
+    assert S._is_safety_essential("pancreatic acinar cell")
+    assert not S._is_safety_essential("acinar cell")            # bare label intentionally unmatched
+    assert S._is_safety_essential("cholangiocyte")
+    assert S._is_safety_essential("intrahepatic cholangiocyte")
+    # endothelium is broad by design — every subtype matches the whole-token "endothelial cell"
+    for ct in ("endothelial cell", "glomerular endothelial cell", "vein endothelial cell",
+               "endothelial cell of sinusoid"):
+        assert S._is_safety_essential(ct), ct
+
+
+def test_beta_cell_target_off_origin_vs_origin():
+    """A β-restricted target flips to critical_organ_liability when the pancreas is OFF-origin
+    (islet is a critical off-target endocrine organ) but stays origin_tissue_liability when the
+    tumour IS pancreatic (islet on-tissue, therapeutic-window-arbitrated)."""
+    rows = _tier1_rows([("type B pancreatic cell", 40, 0.84, 0.98)], tissue="pancreas")
+    r_off = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r_off["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    assert r_off["sc_normal_essential_max_cell_type"] == "type B pancreatic cell"
+    r_on = S.classify_sc_normal_expression(rows, origin_tissues=["pancreas"])
+    assert r_on["sc_normal_safety_essential_class"] == "origin_tissue_liability"
+
+
 def test_safety_essential_class_critical_organ_vs_origin_tissue():
     """ORGAN-AWARE veto instrument: an essential-cell hit in a NON-origin critical organ →
     critical_organ_liability (hard veto); essential hits ONLY in the tissue-of-origin →

@@ -68,6 +68,57 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     "oligodendrocyte",
     "adrenal",           # adrenal cortical / gland cells
     "chromaffin",        # adrenal medulla
+    # --- W3b (2026-09-04, backtest-gated): essential cell types the always-on shards contained but
+    # no prefix matched — so the veto silently under-called them. Labels are the RAW Census Cell
+    # Ontology strings actually present in the shards (verified via a reader-level probe); a naive
+    # "beta"/"islet" prefix would be INERT because Census uses "type B pancreatic cell" etc.
+    #
+    # Pancreatic ISLET ENDOCRINE — the headline gap: the pancreas shard was promoted always-on
+    # "for islet safety" (SC_NORMAL_CROSSWALK, 2026-08-19) but NO islet prefix existed, so that
+    # promotion was inert. β-cell loss → diabetes is the catastrophic islet liability; the other
+    # endocrine islet cells (α/δ/PP/ε) round out the functional unit. A β-restricted target (e.g.
+    # SLC30A8/INS/IAPP) now correctly flips to critical_organ_liability for a NON-pancreatic
+    # indication (origin_tissue_liability for PAAD, where the islet is on-tissue).
+    "type b pancreatic cell",       # β-cell (insulin) — CL:0000169
+    "pancreatic a cell",            # α-cell (glucagon)
+    "pancreatic d cell",            # δ-cell (somatostatin)
+    "pancreatic pp cell",           # PP/γ-cell (pancreatic polypeptide)
+    "pancreatic epsilon cell",      # ε-cell (ghrelin)
+    # Kidney PODOCYTE — glomerular filtration barrier; loss → proteinuria/nephrotic syndrome
+    # (well replicated: n_datasets_reliable=17 in the kidney shard).
+    "podocyte",
+    # SCHWANN cell — peripheral-nerve glia; loss → peripheral neuropathy (a recognised on-target
+    # liability class). Present across multiple shards (colon/pancreas/lung/heart/skin).
+    "schwann cell",
+    # Basal KERATINOCYTE / epidermal basal layer — skin regenerative compartment. Skin is queried
+    # only for its origin indication (SKCM), so this reads as origin_tissue_liability there rather
+    # than a cross-indication veto; added for correctness + forward use if skin becomes off-origin.
+    "keratinocyte",
+    "basal cell of epidermis",
+    # CORNEAL / LIMBAL epithelium — FOLR1's real dose-limiting toxicity is OCULAR (keratopathy).
+    # SUBSTRATE-PENDING: there is currently NO eye/cornea shard in TISSUE_TO_PRODUCT, so these
+    # prefixes match nothing today (INERT). Listed so the ocular liability activates automatically
+    # when a corneal/limbal normal shard lands, and to document the known FOLR1 ocular gap.
+    "corneal epithelial cell",
+    "limbal stem cell",
+    # Pancreatic ACINAR (exocrine) — loss → exocrine pancreatic insufficiency. Well-replicated in
+    # the pancreas shard (n_datasets_reliable=7); "pancreatic acinar cell" is used rather than bare
+    # "acinar cell" because the only non-pancreatic "acinar cell" label in the shards is a
+    # single-atlas (n_datasets_reliable=1) lung airway-gland hit whose det=0.92 would otherwise
+    # become the NAMED driver of a validated antigen off one dataset.
+    "pancreatic acinar cell",
+    # CHOLANGIOCYTE / biliary epithelium — loss → cholestatic / biliary injury. Well-replicated in
+    # the liver shard (cholangiocyte n_datasets_reliable=10; "intrahepatic cholangiocyte" matched by
+    # the same token). A recognised epithelial-antigen off-target (TROP2/HER2-class ADCs).
+    "cholangiocyte",
+    # ENDOTHELIUM — vascular endothelium is a dose-limiting organ (VEGF-axis / vascular-antigen
+    # toxicity). BROAD by construction: "endothelial cell" whole-token-matches every endothelial
+    # subtype ("glomerular endothelial cell", "vein endothelial cell", "endothelial cell of
+    # sinusoid", ...), so a target with off-origin endothelial detection above the 0.20 floor now
+    # flags critical_organ_liability. This is a DELIBERATE re-baseline (2026-09-04) — endothelium is
+    # near-ubiquitous, so this widens the veto; it is offset by the modality-conditional rescue
+    # (adc/bite_tce) in the per-modality selectivity lens, not by suppressing the honest scalar.
+    "endothelial cell",
 )
 
 
