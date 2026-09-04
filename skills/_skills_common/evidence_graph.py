@@ -427,15 +427,17 @@ def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes
         return {}
     card_ids = {c["id"] for c in card_nodes}
     rule_ids = {r["id"] for r in rule_nodes if r["id"]}
-    text = " ".join(str(syn.get(k) or "") for k in ("rationale", "key_caveat", "context_read",
-                                                     "key_signals_summary"))
+    # focused llm_synthesis stamps each field as {value,_source:"llm_synthesized",...}; unwrap so the
+    # graph carries plain scalars (mirrors _build_literature, which already unwraps its axes).
+    text = " ".join(str(_unwrap(syn.get(k)) or "") for k in ("rationale", "key_caveat", "context_read",
+                                                             "key_signals_summary"))
     cited_cards, cited_rules = _narrative_cites(text, card_ids, rule_ids)
     cited_qids = [q["id"] for q in q_nodes if set(q["card_ids"]) & set(cited_cards)]
     return {
-        "relevance": syn.get("relevance") or syn.get("context_read"),
-        "rationale": syn.get("rationale") or syn.get("key_signals_summary"),
-        "confidence_qualifier": syn.get("confidence_qualifier"),
-        "key_caveat": syn.get("key_caveat"),
+        "relevance": _unwrap(syn.get("relevance")) or _unwrap(syn.get("context_read")),
+        "rationale": _unwrap(syn.get("rationale")) or _unwrap(syn.get("key_signals_summary")),
+        "confidence_qualifier": _unwrap(syn.get("confidence_qualifier")),
+        "key_caveat": _unwrap(syn.get("key_caveat")),
         "cites": {"question_ids": cited_qids, "card_ids": cited_cards, "rule_ids": cited_rules},
     }
 

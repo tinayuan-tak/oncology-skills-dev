@@ -85,6 +85,31 @@ def _lit_opacity(conf: Optional[str]) -> float:
     return {"high": 1.0, "moderate": 0.6, "low": 0.35}.get(conf, 0.4)
 
 
+def _coherence(agreement: Optional[str]) -> tuple:
+    """(glyph, color, title) for literature coherence vs the omics/deterministic call."""
+    a = (agreement or "").lower()
+    if a in ("agree", "extends"):
+        return ("✓", "var(--supportive)", "literature coherent with omics")   # ✓
+    if a == "contradicts":
+        return ("✗", "var(--killer)", "literature contradicts omics")          # ✗
+    if a in ("omics_blind", "omics_unavailable"):
+        return ("≈", "var(--opposing)", "literature present, omics blind")     # ≈
+    return ("·", "var(--neutral)", "no literature for this question")          # ·
+
+
+def _axis_label(ax: dict, q_by_id: dict) -> str:
+    """Human label for a literature axis = the question(s) it addresses (graph-native), not a letter."""
+    labels = [q_by_id[q]["text"] for q in (ax.get("question_ids") or [])
+              if q in q_by_id and q_by_id[q].get("text")]
+    return " · ".join(labels) if labels else f"axis {ax.get('axis_id')}"
+
+
+def _conf_label(conf: dict) -> str:
+    """Explicit confidence: filled/empty dots + the level word (●●○ moderate)."""
+    lvl = (conf or {}).get("level")
+    return f"{_dots(conf)} {lvl}" if lvl else _dots(conf)
+
+
 _CSS = """
 :root{color-scheme:light;--page:#f9f9f7;--surface:#fcfcfb;--surface-2:#f3f3ef;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--hair:#e1e0d9;--border:rgba(11,11,11,.10);--supportive:#0ca30c;--opposing:#ec835a;--neutral:#8a8781;--killer:#d03b3b;--supportive-bg:#e7f5e7;--warn:#b26a00;--warn-bg:#fcf1db;--font:system-ui,-apple-system,"Segoe UI",sans-serif}
 @media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){color-scheme:dark;--page:#0d0d0d;--surface:#1a1a19;--surface-2:#232320;--ink:#fff;--ink2:#c3c2b7;--muted:#9b998f;--hair:#2c2c2a;--border:rgba(255,255,255,.10);--supportive:#31b531;--opposing:#ef9a76;--neutral:#9b988c;--killer:#e05b5b;--supportive-bg:#132a13;--warn:#e6a534;--warn-bg:#2a2113}}
@@ -109,6 +134,8 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.85em;background:var(--s
 .tag{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:1px 6px}
 .narr h2{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px}
 .narr p{margin:0 0 6px}.narr .meta{color:var(--muted);font-size:12px}
+.summ h2{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:2px 0 5px}
+.summ p{margin:0 0 6px}.summ .meta{color:var(--muted);font-size:11px;font-style:italic}
 details.cite>summary{cursor:pointer;color:var(--ink2);font-size:12px;list-style:none;margin-top:6px}
 details.cite>summary::-webkit-details-marker{display:none}
 details.cite>summary::before{content:"\\25b8 ";color:var(--muted)}details.cite[open]>summary::before{content:"\\25be "}
@@ -120,14 +147,18 @@ details.cite>summary::before{content:"\\25b8 ";color:var(--muted)}details.cite[o
 .hmcells{display:flex;gap:3px;align-items:center}
 .hmcell{width:15px;height:15px;border-radius:4px;border:1px solid var(--border)}
 .hmsep{width:1px;height:15px;background:var(--hair);margin:0 3px}
-.litdot{width:15px;height:15px;border-radius:50%;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700}
+.litdot{width:16px;height:16px;border-radius:50%;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
 .hmnote{color:var(--muted);font-size:11px;margin-top:8px}
 .qtab{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)}
 details.qr{border-top:1px solid var(--hair)}details.qr:first-child{border-top:none}
-details.qr>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:14px 1fr 100px 68px;gap:10px;align-items:center;padding:8px 13px}
+details.qr>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:14px 1fr 92px 104px;gap:10px;align-items:center;padding:8px 13px}
 details.qr>summary::-webkit-details-marker{display:none}
 .qcaret{color:var(--muted)}details.qr[open]>summary .qcaret::before{content:"\\25be"}details.qr:not([open])>summary .qcaret::before{content:"\\25b8"}
 .qtitle{font-weight:550;font-size:13px}.qkey{color:var(--muted);font-size:11.5px;margin-top:1px}
+.qstrip{display:flex;gap:3px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.qcell{width:11px;height:11px;border-radius:3px;border:1px solid var(--border)}
+.qcount{color:var(--muted);font-size:10.5px;margin-left:4px}
+.coh{font-weight:700;margin-right:3px}
 .meterwrap{display:flex;align-items:center;gap:5px}
 .meter{width:66px;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;border:1px solid var(--border)}
 .mfill{height:100%;display:block}
@@ -231,10 +262,45 @@ def _narrative_html(g: dict) -> str:
         '<div class="card narr"><div style="display:flex;justify-content:space-between">'
         '<span class="tag">AI-generated</span>'
         '<span class="muted" style="font-size:11.5px">advisory · does not set the call</span></div>'
-        '<h2>Narrative</h2>'
+        '<h2>Narrative (AI gen)</h2>'
         f'<p>{body}{caveat}</p>'
         f'<div class="meta">relevance: <b>{rel}</b></div>{rl_block}</div>'
     )
+
+
+def _summary_html(g: dict) -> str:
+    """A DETERMINISTIC top-section narrative composed from the graph's verdict + question signals —
+    always present (no LLM required), display-only. The AI narrative (when a --synthesize lane
+    exists) renders below this as a separate 'Narrative (AI gen)' block."""
+    v = g.get("verdict") or {}
+    call = _esc(v.get("call") or v.get("id"))
+    pol = v.get("polarity") or "neutral"
+    conf = v.get("confidence") or {}
+    cov = conf.get("coverage") or {}
+    cov_txt = ""
+    if isinstance(cov, dict) and cov.get("n_measured") is not None and cov.get("n_axes") is not None:
+        cov_txt = f", coverage {_esc(cov.get('n_measured'))}/{_esc(cov.get('n_axes'))} axes"
+        if cov.get("n_critical_measured") is not None:
+            cov_txt += f" ({_esc(cov.get('n_critical_measured'))} critical)"
+    qs = g.get("questions") or []
+    sup = [q for q in qs if (q.get("signal") or {}).get("polarity") == "supports"]
+    opp = [q for q in qs if (q.get("signal") or {}).get("polarity") in ("opposes", "opposing")]
+    parts = [f'<b>{call}</b> — {_esc(pol)} call']
+    if v.get("driving_rule_id"):
+        parts.append(f' (driving rule <code>{_esc(v.get("driving_rule_id"))}</code>)')
+    parts.append(f', {_esc(conf.get("level") or "unspecified")} confidence{cov_txt}, '
+                 f'across {len(qs)} questions / {len(g.get("cards") or [])} cards.')
+    if sup:
+        parts.append(' <b>Supported by:</b> ' + _esc(", ".join(q.get("text") or q.get("id") for q in sup)))
+    if opp:
+        parts.append(' <b>Opposing:</b> ' + _esc(", ".join(q.get("text") or q.get("id") for q in opp)))
+    t = v.get("top_tension") or {}
+    if t and t.get("text"):
+        sev = f" (severity {_esc(t.get('severity'))})" if t.get("severity") is not None else ""
+        parts.append(f' <b>Key tension:</b> {_esc(t.get("text"))}{sev}.')
+    return ('<div class="card summ"><h2>Summary</h2>'
+            f'<p>{"".join(parts)}</p>'
+            '<div class="meta">deterministic — composed from the verdict + question signals</div></div>')
 
 
 def _fingerprint_html(g: dict) -> str:
@@ -254,21 +320,25 @@ def _fingerprint_html(g: dict) -> str:
         lit_ids = q.get("literature_axis_ids") or []
         if lit_ids:
             ax = lit_axis.get(lit_ids[0], {})
-            lt = (f'<span class="litdot" style="background:{_lit_read_color(ax.get("read"))};'
+            cg, cc, ct = _coherence(ax.get("agreement_vs_omics"))
+            lt = (f'<span class="litdot" style="color:{cc};background:transparent;'
                   f'opacity:{_lit_opacity(ax.get("confidence"))}" '
-                  f'title="Literature axis {_esc(lit_ids[0])} · {_esc(ax.get("read"))} · {_esc(ax.get("agreement_vs_omics"))} · {_esc(ax.get("confidence"))}">“</span>')
+                  f'title="{_esc(ct)} · read {_esc(ax.get("read"))} · conf {_esc(ax.get("confidence"))}">{cg}</span>')
         else:
-            lt = '<span class="litdot" style="background:var(--neutral);opacity:.25" title="no literature for this question">·</span>'
+            lt = ('<span class="litdot" style="color:var(--neutral);background:transparent;opacity:.4" '
+                  'title="no literature for this question">·</span>')
         groups.append(
             f'<div class="hmg"><div class="hmglab">{qglyph} {_esc(q.get("id"))}</div>'
             f'<div class="hmcells">{"".join(cells)}<span class="hmsep"></span>{lt}</div></div>'
         )
     return (
-        '<div class="seclabel">Evidence fingerprint — omics (▪ color=signal, opacity=confidence)'
-        ' + literature (● color=read)</div>'
+        '<div class="seclabel">Evidence fingerprint — omics signal × confidence + literature coherence</div>'
         f'<div class="card"><div class="hm">{"".join(groups)}</div>'
-        '<div class="hmnote">▪ omics card (green supportive / amber opposing / red liability / grey neutral · '
-        'opacity=confidence) &nbsp;·&nbsp; ● literature (color=read · opacity=lit confidence · “=cited, ·=none)</div></div>'
+        '<div class="hmnote">▪ omics card — colour = signal (<b class="g-sup">green</b> supportive · '
+        '<b class="g-opp">amber</b> opposing · <b class="g-kil">red</b> liability · grey neutral), '
+        'opacity = confidence. &nbsp;·&nbsp; ○ literature coherence vs omics: '
+        '<b style="color:var(--supportive)">✓</b> agrees · <b style="color:var(--killer)">✗</b> contradicts · '
+        '<b style="color:var(--opposing)">≈</b> omics-blind · · none (opacity = lit confidence).</div></div>'
     )
 
 
@@ -297,8 +367,10 @@ def _question_table_html(g: dict) -> str:
         for aid in q.get("literature_axis_ids") or []:
             ax = lit_axis.get(aid, {})
             cls = {"mixed": " mixed", "contradicts": " contra"}.get(ax.get("read"), "")
+            cg, cc, ct = _coherence(ax.get("agreement_vs_omics"))
             lit_html += (
-                f'<div class="litaxis{cls}"><span class="litmeta">Literature · axis {_esc(aid)}</span> '
+                f'<div class="litaxis{cls}"><span class="litmeta">Literature</span> '
+                f'<span class="coh" style="color:{cc}" title="{_esc(ct)}">{cg}</span>'
                 f'<span class="vok">{_esc(ax.get("read"))} · {_esc(ax.get("agreement_vs_omics"))}</span><br>'
                 f'{_esc(ax.get("assertion"))} {_cites_html(ax.get("citation_ids"), by_cit)}</div>'
             )
@@ -311,15 +383,28 @@ def _question_table_html(g: dict) -> str:
             card_html += _card_chain_html(c)
         title = f'[{_esc(q.get("seq"))}] {_esc(q.get("id"))} · {_esc(q.get("text"))}'
         open_attr = " open" if i == 0 else ""
+        # per-row card-signal strip (mirrors the fingerprint into the question header) + count
+        strip_cells = "".join(
+            f'<span class="qcell" style="background:{_card_color(by_card[cid])};'
+            f'opacity:{_opacity((by_card[cid] or {}).get("confidence"))}" '
+            f'title="{_esc(cid)} · {_esc((by_card[cid].get("signal") or {}).get("polarity"))}"></span>'
+            for cid in (q.get("card_ids") or []) if cid in by_card
+        )
+        ncards = sum(1 for cid in (q.get("card_ids") or []) if cid in by_card)
+        strip = (f'<div class="qstrip">{strip_cells}'
+                 f'<span class="qcount">{ncards} card{"s" if ncards != 1 else ""}</span></div>')
         rows.append(
             f'<details class="qr"{open_attr}><summary><span class="qcaret"></span>'
-            f'<div><div class="qtitle">{title}</div><div class="qkey">{key}</div></div>'
+            f'<div><div class="qtitle">{title}</div><div class="qkey">{key}</div>{strip}</div>'
             f'<div class="meterwrap"><span class="{gcls} g">{glyph}</span>'
             f'<span class="meter"><span class="mfill" style="width:{width}%;background:{color}"></span></span></div>'
-            f'<div class="dots">{_dots(cf)}</div></summary>'
+            f'<div class="dots">{_conf_label(cf)}</div></summary>'
             f'<div class="qbody">{lit_html}{card_html}</div></details>'
         )
-    return ('<div class="seclabel">Questions — click a row for key cards + data + literature</div>'
+    return ('<div class="seclabel">Questions '
+            '<span class="muted" style="text-transform:none;font-weight:400;letter-spacing:0">'
+            '— per row: card-signal strip + confidence (●●● high · ●●○ moderate · ●○○ low); '
+            'click to expand cards + data + literature</span></div>'
             f'<div class="qtab">{"".join(rows)}</div>')
 
 
@@ -378,14 +463,16 @@ def _cards_and_lit_html(g: dict) -> str:
     # literature layer
     lit = g.get("literature") or {}
     by_cit = {c["id"]: c for c in g.get("citations") or []}
+    q_by_id = {q["id"]: q for q in g.get("questions") or []}
     lit_html = ""
     if lit.get("axes") or lit.get("blind_spots"):
         rows = ""
         for ax in lit.get("axes") or []:
-            qids = ", ".join(_esc(q) for q in ax.get("question_ids") or []) or "—"
+            cg, cc, ct = _coherence(ax.get("agreement_vs_omics"))
             rows += (f'<div class="cardln"><div class="chead">'
-                     f'<span>axis {_esc(ax.get("axis_id"))} — <b>{_esc(ax.get("read"))}</b></span>'
-                     f'<span class="ccinline">{_esc(ax.get("agreement_vs_omics"))} · →{qids}</span></div>'
+                     f'<span><span class="coh" style="color:{cc}" title="{_esc(ct)}">{cg}</span>'
+                     f'{_esc(_axis_label(ax, q_by_id))} — <b>{_esc(ax.get("read"))}</b></span>'
+                     f'<span class="ccinline">{_esc(ax.get("agreement_vs_omics"))}</span></div>'
                      f'{_esc(ax.get("assertion"))} {_cites_html(ax.get("citation_ids"), by_cit)}</div>')
         for bs in lit.get("blind_spots") or []:
             rows += (f'<div class="cardln"><div class="chead"><span>blind spot</span></div>'
@@ -406,7 +493,7 @@ def _cards_and_lit_html(g: dict) -> str:
 def render_dashboard(evidence_graph: dict) -> str:
     """Render a self-contained HTML dashboard from `evidence_graph` alone."""
     g = evidence_graph or {}
-    top = _header_html(g) + _narrative_html(g) + _fingerprint_html(g)
+    top = _header_html(g) + _fingerprint_html(g) + _summary_html(g) + _narrative_html(g)
     detail = _question_table_html(g) + _cards_and_lit_html(g)
     v = g.get("verdict") or {}
     footer = (
@@ -415,7 +502,9 @@ def render_dashboard(evidence_graph: dict) -> str:
         f'rendered from evidence_graph v{_esc(g.get("schema_version"))}'
         '<div class="legend"><span><b class="g-sup">△</b> supportive <b class="g-opp">▽</b> opposing '
         '<b class="g-kil">▽</b> liability <b class="g-neu">•</b> neutral</span>'
-        '<span><b>●●○</b> confidence</span></div></footer>'
+        '<span>confidence <b>●●●</b> high · <b>●●○</b> moderate · <b>●○○</b> low</span>'
+        '<span>literature <b style="color:var(--supportive)">✓</b> agrees · '
+        '<b style="color:var(--killer)">✗</b> contradicts · · none</span></div></footer>'
     )
     return (
         '<!doctype html><html lang="en" data-theme="auto"><head><meta charset="utf-8">'

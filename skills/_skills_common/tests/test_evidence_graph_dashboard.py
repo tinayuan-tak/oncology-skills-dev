@@ -74,14 +74,21 @@ def test_driving_pill_on_tumor_rna_distribution(graph, html):
 
 
 def test_axis_b_literature_inline_under_elevated_vs_normal(graph, html):
+    import html as _h
     q = next(q for q in graph["questions"] if q["id"] == "elevated_vs_normal")
     assert "B" in (q.get("literature_axis_ids") or []), "axis B not crosswalked to elevated_vs_normal"
-    assert "Literature · axis B" in html
-    # the axis-B block renders inside the elevated_vs_normal question row (between its summary and
-    # the next question's summary) — a positional check that literature is woven into the question.
-    start = html.index("elevated_vs_normal")
-    nxt = html.index("subtypes_differ")
-    assert "axis B" in html[start:nxt], "axis-B literature not inline under elevated_vs_normal"
+    ax = next(a for a in graph["literature"]["axes"] if a["axis_id"] == "B")
+    # literature is labelled by the question it addresses (NOT a bare letter) and woven into the
+    # elevated_vs_normal row. Scope to the question-table region (the slug also appears earlier in
+    # the fingerprint label), between this question's summary and the next question's summary.
+    qtab = html.index('class="qtab"')
+    start = html.index("elevated_vs_normal", qtab)
+    nxt = html.index("subtypes_differ", start)
+    sl = html[start:nxt]
+    assert "Literature" in sl, "no literature block under elevated_vs_normal"
+    snippet = _h.escape((ax.get("assertion") or "")[:24])
+    assert snippet and snippet in sl, "axis-B assertion not inline under elevated_vs_normal"
+    assert "axis B" not in sl and "axis {}" not in sl, "bare axis letter should not be shown"
 
 
 def test_display_only_cards_show_no_rule(graph, html):
@@ -107,6 +114,37 @@ def test_reads_nothing_but_the_graph_bogus_card(graph):
     })
     html2 = render_dashboard(g2)
     assert "totally-made-up-card" in html2  # rendered from the graph node, nothing external
+
+
+def test_deterministic_summary_always_present(graph, html):
+    # a deterministic Summary is composed from verdict + question signals even with no LLM lane
+    assert not graph["narrative"], "fixture unexpectedly has an AI narrative"
+    assert 'class="card summ"' in html and ">Summary<" in html
+    assert "Abundantly present" in html                       # the verdict call, in prose
+    assert "Supported by:" in html and "Opposing:" in html    # question-signal breakdown
+
+
+def test_builder_unwraps_provenance_wrapped_narrative():
+    # a real focused --synthesize stamps each field as {value,_source:"llm_synthesized",...};
+    # the builder must unwrap so the graph carries plain prose (not wrapper dicts) and the renderer
+    # shows clean text under 'Narrative (AI gen)'.
+    def wrap(v):
+        return {"value": v, "_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}
+    decision = json.loads(FIXTURE.read_text())
+    decision["llm_synthesis"] = {
+        "relevance": wrap("supports_with_caveats"),
+        "rationale": wrap("EPCAM broadly-high via tumor-rna-distribution; field-effect risk."),
+        "confidence_qualifier": wrap("supported_with_caveats"),
+        "key_caveat": wrap("bulk protein not significant"),
+    }
+    g = build_evidence_graph(decision, questions=load_questions(TP_DIR))
+    n = g["narrative"]
+    assert isinstance(n["rationale"], str) and n["rationale"].startswith("EPCAM broadly-high")
+    assert n["relevance"] == "supports_with_caveats"
+    assert "tumor-rna-distribution" in n["cites"]["card_ids"]
+    out = render_dashboard(g)
+    assert "_source" not in out and "'value'" not in out  # no provenance-wrapper dicts leaked
+    assert "EPCAM broadly-high" in out and "Narrative (AI gen)" in out
 
 
 def test_fail_soft_empty_lanes():
