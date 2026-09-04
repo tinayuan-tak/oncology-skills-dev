@@ -66,9 +66,15 @@ def make_nomination() -> dict:
         "target": "USP8",
         "indication": "COADREAD",
         "llm_synthesis": {
-            "executive_summary": "USP8 is a selective MSI-high dependency but highly LoF-constrained.",
-            "tension_analysis": "Supportive dependency vs a killer safety constraint.",
-            "top_arguments": [{"claim": "Selective dependency in MSI-high lines"},
+            # inline [rule-id] citations mirror the real synthesis prompt output — the renderer must
+            # lift them OUT of the prose into the `citations` provenance affordance.
+            "executive_summary": ("USP8 is a selective MSI-high dependency "
+                                  "[dependency-mutant-strongly-dependent-supportive] but highly "
+                                  "LoF-constrained [SAF-LOF-01, SAF-DOSAGE-02]."),
+            "tension_analysis": ("Supportive dependency vs a killer safety constraint "
+                                 "[safety-lof-constrained-killer]."),
+            "top_arguments": [{"claim": "Selective dependency in MSI-high lines "
+                                        "[lineage-selective-supportive]"},
                               {"claim": "Full-KO safety risk from LoF constraint"}],
         },
         "risk_assessment": {"dimensions": {
@@ -175,6 +181,13 @@ def make_nomination() -> dict:
                                "degrader": {"signal": "supportive", "ordinal": 2, "on_scale": True},
                                "adc": {"signal": None, "ordinal": None, "on_scale": False},
                                "bite_tce": {"signal": None, "ordinal": None, "on_scale": False}}},
+                    # an all-off-scale row (no measured modality signal) — must be DROPPED from the
+                    # display matrix (pure `·` noise), exercising _row_has_on_scale.
+                    {"short": "translational_readiness", "verdict": None,
+                     "cells": {"small_molecule": {"signal": None, "ordinal": None, "on_scale": False},
+                               "degrader": {"signal": None, "ordinal": None, "on_scale": False},
+                               "adc": {"signal": None, "ordinal": None, "on_scale": False},
+                               "bite_tce": {"signal": "insufficient", "ordinal": None, "on_scale": False}}},
                 ],
                 "legend": {"on_scale": {"supportive": 2, "neutral": 0, "opposing": -1, "killer": -3},
                            "off_scale": ["insufficient", "not_applicable"]},

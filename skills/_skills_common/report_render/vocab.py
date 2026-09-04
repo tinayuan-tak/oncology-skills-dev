@@ -183,6 +183,18 @@ def polarity_legend() -> dict:
     return scale_legend()
 
 
+def ordinal_glyph_legend() -> str:
+    """One-line inline legend for the modality-matrix cell glyphs (signed ordinals + off-scale markers)
+    — so a reader decodes `+2 / −1 / ·` in place instead of hunting for a separate key."""
+    leg = scale_legend()
+    on = ", ".join(f"{v:+d} {k}" for k, v in sorted((leg.get("on_scale") or {}).items(),
+                                                     key=lambda t: -t[1]))
+    off = ", ".join(leg.get("off_scale") or [])
+    return (f"Cells are an order-preserving ordinal (NOT a metric): {on}. "
+            f"Off-scale (coverage gap, not a low score): {off} (shown insf/n/a); "
+            f"· = the gate emits no signal on that modality.")
+
+
 # ---------------------------------------------------------------------------------------------------
 # Figure verdict badge — the "status beside the figure" the figure-emitter redesign (2026-09-03) moved
 # OFF the figure and onto the composing layer (see target-contracts plot_styles/takeda_palette
@@ -232,6 +244,6 @@ __all__ = [
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
     "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",
     "LITERATURE_RISK", "DECIDING_AXIS",
-    "polarity_glyph", "polarity_label", "polarity_rank", "polarity_legend",
+    "polarity_glyph", "polarity_label", "polarity_rank", "polarity_legend", "ordinal_glyph_legend",
     "figure_status", "humanize_figure_type",
 ]

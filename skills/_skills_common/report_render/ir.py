@@ -12,6 +12,7 @@ today — see docs/UNIFIED_OUTPUT_CONTRACT.md adoption status).
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -348,9 +349,44 @@ def _llm_val(llm: dict, key):
     return raw.get("value") if isinstance(raw, dict) else raw
 
 
+# A rule-id token: kebab with ≥2 dashes (alteration-role-gof-driver-supportive) or an UPPER-CASE
+# contract id (SAF-LOF-01). The synthesis prompt asks the LLM to cite these inline as [rule-a, rule-b];
+# they clutter the executive prose, so the renderer lifts them OUT into a provenance affordance.
+_RULE_TOKEN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+){2,}|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+")
+_CITE_GROUP = re.compile(r"\s*\[([^\[\]]+)\]")
+
+
+def _strip_rule_citations(text: Any) -> tuple:
+    """Lift inline `[rule-id, rule-id]` grounding citations out of LLM prose → (clean_text, [rule_ids]).
+    Only a bracket whose content is ENTIRELY rule-id-like tokens is removed, so a prose aside like
+    '[see figure]' is preserved. Order-preserving dedup of the collected rule-ids."""
+    if not isinstance(text, str) or not text:
+        return text, []
+    found: list = []
+
+    def _sub(m):
+        parts = [p.strip() for p in m.group(1).split(",") if p.strip()]
+        if parts and all(_RULE_TOKEN.fullmatch(p) for p in parts):
+            found.extend(parts)
+            return ""
+        return m.group(0)
+
+    clean = _CITE_GROUP.sub(_sub, text)
+    clean = re.sub(r"\s+([.,;:)])", r"\1", clean)   # tidy the space a removed citation left before punctuation
+    clean = re.sub(r"\(\s+", "(", clean)
+    clean = re.sub(r"\s{2,}", " ", clean).strip()
+    seen, ordered = set(), []
+    for r in found:
+        if r not in seen:
+            seen.add(r)
+            ordered.append(r)
+    return clean, ordered
+
+
 def _synthesis_block(nomination: dict) -> Optional[Block]:
     """The LLM narrative (advisory / verdict-inert): executive summary + tension analysis + top
-    arguments. Sourced from `llm_synthesis` (else the legacy `llm_output`)."""
+    arguments. Sourced from `llm_synthesis` (else the legacy `llm_output`). Inline rule-id citations are
+    stripped from the prose into `citations` (a provenance affordance the backends render collapsed)."""
     llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
     if not isinstance(llm, dict):
         return None
@@ -359,8 +395,28 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
     args = _llm_val(llm, "top_arguments") or _llm_val(llm, "arguments")
     if not (exec_summary or tension or args):
         return None
-    return Block(vocab.SYNTHESIS, {"executive_summary": exec_summary, "tension_analysis": tension,
-                                   "arguments": args if isinstance(args, list) else None})
+    exec_clean, c1 = _strip_rule_citations(exec_summary)
+    tens_clean, c2 = _strip_rule_citations(tension)
+    args_out, c3 = None, []
+    if isinstance(args, list):
+        args_out = []
+        for a in args:
+            if isinstance(a, dict):
+                claim = a.get("claim") or a.get("text") or a.get("argument")
+                cc, cids = _strip_rule_citations(claim)
+                c3.extend(cids)
+                args_out.append({**a, "claim": cc} if claim is not None else a)
+            else:
+                cc, cids = _strip_rule_citations(a)
+                c3.extend(cids)
+                args_out.append(cc)
+    seen, citations = set(), []
+    for r in (*c1, *c2, *c3):
+        if r not in seen:
+            seen.add(r)
+            citations.append(r)
+    return Block(vocab.SYNTHESIS, {"executive_summary": exec_clean, "tension_analysis": tens_clean,
+                                   "arguments": args_out, "citations": citations})
 
 
 def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
@@ -381,13 +437,24 @@ def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
     return Block(vocab.COHERENCE, {"thesis": thesis, "coherence": coherence, "caveats": caveats})
 
 
+def _row_has_on_scale(row: dict) -> bool:
+    """True if any cell in the row is on-scale (a measured signal). An all-off-scale row is pure `·`
+    noise (no measured modality signal for that axis) — dropped from the display matrix."""
+    return any((c or {}).get("on_scale") for c in (row.get("cells") or {}).values())
+
+
 def _modality_matrix_block(tr: dict, nomination: dict) -> Optional[Block]:
     mtx = tr.get("evidence_matrix") or nomination.get("ordinal_matrix")
     if not isinstance(mtx, dict) or not mtx.get("rows"):
         return None
+    # drop all-`·` rows (no on-scale cell) — an axis with no measured modality signal adds only noise.
+    rows = [r for r in (mtx.get("rows") or []) if isinstance(r, dict) and _row_has_on_scale(r)]
+    if not rows:
+        return None
     return Block(vocab.MODALITY_MATRIX, {
         "columns": (mtx.get("axes") or {}).get("columns") or [],
-        "rows": mtx.get("rows") or [], "legend": mtx.get("legend") or {},
+        "rows": rows, "legend": mtx.get("legend") or {},
+        "glyph_legend": vocab.ordinal_glyph_legend(),   # inline "+2 supports … −3 killer · off-scale"
         "disclaimer": mtx.get("_disclaimer"),
     })
 

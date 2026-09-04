@@ -120,7 +120,8 @@ class TextBackend:
     def _skill_header(self, p: dict) -> list:
         glyph = vocab.polarity_glyph(p.get("polarity"))
         title = p.get("title") or p.get("short")
-        call = p.get("call")
+        # the call is a snake_case machine verdict (lineage_selective) — humanize it for the header.
+        call = _humanize(p.get("call")) or None
         # call=None (gateless descriptive/inert) → label it plainly as context, never "not scored".
         verdict = call or ("context (descriptive)" if p.get("role") in ("descriptive", "inert")
                            else vocab.polarity_label(p.get("polarity")))
@@ -247,6 +248,12 @@ class TextBackend:
             out.append(f"{self._b('Tensions')}: {p['tension_analysis']}")
         for a in (p.get("arguments") or []):
             out.append(self._bullet(_arg_summary(a)))
+        cites = p.get("citations") or []
+        if cites:
+            # rule-ids lifted out of the prose → a compact grounding footnote (provenance affordance).
+            joined = ", ".join(cites)
+            out.append(f"_Grounded in {len(cites)} framework rules: {joined}._"
+                       if self.md else f"Grounded in {len(cites)} framework rules: {joined}")
         return out
 
     def _coherence(self, p: dict) -> list:
@@ -269,7 +276,12 @@ class TextBackend:
             glyphs = [_cell_glyph(cells.get(m) or {}) for m in cols]
             body.append([vocab.skill_title(r.get("short"))] + glyphs
                         + [_humanize(r.get("verdict")) if r.get("verdict") else "—"])
-        return self._h2("Modality-fit matrix") + self._table(["gate"] + list(cols) + ["verdict"], body)
+        out = self._h2("Modality-fit matrix") + self._table(["gate"] + list(cols) + ["verdict"], body)
+        if p.get("glyph_legend"):
+            out.append(p["glyph_legend"])                       # inline glyph key
+        if p.get("disclaimer"):
+            out.append(_collapse_disclaimer(p["disclaimer"]))   # first sentence only; rest → provenance
+        return out
 
     def _literature_risk(self, p: dict) -> list:
         dims = p.get("dims") or []
@@ -293,11 +305,26 @@ class TextBackend:
 # ------------------------------------------------------------------------------------------------
 # small pure summarizers (shared shape-tolerant readers over spine slots)
 # ------------------------------------------------------------------------------------------------
+# internal confidence-basis tokens → plain language (the basis is an engine identifier, not prose).
+_BASIS_GLOSS = {
+    "certainty_model_sidecar": "cross-axis certainty model",
+    "gate_scorecard": "gate scorecard",
+    "coverage_only": "measurement coverage",
+    "single_axis": "a single axis",
+}
+
+
+def _gloss_basis(basis) -> Optional[str]:
+    if not basis:
+        return None
+    return _BASIS_GLOSS.get(basis, _humanize(basis))
+
+
 def _confidence_summary(conf) -> Optional[str]:
     if not isinstance(conf, dict):
         return str(conf) if conf else None
     level = conf.get("level") or conf.get("tier")
-    basis = conf.get("basis")
+    basis = _gloss_basis(conf.get("basis"))
     cov = conf.get("coverage")
     if isinstance(cov, dict):  # {n_measured, n_axes, n_critical_measured} — format, never str(dict)
         nm, na, nc = cov.get("n_measured"), cov.get("n_axes"), cov.get("n_critical_measured")
@@ -362,6 +389,17 @@ def _qt_conf(r) -> str:
 
 def _humanize(x) -> str:
     return str(x).replace("_", " ") if x is not None else ""
+
+
+def _collapse_disclaimer(text) -> str:
+    """The ordinal-matrix disclaimer is a long multi-sentence caveat. Collapse it to its lead sentence
+    (the ORDINAL-VIEW warning) for the inline view; the full caveat lives in the block payload for a
+    consumer that wants it (html shows it in a <details>)."""
+    s = str(text or "").strip()
+    if not s:
+        return ""
+    lead = s.split(". ", 1)[0].rstrip(".")
+    return f"{lead}. (Full caveat in provenance.)"
 
 
 def _arg_summary(a) -> str:

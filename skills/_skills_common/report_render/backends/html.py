@@ -92,6 +92,15 @@ figcaption { color:var(--muted); font-size:13px; margin-top:4px; }
 .tag { display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
        font-weight:700; color:var(--muted); border:1px solid var(--line); border-radius:6px;
        padding:1px 7px; margin-bottom:6px; }
+td.mx-pos { background:rgba(46,139,87,.16); }
+td.mx-neg { background:rgba(199,119,20,.16); }
+td.mx-killer { background:rgba(192,41,41,.18); font-weight:650; }
+td.mx-zero { background:rgba(138,148,166,.10); }
+td.mx-off { color:var(--muted); }
+.cite-prov { color:var(--muted); font-size:13px; margin:6px 0 2px; }
+.cite-prov summary { cursor:pointer; }
+.cite-prov code { font-size:12px; background:var(--bg); border:1px solid var(--line);
+                  border-radius:4px; padding:0 5px; margin:2px 3px 0 0; display:inline-block; }
 """.strip()
 
 
@@ -181,7 +190,7 @@ class HtmlBackend:
 
     def _skill_header(self, p: dict) -> list:
         glyph = vocab.polarity_glyph(p.get("polarity"))
-        call = p.get("call")
+        call = _humanize(p.get("call")) or None   # snake_case machine verdict → readable
         verdict = call or ("context (descriptive)" if p.get("role") in ("descriptive", "inert")
                            else vocab.polarity_label(p.get("polarity")))
         deciding = " <span class='deciding'>deciding axis</span>" if p.get("is_deciding") else ""
@@ -316,6 +325,13 @@ class HtmlBackend:
         if args:
             out.append("<ul class='chips'>"
                        + "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args) + "</ul>")
+        cites = p.get("citations") or []
+        if cites:
+            # rule-ids lifted out of the prose → a collapsed grounding affordance (hover/expand), so the
+            # executive text reads clean while the provenance stays one click away.
+            codes = "".join(f"<code>{_esc(c)}</code>" for c in cites)
+            out.append(f"<details class='cite-prov'><summary>Grounded in {len(cites)} framework "
+                       f"rules</summary>{codes}</details>")
         return out
 
     def _coherence(self, p: dict) -> list:
@@ -328,6 +344,9 @@ class HtmlBackend:
             out.append("<ul class='chips'>" + "".join(f"<li>{_esc(c)}</li>" for c in cav) + "</ul>")
         return out
 
+    _CELL_CLASS = {"supportive": "mx-pos", "neutral": "mx-zero", "opposing": "mx-neg",
+                   "killer": "mx-killer"}
+
     def _modality_matrix(self, p: dict) -> list:
         from ...ordinal_view import _cell_glyph
         cols, rows = p.get("columns") or [], p.get("rows") or []
@@ -337,12 +356,19 @@ class HtmlBackend:
         trs = []
         for r in rows:
             cells = r.get("cells") or {}
-            tds = "".join(f"<td>{_esc(_cell_glyph(cells.get(m) or {}))}</td>" for m in cols)
+            tds = ""
+            for m in cols:
+                cell = cells.get(m) or {}
+                cls = self._CELL_CLASS.get(cell.get("signal"), "mx-off") if cell.get("on_scale") else "mx-off"
+                tds += f"<td class='{cls}'>{_esc(_cell_glyph(cell))}</td>"
             trs.append(f"<tr><td>{_esc(vocab.skill_title(r.get('short')))}</td>{tds}"
                        f"<td>{_esc(_humanize(r.get('verdict')) if r.get('verdict') else '—')}</td></tr>")
-        disc = f"<p class='prov'>{_esc(p.get('disclaimer'))}</p>" if p.get("disclaimer") else ""
+        legend = (f"<p class='so-foot'>{_esc(p['glyph_legend'])}</p>" if p.get("glyph_legend") else "")
+        # collapse the long NOT-SPINE-SAFE caveat into a click-to-expand provenance disclosure.
+        disc = (f"<details class='cite-prov'><summary>Reading this matrix — caveats</summary>"
+                f"<p class='prov'>{_esc(p['disclaimer'])}</p></details>" if p.get("disclaimer") else "")
         return [f"<h2>Modality-fit matrix</h2><table><thead><tr><th>Gate</th>{head}<th>Verdict</th></tr>"
-                f"</thead><tbody>{''.join(trs)}</tbody></table>{disc}"]
+                f"</thead><tbody>{''.join(trs)}</tbody></table>{legend}{disc}"]
 
     def _literature_risk(self, p: dict) -> list:
         dims = p.get("dims") or []
