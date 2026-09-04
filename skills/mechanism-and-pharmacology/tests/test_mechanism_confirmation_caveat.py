@@ -131,6 +131,39 @@ def test_curation_gap_none_when_thin_but_no_operative_signal():
     assert RUN._curation_gap_note("sparse", "data_unavailable", None, "not_measured", 0) is None
 
 
+# ── prediction_lane_caveat MATERIALITY gate (v1.10.0) ──────────────────────────────────────────────────
+def test_prediction_lane_materiality_silences_curated_dominant_hub():
+    """MYC/TP53-like: non-curated lanes (443) < curated network (1105) → silenced (curated dominates)."""
+    assert RUN._prediction_lane_caveat(
+        {"network_class": "well_characterized", "n_upstream_predicted_kinases": 418,
+         "n_downstream_predicted_substrates": 0},
+        {"data_available": True, "n_partners": 25}, curated_edge_count=1105) is None
+
+
+def test_prediction_lane_materiality_fires_when_prediction_dominant():
+    """BRAF-like: non-curated (5457) dwarfs curated (33) → fires (could inflate apparent richness)."""
+    c = RUN._prediction_lane_caveat(
+        {"network_class": "well_characterized", "n_upstream_predicted_kinases": 737,
+         "n_downstream_predicted_substrates": 4702},
+        {"data_available": True, "n_partners": 18}, curated_edge_count=33)
+    assert c is not None and c["reason"] == "prediction_lanes_carried_alongside"
+
+
+def test_prediction_lane_fires_when_curated_empty():
+    c = RUN._prediction_lane_caveat(
+        {"network_class": "well_characterized", "n_upstream_predicted_kinases": 12,
+         "n_downstream_predicted_substrates": 0}, {"data_available": False, "n_partners": 0},
+        curated_edge_count=0)
+    assert c is not None
+
+
+def test_prediction_lane_legacy_2arg_still_fires():
+    """Backward-compat: the 2-arg call (no materiality gate) fires as before."""
+    assert RUN._prediction_lane_caveat(
+        {"network_class": "well_characterized", "n_upstream_predicted_kinases": 5},
+        {"data_available": False, "n_partners": 0}) is not None
+
+
 # ── precedent set is a frozenset of the panel positive controls ────────────────────────────────────────
 def test_precedent_set_covers_panel_positive_controls():
     for g in ("BRAF", "EGFR", "FGFR2"):

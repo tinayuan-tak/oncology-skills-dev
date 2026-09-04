@@ -49,7 +49,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.10.0"  # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                                               #        facet (verdict-inert; SIGNOR cross-referenced)
                                               # 1.5.0: pathway-activity-context (PROGENy)
                                               # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -325,14 +325,27 @@ def _mechanism_confirmation_caveat(has_actionable_moa, target, network_class, n_
     }
 
 
-def _prediction_lane_caveat(kinome_atlas, coessentiality) -> dict | None:
+def _prediction_lane_caveat(kinome_atlas, coessentiality, curated_edge_count=None) -> dict | None:
     """Surface MoA hooks carried by the PREDICTION / FUNCTIONAL lanes (kinome-atlas PWM predictions +
     DepMap co-essentiality) that ride ALONGSIDE the curated network but are NEVER merged into
-    network_class / has_actionable_moa. VERDICT-INERT; None when no prediction/functional lane is present."""
+    network_class / has_actionable_moa. VERDICT-INERT; None when no prediction/functional lane is present.
+
+    MATERIALITY GATE (2026-09-04): the lanes are present for nearly every studied target, so an
+    unconditional caveat fires on ~every run and adds little signal. Only surface it when the non-curated
+    lanes are MATERIAL — at least as large as the curated network (they could then inflate a reader's sense
+    of mechanism richness), OR the curated network is empty/unavailable (any prediction lane could mislead).
+    When the curated network genuinely dominates (e.g. MYC/TP53 hubs), the prediction/functional lanes are
+    minor context carried in `mechanism_provenance` and do not need the caveat. curated_edge_count None
+    (legacy caller) skips the gate."""
     ka = kinome_atlas or {}
     co = coessentiality or {}
     n_pred = (ka.get("n_upstream_predicted_kinases") or 0) + (ka.get("n_downstream_predicted_substrates") or 0)
     n_coess = (co.get("n_partners") or 0) if co.get("data_available") else 0
+    noncurated = n_pred + n_coess
+    if noncurated == 0:
+        return None
+    if curated_edge_count and noncurated < curated_edge_count:
+        return None                                     # curated network dominates → caveat is noise
     lanes = []
     if ka.get("network_class") not in (None, "data_unavailable") and n_pred > 0:
         lanes.append(f"kinome-atlas PREDICTION ({ka.get('n_upstream_predicted_kinases') or 0} predicted "
@@ -508,7 +521,9 @@ def _headline(cards, fired, verdict_pair, target=None):
     headline["mechanism_confirmation_caveat"] = _mechanism_confirmation_caveat(
         headline.get("has_actionable_moa"), target, headline.get("network_class"),
         _n_up, _hce, headline.get("moa_classes_present"))
-    headline["prediction_lane_caveat"] = _prediction_lane_caveat(_kinome, _coess)
+    headline["prediction_lane_caveat"] = _prediction_lane_caveat(
+        _kinome, _coess, curated_edge_count=(_n_up if isinstance(_n_up, int) else 0)
+        + (_n_dn if isinstance(_n_dn, int) else 0))
     headline["curation_gap_note"] = _curation_gap_note(
         headline.get("network_class"), headline.get("phospho_activity_class"),
         _pathway_activity, headline.get("tahoe_perturbation_class"), _n_coess)
