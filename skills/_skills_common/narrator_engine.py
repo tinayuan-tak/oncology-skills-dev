@@ -128,8 +128,14 @@ def _render_literature(decision: dict) -> str:
     lit = decision.get("literature_synthesis") or {}
     if not isinstance(lit, dict) or any(k in lit for k in ("_literature_error", "_literature_skipped")):
         return ""
-    axes = lit.get("axes") or []
-    if not axes and not lit.get("blind_spots"):
+    # Defensive unwrap: a --literature-only decision.json can reach here with `axes` still (or again)
+    # provenance-wrapped as {value:[...], _source:'llm_synthesized', ...}. Without this, lit.get("axes")
+    # is a truthy dict, the early-return below is skipped, and `for ax in axes` iterates the wrapper's
+    # KEYS (strings) → every isinstance(ax, dict) is False → zero axis lines rendered.
+    from _skills_common.literature_synthesis import _unwrap_stamped
+    axes = _unwrap_stamped(lit.get("axes")) or []
+    blind_spots = _unwrap_stamped(lit.get("blind_spots")) or []
+    if not axes and not blind_spots:
         return ""
     lines = ["LITERATURE LANE (EXTERNAL published-literature reads — verdict-INERT corroboration/contradiction; "
              "attribute as literature-derived, NOT omics; the class labels + numbers above remain authoritative):"]
@@ -143,7 +149,7 @@ def _render_literature(decision: dict) -> str:
         lines.append(f"  · axis {ax.get('axis_key')}: lit={ax.get('literature_read')} vs omics="
                      f"{ax.get('agreement_vs_omics')} (conf {ax.get('confidence')}) — {ax.get('assertion', '')}"
                      + (f"  [{cites}]" if cites else ""))
-    for bs in (lit.get("blind_spots") or [])[:3]:
+    for bs in (blind_spots or [])[:3]:
         if isinstance(bs, dict):
             lines.append(f"  ⚠ OMICS-BLIND: {bs.get('signal')} — {bs.get('why_omics_blind')}")
     if lit.get("key_divergence"):

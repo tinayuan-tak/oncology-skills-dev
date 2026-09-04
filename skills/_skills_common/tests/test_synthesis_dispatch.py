@@ -92,16 +92,33 @@ def test_descriptive_skill_without_synthesize_flag_is_clean(tmp_path):
 
 
 def test_two_slot_byte_stability_with_custom_synthesizer(tmp_path, scrub_volatile):
-    """--synthesize with a custom synthesize_fn adds ONLY llm_synthesis; the spine is identical."""
+    """--synthesize with a custom synthesize_fn adds ONLY llm_synthesis to the spine; the deterministic
+    decision (verdict + cards + rules + …) is identical. The additive, display-only
+    headline.evidence_graph projection legitimately tracks the optional lane in its `narrative` slot
+    (base has no narration → narrative={}, synth projects llm_synthesis), so it is excluded from the
+    spine comparison — and separately asserted identical EXCEPT that narrative slot."""
+    import copy
+
     def _fake(decision, model_id=None, subtype_query=None):
         return {"selectivity_relevance_for_target": {"value": "strongly_supports",
                 "_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}}
 
-    base = scrub_volatile(_run(tmp_path / "a", synthesize=False))
-    synth = scrub_volatile(_run(tmp_path / "b", synthesize=True, synthesize_fn=_fake))
-    assert "llm_synthesis" not in base
-    assert "llm_synthesis" in synth
-    assert {k: v for k, v in synth.items() if k != "llm_synthesis"} == base
+    def _split(d):
+        d = copy.deepcopy(d)
+        eg = (d.get("headline") or {}).pop("evidence_graph", None)
+        return d, eg
+
+    base_spine, base_eg = _split(scrub_volatile(_run(tmp_path / "a", synthesize=False)))
+    synth_spine, synth_eg = _split(scrub_volatile(_run(tmp_path / "b", synthesize=True, synthesize_fn=_fake)))
+    assert "llm_synthesis" not in base_spine
+    assert "llm_synthesis" in synth_spine
+    # the deterministic spine (sans the display-only evidence_graph) differs ONLY by llm_synthesis
+    assert {k: v for k, v in synth_spine.items() if k != "llm_synthesis"} == base_spine
+    # the evidence_graph projection is byte-stable across --synthesize EXCEPT its narrative slot
+    if base_eg is not None and synth_eg is not None:
+        assert {k: v for k, v in synth_eg.items() if k != "narrative"} == \
+               {k: v for k, v in base_eg.items() if k != "narrative"}
+        assert base_eg["narrative"] == {}          # no llm_synthesis → empty narration
 
 
 def test_synthesize_fn_failure_degrades_to_note(tmp_path):

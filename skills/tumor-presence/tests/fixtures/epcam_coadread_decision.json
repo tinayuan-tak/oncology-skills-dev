@@ -1,0 +1,4657 @@
+{
+  "skill": "tumor-presence",
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "question": "Is EPCAM expressed in COADREAD tumor tissue, and how does its expression distribute across cancer cell lines vs. paired tumor/adjacent samples?",
+  "generated_at": "2026-09-03T15:50:29+00:00",
+  "headline": {
+    "presence_verdict": "tumor_broadly_expressed",
+    "driving_rule_id": "tumor-expression-broadly-high-supportive",
+    "presence_verdict_by_modality": {
+      "bulk_rna/cell_line": {
+        "measurement": "bulk_rna",
+        "sample_context": "cell_line",
+        "verdict": "broadly_moderate_expression",
+        "driving_rule_id": "expression-broadly-moderate-neutral",
+        "evidence_state": "measured"
+      },
+      "bulk_rna/tumor": {
+        "measurement": "bulk_rna",
+        "sample_context": "tumor",
+        "verdict": "tumor_broadly_expressed",
+        "driving_rule_id": "tumor-expression-broadly-high-supportive",
+        "evidence_state": "measured"
+      },
+      "bulk_protein_ms/cell_line": {
+        "measurement": "bulk_protein_ms",
+        "sample_context": "cell_line",
+        "verdict": "protein_broadly_moderate",
+        "driving_rule_id": "protein-abundance-broadly-moderate-neutral",
+        "evidence_state": "measured"
+      },
+      "bulk_protein_ms/tumor": {
+        "measurement": "bulk_protein_ms",
+        "sample_context": "tumor",
+        "verdict": "multi_tumor_elevated",
+        "driving_rule_id": "tumor-breadth-multi-supportive",
+        "evidence_state": "measured"
+      },
+      "sc_rna/tumor": {
+        "measurement": "sc_rna",
+        "sample_context": "tumor",
+        "verdict": "sc_malignant_detected",
+        "driving_rule_id": "sc-expression-malignant-broadly-detected-supportive",
+        "evidence_state": "measured"
+      },
+      "sc_rna/normal": {
+        "measurement": "sc_rna",
+        "sample_context": "normal",
+        "verdict": "HIGH_LIABILITY",
+        "driving_rule_id": null,
+        "evidence_state": "comparator"
+      },
+      "protein_ihc/tumor": {
+        "measurement": "protein_ihc",
+        "sample_context": "tumor",
+        "verdict": "ihc_detected_high",
+        "driving_rule_id": null,
+        "evidence_state": "measured"
+      },
+      "protein_ihc/normal": {
+        "measurement": "protein_ihc",
+        "sample_context": "normal",
+        "verdict": "broad_normal_expression",
+        "driving_rule_id": null,
+        "evidence_state": "comparator"
+      }
+    },
+    "headline_lens": "bulk_rna/tumor",
+    "cell_line_vs_tumor_discordant": false,
+    "cell_line_vs_tumor_direction": null,
+    "presence_headline_conflict": false,
+    "presence_headline_conflict_note": null,
+    "presence_headline_conflict_modalities": [],
+    "abundance_floor_flag": "present_low_abundance_single_lens",
+    "abundance_floor_low_lenses": [
+      {
+        "lens": "cell-line protein level",
+        "card_id": "cellline-protein-abundance",
+        "allgene_percentile_class": "bottom_decile",
+        "quorum": "single_lens_overridden",
+        "overridden_by": [
+          "HPA-IHC ihc_detected_high",
+          "ProCan protein mid"
+        ]
+      }
+    ],
+    "presence_abundance_is_relative": true,
+    "protein_confirmation_state": "confirmed",
+    "presence_signal_strength": "supportive",
+    "measured_present_despite_insufficient": [],
+    "presence_interpretation_note": null,
+    "median_log2tpm_panel": 2.513846755027771,
+    "expression_call_class": "broadly_moderate",
+    "tva_log2_fc": -0.3620304616558291,
+    "tva_q_value": 1.2282737206350781e-06,
+    "tva_expression_call": "not_informative",
+    "protein_expression_class": "not_significant",
+    "protein_effect_size": 0.0647570698633509,
+    "protein_effect_standardized_class": "negligible",
+    "protein_effect_cohens_d": 0.1592,
+    "protein_effect_standardized_t": 1.1172,
+    "protein_effect_standardized_method": "moderated_se_exact",
+    "tumor_elevation_breadth_class": "multi_tumor_elevated",
+    "tumor_elevation_n_cohorts_elevated": 4,
+    "tumor_elevation_n_cohorts_tested": 9,
+    "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+    "rna_tumor_elevation_n_indications_elevated": 10,
+    "rna_tumor_elevation_n_indications_tested": 26,
+    "breadth_layer_concordance": "concordant",
+    "hpa_ihc_protein_presence_class": "ihc_detected_high",
+    "hpa_ihc_fraction_detected": 1.0,
+    "hpa_ihc_staining_score": 3.0,
+    "hpa_ihc_n_patients": 12,
+    "hpa_ihc_cancer_type": "colorectal cancer",
+    "purity_confound_class": "purity_independent",
+    "expression_purity_pearson_r": 0.1293,
+    "rna_as_biomarker": "adequate_proxy",
+    "rna_protein_r": 0.8581,
+    "rna_as_biomarker_tumor": "partial_proxy",
+    "rna_protein_r_tumor": 0.4564,
+    "rna_protein_n_paired_tumors": 96,
+    "rna_protein_cptac_cohort": "coad",
+    "bulk_rna_proxy_quality": "rna_positive_proxy_partial",
+    "bulk_rna_proxy_quality_source": "tumor",
+    "subtype_scope_available": true,
+    "subtype_axis_quality": "powered",
+    "n_subtypes_measured": 14,
+    "n_subtypes_enriched": 0,
+    "spotlight_subtype": null,
+    "subtype_stratification_class": "pan_subtype_uniform",
+    "n_subtypes_restricted": 0,
+    "subtype_purity_source": "pancanatlas_absolute",
+    "subtype_purity_spread": {
+      "max_median_purity": 0.79,
+      "min_median_purity": 0.53,
+      "delta": 0.26
+    },
+    "cellline_subtype_scope_available": true,
+    "cellline_subtype_axis_quality": "underpowered",
+    "cellline_n_subtypes_measured": 1,
+    "cellline_subtype_stratification_class": "pan_subtype_uniform",
+    "cellline_spotlight_subtype": null,
+    "sc_expression_class": "malignant_broadly_detected",
+    "sc_malignant_detection_fraction": 0.89476,
+    "sc_malignant_abundance_log1p_cp10k": 2.08927,
+    "sc_malignant_compartment_available": true,
+    "sc_malignant_n_cells": 509583,
+    "sc_malignant_n_donors": 361,
+    "sc_tce_homogeneity_class": "homogeneous",
+    "sc_within_tumor_coverage_class": "high",
+    "sc_inter_donor_consistency_class": "consistent",
+    "sc_tce_antigen_escape_class": "escape_risk_low",
+    "sc_malignant_detection_donor_iqr": 0.17676,
+    "sc_fraction_donors_broadly_detecting": 0.952909,
+    "sc_top_microenvironment_compartment": "stromal",
+    "sc_top_microenvironment_detection_fraction": 0.07692,
+    "sc_compartment_detection": {
+      "epithelial_normal": 0.73077,
+      "immune": 0.04072,
+      "malignant": 0.89476,
+      "other": 0.043719999999999995,
+      "stromal": 0.07692
+    },
+    "sc_per_compartment": [
+      {
+        "compartment": "malignant",
+        "median_detection_fraction": 0.89476,
+        "median_abundance_log1p_cp10k": 2.08927,
+        "n_donors": 361,
+        "n_cells_total": 509583,
+        "is_caf": false
+      },
+      {
+        "compartment": "stromal",
+        "median_detection_fraction": 0.07692,
+        "median_abundance_log1p_cp10k": 0.07047,
+        "n_donors": 261,
+        "n_cells_total": 135945,
+        "is_caf": true
+      },
+      {
+        "compartment": "immune",
+        "median_detection_fraction": 0.04072,
+        "median_abundance_log1p_cp10k": 0.05265,
+        "n_donors": 401,
+        "n_cells_total": 1125901,
+        "is_caf": false
+      },
+      {
+        "compartment": "epithelial_normal",
+        "median_detection_fraction": 0.73077,
+        "median_abundance_log1p_cp10k": 1.40663,
+        "n_donors": 39,
+        "n_cells_total": 2880,
+        "is_caf": false
+      },
+      {
+        "compartment": "other",
+        "median_detection_fraction": 0.043719999999999995,
+        "median_abundance_log1p_cp10k": 0.08762500000000001,
+        "n_donors": 150,
+        "n_cells_total": 15336,
+        "is_caf": false
+      }
+    ],
+    "sc_caf_vs_malignant_class": "caf_low",
+    "sc_caf_detection_fraction": 0.07692,
+    "sc_caf_compartment_available": true,
+    "sc_n_compartments_measured": 5,
+    "sc_n_donor_groups": 453,
+    "sc_n_datasets": 45,
+    "normal_tissue_ihc_breadth_class": "broad_normal_expression",
+    "normal_tissue_ihc_essential_flag": "unknown",
+    "sc_normal_expression_class": "HIGH_LIABILITY",
+    "sc_normal_safety_essential_class": "critical_organ_liability",
+    "sc_normal_max_det_cell_type": "BEST4+ colonocyte",
+    "sc_normal_max_det_fraction": 1.0,
+    "sc_normal_expressing_donor_fraction_max": 1.0,
+    "sc_normal_n_cell_types_above_20pct": 143,
+    "sc_normal_tissues_queried": [
+      "colon",
+      "heart",
+      "liver",
+      "kidney",
+      "bone_marrow",
+      "brain",
+      "adrenal_gland",
+      "lung",
+      "pancreas"
+    ],
+    "sc_normal_top_essential_cell_types": [
+      {
+        "cell_type": "BEST4+ colonocyte",
+        "detection_fraction": 1.0
+      },
+      {
+        "cell_type": "early colonocyte",
+        "detection_fraction": 1.0
+      },
+      {
+        "cell_type": "cycling pulmonary alveolar type 2 cell",
+        "detection_fraction": 0.990234375
+      },
+      {
+        "cell_type": "kidney loop of Henle cortical thick ascending limb epithelial cell",
+        "detection_fraction": 0.9411764705882353
+      },
+      {
+        "cell_type": "enterocyte of epithelium of large intestine",
+        "detection_fraction": 0.9326870469838862
+      },
+      {
+        "cell_type": "kidney collecting duct principal cell",
+        "detection_fraction": 0.915129151291513
+      },
+      {
+        "cell_type": "enterocyte",
+        "detection_fraction": 0.9103448275862069
+      },
+      {
+        "cell_type": "BEST4+ enterocyte",
+        "detection_fraction": 0.9038785834738617
+      }
+    ],
+    "sc_normal_safety_essential_flags": {
+      "BEST4+ colonocyte": 1.0,
+      "BEST4+ enterocyte": 0.9038785834738617,
+      "colonocyte": 0.8839773116488916,
+      "early colonocyte": 1.0,
+      "enteric neuron": 0.06666666666666667,
+      "enterocyte": 0.9103448275862069,
+      "enterocyte of epithelium of large intestine": 0.9326870469838862,
+      "inhibitory motor neuron": 0.05714285714285714,
+      "interneuron": 0.05555555555555555,
+      "neuron": 0.06209150326797386,
+      "oligodendrocyte precursor cell": 0.051587301587301584,
+      "primary sensory neuron (sensu Teleostei)": 0.15384615384615385,
+      "erythroid progenitor cell": 0.5232112668375416,
+      "hematopoietic stem cell": 0.07407407407407407,
+      "megakaryocyte-erythroid progenitor cell": 0.587012987012987,
+      "kidney collecting duct alpha-intercalated cell": 0.5567767868358247,
+      "kidney collecting duct cell": 0.8913043478260869,
+      "kidney collecting duct intercalated cell": 0.8222222222222222,
+      "kidney collecting duct principal cell": 0.915129151291513,
+      "kidney loop of Henle ascending limb epithelial cell": 0.0931174089068826,
+      "kidney loop of Henle cortical thick ascending limb epithelial cell": 0.9411764705882353,
+      "kidney loop of Henle descending limb epithelial cell": 0.2632472826086957,
+      "kidney loop of Henle epithelial cell": 0.6139853083191371,
+      "kidney loop of Henle thick ascending limb epithelial cell": 0.5256410256410257,
+      "kidney loop of Henle thin ascending limb epithelial cell": 0.625,
+      "kidney loop of Henle thin descending limb epithelial cell": 0.40625,
+      "L2/3 intratelencephalic projecting glutamatergic neuron": 0.09309309309309309,
+      "L3 intratelencephalic projecting glutamatergic neuron": 0.05745341614906832,
+      "L4 intratelencephalic projecting glutamatergic neuron": 0.05277401894451962,
+      "L5 extratelencephalic projecting glutamatergic cortical neuron": 0.22580645161290322,
+      "L5 intratelencephalic projecting glutamatergic neuron": 0.09090909090909091,
+      "L5/6 near-projecting glutamatergic neuron": 0.14285714285714285,
+      "L6 corticothalamic-projecting glutamatergic cortical neuron": 0.08333333333333333,
+      "L6b glutamatergic neuron of the primary motor cortex": 0.06172839506172839,
+      "central nervous system neuron": 0.11764705882352941,
+      "cerebral cortex neuron": 0.06473988439306358,
+      "corticothalamic-projecting glutamatergic cortical neuron": 0.10440835266821345,
+      "direct pathway medium spiny neuron": 0.2713060256648689,
+      "extratelencephalic-projecting glutamatergic cortical neuron": 0.15512101017186952,
+      "hippocampal pyramidal neuron": 0.132890365448505,
+      "indirect pathway medium spiny neuron": 0.27116172964443147,
+      "intratelencephalic-projecting glutamatergic cortical neuron": 0.05533683289588801,
+      "medium spiny neuron": 0.17054263565891473,
+      "near-projecting glutamatergic cortical neuron": 0.1440677966101695,
+      "neuron of the forebrain": 0.09424858914512646,
+      "cycling pulmonary alveolar type 2 cell": 0.990234375,
+      "hepatocyte": 0.06976744186046512,
+      "pulmonary alveolar type 1 cell": 0.6164383561643836,
+      "pulmonary alveolar type 2 cell": 0.6510530934620448
+    },
+    "claim_vector": {
+      "A": {
+        "signal": "strong",
+        "corroboration": "moderate",
+        "conflict": null,
+        "informs": "abundance \u2014 informs every modality (a degrader/SM needs the protein present)",
+        "corr_cite": {
+          "card_id": "rna-protein-concordance-tumor",
+          "fields": [
+            "rna_as_biomarker"
+          ]
+        },
+        "evidence": "anchored: within positives (3/4); 100th all-gene pct (percentile-led), 100th pct; proxy=rna_positive_proxy_partial; single-lens low-abundance (cell-line protein level) overridden by orthogonal protein-present evidence (HPA-IHC ihc_detected_high, ProCan protein mid) \u2014 not read as low; protein-present (HPA-IHC detected_high, MS-independent)",
+        "evidence_atom": {
+          "read": "broadly_high",
+          "values": {
+            "tumor_expression_class": "broadly_high",
+            "control_position_class": "within_positives",
+            "allgene_percentile": 99.74150466918945,
+            "median_log2tpm": 9.622452735900879,
+            "p95_log2tpm": 10.38471279144287,
+            "distribution_pattern": "continuous"
+          },
+          "cite": {
+            "card_id": "tumor-rna-distribution",
+            "fields": [
+              "allgene_percentile",
+              "control_position_class",
+              "distribution_pattern",
+              "median_log2tpm",
+              "p95_log2tpm",
+              "tumor_expression_class"
+            ]
+          },
+          "entity": {
+            "measurement_type": "tumor_rna_expression",
+            "sample_context": "tumor"
+          }
+        }
+      },
+      "B": {
+        "signal": "absent",
+        "corroboration": "moderate",
+        "evidence": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent]",
+        "conflict": null,
+        "informs": "tumor-elevation \u2014 context for the selectivity / therapeutic-window lens",
+        "comparator_detail": "vs matched-adjacent -0.36 log2FC; vs GTEx-population 2.09 log2FC (q=2e-72); 74% tumours > matched-normal p95",
+        "evidence_atom": {
+          "read": "not_informative",
+          "values": {
+            "expression_call_class": "not_informative",
+            "log2_fc": -0.3620304616558291,
+            "q_value": 1.2282737206350781e-06,
+            "n_tumor": 624
+          },
+          "cite": {
+            "card_id": "tumor-rna-vs-adjacent",
+            "fields": [
+              "expression_call_class",
+              "log2_fc",
+              "n_tumor",
+              "q_value"
+            ]
+          },
+          "entity": {
+            "measurement_type": "tumor_rna_dge_vs_adjacent",
+            "sample_context": "tumor"
+          }
+        }
+      },
+      "C": {
+        "signal": "strong",
+        "corroboration": "high",
+        "conflict": null,
+        "informs": "malignant-cell-intrinsic \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR)",
+        "homogeneity_detail": "antigen-escape:escape_risk_low; inter-donor:consistent; 95% donors broadly detecting",
+        "evidence": "malignant_broadly_detected (malignant frac 0.89, n=361 donors); antigen-escape:escape_risk_low; inter-donor:consistent; 95% donors broadly detecting",
+        "evidence_atom": {
+          "read": "malignant_broadly_detected",
+          "values": {
+            "sc_expression_class": "malignant_broadly_detected",
+            "malignant_detection_fraction": 0.89476,
+            "malignant_n_donors": 361,
+            "caf_vs_malignant_class": "caf_low",
+            "top_microenvironment_compartment": "stromal"
+          },
+          "cite": {
+            "card_id": "tumor-scrna-celltype-expression",
+            "fields": [
+              "caf_vs_malignant_class",
+              "malignant_detection_fraction",
+              "malignant_n_donors",
+              "sc_expression_class",
+              "top_microenvironment_compartment"
+            ]
+          },
+          "entity": {
+            "measurement_type": "sc_tumor_celltype_expression",
+            "sample_context": "tumor",
+            "grain": "single_cell"
+          }
+        }
+      },
+      "D": {
+        "signal": "moderate",
+        "corroboration": "high",
+        "evidence": "breadth=multi_tumor_elevated; dist=continuous; tested over 26 cohorts/indications",
+        "conflict": null,
+        "informs": "generality/breadth \u2014 patient-population & pan-cancer framing",
+        "evidence_atom": {
+          "read": "multi_tumor_elevated",
+          "values": {
+            "tumor_elevation_breadth_class": "multi_tumor_elevated",
+            "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+            "n_cohorts_elevated": 4,
+            "n_cohorts_tested": 9,
+            "rna_n_indications_elevated": 10,
+            "rna_n_indications_tested": 26
+          },
+          "cite": {
+            "card_id": "tumor-elevation-breadth",
+            "fields": [
+              "n_cohorts_elevated",
+              "n_cohorts_tested",
+              "rna_n_indications_elevated",
+              "rna_n_indications_tested",
+              "rna_tumor_elevation_breadth_class",
+              "tumor_elevation_breadth_class"
+            ]
+          },
+          "entity": {
+            "measurement_type": "tumor_elevation_breadth",
+            "grain": "target"
+          }
+        }
+      },
+      "homogeneity": "homogeneous",
+      "_disclaimer": "Modality-blind, verdict-INERT projection of the presence cards into orthogonal claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), each signal\u00d7corroboration. Claims are NOT additive; a weak C does not degrade a strong B. Never feeds the presence_verdict."
+    },
+    "key_signals": {
+      "headline": "Present, with caveats.",
+      "supports": [
+        "Abundant in tumors \u2014 100th percentile (above 3/4 positive control(s); above 3/5 negative control(s)) [tumor-rna-distribution]",
+        "Expressed in cancer cells \u2014 89% of malignant cells (n=361 donors) [single-cell]",
+        "Broad \u2014 protein-elevated in 4/9 cancer cohorts [tumor-elevation-breadth]"
+      ],
+      "caveat": "Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC]"
+    },
+    "presence_state": {
+      "present": "yes",
+      "conflict": false,
+      "abundance_level": "high",
+      "elevated_vs_normal": "no",
+      "malignant_intrinsic": "yes",
+      "breadth": "multi",
+      "_basis": "typed projection of claim_vector A/B/C/D + protein_confirmation_state + abundance_floor_flag + sc_expression_class; VERDICT-INERT, reads no presence_verdict"
+    },
+    "strength_certainty": {
+      "strength": "strong_positive",
+      "certainty": {
+        "level": "medium",
+        "coverage": "high",
+        "corroboration": "medium",
+        "unknown_mass": 0.0
+      },
+      "composite": 0.75,
+      "composite_basis": "certainty-discounted presence strength = peak signal tier \u00d7 weakest-link certainty level; a NAMED [0,1] portfolio-ranking projection, NOT a canonical single verdict \u2014 other lens weightings are equally valid projections",
+      "provenance": {
+        "rna_as_biomarker": "partial_proxy"
+      },
+      "_model_ref": "CERTAINTY_MODEL.md#tumor_presence"
+    },
+    "claim_vector_by_subtype": {
+      "stratification_class": "pan_subtype_uniform",
+      "subtype_variance_explained": 0.08631404885447175,
+      "subtype_effect_size_class": "moderate",
+      "which_subtypes_separate": {
+        "highest": "CMS2",
+        "lowest": "CMS1"
+      },
+      "n_subtypes_measured": 14,
+      "multiplicity_strata_tested": 14,
+      "strata": {
+        "CIMP_High": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "stratum median 9.4 log2TPM, n=92 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "59% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 92
+        },
+        "CIMP_Low": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.6 log2TPM, n=105 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "71% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 105
+        },
+        "CIMP_Neg": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.7 log2TPM, n=323 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "77% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 323
+        },
+        "CMS1": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "stratum median 9.4 log2TPM, n=90 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "56% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 90
+        },
+        "CMS2": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.8 log2TPM, n=234 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "85% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 234
+        },
+        "CMS3": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "stratum median 9.6 log2TPM, n=74 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "80% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 74
+        },
+        "CMS4": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.5 log2TPM, n=154 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "64% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 154
+        },
+        "MSI_H": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "stratum median 9.2 log2TPM, n=47 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "moderate",
+            "corroboration": "low",
+            "evidence": "45% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 47
+        },
+        "MSS": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.5 log2TPM, n=205 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "67% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 205
+        },
+        "left_sided": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.5 log2TPM, n=163 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "68% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 163
+        },
+        "right_sided": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.4 log2TPM, n=129 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "60% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 129
+        },
+        "stage_I": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "stratum median 9.4 log2TPM, n=63 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "56% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 63
+        },
+        "stage_II": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.5 log2TPM, n=113 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "68% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 113
+        },
+        "stage_resectable": {
+          "A": {
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "stratum median 9.5 log2TPM, n=176 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "B": {
+            "signal": "strong",
+            "corroboration": "low",
+            "evidence": "64% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+          },
+          "n_tumor_samples": 176
+        }
+      },
+      "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified (single-cell pooled; CPTAC whole-cohort) \u2014 read them from the pooled claim_vector.",
+      "_disclaimer": "Per-stratum claim vector \u2014 verdict-INERT (the pooled presence_verdict is byte-stable). Only claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per subtype (from per_subgroup_metrics); a pooled indication read can flatten a subtype-concentrated signal (cf. CD274/MSI-H), so a per-stratum POSITIVE is surfaced here rather than suppressed. Certainty is MULTIPLICITY-AWARE: with 14 strata scanned, each per-stratum corroboration takes a 1-tier haircut (k>=5) so a single stratum is not over-trusted; small-n strata are additionally low by power. Read certainty, not just signal."
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "Expressed in cancers at all?",
+        "primary": "anchored: within positives (3/4); 100th all-gene pct (percentile-led), 100th pct; proxy=rna_positive_proxy_partial; single-lens low-abundance (cell-line protein level) overridden by orthogonal protein-present evidence (HPA-IHC ihc_detected_high, ProCan protein mid) \u2014 not read as low; protein-present (HPA-IHC detected_high, MS-independent)",
+        "support": "cell-line RNA: broadly_moderate \u00b7 cell-line protein: broadly_moderate",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "RNA\u2192protein proxy: moderate"
+        }
+      },
+      {
+        "id": "Q2",
+        "question": "This indication vs other cancers?",
+        "primary": "breadth multi_tumor_elevated \u00b7 protein 4/9 cohorts \u00b7 RNA 10/26 indications",
+        "support": "RNA\u2194protein breadth concordant",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "supports",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      },
+      {
+        "id": "Q3",
+        "question": "Elevated vs normals (adjacent + GTEx)?",
+        "primary": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent]",
+        "support": "HPA normal: broad_normal_expression \u00b7 normal single-cell: HIGH_LIABILITY (max: BEST4+ colonocyte)",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "absent \u26a0 window"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      },
+      {
+        "id": "Q4",
+        "question": "Do subtypes differ (from each other / normals)?",
+        "primary": "pan-subtype uniform (0/14 enriched)",
+        "support": "axis powered \u00b7 cell-line (genotype axis): pan_subtype_uniform \u00b7 single-cell homogeneity: homogeneous \u00b7 \u26a0 purity varies across strata (\u0394=0.26) \u2014 enrichment may be stromal",
+        "signal": {
+          "tier": "uniform",
+          "fill": 0,
+          "polarity": "neutral",
+          "label": "uniform across subtypes"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q5",
+        "question": "Absolute abundance vs all genes?",
+        "primary": "level: tumor RNA 100%ile (top_1pct); cell-line RNA 53%ile (mid)",
+        "support": "effect: RNA-vs-adjacent FC 25%ile (mid); CPTAC protein effect 58%ile (mid)",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q6",
+        "question": "Do RNA and protein agree?",
+        "primary": "tumor: partial_proxy (r=0.46)",
+        "support": "cell-line: adequate_proxy (r=0.86)",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "supports",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q7",
+        "question": "Is the tumor signal malignant-cell-intrinsic?",
+        "primary": "malignant_broadly_detected (malignant frac 0.89, n=361 donors); antigen-escape:escape_risk_low; inter-donor:consistent; 95% donors broadly detecting",
+        "support": "bulk purity: purity_independent \u00b7 normal single-cell: critical_organ_liability",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": "tumor_broadly_expressed",
+        "phrase": "Abundantly present in tumor; not elevated vs normal",
+        "gate": "presence",
+        "driving_rule_id": "tumor-expression-broadly-high-supportive",
+        "polarity": "positive"
+      },
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 4,
+          "n_axes": 4,
+          "n_critical_measured": 3
+        }
+      },
+      "top_tension": {
+        "text": "Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC]",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "headline_text": "Abundantly present in tumor; not elevated vs normal \u2014 moderate confidence; tension: Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC].",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "tumor_broadly_expressed",
+          "phrase": "Abundantly present in tumor; not elevated vs normal",
+          "gate": "presence",
+          "polarity": "positive"
+        },
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 4,
+            "n_axes": 4,
+            "n_critical_measured": 3
+          }
+        },
+        "tension": {
+          "text": "Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC]"
+        },
+        "axes": [
+          {
+            "key": "A",
+            "label": "abundance",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "B",
+            "label": "tumor-elevation",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "C",
+            "label": "malignant-intrinsic",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "D",
+            "label": "generality",
+            "signal": "moderate",
+            "corroboration": "high",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "A",
+          "card_id": "tumor-rna-distribution",
+          "fields": [
+            "allgene_percentile",
+            "control_position_class",
+            "distribution_pattern",
+            "median_log2tpm",
+            "p95_log2tpm",
+            "tumor_expression_class"
+          ]
+        },
+        {
+          "axis": "B",
+          "card_id": "tumor-rna-vs-adjacent",
+          "fields": [
+            "expression_call_class",
+            "log2_fc",
+            "n_tumor",
+            "q_value"
+          ]
+        },
+        {
+          "axis": "C",
+          "card_id": "tumor-scrna-celltype-expression",
+          "fields": [
+            "caf_vs_malignant_class",
+            "malignant_detection_fraction",
+            "malignant_n_donors",
+            "sc_expression_class",
+            "top_microenvironment_compartment"
+          ]
+        },
+        {
+          "axis": "D",
+          "card_id": "tumor-elevation-breadth",
+          "fields": [
+            "n_cohorts_elevated",
+            "n_cohorts_tested",
+            "rna_n_indications_elevated",
+            "rna_n_indications_tested",
+            "rna_tumor_elevation_breadth_class",
+            "tumor_elevation_breadth_class"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "subgroup_signals": {
+      "abundance": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 8,
+        "n_agree": 7,
+        "power": "high",
+        "conflict": true,
+        "sources": [
+          {
+            "card": "cellline-rna-distribution",
+            "tier": "moderate",
+            "n": 2446,
+            "label": "cell-line RNA",
+            "conflict": false,
+            "value": "broadly_moderate"
+          },
+          {
+            "card": "tumor-rna-distribution",
+            "tier": "strong",
+            "n": 669,
+            "label": "tumor RNA",
+            "conflict": false,
+            "value": "broadly_high"
+          },
+          {
+            "card": "tumor-protein-abundance-cptac",
+            "tier": "moderate",
+            "n": 97,
+            "label": "tumor protein",
+            "conflict": false,
+            "value": "not_significant"
+          },
+          {
+            "card": "cellline-protein-abundance",
+            "tier": "moderate",
+            "n": 375,
+            "label": "cell-line protein",
+            "conflict": true,
+            "value": "broadly_moderate"
+          },
+          {
+            "card": "cellline-rna-protein-concordance",
+            "tier": "strong",
+            "n": 370,
+            "label": "RNA\u2194protein",
+            "conflict": false,
+            "value": "adequate_proxy"
+          },
+          {
+            "card": "rna-protein-concordance-tumor",
+            "tier": "moderate",
+            "n": 96,
+            "label": "RNA\u2194protein",
+            "conflict": false,
+            "value": "partial_proxy"
+          },
+          {
+            "card": "cellline-protein-abundance-procan",
+            "tier": "moderate",
+            "n": 463,
+            "label": "cell-line protein",
+            "conflict": false,
+            "value": "lineage_restricted"
+          },
+          {
+            "card": "hpa-pathology-cancer-ihc",
+            "tier": "absent",
+            "n": 12,
+            "label": "protein presence",
+            "conflict": false,
+            "value": "ihc_detected_high"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "A",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "anchored: within positives (3/4); 100th all-gene pct (percentile-led), 100th pct; proxy=rna_positive_proxy_partial; single-lens low-abundance (cell-line protein level) overridden by orthogonal protein-present evidence (HPA-IHC ihc_detected_high, ProCan protein mid) \u2014 not read as low; protein-present (HPA-IHC detected_high, MS-independent)",
+            "evidence_atom": {
+              "read": "broadly_high",
+              "values": {
+                "tumor_expression_class": "broadly_high",
+                "control_position_class": "within_positives",
+                "allgene_percentile": 99.74150466918945,
+                "median_log2tpm": 9.622452735900879,
+                "p95_log2tpm": 10.38471279144287,
+                "distribution_pattern": "continuous"
+              },
+              "cite": {
+                "card_id": "tumor-rna-distribution",
+                "fields": [
+                  "allgene_percentile",
+                  "control_position_class",
+                  "distribution_pattern",
+                  "median_log2tpm",
+                  "p95_log2tpm",
+                  "tumor_expression_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "tumor_rna_expression",
+                "sample_context": "tumor"
+              }
+            }
+          }
+        ],
+        "by_stratum": {
+          "CIMP_High": {
+            "signal": "strong",
+            "certainty": "low",
+            "n": 92,
+            "evidence": "stratum median 9.4 log2TPM, n=92 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "CIMP_Low": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 105,
+            "evidence": "stratum median 9.6 log2TPM, n=105 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "CIMP_Neg": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 323,
+            "evidence": "stratum median 9.7 log2TPM, n=323 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "CMS1": {
+            "signal": "strong",
+            "certainty": "low",
+            "n": 90,
+            "evidence": "stratum median 9.4 log2TPM, n=90 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "CMS2": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 234,
+            "evidence": "stratum median 9.8 log2TPM, n=234 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "CMS3": {
+            "signal": "strong",
+            "certainty": "low",
+            "n": 74,
+            "evidence": "stratum median 9.6 log2TPM, n=74 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "CMS4": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 154,
+            "evidence": "stratum median 9.5 log2TPM, n=154 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "MSI_H": {
+            "signal": "strong",
+            "certainty": "low",
+            "n": 47,
+            "evidence": "stratum median 9.2 log2TPM, n=47 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "MSS": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 205,
+            "evidence": "stratum median 9.5 log2TPM, n=205 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "left_sided": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 163,
+            "evidence": "stratum median 9.5 log2TPM, n=163 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "right_sided": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 129,
+            "evidence": "stratum median 9.4 log2TPM, n=129 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "stage_I": {
+            "signal": "strong",
+            "certainty": "low",
+            "n": 63,
+            "evidence": "stratum median 9.4 log2TPM, n=63 (certainty moderate\u2192low: 1 of 14 strata scanned)"
+          },
+          "stage_II": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 113,
+            "evidence": "stratum median 9.5 log2TPM, n=113 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          },
+          "stage_resectable": {
+            "signal": "strong",
+            "certainty": "moderate",
+            "n": 176,
+            "evidence": "stratum median 9.5 log2TPM, n=176 (certainty high\u2192moderate: 1 of 14 strata scanned)"
+          }
+        },
+        "subtype_axis": {
+          "stratification_class": "pan_subtype_uniform",
+          "epsilon_squared": 0.08631404885447175,
+          "multiplicity_strata_tested": 14,
+          "which_separate": {
+            "highest": "CMS2",
+            "lowest": "CMS1"
+          }
+        }
+      },
+      "generality": {
+        "signal": "moderate",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "tumor-elevation-breadth",
+            "tier": "moderate",
+            "n": 9,
+            "label": "breadth",
+            "conflict": false,
+            "value": "multi_tumor_elevated"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "D",
+            "signal": "moderate",
+            "corroboration": "high",
+            "evidence": "breadth=multi_tumor_elevated; dist=continuous; tested over 26 cohorts/indications",
+            "evidence_atom": {
+              "read": "multi_tumor_elevated",
+              "values": {
+                "tumor_elevation_breadth_class": "multi_tumor_elevated",
+                "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+                "n_cohorts_elevated": 4,
+                "n_cohorts_tested": 9,
+                "rna_n_indications_elevated": 10,
+                "rna_n_indications_tested": 26
+              },
+              "cite": {
+                "card_id": "tumor-elevation-breadth",
+                "fields": [
+                  "n_cohorts_elevated",
+                  "n_cohorts_tested",
+                  "rna_n_indications_elevated",
+                  "rna_n_indications_tested",
+                  "rna_tumor_elevation_breadth_class",
+                  "tumor_elevation_breadth_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "tumor_elevation_breadth",
+                "grain": "target"
+              }
+            }
+          }
+        ]
+      },
+      "malignant_intrinsic": {
+        "signal": "strong",
+        "confidence": "high",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "very high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "tumor-scrna-celltype-expression",
+            "tier": "strong",
+            "n": 509583,
+            "label": "single-cell",
+            "conflict": false,
+            "value": "malignant_broadly_detected"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "C",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "malignant_broadly_detected (malignant frac 0.89, n=361 donors); antigen-escape:escape_risk_low; inter-donor:consistent; 95% donors broadly detecting",
+            "evidence_atom": {
+              "read": "malignant_broadly_detected",
+              "values": {
+                "sc_expression_class": "malignant_broadly_detected",
+                "malignant_detection_fraction": 0.89476,
+                "malignant_n_donors": 361,
+                "caf_vs_malignant_class": "caf_low",
+                "top_microenvironment_compartment": "stromal"
+              },
+              "cite": {
+                "card_id": "tumor-scrna-celltype-expression",
+                "fields": [
+                  "caf_vs_malignant_class",
+                  "malignant_detection_fraction",
+                  "malignant_n_donors",
+                  "sc_expression_class",
+                  "top_microenvironment_compartment"
+                ]
+              },
+              "entity": {
+                "measurement_type": "sc_tumor_celltype_expression",
+                "sample_context": "tumor",
+                "grain": "single_cell"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "skill_report": {
+      "call": "tumor_broadly_expressed",
+      "role": "descriptive",
+      "polarity": "not_scored",
+      "honest_phrase": "Abundantly present in tumor; not elevated vs normal",
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 4,
+          "n_axes": 4,
+          "n_critical_measured": 3
+        }
+      },
+      "top_tension": {
+        "text": "Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC]",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "claim_chips": [
+        {
+          "key": "A",
+          "label": "abundance \u2014 informs every modality (a degrader/SM needs the protein present)",
+          "signal": "strong",
+          "corroboration": "moderate",
+          "conflict": null,
+          "evidence": "anchored: within positives (3/4); 100th all-gene pct (percentile-led), 100th pct; proxy=rna_positive_proxy_partial; single-lens low-abundance (cell-line protein level) overridden by orthogonal protein-present evidence (HPA-IHC ihc_detected_high, ProCan protein mid) \u2014 not read as low; protein-present (HPA-IHC detected_high, MS-independent)",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "tumor-rna-distribution",
+              "fields": [
+                "allgene_percentile",
+                "control_position_class",
+                "distribution_pattern",
+                "median_log2tpm",
+                "p95_log2tpm",
+                "tumor_expression_class"
+              ]
+            },
+            {
+              "role": "corroboration",
+              "card_id": "rna-protein-concordance-tumor",
+              "fields": [
+                "rna_as_biomarker"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "tumor-rna-distribution",
+            "fields": [
+              "allgene_percentile",
+              "control_position_class",
+              "distribution_pattern",
+              "median_log2tpm",
+              "p95_log2tpm",
+              "tumor_expression_class"
+            ]
+          }
+        },
+        {
+          "key": "B",
+          "label": "tumor-elevation \u2014 context for the selectivity / therapeutic-window lens",
+          "signal": "absent",
+          "corroboration": "moderate",
+          "conflict": null,
+          "evidence": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent]",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "tumor-rna-vs-adjacent",
+              "fields": [
+                "expression_call_class",
+                "log2_fc",
+                "n_tumor",
+                "q_value"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "tumor-rna-vs-adjacent",
+            "fields": [
+              "expression_call_class",
+              "log2_fc",
+              "n_tumor",
+              "q_value"
+            ]
+          }
+        },
+        {
+          "key": "C",
+          "label": "malignant-cell-intrinsic \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR)",
+          "signal": "strong",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "malignant_broadly_detected (malignant frac 0.89, n=361 donors); antigen-escape:escape_risk_low; inter-donor:consistent; 95% donors broadly detecting",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "tumor-scrna-celltype-expression",
+              "fields": [
+                "caf_vs_malignant_class",
+                "malignant_detection_fraction",
+                "malignant_n_donors",
+                "sc_expression_class",
+                "top_microenvironment_compartment"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "tumor-scrna-celltype-expression",
+            "fields": [
+              "caf_vs_malignant_class",
+              "malignant_detection_fraction",
+              "malignant_n_donors",
+              "sc_expression_class",
+              "top_microenvironment_compartment"
+            ]
+          }
+        },
+        {
+          "key": "D",
+          "label": "generality/breadth \u2014 patient-population & pan-cancer framing",
+          "signal": "moderate",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "breadth=multi_tumor_elevated; dist=continuous; tested over 26 cohorts/indications",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "tumor-elevation-breadth",
+              "fields": [
+                "n_cohorts_elevated",
+                "n_cohorts_tested",
+                "rna_n_indications_elevated",
+                "rna_n_indications_tested",
+                "rna_tumor_elevation_breadth_class",
+                "tumor_elevation_breadth_class"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "tumor-elevation-breadth",
+            "fields": [
+              "n_cohorts_elevated",
+              "n_cohorts_tested",
+              "rna_n_indications_elevated",
+              "rna_n_indications_tested",
+              "rna_tumor_elevation_breadth_class",
+              "tumor_elevation_breadth_class"
+            ]
+          }
+        }
+      ],
+      "claim_scalars": {
+        "homogeneity": "homogeneous"
+      },
+      "modality_scope": null,
+      "claim_chips_by_subtype": null,
+      "question_table": [
+        {
+          "id": "Q1",
+          "question": "Expressed in cancers at all?",
+          "primary": "anchored: within positives (3/4); 100th all-gene pct (percentile-led), 100th pct; proxy=rna_positive_proxy_partial; single-lens low-abundance (cell-line protein level) overridden by orthogonal protein-present evidence (HPA-IHC ihc_detected_high, ProCan protein mid) \u2014 not read as low; protein-present (HPA-IHC detected_high, MS-independent)",
+          "support": "cell-line RNA: broadly_moderate \u00b7 cell-line protein: broadly_moderate",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "supports",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "moderate",
+            "dots": 2,
+            "label": "RNA\u2192protein proxy: moderate"
+          }
+        },
+        {
+          "id": "Q2",
+          "question": "This indication vs other cancers?",
+          "primary": "breadth multi_tumor_elevated \u00b7 protein 4/9 cohorts \u00b7 RNA 10/26 indications",
+          "support": "RNA\u2194protein breadth concordant",
+          "signal": {
+            "tier": "moderate",
+            "fill": 3,
+            "polarity": "supports",
+            "label": "moderate"
+          },
+          "confidence": {
+            "tier": "moderate",
+            "dots": 2,
+            "label": "moderate"
+          }
+        },
+        {
+          "id": "Q3",
+          "question": "Elevated vs normals (adjacent + GTEx)?",
+          "primary": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent]",
+          "support": "HPA normal: broad_normal_expression \u00b7 normal single-cell: HIGH_LIABILITY (max: BEST4+ colonocyte)",
+          "signal": {
+            "tier": "absent",
+            "fill": 1,
+            "polarity": "opposes",
+            "label": "absent \u26a0 window"
+          },
+          "confidence": {
+            "tier": "moderate",
+            "dots": 2,
+            "label": "moderate"
+          }
+        },
+        {
+          "id": "Q4",
+          "question": "Do subtypes differ (from each other / normals)?",
+          "primary": "pan-subtype uniform (0/14 enriched)",
+          "support": "axis powered \u00b7 cell-line (genotype axis): pan_subtype_uniform \u00b7 single-cell homogeneity: homogeneous \u00b7 \u26a0 purity varies across strata (\u0394=0.26) \u2014 enrichment may be stromal",
+          "signal": {
+            "tier": "uniform",
+            "fill": 0,
+            "polarity": "neutral",
+            "label": "uniform across subtypes"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "high"
+          }
+        },
+        {
+          "id": "Q5",
+          "question": "Absolute abundance vs all genes?",
+          "primary": "level: tumor RNA 100%ile (top_1pct); cell-line RNA 53%ile (mid)",
+          "support": "effect: RNA-vs-adjacent FC 25%ile (mid); CPTAC protein effect 58%ile (mid)",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "supports",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "high"
+          }
+        },
+        {
+          "id": "Q6",
+          "question": "Do RNA and protein agree?",
+          "primary": "tumor: partial_proxy (r=0.46)",
+          "support": "cell-line: adequate_proxy (r=0.86)",
+          "signal": {
+            "tier": "moderate",
+            "fill": 3,
+            "polarity": "supports",
+            "label": "moderate"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "high"
+          }
+        },
+        {
+          "id": "Q7",
+          "question": "Is the tumor signal malignant-cell-intrinsic?",
+          "primary": "malignant_broadly_detected (malignant frac 0.89, n=361 donors); antigen-escape:escape_risk_low; inter-donor:consistent; 95% donors broadly detecting",
+          "support": "bulk purity: purity_independent \u00b7 normal single-cell: critical_organ_liability",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "supports",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "high"
+          }
+        }
+      ],
+      "per_phase_metrics": [],
+      "figures": [],
+      "provenance": {
+        "driving_rule_id": "tumor-expression-broadly-high-supportive",
+        "fired_rule_ids": [
+          "expression-call-not-informative-degrader-killer",
+          "expression-broadly-moderate-neutral",
+          "tumor-expression-broadly-high-supportive",
+          "sc-expression-malignant-broadly-detected-supportive",
+          "tvn-sc-normal-critical-organ-veto",
+          "protein-abundance-broadly-moderate-neutral",
+          "tumor-breadth-multi-supportive",
+          "rna-tumor-breadth-multi-supportive",
+          "rna-protein-adequate-proxy-supportive",
+          "purity-independent-neutral"
+        ],
+        "cards_used": [
+          "cellline-rna-distribution",
+          "tumor-rna-vs-adjacent",
+          "tumor-rna-distribution",
+          "tumor-protein-abundance-cptac",
+          "cellline-protein-abundance",
+          "tumor-elevation-breadth",
+          "tumor-scrna-celltype-expression",
+          "tumor-rna-distribution-by-subtype",
+          "cellline-rna-distribution-by-subtype",
+          "tumor-protein-distribution-by-subtype",
+          "expression-purity-confound",
+          "cellline-rna-protein-concordance",
+          "rna-protein-concordance-tumor",
+          "cellline-protein-abundance-procan",
+          "hpa-pathology-cancer-ihc",
+          "normal-tissue-liability",
+          "sc-normal-celltype-expression"
+        ],
+        "cards_missing": []
+      },
+      "_contract": "docs/UNIFIED_OUTPUT_CONTRACT.md"
+    },
+    "evidence_capsules": {
+      "capsules": {
+        "cellline-protein-abundance": {
+          "card_id": "cellline-protein-abundance",
+          "measurement_type": "cell_line_protein_abundance",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broadly_moderate",
+          "numeric_anchors": [
+            {
+              "metric": "allgene_percentile",
+              "value": 8.6041
+            },
+            {
+              "metric": "fraction_detected",
+              "value": 1.0
+            },
+            {
+              "metric": "median_log2_abundance_panel",
+              "value": -0.4174
+            },
+            {
+              "metric": "protein_effect_size",
+              "value": -0.4174
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "protein_expression_class",
+              "value": "broadly_moderate"
+            },
+            {
+              "field": "allgene_percentile_class",
+              "value": "bottom_decile"
+            }
+          ],
+          "n_basis": {
+            "fraction_detected": 1.0,
+            "median_log2_abundance_panel": -0.417446428676658,
+            "n_cell_lines_evaluated": 375
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "protein_abundance_source",
+              "value": "gygi_ms"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "cellline-protein-abundance-procan": {
+          "card_id": "cellline-protein-abundance-procan",
+          "measurement_type": "cell_line_protein_abundance",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "lineage_restricted",
+          "numeric_anchors": [
+            {
+              "metric": "allgene_percentile",
+              "value": 79.6928
+            },
+            {
+              "metric": "fraction_detected",
+              "value": 0.4879
+            },
+            {
+              "metric": "median_log2_abundance_panel",
+              "value": 4.3326
+            },
+            {
+              "metric": "protein_effect_size",
+              "value": 4.3326
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "protein_expression_class",
+              "value": "lineage_restricted"
+            },
+            {
+              "field": "allgene_percentile_class",
+              "value": "mid"
+            }
+          ],
+          "n_basis": {
+            "fraction_detected": 0.4879,
+            "median_log2_abundance_panel": 4.3326138624278006,
+            "n_cell_lines_evaluated": 463
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "protein_abundance_source",
+              "value": "procan_dia_swath"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "cellline-rna-distribution": {
+          "card_id": "cellline-rna-distribution",
+          "measurement_type": "cell_line_rna_expression",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broadly_moderate",
+          "numeric_anchors": [
+            {
+              "metric": "allgene_percentile",
+              "value": 52.5423
+            },
+            {
+              "metric": "control_target_percentile",
+              "value": 52.5423
+            },
+            {
+              "metric": "dominant_isoform_fraction",
+              "value": 0.8354
+            },
+            {
+              "metric": "fraction_expressed",
+              "value": 0.6308
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "expression_class",
+              "value": "broadly_moderate"
+            },
+            {
+              "field": "allgene_percentile_class",
+              "value": "mid"
+            },
+            {
+              "field": "control_position_class",
+              "value": "within_positives"
+            },
+            {
+              "field": "isoform_expression_class",
+              "value": "single_isoform_dominant"
+            }
+          ],
+          "n_basis": {
+            "fraction_expressed": 0.6308258381030254,
+            "fraction_highly_expressed": 0.4345870809484873,
+            "fraction_not_expressed": 0.36917416189697466
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "control_percentile_source",
+              "value": "allgene-depmap-rank-26q1-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "cellline-rna-distribution-by-subtype": {
+          "card_id": "cellline-rna-distribution-by-subtype",
+          "measurement_type": "cell_line_rna_expression",
+          "tier": "subtype",
+          "evidence_state": "measured",
+          "class": "pan_subtype_uniform",
+          "numeric_anchors": [
+            {
+              "metric": "pooled_lineage_median_log2tpm",
+              "value": 9.8646
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "min_subgroup_expression": 9.9714,
+            "n_subgroups_measured": 1,
+            "n_subgroups_with_data": 2
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "DepMap-26q1 expression (subgroup-stratified)"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "cellline-rna-protein-concordance": {
+          "card_id": "cellline-rna-protein-concordance",
+          "measurement_type": "rna_protein_concordance",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": null,
+          "numeric_anchors": [
+            {
+              "metric": "protein_detection_fraction",
+              "value": 0.1533
+            },
+            {
+              "metric": "rna_expressed_fraction",
+              "value": 0.7919
+            },
+            {
+              "metric": "rna_high_protein_low_fraction",
+              "value": 0.0717
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_paired_models": 370,
+            "protein_detection_fraction": 0.1533,
+            "rna_high_protein_low_fraction": 0.0717
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "rna_proxy_class_boundary_fragile": false
+          },
+          "provenance_keys": [
+            {
+              "key": "release_pin",
+              "value": "26q1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "expression-purity-confound": {
+          "card_id": "expression-purity-confound",
+          "measurement_type": "expression_purity_confound",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "purity_independent",
+          "numeric_anchors": [
+            {
+              "metric": "expression_purity_pearson_r",
+              "value": 0.1293
+            },
+            {
+              "metric": "expression_purity_spearman_r",
+              "value": 0.1235
+            },
+            {
+              "metric": "median_purity",
+              "value": 0.66
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "expression_purity_pearson_p": 0.0029,
+            "expression_purity_pearson_r": 0.1293,
+            "expression_purity_spearman_r": 0.1235
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "expression_purity_pearson_p": 0.0029,
+            "expression_purity_pearson_r": 0.1293,
+            "expression_purity_spearman_r": 0.1235,
+            "median_purity": 0.66,
+            "purity_confound_class": "purity_independent",
+            "purity_source": "pancanatlas_absolute"
+          },
+          "provenance_keys": [
+            {
+              "key": "cellular_source",
+              "value": "unresolved_from_bulk"
+            },
+            {
+              "key": "purity_source",
+              "value": "pancanatlas_absolute"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "hpa-pathology-cancer-ihc": {
+          "card_id": "hpa-pathology-cancer-ihc",
+          "measurement_type": "tumor_protein_ihc_presence",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "ihc_detected_high",
+          "numeric_anchors": [
+            {
+              "metric": "fraction_detected",
+              "value": 1.0
+            },
+            {
+              "metric": "fraction_moderate_strong",
+              "value": 1.0
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "fraction_detected": 1.0,
+            "fraction_moderate_strong": 1.0,
+            "n_high": 12
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "hpa-pathology-cancer-ihc-per-gene-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "normal-tissue-liability": {
+          "card_id": "normal-tissue-liability",
+          "measurement_type": "normal_tissue_protein_breadth",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broad_normal_expression",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_essential_tissues_with_expression": 0,
+            "n_specific_tissues": 1
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "rna-protein-concordance-tumor": {
+          "card_id": "rna-protein-concordance-tumor",
+          "measurement_type": "rna_protein_concordance",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": null,
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_paired_tumors": 96,
+            "rna_protein_r": 0.4564,
+            "rna_protein_r_ci95_high": 0.5771
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "rna_proxy_class_boundary_fragile": true
+          },
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "sc-normal-celltype-expression": {
+          "card_id": "sc-normal-celltype-expression",
+          "measurement_type": "sc_normal_celltype_expression",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "HIGH_LIABILITY",
+          "numeric_anchors": [
+            {
+              "metric": "expressing_donor_fraction_max",
+              "value": 1.0
+            },
+            {
+              "metric": "max_detection_fraction",
+              "value": 1.0
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "expressing_donor_fraction_max": 1.0,
+            "max_detection_fraction": 1.0,
+            "n_cell_types_above_20pct": 143
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "tumor-elevation-breadth": {
+          "card_id": "tumor-elevation-breadth",
+          "measurement_type": "tumor_elevation_breadth",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "multi_tumor_elevated",
+          "numeric_anchors": [
+            {
+              "metric": "fraction_elevated",
+              "value": 0.4444
+            },
+            {
+              "metric": "median_effect_across_elevated",
+              "value": 1.0234
+            },
+            {
+              "metric": "rna_fraction_elevated",
+              "value": 0.3846
+            },
+            {
+              "metric": "rna_median_max_log2fc_across_elevated",
+              "value": 3.4539
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "tumor_elevation_breadth_class",
+              "value": "multi_tumor_elevated"
+            },
+            {
+              "field": "rna_tumor_elevation_breadth_class",
+              "value": "multi_tumor_elevated"
+            },
+            {
+              "field": "breadth_layer_concordance",
+              "value": "concordant"
+            }
+          ],
+          "n_basis": {
+            "fraction_elevated": 0.4444444444444444,
+            "median_effect_across_elevated": 1.023427338047685,
+            "n_cohorts_elevated": 4
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "tumor-protein-abundance-cptac": {
+          "card_id": "tumor-protein-abundance-cptac",
+          "measurement_type": "tumor_protein_abundance",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "not_significant",
+          "numeric_anchors": [
+            {
+              "metric": "allgene_percentile",
+              "value": 58.2839
+            },
+            {
+              "metric": "protein_bh_q_value",
+              "value": 0.3032
+            },
+            {
+              "metric": "protein_effect_cohens_d",
+              "value": 0.1592
+            },
+            {
+              "metric": "protein_effect_size",
+              "value": 0.0648
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "protein_expression_class",
+              "value": "not_significant"
+            },
+            {
+              "field": "allgene_percentile_class",
+              "value": "mid"
+            },
+            {
+              "field": "protein_effect_standardized_class",
+              "value": "negligible"
+            },
+            {
+              "field": "stat_test_used",
+              "value": "msstatstmt_limma_ebayes_moderated"
+            }
+          ],
+          "n_basis": {
+            "n_normal_samples": 100,
+            "n_tumor_samples": 97,
+            "protein_bh_q_value": 0.303219701368917
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "cptac-protein-tumor-vs-normal-per-cohort-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "tumor-protein-distribution-by-subtype": {
+          "card_id": "tumor-protein-distribution-by-subtype",
+          "measurement_type": "tumor_protein_abundance",
+          "tier": "subtype",
+          "evidence_state": "measured",
+          "class": "pan_subtype_uniform",
+          "numeric_anchors": [
+            {
+              "metric": "pooled_cohort_median_log2_ratio",
+              "value": -0.0352
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_subtypes_depleted": 0,
+            "n_subtypes_enriched": 0,
+            "n_subtypes_measured": 1
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "tumor-rna-distribution": {
+          "card_id": "tumor-rna-distribution",
+          "measurement_type": "tumor_expression_distribution",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "broadly_high",
+          "numeric_anchors": [
+            {
+              "metric": "allgene_percentile",
+              "value": 99.7415
+            },
+            {
+              "metric": "control_target_percentile",
+              "value": 99.7415
+            },
+            {
+              "metric": "detectable_fraction",
+              "value": 1.0
+            },
+            {
+              "metric": "fraction_tumor_above_normal_p95",
+              "value": 0.7369
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "tumor_expression_class",
+              "value": "broadly_high"
+            },
+            {
+              "field": "distribution_pattern",
+              "value": "continuous"
+            },
+            {
+              "field": "allgene_percentile_class",
+              "value": "top_1pct"
+            },
+            {
+              "field": "control_position_class",
+              "value": "within_positives"
+            }
+          ],
+          "n_basis": {
+            "distribution_overlap_tumor_normal": 0.27958168308729664,
+            "fraction_tumor_above_normal_p95": 0.7369207772795217,
+            "fraction_tumor_above_normal_p99": 0.5082212257100149
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "control_percentile_source",
+              "value": "allgene-tumor-rank-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "tumor-rna-distribution-by-subtype": {
+          "card_id": "tumor-rna-distribution-by-subtype",
+          "measurement_type": "tumor_expression_distribution",
+          "tier": "subtype",
+          "evidence_state": "measured",
+          "class": "pan_subtype_uniform",
+          "numeric_anchors": [
+            {
+              "metric": "subtype_variance_explained",
+              "value": 0.0863
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "subtype_stratification_class",
+              "value": "pan_subtype_uniform"
+            },
+            {
+              "field": "subtype_effect_size_class",
+              "value": "moderate"
+            },
+            {
+              "field": "subtype_axis_quality",
+              "value": "powered"
+            },
+            {
+              "field": "normal_comparator_type",
+              "value": "matched"
+            }
+          ],
+          "n_basis": {
+            "n_subtypes_clearing_normal_window": 13,
+            "n_subtypes_enriched": 0,
+            "n_subtypes_measured": 14
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "purity_source": "pancanatlas_absolute"
+          },
+          "provenance_keys": [
+            {
+              "key": "purity_source",
+              "value": "pancanatlas_absolute"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "tumor-rna-vs-adjacent": {
+          "card_id": "tumor-rna-vs-adjacent",
+          "measurement_type": "tumor_vs_adjacent_expression",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "not_informative",
+          "numeric_anchors": [
+            {
+              "metric": "allgene_percentile",
+              "value": 25.4424
+            },
+            {
+              "metric": "gtex_log2_fc",
+              "value": 2.086
+            },
+            {
+              "metric": "gtex_q_value",
+              "value": 0.0
+            },
+            {
+              "metric": "log2_fc",
+              "value": -0.362
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "expression_call_class",
+              "value": "not_informative"
+            },
+            {
+              "field": "allgene_percentile_class",
+              "value": "mid"
+            }
+          ],
+          "n_basis": {
+            "n_adjacent": 51,
+            "n_tumor": 624
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "coadread-dge-df06320"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "tumor-scrna-celltype-expression": {
+          "card_id": "tumor-scrna-celltype-expression",
+          "measurement_type": "sc_tumor_celltype_expression",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "malignant_broadly_detected",
+          "numeric_anchors": [
+            {
+              "metric": "caf_detection_fraction",
+              "value": 0.0769
+            },
+            {
+              "metric": "fraction_donors_broadly_detecting",
+              "value": 0.9529
+            },
+            {
+              "metric": "malignant_detection_fraction",
+              "value": 0.8948
+            },
+            {
+              "metric": "top_microenvironment_detection_fraction",
+              "value": 0.0769
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "sc_expression_class",
+              "value": "malignant_broadly_detected"
+            },
+            {
+              "field": "tce_antigen_escape_class",
+              "value": "escape_risk_low"
+            },
+            {
+              "field": "within_tumor_coverage_class",
+              "value": "high"
+            },
+            {
+              "field": "inter_donor_consistency_class",
+              "value": "consistent"
+            },
+            {
+              "field": "caf_vs_malignant_class",
+              "value": "caf_low"
+            },
+            {
+              "field": "tce_homogeneity_class",
+              "value": "homogeneous"
+            }
+          ],
+          "n_basis": {
+            "caf_detection_fraction": 0.07692,
+            "fraction_donors_broadly_detecting": 0.952909,
+            "malignant_detection_donor_iqr": 0.17676
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "entity_purity": "entity_specific",
+            "inter_donor_consistency_class": "consistent",
+            "stromal_confound_class": "malignant_intrinsic",
+            "tce_antigen_escape_class": "escape_risk_low",
+            "within_tumor_coverage_class": "high"
+          },
+          "provenance_keys": [
+            {
+              "key": "product_id",
+              "value": "sc-pseudobulk-tumor-crc-coadread-v1"
+            }
+          ],
+          "data_quality_flags": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "cellline-protein-abundance",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-protein-abundance-procan",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-rna-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-rna-distribution-by-subtype",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-rna-protein-concordance",
+          "status": "full"
+        },
+        {
+          "card_id": "expression-purity-confound",
+          "status": "full"
+        },
+        {
+          "card_id": "hpa-pathology-cancer-ihc",
+          "status": "full"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "status": "full"
+        },
+        {
+          "card_id": "rna-protein-concordance-tumor",
+          "status": "full"
+        },
+        {
+          "card_id": "sc-normal-celltype-expression",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-elevation-breadth",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-protein-abundance-cptac",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-protein-distribution-by-subtype",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-rna-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-rna-distribution-by-subtype",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-rna-vs-adjacent",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-scrna-celltype-expression",
+          "status": "full"
+        }
+      ]
+    },
+    "cards_available": 17,
+    "cards_missing": []
+  },
+  "cards": [
+    {
+      "card_id": "cellline-rna-distribution",
+      "summary": {
+        "n_cell_lines_evaluated": 2446,
+        "median_log2tpm_panel": 2.513846755027771,
+        "p25_log2tpm_panel": 0.5268953442573547,
+        "p75_log2tpm_panel": 8.437863111495972,
+        "p5_log2tpm_panel": 0.0,
+        "p95_log2tpm_panel": 9.973004817962646,
+        "log2tpm_iqr": 7.910967767238617,
+        "fraction_expressed": 0.6308258381030254,
+        "fraction_highly_expressed": 0.4345870809484873,
+        "fraction_not_expressed": 0.36917416189697466,
+        "coefficient_of_variation": 1.6460286952394432,
+        "distribution_pattern": "bimodal",
+        "n_lineages_evaluated": 28,
+        "per_lineage_stats": [
+          {
+            "lineage": "Bowel",
+            "n": 131,
+            "median_log2tpm": 9.860517501831055,
+            "fraction_expressed": 0.9847328244274809
+          },
+          {
+            "lineage": "Ampulla of Vater",
+            "n": 9,
+            "median_log2tpm": 9.652131080627441,
+            "fraction_expressed": 1.0
+          },
+          {
+            "lineage": "Esophagus/Stomach",
+            "n": 173,
+            "median_log2tpm": 9.102128028869629,
+            "fraction_expressed": 0.9710982658959537
+          },
+          {
+            "lineage": "Pancreas",
+            "n": 117,
+            "median_log2tpm": 8.957148551940918,
+            "fraction_expressed": 0.9829059829059829
+          },
+          {
+            "lineage": "Biliary Tract",
+            "n": 54,
+            "median_log2tpm": 8.301942348480225,
+            "fraction_expressed": 0.9259259259259259
+          },
+          {
+            "lineage": "Uterus",
+            "n": 50,
+            "median_log2tpm": 8.231476306915283,
+            "fraction_expressed": 0.9
+          },
+          {
+            "lineage": "Lung",
+            "n": 250,
+            "median_log2tpm": 8.192328453063965,
+            "fraction_expressed": 0.968
+          },
+          {
+            "lineage": "Ovary/Fallopian Tube",
+            "n": 88,
+            "median_log2tpm": 8.177485942840576,
+            "fraction_expressed": 0.9090909090909091
+          },
+          {
+            "lineage": "Breast",
+            "n": 111,
+            "median_log2tpm": 8.035970687866211,
+            "fraction_expressed": 0.954954954954955
+          },
+          {
+            "lineage": "Prostate",
+            "n": 31,
+            "median_log2tpm": 7.923583030700684,
+            "fraction_expressed": 1.0
+          },
+          {
+            "lineage": "Testis",
+            "n": 11,
+            "median_log2tpm": 7.4007768630981445,
+            "fraction_expressed": 0.9090909090909091
+          },
+          {
+            "lineage": "Bladder/Urinary Tract",
+            "n": 37,
+            "median_log2tpm": 7.219952583312988,
+            "fraction_expressed": 0.9459459459459459
+          },
+          {
+            "lineage": "Cervix",
+            "n": 21,
+            "median_log2tpm": 7.199525356292725,
+            "fraction_expressed": 1.0
+          },
+          {
+            "lineage": "Head and Neck",
+            "n": 77,
+            "median_log2tpm": 6.791592597961426,
+            "fraction_expressed": 0.974025974025974
+          },
+          {
+            "lineage": "Kidney",
+            "n": 61,
+            "median_log2tpm": 2.9928154945373535,
+            "fraction_expressed": 0.7704918032786885
+          },
+          {
+            "lineage": "Thyroid",
+            "n": 24,
+            "median_log2tpm": 2.5665040016174316,
+            "fraction_expressed": 0.75
+          },
+          {
+            "lineage": "Liver",
+            "n": 28,
+            "median_log2tpm": 2.43900990486145,
+            "fraction_expressed": 0.8571428571428571
+          },
+          {
+            "lineage": "Pleura",
+            "n": 22,
+            "median_log2tpm": 0.8247152864933014,
+            "fraction_expressed": 0.45454545454545453
+          },
+          {
+            "lineage": "Peripheral Nervous System",
+            "n": 74,
+            "median_log2tpm": 0.8220874965190887,
+            "fraction_expressed": 0.3918918918918919
+          },
+          {
+            "lineage": "Fibroblast",
+            "n": 45,
+            "median_log2tpm": 0.7486553192138672,
+            "fraction_expressed": 0.35555555555555557
+          }
+        ],
+        "n_lineage_restricted_lineages": 0,
+        "expression_class": "broadly_moderate",
+        "allgene_percentile": 52.54228591918945,
+        "allgene_percentile_class": "mid",
+        "allgene_percentile_context": "DepMap 26q1 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q1-v1; rank 9120/19215)",
+        "control_position_class": "within_positives",
+        "control_position": "above 3/4 positive control(s); above 3/5 negative control(s)",
+        "control_target_percentile": 52.54228591918945,
+        "control_target_class": "mid",
+        "control_positives": {
+          "CEACAM5": 29.57,
+          "EPCAM": 52.54,
+          "MSLN": 32.61,
+          "ERBB2": 77.51
+        },
+        "control_negatives": {
+          "ACTB": 99.82,
+          "GAPDH": 99.92,
+          "SFTPC": 8.76,
+          "GYPA": 8.76,
+          "PRM1": 8.76
+        },
+        "control_negatives_excluded_lineage_conflict": [],
+        "control_position_context": "DepMap pan-cancer panel vs curated controls (tumor_presence_controls v1.0.0; allgene-depmap-rank-26q1-v1)",
+        "control_percentile_source": "allgene-depmap-rank-26q1-v1",
+        "control_position_method_version": "0.1.0",
+        "isoform_expression_class": "single_isoform_dominant",
+        "dominant_isoform_fraction": 0.8354172838162768,
+        "n_expressed_isoforms": 3,
+        "dominant_isoform": "ENST00000263735.9",
+        "isoform_n_models": 1741,
+        "isoform_context": "EPCAM: median dominant-isoform fraction 0.84 across 1741 DepMap cell lines (3 expressed isoforms median; top ENST00000263735.9) \u2014 MODEL isoform-expression, verdict-inert."
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "depmap-isoform-expression-per-gene-v1",
+        "allgene-depmap-rank-26q1-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-rna-vs-adjacent",
+      "summary": {
+        "log2_fc": -0.3620304616558291,
+        "q_value": 1.2282737206350781e-06,
+        "n_tumor": 624,
+        "n_adjacent": 51,
+        "base_mean": 40704.55729340963,
+        "is_significant_provider_call": true,
+        "is_actionable_provider_call": false,
+        "is_upregulated_provider_call": false,
+        "expression_call_class": "not_informative",
+        "allgene_percentile": 25.442356143754886,
+        "allgene_percentile_class": "mid",
+        "allgene_percentile_context": "coadread-dge-df06320 metric=log2FoldChange",
+        "_data_source": "coadread-dge-df06320",
+        "_data_s3_uri": "s3://onc-compbio/data-catalog/derived/COADREAD-dge/df06320/tumor_vs_adjacent.parquet",
+        "gtex_log2_fc": 2.085965449060126,
+        "gtex_q_value": 1.6321039340096234e-72
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "expression-rna-tumor-vs-adjacent"
+      ]
+    },
+    {
+      "card_id": "tumor-rna-distribution",
+      "summary": {
+        "n_tumor_samples": 669,
+        "median_log2tpm": 9.622452735900879,
+        "p95_log2tpm": 10.38471279144287,
+        "p99_log2tpm": 10.686274604797365,
+        "min_log2tpm": 4.459277629852295,
+        "max_log2tpm": 11.041440963745117,
+        "coefficient_of_variation": 0.4019734844748852,
+        "distribution_pattern": "continuous",
+        "detectable_fraction": 1.0,
+        "moderate_fraction": 1.0,
+        "high_fraction": 0.9970104633781763,
+        "tumor_expression_class": "broadly_high",
+        "allgene_percentile": 99.74150466918945,
+        "allgene_percentile_class": "top_1pct",
+        "allgene_percentile_context": "tcga_tumor:COAD,READ all-gene median rank (allgene-tumor-rank-v1; mean of 2 study null(s))",
+        "allgene_percentile_by_study": {
+          "COAD": 99.74,
+          "READ": 99.74
+        },
+        "control_position_class": "within_positives",
+        "control_position": "above 3/4 positive control(s); above 3/5 negative control(s)",
+        "control_target_percentile": 99.74150466918945,
+        "control_target_class": "top_1pct",
+        "control_positives": {
+          "CEACAM5": 99.91,
+          "EPCAM": 99.74,
+          "MSLN": 89.29,
+          "ERBB2": 94.28
+        },
+        "control_negatives": {
+          "ACTB": 99.94,
+          "GAPDH": 99.9,
+          "SFTPC": 18.0,
+          "GYPA": 18.0,
+          "PRM1": 18.0
+        },
+        "control_negatives_excluded_lineage_conflict": [],
+        "control_position_context": "tumor:COAD,READ vs curated controls (tumor_presence_controls v1.0.0; indication_normal_tissue=Colon; allgene-tumor-rank-v1)",
+        "control_percentile_source": "allgene-tumor-rank-v1",
+        "control_position_method_version": "0.1.0",
+        "studies": [
+          "COAD",
+          "READ"
+        ],
+        "matched_normal_tissue": "COLON",
+        "n_normal_samples": 822,
+        "fraction_tumor_above_normal_p95": 0.7369207772795217,
+        "normal_p95_log2tpm": 9.236587429046631,
+        "fraction_tumor_above_normal_p99": 0.5082212257100149,
+        "normal_p99_log2tpm": 9.613868045806885,
+        "distribution_overlap_tumor_normal": 0.27958168308729664,
+        "subtype_axis_available": true,
+        "spotlight_subtype": null,
+        "n_subtypes_measured": 14,
+        "n_subtypes_enriched": 0,
+        "assignment_manifest": "tcga-subgroup-assignments-coadread-v1",
+        "subtype_signals_nonuniform": [],
+        "method_version": "0.1.0",
+        "splicing_dysregulation_class": "stable",
+        "n_splice_events": 4,
+        "max_event_psi_std": 0.005997728292516515,
+        "median_event_psi_std": 0.0029094697156249777,
+        "n_variable_events": 0,
+        "n_tumor_shifted_events": 0,
+        "dominant_event_splice_type": "AD",
+        "splicing_context": "EPCAM in COADREAD: 4 splice events, max PSI std 0.01 across 630 tumours (0 variable; 0 tumour-shifted vs matched normal) \u2014 PATIENT alternative-splicing, verdict-inert."
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "tcga-tumor-tpm-recount3-long-v1",
+        "gtex-tpm-recount3-long-v1",
+        "allgene-tumor-rank-v1",
+        "tcga-spliceseq-psi-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-protein-abundance-cptac",
+      "summary": {
+        "cohort": "COAD",
+        "protein_expression_class": "not_significant",
+        "protein_effect_size": 0.0647570698633509,
+        "allgene_percentile": 58.283904017255324,
+        "allgene_percentile_class": "mid",
+        "allgene_percentile_context": "cptac-protein-tumor-vs-normal cohort=COAD metric=protein_effect_size",
+        "protein_bh_q_value": 0.303219701368917,
+        "protein_p_value": 0.265245705336061,
+        "protein_median_log2_tumor": -0.0352202843037901,
+        "protein_median_log2_normal": -0.127199268351409,
+        "n_tumor_samples": 97,
+        "n_normal_samples": 100,
+        "protein_effect_size_se": 0.0579619478707065,
+        "protein_effect_standardized_t": 1.1172,
+        "protein_effect_cohens_d": 0.1592,
+        "protein_effect_standardized_class": "negligible",
+        "protein_effect_standardized_method": "moderated_se_exact",
+        "stat_test_used": "msstatstmt_limma_ebayes_moderated",
+        "method_version": "1.2.0",
+        "_data_source": "cptac-protein-tumor-vs-normal-per-cohort-v1"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "cptac-protein-tumor-vs-normal-per-cohort-v1"
+      ]
+    },
+    {
+      "card_id": "cellline-protein-abundance",
+      "summary": {
+        "protein_expression_class": "broadly_moderate",
+        "n_cell_lines_evaluated": 375,
+        "n_cell_lines_in_panel": 375,
+        "fraction_detected": 1.0,
+        "median_log2_abundance_panel": -0.417446428676658,
+        "p5_log2_abundance_panel": -3.034790895044484,
+        "p25_log2_abundance_panel": -1.853593653010305,
+        "p75_log2_abundance_panel": 1.6310124932881251,
+        "p95_log2_abundance_panel": 3.5628947415394725,
+        "log2_abundance_iqr": 3.48460614629843,
+        "protein_effect_size": -0.417446428676658,
+        "n_lineages_evaluated": 17,
+        "per_lineage_stats": [
+          {
+            "lineage": "Uterus",
+            "n": 14,
+            "median_log2_abundance": 2.843494457282235
+          },
+          {
+            "lineage": "Prostate",
+            "n": 5,
+            "median_log2_abundance": 2.69787984850802
+          },
+          {
+            "lineage": "Bowel",
+            "n": 30,
+            "median_log2_abundance": 2.123727581427585
+          },
+          {
+            "lineage": "Esophagus/Stomach",
+            "n": 28,
+            "median_log2_abundance": 1.523774141140555
+          },
+          {
+            "lineage": "Head and Neck",
+            "n": 10,
+            "median_log2_abundance": 1.208653502399358
+          },
+          {
+            "lineage": "Pancreas",
+            "n": 20,
+            "median_log2_abundance": 1.1600106332001952
+          },
+          {
+            "lineage": "Breast",
+            "n": 30,
+            "median_log2_abundance": 0.8763686089389691
+          },
+          {
+            "lineage": "Ovary/Fallopian Tube",
+            "n": 17,
+            "median_log2_abundance": 0.354642007138897
+          },
+          {
+            "lineage": "Lung",
+            "n": 76,
+            "median_log2_abundance": -0.007243345079615
+          },
+          {
+            "lineage": "Liver",
+            "n": 14,
+            "median_log2_abundance": -0.451974942160559
+          },
+          {
+            "lineage": "Bladder/Urinary Tract",
+            "n": 11,
+            "median_log2_abundance": -0.999671398633522
+          },
+          {
+            "lineage": "Lymphoid",
+            "n": 24,
+            "median_log2_abundance": -1.551912433393355
+          },
+          {
+            "lineage": "Bone",
+            "n": 7,
+            "median_log2_abundance": -1.5730648919763
+          },
+          {
+            "lineage": "Myeloid",
+            "n": 16,
+            "median_log2_abundance": -1.8690937364456701
+          },
+          {
+            "lineage": "Skin",
+            "n": 33,
+            "median_log2_abundance": -1.96905378891852
+          },
+          {
+            "lineage": "Kidney",
+            "n": 15,
+            "median_log2_abundance": -2.02993126608299
+          },
+          {
+            "lineage": "CNS/Brain",
+            "n": 14,
+            "median_log2_abundance": -2.3833283782191304
+          }
+        ],
+        "n_lineage_restricted_lineages": 0,
+        "method_version": "0.1.0",
+        "protein_abundance_source": "gygi_ms",
+        "allgene_percentile": 8.604077082337952,
+        "allgene_percentile_class": "bottom_decile",
+        "allgene_percentile_context": "depmap-proteomics-26q1 panel-wide metric=median_log2_abundance source=gygi_ms"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "depmap-gygi-protein-abundance-per-protein-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-elevation-breadth",
+      "summary": {
+        "tumor_elevation_breadth_class": "multi_tumor_elevated",
+        "n_cohorts_tested": 9,
+        "n_cohorts_elevated": 4,
+        "n_cohorts_sig_up_effect_negligible": 0,
+        "fraction_elevated": 0.4444444444444444,
+        "median_effect_across_elevated": 1.023427338047685,
+        "most_elevated_cohorts": [
+          {
+            "cohort": "BRCA",
+            "protein_expression_class": "modest_up",
+            "protein_effect_size": 1.49302245241575,
+            "protein_bh_q_value": 1.8281384279526e-06,
+            "protein_effect_standardized_class": "large",
+            "n_normal_samples": 18
+          },
+          {
+            "cohort": "OV",
+            "protein_expression_class": "modest_up",
+            "protein_effect_size": 1.06650227974172,
+            "protein_bh_q_value": 6.3060989839218105e-09,
+            "protein_effect_standardized_class": "large",
+            "n_normal_samples": 23
+          },
+          {
+            "cohort": "UCEC",
+            "protein_expression_class": "modest_up",
+            "protein_effect_size": 0.98035239635365,
+            "protein_bh_q_value": 1.10443547548488e-19,
+            "protein_effect_standardized_class": "large",
+            "n_normal_samples": 49
+          },
+          {
+            "cohort": "LUAD",
+            "protein_expression_class": "modest_up",
+            "protein_effect_size": 0.501480915392834,
+            "protein_bh_q_value": 1.6008459515127202e-14,
+            "protein_effect_standardized_class": "large",
+            "n_normal_samples": 102
+          }
+        ],
+        "cohorts_tested": [
+          "BRCA",
+          "CCRCC",
+          "COAD",
+          "HNSCC",
+          "LSCC",
+          "LUAD",
+          "OV",
+          "PDAC",
+          "UCEC"
+        ],
+        "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+        "rna_n_indications_tested": 26,
+        "rna_n_indications_elevated": 10,
+        "rna_fraction_elevated": 0.38461538461538464,
+        "rna_median_max_log2fc_across_elevated": 3.4538837543087313,
+        "rna_most_elevated_indications": [
+          {
+            "indication": "UCEC",
+            "max_abs_log2fc": 7.890113307568212,
+            "cells_supporting": 2.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "ESCA",
+            "max_abs_log2fc": 5.67481018916275,
+            "cells_supporting": 2.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "BRCA",
+            "max_abs_log2fc": 4.6131064463933225,
+            "cells_supporting": 3.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "BLCA",
+            "max_abs_log2fc": 3.6787412233062624,
+            "cells_supporting": 3.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "STAD",
+            "max_abs_log2fc": 3.5167175786352605,
+            "cells_supporting": 2.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "PRAD",
+            "max_abs_log2fc": 3.3910499299822026,
+            "cells_supporting": 3.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "LUAD",
+            "max_abs_log2fc": 3.1710895158181702,
+            "cells_supporting": 3.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "LUSC",
+            "max_abs_log2fc": 2.2001357684147913,
+            "cells_supporting": 3.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "COAD",
+            "max_abs_log2fc": 2.0452431561956175,
+            "cells_supporting": 3.0,
+            "dominant_direction": "up"
+          },
+          {
+            "indication": "THCA",
+            "max_abs_log2fc": 1.434281941417379,
+            "cells_supporting": 2.0,
+            "dominant_direction": "up"
+          }
+        ],
+        "indications_tested": [
+          "ACC",
+          "BLCA",
+          "BRCA",
+          "CESC",
+          "COAD",
+          "ESCA",
+          "GBM",
+          "HNSC",
+          "KICH",
+          "KIRC",
+          "KIRP",
+          "LGG",
+          "LIHC",
+          "LUAD",
+          "LUSC",
+          "OV",
+          "PAAD",
+          "PCPG",
+          "PRAD",
+          "READ",
+          "SKCM",
+          "STAD",
+          "TGCT",
+          "THCA",
+          "UCEC",
+          "UCS"
+        ],
+        "breadth_layer_concordance": "concordant"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "cptac-protein-tumor-vs-normal-per-cohort-v1",
+        "pancan-dge-tumor-vs-normal-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-scrna-celltype-expression",
+      "summary": {
+        "sc_expression_class": "malignant_broadly_detected",
+        "tce_homogeneity_class": "homogeneous",
+        "malignant_detection_fraction": 0.89476,
+        "malignant_abundance_log1p_cp10k": 2.08927,
+        "malignant_compartment_available": true,
+        "malignant_n_donors": 361,
+        "malignant_n_cells": 509583,
+        "ambient_contamination_risk": "low",
+        "top_microenvironment_compartment": "stromal",
+        "top_microenvironment_detection_fraction": 0.07692,
+        "n_compartments_measured": 5,
+        "n_donor_groups": 453,
+        "n_datasets": 45,
+        "compartment_detection": {
+          "epithelial_normal": 0.73077,
+          "immune": 0.04072,
+          "malignant": 0.89476,
+          "other": 0.043719999999999995,
+          "stromal": 0.07692
+        },
+        "per_compartment": [
+          {
+            "compartment": "malignant",
+            "median_detection_fraction": 0.89476,
+            "median_abundance_log1p_cp10k": 2.08927,
+            "n_donors": 361,
+            "n_cells_total": 509583,
+            "is_caf": false
+          },
+          {
+            "compartment": "stromal",
+            "median_detection_fraction": 0.07692,
+            "median_abundance_log1p_cp10k": 0.07047,
+            "n_donors": 261,
+            "n_cells_total": 135945,
+            "is_caf": true
+          },
+          {
+            "compartment": "immune",
+            "median_detection_fraction": 0.04072,
+            "median_abundance_log1p_cp10k": 0.05265,
+            "n_donors": 401,
+            "n_cells_total": 1125901,
+            "is_caf": false
+          },
+          {
+            "compartment": "epithelial_normal",
+            "median_detection_fraction": 0.73077,
+            "median_abundance_log1p_cp10k": 1.40663,
+            "n_donors": 39,
+            "n_cells_total": 2880,
+            "is_caf": false
+          },
+          {
+            "compartment": "other",
+            "median_detection_fraction": 0.043719999999999995,
+            "median_abundance_log1p_cp10k": 0.08762500000000001,
+            "n_donors": 150,
+            "n_cells_total": 15336,
+            "is_caf": false
+          }
+        ],
+        "indication": "COADREAD",
+        "product_id": "sc-pseudobulk-tumor-crc-coadread-v1",
+        "malignant_annotation_method": "curated",
+        "entity_purity": "entity_specific",
+        "caf_detection_fraction": 0.07692,
+        "caf_abundance_log1p_cp10k": 0.07047,
+        "caf_compartment_available": true,
+        "caf_vs_malignant_class": "caf_low",
+        "stromal_confound_class": "malignant_intrinsic",
+        "within_tumor_coverage_class": "high",
+        "inter_donor_consistency_class": "consistent",
+        "tce_antigen_escape_class": "escape_risk_low",
+        "malignant_detection_donor_iqr": 0.17676,
+        "fraction_donors_broadly_detecting": 0.952909,
+        "method_version": "0.1.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "sc-pseudobulk-tumor-crc-coadread-v1",
+        "sc-pseudobulk-tumor-luca-nsclc-v1",
+        "sc-pseudobulk-donor-celltype-lusc-v1",
+        "sc-pseudobulk-tumor-3ca-pancreas-v1",
+        "sc-pseudobulk-tumor-3ca-hnsc-v1",
+        "sc-pseudobulk-tumor-3ca-kidney-v1",
+        "sc-pseudobulk-tumor-3ca-ovarian-v1",
+        "sc-pseudobulk-tumor-stad-golim-v1",
+        "sc-pseudobulk-tumor-brca-wu-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-rna-distribution-by-subtype",
+      "summary": {
+        "target": "EPCAM",
+        "indication": "COADREAD",
+        "subtype_axis_available": true,
+        "subtype_axis_quality": "powered",
+        "purity_source": "pancanatlas_absolute",
+        "subtype_purity_spread": {
+          "max_median_purity": 0.79,
+          "min_median_purity": 0.53,
+          "delta": 0.26
+        },
+        "spotlight_subtype": null,
+        "assignment_manifest": "tcga-subgroup-assignments-coadread-v1",
+        "n_subtypes_measured": 14,
+        "n_subtypes_enriched": 0,
+        "n_subtypes_clearing_normal_window": 13,
+        "n_subtypes_clearing_proxy_window_by_tissue": null,
+        "n_subtypes_restricted": 0,
+        "subtype_stratification_class": "pan_subtype_uniform",
+        "matched_normal_tissue": "COLON",
+        "normal_comparator_type": "matched",
+        "proxy_normal_tissues": [],
+        "subtype_omnibus_kruskal_h": 50.30009877225052,
+        "subtype_omnibus_p": 6.895837204373936e-11,
+        "subtype_variance_explained": 0.08631404885447175,
+        "subtype_effect_size_class": "moderate",
+        "which_subtypes_separate": {
+          "highest": "CMS2",
+          "lowest": "CMS1"
+        },
+        "subtype_omnibus_driving_axis": "CMS",
+        "subtype_omnibus_by_axis": [
+          {
+            "axis": "CIMP",
+            "strata": [
+              "CIMP_High",
+              "CIMP_Low",
+              "CIMP_Neg"
+            ],
+            "subtype_omnibus_kruskal_h": 20.068147044941497,
+            "subtype_omnibus_p": 4.387905220603164e-05,
+            "subtype_variance_explained": 0.03494806004824274,
+            "subtype_effect_size_class": "negligible",
+            "which_subtypes_separate": {
+              "highest": "CIMP_Neg",
+              "lowest": "CIMP_High"
+            },
+            "n_subtypes_tested": 3,
+            "n_samples_tested": 520
+          },
+          {
+            "axis": "CMS",
+            "strata": [
+              "CMS1",
+              "CMS2",
+              "CMS3",
+              "CMS4"
+            ],
+            "subtype_omnibus_kruskal_h": 50.30009877225052,
+            "subtype_omnibus_p": 6.895837204373936e-11,
+            "subtype_variance_explained": 0.08631404885447175,
+            "subtype_effect_size_class": "moderate",
+            "which_subtypes_separate": {
+              "highest": "CMS2",
+              "lowest": "CMS1"
+            },
+            "n_subtypes_tested": 4,
+            "n_samples_tested": 552
+          },
+          {
+            "axis": "MSI",
+            "strata": [
+              "MSI_H",
+              "MSS"
+            ],
+            "subtype_omnibus_kruskal_h": 9.586690077143771,
+            "subtype_omnibus_p": 0.001959929452723782,
+            "subtype_variance_explained": 0.034346760308575086,
+            "subtype_effect_size_class": "negligible",
+            "which_subtypes_separate": {
+              "highest": "MSS",
+              "lowest": "MSI_H"
+            },
+            "n_subtypes_tested": 2,
+            "n_samples_tested": 252
+          },
+          {
+            "axis": "sidedness",
+            "strata": [
+              "left_sided",
+              "right_sided"
+            ],
+            "subtype_omnibus_kruskal_h": 3.6052335441950163,
+            "subtype_omnibus_p": 0.057597978226339205,
+            "subtype_variance_explained": 0.008983563945500057,
+            "subtype_effect_size_class": "negligible",
+            "which_subtypes_separate": {
+              "highest": "left_sided",
+              "lowest": "right_sided"
+            },
+            "n_subtypes_tested": 2,
+            "n_samples_tested": 292
+          },
+          {
+            "axis": "stage",
+            "strata": [
+              "stage_I",
+              "stage_II"
+            ],
+            "subtype_omnibus_kruskal_h": 2.5504081938760237,
+            "subtype_omnibus_p": 0.110265763483132,
+            "subtype_variance_explained": 0.008910391918827722,
+            "subtype_effect_size_class": "negligible",
+            "which_subtypes_separate": {
+              "highest": "stage_II",
+              "lowest": "stage_I"
+            },
+            "n_subtypes_tested": 2,
+            "n_samples_tested": 176
+          }
+        ],
+        "per_subgroup_metrics": [
+          {
+            "stratum_id": "CIMP_High",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 92,
+            "match_rate": 1.0,
+            "n_purity_paired": 62,
+            "median_purity": 0.655,
+            "median_log2tpm": 9.385436058044434,
+            "p95_log2tpm": 10.132028198242187,
+            "p99_log2tpm": 10.343825988769533,
+            "min_log2tpm": 5.326328754425049,
+            "max_log2tpm": 10.826912879943848,
+            "coefficient_of_variation": 0.48262817336397246,
+            "detectable_fraction": 1.0,
+            "high_fraction": 0.9891304347826086,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.5869565217391305,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.32608695652173914,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.3233629535597164,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "CIMP_Low",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 105,
+            "match_rate": 1.0,
+            "n_purity_paired": 86,
+            "median_purity": 0.69,
+            "median_log2tpm": 9.57258129119873,
+            "p95_log2tpm": 10.39113311767578,
+            "p99_log2tpm": 10.55643138885498,
+            "min_log2tpm": 4.459277629852295,
+            "max_log2tpm": 10.848979949951172,
+            "coefficient_of_variation": 0.40724209379698195,
+            "detectable_fraction": 1.0,
+            "high_fraction": 0.9904761904761905,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.7142857142857143,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.4666666666666667,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.26899548140424057,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "CIMP_Neg",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 323,
+            "match_rate": 0.9966555183946488,
+            "n_purity_paired": 242,
+            "median_purity": 0.65,
+            "median_log2tpm": 9.657279968261719,
+            "p95_log2tpm": 10.385133647918702,
+            "p99_log2tpm": 10.6948256111145,
+            "min_log2tpm": 6.490855693817139,
+            "max_log2tpm": 11.041440963745117,
+            "coefficient_of_variation": 0.38907244892457127,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.7678018575851393,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.5356037151702786,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.23973846165435062,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "CMS1",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 90,
+            "match_rate": 1.0,
+            "n_purity_paired": 56,
+            "median_purity": 0.625,
+            "median_log2tpm": 9.38651704788208,
+            "p95_log2tpm": 10.144425678253175,
+            "p99_log2tpm": 10.501324644088745,
+            "min_log2tpm": 5.326328754425049,
+            "max_log2tpm": 10.580098152160645,
+            "coefficient_of_variation": 0.47469339479759914,
+            "detectable_fraction": 1.0,
+            "high_fraction": 0.9888888888888889,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.5555555555555556,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.32222222222222224,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.3321167883211678,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "CMS2",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 234,
+            "match_rate": 1.0,
+            "n_purity_paired": 185,
+            "median_purity": 0.72,
+            "median_log2tpm": 9.784663200378418,
+            "p95_log2tpm": 10.469926595687866,
+            "p99_log2tpm": 10.726316843032837,
+            "min_log2tpm": 7.171816825866699,
+            "max_log2tpm": 10.848979949951172,
+            "coefficient_of_variation": 0.34377030098109074,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.8461538461538461,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.6623931623931624,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.1895314742030072,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "CMS3",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 74,
+            "match_rate": 1.0,
+            "n_purity_paired": 64,
+            "median_purity": 0.79,
+            "median_log2tpm": 9.636958122253418,
+            "p95_log2tpm": 10.341291761398315,
+            "p99_log2tpm": 10.731210384368895,
+            "min_log2tpm": 7.870066165924072,
+            "max_log2tpm": 10.98737621307373,
+            "coefficient_of_variation": 0.3566269552401783,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.7972972972972973,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.527027027027027,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.18409285197606365,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "CMS4",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 154,
+            "match_rate": 0.9930555555555556,
+            "n_purity_paired": 123,
+            "median_purity": 0.53,
+            "median_log2tpm": 9.460834980010986,
+            "p95_log2tpm": 10.37126612663269,
+            "p99_log2tpm": 10.567152214050292,
+            "min_log2tpm": 6.490855693817139,
+            "max_log2tpm": 10.6245756149292,
+            "coefficient_of_variation": 0.4420374362872927,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.6428571428571429,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.42207792207792205,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.2871520207286629,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "MSI_H",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 47,
+            "match_rate": 1.0,
+            "n_purity_paired": 22,
+            "median_purity": 0.61,
+            "median_log2tpm": 9.171619415283203,
+            "p95_log2tpm": 9.98453779220581,
+            "p99_log2tpm": 10.079609775543213,
+            "min_log2tpm": 6.665771007537842,
+            "max_log2tpm": 10.117725372314453,
+            "coefficient_of_variation": 0.45597348380245223,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.44680851063829785,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.2553191489361702,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.29440389294403935,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "MSS",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 205,
+            "match_rate": 0.9844559585492227,
+            "n_purity_paired": 146,
+            "median_purity": 0.705,
+            "median_log2tpm": 9.519182205200195,
+            "p95_log2tpm": 10.280743408203126,
+            "p99_log2tpm": 10.557208824157716,
+            "min_log2tpm": 4.459277629852295,
+            "max_log2tpm": 11.041440963745117,
+            "coefficient_of_variation": 0.4101068353579659,
+            "detectable_fraction": 1.0,
+            "high_fraction": 0.9951219512195122,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.6682926829268293,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.4195121951219512,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.2982434276897514,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "left_sided",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 163,
+            "match_rate": 0.9872611464968153,
+            "n_purity_paired": 119,
+            "median_purity": 0.72,
+            "median_log2tpm": 9.546904563903809,
+            "p95_log2tpm": 10.255736827850342,
+            "p99_log2tpm": 10.473982715606688,
+            "min_log2tpm": 6.490855693817139,
+            "max_log2tpm": 10.580098152160645,
+            "coefficient_of_variation": 0.37860154136906016,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.6809815950920245,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.44785276073619634,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.2877837983072858,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "right_sided",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 129,
+            "match_rate": 1.0,
+            "n_purity_paired": 75,
+            "median_purity": 0.64,
+            "median_log2tpm": 9.43120002746582,
+            "p95_log2tpm": 10.252984619140625,
+            "p99_log2tpm": 10.509991645812988,
+            "min_log2tpm": 4.459277629852295,
+            "max_log2tpm": 11.041440963745117,
+            "coefficient_of_variation": 0.4680082776498517,
+            "detectable_fraction": 1.0,
+            "high_fraction": 0.9922480620155039,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.5968992248062015,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.34108527131782945,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.3273920669948509,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "stage_I",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 63,
+            "match_rate": 1.0,
+            "n_purity_paired": 45,
+            "median_purity": 0.72,
+            "median_log2tpm": 9.35668659210205,
+            "p95_log2tpm": 10.35357494354248,
+            "p99_log2tpm": 10.528942012786866,
+            "min_log2tpm": 7.208437919616699,
+            "max_log2tpm": 10.559218406677246,
+            "coefficient_of_variation": 0.4409685927851605,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.5555555555555556,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.31746031746031744,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.24973931178310763,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "stage_II",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 113,
+            "match_rate": 0.9902912621359223,
+            "n_purity_paired": 77,
+            "median_purity": 0.65,
+            "median_log2tpm": 9.519182205200195,
+            "p95_log2tpm": 10.183357620239256,
+            "p99_log2tpm": 10.376335411071777,
+            "min_log2tpm": 7.14570426940918,
+            "max_log2tpm": 10.423697471618652,
+            "coefficient_of_variation": 0.3648084518923842,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.6814159292035398,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.40707964601769914,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.2620093447882351,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          },
+          {
+            "stratum_id": "stage_resectable",
+            "evidence_state": "measured",
+            "subgroup_n_floor_met": true,
+            "n_tumor_samples": 176,
+            "match_rate": 0.9937106918238994,
+            "n_purity_paired": 122,
+            "median_purity": 0.66,
+            "median_log2tpm": 9.461019515991211,
+            "p95_log2tpm": 10.256187438964844,
+            "p99_log2tpm": 10.445369482040405,
+            "min_log2tpm": 7.14570426940918,
+            "max_log2tpm": 10.559218406677246,
+            "coefficient_of_variation": 0.39290566582629405,
+            "detectable_fraction": 1.0,
+            "high_fraction": 1.0,
+            "moderate_fraction": 1.0,
+            "distribution_pattern": "continuous",
+            "tumor_expression_class": "broadly_high",
+            "fraction_tumor_above_normal_p95": 0.6363636363636364,
+            "normal_p95_log2tpm": 9.236587429046631,
+            "fraction_tumor_above_normal_p99": 0.375,
+            "normal_p99_log2tpm": 9.613868045806885,
+            "distribution_overlap_tumor_normal": 0.2916804910418049,
+            "proxy_normal_windows": [],
+            "subtype_signal": "subtype_uniform"
+          }
+        ],
+        "method_version": "0.1.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "tcga-tumor-tpm-recount3-long-v1",
+        "tcga-tumor-tpm-per-sample-v1",
+        "tcga-subgroup-assignments-coadread-v1"
+      ]
+    },
+    {
+      "card_id": "cellline-rna-distribution-by-subtype",
+      "summary": {
+        "target": "EPCAM",
+        "indication": "COADREAD",
+        "per_subgroup_metrics": [
+          {
+            "stratum": "MSI_H",
+            "class": "broadly_high",
+            "evidence_state": "underpowered",
+            "median_log2tpm": 9.6038,
+            "fraction_expressed": 1.0,
+            "subgroup_n": 27,
+            "subgroup_n_floor_met": false,
+            "subtype_defining_data": "genomic",
+            "subtype_signal": null,
+            "source_cohort": "DepMap-26q1"
+          },
+          {
+            "stratum": "MSS",
+            "class": "broadly_high",
+            "evidence_state": "measured",
+            "median_log2tpm": 9.9714,
+            "fraction_expressed": 0.98,
+            "subgroup_n": 100,
+            "subgroup_n_floor_met": true,
+            "subtype_defining_data": "genomic",
+            "subtype_signal": "uniform",
+            "source_cohort": "DepMap-26q1"
+          }
+        ],
+        "n_subgroups_with_data": 2,
+        "n_subgroups_measured": 1,
+        "max_subgroup_expression": 9.9714,
+        "min_subgroup_expression": 9.9714,
+        "cross_subgroup_delta_expression": 0.0,
+        "subtype_axis_available": true,
+        "subtype_axis_quality": "underpowered",
+        "n_subtypes_measured": 1,
+        "n_subtypes_enriched": 0,
+        "n_subtypes_depleted": 0,
+        "subtype_stratification_class": "pan_subtype_uniform",
+        "spotlight_subtype": null,
+        "pooled_lineage_median_log2tpm": 9.8646,
+        "_data_source": "DepMap-26q1 expression (subgroup-stratified)"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "depmap-subgroup-assignments-coadread-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-protein-distribution-by-subtype",
+      "summary": {
+        "target": "EPCAM",
+        "indication": "COADREAD",
+        "per_subgroup_metrics": [
+          {
+            "stratum": "MSI_H",
+            "class": "protein_neutral",
+            "evidence_state": "underpowered",
+            "median_log2_ratio": -0.1222,
+            "detectable_fraction": 1.0,
+            "subgroup_n": 20,
+            "subgroup_n_floor_met": false,
+            "source_cohort": "CPTAC-COAD"
+          },
+          {
+            "stratum": "MSS",
+            "class": "protein_neutral",
+            "evidence_state": "measured",
+            "median_log2_ratio": 0.1569,
+            "detectable_fraction": 1.0,
+            "subgroup_n": 34,
+            "subgroup_n_floor_met": true,
+            "source_cohort": "CPTAC-COAD",
+            "subtype_signal": "uniform"
+          }
+        ],
+        "subtype_axis_available": true,
+        "subtype_axis_quality": "underpowered",
+        "n_subtypes_measured": 1,
+        "n_subtypes_enriched": 0,
+        "n_subtypes_depleted": 0,
+        "subtype_stratification_class": "pan_subtype_uniform",
+        "pooled_cohort_median_log2_ratio": -0.0352
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "cptac-protein-tumor-vs-normal-per-sample-v1",
+        "cptac-subgroup-assignments-coadread-v1"
+      ]
+    },
+    {
+      "card_id": "expression-purity-confound",
+      "summary": {
+        "target": "EPCAM",
+        "indication": "COADREAD",
+        "purity_source": "pancanatlas_absolute",
+        "n_paired_samples": 529,
+        "n_expr_samples": 624,
+        "purity_confound_class": "purity_independent",
+        "expression_purity_pearson_r": 0.1293,
+        "expression_purity_pearson_p": 0.0029,
+        "expression_purity_spearman_r": 0.1235,
+        "median_purity": 0.66,
+        "cellular_source": "unresolved_from_bulk",
+        "method_version": "0.1.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "tcga-tumor-tpm-recount3-long-v1",
+        "gdc-pancanatlas-cnv-2018"
+      ]
+    },
+    {
+      "card_id": "cellline-rna-protein-concordance",
+      "summary": {
+        "rna_protein_r": 0.8581,
+        "rna_protein_spearman": 0.8289,
+        "n_paired_models": 370,
+        "protein_detection_fraction": 0.1533,
+        "rna_expressed_fraction": 0.7919,
+        "rna_high_protein_low_fraction": 0.0717,
+        "target": "EPCAM",
+        "release_pin": "26q1",
+        "rna_as_biomarker": "adequate_proxy",
+        "rna_proxy_classified_on": "spearman",
+        "rna_protein_r_ci95_low": 0.794,
+        "rna_protein_r_ci95_high": 0.8583,
+        "rna_proxy_class_boundary_fragile": false,
+        "method_version": "0.1.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "depmap-consortium-26q1-proteomics"
+      ]
+    },
+    {
+      "card_id": "rna-protein-concordance-tumor",
+      "summary": {
+        "target": "EPCAM",
+        "indication": "COADREAD",
+        "cptac_cohort": "coad",
+        "substrate": "cptac_tumor",
+        "rna_protein_r": 0.4564,
+        "rna_protein_spearman": 0.4259,
+        "n_paired_tumors": 96,
+        "rna_as_biomarker": "partial_proxy",
+        "rna_proxy_classified_on": "spearman",
+        "rna_protein_r_ci95_low": 0.2464,
+        "rna_protein_r_ci95_high": 0.5771,
+        "rna_proxy_class_boundary_fragile": true,
+        "method_version": "0.1.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "cptac-rna-protein-matched-per-sample-v1"
+      ]
+    },
+    {
+      "card_id": "cellline-protein-abundance-procan",
+      "summary": {
+        "protein_expression_class": "lineage_restricted",
+        "n_cell_lines_evaluated": 463,
+        "n_cell_lines_in_panel": 949,
+        "fraction_detected": 0.4879,
+        "median_log2_abundance_panel": 4.3326138624278006,
+        "p5_log2_abundance_panel": 2.078528243534382,
+        "p25_log2_abundance_panel": 3.5277509130554745,
+        "p75_log2_abundance_panel": 5.020104772736808,
+        "p95_log2_abundance_panel": 5.905021825976996,
+        "log2_abundance_iqr": 1.4923538596813333,
+        "protein_effect_size": 4.3326138624278006,
+        "n_lineages_evaluated": 0,
+        "per_lineage_stats": [],
+        "n_lineage_restricted_lineages": 0,
+        "method_version": "0.1.0",
+        "protein_abundance_source": "procan_dia_swath",
+        "allgene_percentile": 79.69283276450511,
+        "allgene_percentile_class": "mid",
+        "allgene_percentile_context": "procan-cellline-protein-abundance-per-protein-v1 panel-wide metric=median_log_abundance source=procan_dia_swath"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "procan-cellline-protein-abundance-per-protein-v1"
+      ]
+    },
+    {
+      "card_id": "hpa-pathology-cancer-ihc",
+      "summary": {
+        "protein_presence_class": "ihc_detected_high",
+        "fraction_detected": 1.0,
+        "fraction_moderate_strong": 1.0,
+        "staining_score": 3.0,
+        "n_high": 12,
+        "n_medium": 0,
+        "n_low": 0,
+        "n_not_detected": 0,
+        "n_patients_total": 12,
+        "prognostic_type": "none",
+        "prognostic_is_significant": false,
+        "prognostic_p_value": null,
+        "hpa_cancer_type": "colorectal cancer",
+        "indication": "COADREAD",
+        "presence_context": "hpa-pathology-cancer-ihc antibody staining; indication COADREAD -> HPA type 'colorectal cancer' (HPA cancer axis is coarser than OncoTree)",
+        "_data_source": "hpa-pathology-cancer-ihc-per-gene-v1",
+        "method_version": "1.0.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "hpa-pathology-cancer-ihc-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "normal-tissue-liability",
+      "summary": {
+        "normal_tissue_breadth_class": "broad_normal_expression",
+        "essential_tissue_flag": "unknown",
+        "hpa_tissue_distribution": "Detected in many",
+        "hpa_tissue_specificity": "Tissue enhanced",
+        "n_essential_tissues_with_expression": 0,
+        "essential_tissues_flagged": [],
+        "n_specific_tissues": 1,
+        "specific_tissues": [
+          {
+            "tissue": "intestine",
+            "intensity": 20770505.4
+          }
+        ],
+        "safety_tissue_flags": [
+          "gi_tract",
+          "broad"
+        ],
+        "method_version": "0.2.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "hpa-v25-1"
+      ]
+    },
+    {
+      "card_id": "sc-normal-celltype-expression",
+      "summary": {
+        "sc_normal_expression_class": "HIGH_LIABILITY",
+        "sc_normal_safety_essential_class": "critical_organ_liability",
+        "max_detection_cell_type": "BEST4+ colonocyte",
+        "max_detection_fraction": 1.0,
+        "expressing_donor_fraction_max": 1.0,
+        "safety_essential_flags": {
+          "BEST4+ colonocyte": 1.0,
+          "BEST4+ enterocyte": 0.9038785834738617,
+          "colonocyte": 0.8839773116488916,
+          "early colonocyte": 1.0,
+          "enteric neuron": 0.06666666666666667,
+          "enterocyte": 0.9103448275862069,
+          "enterocyte of epithelium of large intestine": 0.9326870469838862,
+          "inhibitory motor neuron": 0.05714285714285714,
+          "interneuron": 0.05555555555555555,
+          "neuron": 0.06209150326797386,
+          "oligodendrocyte precursor cell": 0.051587301587301584,
+          "primary sensory neuron (sensu Teleostei)": 0.15384615384615385,
+          "erythroid progenitor cell": 0.5232112668375416,
+          "hematopoietic stem cell": 0.07407407407407407,
+          "megakaryocyte-erythroid progenitor cell": 0.587012987012987,
+          "kidney collecting duct alpha-intercalated cell": 0.5567767868358247,
+          "kidney collecting duct cell": 0.8913043478260869,
+          "kidney collecting duct intercalated cell": 0.8222222222222222,
+          "kidney collecting duct principal cell": 0.915129151291513,
+          "kidney loop of Henle ascending limb epithelial cell": 0.0931174089068826,
+          "kidney loop of Henle cortical thick ascending limb epithelial cell": 0.9411764705882353,
+          "kidney loop of Henle descending limb epithelial cell": 0.2632472826086957,
+          "kidney loop of Henle epithelial cell": 0.6139853083191371,
+          "kidney loop of Henle thick ascending limb epithelial cell": 0.5256410256410257,
+          "kidney loop of Henle thin ascending limb epithelial cell": 0.625,
+          "kidney loop of Henle thin descending limb epithelial cell": 0.40625,
+          "L2/3 intratelencephalic projecting glutamatergic neuron": 0.09309309309309309,
+          "L3 intratelencephalic projecting glutamatergic neuron": 0.05745341614906832,
+          "L4 intratelencephalic projecting glutamatergic neuron": 0.05277401894451962,
+          "L5 extratelencephalic projecting glutamatergic cortical neuron": 0.22580645161290322,
+          "L5 intratelencephalic projecting glutamatergic neuron": 0.09090909090909091,
+          "L5/6 near-projecting glutamatergic neuron": 0.14285714285714285,
+          "L6 corticothalamic-projecting glutamatergic cortical neuron": 0.08333333333333333,
+          "L6b glutamatergic neuron of the primary motor cortex": 0.06172839506172839,
+          "central nervous system neuron": 0.11764705882352941,
+          "cerebral cortex neuron": 0.06473988439306358,
+          "corticothalamic-projecting glutamatergic cortical neuron": 0.10440835266821345,
+          "direct pathway medium spiny neuron": 0.2713060256648689,
+          "extratelencephalic-projecting glutamatergic cortical neuron": 0.15512101017186952,
+          "hippocampal pyramidal neuron": 0.132890365448505,
+          "indirect pathway medium spiny neuron": 0.27116172964443147,
+          "intratelencephalic-projecting glutamatergic cortical neuron": 0.05533683289588801,
+          "medium spiny neuron": 0.17054263565891473,
+          "near-projecting glutamatergic cortical neuron": 0.1440677966101695,
+          "neuron of the forebrain": 0.09424858914512646,
+          "cycling pulmonary alveolar type 2 cell": 0.990234375,
+          "hepatocyte": 0.06976744186046512,
+          "pulmonary alveolar type 1 cell": 0.6164383561643836,
+          "pulmonary alveolar type 2 cell": 0.6510530934620448
+        },
+        "n_cell_types_above_20pct": 143,
+        "n_reliable_cell_types": 423,
+        "per_cell_type_top": [
+          {
+            "cell_type": "early colonocyte",
+            "tissue": "colon",
+            "median_detection_fraction": 1.0,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 34,
+            "is_safety_essential": true
+          },
+          {
+            "cell_type": "BEST4+ colonocyte",
+            "tissue": "colon",
+            "median_detection_fraction": 1.0,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 24,
+            "is_safety_essential": true
+          },
+          {
+            "cell_type": "enteroendocrine cell",
+            "tissue": "lung",
+            "median_detection_fraction": 1.0,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 7,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "colon goblet cell",
+            "tissue": "colon",
+            "median_detection_fraction": 1.0,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 33,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "pulmonary ionocyte",
+            "tissue": "lung",
+            "median_detection_fraction": 1.0,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 6,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "airway submucosal gland collecting duct epithelial cell",
+            "tissue": "lung",
+            "median_detection_fraction": 1.0,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 16,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "colon epithelial cell",
+            "tissue": "colon",
+            "median_detection_fraction": 0.9947151419170751,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 42,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "intestinal crypt stem cell of large intestine",
+            "tissue": "colon",
+            "median_detection_fraction": 0.992260710757163,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 10,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "cycling pulmonary alveolar type 2 cell",
+            "tissue": "lung",
+            "median_detection_fraction": 0.990234375,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 9,
+            "is_safety_essential": true
+          },
+          {
+            "cell_type": "M cell of gut",
+            "tissue": "colon",
+            "median_detection_fraction": 0.984375,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 6,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "secretory cell",
+            "tissue": "colon",
+            "median_detection_fraction": 0.9813664596273292,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 33,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "stem cell",
+            "tissue": "colon",
+            "median_detection_fraction": 0.9787124485079876,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 88,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "progenitor cell",
+            "tissue": "kidney",
+            "median_detection_fraction": 0.9736842105263157,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 24,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "epithelial cell",
+            "tissue": "colon",
+            "median_detection_fraction": 0.9724770642201835,
+            "expressing_donor_fraction": 1.0,
+            "n_donors_reliable": 123,
+            "is_safety_essential": false
+          },
+          {
+            "cell_type": "pancreatic D cell",
+            "tissue": "pancreas",
+            "median_detection_fraction": 0.9689811970013519,
+            "expressing_donor_fraction": 0.9545454545454546,
+            "n_donors_reliable": 88,
+            "is_safety_essential": false
+          }
+        ],
+        "tissues_queried": [
+          "colon",
+          "heart",
+          "liver",
+          "kidney",
+          "bone_marrow",
+          "brain",
+          "adrenal_gland",
+          "lung",
+          "pancreas"
+        ],
+        "origin_tissues": [
+          "colon"
+        ],
+        "indication": "COADREAD",
+        "method_version": "0.1.0"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "sc-normal-celltype-expression-colon-v1",
+        "sc-normal-celltype-expression-lung-v1",
+        "sc-normal-celltype-expression-stomach-v1",
+        "sc-normal-celltype-expression-skin-v1",
+        "sc-normal-celltype-expression-small-intestine-v1",
+        "sc-normal-celltype-expression-heart-v1",
+        "sc-normal-celltype-expression-liver-v1",
+        "sc-normal-celltype-expression-kidney-v1",
+        "sc-normal-celltype-expression-bone-marrow-v1",
+        "sc-normal-celltype-expression-brain-v1",
+        "sc-normal-celltype-expression-esophagus-v1",
+        "sc-normal-celltype-expression-pancreas-v1",
+        "sc-normal-celltype-expression-ovary-v1",
+        "sc-normal-celltype-expression-prostate-gland-v1",
+        "sc-normal-celltype-expression-adrenal-gland-v1",
+        "sc-normal-celltype-expression-bladder-organ-v1",
+        "sc-normal-celltype-expression-large-intestine-v1",
+        "sc-normal-celltype-expression-spleen-v1",
+        "sc-normal-celltype-expression-uterus-v1"
+      ]
+    }
+  ],
+  "fired_rules": [
+    {
+      "rule_id": "expression-call-not-informative-degrader-killer",
+      "card_id": "tumor-rna-vs-adjacent",
+      "field": "expression_call_class",
+      "value": "not_informative",
+      "dominant": false,
+      "rationale_summary": "Pure-data v2 (renamed from expression-not-informative-degrader-killer 2026-07-01)."
+    },
+    {
+      "rule_id": "expression-broadly-moderate-neutral",
+      "card_id": "cellline-rna-distribution",
+      "field": "expression_class",
+      "value": "broadly_moderate",
+      "dominant": false,
+      "rationale_summary": "Target expressed everywhere at moderate levels \u2014 informative that expression"
+    },
+    {
+      "rule_id": "tumor-expression-broadly-high-supportive",
+      "card_id": "tumor-rna-distribution",
+      "field": "tumor_expression_class",
+      "value": "broadly_high",
+      "dominant": false,
+      "rationale_summary": "Target RNA is present across (or in a real high subset of) this indication's tumors \u2014"
+    },
+    {
+      "rule_id": "sc-expression-malignant-broadly-detected-supportive",
+      "card_id": "tumor-scrna-celltype-expression",
+      "field": "sc_expression_class",
+      "value": "malignant_broadly_detected",
+      "dominant": false,
+      "rationale_summary": "Target is detected in malignant (tumor) cells at single-cell resolution \u2014 measurable tumor-cell-"
+    },
+    {
+      "rule_id": "tvn-sc-normal-critical-organ-veto",
+      "card_id": "sc-normal-celltype-expression",
+      "field": "sc_normal_safety_essential_class",
+      "value": "critical_organ_liability",
+      "dominant": false,
+      "rationale_summary": "CELL-TYPE-RESOLVED normal veto (INC-3, axis-D, 2026-08-08). Bulk tumor-vs-normal + the"
+    },
+    {
+      "rule_id": "protein-abundance-broadly-moderate-neutral",
+      "card_id": "cellline-protein-abundance",
+      "field": "protein_expression_class",
+      "value": "broadly_moderate",
+      "dominant": false,
+      "rationale_summary": "Protein detected broadly at moderate abundance \u2014 informative that protein"
+    },
+    {
+      "rule_id": "tumor-breadth-multi-supportive",
+      "card_id": "tumor-elevation-breadth",
+      "field": "tumor_elevation_breadth_class",
+      "value": "multi_tumor_elevated",
+      "dominant": false,
+      "rationale_summary": "Target protein is elevated in >=2 CPTAC cohorts (but below the broadly threshold)."
+    },
+    {
+      "rule_id": "rna-tumor-breadth-multi-supportive",
+      "card_id": "tumor-elevation-breadth",
+      "field": "rna_tumor_elevation_breadth_class",
+      "value": "multi_tumor_elevated",
+      "dominant": false,
+      "rationale_summary": "Target RNA is elevated in >=2 indications (below the broadly threshold). Multi-cancer RNA"
+    },
+    {
+      "rule_id": "rna-protein-adequate-proxy-supportive",
+      "card_id": "cellline-rna-protein-concordance",
+      "field": "rna_as_biomarker",
+      "value": "adequate_proxy",
+      "dominant": false,
+      "rationale_summary": "RNA tracks protein tightly (Pearson >= strong_concordance_r) across paired cell-line models \u2014"
+    },
+    {
+      "rule_id": "purity-independent-neutral",
+      "card_id": "expression-purity-confound",
+      "field": "purity_confound_class",
+      "value": "purity_independent",
+      "dominant": false,
+      "rationale_summary": "Target expression is not significantly correlated with tumor purity (either direction). No"
+    }
+  ],
+  "provenance": {
+    "skills_repo_sha": "ee7f808",
+    "data_mode": "live",
+    "release_pin": "unpinned",
+    "resolved_release_digest": "2aad66ccbb707b7f",
+    "resolved_releases": {
+      "allgene-depmap-rank": {
+        "used": [
+          "allgene-depmap-rank-26q1-v1"
+        ],
+        "head": "allgene-depmap-rank-26q1-v1",
+        "is_stale": false
+      },
+      "allgene-tumor-rank": {
+        "used": [
+          "allgene-tumor-rank-v1"
+        ],
+        "head": "allgene-tumor-rank-v1",
+        "is_stale": false
+      },
+      "cptac-protein-tumor-vs-normal-per-cohort": {
+        "used": [
+          "cptac-protein-tumor-vs-normal-per-cohort-v1"
+        ],
+        "head": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+        "is_stale": false
+      },
+      "cptac-protein-tumor-vs-normal-per-sample": {
+        "used": [
+          "cptac-protein-tumor-vs-normal-per-sample-v1"
+        ],
+        "head": "cptac-protein-tumor-vs-normal-per-sample-v1",
+        "is_stale": false
+      },
+      "cptac-rna-protein-matched-per-sample": {
+        "used": [
+          "cptac-rna-protein-matched-per-sample-v1"
+        ],
+        "head": "cptac-rna-protein-matched-per-sample-v1",
+        "is_stale": false
+      },
+      "cptac-subgroup-assignments-coadread": {
+        "used": [
+          "cptac-subgroup-assignments-coadread-v1"
+        ],
+        "head": "cptac-subgroup-assignments-coadread-v1",
+        "is_stale": false
+      },
+      "depmap-consortium": {
+        "used": [
+          "depmap-consortium-26q1"
+        ],
+        "head": "depmap-consortium-26q1",
+        "is_stale": false
+      },
+      "depmap-consortium-26q1-proteomics": {
+        "used": [
+          "depmap-consortium-26q1-proteomics"
+        ],
+        "head": "depmap-consortium-26q1-proteomics",
+        "is_stale": false
+      },
+      "depmap-gygi-protein-abundance-per-protein": {
+        "used": [
+          "depmap-gygi-protein-abundance-per-protein-v1"
+        ],
+        "head": "depmap-gygi-protein-abundance-per-protein-v1",
+        "is_stale": false
+      },
+      "depmap-isoform-expression-per-gene": {
+        "used": [
+          "depmap-isoform-expression-per-gene-v1"
+        ],
+        "head": "depmap-isoform-expression-per-gene-v1",
+        "is_stale": false
+      },
+      "depmap-subgroup-assignments-coadread": {
+        "used": [
+          "depmap-subgroup-assignments-coadread-v1"
+        ],
+        "head": "depmap-subgroup-assignments-coadread-v1",
+        "is_stale": false
+      },
+      "expression-rna-tumor-vs-adjacent": {
+        "used": [
+          "expression-rna-tumor-vs-adjacent"
+        ],
+        "head": "coadread-dge-df06320",
+        "is_stale": null,
+        "stale_indeterminate": "product_id_declared_not_concrete_manifest"
+      },
+      "gdc-pancanatlas-cnv-2018": {
+        "used": [
+          "gdc-pancanatlas-cnv-2018"
+        ],
+        "head": "gdc-pancanatlas-cnv-2018",
+        "is_stale": false
+      },
+      "gtex-tpm-recount3-long": {
+        "used": [
+          "gtex-tpm-recount3-long-v1"
+        ],
+        "head": "gtex-tpm-recount3-long-v1",
+        "is_stale": false
+      },
+      "hpa-pathology-cancer-ihc-per-gene": {
+        "used": [
+          "hpa-pathology-cancer-ihc-per-gene-v1"
+        ],
+        "head": "hpa-pathology-cancer-ihc-per-gene-v1",
+        "is_stale": false
+      },
+      "hpa-v25-1": {
+        "used": [
+          "hpa-v25-1"
+        ],
+        "head": "hpa-v25-1",
+        "is_stale": false
+      },
+      "pancan-dge-tumor-vs-normal": {
+        "used": [
+          "pancan-dge-tumor-vs-normal-v1"
+        ],
+        "head": "pancan-dge-tumor-vs-normal-v1",
+        "is_stale": false
+      },
+      "procan-cellline-protein-abundance-per-protein": {
+        "used": [
+          "procan-cellline-protein-abundance-per-protein-v1"
+        ],
+        "head": "procan-cellline-protein-abundance-per-protein-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-adrenal-gland": {
+        "used": [
+          "sc-normal-celltype-expression-adrenal-gland-v1"
+        ],
+        "head": "sc-normal-celltype-expression-adrenal-gland-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-bladder-organ": {
+        "used": [
+          "sc-normal-celltype-expression-bladder-organ-v1"
+        ],
+        "head": "sc-normal-celltype-expression-bladder-organ-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-bone-marrow": {
+        "used": [
+          "sc-normal-celltype-expression-bone-marrow-v1"
+        ],
+        "head": "sc-normal-celltype-expression-bone-marrow-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-brain": {
+        "used": [
+          "sc-normal-celltype-expression-brain-v1"
+        ],
+        "head": "sc-normal-celltype-expression-brain-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-colon": {
+        "used": [
+          "sc-normal-celltype-expression-colon-v1"
+        ],
+        "head": "sc-normal-celltype-expression-colon-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-esophagus": {
+        "used": [
+          "sc-normal-celltype-expression-esophagus-v1"
+        ],
+        "head": "sc-normal-celltype-expression-esophagus-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-heart": {
+        "used": [
+          "sc-normal-celltype-expression-heart-v1"
+        ],
+        "head": "sc-normal-celltype-expression-heart-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-kidney": {
+        "used": [
+          "sc-normal-celltype-expression-kidney-v1"
+        ],
+        "head": "sc-normal-celltype-expression-kidney-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-large-intestine": {
+        "used": [
+          "sc-normal-celltype-expression-large-intestine-v1"
+        ],
+        "head": "sc-normal-celltype-expression-large-intestine-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-liver": {
+        "used": [
+          "sc-normal-celltype-expression-liver-v1"
+        ],
+        "head": "sc-normal-celltype-expression-liver-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-lung": {
+        "used": [
+          "sc-normal-celltype-expression-lung-v1"
+        ],
+        "head": "sc-normal-celltype-expression-lung-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-ovary": {
+        "used": [
+          "sc-normal-celltype-expression-ovary-v1"
+        ],
+        "head": "sc-normal-celltype-expression-ovary-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-pancreas": {
+        "used": [
+          "sc-normal-celltype-expression-pancreas-v1"
+        ],
+        "head": "sc-normal-celltype-expression-pancreas-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-prostate-gland": {
+        "used": [
+          "sc-normal-celltype-expression-prostate-gland-v1"
+        ],
+        "head": "sc-normal-celltype-expression-prostate-gland-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-skin": {
+        "used": [
+          "sc-normal-celltype-expression-skin-v1"
+        ],
+        "head": "sc-normal-celltype-expression-skin-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-small-intestine": {
+        "used": [
+          "sc-normal-celltype-expression-small-intestine-v1"
+        ],
+        "head": "sc-normal-celltype-expression-small-intestine-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-spleen": {
+        "used": [
+          "sc-normal-celltype-expression-spleen-v1"
+        ],
+        "head": "sc-normal-celltype-expression-spleen-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-stomach": {
+        "used": [
+          "sc-normal-celltype-expression-stomach-v1"
+        ],
+        "head": "sc-normal-celltype-expression-stomach-v1",
+        "is_stale": false
+      },
+      "sc-normal-celltype-expression-uterus": {
+        "used": [
+          "sc-normal-celltype-expression-uterus-v1"
+        ],
+        "head": "sc-normal-celltype-expression-uterus-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-donor-celltype-lusc": {
+        "used": [
+          "sc-pseudobulk-donor-celltype-lusc-v1"
+        ],
+        "head": "sc-pseudobulk-donor-celltype-lusc-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-3ca-hnsc": {
+        "used": [
+          "sc-pseudobulk-tumor-3ca-hnsc-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-3ca-hnsc-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-3ca-kidney": {
+        "used": [
+          "sc-pseudobulk-tumor-3ca-kidney-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-3ca-kidney-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-3ca-ovarian": {
+        "used": [
+          "sc-pseudobulk-tumor-3ca-ovarian-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-3ca-ovarian-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-3ca-pancreas": {
+        "used": [
+          "sc-pseudobulk-tumor-3ca-pancreas-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-3ca-pancreas-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-brca-wu": {
+        "used": [
+          "sc-pseudobulk-tumor-brca-wu-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-brca-wu-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-crc-coadread": {
+        "used": [
+          "sc-pseudobulk-tumor-crc-coadread-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-crc-coadread-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-luca-nsclc": {
+        "used": [
+          "sc-pseudobulk-tumor-luca-nsclc-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-luca-nsclc-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-tumor-stad-golim": {
+        "used": [
+          "sc-pseudobulk-tumor-stad-golim-v1"
+        ],
+        "head": "sc-pseudobulk-tumor-stad-golim-v1",
+        "is_stale": false
+      },
+      "tcga-spliceseq-psi-per-gene": {
+        "used": [
+          "tcga-spliceseq-psi-per-gene-v1"
+        ],
+        "head": "tcga-spliceseq-psi-per-gene-v1",
+        "is_stale": false
+      },
+      "tcga-subgroup-assignments-coadread": {
+        "used": [
+          "tcga-subgroup-assignments-coadread-v1"
+        ],
+        "head": "tcga-subgroup-assignments-coadread-v1",
+        "is_stale": false
+      },
+      "tcga-tumor-tpm-per-sample": {
+        "used": [
+          "tcga-tumor-tpm-per-sample-v1"
+        ],
+        "head": "tcga-tumor-tpm-per-sample-v1",
+        "is_stale": false
+      },
+      "tcga-tumor-tpm-recount3-long": {
+        "used": [
+          "tcga-tumor-tpm-recount3-long-v1"
+        ],
+        "head": "tcga-tumor-tpm-recount3-long-v1",
+        "is_stale": false
+      }
+    },
+    "resolved_content_digest": "c6e699b6ca564a8d"
+  },
+  "run_health": {
+    "skill_name": "tumor-presence",
+    "skill_version": "1.16.0",
+    "status": "ok",
+    "n_cards_consumed": 17,
+    "n_cards_resolved": 17,
+    "n_cards_fired": 9,
+    "cards_fired": [
+      "cellline-protein-abundance",
+      "cellline-rna-distribution",
+      "cellline-rna-protein-concordance",
+      "expression-purity-confound",
+      "sc-normal-celltype-expression",
+      "tumor-elevation-breadth",
+      "tumor-rna-distribution",
+      "tumor-rna-vs-adjacent",
+      "tumor-scrna-celltype-expression"
+    ],
+    "cards_missing": [],
+    "cards_skipped_a4": [],
+    "provenance_warnings": [],
+    "read_secs": 8.6201,
+    "compute_secs": 0.4249,
+    "total_secs": 10.9038
+  },
+  "consolidation": {
+    "discordant": true,
+    "masked_conflict": true,
+    "driving_role": "positive",
+    "overruled_opposing_rules": [
+      "expression-call-not-informative-degrader-killer",
+      "tvn-sc-normal-critical-organ-veto"
+    ],
+    "roles_present": [
+      "negative",
+      "neutral",
+      "positive"
+    ],
+    "n_rules_fired": 10,
+    "n_cards_contributing": 9,
+    "single_card_passthrough": false
+  },
+  "literature_synthesis": {
+    "axes": [
+      {
+        "axis_key": "A",
+        "literature_read": "strongly_supports",
+        "assertion": "EpCAM is among the most abundant and consistently expressed epithelial cell-adhesion molecules in colorectal adenocarcinoma, with immunohistochemistry showing strong membranous staining in ~98% of colorectal carcinomas \u2014 one of the highest expression frequencies across carcinomas surveyed.",
+        "agreement_vs_omics": "agree",
+        "confidence": "high",
+        "citations": [
+          {
+            "label": "Went 2006, Br J Cancer",
+            "pmid": "16404434",
+            "verified": true
+          },
+          {
+            "label": "Spizzo 2011, J Clin Pathol",
+            "verified": false
+          }
+        ]
+      },
+      {
+        "axis_key": "B",
+        "literature_read": "mixed",
+        "assertion": "Reports on EpCAM tumor-vs-normal elevation in colorectal cancer are comparator-dependent: EpCAM is intrinsically high in normal colonic epithelium, and while some studies describe overexpression/upregulation in carcinoma relative to distant normal or by protein-level accumulation, adjacent normal mucosa also expresses EpCAM strongly, so tumor-vs-adjacent contrasts are frequently flat.",
+        "agreement_vs_omics": "agree",
+        "confidence": "moderate",
+        "citations": [
+          {
+            "label": "Went 2006, Br J Cancer",
+            "pmid": "16404434",
+            "verified": true
+          },
+          {
+            "label": "Baeuerle 2007, Br J Cancer",
+            "pmid": "17805327",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "axis_key": "C",
+        "literature_read": "strongly_supports",
+        "assertion": "EpCAM is a bona fide epithelial/carcinoma-intrinsic antigen expressed by the malignant epithelial compartment across the large majority of colorectal tumors and donors, with broadly homogeneous membranous positivity and low frequency of complete antigen loss.",
+        "agreement_vs_omics": "agree",
+        "confidence": "high",
+        "citations": [
+          {
+            "label": "Went 2006, Br J Cancer",
+            "pmid": "16404434",
+            "verified": true
+          },
+          {
+            "label": "Trzpis 2007, Am J Pathol",
+            "pmid": "17322377",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "axis_key": "D",
+        "literature_read": "supports",
+        "assertion": "EpCAM is broadly overexpressed across the majority of epithelial carcinomas (colorectal, gastric, pancreatic, breast, prostate, lung and others), establishing it as a pan-carcinoma epithelial marker rather than a colorectal-restricted antigen.",
+        "agreement_vs_omics": "agree",
+        "confidence": "high",
+        "citations": [
+          {
+            "label": "Went 2004, Hum Pathol",
+            "pmid": "14991537",
+            "verified": true
+          },
+          {
+            "label": "Baeuerle 2007, Br J Cancer",
+            "pmid": "17805327",
+            "verified": true
+          }
+        ]
+      }
+    ],
+    "blind_spots": [
+      {
+        "signal": "Membranous vs cytoplasmic localization and apical/basolateral polarity of EpCAM in normal vs malignant epithelium \u2014 surface accessibility relevant to targeting is a protein-localization readout.",
+        "why_omics_blind": "Bulk/single-cell RNA and MS abundance cannot resolve subcellular localization or membrane polarity.",
+        "citations": [
+          {
+            "label": "Trzpis 2007, Am J Pathol",
+            "pmid": "17322377",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "signal": "Strong EpCAM expression in normal epithelia across many organs (GI tract, biliary, pancreas, lung), the basis of on-target/off-tumor toxicity historically observed with EpCAM-directed agents (e.g. edrecolomab, catumaxomab, adecatumumab).",
+        "why_omics_blind": "Normal-tissue liability is a therapeutic-window judgment owned by the tumor-selectivity / on-target-safety lenses; the presence lens notes the hand-off but does not adjudicate it.",
+        "citations": [
+          {
+            "label": "Munz 2009, Cancer Res",
+            "pmid": "19276379",
+            "verified": true
+          },
+          {
+            "label": "Baeuerle 2007, Br J Cancer",
+            "pmid": "17805327",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "signal": "Prognostic/functional associations of EpCAM expression level with colorectal outcome and clinical response.",
+        "why_omics_blind": "Clinical/functional outcome is not measurable from the expression/presence omics package.",
+        "citations": [
+          {
+            "label": "Spizzo 2011, J Clin Pathol",
+            "verified": false
+          }
+        ]
+      }
+    ],
+    "overall_consistency": "concordant",
+    "key_divergence": "Literature and omics agree EpCAM is abundant, malignant-intrinsic and broadly expressed, but both converge on the same caveat: tumor-vs-normal elevation is not established because EpCAM is intrinsically high in normal colonic and other epithelia \u2014 the flat tumor-vs-adjacent contrast reflects a genuine therapeutic-window liability whose verdict belongs to the tumor-selectivity / on-target-safety lenses, not this one.",
+    "_source": "llm_synthesized",
+    "_model_id": "us.anthropic.claude-opus-4-8",
+    "_prompt_hash": "08e5c76760503ce3759a846485aecef2e90f9864340545530addefc189597473",
+    "_verification": {
+      "status": "checked",
+      "source": "europe_pmc",
+      "n_pmid_checked": 10,
+      "n_verified": 10,
+      "n_flipped": 10
+    }
+  },
+  "llm_synthesis": {
+    "_synthesis_error": "ImportError: anthropic[bedrock] is required for LLM synthesis (--synthesize). Install the `anthropic` package (with the bedrock extra) into the interpreter running synthesis; the default skills pixi env does not include it.",
+    "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected."
+  }
+}

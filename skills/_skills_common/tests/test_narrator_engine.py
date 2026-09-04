@@ -269,3 +269,36 @@ def test_make_synthesize_fn_signature(monkeypatch):
     fn = NE.make_synthesize_fn(FUNCTIONAL_REQUIREMENT)
     out = fn(_decision(), "modelX", "MSI_H")                 # (decision, model_id, subtype_query)
     assert out == {"ok": 1} and seen["lens"] == "functional-requirement" and seen["m"] == "modelX"
+
+
+# ── _render_literature: provenance-wrap defense (the "0 literature lines" bug) ─────────────────────
+def _wrapped_lit():
+    """A literature_synthesis block as a --literature-only decision.json can carry it: `axes` and
+    `blind_spots` still provenance-WRAPPED as {value:[...], _source:'llm_synthesized', ...}."""
+    stamp = {"_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}
+    axes = [{"axis_key": "A", "literature_read": "strongly_supports", "agreement_vs_omics": "agree",
+             "confidence": "high", "assertion": "EpCAM abundant in CRC.",
+             "citations": [{"label": "Went 2006", "pmid": "16404434", "verified": True}]}]
+    blind = [{"signal": "localization", "why_omics_blind": "MS/RNA cannot resolve", "citations": []}]
+    return {"literature_synthesis": {"axes": {"value": axes, **stamp},
+                                     "blind_spots": {"value": blind, **stamp},
+                                     "overall_consistency": "concordant"}}
+
+
+def test_render_literature_unwraps_provenance_wrapped_axes():
+    """Regression: a re-wrapped `axes` dict must still render axis lines, not iterate wrapper keys."""
+    out = NE._render_literature(_wrapped_lit())
+    assert "axis A" in out                     # the axis line survives the unwrap
+    assert "strongly_supports" in out
+    assert "PMID:16404434" in out
+    assert "OMICS-BLIND" in out                # blind_spots also unwrapped
+    # sanity: an unwrapped (plain-list) block renders identically for axes
+    plain = {"literature_synthesis": {"axes": _wrapped_lit()["literature_synthesis"]["axes"]["value"],
+                                      "blind_spots": [], "overall_consistency": "concordant"}}
+    assert "axis A" in NE._render_literature(plain)
+
+
+def test_render_literature_still_empty_when_absent_or_errored():
+    assert NE._render_literature({}) == ""
+    assert NE._render_literature({"literature_synthesis": {"_literature_error": "boom"}}) == ""
+    assert NE._render_literature({"literature_synthesis": {"axes": [], "blind_spots": []}}) == ""

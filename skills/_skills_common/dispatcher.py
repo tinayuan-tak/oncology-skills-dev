@@ -894,6 +894,22 @@ def run_wired_skill(
                 print(f"[dispatcher] --figures: skill-level figure emission failed "
                       f"({type(e).__name__}: {e}); skipped.", file=sys.stderr)
 
+    # 8d. CENTRAL claim-graph projection (decision.headline.evidence_graph). A one-way, DISPLAY-ONLY
+    # relational view over the now fully-assembled decision (verdict spine + cards + fired_rules +
+    # subgroup_signals/evidence_capsules + question_table + optional literature_synthesis/llm_synthesis)
+    # so renderers read explicit stably-keyed edges instead of re-deriving joins. Runs AFTER the
+    # literature/synthesis attaches above (it projects them), attaches by reference into `headline`, and
+    # is the ONLY new key. ADDITIVE + byte-stable + verdict-INERT + best-effort — one edit wires the
+    # whole fleet; a skill without a questions.yaml still gets a referentially-intact graph.
+    if isinstance(headline, dict):
+        try:
+            from _skills_common.evidence_graph import build_evidence_graph, load_questions
+            _eg_skill_dir = Path(__file__).resolve().parent.parent / skill_name
+            headline["evidence_graph"] = build_evidence_graph(
+                decision, questions=load_questions(_eg_skill_dir))
+        except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
+            pass
+
     # Stamp total wall-clock (read + compute + optional synthesis + figures) BEFORE write_package
     # serializes the decision — write time itself is not a data-access signal.
     decision["run_health"]["total_secs"] = round(time.perf_counter() - _t0, 4)

@@ -1,0 +1,93 @@
+# Canonical question + axis registry for the tumor-presence dashboard (Phase-0 keystone of the
+# evidence_graph layer). This is the SINGLE source of truth for the 7 consumer-facing questions and
+# the unified axis_id vocabulary {A,B,C,D} — the same axis letters the literature lens uses
+# (narrator_lenses.py: A abundance / B tumor-elevation / C malignant-intrinsic / D generality). Axis B
+# (tumor-vs-normal / window) has NO owning question in question_hierarchy.yaml (it is a foreign
+# tumor-selectivity lens card, `tumor_vs_adjacent_expression`), so it is registered here so the
+# literature axis→question crosswalk can resolve it.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q7 the builder emits) — the
+# emitted question_table itself is NOT modified (byte-stable).
+#
+# Per-question fields:
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id the presence_question_table builder still emits (Q1..Q7)
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis this question belongs to (null = no axis, e.g. subtypes)
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   subtype         true => this question claims the tier:subtype cards (the by-subtype panorama);
+#                   default false => claims the whole-cohort cards. Used to disambiguate a
+#                   measurement_type shared by a whole-cohort card AND its by-subtype sibling.
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in
+#                   this list (subtype-tier disambiguation applies to measurement_types carried by both
+#                   a subtype and a non-subtype card in the package).
+#
+# The literature axis→question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => A→[expressed_at_all, absolute_abundance]  B→[elevated_vs_normal]
+#      C→[malignant_intrinsic]                   D→[vs_other_cancers]
+skill: tumor-presence
+axis_vocabulary:
+  A: abundance
+  B: tumor-elevation
+  C: malignant-intrinsic
+  D: generality
+questions:
+- id: expressed_at_all
+  legacy_id: Q1
+  seq: 1
+  text: Expressed in cancers at all?
+  axis_id: A
+  role: verdict_bearing
+  measurement_types: [tumor_expression_distribution, cell_line_rna_expression,
+    tumor_protein_abundance, tumor_protein_ihc_presence, cell_line_protein_abundance]
+- id: vs_other_cancers
+  legacy_id: Q2
+  seq: 2
+  text: This indication vs other cancers?
+  axis_id: D
+  role: verdict_bearing
+  measurement_types: [tumor_elevation_breadth]
+- id: elevated_vs_normal
+  legacy_id: Q3
+  seq: 3
+  text: Elevated vs normals (adjacent + GTEx)?
+  axis_id: B
+  role: verdict_bearing
+  measurement_types: [tumor_vs_adjacent_expression, tumor_protein_abundance,
+    normal_tissue_protein_breadth, sc_normal_celltype_expression]
+- id: subtypes_differ
+  legacy_id: Q4
+  seq: 4
+  text: Do subtypes differ (from each other / normals)?
+  axis_id: null
+  role: display_only
+  subtype: true
+  measurement_types: [tumor_expression_distribution, cell_line_rna_expression,
+    tumor_protein_abundance, expression_purity_confound]
+- id: absolute_abundance
+  legacy_id: Q5
+  seq: 5
+  text: Absolute abundance vs all genes?
+  axis_id: A
+  role: verdict_bearing
+  measurement_types: [tumor_expression_distribution, cell_line_rna_expression,
+    tumor_vs_adjacent_expression, tumor_protein_abundance]
+- id: rna_protein_agree
+  legacy_id: Q6
+  seq: 6
+  text: Do RNA and protein agree?
+  axis_id: A
+  role: corroboration
+  measurement_types: [rna_protein_concordance]
+- id: malignant_intrinsic
+  legacy_id: Q7
+  seq: 7
+  text: Is the tumor signal malignant-cell-intrinsic?
+  axis_id: C
+  role: verdict_bearing
+  measurement_types: [sc_tumor_celltype_expression, expression_purity_confound,
+    sc_normal_celltype_expression]
