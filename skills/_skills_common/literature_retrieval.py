@@ -79,7 +79,14 @@ _LENS_QUERY_TERMS = {
                                     "antigen escape"],
     "tractability-small-molecule": ["small molecule inhibitor", "druggability", "direct target engagement",
                                     "tool compound", "covalent inhibitor", "allosteric pocket"],
-    "differentiation-landscape":  ["co-mutation", "mutual exclusivity"],
+    # Front-loaded so the highest-value TRAP discriminators (TMB/MSI/subtype confound, patient-selection,
+    # combination rationale) lead — a co-mutation / mutual-exclusivity ASSOCIATION over-calls a biological /
+    # patient-selection relationship (the burden/lineage confound). The base gene∧disease query supplies
+    # co-mutation recall; the precision query needs the confounder + actionability terms.
+    "differentiation-landscape":  ["co-occurrence mutually exclusive mutations", "tumor mutational burden",
+                                   "microsatellite instability", "patient stratification biomarker",
+                                   "combination therapy rationale", "co-mutation", "mutual exclusivity",
+                                   "molecular subtype"],
     # Front-loaded so the highest-value SPATIAL/FUNCTIONAL discriminators survive the _lens_terms cap
     # (max_terms=5: the axis_label "CD8 / immune infiltration" + the first 4 here). The base gene∧disease
     # query already supplies TIL/CD8 recall; the precision query needs the exclusion / phenotype /

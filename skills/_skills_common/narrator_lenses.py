@@ -338,11 +338,45 @@ IMMUNE_CONTEXT = LensConfig(
 DIFFERENTIATION_LANDSCAPE = LensConfig(
     name="differentiation-landscape",
     thesis="what patient-selection / combination-biology hypotheses the co-mutation, stemness, node-leverage "
-           "and prognostic landscape support for this target.",
-    relevance_prompt="judge how the differentiation-landscape evidence informs patient-selection / positioning.",
+           "and prognostic landscape support for this target, WHILE distinguishing a BIOLOGICALLY-ESTABLISHED "
+           "co-mutation / mutual-exclusivity relationship (shared pathway, functional cooperation, a validated "
+           "patient-selection biomarker) from a STATISTICALLY-significant-but-CONFOUNDED association — the "
+           "panel-intersect Fisher scan carries no TMB / MSI / molecular-subtype covariate, so a q-significant "
+           "pair can be a mutation-BURDEN (MSI-H / hypermutation) passenger co-occurrence, a lineage/subtype "
+           "restriction, a near-universal-driver marginal-frequency artifact, or a tiny-effect / panel-"
+           "ineligible pair rather than a biological interaction (the co-mutation over-calls-biology trap).",
+    relevance_prompt="judge how the differentiation-landscape evidence informs patient-selection / positioning, "
+                     "separating a biologically-established co-mutation / exclusivity from a statistically-"
+                     "significant-but-TMB/lineage-confounded association.",
     axis_labels={"COMUT": "co-mutation / mutual-exclusivity", "SURVIVAL": "subtype survival",
                  "PROGNOSIS": "prognostic association", "NODE": "pathway node-leverage"},
-    scope_exclusions=("therapeutic modality", "dependency magnitude (owned by functional-requirement)"),
+    scope_exclusions=("therapeutic modality", "dependency magnitude (owned by functional-requirement)",
+                      "synthetic-lethal / dependency call (functional-requirement + combination-and-vulnerability)",
+                      "therapeutic-window / normal-tissue safety (tumor-selectivity + on-target-safety)"),
+    # NARRATOR RULE: lead with biologically-ESTABLISHED vs statistically-significant-but-CONFOUNDED, name the
+    # TMB/MSI + subtype + panel-eligibility confounders and effect-size-vs-significance, hand off SL/window.
+    polarity_note=(
+        "LEAD by separating a BIOLOGICALLY-ESTABLISHED co-mutation / mutual-exclusivity relationship from a "
+        "STATISTICALLY-significant-but-CONFOUNDED association. A pooled panel-intersect Fisher pair carries NO "
+        "TMB / MSI / molecular-subtype covariate, so a q-significant hit is NOT proof of a pairwise biological "
+        "interaction: in MSI-H / POLE / hypermutated tumors (BRAF-V600E CRC is CIMP-high / MLH1-methylated / "
+        "MSI-H) two genes co-occur simply because both are frequent passengers at high mutation burden (DISCOVER: "
+        "chance explains most co-occurrence); a mutual-exclusivity can reflect lineage/subtype restriction "
+        "(CMS/CIMP strata) rather than same-pathway redundancy; and a near-universal driver (TP53) co-occurs "
+        "with a long tail as a marginal-frequency consequence. When cooccurrence_confidence_caveat is present, "
+        "report the pattern accordingly: reason cooccurrence_tmb_or_lineage_confounded = a burden/lineage-driven "
+        "co-occurrence HUB (statistically-real, biologically-UNCONFIRMED — the actionable axis may be MSI/dMMR, "
+        "not the co-mutation); reason significant_but_near_universal / significant_but_low_effect_or_panel_"
+        "ineligible = significance ≠ actionability (near-universal driver, tiny effect size, or a panel-absent "
+        "per-source-only pair with no pooled claim); reason biologically_established_pattern = a canonical "
+        "same-pathway relationship (KRAS/NRAS/BRAF MAPK mutual-exclusivity, one activating hit sufficient; a "
+        "validated anti-EGFR negative-predictor) — NOT an over-call, do NOT demote it. Weigh EFFECT SIZE "
+        "(log2_odds_ratio) + panel-eligibility (pooled_eligible) alongside q-value: a q-significant, "
+        "near-unity-OR pair is not a combination / patient-selection hypothesis. The DIRECTION (co-occurring "
+        "vs mutually-exclusive; worse vs better survival) is a pattern TYPE, not good/bad — every verdict is "
+        "neutral. The dependency / synthetic-lethal call is owned by functional-requirement + "
+        "combination-and-vulnerability, and the therapeutic-window / safety call by tumor-selectivity + "
+        "on-target-safety — verdict-inert breadcrumbs here."),
     mode="verdict",
     # The collapsed-verdict line reads the RESOLVED differentiation token (both_patterns_present /
     # strong_cooccurring / strong_mutually_exclusive / …) from this declared headline key. Without it,

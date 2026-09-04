@@ -19,6 +19,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE as _LENS
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
 from _skills_common.headline_core import build_headline, HeadlineSpec
@@ -43,7 +45,19 @@ from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
+SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04, literature-and-claims arc): (1) BAKE the OPTIONAL --literature lane
+                          #        (was UNWIRED — literature_fn=make_literature_fn(DIFFERENTIATION_LANDSCAPE, default_retrieve,
+                          #        verify_citations); refined _LENS_QUERY_TERMS +TMB/MSI/patient-strat/combo). (2) NEW consolidated
+                          #        cooccurrence_confidence_caveat headline field — the co-mutation analog of mechanism's
+                          #        actionable_moa / tumor-presence's presence_confirmation caveat: a STATISTICAL co-mutation /
+                          #        mutual-exclusivity association OVER-CALLS a biological / patient-selection relationship. Tiers
+                          #        (i) cooccurrence_tmb_or_lineage_confounded (BRAF/COADREAD MSI-H hypermutation driver, curated),
+                          #        (ii) significant_but_low_effect_or_panel_ineligible / significant_but_near_universal (TP53), (iii)
+                          #        MILDER biologically_established_pattern false-demote guard (KRAS/NRAS-class canonical MAPK
+                          #        exclusivity, curated). (3) cooccurrence_provenance quorum summary. (4) DIFFERENTIATION lens
+                          #        thesis extended + polarity_note ADDED (was NONE). VERDICT-INERT: gates on already-emitted
+                          #        headline fields, None on ns/data_unavailable, NEVER read by the resolver -> differentiation_verdict
+                          #        + resolver golden + KRAS/FBXW7 replay byte-stable.   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
                           #        as an ADDITIVE, verdict-inert render facet; namespaced competitor_* headline
                           #        keys feed the target-profile deterministic modality cross-ref. Verdict byte-stable.
                           # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
@@ -196,6 +210,180 @@ def _panel_absent_tension(hl: dict) -> dict | None:
     return {"text": cav, "source": "panel_intersect.absent", "severity": 3} if cav else None
 
 
+# ── COOCCURRENCE-CONFIDENCE consolidated caveat (VERDICT-INERT) — the co-mutation analog of mechanism's
+#    actionable-MoA and tumor-presence's presence_confirmation inflation surface. THE TRAP: a STATISTICAL
+#    co-mutation / mutual-exclusivity ASSOCIATION over-calls a BIOLOGICAL / patient-selection RELATIONSHIP.
+#    The panel-intersect Fisher scan carries NO TMB / MSI / molecular-subtype covariate (the reader emits no
+#    such flag), so the data cannot separate (a) a TMB/hypermutation-driven co-occurrence hub (BRAF-V600E in
+#    MSI-H/CIMP CRC co-occurs with a long PASSENGER tail because both are frequent at high mutation burden),
+#    (b) a lineage/subtype-restricted exclusivity, from (c) a biologically-established same-pathway
+#    relationship (KRAS/NRAS/BRAF MAPK redundancy). Live proof (COADREAD): BRAF (1029 co-occurring),
+#    KRAS (709), TP53 (near-universal) ALL fire `both_patterns_present`/`strong_*` → the identical
+#    `supportive`(+dominant) rung — the token cannot distinguish them. Because DIFFERENTIATION IS a
+#    NOMINATING axis (∈ target-profile _SHORT_TO_GATE; the cooccurrence rules fire small_molecule/degrader
+#    `supportive`, two of them `dominant:true`), a TMB-confounded co-occurrence INFLATES a nomination. So —
+#    exactly as the mechanism (_VALIDATED_ACTIONABLE_MOA_PRECEDENT) and tumor-presence
+#    (_CLINICALLY_PRECEDENTED_TUMOR_ANTIGENS) arcs concluded — the honest DETERMINISTIC discriminator is a
+#    SMALL, DISCLAIMED, NON-EXHAUSTIVE curated (target, indication) crosswalk, corroborated by the
+#    --literature lane + narrator. The caveat is VERDICT-INERT (never read by the resolver); a target absent
+#    from every crosswalk degrades to the DATA-derived effect-size/panel-eligibility tier or None (never a
+#    verdict change). A verdict-MOVING TMB/subtype-adjusted resolver rung is the Phase-6 cross-repo candidate
+#    (AM cooccurrence_fisher reader), NOT this skills-side inert surface.
+
+# NORMALISE the OncoTree code so the COADREAD crosswalks also match the COAD / READ sub-codes.
+_COMUT_IND_ALIAS = {"COAD": "COADREAD", "READ": "COADREAD"}
+
+
+def _norm_ind(indication) -> str:
+    ind = (indication or "").upper().strip()
+    return _COMUT_IND_ALIAS.get(ind, ind)
+
+
+# (target, indication) whose co-occurrence LANDSCAPE is dominated by hypermutation / MSI / a molecular
+# subtype — the apparent co-occurrence with a long partner tail is a mutation-BURDEN artifact, not a
+# pairwise biological interaction (the SHARP driver). Keyed on the CO-OCCURRENCE component; the target's
+# MUTUAL-EXCLUSIVITY may still be real (BRAF↔KRAS/NRAS MAPK redundancy) — the detail + polarity_note carry
+# that nuance. DISCLAIMED / non-exhaustive; an absent target degrades to a data tier or None.
+_TMB_LINEAGE_CONFOUNDED_COMUT = {
+    ("BRAF", "COADREAD"): (
+        "BRAF-V600E CRC is tightly bound to CIMP-high / MLH1-hypermethylated sporadic MSI-H / hypermutation "
+        "(serrated pathway; ~half of BRAF-mutant CRC is MSI-H), so its apparent co-occurrence with a long "
+        "passenger tail is a tumor-mutational-burden artifact, not a pairwise biological interaction "
+        "(Weisenberger 2006 PMID 16804544; TCGA 2012 PMID 22810696; van de Haar 2019 PMID 31150618; DISCOVER "
+        "Canisius 2016 PMID 27986087 — chance explains most co-occurrence). The actionable axis in this "
+        "subset is MSI/dMMR (checkpoint benefit; KEYNOTE-177), not the BRAF co-mutation per se."),
+}
+
+# canonical, biologically-ESTABLISHED same-pathway relationships that must NOT be demoted (the KRAS/BRAF-
+# class MAPK mutual-exclusivity FALSE-DEMOTE GUARD). One activating MAPK hit is sufficient, so KRAS/NRAS/BRAF
+# are mutually exclusive by pathway redundancy (Rajagopalan 2002 PMID 12198537; Davies 2002 PMID 12068308) —
+# a validated patient-selection biomarker (anti-EGFR negative predictor; CRYSTAL PMID 19339720 / PRIME PMID
+# 24024839). KRAS-mutant CRC is MSS/CIN (NOT hypermutated), so its APC/TP53/SMAD4 co-occurrence is the real
+# adenoma-carcinoma sequence (Fearon-Vogelstein PMID 2188735), not a burden artifact.
+_BIOLOGICALLY_ESTABLISHED_COMUT = {
+    ("KRAS", "COADREAD"), ("NRAS", "COADREAD"),
+}
+
+# near-universal drivers whose HIGH co-occurrence count is chiefly a marginal-FREQUENCY consequence (co-occurs
+# with a long partner tail because it is mutated in a majority of tumors) → a q-significant pair is not a
+# patient-selection hypothesis: significance ≠ actionability (the TP53 housekeeping/ubiquitous analog;
+# DISCOVER PMID 27986087). DISCLAIMED / non-exhaustive.
+_NEAR_UNIVERSAL_MUTATION = {
+    ("TP53", "COADREAD"),
+}
+
+# cooccurrence_class values that carry a POSITIVE / significant pattern (the caveat fires ONLY on these; a
+# ns / data_unavailable / insufficient / absent read → None, byte-stable on the negative path). SET literal
+# (NOT a 2-tuple — the drift guard reads a 2-string tuple as a (rule_id, verdict) precedence pair).
+_COMUT_POSITIVE = {
+    "both_patterns_present", "strong_cooccurring", "strong_mutually_exclusive",
+    "modest_cooccurring", "modest_mutually_exclusive",
+}
+_COMUT_COOC_COMPONENT = {"both_patterns_present", "strong_cooccurring", "modest_cooccurring"}
+_COMUT_MODEST = {"modest_cooccurring", "modest_mutually_exclusive"}
+
+
+def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> dict | None:
+    """CONSOLIDATED statistical-vs-biological co-mutation confidence call (VERDICT-INERT). Folds effect-size +
+    TMB/subtype-confound (curated) + panel-eligibility into ONE consumer-facing "statistically-significant-
+    but-biologically-unconfirmed / patient-selection-actionable?" field. Precedence: the SHARP TMB/lineage
+    confound (i) > the MILDER biologically-established false-demote guard (iii) > the SHARP data cautions
+    (ii, significance≠actionability) > None. Gates on already-emitted headline fields; never moves the spine."""
+    cls = hl.get("cooccurrence_class")
+    if cls not in _COMUT_POSITIVE:
+        return None                                              # ns / data_unavailable / insufficient → byte-stable
+    key = ((target or "").upper().strip(), _norm_ind(indication))
+    has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
+    has_mutex = bool(hl.get("has_mutually_exclusive_driver")) or cls == "strong_mutually_exclusive"
+
+    # TIER (i) SHARP — TMB / hypermutation / lineage confound (curated), requires a co-occurring component.
+    if key in _TMB_LINEAGE_CONFOUNDED_COMUT and has_cooc:
+        detail = _TMB_LINEAGE_CONFOUNDED_COMUT[key]
+        if has_mutex:
+            detail += (" The mutual-exclusivity component (e.g. KRAS/NRAS MAPK pathway redundancy) may still "
+                       "be a real, biologically-established relationship — see top_mutually_exclusive.")
+        return {"reason": "cooccurrence_tmb_or_lineage_confounded", "tier": "sharp",
+                "false_demote_guarded": False, "detail": detail}
+
+    # TIER (iii) MILDER — biologically-established same-pathway guard OUTRANKS the data cautions (a canonical
+    # KRAS/NRAS/BRAF-class MAPK exclusivity must NOT be flagged as low-effect / uninformative).
+    if key in _BIOLOGICALLY_ESTABLISHED_COMUT:
+        return {"reason": "biologically_established_pattern", "tier": "milder", "false_demote_guarded": True,
+                "detail": ("Canonical, biologically-established same-pathway relationship — NOT an over-call, "
+                           "explicitly NOT demoted. KRAS/NRAS/BRAF MAPK mutual-exclusivity = one activating hit "
+                           "is sufficient (Rajagopalan 2002 PMID 12198537), a validated anti-EGFR negative "
+                           "predictor (CRYSTAL/PRIME); KRAS-mutant CRC is MSS/CIN, so its APC/TP53/SMAD4 "
+                           "co-occurrence is the real adenoma-carcinoma sequence, not a burden artifact.")}
+
+    # TIER (ii) SHARP — significance ≠ actionability: near-universal (curated), then DATA-derived
+    # panel-ineligibility / low effect size.
+    if key in _NEAR_UNIVERSAL_MUTATION:
+        return {"reason": "significant_but_near_universal", "tier": "sharp", "false_demote_guarded": False,
+                "detail": ("Near-universal driver: co-occurs with a long partner tail chiefly as a "
+                           "marginal-frequency consequence (mutated in a majority of tumors), so a "
+                           "q-significant pair is not a patient-selection hypothesis — significance ≠ "
+                           "actionability (DISCOVER Canisius 2016 PMID 27986087: chance explains most "
+                           "co-occurrence).")}
+    if _panel_absent_signal(hl) is not None:
+        return {"reason": "significant_but_low_effect_or_panel_ineligible", "tier": "sharp",
+                "false_demote_guarded": False,
+                "detail": ("Panel-absent: 0 panel-intersect-eligible pairs; the pattern rests entirely on "
+                           "per-source-only pairs (pooled_eligible=false) — no pooled cross-cohort co-mutation "
+                           "claim is possible, and for a large/passenger gene may reflect TMB / gene-length "
+                           "confounding.")}
+    if cls in _COMUT_MODEST:
+        return {"reason": "significant_but_low_effect_or_panel_ineligible", "tier": "sharp",
+                "false_demote_guarded": False,
+                "detail": ("Modest effect size (q<0.05 but 0.5<|log2_odds_ratio|<1.0): q-significant yet "
+                           "small-effect — informative context, not a decision-grade patient-selection / "
+                           "combination hypothesis.")}
+    # A STRONG, panel-eligible, non-confounded, non-near-universal pattern → no caveat (honest positive).
+    return None
+
+
+def _best_partner(lst) -> dict | None:
+    """The top (already rank-sorted) partner's effect-size row, field-absent-safe."""
+    for p in (lst or []):
+        if isinstance(p, dict):
+            return {"partner_gene_symbol": p.get("partner_gene_symbol"),
+                    "log2_odds_ratio": p.get("log2_odds_ratio"), "bh_q_value": p.get("bh_q_value"),
+                    "source": p.get("source"), "pooled_eligible": p.get("pooled_eligible")}
+    return None
+
+
+def _cooccurrence_provenance(hl: dict, target=None, indication=None) -> dict | None:
+    """QUORUM / PROVENANCE summary for the co-mutation call (VERDICT-INERT): effect sizes, q-values,
+    panel-eligibility, per-source presence, the pre-floor audit class, and the curated TMB/subtype
+    confounder flag. None when there is no significant pattern (byte-stable negative path)."""
+    cls = hl.get("cooccurrence_class")
+    if cls not in _COMUT_POSITIVE:
+        return None
+    elig = _int_or_none(hl.get("n_pairs_panel_intersect_eligible"))
+    per_source = _int_or_none(hl.get("n_pairs_per_source_only"))
+    top_cooc = hl.get("top_cooccurring") or []
+    top_mutex = hl.get("top_mutually_exclusive") or []
+    srcs = sorted({str((p or {}).get("source", "")).lower()
+                   for p in (top_cooc[:10] + top_mutex[:10]) if isinstance(p, dict) and p.get("source")})
+    key = ((target or "").upper().strip(), _norm_ind(indication))
+    return {
+        "cooccurrence_class": cls,
+        "cooccurrence_class_prefloor": hl.get("cooccurrence_class_prefloor"),
+        "n_significant_cooccurring": hl.get("n_significant_cooccurring"),
+        "n_significant_mutually_exclusive": hl.get("n_significant_mutually_exclusive"),
+        "n_pairs_panel_intersect_eligible": elig,
+        "n_pairs_per_source_only": per_source,
+        # the card's `many_pairs_panel_ineligible` warning condition — a pooling-caution flag.
+        "panel_ineligible_exceeds_eligible": (per_source is not None and elig is not None and per_source > elig),
+        "best_cooccurring": _best_partner(top_cooc),
+        "best_mutually_exclusive": _best_partner(top_mutex),
+        "sources_present": srcs,
+        # curated confounder / established flags (the discriminator the pooled Fisher scan is blind to):
+        "tmb_or_subtype_confounder_flag": key in _TMB_LINEAGE_CONFOUNDED_COMUT,
+        "biologically_established_flag": key in _BIOLOGICALLY_ESTABLISHED_COMUT,
+        "near_universal_flag": key in _NEAR_UNIVERSAL_MUTATION,
+    }
+
+
 _DIFFERENTIATION_HEADLINE_SPEC = HeadlineSpec(
     gate="differentiation",
     axis_labels={"COMUT": "co-mutation landscape", "SURVIVAL": "expression↔survival",
@@ -311,13 +499,17 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     )
 
 
-def _headline(cards, fired, verdict_pair):
+def _headline(cards, fired, verdict_pair, target=None, indication=None):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
         "differentiation_verdict":          v,
         "driving_rule_id":                  drv,
         "cooccurrence_class":               get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "cooccurrence_class"),
+        # AUDIT: raw pre-floor class (verdict-INERT card field — differs from cooccurrence_class only when a
+        # pure-TCGA-WES passenger was floored to ns). Surfaced in cooccurrence_provenance for panel-absence context.
+        "cooccurrence_class_prefloor":      get_card_field(cards, "co-mutation-and-mutual-exclusivity",
+                                                 "cooccurrence_class_prefloor"),
         "n_significant_cooccurring":        get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "n_significant_cooccurring"),
         "n_significant_mutually_exclusive": get_card_field(cards, "co-mutation-and-mutual-exclusivity",
@@ -390,6 +582,23 @@ def _headline(cards, fired, verdict_pair):
     _pa = _panel_absent_signal(hl)
     if _pa:
         hl["key_signals"]["caveat"] = _pa
+    # CONSOLIDATED statistical-vs-biological co-mutation confidence caveat + provenance quorum (VERDICT-INERT):
+    # the co-mutation analog of mechanism's actionable-MoA / tumor-presence's presence_confirmation inflation
+    # surface. Gates on the already-emitted cooccurrence_class / driver flags / panel-eligibility + the curated
+    # (target, indication) TMB-confound / established / near-universal crosswalks; None on ns/data_unavailable
+    # → byte-stable on the negative path (incl. the KRAS/FBXW7 replay fixtures: KRAS resolves the milder
+    # established guard, FBXW7 strong_cooccurring gets no curated flag → a data tier or None; neither touches
+    # the differentiation_verdict spine). Best-effort: a fault degrades to None + _enrichment_errors.
+    try:
+        hl["cooccurrence_confidence_caveat"] = _cooccurrence_confidence_caveat(hl, target=target, indication=indication)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["cooccurrence_confidence_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["cooccurrence_confidence_caveat"] = None
+    try:
+        hl["cooccurrence_provenance"] = _cooccurrence_provenance(hl, target=target, indication=indication)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["cooccurrence_provenance"] = f"{type(exc).__name__}: {exc}"
+        hl["cooccurrence_provenance"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
@@ -444,6 +653,9 @@ _SYNTHESIS_FACET_KEYS = (
     "n_competitor_programs", "competitor_approved_agents", "competitor_late_stage_non_approved",
     "competitor_modalities_in_development", "competitor_modality_landscape",
     "claim_vector", "key_signals",
+    # the CONSOLIDATED statistical-vs-biological co-mutation confidence caveat + provenance quorum
+    # (verdict-INERT; the co-mutation analog of mechanism's actionable-MoA / tumor-presence's presence caveat):
+    "cooccurrence_confidence_caveat", "cooccurrence_provenance", "cooccurrence_class_prefloor",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
@@ -454,11 +666,13 @@ _SYNTHESIS_FACET_KEYS = (
 )
 
 
-def _synthesis_facet(cards, fired, verdict_pair):
+def _synthesis_facet(cards, fired, verdict_pair, target=None, indication=None):
     """Compact, VERDICT-INERT differentiation facet for the composed target-profile synthesis. Reuses
     _headline (single source) + returns the DESCRIPTIVE claim_vector (COMUT/SURVIVAL/PROGNOSIS/NODE) +
-    its citable atoms. Never moves the verdict; safe to omit."""
-    h = _headline(cards, fired, verdict_pair)
+    its citable atoms. Never moves the verdict; safe to omit. target/indication are signature-introspected
+    by the fan-out (tp_fanout) so the (target, indication)-keyed cooccurrence_confidence_caveat reaches the
+    composed profile too."""
+    h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
     facet["_facet_note"] = ("Deterministic differentiation-landscape facet; claim_vector is a DESCRIPTIVE "
                             "decomposition (direction in the atoms). Verdict owned by the resolver.")
@@ -476,6 +690,13 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
         synthesize_fn=make_synthesize_fn(_LENS),
+        # OPTIONAL verdict-INERT LLM --literature lane (BAKED 2026-09-04): Europe-PMC-grounded (default_retrieve
+        # = Europe PMC → PubTator3 fallback) + PMID-verified (verify_citations); attached as
+        # decision['literature_synthesis'] AFTER the deterministic decision is composed and fed to the
+        # --synthesize narrator as a corroboration/contradiction lane. Query terms
+        # (_LENS_QUERY_TERMS["differentiation-landscape"]) refined for the co-mutation / mutual-exclusivity /
+        # TMB-MSI / patient-selection / combination trap. Spine byte-stable (the lane cannot touch the verdict).
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         partial_status_note=PARTIAL_STATUS_NOTE,
