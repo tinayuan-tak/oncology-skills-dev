@@ -2429,17 +2429,41 @@ rules:
   - rule_id: known-drug-approved-antineoplastic-sm-supportive
     when:
       card_id: known-drug-tractability
-      field: known_drug_tractability_class
-      equals: approved_drug_tractable
+      field: approved_drug_engagement_class
+      equals: approved_direct
     signals:
       small_molecule: supportive
     dominant: true
     rationale: |
-      An APPROVED small-molecule drug is catalogued against this target in DGIdb (approved-drug
-      interaction) — a real compound demonstrably engages the target. Retrospective chemical
-      evidence (like PRISM clinically-active), from the drug-catalogue rather than a cell-line
-      screen, so it credits a target an individual PRISM screen may have missed. Maps to the
-      chemically_active verdict rung. SM-scoped.
+      An APPROVED small-molecule drug is catalogued against this target in DGIdb AND the target
+      carries DIRECT typed small-molecule engagement (>=5 inhibitor/antagonist/binder/… interactions
+      in the directional product, or directness UNMEASURED) — a real compound demonstrably engages
+      the target. Retrospective chemical evidence (like PRISM clinically-active), from the drug-
+      catalogue rather than a cell-line screen, so it credits a target an individual PRISM screen
+      may have missed. Maps to the chemically_active verdict rung. SM-scoped.
+      DIRECTNESS GATE (2026-09-04): keyed on approved_drug_engagement_class==approved_direct (not the
+      raw approved-drug boolean) so an approved drug catalogued against an undruggable TF/scaffold
+      whose roster is INDIRECT (β-catenin/CTNNB1, MYC) does NOT inflate to chemically_active — it
+      routes to known-drug-approved-indirect-only-sm-weak below instead.
+
+  - rule_id: known-drug-approved-indirect-only-sm-weak
+    when:
+      card_id: known-drug-tractability
+      field: approved_drug_engagement_class
+      equals: approved_indirect_only
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      An approved drug is catalogued against this target in DGIdb, BUT the interaction roster is
+      INDIRECT / sparse — fewer than 5 TYPED direct small-molecule interactions (inhibitor/antagonist/
+      binder/…) in the directional product. For a classically-undruggable TF/scaffold (β-catenin, MYC,
+      GATA3, MECOM) the roster is dominated by pathway / downstream / untyped compounds (even assay
+      dyes, antibodies, shRNA constructs), so the approved-drug flag is ANNOTATION-DRIVEN, not a
+      demonstrated direct binder. NEUTRAL, not supportive: the honest read is looks-druggable-but-
+      indirect — direct small-molecule engagement is NOT established. Maps to the annotation_only_indirect
+      verdict rung (below the structural positives, above chemically_unhit — there ARE catalogued
+      compounds, just not direct ones). SM-scoped; confirm target-directness from the literature.
 
   - rule_id: known-drug-druggable-category-sm-supportive
     when:
@@ -2496,8 +2520,8 @@ rules:
   - rule_id: measured-chembl-approved-sm-supportive
     when:
       card_id: measured-potency-tractability
-      field: chembl_clinical_phase_class
-      equals: approved
+      field: chembl_approved_engagement_class
+      equals: approved_direct
     signals:
       small_molecule: supportive
     rationale: |

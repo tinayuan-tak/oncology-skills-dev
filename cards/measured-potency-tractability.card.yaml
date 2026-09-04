@@ -22,7 +22,7 @@
 # weak-axis pattern the review flagged elsewhere.
 
 card_id: measured-potency-tractability
-version: 1.0.0
+version: 1.1.0   # +directness-gated chembl_approved_engagement_class (the ChEMBL-approved rung now requires DIRECT engagement — undruggable-TF inflation fix)
 question: "Is there a POTENT (<=1 uM) measured small-molecule ligand for {target.symbol}, and how deep is the chemotype series?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -55,6 +55,8 @@ outputs:
     - chembl_n_potent_ligands            # int — ChEMBL potent (<=1 uM) ligand count (the series depth)
     - chembl_max_clinical_phase          # float — ChEMBL max clinical phase (4=approved) [raw; see chembl_clinical_phase_class]
     - chembl_clinical_phase_class        # rule-matchable categorical from the real ChEMBL phase (WS-E 2026-08-24)
+    - chembl_approved_engagement_class   # DIRECTNESS-gated approved signal (2026-09-04) — RESOLVER-KEYED (see vocabulary)
+    - n_direct_interactions              # int|null — typed direct-SM interactions (shared DGIdb-directional metric)
     - bindingdb_best_p_affinity          # float — BindingDB max -log10(M) affinity
     - bindingdb_n_potent_ligands         # int — BindingDB sub-micromolar binder count
     - measured_potency_context           # string — human-readable rationale (audit / LLM)
@@ -71,6 +73,10 @@ outputs:
       - clinical                         # 1-3 — a compound in active clinical development (-> clinical_precedent_only, authoritative)
       - preclinical_or_none              # < 1 (incl. Early-Phase-1 0.5) or no phase value on the ChEMBL row
       - data_unavailable                 # no ChEMBL row for the target
+    chembl_approved_engagement_class:    # directness gate (2026-09-04): the ChEMBL-approved rung keys on THIS
+      - approved_direct                  # ChEMBL approved AND direct engagement (>=5 typed-direct, or unmeasured) -> chemically_active
+      - approved_indirect_only           # ChEMBL approved BUT indirect/sparse roster -> does NOT inflate (undruggable-TF fix)
+      - not_chembl_approved              # ChEMBL max_phase < 4 / absent (the approved rung never applied)
 
 warning_predicates:
   - warning_id: measured_potency_data_unavailable

@@ -2,8 +2,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 411
-  gating: 128
+  total: 412
+  gating: 129
   display: 283
 gating:
 - adc-preferred-supportive
@@ -60,6 +60,7 @@ gating:
 - ihc-not-detected-killer
 - isoform-dependent-modality-suppression
 - known-drug-approved-antineoplastic-sm-supportive
+- known-drug-approved-indirect-only-sm-weak
 - known-drug-druggable-category-sm-supportive
 - ligandability-disordered-sm-opposing
 - ligandability-experimental-sm-supportive

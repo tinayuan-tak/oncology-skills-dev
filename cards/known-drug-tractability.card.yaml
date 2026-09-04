@@ -21,7 +21,7 @@
 # gap, never evidence of undruggability (measured-vs-null discipline).
 
 card_id: known-drug-tractability
-version: 1.0.0
+version: 1.1.0   # +directness metadata (n_direct_interactions / direct_engagement_class / approved_drug_engagement_class) from dgidb-drug-target-directional-v1 — gates the approved-drug rung on DIRECT engagement
 question: "Has a small-molecule drug been catalogued against {target.symbol} (approved / antineoplastic), and is it in a recognized druggable-genome category?"
 
 tier: target   # known-drug + druggable-category are properties of the gene, independent of indication. Never stratifies.
@@ -47,7 +47,12 @@ outputs:
     - n_approved_drug_interactions       # int — approved-drug interactions
     - n_antineoplastic_interactions      # int — antineoplastic-drug interactions (oncology-relevant)
     - gene_categories                    # string — '|'-joined DGIdb category names
+    # ── DIRECTNESS metadata (v1.1.0) — from dgidb-drug-target-directional-v1 (interaction_types) ──
+    - n_direct_interactions              # int|null — TYPED direct-SM interactions (inhibitor/antagonist/binder/…); null = unmeasured
+    - direct_engagement_class            # categorical (see vocabulary) — the directness read
+    - approved_drug_engagement_class     # categorical (see vocabulary) — RESOLVER-KEYED approved-drug directness gate
     - known_drug_context                 # string — human-readable rationale (audit / LLM)
+    - directness_context                 # string — human-readable directness rationale (audit / LLM)
     - method_version
 
   summary_fields_vocabulary:
@@ -58,6 +63,15 @@ outputs:
       - interaction_only                 # drug interactions but no druggable category / approval
       - category_only                    # family category but no interaction rows
       - no_known_drug_evidence           # absent from DGIdb (coverage gap, NOT undruggable)
+    direct_engagement_class:
+      - direct_typed                     # >=5 TYPED direct-SM interactions — demonstrated direct engagement
+      - sparse_direct                    # 1-4 typed-direct interactions — a weak/uncorroborated direct hit
+      - indirect_or_untyped_only         # 0 typed-direct — interactions (if any) are indirect/untyped
+      - unmeasured                       # directional product unread (transient) — directness not established
+    approved_drug_engagement_class:      # RESOLVER-KEYED: gates the approved-drug rung on directness
+      - approved_direct                  # approved drug + DIRECT engagement (or unmeasured — fail toward prior)
+      - approved_indirect_only           # approved drug BUT roster is indirect/sparse — annotation-driven, not direct
+      - not_approved                     # no approved-drug flag (approved rung never applied)
 
 warning_predicates:
   - warning_id: no_known_drug_evidence

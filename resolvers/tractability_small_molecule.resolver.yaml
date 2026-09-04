@@ -12,7 +12,7 @@
 #      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
 #   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
 gate: tractability_small_molecule
-version: 1.4.0   # T3.1: + measured_potent_ligand tier (ChEMBL/BindingDB measured potency) between chemical-activity and structural
+version: 1.5.0   # 2026-09-04: + annotation_only_indirect rung (directness gate) — approved-drug rung now requires approved_drug_engagement_class==approved_direct; indirect/sparse roster routes to annotation_only_indirect (undruggable-TF inflation fix)     # T3.1: + measured_potent_ligand tier (ChEMBL/BindingDB measured potency) between chemical-activity and structural
 description: Small-molecule druggability precedence (on-target chemical-genetic E7 > opposing off-target > retrospective chemical activity > MEASURED potency > structural E8 + druggable-category > unhit).
 resolve:
   # --- On-target chemical-genetic (retrospective, CONCORDANCE-confirmed) ---
@@ -82,7 +82,13 @@ resolve:
   - {verdict: structurally_ligandable, when_fired: measured-weak-ligand-sm-supportive, priority: 16}
   - {verdict: structurally_intractable, when_fired: structure-low-confidence-sm-opposing, priority: 17}
   - {verdict: structurally_intractable, when_fired: ligandability-disordered-sm-opposing, priority: 18}
-  - {verdict: chemically_unhit, when_fired: prism-no-compounds-found-neutral, priority: 19}
+  # ANNOTATION-ONLY INDIRECT (2026-09-04, directness gate): an approved drug is catalogued but the DGIdb
+  # roster is INDIRECT/sparse (< 5 typed direct interactions) — the undruggable-TF inflation (β-catenin,
+  # MYC). Ranked BELOW every genuine positive (chemical/measured/structural) AND below a measured
+  # structural NEGATIVE, ABOVE chemically_unhit (there ARE catalogued compounds, just not direct ones).
+  # NON-nominating (nomination_verdict_gate.yaml) — must not credit the nomination tractability gate.
+  - {verdict: annotation_only_indirect, when_fired: known-drug-approved-indirect-only-sm-weak, priority: 19}
+  - {verdict: chemically_unhit, when_fired: prism-no-compounds-found-neutral, priority: 20}
 # ligandability-no-evidence-sm-insufficient carries small_molecule:insufficient and maps to the
 # `default: insufficient` fallthrough — no explicit rung needed (a coverage gap, never a verdict).
 default: insufficient
