@@ -47,7 +47,7 @@ _IMMUNE_VALUE_TIERS = {
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.6.1"   # 1.6.1 (2026-09-04): VERDICT-INERT display follow-ups — Saltz median_number_of_clusters spatial-aggregation hint (clustered-vs-dispersed TIL, a first spatial proxy the CD8 FRACTION lacks) into immune_provenance; SURFACE the immune-context card's antigen-CONDITIONED join (antigen_conditioned_call / cd8_high_minus_low / antigen_high_immune_context_class — the ONLY target-dependent display fields; addresses the cohort-median heterogeneity blind spot = are the antigen-HIGH patients T-cell-POORER = effector escape) via _cf() defensive getter; data_unavailable when the join is thin. Verdict spine byte-stable. NOTE: the ici-response-imvigor210 display card MISSES a legacy-symbol target (NECTIN4->PVRL4 in the genentech eSet) — a data-product resolver gap, verdict-inert (filed, cross-repo).   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
                           # headline hero — a verdict-INERT projection over the effector-context
                           # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -78,6 +78,16 @@ _RULE_TO_VERDICT = {
     "immune-context-intermediate-tce-neutral": "immune_intermediate",
     "immune-context-cold-tce-opposing":        "immune_cold",
 }
+
+
+def _cf(cards, card_id, field):
+    """Defensive get_card_field for OPTIONAL display fields — get_card_field RAISES on an absent card/field
+    (e.g. an older card version missing a newer field), and this must never abort the verdict-INERT spine.
+    Returns None on any absence/error."""
+    try:
+        return get_card_field(cards, card_id, field)
+    except Exception:  # noqa: BLE001 — optional display field; absence degrades to None, never aborts
+        return None
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
@@ -317,12 +327,25 @@ def _immune_provenance(headline: dict) -> dict:
             "median_til_percentage": headline.get("median_til_percentage"),
             "til_n_samples": headline.get("til_n_samples"),
             "orthogonal_agreement": corr,   # corroborates | contradicts | not_comparable | unmeasured
+            # a spatial-AGGREGATION statistic (clustered vs dispersed TIL) — a FIRST proxy for organization
+            # the CD8 FRACTION lacks; still NOT tumour-nest-vs-stroma localization (needs multiplex-IHC).
+            "median_number_of_clusters": headline.get("median_number_of_clusters"),
+        },
+        # per-patient / antigen-CONDITIONED heterogeneity (v2 facet; target-DEPENDENT display, verdict-inert):
+        # a cohort-MEDIAN CD8 fraction hides whether the ANTIGEN-HIGH (targetable) patients are ALSO T-cell-
+        # high (ideal) or T-cell-POORER (effector escape — a TCE-efficacy risk concentrated where it matters).
+        # data_unavailable when the CIBERSORT-barcode <-> expression-UUID join is too thin.
+        "antigen_conditioned": {
+            "antigen_conditioned_call": headline.get("antigen_conditioned_call"),
+            "cd8_high_minus_low": headline.get("cd8_high_minus_low"),   # negative => antigen-high patients T-cell-POORER
+            "antigen_high_immune_context_class": headline.get("antigen_high_immune_context_class"),
         },
         "confirmed_tumor_nest_infiltration": False,   # NEVER confirmed by bulk deconvolution alone
         "note": ("A bulk CIBERSORT CD8 fraction is RELATIVE, non-spatial and function-blind; a positive read "
                  "is CONFIRMED tumour-nest infiltration only with spatial / multiplex-IHC corroboration. The "
                  "absolute H&E-DL TIL (Saltz) is an orthogonal ABSOLUTE-density check (still not spatial "
-                 "localization or CD8 function)."),
+                 "localization or CD8 function); median_number_of_clusters is a coarse spatial-aggregation "
+                 "hint, not a nest-vs-stroma call."),
     }
 
 
@@ -342,6 +365,17 @@ def _headline(cards, fired, verdict_pair):
         "til_fraction_class":            get_card_field(cards, "tcga-til-fraction-saltz", "til_fraction_class"),
         "median_til_percentage":         get_card_field(cards, "tcga-til-fraction-saltz", "median_til_percentage"),
         "til_n_samples":                 get_card_field(cards, "tcga-til-fraction-saltz", "n_samples"),
+        # v1.6.1 follow-ups (VERDICT-INERT display). (a) the Saltz median TIL-CLUSTER count — a
+        # spatial-AGGREGATION statistic (clustered vs dispersed TIL), a first, cheap proxy for spatial
+        # organization the bulk CD8 FRACTION lacks (still NOT nest-vs-stroma; needs true multiplex-IHC).
+        "median_number_of_clusters":     _cf(cards, "tcga-til-fraction-saltz", "median_number_of_clusters"),
+        # (b) the antigen-CONDITIONED join the immune-context card already computes (the documented v2 facet):
+        # are the ANTIGEN-HIGH patients ALSO T-cell-high, or T-cell-POORER (effector escape)? These are the
+        # ONLY target-DEPENDENT fields the skill surfaces (the verdict stays target-independent), and degrade
+        # to data_unavailable when the CIBERSORT-barcode <-> expression-UUID join is too thin (guard).
+        "antigen_conditioned_call":          _cf(cards, "immune-context", "antigen_conditioned_call"),
+        "cd8_high_minus_low":                _cf(cards, "immune-context", "cd8_high_minus_low"),
+        "antigen_high_immune_context_class": _cf(cards, "immune-context", "antigen_high_immune_context_class"),
     }
     # coarse cross-modality agreement: do the H&E-DL TIL bin and the CIBERSORT CD8 hot/cold call point the
     # same way? None when either is unmeasured. Directional only (different scales).
@@ -420,6 +454,10 @@ _SYNTHESIS_FACET_KEYS = (
     "immune_context_verdict", "driving_rule_id", "immune_context_class", "median_cd8_fraction",
     "median_total_t_cell_fraction", "n_samples",
     "til_fraction_class", "median_til_percentage", "til_cibersort_agreement",
+    # v1.6.1 (VERDICT-INERT display): Saltz spatial-aggregation hint + the antigen-CONDITIONED heterogeneity
+    # facet (target-dependent; the cohort-median blind spot — are the antigen-HIGH patients T-cell-poorer?).
+    "median_number_of_clusters",
+    "antigen_conditioned_call", "cd8_high_minus_low", "antigen_high_immune_context_class",
     # VERDICT-INERT bulk-CD8-fraction annotation-INFLATION surface (bulk fraction != spatial localization
     # != CD8 function) — the surface_confirmation_caveat / mechanism_confirmation_caveat analog.
     "immune_confirmation_caveat", "spatial_localization_caveat", "immune_provenance",

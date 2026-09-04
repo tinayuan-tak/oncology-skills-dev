@@ -25,7 +25,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.6.0
+  version: 1.6.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -122,3 +122,21 @@ VERDICT-INERT (the skill is gateless; `immune_context_verdict` is a direct read 
 - **IMMUNE_CONTEXT thesis + `polarity_note`** (was NONE) — the narrator now leads with
   spatially-confirmed-vs-bulk-fraction-annotated CD8 + the exclusion / exhaustion / cohort-median caveats,
   with the TCE surface hand-off to surface-modality-fit as a breadcrumb.
+
+## v1.6.1 (2026-09-04) — VERDICT-INERT display follow-ups
+
+- **Saltz `median_number_of_clusters`** lifted into `immune_provenance.absolute_til_corroboration` — a
+  spatial-AGGREGATION statistic (clustered vs dispersed TIL), a first cheap proxy for spatial organization
+  the CD8 fraction lacks (still NOT tumour-nest-vs-stroma; needs true multiplex-IHC).
+- **Antigen-CONDITIONED join surfaced** (`antigen_conditioned_call` / `cd8_high_minus_low` /
+  `antigen_high_immune_context_class`, in the headline + `immune_provenance.antigen_conditioned`) — the
+  documented v2 facet the card already computes: are the ANTIGEN-HIGH (targetable) patients ALSO T-cell-high,
+  or T-cell-POORER (effector escape)? These are the **ONLY target-DEPENDENT fields** the skill surfaces (the
+  verdict stays target-independent), read via a defensive `_cf()` getter, `data_unavailable` when the
+  CIBERSORT-barcode↔expression-UUID join is thin. Addresses sub-inflation (d), the cohort-median blind spot.
+- **KNOWN GAP (verdict-inert, cross-repo — filed):** the `ici-response-imvigor210` display card keys on the
+  genentech eSet's legacy Bioconductor `fData$symbol`, which was NOT run through the gene resolver — so a
+  target queried by its MODERN HGNC symbol misses (confirmed: **NECTIN4** absent, its legacy alias **PVRL4**
+  present). Fix belongs in the data product (re-derive through the resolver) or the analysis-methods reader
+  (alias-fold on read), per the resolver-in-all-ingestion invariant. Verdict-inert (display card only); the
+  target-independent verdict is unaffected.
