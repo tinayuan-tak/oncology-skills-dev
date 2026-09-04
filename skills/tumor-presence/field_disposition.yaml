@@ -834,6 +834,33 @@ sc-normal-celltype-expression:
   sc_normal_safety_essential_class:
     role: signal
     reason: magnitude/categorical signal
+  sc_normal_essential_max_cell_type:
+    role: display
+    reason: named essential-cell driver of the safety class — human-facing organ label (safety-side; not a presence signal)
+  sc_normal_essential_max_tissue:
+    role: display
+    reason: named critical organ of the essential-cell driver (safety-side; not a presence signal)
+  sc_normal_essential_max_detection_fraction:
+    role: context
+    reason: detection magnitude at the essential-cell driver (safety-side qualifier)
+  sc_normal_essential_donor_fraction:
+    role: context
+    reason: cross-donor consistency at the essential-cell driver (power qualifier)
+  sc_normal_essential_n_datasets_reliable:
+    role: provenance
+    reason: independent-atlas replication at the essential-cell driver (audit/confidence)
+  sc_normal_essential_median_abund:
+    role: context
+    reason: abundance magnitude at the essential-cell driver (safety-side qualifier)
+  sc_normal_ceiling_detection_fraction:
+    role: context
+    reason: normal cell-type detection ceiling — single-cell window denominator (normal-side magnitude)
+  n_reliable_cell_types:
+    role: context
+    reason: count of cell types passing the min-donor reliability gate (power/coverage qualifier)
+  per_cell_type_top:
+    role: display
+    reason: ranked top-15 normal footprint — human-facing detail / large container
   tissues_queried:
     role: provenance
     reason: identity/scope key
