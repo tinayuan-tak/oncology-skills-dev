@@ -111,7 +111,16 @@ _LENS_QUERY_TERMS = {
                                       "context dependence reproducibility"],
     "translational-readiness":    ["patient-derived organoid", "patient-derived xenograft"],
     "target-intrinsic":           ["protein structure", "gene expression atlas"],
-    "cis-feature-coherence":      ["copy-number-driven expression", "promoter methylation silencing"],
+    # Front-loaded so the highest-value cis-CAUSALITY discriminators lead: the base gene∧disease query
+    # supplies cis/CN-expression recall; the precision query needs the amplicon driver-vs-passenger,
+    # focal-amplitude, protein-dosage-buffering, CIMP-lineage, and purity-confound terms that separate a
+    # CAUSAL cis-driver / targeted silencing from a co-amplified passenger / dosage-buffered / CIMP-confounded
+    # correlation. The lens declares 4 axis_labels, so a per-lens _LENS_MAX_TERMS bump (below) is needed to let
+    # ~5 of these curated discriminators survive the default max_terms=5 cap.
+    "cis-feature-coherence":      ["copy-number-driven expression", "amplicon driver versus passenger",
+                                   "focal amplification", "promoter methylation silencing",
+                                   "CpG island methylator phenotype", "oncogene addiction dosage",
+                                   "protein abundance copy number", "tumor purity confound"],
 }
 
 
@@ -126,8 +135,11 @@ def _indication_phrase(indication: Optional[str]) -> str:
 # vulnerability declares FIVE axis_labels (SL/CODEP/COMBO/SYNERGY/RESISTANCE), so a cap of 5 would admit
 # ZERO curated terms; 9 lets the first ~4 discriminators (synthetic lethality / drug combination /
 # resistance mechanism / KO-vs-inhibition) through. Surgical: every other lens keeps the default cap →
-# byte-identical query strings.
-_LENS_MAX_TERMS = {"combination-and-vulnerability": 9}
+# byte-identical query strings. cis-feature-coherence declares FOUR axis_labels
+# (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT), so a cap of 5 admits only ONE curated term; 9 lets the first ~5
+# discriminators (amplicon driver-vs-passenger / focal amplification / CpG island methylator phenotype /
+# oncogene addiction dosage / protein abundance copy number) through.
+_LENS_MAX_TERMS = {"combination-and-vulnerability": 9, "cis-feature-coherence": 9}
 
 
 def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:

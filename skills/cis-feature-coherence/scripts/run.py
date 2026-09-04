@@ -24,6 +24,8 @@ from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE as _LENS
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
@@ -53,7 +55,7 @@ _CIS_VALUE_TIERS = {
 
 
 SKILL_NAME = "cis-feature-coherence"
-SKILL_VERSION = "1.3.0"   # 1.3.0 (2026-08-28): PROTEIN legs (cis-feature-protein-coherence CN→protein + abundance-dependency protein→dep) + mRNA-vs-protein dosage slope ratio. VERDICT-INERT.   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-09-04): --literature lane (make_literature_fn one-liner) + VERDICT-INERT cis-coherence CONFIDENCE surface (cis_coherence_confidence_caveat 3-tier [statistical_cis_correlation_causally_unconfirmed / amplicon_passenger_or_lineage_confounded / validated_cis_driver_or_silencing false-demote guard] + causal_attribution_caveat + context_generalization_caveat + cis_coherence_provenance) + CIS_FEATURE_COHERENCE thesis/polarity_note. Gates on already-emitted headline fields; cis_coherence_verdict + driving_rule_id + resolver golden + replay byte-stable.   # 1.3.0 (2026-08-28): PROTEIN legs (cis-feature-protein-coherence CN→protein + abundance-dependency protein→dep) + mRNA-vs-protein dosage slope ratio. VERDICT-INERT.   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine.
 
 CARDS = [
     "cis-feature-expression-coherence",     # GoF leg-1: CN → own-expression cis-dosage (amplification, mRNA)
@@ -149,6 +151,7 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
 # informative, not adverse), so everything else stays neutral.
 _CIS_COHERENCE_VERDICT_PHRASE = {
     "coherent_cis_driver":          "Coherent cis-driven addiction (CN → expression → dependency)",
+    "coherent_epigenetic_silencing": "Coherent epigenetic silencing (promoter methylation → low expression)",
     "expressed_cis_coupled_inert":  "Expressed via cis-dosage, but dependency-inert",
     "dependency_without_cis_dosage": "Dependency without cis-dosage coupling (trans-regulated)",
     "cis_uncoupled_no_dependency":  "Cis-uncoupled, no dependency",
@@ -227,7 +230,206 @@ def _slope_ratio(protein_slope, mrna_slope):
     return round(float(protein_slope) / float(mrna_slope), 4)
 
 
-def _headline(cards, fired, verdict_pair):
+# ══ VERDICT-INERT cis-coherence CONFIDENCE surface (v1.4.0) ══════════════════════════════════════
+# The cis analog of surface_confirmation_caveat / mechanism_confirmation_caveat / cooccurrence_confidence_
+# caveat: a STATISTICAL cis-correlation (CN↔mRNA / methylation↔expression / expression↔dependency) OVER-
+# CALLS a CAUSAL, dosage-driven, cell-intrinsic cis-DRIVER addiction. Gates on already-emitted headline
+# fields; NEVER feeds the resolver → cis_coherence_verdict + driving_rule_id + resolver golden + replay
+# stay byte-stable. SET literals (NOT 2-string tuples — the reference-drift guard misreads a 2-tuple as a
+# (rule_id, verdict) precedence tuple).
+
+# Canonical, functionally-VALIDATED cis-drivers / targeted-silencing genes = the false-demote guard set.
+# A coherent call for one of these is the GROUND TRUTH the trap is calibrated AGAINST, not the over-call,
+# so it is spared even when its own protein-dosage slope reads BUFFERED (ERBB2 itself lands
+# prot_dosage_uncoupled by rank-noise in DepMap despite being the validated 17q12 driver — the card's own
+# caveat + Gonçalves 2017 PMID 29032074). Gene-level (a canonical amplicon driver / silenced tumour
+# suppressor is canonical in ANY indication).
+_VALIDATED_CIS_DRIVER_AMP = frozenset({
+    "ERBB2", "MYCN", "MDM2", "MDM4", "CCND1", "CCNE1", "MET", "EGFR", "FGFR1", "FGFR2", "KIT", "CDK4",
+})
+_VALIDATED_SILENCING = frozenset({
+    "MLH1", "MGMT", "CDKN2A", "CDKN2B", "MSH2", "BRCA1", "RB1", "VHL", "PTEN",
+})
+# CIMP / global-hypermethylation LINEAGE contexts — where a promoter-methylation↔low-expression correlation
+# for a NON-guarded gene can be a passenger of the coordinate lineage program (BRAF-CIMP colorectal,
+# IDH-G-CIMP glioma, gastric-/endometrial-CIMP), not a targeted silencing of THIS gene.
+_CIMP_LINEAGE_INDICATIONS = frozenset({
+    "COADREAD", "COAD", "READ", "STAD", "GBM", "LGG", "UCEC", "ESCA", "EGC",
+})
+# The two COHERENT positive verdicts the over-call caveat applies to (the uncoupled / inert / insufficient
+# classes carry no coherent-cis-driver over-call to flag).
+_CIS_COHERENT_POSITIVE = frozenset({"coherent_cis_driver", "coherent_epigenetic_silencing"})
+# Protein-dosage class read as BUFFERED (CN varies but protein flat = the co-amplified-passenger fingerprint).
+_PROT_BUFFERED = frozenset({"prot_dosage_uncoupled"})
+# expression→dependency correlation classes that count as a COHERENT dependency leg (negative Chronos
+# correlation = higher expression ⇒ more dependent).
+_EXPR_DEP_COHERENT = frozenset({"strong_negative", "moderate_negative", "weak_negative"})
+
+
+def _norm_ind(indication) -> str:
+    return (indication or "").upper().strip()
+
+
+def _cis_coherence_confidence_caveat(hl: dict, target=None, indication=None) -> dict | None:
+    """CONSOLIDATED statistical-vs-causal cis-coherence confidence call (VERDICT-INERT). A coherent cis-DRIVER
+    / targeted-SILENCING call resting on a STATISTICAL correlation WITHOUT causal / protein-dosage / patient
+    confirmation. Fires ONLY on the two COHERENT positive verdicts; the uncoupled / inert / insufficient
+    classes → None (byte-stable negative path). Precedence: (iii) MILDER validated-guard FIRST (a canonical
+    cis-driver / silencing is never demoted, even with a buffered protein slope) > (ii) SHARP amplicon-
+    passenger / CIMP-lineage confound > (i) SHARP statistical-correlation-causally-unconfirmed > None."""
+    v = hl.get("cis_coherence_verdict")
+    if v not in _CIS_COHERENT_POSITIVE:
+        return None
+    gene = (target or "").upper().strip()
+    ind = _norm_ind(indication)
+    is_driver = v == "coherent_cis_driver"
+    is_silencing = v == "coherent_epigenetic_silencing"
+
+    # TIER (iii) MILDER — validated false-demote guard. OUTRANKS the data cautions: a canonical validated
+    # cis-driver (ERBB2/MYCN/MDM2/CCND1 amp) or targeted silencing (MLH1/MGMT/CDKN2A) is the ground truth the
+    # trap is calibrated against, NOT the over-call — spared even if its protein-dosage slope reads buffered.
+    if (is_driver and gene in _VALIDATED_CIS_DRIVER_AMP) or (is_silencing and gene in _VALIDATED_SILENCING):
+        kind = "cis-driver amplification" if is_driver else "targeted epigenetic silencing"
+        return {"reason": "validated_cis_driver_or_silencing", "tier": "milder", "false_demote_guarded": True,
+                "detail": (f"{gene} is a canonical, functionally-validated {kind} — the ground truth the "
+                           "co-amplified-passenger / CIMP-confound trap is calibrated against, NOT an over-call; "
+                           "explicitly NOT demoted even if its protein-dosage slope reads attenuated (ERBB2 "
+                           "itself lands prot_dosage_uncoupled by rank-noise in DepMap yet is the validated "
+                           "17q12 driver — Gonçalves 2017 PMID 29032074; Slamon 2001 PMID 11248153). Silencing "
+                           "arm validated by biallelic-silencing / demethylation rescue + downstream phenotype "
+                           "(MLH1→MSI Veigl 1998 PMID 9671741; MGMT→temozolomide Hegi 2005 PMID 15758010).")}
+
+    # TIER (ii) SHARP — amplicon-passenger / CIMP-lineage confound.
+    if is_driver:
+        # a dosage-BUFFERED / uncoupled protein slope in a focal-amplicon coherent_cis_driver = co-amplified
+        # passenger (mRNA scales with CN, protein does not) — the built-in discriminator.
+        prot_cls = hl.get("cis_protein_dosage_class")
+        ratio = hl.get("mrna_vs_protein_dosage_slope_ratio")
+        buffered = (prot_cls in _PROT_BUFFERED) or (isinstance(ratio, (int, float)) and ratio < 0.5)
+        if buffered:
+            return {"reason": "amplicon_passenger_or_lineage_confounded", "tier": "sharp",
+                    "false_demote_guarded": False,
+                    "detail": (f"{gene or 'the target'} reads coherent_cis_driver off a CN↔mRNA coupling, but its "
+                               f"PROTEIN dosage slope is BUFFERED (cis_protein_dosage_class={prot_cls}, "
+                               f"mRNA-vs-protein slope ratio={ratio}): the discriminator of a CO-AMPLIFIED "
+                               "PASSENGER in a focal driver amplicon (mRNA up, protein flat) vs a dosage-"
+                               "SENSITIVE driver that scales at both (Gonçalves 2017 PMID 29032074; Schukken "
+                               "2022 PMID 35701073). Confirm the gene is not merely flanking the amplicon's real "
+                               "driver (17q12/ERBB2 → GRB7/STARD3/MIEN1; 8q24/MYC; 11q13/CCND1 — the RNAi "
+                               "driver-vs-passenger test Kao & Pollack 2006 PMID 16708353; Sanchez-Garcia 2014 "
+                               "PMID 25433701).")}
+    if is_silencing and gene not in _VALIDATED_SILENCING and ind in _CIMP_LINEAGE_INDICATIONS:
+        return {"reason": "amplicon_passenger_or_lineage_confounded", "tier": "sharp",
+                "false_demote_guarded": False,
+                "detail": (f"{gene or 'the target'} reads coherent_epigenetic_silencing in {ind}, a CIMP / "
+                           "global-hypermethylation LINEAGE (BRAF-CIMP colorectal / IDH-G-CIMP glioma / gastric-"
+                           "CIMP): a single promoter's methylation↔low-expression correlation can be a PASSENGER "
+                           "of the coordinate lineage program (driven by BRAF/IDH), or a consequence of "
+                           "pre-existing lineage repression, not a targeted silencing of THIS gene (Weisenberger "
+                           "2006 PMID 16804544; Turcan 2012 PMID 22343889; Sproul 2011 PMID 21368160). Needs the "
+                           "global-methylation-burden covariate + functional causality to call targeted.")}
+
+    # TIER (i) SHARP — a coherent call whose CAUSAL confirmation legs are thin: no protein-dosage confirmation
+    # (protein leg data_unavailable / uninformative) AND the patient arm does not corroborate.
+    prot_measured = hl.get("cis_protein_dosage_class") not in (None, "data_unavailable")
+    patient_agrees = (hl.get("patient_dosage_agrees_with_cellline") is True
+                      or hl.get("patient_silencing_agrees_with_cellline") is True)
+    if not prot_measured and not patient_agrees:
+        return {"reason": "statistical_cis_correlation_causally_unconfirmed", "tier": "sharp",
+                "false_demote_guarded": False,
+                "detail": ("The coherence call rests on a STATISTICAL cis-correlation without causal / protein-"
+                           "dosage / patient confirmation (protein-dosage leg data_unavailable and the TCGA "
+                           "patient arm does not corroborate) — correlation ≠ causation; a bulk CN↔expr or "
+                           "immortalized-2D DepMap expr↔dep correlation is a HYPOTHESIS flag, not a proven cell-"
+                           "intrinsic cis-driver (Pollack 2002 PMID 12297621). The causal driver may be trans / "
+                           "enhancer-regulated (e.g. MYC/CRC via WNT + the 8q24 enhancer, NOT copy-number — He "
+                           "1998 PMID 9727977; Sur 2012 PMID 23118011).")}
+    # A coherent call WITH protein-dosage confirmation or patient corroboration → honest positive, no caveat.
+    return None
+
+
+def _causal_attribution_caveat(hl: dict) -> dict | None:
+    """Correlation ≠ causation for the CIS-DOSAGE leg (VERDICT-INERT), always surfaced when a CN→mRNA
+    cis-coupling is present. Names the mRNA-vs-protein dosage SLOPE RATIO (dosage-sensitive driver vs
+    dosage-buffered passenger) + focal-vs-broad amplicon. Fires whenever cis_dosage_class is coupled; None on
+    an uncoupled / unmeasured cis-dosage leg (no cis-coupling to attribute) → byte-stable."""
+    if not (hl.get("cis_dosage_class") or "").startswith("cn_dosage_coupled"):
+        return None
+    return {
+        "mrna_vs_protein_dosage_slope_ratio": hl.get("mrna_vs_protein_dosage_slope_ratio"),
+        "cis_protein_dosage_class": hl.get("cis_protein_dosage_class"),
+        "cn_expr_slope_log2tpm_per_cn": hl.get("cn_expr_slope_log2tpm_per_cn"),
+        "cn_prot_slope_log2abundance_per_cn": hl.get("cn_prot_slope_log2abundance_per_cn"),
+        "relative_cn_iqr": hl.get("relative_cn_iqr"),
+        "detail": ("cis-dosage coupling is CORRELATIONAL, not a formal mediation test: a CN↔mRNA coupling can "
+                   "be a co-amplified neighbour or a shared trans-regulator, not causal cis-dosage. The mRNA-vs-"
+                   "protein dosage SLOPE RATIO is the discriminator — ~1 = dosage-SENSITIVE driver (CN raises "
+                   "both mRNA and protein, ERBB2-like), ≪1 = post-transcriptionally BUFFERED passenger (mRNA "
+                   "up, protein flat; Gonçalves 2017 PMID 29032074). A FOCAL amplicon peak (GISTIC) localizes "
+                   "the driver far better than a broad/arm-level segment (Zack 2013 PMID 24071852; Mermel 2011 "
+                   "PMID 21527027); relative_cn_iqr indexes the CN amplitude available to test dosage."),
+    }
+
+
+def _context_generalization_caveat(hl: dict) -> dict | None:
+    """bulk / purity ≠ cell-intrinsic + cell-line ≠ patient (VERDICT-INERT). The CN↔expr + expr↔dep legs are
+    bulk / immortalized-2D DepMap reads; the patient-cis-coherence facet is the corroboration. Fires on any
+    measured cis-dosage or methylation-silencing coupling; None when neither leg is coupled → byte-stable."""
+    coupled = (hl.get("cis_dosage_class") or "").startswith("cn_dosage_coupled")
+    silenced = (hl.get("methylation_silencing_class") or "").startswith("silencing_coupled")
+    if not (coupled or silenced):
+        return None
+    return {
+        "cis_dosage_evidence_scope": hl.get("cis_dosage_evidence_scope"),
+        "patient_dosage_agrees_with_cellline": hl.get("patient_dosage_agrees_with_cellline"),
+        "patient_silencing_agrees_with_cellline": hl.get("patient_silencing_agrees_with_cellline"),
+        "patient_n_cases_expression": hl.get("patient_n_cases_expression"),
+        "detail": ("The CN↔expression and expression↔dependency legs are BULK / immortalized-2D DepMap reads: a "
+                   "bulk CN↔expr correlation can be tumor-PURITY / whole-segment-CN driven (Aran 2015 PMID "
+                   "26634437; Yoshihara 2013 PMID 24113773), and cell-line coherence is necessary but NOT "
+                   "sufficient for a PATIENT cis-driver claim. The patient-cis-coherence facet (TCGA CN + "
+                   "methylation joined to patient expression) is the corroboration — read "
+                   "patient_dosage_agrees_with_cellline / patient_silencing_agrees_with_cellline. A "
+                   "cis_dosage_evidence_scope of pan_no_indication means the cis-dosage slope is a PAN-cancer "
+                   "read, not indication-specific."),
+    }
+
+
+def _cis_coherence_provenance(hl: dict, target=None, indication=None) -> dict | None:
+    """QUORUM / PROVENANCE summary for the cis-coherence call (VERDICT-INERT): which legs are coherent
+    (CN→mRNA / CN→protein / meth→expr / expr→dep / conjoint), the mRNA-vs-protein slope ratio, amplicon
+    amplitude, patient-corroboration presence, lineage breadth, and the curated validated / CIMP flags. None
+    when the verdict is insufficient (no coherence chain to summarize) → byte-stable negative path."""
+    v = hl.get("cis_coherence_verdict")
+    if v in (None, "insufficient_cis_coherence"):
+        return None
+    gene = (target or "").upper().strip()
+    ind = _norm_ind(indication)
+    legs_coherent = {
+        "cn_to_mrna": (hl.get("cis_dosage_class") or "").startswith("cn_dosage_coupled"),
+        "cn_to_protein": (hl.get("cis_protein_dosage_class") or "").startswith("prot_dosage_coupled"),
+        "methylation_to_expression": (hl.get("methylation_silencing_class") or "").startswith("silencing_coupled"),
+        "expression_to_dependency": hl.get("expression_dependency_correlation_class") in _EXPR_DEP_COHERENT,
+        "conjoint_amp_overexpr": (hl.get("amp_expr_stratification_class") or "").startswith("amplified_overexpressed"),
+    }
+    return {
+        "cis_coherence_verdict": v,
+        "n_legs_coherent": sum(1 for x in legs_coherent.values() if x),
+        "legs_coherent": legs_coherent,
+        "mrna_vs_protein_dosage_slope_ratio": hl.get("mrna_vs_protein_dosage_slope_ratio"),
+        "cis_protein_dosage_class": hl.get("cis_protein_dosage_class"),
+        "relative_cn_iqr": hl.get("relative_cn_iqr"),
+        "n_amplified": hl.get("n_amplified"),
+        "cis_dosage_evidence_scope": hl.get("cis_dosage_evidence_scope"),
+        "patient_dosage_agrees_with_cellline": hl.get("patient_dosage_agrees_with_cellline"),
+        "patient_silencing_agrees_with_cellline": hl.get("patient_silencing_agrees_with_cellline"),
+        "validated_cis_driver_flag": gene in _VALIDATED_CIS_DRIVER_AMP,
+        "validated_silencing_flag": gene in _VALIDATED_SILENCING,
+        "cimp_lineage_indication_flag": ind in _CIMP_LINEAGE_INDICATIONS,
+    }
+
+
+def _headline(cards, fired, verdict_pair, target=None, indication=None):
     def _s(cid):
         return card_summary(cards, cid)
     cis = _s("cis-feature-expression-coherence")   # GoF leg-1 (mRNA)
@@ -303,6 +505,30 @@ def _headline(cards, fired, verdict_pair):
     # verdict echo, so it stays verdict-inert (byte-stable).
     hl["claim_vector"] = cis_coherence_claim_vector(hl, cards)
     hl["key_signals"] = cis_coherence_key_signals(hl, cards)
+    # ── VERDICT-INERT cis-coherence CONFIDENCE surface (v1.4.0) ─────────────────────────────────────
+    # Each best-effort: a fault in one enrichment field must NEVER discard the cis-coherence spine already
+    # built in `hl` (same degrade discipline as differentiation / tumor-presence). Gates on already-emitted
+    # headline fields; feeds NO resolver → cis_coherence_verdict + driving_rule_id + resolver golden byte-stable.
+    try:
+        hl["cis_coherence_confidence_caveat"] = _cis_coherence_confidence_caveat(hl, target=target, indication=indication)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["cis_coherence_confidence_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["cis_coherence_confidence_caveat"] = None
+    try:
+        hl["causal_attribution_caveat"] = _causal_attribution_caveat(hl)
+    except Exception as exc:  # noqa: BLE001
+        hl.setdefault("_enrichment_errors", {})["causal_attribution_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["causal_attribution_caveat"] = None
+    try:
+        hl["context_generalization_caveat"] = _context_generalization_caveat(hl)
+    except Exception as exc:  # noqa: BLE001
+        hl.setdefault("_enrichment_errors", {})["context_generalization_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["context_generalization_caveat"] = None
+    try:
+        hl["cis_coherence_provenance"] = _cis_coherence_provenance(hl, target=target, indication=indication)
+    except Exception as exc:  # noqa: BLE001
+        hl.setdefault("_enrichment_errors", {})["cis_coherence_provenance"] = f"{type(exc).__name__}: {exc}"
+        hl["cis_coherence_provenance"] = None
     # The per-question (data·signal·confidence) LEADING table — verdict-INERT projection over the leg
     # claim_vector just built (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT); best-effort (never abort the spine).
     try:
@@ -349,6 +575,9 @@ _SYNTHESIS_FACET_KEYS = (
     # protein legs (VERDICT-INERT): CN→protein dosage + the mRNA-vs-protein buffering ratio, and protein→dep
     "cis_protein_dosage_class", "mrna_vs_protein_dosage_slope_ratio", "abundance_dependency_class",
     "patient_dosage_agrees_with_cellline", "patient_silencing_agrees_with_cellline",
+    # VERDICT-INERT cis-coherence CONFIDENCE surface (v1.4.0) — the statistical-vs-causal over-call surface
+    "cis_coherence_confidence_caveat", "causal_attribution_caveat", "context_generalization_caveat",
+    "cis_coherence_provenance",
     "claim_vector", "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
@@ -359,12 +588,13 @@ _SYNTHESIS_FACET_KEYS = (
 )
 
 
-def _synthesis_facet(cards, fired, verdict_pair):
+def _synthesis_facet(cards, fired, verdict_pair, target=None, indication=None):
     """Compact, VERDICT-INERT cis-coherence facet for the composed synthesis. Reuses _headline (single
     source) + returns the LEG-decomposition claim_vector (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT) with its
-    citable atoms + the cross-grain patient-agreement flags. The verdict is an INTERACTION owned by the
-    resolver — this never echoes or moves it."""
-    h = _headline(cards, fired, verdict_pair)
+    citable atoms + the cross-grain patient-agreement flags + the v1.4.0 confidence surface. The verdict is
+    an INTERACTION owned by the resolver — this never echoes or moves it. target/indication are signature-
+    introspected by the fan-out (tp_fanout) so the caveats' curated validated/CIMP guards work composed too."""
+    h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
     facet["_facet_note"] = ("Deterministic cis-feature-coherence facet; claim_vector is the LEG decomposition "
                             "of the coherence cross-tab (the verdict is their INTERACTION, owned by the "
@@ -383,6 +613,10 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
         synthesize_fn=make_synthesize_fn(_LENS),
+        # --literature lane (VERDICT-INERT): optional structured LLM lit-review scoped to the cis-coherence
+        # axes, PMID-verified (verify_citations) + fed into the --synthesize narrator. Attaches
+        # decision['literature_synthesis']; never moves the fixed cis_coherence_verdict.
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
         # Signals-first: tuned sub-group reader for the cis-coherence vocabulary. Verdict-INERT.

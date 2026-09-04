@@ -452,12 +452,56 @@ MECHANISM_PHARMACOLOGY = LensConfig(
 
 CIS_FEATURE_COHERENCE = LensConfig(
     name="cis-feature-coherence",
-    thesis="whether the locus→expression→dependency chain is COHERENT (cis copy-number dosage coupling, "
-           "methylation silencing, expression↔dependency) — a data-integrity / mechanism-plausibility context.",
-    relevance_prompt="give the cis-feature-coherence context read (descriptive; no nomination call).",
+    thesis="whether the locus→expression→dependency chain is COHERENT (cis copy-number dosage coupling at "
+           "BOTH mRNA and PROTEIN, methylation silencing, expression↔dependency, conjoint amp∩overexpr "
+           "addiction) — a data-integrity / mechanism-plausibility context, WHILE distinguishing a CAUSAL, "
+           "dosage-driven, functionally-validated cis-DRIVER / TARGETED epigenetic silencing from a merely "
+           "STATISTICALLY-correlated chain: a CN↔mRNA cis-coupling can be a CO-AMPLIFIED PASSENGER bystander "
+           "in a focal driver amplicon (a gene FLANKING the real driver — a 17q12 ERBB2 neighbour "
+           "GRB7/STARD3/MIEN1, an 8q24 MYC neighbour, an 11q13 CCND1 neighbour: dosage-coupled at mRNA but "
+           "dosage-BUFFERED at protein), and a methylation↔low-expression correlation can be a CIMP / global-"
+           "hypermethylation LINEAGE passenger rather than a targeted silencing of THIS gene (the cis-"
+           "correlation-over-calls-a-causal-cis-driver trap).",
+    relevance_prompt="give the cis-feature-coherence context read (descriptive; no nomination call), separating "
+                     "a causal-validated cis-driver / targeted-silencing from a statistically-correlated / "
+                     "co-amplified-passenger / dosage-buffered / CIMP-confounded chain.",
     axis_labels={"CIS_DOSAGE": "cis copy-number dosage", "SILENCING": "methylation silencing",
                  "EXPR_DEP": "expression↔dependency", "CONJOINT": "amp∩overexpr addiction"},
-    scope_exclusions=("nomination verdict",),
+    scope_exclusions=("nomination verdict", "copy-number / amplification FREQUENCY + alteration CLASS "
+                      "(genomic-alteration-profile)", "single-target dependency MAGNITUDE "
+                      "(functional-requirement)", "expression / abundance PRESENCE claim (tumor-presence)"),
+    # NARRATOR RULE: lead with causal-validated cis-driver / targeted-silencing vs statistically-correlated /
+    # co-amplified-passenger / dosage-buffered / CIMP-confounded, weigh the mRNA-vs-protein dosage SLOPE RATIO,
+    # and breadcrumb the frequency / magnitude / presence hand-offs.
+    polarity_note=(
+        "LEAD by separating a CAUSAL, dosage-driven, functionally-validated cis-DRIVER / TARGETED epigenetic "
+        "silencing from a merely STATISTICALLY-correlated chain. A CN↔mRNA cis-coupling is CORRELATIONAL, not a "
+        "causal mediation test: it can be a CO-AMPLIFIED PASSENGER bystander in a focal driver amplicon (a gene "
+        "flanking the real driver — GRB7/STARD3/MIEN1 on 17q12/ERBB2, an 8q24/MYC or 11q13/CCND1 neighbour), "
+        "dosage-coupled at mRNA yet a passenger. The BUILT-IN discriminator is the mRNA-vs-protein dosage SLOPE "
+        "RATIO: a genuine cis-driver is dosage-SENSITIVE at the PROTEIN level (protein scales with CN, ERBB2-like; "
+        "Gonçalves 2017), whereas a co-amplified passenger is dosage-BUFFERED (mRNA up, protein flat) — so a "
+        "coherent_cis_driver resting on an mRNA-only slope with a BUFFERED / uncoupled protein slope is the "
+        "over-call. A methylation↔low-expression silencing can likewise be a CIMP / global-hypermethylation "
+        "LINEAGE passenger (BRAF-CIMP colorectal, IDH-G-CIMP glioma) or a consequence of pre-existing lineage "
+        "repression, not a targeted silencing of THIS gene — but CIMP membership does NOT auto-demote a locus "
+        "with independent functional causality (MLH1 is BOTH CIMP-associated AND a validated biallelic MSI "
+        "driver). When cis_coherence_confidence_caveat is present, report accordingly: reason "
+        "statistical_cis_correlation_causally_unconfirmed = a coherence call resting on a correlation without "
+        "causal / protein-dosage / patient confirmation; reason amplicon_passenger_or_lineage_confounded = a "
+        "dosage-BUFFERED protein slope in a focal amplicon (co-amplified passenger) OR a CIMP-lineage / bulk-"
+        "purity methylation confound; reason validated_cis_driver_or_silencing = a canonical validated cis-driver "
+        "(ERBB2/MYCN/MDM2/CCND1 amp) or targeted silencing (MLH1/MGMT/CDKN2A) — NOT an over-call, do NOT demote "
+        "it even if its protein slope reads buffered. COHERENCE ≠ ACTIONABILITY: a coherent chain is a mechanism-"
+        "plausibility signal, not a druggability or nomination call (a coherent chain for a passenger is still a "
+        "passenger; CCND1-amp is a real 11q13 focal driver yet CDK4/6i benefit is NOT CCND1-amp-selected). "
+        "BULK / CELL-LINE generalization: the CN↔expr and expr↔dependency legs are bulk / immortalized-2D-"
+        "DepMap reads — a bulk CN↔expr correlation can be tumor-purity / whole-segment-CN driven, and cell-line "
+        "coherence is necessary but not sufficient for a patient cis-driver claim; the patient-cis-coherence "
+        "facet is the corroboration (context_generalization_caveat). The alteration FREQUENCY + class is owned "
+        "by genomic-alteration-profile, the dependency MAGNITUDE by functional-requirement, and the "
+        "expression/abundance PRESENCE by tumor-presence — verdict-inert breadcrumbs here. Every coherence class "
+        "is a DESCRIPTIVE pattern, not a drug call; this lens never mints or moves a nomination."),
     mode="descriptive",
     # DESCRIPTIVE mode STILL builds a COLLAPSED VERDICT prompt line, and — unlike combination-and-vulnerability
     # / target-intrinsic (truly tokenless) — this skill supplies verdict_fn=_verdict and emits a RESOLVED token
