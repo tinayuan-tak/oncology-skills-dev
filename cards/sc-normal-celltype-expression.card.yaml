@@ -81,6 +81,13 @@ outputs:
     - expressing_donor_fraction_max       # cross-donor consistency at the peak cell type
     - safety_essential_flags              # {cell_type: median_det} for safety-essential cell types only
     - n_cell_types_above_20pct            # breadth indicator: how many cell types have median_det > 0.20
+    # ABUNDANCE at the liability-anchor cell type (#984 Tier-2) — the liability ladder above is
+    # DETECTION-only; a normal cell detected at trivial vs high abundance reads the same liability.
+    # Tissue-robust fixed bands on median_abund (log1p_cp10k). Display/confidence — VERDICT-INERT here
+    # (a low_abundance normal liability is a candidate veto down-weight, owned by tumor-selectivity,
+    # backtest-gated — NOT a rung on this card).
+    - sc_normal_abundance_class           # low_/moderate_/high_abundance at the liability-driving cell type
+    - sc_normal_peak_median_abund         # median_abund (log1p_cp10k) at that cell type
     - tissues_queried                     # list of tissue shards used (depends on indication)
     - method_version
 
@@ -104,6 +111,13 @@ outputs:
                                    # arbitrated, NOT a hard veto (a validated ADC target must survive).
       - none                       # no safety-essential expression above the 0.05 floor
       - data_unavailable           # no product for queried tissue(s) OR insufficient donor coverage
+    sc_normal_abundance_class:             # normal-tissue abundance at the liability-anchor cell type (#984 Tier-2).
+                                           # Fixed bands = p25/p75 of the detected-abundance distribution, validated
+                                           # tissue-invariant across colon/lung/kidney/liver/brain/pancreas.
+      - high_abundance             # median_abund >= 0.64 log1p_cp10k — genuinely high normal expression (EPCAM/CEA-class)
+      - moderate_abundance         # 0.24 <= median_abund < 0.64 — modest (ERBB2-class)
+      - low_abundance              # median_abund < 0.24 — trivial-abundance normal detection (FOLR1-class)
+      - data_unavailable           # no detected normal cell / abundance column absent
 
 thresholds:
   high_liability_median_det: 0.50
