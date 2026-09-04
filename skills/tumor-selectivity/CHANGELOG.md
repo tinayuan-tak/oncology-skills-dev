@@ -4,6 +4,27 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.23.0
+- **sc-normal essential-liability SEVERITY grade (W3c, VERDICT-INERT).** A fired critical-organ /
+  origin-tissue liability is now graded `high_severity | moderate_severity | low_severity` from the
+  driver's magnitude × donor consistency × independent-atlas replication — the three fields
+  analysis-methods #572 already emits per-driver, so this is DERIVED in the skill (`_sc_normal_essential_
+  severity`), **not** a new card field (no re-freeze, no shared-card `field_disposition` churn). It
+  distinguishes a robust hit (INS β-cell 1.0 / 11 atlases → high) from a marginal single-atlas one just
+  above the 0.20 off-origin floor (→ low). Surfaced inside `sc_normal_liability_detail`
+  (`"…(11 atlases, high-severity)"`), a new `headline.sc_normal_essential_severity` field, and the
+  synthesis facet. Thresholds mirror the card's HIGH_LIABILITY ladder (det≥0.50 ∧ donor≥0.70) + a
+  ≥2-atlas replication floor.
+- **`data_unavailable` → explicit "unknown-mass", not a silent clean pass (W3c).** When the single-cell
+  critical-organ safety arm is `data_unavailable` on an otherwise clean axis-A selective call, a new
+  severity-2 tension (`source: sc_normal_unassessed`) says the arm is UNASSESSED — not safety-cleared at
+  cell-type resolution. Complements the pre-existing numeric `_sel_unknown_mass` (which already counts
+  the blind arm) by NAMING it in the narrative. Silent when sc-normal is measured or a veto already
+  downgraded (the veto tension keeps the slot).
+- **Verdict-INERT / additive:** derivations over the already-built headline / driver fields; never
+  touches `selectivity_class`, the normal-breadth / stromal-confound veto spine, or any resolver rung.
+  CEACAM5/TACSTD2 replay verdicts unchanged; resolver golden-stable.
+
 ## 1.21.0
 - **`measurement_caveat` — disambiguate a coverage-gap verdict that rests on a measured signal (VERDICT-INERT).**
   A live FAP/PDAC pass exposed that a decisively **stroma-driven** target resolves to `not_informative`

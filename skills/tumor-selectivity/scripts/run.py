@@ -73,7 +73,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.22.0"   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.23.0"   # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -327,13 +327,42 @@ def _selectivity_verdict_polarity(v) -> str:
 _SELECTIVITY_KILLER_VERDICTS = frozenset({"selective_but_broadly_normal", "selective_but_stromal_confound"})
 
 
+def _sc_normal_essential_severity(sc_normal: dict):
+    """W3c: GRADE a fired sc-normal essential liability by magnitude x consistency x replication —
+    all three already emitted per-driver (analysis-methods #572): detection, donor fraction, and the
+    independent-atlas count. A well-replicated high-detection hit (INS β-cell 1.0 / 11 atlases) is a
+    HIGH-severity critical-organ liability; a marginal single-atlas hit just above the 0.20 off-origin
+    floor is LOW-severity. VERDICT-INERT confidence grade — the veto binary
+    (sc_normal_safety_essential_class) is unchanged; this only annotates HOW STRONG a fired liability
+    is. Returns high_severity | moderate_severity | low_severity, or None when no essential hit fired
+    (or the driver magnitude fields are absent — older summaries)."""
+    cls = (sc_normal or {}).get("sc_normal_safety_essential_class")
+    if cls not in ("critical_organ_liability", "origin_tissue_liability"):
+        return None
+    det = sc_normal.get("sc_normal_essential_max_detection_fraction")
+    if not isinstance(det, (int, float)):
+        return None                                  # no magnitude → cannot grade (do not guess)
+    frac = sc_normal.get("sc_normal_essential_donor_fraction")
+    frac = frac if isinstance(frac, (int, float)) else 0.0
+    n_ds = sc_normal.get("sc_normal_essential_n_datasets_reliable")
+    n_ds = n_ds if isinstance(n_ds, int) else 0
+    # Thresholds mirror the card's HIGH_LIABILITY ladder (det>=0.50 AND donor>=0.70) plus a >=2-atlas
+    # replication floor; a single-atlas OR sub-0.30 detection hit is low-confidence.
+    if det >= 0.50 and frac >= 0.70 and n_ds >= 2:
+        return "high_severity"
+    if det < 0.30 or n_ds <= 1:
+        return "low_severity"
+    return "moderate_severity"
+
+
 def _sc_normal_liability_detail(sc_normal: dict):
     """Human-readable named-organ liability from the sc-normal essential-cell driver, or None.
 
-    Names the organ + cell type + (when present) the independent-atlas replication count the
-    safety-essential class keyed on — e.g. "kidney proximal tubule cell (3 atlases)". Populated
-    whenever an essential hit fired (critical_organ_liability OR origin_tissue_liability), so the
-    named liability is preserved even when a coarser veto arm wins the verdict LABEL (the masking fix)."""
+    Names the organ + cell type + (when present) the independent-atlas replication count AND the W3c
+    severity grade the safety-essential class keyed on — e.g. "kidney proximal tubule cell (3 atlases,
+    high-severity)". Populated whenever an essential hit fired (critical_organ_liability OR
+    origin_tissue_liability), so the named liability is preserved even when a coarser veto arm wins the
+    verdict LABEL (the masking fix)."""
     cls = (sc_normal or {}).get("sc_normal_safety_essential_class")
     if cls not in ("critical_organ_liability", "origin_tissue_liability"):
         return None
@@ -343,10 +372,13 @@ def _sc_normal_liability_detail(sc_normal: dict):
     tissue = sc_normal.get("sc_normal_essential_max_tissue")
     n_atlas = sc_normal.get("sc_normal_essential_n_datasets_reliable")
     where = f"{tissue} {cell}" if tissue else str(cell)
-    detail = where
+    parts = []
     if isinstance(n_atlas, int) and n_atlas > 0:
-        detail += f" ({n_atlas} atlas{'es' if n_atlas != 1 else ''})"
-    return detail
+        parts.append(f"{n_atlas} atlas{'es' if n_atlas != 1 else ''}")
+    sev = _sc_normal_essential_severity(sc_normal)
+    if sev:
+        parts.append(f"{sev.split('_')[0]}-severity")   # "high-severity"
+    return f"{where} ({', '.join(parts)})" if parts else where
 
 
 def _selectivity_tension_extra(headline: dict):
@@ -376,6 +408,16 @@ def _selectivity_tension_extra(headline: dict):
                          "named-organ safety flag (severity owned by on-target-safety-liability + "
                          "modality-fit)"),
                 "source": "normal_liability_flag", "severity": 3}
+    # W3c(b): the single-cell critical-organ safety arm is UNASSESSED (data_unavailable) on an
+    # otherwise clean axis-A selective call. The blind arm already lifts _sel_unknown_mass numerically,
+    # but the narrative would otherwise read as a clean safety pass — surface it explicitly so a coverage
+    # gap is treated as unknown, not clean. Only when NO veto fired (resolved is a clean axis-A positive).
+    if resolved in _AXIS_A_SELECTIVE and \
+            headline.get("sc_normal_safety_essential_class") == "data_unavailable":
+        return {"text": ("tumor-selective, but the single-cell critical-organ safety arm is UNASSESSED "
+                         "(no normal-tissue atlas coverage for the queried tissues) — not safety-cleared "
+                         "at cell-type resolution; treat as unknown, not a clean normal-tissue pass"),
+                "source": "sc_normal_unassessed", "severity": 2}
     return None
 
 
@@ -714,6 +756,10 @@ def _headline(cards, fired, verdict_pair):
         "sc_normal_essential_max_tissue":   sc_normal.get("sc_normal_essential_max_tissue"),
         "sc_normal_essential_max_detection_fraction": sc_normal.get("sc_normal_essential_max_detection_fraction"),
         "sc_normal_essential_n_datasets_reliable": sc_normal.get("sc_normal_essential_n_datasets_reliable"),
+        # W3c: verdict-INERT severity grade of the fired essential liability (magnitude x consistency x
+        # replication) — distinguishes a robust critical-organ hit (INS β-cell 1.0/11 atlases) from a
+        # marginal single-atlas one just above the 0.20 off-origin floor. None when no essential hit.
+        "sc_normal_essential_severity":     _sc_normal_essential_severity(sc_normal),
         # Abundance at the liability-anchor cell (merged #571) — previously emitted+declared but consumed
         # by NO skill; surface it so a low-abundance normal footprint (FOLR1-class) is visible next to the
         # liability. + the single-cell tumor-vs-normal window denominator (the positive atlas use).
@@ -834,6 +880,7 @@ _SYNTHESIS_FACET_KEYS = (
     # the NAMED sc-normal essential-cell liability (de-anonymized organ+cell+atlases) + the masking-safe
     # detail string + abundance at the liability cell — so the synthesis narrator names the organ.
     "sc_normal_essential_max_cell_type", "sc_normal_essential_max_tissue", "sc_normal_liability_detail",
+    "sc_normal_essential_severity",   # W3c verdict-inert severity grade of the fired essential liability
     "sc_normal_abundance_class",
     "percentile_crossing_class", "fraction_tumor_above_normal_p95", "distribution_overlap_tumor_normal",
     "selectivity_allgene_percentile",
