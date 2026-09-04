@@ -111,16 +111,20 @@ def test_safety_essential_class_critical_organ_vs_origin_tissue():
 
 
 def test_safety_essential_flags_includes_above_floor():
-    """Entries above the 0.05 floor in safety-essential cell types must appear in flags."""
+    """Entries above the 0.05 flag floor appear in safety_essential_flags for transparency — but a
+    marginal off-origin hit (0.08, below the 0.20 off-origin critical floor) does NOT flip to
+    critical_organ_liability (the 2026-09-04 ambient-noise floor). A det=0.30 hit DOES."""
     rows = _tier1_rows([
-        ("hepatocyte",   10, 0.08, 0.20),   # above 0.05 floor
+        ("hepatocyte",   10, 0.08, 0.20),   # above 0.05 flag floor, below 0.20 off-origin critical floor
         ("fibroblast",   10, 0.05, 0.10),
     ])
     r = S.classify_sc_normal_expression(rows)
-    assert "hepatocyte" in r["safety_essential_flags"]
+    assert "hepatocyte" in r["safety_essential_flags"]                 # recorded for transparency
     assert r["safety_essential_flags"]["hepatocyte"] == pytest.approx(0.08)
-    # hepatocyte hit with no origin_tissues passed → treated as off-origin critical organ (conservative)
-    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    assert r["sc_normal_safety_essential_class"] == "none"             # sub-floor off-origin does NOT flip
+    # a hepatocyte hit ABOVE the 0.20 floor with no origin passed → off-origin critical (conservative)
+    r2 = S.classify_sc_normal_expression(_tier1_rows([("hepatocyte", 10, 0.30, 0.45)]))
+    assert r2["sc_normal_safety_essential_class"] == "critical_organ_liability"
 
 
 def test_classify_moderate_liability_by_det():
@@ -468,6 +472,43 @@ def test_per_cell_type_top_carries_abundance_and_atlas_count():
     top = S.classify_sc_normal_expression(rows)["per_cell_type_top"]
     assert top[0]["median_abund"] == pytest.approx(0.85 * 3.0)   # _tier1_rows sets median_abund = med*3
     assert top[0]["n_datasets_reliable"] == max(1, 20 // 5)
+
+
+def test_off_origin_subfloor_hit_does_not_flip_to_critical():
+    """CDH17 archetype: a GI target with strong ORIGIN (colon) essential hits + a MARGINAL (det=0.156,
+    single-atlas) off-origin cortical-neuron hit must read origin_tissue_liability, NOT critical_organ_
+    liability — the sub-0.20 off-origin hit is ambient/annotation noise and must not flip the verdict."""
+    rows = pd.concat([
+        _tier1_rows([("colonocyte", 20, 0.70, 0.85), ("BEST4+ colonocyte", 20, 0.92, 0.90)], tissue="colon"),
+        _tier1_rows([("L4/5 intratelencephalic projecting glutamatergic neuron", 6, 0.156, 0.30)], tissue="brain"),
+    ], ignore_index=True)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "origin_tissue_liability"   # was critical_organ_liability
+    # the marginal off-origin hit is still RECORDED for transparency
+    assert any("neuron" in ct for ct in r["safety_essential_flags"])
+    # named driver is the ORIGIN colon cell, not the sub-floor brain neuron
+    assert r["sc_normal_essential_max_tissue"] == "colon"
+
+
+def test_off_origin_above_floor_still_fires_critical():
+    """FOLR1/DLL3 archetype: an off-origin essential hit ABOVE the 0.20 floor still fires the hard veto."""
+    rows = pd.concat([
+        _tier1_rows([("colonocyte", 20, 0.70, 0.85)], tissue="colon"),
+        _tier1_rows([("kidney loop of Henle epithelial cell", 8, 0.61, 0.70)], tissue="kidney"),
+    ], ignore_index=True)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    assert r["sc_normal_essential_max_tissue"] == "kidney"   # named driver is the above-floor off-origin cell
+    assert r["sc_normal_essential_max_detection_fraction"] == pytest.approx(0.61)
+
+
+def test_only_subfloor_off_origin_hit_reads_none():
+    """A lone marginal off-origin essential hit (no origin hit) → class 'none', no named driver."""
+    rows = _tier1_rows([("cardiac muscle cell", 6, 0.12, 0.20)], tissue="heart")
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "none"
+    assert r["sc_normal_essential_max_cell_type"] is None
+    assert "cardiac muscle cell" in r["safety_essential_flags"]   # still recorded for transparency
 
 
 def test_new_fields_present_in_data_unavailable_branch():

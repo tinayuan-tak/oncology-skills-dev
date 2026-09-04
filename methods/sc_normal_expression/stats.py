@@ -96,6 +96,16 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     # Floor at 0.05: the Tier-1 WHERE median_det > 0.01 filter lets near-zero values through;
     # below 0.05 is within census annotation noise (cell-type contaminants, misassignments).
     SAFETY_FLAG_FLOOR = 0.05
+    # OFF-ORIGIN critical-organ floor (0.20, backtest-gated 2026-09-04): a hit in a NON-origin critical
+    # organ only flips the verdict to critical_organ_liability if its detection clears this higher bar.
+    # 0.05–0.20 in an off-origin organ is the scRNA ambient-contamination / marginal-annotation band — a
+    # single-atlas det=0.156 "L4/5 cortical neuron" hit for a GI cadherin (CDH17) is not a real CNS
+    # liability, yet under the 0.05 floor it flipped CDH17/COADREAD to critical via off-origin-dominates.
+    # Aligns with MODERATE_LIABILITY_DET (0.20). Backtest: separates the CDH17 false positive (0.156) from
+    # every true positive — DLL3 0.815 / FOLR1 0.708 / ERBB2 0.607 / MSLN 0.413. Origin-tissue essential
+    # hits keep the 0.05 floor (they are window-arbitrated, not a hard veto). Sub-floor off-origin hits are
+    # still recorded in safety_essential_flags for transparency; they simply do not flip the class.
+    CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR = 0.20
     safety_flags: dict[str, float] = {}
     # ORGAN-AWARE split (axis-D best-practice, 2026-08-07): a safety-essential-cell hit in a
     # NON-tissue-of-origin CRITICAL organ (heart/liver/kidney/marrow) is the hard-veto disqualifier
@@ -123,9 +133,12 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
             is_origin = bool(row_tissue is not None and origin and row_tissue in origin)
             if is_origin:
                 essential_origin_only = True
-            else:
-                # non-origin critical organ (or tissue unknown → treat as off-origin, conservative)
+            elif det_val > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR:
+                # non-origin critical organ (or tissue unknown → treat as off-origin, conservative),
+                # ABOVE the ambient-contamination floor → the hard-veto class.
                 essential_off_origin = True
+            # else: off-origin but sub-floor (0.05–0.20) → recorded in flags/records for transparency,
+            # does NOT flip to critical_organ_liability (marginal single-atlas / ambient-noise band).
             essential_records.append({
                 "cell_type": str(row["cell_type"]),
                 "tissue": str(row["tissue"]) if has_tissue else None,
@@ -180,11 +193,18 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     n_above_20 = int((reliable[det_col] > 0.20).sum())
 
     # NAMED essential-cell driver: the worst essential cell the veto actually keyed on. When an
-    # off-origin critical-organ hit exists (→ critical_organ_liability), name the argmax-detection cell
-    # AMONG the off-origin essential hits (the veto driver); else name the origin-tissue essential hit.
-    # This lets the verdict/headline say "kidney proximal tubule, 3 atlases" instead of an anonymous flag.
-    _driver_pool = ([e for e in essential_records if e["is_off_origin"]] if essential_off_origin
-                    else essential_records)
+    # off-origin critical-organ hit fired (→ critical_organ_liability), name the argmax-detection cell
+    # AMONG the ABOVE-FLOOR off-origin essential hits (the veto driver, not a sub-floor ambient hit); when
+    # only origin-tissue essential hits fired, name the origin cell; when NO liability class fired (only
+    # sub-floor off-origin hits), name nothing. This lets the verdict/headline say "kidney proximal tubule,
+    # 3 atlases" instead of an anonymous flag — and never names a sub-floor hit that did not move the class.
+    if essential_off_origin:
+        _driver_pool = [e for e in essential_records
+                        if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR]
+    elif essential_origin_only:
+        _driver_pool = essential_records
+    else:
+        _driver_pool = []
     essential_driver = (max(_driver_pool, key=lambda e: e["median_detection_fraction"])
                         if _driver_pool else None)
 
