@@ -38,10 +38,13 @@ def test_level_is_progressive_disclosure():
     nom = make_nomination()
     k = {lvl: build_ir(nom, resolve_spec(level=lvl, scope="all")).present_kinds()
          for lvl in ("L0", "L1", "L2", "L3")}
-    assert k["L0"] <= k["L1"] <= k["L2"] <= k["L3"]
+    assert k["L0"] <= k["L1"]
     assert vocab.CLAIM_CHIPS not in k["L0"]
-    assert vocab.PROVENANCE not in k["L2"]
-    assert vocab.PROVENANCE in k["L3"]
+    # L1 shows claim_chips (no question_table yet); L2+ SWAPS to the question_table (dedupe suppresses
+    # the redundant chips) — a deliberate swap, not strict cumulative.
+    assert vocab.CLAIM_CHIPS in k["L1"] and vocab.QUESTION_TABLE not in k["L1"]
+    assert vocab.QUESTION_TABLE in k["L2"] and vocab.CLAIM_CHIPS not in k["L2"]
+    assert vocab.PROVENANCE not in k["L2"] and vocab.PROVENANCE in k["L3"]
 
 
 def test_scope_gating_excludes_descriptive():

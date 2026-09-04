@@ -147,6 +147,8 @@ class HtmlBackend:
     def _report_header(self, p: dict) -> list:
         tgt, ind = _esc(p.get("target") or "—"), _esc(p.get("indication") or "—")
         out = [f"<h1>Target report — {tgt} × {ind}</h1>"]
+        if p.get("thesis"):
+            out.append(f"<p class='sub'>{_esc(_humanize(p['thesis']))}</p>")
         rec = p.get("recommendation")
         if rec:
             # map the actual recommendation vocabulary → semantic badge color (was only go/hold/kill,
@@ -171,7 +173,8 @@ class HtmlBackend:
     def _skill_header(self, p: dict) -> list:
         glyph = vocab.polarity_glyph(p.get("polarity"))
         call = p.get("call")
-        verdict = call if call else vocab.polarity_label(p.get("polarity"))
+        verdict = call or ("context (descriptive)" if p.get("role") in ("descriptive", "inert")
+                           else vocab.polarity_label(p.get("polarity")))
         deciding = " <span class='deciding'>deciding axis</span>" if p.get("is_deciding") else ""
         out = [f"<div class='stitle'><span class='glyph'>{_esc(glyph)}</span>"
                f"{_esc(p.get('title'))} — {_esc(verdict)}{deciding}</div>"]
@@ -295,11 +298,13 @@ class HtmlBackend:
         return out
 
     def _coherence(self, p: dict) -> list:
+        # thesis is in the header; this block adds the coherence class + any caveats.
         out = []
-        if p.get("thesis"):
-            out.append(f"<p class='kv'><b>Thesis:</b> {_esc(_humanize(p['thesis']))}</p>")
         if p.get("coherence"):
-            out.append(f"<p class='kv'><b>Coherence:</b> {_esc(p['coherence'])}</p>")
+            out.append(f"<p class='kv'><b>Coherence:</b> {_esc(_humanize(p['coherence']))}</p>")
+        cav = p.get("caveats") or []
+        if cav:
+            out.append("<ul class='chips'>" + "".join(f"<li>{_esc(c)}</li>" for c in cav) + "</ul>")
         return out
 
     def _modality_matrix(self, p: dict) -> list:
@@ -369,10 +374,11 @@ def _signal_strip_svg(rows, deciding_short) -> str:
         cyr = TOP + i * RH + RH / 2
         lv = r.get("level")
         dec = "  ◆ deciding" if r.get("is_deciding") else ""
-        call = r.get("call") or r.get("polarity") or ""
+        # plain-language sublabel: prefer the honest_phrase, fall back to a de-snake-cased call.
+        sub = r.get("honest_phrase") or _humanize(r.get("call")) or r.get("polarity") or ""
         s.append(f"<text x='{LBL-14}' y='{cyr-2:.1f}' text-anchor='end' font-size='12.5' fill='{ink}'>"
                  f"{_esc(r.get('title'))}</text>")
-        vline = _esc(str(call)) + ("  · not evaluated" if lv is None else "") + dec
+        vline = _esc(str(sub)) + ("  · not evaluated" if lv is None else "") + dec
         s.append(f"<text x='{LBL-14}' y='{cyr+12:.1f}' text-anchor='end' font-size='10.5' "
                  f"fill='{muted}'>{vline}</text>")
         if lv is None:

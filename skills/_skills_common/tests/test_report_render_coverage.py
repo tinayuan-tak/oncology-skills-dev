@@ -38,7 +38,10 @@ def test_every_tier_kind_is_a_known_block_kind():
 def test_present_kinds_are_all_renderable_at_L3():
     ir = build_ir(make_nomination(), resolve_spec("full"))
     present = ir.present_kinds()
-    for k in (vocab.REPORT_HEADER, vocab.SKILL_HEADER, vocab.CONFIDENCE, vocab.CLAIM_CHIPS,
+    # NB: CLAIM_CHIPS is intentionally suppressed at L2+ when a question_table is present (dedupe), so
+    # it is NOT guaranteed at L3; QUESTION_TABLE stands in for it. (Handler coverage for CLAIM_CHIPS is
+    # guaranteed separately by test_every_backend_handles_every_block_kind.)
+    for k in (vocab.REPORT_HEADER, vocab.SKILL_HEADER, vocab.CONFIDENCE,
               vocab.QUESTION_TABLE, vocab.PHASE_METRICS, vocab.FIGURE, vocab.PROVENANCE, vocab.ABOUT):
         assert k in present, f"expected {k} present at L3"
     for name, kinds in be.coverage().items():

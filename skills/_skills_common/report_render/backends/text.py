@@ -98,6 +98,8 @@ class TextBackend:
         tgt = p.get("target") or "—"
         ind = p.get("indication") or "—"
         out = self._h1(f"Target report — {tgt} × {ind}")
+        if p.get("thesis"):
+            out.append(f"{self._b('Thesis')}: {_humanize(p['thesis'])}")
         rec = p.get("recommendation")
         if rec:
             out.append("")
@@ -119,8 +121,9 @@ class TextBackend:
         glyph = vocab.polarity_glyph(p.get("polarity"))
         title = p.get("title") or p.get("short")
         call = p.get("call")
-        # call=None (gateless) → lead with the honest phrase, never a blank verdict.
-        verdict = call if call else vocab.polarity_label(p.get("polarity"))
+        # call=None (gateless descriptive/inert) → label it plainly as context, never "not scored".
+        verdict = call or ("context (descriptive)" if p.get("role") in ("descriptive", "inert")
+                           else vocab.polarity_label(p.get("polarity")))
         head = f"{glyph} {title} — {verdict}"
         if p.get("is_deciding"):
             head += "  [deciding axis]"
@@ -218,9 +221,9 @@ class TextBackend:
                    f"{c.get('against', 0)} against")
         for r in rows:
             g = vocab.polarity_glyph(r.get("polarity"))
-            call = r.get("call") or vocab.polarity_label(r.get("polarity"))
+            sub = r.get("honest_phrase") or _humanize(r.get("call")) or vocab.polarity_label(r.get("polarity"))
             tail = "  [deciding]" if r.get("is_deciding") else ""
-            out.append(self._bullet(f"{g} {r.get('title')} — {call}{tail}"))
+            out.append(self._bullet(f"{g} {r.get('title')} — {sub}{tail}"))
         desc = p.get("descriptive") or []
         if desc:
             out.append(f"descriptive (context): {', '.join(desc)}")
@@ -244,11 +247,12 @@ class TextBackend:
         return out
 
     def _coherence(self, p: dict) -> list:
+        # thesis is in the header; this block adds the coherence class + any caveats.
         bits = []
-        if p.get("thesis"):
-            bits.append(f"{self._b('Thesis')}: {_humanize(p['thesis'])}")
         if p.get("coherence"):
-            bits.append(f"{self._b('Coherence')}: {p['coherence']}")
+            bits.append(f"{self._b('Coherence')}: {_humanize(p['coherence'])}")
+        for c in (p.get("caveats") or []):
+            bits.append(self._bullet(str(c)))
         return bits
 
     def _modality_matrix(self, p: dict) -> list:

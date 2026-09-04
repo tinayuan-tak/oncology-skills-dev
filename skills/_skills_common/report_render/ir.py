@@ -141,17 +141,24 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
     })
     blocks = [header]
 
+    # a question_table will render at L2+ when present; it restates the claim-chips, so suppress the
+    # redundant chips block when the Q&A table shows (dedupe — one decision-useful view per card).
+    has_qt = eff >= vocab.TIER[vocab.QUESTION_TABLE] and bool(report.get("question_table"))
+
     # L1: confidence, tension, claim chips
     if eff >= vocab.TIER[vocab.CONFIDENCE] and report.get("confidence"):
         blocks.append(Block(vocab.CONFIDENCE, {"confidence": report["confidence"]}))
     if eff >= vocab.TIER[vocab.TENSION] and report.get("top_tension"):
         blocks.append(Block(vocab.TENSION, {"tension": report["top_tension"]}))
-    if eff >= vocab.TIER[vocab.CLAIM_CHIPS]:
+    if eff >= vocab.TIER[vocab.CLAIM_CHIPS] and not has_qt:
         cb = _chips_block(report, eff)
         if cb is not None:
             blocks.append(cb)
 
-    # L2: question table, phase metrics, key figures — with fail-soft coverage for gating skills.
+    # L2: question table (fail-soft coverage flag for a gating skill that measured none). per-phase
+    # metrics + figures render WHEN PRESENT but no longer emit an 'unmeasured' placeholder when absent —
+    # those repeated "not measured / not surfaced" lines were pure noise on every card; the question-
+    # table coverage flag is the one worth keeping.
     is_gating = role == "gating"
     if eff >= vocab.TIER[vocab.QUESTION_TABLE]:
         qt = report.get("question_table") or []
@@ -159,18 +166,10 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
             blocks.append(Block(vocab.QUESTION_TABLE, {"rows": qt}))
         elif is_gating:
             blocks.append(_unmeasured("question_table"))
-    if eff >= vocab.TIER[vocab.PHASE_METRICS]:
-        pm = report.get("per_phase_metrics") or []
-        if pm:
-            blocks.append(Block(vocab.PHASE_METRICS, {"rows": pm}))
-        elif is_gating:
-            blocks.append(_unmeasured("per_phase_metrics"))
+    if eff >= vocab.TIER[vocab.PHASE_METRICS] and report.get("per_phase_metrics"):
+        blocks.append(Block(vocab.PHASE_METRICS, {"rows": report["per_phase_metrics"]}))
     if eff >= vocab.TIER[vocab.FIGURE]:
-        fb = _figure_blocks(report, eff, spec.medium)
-        if fb:
-            blocks.extend(fb)
-        elif is_gating:
-            blocks.append(_unmeasured("figures"))
+        blocks.extend(_figure_blocks(report, eff, spec.medium))
 
     # L3: provenance
     if eff >= vocab.TIER[vocab.PROVENANCE] and report.get("provenance"):
@@ -216,6 +215,7 @@ def _signals_overview_block(selected, deciding_short) -> Optional[Block]:
             continue
         rows.append({"short": short, "title": title, "polarity": polarity,
                      "level": vocab.polarity_rank(polarity), "call": report.get("call"),
+                     "honest_phrase": report.get("honest_phrase"),  # plain-language, preferred over the snake_case call
                      "is_deciding": short == deciding_short})
     if not rows:
         return None
@@ -292,7 +292,9 @@ def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
     # (+ non-empty caveats), never the raw dict (str(dict) was leaking into the page).
     coherence = coh.get("class") if isinstance(coh, dict) else coh
     caveats = [c for c in (coh.get("caveats") or [])] if isinstance(coh, dict) else []
-    if (not thesis or thesis == "insufficient_thesis") and not coherence:
+    # thesis is rendered in the report header now; the coherence block adds only the coherence class +
+    # caveats, so it emits only when there's a coherence class (avoids a duplicate thesis line).
+    if not coherence and not caveats:
         return None
     return Block(vocab.COHERENCE, {"thesis": thesis, "coherence": coherence, "caveats": caveats})
 
@@ -347,9 +349,12 @@ def build_ir(nomination: dict, spec: ReportSpec,
     deciding_short = _deciding_short(target_call.get("deciding_axis"), set(skill_reports))
 
     # header (the decision) — always present, tier 0.
+    _thesis_obj = (tr.get("thesis") or {}).get("thesis") if isinstance(tr.get("thesis"), dict) else None
+    _thesis_primary = _thesis_obj.get("primary") if isinstance(_thesis_obj, dict) else None
     header = Block(vocab.REPORT_HEADER, {
         "target": target,
         "indication": indication,
+        "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
         "recommendation": target_call.get("recommendation"),
         "confidence": target_call.get("confidence"),
         "deciding_axis": target_call.get("deciding_axis"),

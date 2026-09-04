@@ -44,4 +44,6 @@ def test_missing_gating_slot_surfaces_unmeasured():
     ir = build_ir(make_null_heavy_nomination(), resolve_spec(level="L2", scope="all"))
     sel = next(s for s in ir.sections if s.short == "selectivity")
     slots = [b.payload.get("slot") for b in sel.blocks if b.kind == vocab.UNMEASURED]
-    assert "question_table" in slots and "per_phase_metrics" in slots
+    # only the question_table coverage flag is kept; per_phase_metrics/figures no longer emit noise.
+    assert "question_table" in slots
+    assert "per_phase_metrics" not in slots and "figures" not in slots
