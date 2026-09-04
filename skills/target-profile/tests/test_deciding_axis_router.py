@@ -54,6 +54,27 @@ def test_fired_gate_is_the_deciding_axis_captured():
     assert da["deciding_axis"]["gate"] == "C"
     # a gate that FIRED was, by definition, evidenced → captured (not the static 'partial')
     assert da["deciding_axis"]["framework_can_evidence"] == "captured"
+    # the lettered gate renders as "gate C (…)"
+    assert "gate C" in da["routing"] and "gate None" not in da["routing"]
+
+
+def test_veto_axis_without_lettered_gate_does_not_render_gate_none():
+    # safety is a VETO axis: it has a gate NAME but no lettered gate id in gate_coverage → the routing
+    # must not read "decided by gate None (…)" (the MYC/AR/WRN gate-forced-hold artifact).
+    sr = _sr(dependency="concordant_dependent")
+    gate_hits = [{"short": "safety", "verdict": "highly_constrained_safety_concern", "action": "hold",
+                  "driving_rule_id": "highly-constrained-safety-warning"}]
+    da = tp._deciding_axis(sr, gate_action="hold", gate_hits=gate_hits, positive_hits=[],
+                           contracts_repo=CONTRACTS)
+    assert da["basis"] == "gate_fired"
+    assert da["deciding_axis"]["short"] == "safety"
+    routing = da["routing"]
+    assert "gate None" not in routing and "None" not in routing
+    assert "safety forced 'hold'" in routing
+    # names the axis via its gate name (or the short as last resort), never a None id.
+    gname = da["deciding_axis"].get("gate_name")
+    if not da["deciding_axis"].get("gate"):
+        assert (f"the {gname} gate" in routing) if gname else (f"the safety gate" in routing)
 
 
 # ---------- basis 2: a positive tier → strongest positive dimension is load-bearing ----------

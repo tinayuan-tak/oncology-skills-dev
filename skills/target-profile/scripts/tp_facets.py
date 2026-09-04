@@ -56,10 +56,15 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
         top = _winning["short"]
         row = _row(top)
         row["framework_can_evidence"] = "captured"   # it fired → we evidenced it
+        # A veto axis (e.g. safety) has a gate NAME but no lettered gate id → never render "gate None".
+        _gid, _gname = row.get("gate"), row.get("gate_name")
+        _gate_label = (f"gate {_gid} ({_gname})" if _gid and _gname
+                       else f"gate {_gid}" if _gid
+                       else f"the {_gname} gate" if _gname
+                       else f"the {top} gate")
         return {"basis": "gate_fired", "coverage_source": source,
                 "deciding_axis": row,
-                "routing": f"decided by gate {row.get('gate')} ({row.get('gate_name')}): "
-                           f"{top} forced '{gate_action}'."}
+                "routing": f"decided by {_gate_label}: {top} forced '{gate_action}'."}
 
     # (2) A positive tier exists → the load-bearing axis is the strongest positive dimension.
     if positive_hits:
