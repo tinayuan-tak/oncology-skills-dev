@@ -394,7 +394,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.9.0"   # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+SKILL_VERSION = "3.9.1"   # 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
                             # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
@@ -594,6 +594,17 @@ def _headline(cards, fired, verdict_pair):
         "hotspot_in_druggable_pocket": get_card_field(cards, "structure-features-static", "mutation_hotspot_in_druggable_pocket"),
         "pdb_coverage_class":        get_card_field(cards, "structure-features-static", "pdb_coverage_class"),
         "alphafold_confidence_class": get_card_field(cards, "structure-features-static", "alphafold_confidence_class"),
+        # STRUCTURAL LIGANDABILITY read (2026-09-04 debt fix): structural_ligandability_class was DECLARED
+        # in _SYNTHESIS_FACET_KEYS but never set here → the composed target-profile facet always emitted it
+        # None (the claim_vector STRUCT axis read the card directly, so the verdict was unaffected). The E8
+        # ligandability RULES also read the card field directly via the rule engine, so surfacing it in the
+        # headline is purely additive/display — VERDICT-INERT (druggability_snapshot spine byte-stable).
+        # has_druggable_pocket + ligandability_disorder_class complete the structure read: they are the
+        # coverage-vs-pocket discriminators the narrator's polarity_note reasons over (a flat PPI-groove
+        # target can score pdb_coverage_class=strong yet be disordered / lack a real orthosteric pocket).
+        "structural_ligandability_class": get_card_field(cards, "structure-features-static", "structural_ligandability_class"),
+        "has_druggable_pocket":      get_card_field(cards, "structure-features-static", "has_druggable_pocket"),
+        "ligandability_disorder_class": get_card_field(cards, "structure-features-static", "ligandability_disorder_class"),
         # E-known-drug PHARMACOLOGY leg (DGIdb, 2026-08-07): known-drug + druggable-category read
         "known_drug_tractability":   get_card_field(cards, "known-drug-tractability", "known_drug_tractability_class"),
         "has_approved_drug":         get_card_field(cards, "known-drug-tractability", "has_approved_drug"),
@@ -670,6 +681,8 @@ _SYNTHESIS_FACET_KEYS = (
     "druggability_snapshot", "driving_rule_id", "degrader_snapshot",
     "druggability_verdict_by_modality",     # per-arm {small_molecule, degrader} projection (verdict-inert)
     "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
+    # structure read completed (2026-09-04 debt fix) — the coverage-vs-pocket discriminators
+    "has_druggable_pocket", "ligandability_disorder_class",
     "degradability_machinery", "claim_vector", "key_signals",
     # verdict-INERT surfacing flags (2026-09-04): the DGIdb/ChEMBL druggability-inflation caveat + the
     # explicit chemical-genetic AGREEMENT arm (mirrors FR measurement_caveat / concordance_scope_note).

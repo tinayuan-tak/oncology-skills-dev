@@ -16,7 +16,7 @@ description: |
   dependency?"
 
 metadata:
-  version: 3.9.0   # +VERDICT-MOVING annotation_only_indirect (resolver v1.5.0 directness gate: approved-drug rung requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect); +--literature lane + verdict-INERT surfacing (directness_caveat, chemical_genetic_agreement, TRACTABILITY_SM thesis+polarity_note); +tuned signals-first sub-group reader; +question_table emitted into headline; +known-drug (#272) +degradation (#266) +T1/T3.1
+  version: 3.9.1   # +set structural_ligandability_class/has_druggable_pocket/ligandability_disorder_class in _headline (facet-debt fix, verdict-inert); +VERDICT-MOVING annotation_only_indirect (resolver v1.5.0 directness gate: approved-drug rung requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect); +--literature lane + verdict-INERT surfacing (directness_caveat, chemical_genetic_agreement, TRACTABILITY_SM thesis+polarity_note); +tuned signals-first sub-group reader; +question_table emitted into headline; +known-drug (#272) +degradation (#266) +T1/T3.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
