@@ -304,11 +304,49 @@ def _sort_key(short: str, role: str, polarity: Optional[str], is_deciding: bool,
 # --------------------------------------------------------------------------------------------------
 # entry point
 # --------------------------------------------------------------------------------------------------
-def _signals_overview_block(selected, deciding_short) -> Optional[Block]:
+# A surface-antigen coherence thesis (from tp_facets.build_target_coherence): the target's actionable
+# modality is a biologics SURFACE agent (ADC / TCE / naked antibody), whose mechanism of action does NOT
+# require the target to be a genetic dependency — the payload / T-cell does the killing, not target loss.
+# Under such a thesis a MEASURED-NEGATIVE dependency is EXPECTED and orthogonal, NOT evidence against the
+# target. Two layers of the composed run already say exactly this — the ordinal matrix emits `·` (no
+# signal) for the dependency axis on the adc/bite_tce/antibody columns, and build_target_coherence emits
+# the caveat "non_dependent is EXPECTED for a surface antigen — coherent, not a red flag" — but the flat
+# diverging strip reads only the scalar `skill_report.polarity` (floored to `opposing`) and would miscount
+# the dependency "against". This constant mirrors that SAME, already-validated determination onto the strip.
+_SURFACE_ANTIGEN_THESES = frozenset({"surface_antigen_no_dependency", "amplification_overexpression_antigen"})
+
+
+def _negative_expected_under_thesis(short: str, polarity: Optional[str],
+                                    thesis_primary: Optional[str]) -> Optional[str]:
+    """A short note when a gating skill's MEASURED-NEGATIVE signal is EXPECTED (orthogonal, not opposing)
+    under the target's coherence thesis — so the diverging strip does not miscount it "against". The one
+    encoded case (mirrors build_target_coherence's caveat + the ordinal-matrix `·`): the dependency axis
+    under a surface-antigen thesis, where an ADC / TCE / antibody MoA never required a genetic dependency.
+    Returns None otherwise — every intracellular / oncogene-addiction / driver thesis, and every
+    non-negative row, is UNCHANGED (so the reconciliation can only ever de-escalate a negative, never
+    invent a positive, and only for a target the coherence engine has already typed as a surface antigen)."""
+    if short != "dependency":
+        return None
+    rank = vocab.polarity_rank(polarity)
+    if rank is None or rank >= 0:            # only a measured-negative (opposing / killer) is reconciled
+        return None
+    if thesis_primary in _SURFACE_ANTIGEN_THESES:
+        return ("expected for a surface-antigen thesis — orthogonal to the ADC/TCE mechanism, "
+                "not counted against")
+    return None
+
+
+def _signals_overview_block(selected, deciding_short, thesis_primary=None) -> Optional[Block]:
     """The lead diverging-strip: one row per SCORED skill (gating, on-scale polarity), descriptive
     peers as a footnote. Signal polarity is the spine's canonical `skill_report.polarity` (killer-aware)
     — cleaner than parsing driving-rule-id suffixes. Carries the ordinal level for the bar length.
-    (Design absorbed from the tp_dashboard v2 signals-first layout, re-sourced from the spine.)"""
+    (Design absorbed from the tp_dashboard v2 signals-first layout, re-sourced from the spine.)
+
+    THESIS RECONCILIATION: a gating skill's measured-negative that is EXPECTED under the target's
+    coherence thesis (dependency × surface-antigen — see `_negative_expected_under_thesis`) is reframed to
+    NEUTRAL for the bar + the support/neutral/against tally, with the raw polarity + a note retained so it
+    is reframed, never hidden. This keeps the flat strip consistent with the ordinal matrix (`·` on the
+    biologics columns) and the coherence caveat, which already treat that non-dependence as orthogonal."""
     rows, descriptive = [], []
     for short, report, role in selected:
         polarity = report.get("polarity")
@@ -316,8 +354,15 @@ def _signals_overview_block(selected, deciding_short) -> Optional[Block]:
         if role != "gating" or polarity in (None, "not_scored"):
             descriptive.append(title)          # context, not a bar
             continue
-        rows.append({"short": short, "title": title, "polarity": polarity,
-                     "level": vocab.polarity_rank(polarity), "call": report.get("call"),
+        expected_note = _negative_expected_under_thesis(short, polarity, thesis_primary)
+        rows.append({"short": short, "title": title,
+                     # a thesis-expected negative renders + tallies as NEUTRAL (orthogonal, not against);
+                     # the raw polarity + note are carried so a backend can show it was a measured negative.
+                     "polarity": "neutral" if expected_note else polarity,
+                     "level": 0 if expected_note else vocab.polarity_rank(polarity),
+                     "raw_polarity": polarity if expected_note else None,
+                     "expected_note": expected_note,
+                     "call": report.get("call"),
                      "honest_phrase": report.get("honest_phrase"),  # plain-language, preferred over the snake_case call
                      "is_deciding": short == deciding_short})
     if not rows:
@@ -608,7 +653,12 @@ def build_ir(nomination: dict, spec: ReportSpec,
     deciding_short = _deciding_short(target_call.get("deciding_axis"), set(skill_reports))
 
     # header (the decision) — always present, tier 0.
-    _thesis_obj = (tr.get("thesis") or {}).get("thesis") if isinstance(tr.get("thesis"), dict) else None
+    # coherence thesis lives at target_report.thesis (full-nest) OR top-level nomination.target_coherence
+    # (pre-nest runs) — same fallback _coherence_block uses, so the header + strip reconciliation resolve
+    # it in both shapes. Byte-stable on the nested goldens (the fallback never triggers there).
+    _tc = (tr.get("thesis") if isinstance(tr.get("thesis"), dict) else None) \
+        or (nomination.get("target_coherence") if isinstance(nomination.get("target_coherence"), dict) else None)
+    _thesis_obj = (_tc or {}).get("thesis") if isinstance(_tc, dict) else None
     _thesis_primary = _thesis_obj.get("primary") if isinstance(_thesis_obj, dict) else None
     header = Block(vocab.REPORT_HEADER, {
         "target": target,
@@ -650,7 +700,10 @@ def build_ir(nomination: dict, spec: ReportSpec,
         if block is not None and spec.level_int >= vocab.TIER[kind]:
             overview.append(block)
 
-    _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short))
+    # thesis primary (target_coherence) → reconcile a thesis-EXPECTED negative in the diverging strip
+    # (e.g. dependency non-signal under a surface-antigen thesis). Reuses the header's `_thesis_obj`;
+    # None on a run without a coherence thesis leaves the strip's raw polarities untouched.
+    _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary))
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
     _add(vocab.SYNTHESIS, _synthesis_block(nomination))
     _add(vocab.RISK_6DIM, _risk_6dim_block(tr.get("risk_6dim")))

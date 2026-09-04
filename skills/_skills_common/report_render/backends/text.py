@@ -233,6 +233,11 @@ class TextBackend:
             g = vocab.polarity_glyph(r.get("polarity"))
             sub = r.get("honest_phrase") or _humanize(r.get("call")) or vocab.polarity_label(r.get("polarity"))
             tail = "  [deciding]" if r.get("is_deciding") else ""
+            # a thesis-expected negative (e.g. dependency under a surface-antigen thesis) is shown as a
+            # neutral bar with its raw polarity + the reason, so it reads as reframed, not silently dropped.
+            note = r.get("expected_note")
+            if note:
+                tail += f" _({note})_"
             out.append(self._bullet(f"{g} {r.get('title')} — {sub}{tail}"))
         desc = p.get("descriptive") or []
         if desc:

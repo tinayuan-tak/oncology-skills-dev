@@ -486,7 +486,9 @@ def _signal_strip_svg(rows, deciding_short) -> str:
         sub = r.get("honest_phrase") or _humanize(r.get("call")) or r.get("polarity") or ""
         s.append(f"<text x='{LBL-14}' y='{cyr-2:.1f}' text-anchor='end' font-size='12.5' fill='{ink}'>"
                  f"{_esc(r.get('title'))}</text>")
-        vline = _esc(str(sub)) + ("  · not evaluated" if lv is None else "") + dec
+        # a thesis-expected negative renders as a neutral dot; append the reason so the reframe is explicit.
+        note = f"  · {r['expected_note']}" if r.get("expected_note") else ""
+        vline = _esc(str(sub) + note) + ("  · not evaluated" if lv is None else "") + dec
         s.append(f"<text x='{LBL-14}' y='{cyr+12:.1f}' text-anchor='end' font-size='10.5' "
                  f"fill='{muted}'>{vline}</text>")
         if lv is None:

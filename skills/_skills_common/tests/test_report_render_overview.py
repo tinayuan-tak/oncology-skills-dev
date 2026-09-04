@@ -70,6 +70,54 @@ def test_text_and_json_render_overview():
     assert vocab.SIGNALS_OVERVIEW in kinds and vocab.RISK_6DIM in kinds
 
 
+def _nom_with(dep_polarity, thesis_primary):
+    """A make_nomination() copy with the dependency skill_report polarity + coherence thesis overridden,
+    for exercising the surface-antigen thesis reconciliation of the diverging strip."""
+    import copy
+    nom = copy.deepcopy(make_nomination())
+    tr = nom["target_report"]
+    tr["skill_reports"]["dependency"]["polarity"] = dep_polarity
+    tr["skill_reports"]["dependency"]["call"] = "non_dependent_paralog_buffered"
+    tr["skill_reports"]["dependency"]["honest_phrase"] = "Not dependent (paralog-buffered)"
+    tr["thesis"]["thesis"]["primary"] = thesis_primary
+    return nom
+
+
+def _sov(ir):
+    return next(b for b in ir.overview if b.kind == vocab.SIGNALS_OVERVIEW)
+
+
+def test_dependency_negative_reconciled_under_surface_antigen_thesis():
+    # ERBB2-shape: a measured-negative dependency under a surface-antigen thesis is EXPECTED (orthogonal
+    # to the ADC/TCE MoA), so the strip must NOT count it "against" — it renders neutral + a reason note.
+    ir = build_ir(_nom_with("opposing", "surface_antigen_no_dependency"), resolve_spec("full"))
+    dep = next(r for r in _sov(ir).payload["rows"] if r["short"] == "dependency")
+    assert dep["polarity"] == "neutral" and dep["level"] == 0
+    assert dep["raw_polarity"] == "opposing"
+    assert dep["expected_note"] and "surface-antigen" in dep["expected_note"]
+    # tally reflects the reframe: dependency is not in `against`.
+    counts = _sov(ir).payload["counts"]
+    dep_calls = [r for r in _sov(ir).payload["rows"] if r["short"] == "dependency"]
+    assert dep_calls and dep_calls[0]["level"] == 0
+    assert counts["against"] == sum(1 for r in _sov(ir).payload["rows"] if (r["level"] or 0) < 0)
+
+
+def test_dependency_negative_still_counts_against_intracellular_thesis():
+    # SAME negative dependency, but an intracellular/driver thesis → NOT reconciled; still counts against.
+    ir = build_ir(_nom_with("opposing", "oncogene_addiction_driver"), resolve_spec("full"))
+    dep = next(r for r in _sov(ir).payload["rows"] if r["short"] == "dependency")
+    assert dep["polarity"] == "opposing" and (dep["level"] or 0) < 0
+    assert dep.get("expected_note") is None and dep.get("raw_polarity") is None
+
+
+def test_reconciliation_note_reaches_backends():
+    nom = _nom_with("opposing", "amplification_overexpression_antigen")
+    txt = render_report(nom, preset="full", backend="text")
+    html = render_report(nom, preset="full", backend="html")
+    assert "orthogonal to the ADC/TCE mechanism" in txt
+    assert "orthogonal to the ADC/TCE mechanism" in html
+
+
 def test_overview_failsoft_without_risk_or_signals():
     # a nomination with no risk_6dim and no gating skills → no overview blocks, no crash
     nom = {"target_report": {"skill_reports": {
