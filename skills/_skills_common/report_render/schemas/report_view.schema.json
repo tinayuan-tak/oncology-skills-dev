@@ -52,7 +52,7 @@
           "enum": ["report_header", "skill_header", "confidence", "tension", "claim_chips",
                    "question_table", "phase_metrics", "figure", "provenance", "unmeasured", "about",
                    "signals_overview", "risk_6dim", "synthesis", "coherence", "modality_matrix",
-                   "literature_risk", "deciding_axis"]
+                   "literature_risk", "deciding_axis", "flip_conditions", "subtype", "biomarker"]
         }
       }
     }

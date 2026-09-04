@@ -504,6 +504,96 @@ def _deciding_axis_block(target_call: dict, nomination: dict, deciding_short) ->
     })
 
 
+# map the flip_condition `to_role` prefix → a plain-language direction word.
+_FLIP_DIRECTION = {"kill": "would kill the call", "veto": "would kill the call",
+                   "neutral": "would neutralize the axis", "positive": "would strengthen the call",
+                   "negative": "would weaken the call"}
+
+
+def _flip_conditions_block(nomination: dict) -> Optional[Block]:
+    """"What would change the call" — the recommendation-FLIPPING counterfactuals per axis, read from
+    narrative_by_axis[axis].flip_conditions. Rendered from the STRUCTURED fields (to_verdict, present,
+    to_role) — the dev-note `sentence` is deliberately NOT surfaced (it is engineering commentary, not
+    reader prose). `present=False` = a latent condition that would flip the call if it held; `present=
+    True` = a load-bearing signal the current call rests on (absent it, the call changes)."""
+    nba = nomination.get("narrative_by_axis") or {}
+    if not isinstance(nba, dict):
+        return None
+    rows, seen = [], set()
+    for short, ax in nba.items():
+        if not isinstance(ax, dict):
+            continue
+        for fc in (ax.get("flip_conditions") or []):
+            if not isinstance(fc, dict) or not fc.get("recommendation_flip"):
+                continue
+            to_verdict = fc.get("to_verdict")
+            key = (short, to_verdict, bool(fc.get("present")))
+            if key in seen:
+                continue
+            seen.add(key)
+            role = str(fc.get("to_role") or "").split(":")[0]
+            rows.append({
+                "axis": vocab.skill_title(short),
+                "to_verdict": to_verdict,
+                "present": bool(fc.get("present")),
+                "direction": _FLIP_DIRECTION.get(role),
+                "condition": fc.get("rule_id"),   # humanized by the backend
+            })
+    if not rows:
+        return None
+    # load-bearing (present) first — those are live dependencies of the current call.
+    rows.sort(key=lambda r: (not r["present"], r["axis"]))
+    return Block(vocab.FLIP_CONDITIONS, {"rows": rows})
+
+
+def _subtype_block(tr: dict) -> Optional[Block]:
+    """Molecular-subtype stratification (MSI/MSS, CMS, CIMP, …) from target_report.subtype_convergence.
+    Emits only when a subtype axis was actually evaluated (skips subtype_axis_unavailable / n=0)."""
+    sc = tr.get("subtype_convergence")
+    if not isinstance(sc, dict):
+        return None
+    verdict = sc.get("verdict")
+    n_eval = sc.get("n_subtypes_evaluated") or 0
+    per_subtype = sc.get("per_subtype") or {}
+    if verdict in (None, "subtype_axis_unavailable") or (not per_subtype and not n_eval):
+        return None
+    return Block(vocab.SUBTYPE, {
+        "verdict": verdict,
+        "n_evaluated": n_eval,
+        "axes_available": sc.get("axes_available") or [],
+        "convergent_subtypes": sc.get("convergent_subtypes") or [],
+        "associated_subtypes": sc.get("associated_subtypes") or [],
+        "subtypes": list(per_subtype.keys()),
+    })
+
+
+def _biomarker_block(tr: dict) -> Optional[Block]:
+    """Patient-selection biomarker facet (target_report.biomarker): the stratification story +
+    preferred assay + intended-use hypotheses. Drops the per-hypothesis `_note` dev text + deep
+    dependency_performance numbers (kept in the evidence package), surfacing only the reader fields."""
+    bm = tr.get("biomarker")
+    if not isinstance(bm, dict) or not bm.get("verdict"):
+        return None
+    strat = bm.get("stratification_role") if isinstance(bm.get("stratification_role"), dict) else {}
+    corr = bm.get("corroboration_role") if isinstance(bm.get("corroboration_role"), dict) else {}
+    hyps = []
+    for h in (bm.get("biomarker_hypotheses") or []):
+        if isinstance(h, dict) and h.get("intended_use"):
+            hyps.append({"intended_use": h.get("intended_use"), "basis": h.get("basis"),
+                         "evidence_strength": h.get("evidence_strength")})
+    return Block(vocab.BIOMARKER, {
+        "verdict": bm.get("verdict"),
+        "preferred_assay": bm.get("preferred_assay"),
+        "alteration_role": corr.get("alteration_role"),
+        "mutation_stratification": strat.get("mutation_stratification_class"),
+        "subtype_stratification": strat.get("subtype_stratification_class"),
+        "survival_association": strat.get("survival_association_class"),
+        "rna_as_biomarker": strat.get("rna_as_biomarker"),
+        "intended_uses": bm.get("intended_uses") or [],
+        "hypotheses": hyps,
+    })
+
+
 def build_ir(nomination: dict, spec: ReportSpec,
              target: Optional[str] = None, indication: Optional[str] = None) -> ReportIR:
     """Project a nomination + spec into the presentation IR. Pure, deterministic, fail-soft."""
@@ -564,9 +654,12 @@ def build_ir(nomination: dict, spec: ReportSpec,
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
     _add(vocab.SYNTHESIS, _synthesis_block(nomination))
     _add(vocab.RISK_6DIM, _risk_6dim_block(tr.get("risk_6dim")))
+    _add(vocab.BIOMARKER, _biomarker_block(tr))
+    _add(vocab.SUBTYPE, _subtype_block(tr))
     _add(vocab.MODALITY_MATRIX, _modality_matrix_block(tr, nomination))
     _add(vocab.LITERATURE_RISK, _literature_risk_block(nomination, tr))
     _add(vocab.DECIDING_AXIS, _deciding_axis_block(target_call, nomination, deciding_short))
+    _add(vocab.FLIP_CONDITIONS, _flip_conditions_block(nomination))
     return ReportIR(target=target, indication=indication, spec=spec, header=header,
                     sections=sections, about=_about_block(spec), deciding_short=deciding_short,
                     overview=overview)

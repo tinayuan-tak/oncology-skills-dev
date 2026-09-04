@@ -125,6 +125,9 @@ class HtmlBackend:
             vocab.MODALITY_MATRIX: self._modality_matrix,
             vocab.LITERATURE_RISK: self._literature_risk,
             vocab.DECIDING_AXIS: self._deciding_axis,
+            vocab.FLIP_CONDITIONS: self._flip_conditions,
+            vocab.SUBTYPE: self._subtype,
+            vocab.BIOMARKER: self._biomarker,
         }
 
     def handled_kinds(self) -> set:
@@ -390,6 +393,64 @@ class HtmlBackend:
         detail = _esc(p.get("routing") or (_humanize(p.get("basis")) if p.get("basis") else ""))
         return [f"<h2>Deciding axis</h2><p class='kv'><b>{name}</b>"
                 + (f" — {detail}" if detail else "") + "</p>"]
+
+    def _flip_conditions(self, p: dict) -> list:
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        items = []
+        for r in rows:
+            tv = _esc(_humanize(r.get("to_verdict")) or "a different call")
+            dirn = f" <span class='so-foot'>({_esc(r['direction'])})</span>" if r.get("direction") else ""
+            if r.get("present"):
+                cond = _esc(_humanize(r.get("condition")) or "a load-bearing signal")
+                items.append(f"<li><b>{_esc(r['axis'])}</b>: the call rests on {cond} — "
+                             f"absent it → {tv}{dirn}</li>")
+            else:
+                items.append(f"<li><b>{_esc(r['axis'])}</b>: would become {tv}{dirn}</li>")
+        return [f"<h2>What would change the call</h2><ul class='chips'>{''.join(items)}</ul>"]
+
+    def _subtype(self, p: dict) -> list:
+        if not p.get("verdict") and not p.get("subtypes"):
+            return []
+        axes = _esc(", ".join(p.get("axes_available") or []) or "—")
+        out = ["<h2>Subtype stratification</h2>",
+               f"<p class='kv'><b>Verdict:</b> {_esc(_humanize(p.get('verdict')))} "
+               f"<span class='so-foot'>({p.get('n_evaluated', 0)} subtypes on {axes})</span></p>"]
+        for label, key in (("Convergent", "convergent_subtypes"), ("Associated", "associated_subtypes"),
+                           ("Evaluated", "subtypes")):
+            vals = p.get(key) or []
+            if vals:
+                out.append(f"<p class='kv'><b>{label}:</b> {_esc(', '.join(map(str, vals)))}</p>")
+        return out
+
+    def _biomarker(self, p: dict) -> list:
+        if not p.get("verdict"):
+            return []
+        out = ["<h2>Patient-selection biomarker</h2>"]
+        head = f"<p class='kv'><b>Verdict:</b> {_esc(_humanize(p['verdict']))}"
+        if p.get("preferred_assay"):
+            head += f" · preferred assay: {_esc(_humanize(p['preferred_assay']))}"
+        out.append(head + "</p>")
+        strat = []
+        for lab, key in (("driver role", "alteration_role"), ("mutation stratification", "mutation_stratification"),
+                         ("subtype stratification", "subtype_stratification"), ("survival", "survival_association")):
+            if p.get(key):
+                strat.append(f"{lab}: {_esc(_humanize(p[key]))}")
+        if strat:
+            out.append("<p class='kv'>" + "; ".join(strat) + "</p>")
+        uses = p.get("intended_uses") or []
+        if uses:
+            out.append(f"<p class='kv'><b>Intended uses:</b> {_esc(', '.join(_humanize(u) for u in uses))}</p>")
+        hyps = p.get("hypotheses") or []
+        if hyps:
+            li = "".join(
+                f"<li>{_esc(_humanize(h.get('intended_use')))}: {_esc(_humanize(h.get('basis')))}"
+                + (f" <span class='so-foot'>[{_esc(h.get('evidence_strength'))}]</span>"
+                   if h.get("evidence_strength") else "") + "</li>"
+                for h in hyps)
+            out.append(f"<ul class='chips'>{li}</ul>")
+        return out
 
 
 def _signal_strip_svg(rows, deciding_short) -> str:

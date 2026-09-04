@@ -116,11 +116,16 @@ COHERENCE = "coherence"                # target thesis + cross-axis coherence
 MODALITY_MATRIX = "modality_matrix"    # gate × modality ordinal evidence matrix
 LITERATURE_RISK = "literature_risk"    # literature-derived risk-by-dimension (context, never a gate)
 DECIDING_AXIS = "deciding_axis"        # what the call hinges on (router basis)
+# decision-critical detail blocks (surface buried spine content the summary previously dropped):
+FLIP_CONDITIONS = "flip_conditions"    # "what would change the call" — recommendation-flipping counterfactuals
+SUBTYPE = "subtype"                    # molecular-subtype stratification (MSI/MSS, CMS, …) convergence
+BIOMARKER = "biomarker"                # patient-selection biomarker: stratification class + preferred assay
 
 BLOCK_KINDS: frozenset = frozenset({
     REPORT_HEADER, SKILL_HEADER, CONFIDENCE, TENSION, CLAIM_CHIPS, QUESTION_TABLE,
     PHASE_METRICS, FIGURE, PROVENANCE, UNMEASURED, ABOUT, SIGNALS_OVERVIEW, RISK_6DIM,
     SYNTHESIS, COHERENCE, MODALITY_MATRIX, LITERATURE_RISK, DECIDING_AXIS,
+    FLIP_CONDITIONS, SUBTYPE, BIOMARKER,
 })
 
 # min level int at which each block kind is shown.
@@ -131,8 +136,11 @@ TIER: dict[str, int] = {
     SYNTHESIS: 1,          # LLM narrative — summary depth up (suppressed by --no-synthesis upstream)
     COHERENCE: 1,
     DECIDING_AXIS: 1,
+    FLIP_CONDITIONS: 1,    # "what would change the call" — belongs with the decision framing (summary depth)
     MODALITY_MATRIX: 2,    # evidence depth
     LITERATURE_RISK: 2,
+    SUBTYPE: 2,            # subtype stratification — evidence depth
+    BIOMARKER: 2,          # patient-selection biomarker — evidence depth
     SKILL_HEADER: 0,
     ABOUT: 1,
     CONFIDENCE: 1,
@@ -243,7 +251,7 @@ __all__ = [
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
     "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",
-    "LITERATURE_RISK", "DECIDING_AXIS",
+    "LITERATURE_RISK", "DECIDING_AXIS", "FLIP_CONDITIONS", "SUBTYPE", "BIOMARKER",
     "polarity_glyph", "polarity_label", "polarity_rank", "polarity_legend", "ordinal_glyph_legend",
     "figure_status", "humanize_figure_type",
 ]

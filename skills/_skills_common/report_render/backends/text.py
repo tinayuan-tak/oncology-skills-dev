@@ -34,6 +34,9 @@ class TextBackend:
             vocab.MODALITY_MATRIX: self._modality_matrix,
             vocab.LITERATURE_RISK: self._literature_risk,
             vocab.DECIDING_AXIS: self._deciding_axis,
+            vocab.FLIP_CONDITIONS: self._flip_conditions,
+            vocab.SUBTYPE: self._subtype,
+            vocab.BIOMARKER: self._biomarker,
         }
 
     def handled_kinds(self) -> set:
@@ -303,6 +306,65 @@ class TextBackend:
         elif p.get("basis"):
             line += f" ({_humanize(p['basis'])})"
         return [line]
+
+    def _flip_conditions(self, p: dict) -> list:
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        out = self._h2("What would change the call")
+        for r in rows:
+            tv = _humanize(r.get("to_verdict")) or "a different call"
+            if r.get("present"):
+                # a live, load-bearing signal — name it (it's distinct + informative).
+                cond = _humanize(r.get("condition")) or "a load-bearing signal"
+                line = f"{r['axis']}: the call rests on {cond} — absent it → {tv}"
+            else:
+                # a latent counterfactual — the rule id ≈ the verdict it produces, so lead with the outcome.
+                line = f"{r['axis']}: would become {tv}"
+            if r.get("direction"):
+                line += f" ({r['direction']})"
+            out.append(self._bullet(line))
+        return out
+
+    def _subtype(self, p: dict) -> list:
+        if not p.get("verdict") and not p.get("subtypes"):
+            return []
+        out = self._h2("Subtype stratification")
+        axes = ", ".join(p.get("axes_available") or []) or "—"
+        out.append(f"{self._b('Verdict')}: {_humanize(p.get('verdict'))} "
+                   f"({p.get('n_evaluated', 0)} subtypes evaluated on {axes})")
+        for label, key in (("Convergent subtypes", "convergent_subtypes"),
+                           ("Associated subtypes", "associated_subtypes"),
+                           ("Evaluated", "subtypes")):
+            vals = p.get(key) or []
+            if vals:
+                out.append(f"{self._b(label)}: {', '.join(map(str, vals))}")
+        return out
+
+    def _biomarker(self, p: dict) -> list:
+        if not p.get("verdict"):
+            return []
+        out = self._h2("Patient-selection biomarker")
+        head = f"{self._b('Verdict')}: {_humanize(p['verdict'])}"
+        if p.get("preferred_assay"):
+            head += f" · preferred assay: {_humanize(p['preferred_assay'])}"
+        out.append(head)
+        strat = []
+        for lab, key in (("driver role", "alteration_role"),
+                         ("mutation stratification", "mutation_stratification"),
+                         ("subtype stratification", "subtype_stratification"),
+                         ("survival", "survival_association")):
+            if p.get(key):
+                strat.append(f"{lab}: {_humanize(p[key])}")
+        if strat:
+            out.append("; ".join(strat))
+        uses = p.get("intended_uses") or []
+        if uses:
+            out.append(f"{self._b('Intended uses')}: {', '.join(_humanize(u) for u in uses)}")
+        for h in (p.get("hypotheses") or []):
+            iu, basis, es = _humanize(h.get("intended_use")), _humanize(h.get("basis")), h.get("evidence_strength")
+            out.append(self._bullet(f"{iu}: {basis}" + (f" [{es}]" if es else "")))
+        return out
 
 
 # ------------------------------------------------------------------------------------------------

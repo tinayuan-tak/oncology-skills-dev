@@ -199,6 +199,45 @@ def make_nomination() -> dict:
                                         "polarity": "supportive"}]},
                 "killer_axes": ["safety"], "recommendation": "hold",
             },
+            # molecular-subtype stratification (real shape) — MSI_H is a convergent subtype here.
+            "subtype_convergence": {
+                "verdict": "single_axis_stratification", "n_subtypes_evaluated": 3,
+                "axes_available": ["expression"], "convergent_subtypes": ["MSI_H"],
+                "associated_subtypes": [],
+                "per_subtype": {"MSI_H": {"metrics": {}}, "MSS": {"metrics": {}}, "CMS1": {"metrics": {}}},
+                "_disclaimer": "subtype panorama — descriptive.",
+            },
+            # patient-selection biomarker facet (real shape) — the reader fields + a hypothesis whose
+            # _note dev text + dependency_performance numbers must NOT leak into the block.
+            "biomarker": {
+                "verdict": "strong_selection_biomarker", "preferred_assay": "genomic",
+                "corroboration_role": {"alteration_role": "direct_driver_gof"},
+                "stratification_role": {"mutation_stratification_class": "mutant_strongly_dependent",
+                                        "subtype_stratification_class": "msi_enriched",
+                                        "survival_association_class": "expression_high_better_survival",
+                                        "rna_as_biomarker": "poor_proxy"},
+                "biomarker_hypotheses": [{"intended_use": "predictive",
+                                          "basis": "mutation_stratification_class=mutant_strongly_dependent",
+                                          "evidence_strength": "strong", "_note": "DEV NOTE must not leak",
+                                          "dependency_performance": {"dependency_ppv": 1.0}}],
+                "intended_uses": ["predictive", "diagnostic_subtyping"],
+                "_disclaimer": "biomarker facet — descriptive.",
+            },
+        },
+        # per-axis narrative w/ flip_conditions (real shape) — "what would change the call". Only the
+        # recommendation_flip:True entries surface; the dev-note `sentence` is never rendered.
+        "narrative_by_axis": {
+            "dependency": {"axis": "dependency", "flip_conditions": [
+                {"rule_id": "pan-essential-killer", "present": False, "to_verdict": "pan_essential_killer",
+                 "to_role": "kill:veto", "recommendation_flip": True,
+                 "sentence": "H fix (2026-07-20): DEV NOTE — must not render."},
+                {"rule_id": "concordant-dependent-supportive", "present": True, "to_verdict": "concordant_dependent",
+                 "to_role": "positive", "recommendation_flip": False,  # non-flip → must be filtered out
+                 "sentence": "dev note"}]},
+            "safety": {"axis": "safety", "flip_conditions": [
+                {"rule_id": "clinvar-germline-pathogenic-safety-warning", "present": True,
+                 "to_verdict": "moderately_constrained_safety", "to_role": "neutral",
+                 "recommendation_flip": True, "sentence": "dev note"}]},
         },
     }
 
