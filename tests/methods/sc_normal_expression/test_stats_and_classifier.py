@@ -341,3 +341,47 @@ def test_emit_normal_celltype_liability_writes_svg(tmp_path):
 def test_emit_normal_celltype_liability_noop_when_empty(tmp_path):
     C.emit_normal_celltype_liability(S._data_unavailable_class(), "EPCAM", tmp_path)
     assert not (tmp_path / "figure_sc_normal_celltype_liability.svg").exists()
+
+
+# --- #984 Tier-2: normal-tissue ABUNDANCE class (at the liability-anchor cell type) ---------------
+
+def _row(ct, n, med, frac, abund, tissue="colon"):
+    return {"gene_symbol": "EPCAM", "ensembl_gene_id": "E", "tissue": tissue, "cell_type": ct,
+            "n_donors_total": n, "n_donors_reliable": n, "n_datasets_reliable": max(1, n // 5),
+            "n_donors_expressing": max(0, n - 2), "median_det": med, "q25_det": med * 0.7,
+            "q75_det": med * 1.3, "expressing_donor_fraction": frac, "median_abund": abund,
+            "q25_abund": abund * 0.8, "q75_abund": abund * 1.2, "detection_pct_rank": 0.5,
+            "n_cell_types_above_20pct": 0}
+
+
+def test_abundance_class_bands_high_moderate_low():
+    """Bands (0.24 / 0.64) at the anchor cell type: EPCAM-like high, ERBB2-like moderate, FOLR1-like low."""
+    for abund, expect in [(3.36, "high_abundance"), (0.36, "moderate_abundance"), (0.21, "low_abundance")]:
+        r = S.classify_sc_normal_expression(pd.DataFrame([_row("colonocyte", 20, 0.85, 0.90, abund)]))
+        assert r["sc_normal_abundance_class"] == expect, (abund, r["sc_normal_abundance_class"])
+        assert r["sc_normal_peak_median_abund"] == pytest.approx(abund)
+
+
+def test_abundance_classified_at_liability_anchor_not_global_argmax():
+    """Abundance is read at the cell type that DRIVES the liability (HIGH AND-gate passer), not the
+    globally most-abundant cell — a MODERATE-only high-abundance cell must not shadow it."""
+    rows = pd.DataFrame([
+        _row("colonocyte", 20, 0.55, 0.80, 0.20),   # fires HIGH (det>0.5 AND frac>0.7); LOW abundance
+        _row("goblet cell", 20, 0.85, 0.40, 3.00),  # MODERATE only (frac<0.7); high abundance — NOT anchor
+    ])
+    r = S.classify_sc_normal_expression(rows)
+    assert r["sc_normal_expression_class"] == "HIGH_LIABILITY"
+    assert r["max_detection_cell_type"] == "colonocyte"
+    assert r["sc_normal_abundance_class"] == "low_abundance"
+
+
+def test_abundance_class_data_unavailable_when_column_absent():
+    df = pd.DataFrame([_row("colonocyte", 20, 0.85, 0.90, 3.0)]).drop(columns=["median_abund"])
+    r = S.classify_sc_normal_expression(df)
+    assert r["sc_normal_abundance_class"] == "data_unavailable"
+    assert r["sc_normal_peak_median_abund"] is None
+
+
+def test_abundance_class_present_in_data_unavailable_branch():
+    r = S.classify_sc_normal_expression(pd.DataFrame([]))
+    assert r["sc_normal_abundance_class"] == "data_unavailable" and r["sc_normal_peak_median_abund"] is None

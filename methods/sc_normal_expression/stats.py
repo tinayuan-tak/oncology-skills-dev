@@ -29,6 +29,16 @@ MODERATE_DONOR_FRACTION = 0.30
 NOT_EXPRESSED_CEILING = 0.01
 MIN_RELIABLE_DONORS = 5
 
+# Normal-tissue ABUNDANCE bands (#984 Tier-2): the liability ladder above is DETECTION-only, so a normal
+# cell detected at trivial vs high abundance reads the same liability — yet detection >0.2 spans a ~25x
+# abundance range (median_abund log1p_cp10k). These fixed bands are the p25/p75 of the detected-abundance
+# distribution, VALIDATED as tissue-invariant across colon/lung/kidney/liver/brain/pancreas (p25≈0.20-0.26,
+# p75≈0.61-0.66), so fixed constants are tissue-robust. Classified at the LIABILITY-anchor cell type.
+# VERDICT-INERT (display/confidence): a low_abundance normal liability (e.g. FOLR1/ERBB2-class) is a
+# candidate veto down-weight, but that is a SEPARATE backtest-gated change in tumor-selectivity.
+NORMAL_ABUND_HIGH = 0.64
+NORMAL_ABUND_MODERATE = 0.24
+
 # Safety-essential normal cell types: any detection in these types forces a dedicated flag.
 # These map to Census Cell Ontology labels (raw, no synonymy). Partial prefix matching is
 # used where multiple subtypes share a lineage (e.g. "neuron" → "dopaminergic neuron").
@@ -134,6 +144,20 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     max_det_val = float(anchor_row[det_col])
     max_frac_val = float(anchor_row[frac_col]) if frac_col in reliable.columns else None
 
+    # #984 Tier-2: ABUNDANCE at the liability-anchor cell type — how MUCH the target is expressed in the
+    # normal cell that drives the liability, not just whether it is detected. Tissue-robust fixed bands.
+    _abund_col = "median_abund" if "median_abund" in reliable.columns else None
+    peak_abund = (float(anchor_row[_abund_col])
+                  if _abund_col is not None and pd.notna(anchor_row[_abund_col]) else None)
+    if peak_abund is None:
+        abundance_class = "data_unavailable"
+    elif peak_abund >= NORMAL_ABUND_HIGH:
+        abundance_class = "high_abundance"
+    elif peak_abund >= NORMAL_ABUND_MODERATE:
+        abundance_class = "moderate_abundance"
+    else:
+        abundance_class = "low_abundance"
+
     n_above_20 = int((reliable[det_col] > 0.20).sum())
 
     # Ranked per-cell-type footprint (top by detection) — the normal analogue of the tumor card's
@@ -172,6 +196,9 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         "max_detection_cell_type": max_det_ct,
         "max_detection_fraction": max_det_val,
         "expressing_donor_fraction_max": max_frac_val,
+        # #984 Tier-2: normal-tissue abundance at the liability-anchor cell type (verdict-inert)
+        "sc_normal_abundance_class": abundance_class,
+        "sc_normal_peak_median_abund": peak_abund,
         "safety_essential_flags": safety_flags,
         "n_cell_types_above_20pct": n_above_20,
         "n_reliable_cell_types": int(len(reliable)),
@@ -186,6 +213,8 @@ def _data_unavailable_class(note: str = "") -> dict:
         "max_detection_cell_type": None,
         "max_detection_fraction": None,
         "expressing_donor_fraction_max": None,
+        "sc_normal_abundance_class": "data_unavailable",
+        "sc_normal_peak_median_abund": None,
         "safety_essential_flags": {},
         "n_cell_types_above_20pct": 0,
         "n_reliable_cell_types": 0,
