@@ -1264,6 +1264,14 @@ def _dispatch_surface_abundance_density(target: str, indication: str) -> Optiona
         "absolute_measurement_semantics": abs_.get("measurement_semantics_best"),
         "absolute_n_measurements": abs_.get("n_admissible_measurements"),
         "density_floor_verdict": floor_verdict,
+        # Additive ProCan absolute-abundance PROXY (verdict-INERT). read_absolute_density ALWAYS returns
+        # these 4 (defaulting to data_unavailable for a non-ProCan target), and the card declares them —
+        # but this dispatcher's field cherry-pick dropped them, so the surface-abundance-density emission
+        # guard flagged them MISSING for non-ProCan targets (e.g. MSLN/PAAD). Pass them through.
+        "absolute_abundance_proxy_class": abs_.get("absolute_abundance_proxy_class"),
+        "absolute_abundance_proxy_percentile": abs_.get("absolute_abundance_proxy_percentile"),
+        "absolute_abundance_proxy_source": abs_.get("absolute_abundance_proxy_source"),
+        "absolute_abundance_proxy_note": abs_.get("absolute_abundance_proxy_note"),
     })
     return summary
 
