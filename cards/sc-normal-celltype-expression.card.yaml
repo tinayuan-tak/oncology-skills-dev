@@ -24,6 +24,17 @@ card_id: sc-normal-celltype-expression
 version: 0.1.0
 question: "In which normal tissue cell types is {target.symbol} expressed by scRNA, and how broadly and consistently across donors?"
 
+# Evidence-capsule projection. Without this block the projector falls back to the alphabetical-first
+# *_class field, which here is the DISPLAY-only sc_normal_expression_class (e < s) — NOT the
+# verdict-driving sc_normal_safety_essential_class. Pin the primary class explicitly so the capsule /
+# LLM narrator / nomination.json project the field that actually drives the tumor-selectivity clamp.
+capsule:
+  primary_class: sc_normal_safety_essential_class
+  categorical_fields:
+    - sc_normal_safety_essential_class
+    - sc_normal_expression_class
+    - sc_normal_abundance_class
+
 tier: target   # normal-tissue cell-type expression is a property of the gene, not a tumor subgroup
 
 applies_when:
@@ -88,6 +99,22 @@ outputs:
     # backtest-gated — NOT a rung on this card).
     - sc_normal_abundance_class           # low_/moderate_/high_abundance at the liability-driving cell type
     - sc_normal_peak_median_abund         # median_abund (log1p_cp10k) at that cell type
+    # NAMED essential-cell driver of sc_normal_safety_essential_class (de-anonymizes the veto). Sourced
+    # from the veto-FIRING essential set (argmax detection among off-origin essential hits when
+    # critical_organ_liability, else the origin-tissue essential hit) — NOT the pooled max_detection_cell_type
+    # (which can name a non-essential epithelial cell). None when no essential hit fired. VERDICT-INERT.
+    - sc_normal_essential_max_cell_type   # the essential cell type the safety-essential class keyed on
+    - sc_normal_essential_max_tissue      # its tissue (the named critical organ)
+    - sc_normal_essential_max_detection_fraction   # median_det at that essential cell
+    - sc_normal_essential_donor_fraction  # cross-donor consistency at that essential cell
+    - sc_normal_essential_n_datasets_reliable      # independent-atlas replication at that essential cell
+    - sc_normal_essential_median_abund    # median_abund (log1p_cp10k) at that essential cell
+    - sc_normal_ceiling_detection_fraction  # global max median_det across reliable cell types — the
+                                          # single-cell tumor-vs-normal WINDOW denominator (positive atlas use)
+    - n_reliable_cell_types               # count of cell types passing the min-donor reliability gate
+    - per_cell_type_top                   # ranked (top-15 by detection) normal footprint; each element carries
+                                          # cell_type/tissue/median_detection_fraction/expressing_donor_fraction/
+                                          # n_donors_reliable/median_abund/n_datasets_reliable/is_safety_essential
     - tissues_queried                     # list of tissue shards used (depends on indication)
     - method_version
 
