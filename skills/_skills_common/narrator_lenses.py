@@ -52,17 +52,26 @@ FUNCTIONAL_REQUIREMENT = LensConfig(
 ON_TARGET_SAFETY = LensConfig(
     name="on-target-safety-liability",
     thesis="whether the target is intolerant of loss-of-function in humans — i.e. the ON-TARGET SAFETY "
-           "LIABILITY of a full-KO modality (degrader / RNA / full-inhibition SM).",
+           "LIABILITY of a full-KO modality (degrader / RNA / full-inhibition SM) — corroborated across the "
+           "human-genetics legs (gnomAD constraint, gene-burden, ClinGen dosage, ClinVar germline "
+           "pathogenicity, mouse-KO), DepMap pan-essentiality, and — where drugs already engage the target — "
+           "the ON-TARGET CLINICAL PHARMACOVIGILANCE precedent (which toxicity classes / boxed warnings the "
+           "target's own drugs carry), naming the specific mouse-KO ORGAN systems and clinical toxicity "
+           "CLASSES rather than a bare verdict.",
     relevance_prompt="judge the on-target safety LIABILITY of full loss-of-function for this target. The "
                      "scalar verdict is the HONEST raw WT-loss concern; the mutant-selective downgrade is "
                      "MODALITY-CONDITIONAL, realised in the per-modality safety verdict (an allele-selective "
                      "small molecule may spare WT protein), NOT applied to the scalar verdict — do not narrate "
-                     "the scalar concern as downgraded.",
-    axis_labels={},
+                     "the scalar concern as downgraded. Where present, foreground the specific on-target "
+                     "clinical toxicity CLASSES (pharmacovigilance) and mouse-KO ORGAN systems.",
+    axis_labels={"PHARMACOVIGILANCE": "on-target clinical pharmacovigilance"},
     scope_exclusions=("tumor presence/abundance", "efficacy", "modality choice beyond full-KO tolerability"),
     polarity_note="signal = strength of the LIABILITY. High gnomAD constraint, broad normal-tissue expression, "
                   "germline pathogenicity, haploinsufficiency, and pan-essentiality are STRONG liability; a "
-                  "strongly_selective dependency is REASSURING (LOW broad-tox liability), not support.",
+                  "strongly_selective dependency is REASSURING (LOW broad-tox liability), not support. When a "
+                  "PHARMACOVIGILANCE signal is present, LEAD with the specific on-target clinical toxicity "
+                  "classes / boxed warnings — but treat it as CONFOUNDED CONTEXT (on- vs off-target cannot be "
+                  "separated; corroboration is capped): it orients, it is never itself the verdict.",
     relevance_enum=("high_liability", "moderate_liability_with_caveats", "low_liability", "insufficient_evidence"),
     mode="verdict",
     verdict_key="safety_verdict",   # the RESOLVED safety verdict token (run.py headline key); else the

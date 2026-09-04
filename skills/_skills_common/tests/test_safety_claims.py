@@ -89,3 +89,56 @@ def test_atoms_absent_without_cards():
     vec = safety_claim_vector(_headline(), [])
     for ax in ("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO"):
         assert "evidence_atom" not in vec[ax], f"{ax} atom present with no source card"
+
+
+# ── 2026-09-04 signal-surfacing: PHARMACOVIGILANCE context axis + rich CLINVAR/MOUSE_KO sub-fields ──
+def test_pharmacovigilance_axis_is_verdict_inert_context():
+    # a black-box-warned target-engaging drug is a STRONG clinical liability SIGNAL, but corroboration is
+    # CAPPED (never `high`) and the confound rides in the conflict slot — it ORIENTS, never a resolver HOLD.
+    vec = safety_claim_vector(_headline(drug_warning_class="black_box_warned", drug_warning_has_black_box=True,
+                                        drug_warning_toxicity_classes=["hepatotoxicity", "cardiotoxicity"],
+                                        onsides_example_boxed_warning_terms="Hepatotoxicity"), _cards())
+    p = vec["PHARMACOVIGILANCE"]
+    assert p["signal"] == "strong"
+    assert p["corroboration"] == "moderate"          # capped — the on/off-target confound
+    assert "hepatotoxicity" in p["evidence"]          # the rich toxicity CLASSES the capsule carried
+    assert "CONFOUNDED" in (p["conflict"] or "")      # confound flagged, not the verdict
+    assert "CONTEXT" in vec["_disclaimer"]            # doubly-inert note present
+
+
+def test_pharmacovigilance_measured_absent_vs_unmeasured_gap():
+    # engaging drug(s) exist but NONE warned = MEASURED absent; no engaging drug at all = coverage gap.
+    assert safety_claim_vector(_headline(drug_warning_class="no_warning"), _cards())["PHARMACOVIGILANCE"]["signal"] == "absent"
+    gap = safety_claim_vector(_headline(drug_warning_class="no_targeted_drug"), _cards())["PHARMACOVIGILANCE"]
+    assert gap["signal"] == "unmeasured" and gap["corroboration"] == "unmeasured"
+
+
+def test_pharmacovigilance_onsides_fallback_when_drug_warning_thin():
+    # a boxed-warning ADE profile is a strong clinical signal even when the OT drug-warning leg is thin.
+    v = safety_claim_vector(_headline(drug_warning_class="no_targeted_drug", onsides_has_boxed_warning=True), _cards())
+    assert v["PHARMACOVIGILANCE"]["signal"] == "moderate"
+
+
+def test_clinvar_evidence_surfaces_confident_variant_count():
+    vec = safety_claim_vector(_headline(clinvar_n_pathogenic_germline_confident=109), _cards())
+    assert "confident-germline-pathogenic-variants=109" in vec["CLINVAR"]["evidence"]
+    # a zero/absent count must NOT clutter the evidence
+    assert "confident-germline-pathogenic-variants" not in safety_claim_vector(
+        _headline(clinvar_n_pathogenic_germline_confident=0), _cards())["CLINVAR"]["evidence"]
+
+
+def test_mouseko_evidence_surfaces_organ_systems():
+    vec = safety_claim_vector(_headline(mouse_ko_organ_systems=["hematopoietic system phenotype",
+                                                                "cardiovascular system phenotype"]), _cards())
+    ev = vec["MOUSE_KO"]["evidence"]
+    assert "organ-systems=" in ev and "hematopoietic system phenotype" in ev
+
+
+def test_pharmacovigilance_atom_cites_drug_warning_card():
+    cards = _cards() + [{"card_id": "drug-warning-safety", "summary": {
+        "drug_warning_class": "black_box_warned", "has_black_box": True,
+        "toxicity_classes": ["hepatotoxicity"], "warning_types": ["black box warning"],
+        "n_targeted_warned_drugs": 8}}]
+    a = safety_claim_vector(_headline(drug_warning_class="black_box_warned"), cards)["PHARMACOVIGILANCE"]["evidence_atom"]
+    assert a["cite"]["card_id"] == "drug-warning-safety"
+    assert a["entity"]["valence"] == "liability"

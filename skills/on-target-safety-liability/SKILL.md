@@ -28,7 +28,16 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.16.0
+  version: 1.17.0    # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
+                     # synthesis, Europe-PMC-grounded + PMID-verified via _skills_common.literature_synthesis;
+                     # run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968.
+                     # + VERDICT-INERT signal-surfacing of rich safety sub-fields the capsule projection
+                     # ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes
+                     # of target-engaging drugs; confounded CONTEXT, corroboration capped, orients-not-holds),
+                     # MOUSE_KO claim evidence += affected organ systems, CLINVAR claim evidence += confident
+                     # germline-pathogenic variant count. PHARMACOVIGILANCE stays OUT of the HeadlineSpec
+                     # axis_keys so headline_block/confidence/hero + golden-oracle + test_safety_replay
+                     # verdict fixtures are BYTE-STABLE. Verdict spine untouched.
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -201,6 +210,13 @@ downgrade is realised separately in `safety_verdict_by_modality`.
 ```
 /on-target-safety-liability KRAS
 ```
+
+Optional flags: `--synthesize` attaches a verdict-INERT LLM narration of the LIABILITY
+axes; `--literature` attaches a verdict-INERT, Europe-PMC-grounded + PMID-verified
+literature lane (`decision['literature_synthesis']`) and feeds it to the narrator as a
+corroboration/contradiction channel — e.g. it surfaces mouse-KO lethality or on-target
+clinical toxicity (hematologic DLTs, boxed warnings) that the omics cards are blind to
+when no drug is approved / the gene is un-phenotyped. Both NEVER alter the verdict spine.
 
 ## Provenance discipline
 

@@ -25,6 +25,14 @@ from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import ON_TARGET_SAFETY as _SAFETY_LENS
+# OPTIONAL (--literature) verdict-INERT LLM literature lane — the same shared fleet module wired into
+# genomic-alteration #982 / functional-requirement #987 / tumor-presence #965 / tumor-selectivity #968.
+# This skill uses run_wired_skill, so Phase-5 is a ONE-LINER: pass literature_fn=make_literature_fn(...)
+# to the dispatcher (it attaches decision['literature_synthesis'] at seam 8a-iii and feeds it to the
+# --synthesize narrator). Grounded in Europe PMC (PubTator3 fallback via default_retrieve; the safety
+# lens query terms live in literature_retrieval._LENS_QUERY_TERMS) + PMID-verified via verify_citations.
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: on-target safety LIABILITY — signal = strength
 # of the liability, so high constraint / broad normal expression / germline pathogenicity → strong. NOTE
@@ -48,7 +56,7 @@ from _skills_common.narrative import build_narrative
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.16.0"   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
+SKILL_VERSION = "1.17.0"   # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
                           # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
                           # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
                           # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
@@ -450,9 +458,17 @@ def _headline(cards, fired, verdict_pair):
         # mouse-KO normal-physiology (verdict-moving)
         "mouse_ko_phenotype_class": get_card_field(cards, "mouse-ko-phenotype", "ko_phenotype_class"),
         "mouse_ko_top_lethal":      get_card_field(cards, "mouse-ko-phenotype", "top_lethal_label"),
+        # affected ORGAN SYSTEMS on knockout (2026-09-04 signal-surfacing) — the rich mouse-KO sub-field the
+        # capsule projection ignored (class + top_lethal only). Folded into the MOUSE_KO claim evidence so
+        # the narrator names WHICH organ systems a full KO perturbs. VERDICT-INERT.
+        "mouse_ko_organ_systems":   get_card_field(cards, "mouse-ko-phenotype", "organ_classes"),
         # ClinVar germline-pathogenicity
         "clinvar_pathogenic_class": get_card_field(cards, "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
         "clinvar_top_disease":      get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),
+        # confident germline-pathogenic variant COUNT (2026-09-04 signal-surfacing) — the rich ClinVar
+        # sub-field the capsule projection ignored (class + top_disease only). Folded into the CLINVAR claim
+        # evidence so the narrator can say "N confident germline-pathogenic variants". VERDICT-INERT.
+        "clinvar_n_pathogenic_germline_confident": get_card_field(cards, "clinvar-pathogenicity-safety", "n_pathogenic_germline_confident"),
         # DepMap pan-essentiality — BROAD-TOX safety leg (verdict-moving via pan-essential-broad-tox-
         # safety-warning). common_essential = required across the whole panel → normal-tissue tox for
         # a full-KO modality (the SAFETY reading of the same signal the dependency skill vetoes).
@@ -561,7 +577,8 @@ def _headline(cards, fired, verdict_pair):
 _SYNTHESIS_FACET_KEYS = (
     "safety_verdict", "driving_rule_id",
     "constraint_class", "burden_safety_class", "dosage_sensitivity_class",
-    "clinvar_pathogenic_class", "mouse_ko_phenotype_class",
+    "clinvar_pathogenic_class", "clinvar_n_pathogenic_germline_confident",
+    "mouse_ko_phenotype_class", "mouse_ko_organ_systems",
     "dependency_class", "pan_essential_score", "essential_tissue_flag", "normal_tissue_breadth_class",
     "drug_warning_class", "drug_warning_has_black_box", "drug_warning_toxicity_classes",
     "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
@@ -611,4 +628,9 @@ if __name__ == "__main__":
         # NET-NEW single-lens narrator (this skill had none → --synthesize was a no-op). Generic
         # capsule-driven engine + the safety LensConfig (LIABILITY polarity). Two-slot / verdict-inert.
         synthesize_fn=make_synthesize_fn(_SAFETY_LENS),
+        # OPT-IN (--literature) verdict-INERT literature lane (Europe-PMC-grounded + PMID-verified). One-liner
+        # because run_wired_skill owns the seam (dispatcher 8a-iii); NEVER alters the spine (byte-identical
+        # without the flag). Routes each safety literature axis back to this skill (it OWNS the WT-loss call).
+        literature_fn=make_literature_fn(_SAFETY_LENS, retrieve_fn=default_retrieve,
+                                         verify_fn=verify_citations),
     ))
