@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/evidence_graph.schema.json",
+  "title": "Evidence Graph",
+  "description": "Schema for the additive, DISPLAY-ONLY claim graph emitted at decision.headline.evidence_graph by a subskill data package. It is a one-way relational projection over data already present in decision.json (verdict spine + cards + fired_rules + subgroup_signals/evidence_capsules + question_table + optional literature_synthesis/llm_synthesis) so downstream renderers read explicit, stably-keyed edges (question <-> card <-> rule <-> dataset <-> literature-axis <-> citation <-> narrative) instead of re-deriving joins. It introduces NO new science and feeds NO rule/resolver/gate. Datasets and citations are deduplicated into id-keyed arrays; every other node references them by id. Referential integrity is an invariant: every id referenced by an edge must resolve to a node in the same package. Fields are widely nullable because the graph is an honest projection: an unmeasured/unbound signal, an axis with no literature, or a question with no cards is emitted with null/empty edges, never dropped.",
+  "type": "object",
+  "required": ["schema_version", "skill", "verdict", "questions", "cards", "rules", "datasets", "literature", "citations", "narrative"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "skill": {"type": ["string", "null"]},
+    "target": {"type": ["string", "null"]},
+    "indication": {"type": ["string", "null"]},
+    "verdict": {"$ref": "#/$defs/verdict"},
+    "questions": {"type": "array", "items": {"$ref": "#/$defs/question"}},
+    "cards": {"type": "array", "items": {"$ref": "#/$defs/card"}},
+    "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+    "datasets": {"type": "array", "items": {"$ref": "#/$defs/dataset"}},
+    "literature": {"$ref": "#/$defs/literature"},
+    "citations": {"type": "array", "items": {"$ref": "#/$defs/citation"}},
+    "narrative": {"$ref": "#/$defs/narrative"}
+  },
+  "$defs": {
+    "id_ref": {"type": "string", "minLength": 1},
+    "id_ref_array": {"type": "array", "items": {"$ref": "#/$defs/id_ref"}},
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tier": {"type": ["string", "null"]},
+        "polarity": {"type": ["string", "null"]},
+        "label": {"type": ["string", "null"]}
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": ["string", "null"]},
+        "call": {"type": ["string", "null"]},
+        "polarity": {"type": ["string", "null"]},
+        "driving_rule_id": {"type": ["string", "null"]},
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {"type": ["string", "null"]},
+            "coverage": {"type": ["object", "null"]}
+          }
+        },
+        "top_tension": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "text": {"type": ["string", "null"]},
+            "severity": {"type": ["integer", "number", "null"]},
+            "source_card_ids": {"$ref": "#/$defs/id_ref_array"}
+          }
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["id", "card_ids", "rule_ids", "literature_axis_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "seq": {"type": ["integer", "null"]},
+        "text": {"type": ["string", "null"]},
+        "axis_id": {"type": ["string", "null"]},
+        "role": {"type": ["string", "null"], "enum": ["verdict_bearing", "corroboration", "display_only", null]},
+        "signal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tier": {"type": ["string", "null"]},
+            "polarity": {"type": ["string", "null"]},
+            "label": {"type": ["string", "null"]}
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {"type": ["string", "null"]},
+            "dots": {"type": ["integer", "null"]},
+            "label": {"type": ["string", "null"]}
+          }
+        },
+        "card_ids": {"$ref": "#/$defs/id_ref_array"},
+        "rule_ids": {"$ref": "#/$defs/id_ref_array"},
+        "literature_axis_ids": {"type": "array", "items": {"type": "string"}},
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "card_id": {"$ref": "#/$defs/id_ref"},
+              "field": {"type": ["string", "null"]},
+              "value": {},
+              "label": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "prose": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary": {"type": ["string", "null"]},
+            "support": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "card": {
+      "type": "object",
+      "required": ["id", "role", "question_ids", "dataset_ids", "rule_ids", "chain"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "measurement_type": {"type": ["string", "null"]},
+        "tier": {"type": ["string", "null"]},
+        "role": {"type": "string", "enum": ["verdict_bearing", "display_only"]},
+        "question_ids": {"$ref": "#/$defs/id_ref_array"},
+        "axis_id": {"type": ["string", "null"]},
+        "signal": {"$ref": "#/$defs/signal"},
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {"type": ["string", "null"]},
+            "dots": {"type": ["integer", "null"]},
+            "evidence_state": {"type": ["string", "null"]},
+            "n": {"type": ["integer", "number", "null"]}
+          }
+        },
+        "class": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "field": {"type": ["string", "null"]},
+            "value": {}
+          }
+        },
+        "dataset_ids": {"$ref": "#/$defs/id_ref_array"},
+        "rule_ids": {"$ref": "#/$defs/id_ref_array"},
+        "chain": {
+          "type": "object",
+          "required": ["rule_id", "contributes_to_verdict", "is_driving"],
+          "additionalProperties": false,
+          "properties": {
+            "dataset_ids": {"$ref": "#/$defs/id_ref_array"},
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"field": {"type": ["string", "null"]}, "value": {}}
+              }
+            },
+            "rule_id": {"type": ["string", "null"]},
+            "contributes_to_verdict": {"type": "boolean"},
+            "is_driving": {"type": "boolean"}
+          }
+        },
+        "key_fields": {"type": "object"}
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": ["id", "card_id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "card_id": {"type": ["string", "null"]},
+        "field": {"type": ["string", "null"]},
+        "value": {},
+        "dominant": {"type": "boolean"},
+        "is_driving": {"type": "boolean"},
+        "rationale": {"type": ["string", "null"]}
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "s3_uri": {"type": ["string", "null"]},
+        "license": {"type": ["string", "null"]}
+      }
+    },
+    "literature": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Empty object {} when no literature lane; otherwise the projected axes + blind spots.",
+      "properties": {
+        "axes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["axis_id", "question_ids", "citation_ids"],
+            "additionalProperties": false,
+            "properties": {
+              "axis_id": {"type": ["string", "null"]},
+              "question_ids": {"$ref": "#/$defs/id_ref_array"},
+              "read": {"type": ["string", "null"]},
+              "agreement_vs_omics": {"type": ["string", "null"]},
+              "confidence": {"type": ["string", "null"]},
+              "assertion": {"type": ["string", "null"]},
+              "citation_ids": {"$ref": "#/$defs/id_ref_array"}
+            }
+          }
+        },
+        "blind_spots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["citation_ids"],
+            "additionalProperties": false,
+            "properties": {
+              "text": {"type": ["string", "null"]},
+              "why_omics_blind": {"type": ["string", "null"]},
+              "citation_ids": {"$ref": "#/$defs/id_ref_array"}
+            }
+          }
+        },
+        "overall_consistency": {"type": ["string", "null"]},
+        "key_divergence": {"type": ["string", "null"]}
+      }
+    },
+    "citation": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "label": {"type": ["string", "null"]},
+        "pmid": {"type": ["string", "null"]},
+        "doi": {"type": ["string", "null"]},
+        "verified": {"type": "boolean"}
+      }
+    },
+    "narrative": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Empty object {} when no llm_synthesis (or an error/skip stub); otherwise the anchored narration.",
+      "properties": {
+        "relevance": {"type": ["string", "null"]},
+        "rationale": {"type": ["string", "null"]},
+        "confidence_qualifier": {"type": ["string", "null"]},
+        "key_caveat": {"type": ["string", "null"]},
+        "cites": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "question_ids": {"$ref": "#/$defs/id_ref_array"},
+            "card_ids": {"$ref": "#/$defs/id_ref_array"},
+            "rule_ids": {"$ref": "#/$defs/id_ref_array"}
+          }
+        }
+      }
+    }
+  }
+}
