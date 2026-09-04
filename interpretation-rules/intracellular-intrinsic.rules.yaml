@@ -2666,6 +2666,8 @@ rules:
     signals:
       small_molecule: opposing
       degrader: opposing
+      adc: opposing          # tumor is BELOW a VITAL organ — no window even for a bystander-buffered ADC
+      bite_tce: opposing     # engaging an essential organ above the tumor is the on-target/off-tumor KILL class
     rationale: |
       Tumor expression is BELOW the worst critical/essential normal organ (tumor÷worst-essential-normal
       ratio < 1) — there is NO therapeutic window versus the broad normal tissue atlas, even if the gene
@@ -2684,6 +2686,10 @@ rules:
     signals:
       small_molecule: opposing
       degrader: opposing
+      adc: neutral           # the TROP2/TACSTD2 salivary-gland archetype: broad-LOW normal (clean vs the
+                             # essential set) is ADC-tolerable — sacituzumab/Dato-DXd are validated ADCs
+                             # here; the bystander/payload buffer + internalization arbitrate (density-led)
+      bite_tce: opposing     # a T-cell engager has no payload buffer — broad normal presence is a real TCE liability
     rationale: |
       PAN-NORMAL companion to tvn-no-therapeutic-window-veto (DEFERRED-2, 2026-08-08). The
       therapeutic-window veto keys on therapeutic_window_class, which is ESSENTIAL-ORGANS-ONLY (tumor ÷
@@ -2702,6 +2708,12 @@ rules:
     signals:
       small_molecule: opposing
       degrader: opposing
+      adc: neutral           # essential-cell expression in a non-origin critical organ is bystander-
+                             # buffered for an ADC — FOLR1 (kidney tubule → mirvetuximab) / ERBB2 are
+                             # validated ADCs despite this; density + internalization arbitrate (mirrors
+                             # the tphp-broad-abundant-normal-protein-veto adc:neutral precedent)
+      bite_tce: opposing     # a T-cell engager engaging an essential cell in a vital organ is the
+                             # MAGE-A3-cardiac / CEA-colitis on-target/off-tumor failure class
     rationale: |
       CELL-TYPE-RESOLVED normal veto (INC-3, axis-D, 2026-08-08). Bulk tumor-vs-normal + the
       atlas-window vetoes can miss a target expressed in a SAFETY-ESSENTIAL CELL TYPE within a
