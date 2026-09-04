@@ -18,6 +18,7 @@ modality-therapeutic-window:
   max_essential_normal_tpm: 3.27
   max_full_normal_organ: VAGINA
   max_full_normal_tpm: 53.13
+  method_version: 1.1.0
   modality: bite_tce
   modality_tier_threshold_tpm: 1.0
   n_gtex_tissues: 31
@@ -63,11 +64,21 @@ sc-normal-celltype-expression:
   safety_essential_flags:
     BEST4+ colonocyte: 1.0
     BEST4+ enterocyte: 0.8376623376623377
+    colon endothelial cell: 0.22
     colonocyte: 0.6231884057971014
     early colonocyte: 0.8602150537634409
     enterocyte: 0.48672566371681414
     enterocyte of epithelium of large intestine: 0.7196969696969697
+  sc_normal_abundance_class: high_abundance
+  sc_normal_ceiling_detection_fraction: 1.0
+  sc_normal_essential_donor_fraction: 1.0
+  sc_normal_essential_max_cell_type: BEST4+ colonocyte
+  sc_normal_essential_max_detection_fraction: 1.0
+  sc_normal_essential_max_tissue: colon
+  sc_normal_essential_median_abund: 3.5586445973469663
+  sc_normal_essential_n_datasets_reliable: 3
   sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_peak_median_abund: 3.5586445973469663
   sc_normal_safety_essential_class: origin_tissue_liability
   tissues_queried:
   - colon
@@ -171,16 +182,16 @@ tumor-protein-abundance-cptac:
   allgene_percentile_class: top_1pct
   allgene_percentile_context: cptac-protein-tumor-vs-normal cohort=COAD metric=protein_effect_size
   cohort: COAD
-  method_version: 1.0.0
+  method_version: 1.2.0
   n_normal_samples: 100
   n_tumor_samples: 97
   protein_bh_q_value: 5.32879987890253e-22
-  protein_effect_cohens_d: 1.1317
+  protein_effect_cohens_d: 1.5998
   protein_effect_size: 1.0541165523455
-  protein_effect_size_se: null
+  protein_effect_size_se: 0.0939004885901549
   protein_effect_standardized_class: large
-  protein_effect_standardized_method: pvalue_zscore_approx
-  protein_effect_standardized_t: 7.9414
+  protein_effect_standardized_method: moderated_se_exact
+  protein_effect_standardized_t: 11.2259
   protein_expression_class: modest_up
   protein_median_log2_normal: -1.04692961729867
   protein_median_log2_tumor: -0.0062868412567304
@@ -246,6 +257,7 @@ tumor-scrna-celltype-expression:
     n_donors: 113
   product_id: sc-pseudobulk-tumor-crc-coadread-v1
   sc_expression_class: malignant_broadly_detected
+  stromal_confound_class: malignant_intrinsic
   tce_antigen_escape_class: escape_risk_patient_variable
   tce_homogeneity_class: homogeneous
   top_microenvironment_compartment: stromal

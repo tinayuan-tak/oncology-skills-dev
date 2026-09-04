@@ -18,6 +18,7 @@ modality-therapeutic-window:
   max_essential_normal_tpm: 94.74
   max_full_normal_organ: SALIVARY_GLAND
   max_full_normal_tpm: 508.6
+  method_version: 1.1.0
   modality: bite_tce
   modality_tier_threshold_tpm: 1.0
   n_gtex_tissues: 31
@@ -61,7 +62,10 @@ sc-normal-celltype-expression:
   - colon
   per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
   safety_essential_flags:
+    cholangiocyte: 0.6764705882352942
     cycling pulmonary alveolar type 2 cell: 0.2413793103448276
+    endothelial cell of lymphatic vessel: 0.05263157894736842
+    intrahepatic cholangiocyte: 0.6141001855287569
     kidney collecting duct alpha-intercalated cell: 0.05971945674462836
     kidney collecting duct cell: 0.7049689440993789
     kidney collecting duct intercalated cell: 0.30392156862745096
@@ -73,9 +77,21 @@ sc-normal-celltype-expression:
     kidney loop of Henle thin ascending limb epithelial cell: 0.7049180327868853
     kidney loop of Henle thin descending limb epithelial cell: 0.4203305068985038
     neuron: 0.05660754074463332
+    pancreatic acinar cell: 0.8392857142857143
     pulmonary alveolar type 1 cell: 0.7978947368421052
     pulmonary alveolar type 2 cell: 0.45984972677595626
+    vein endothelial cell: 0.0822481151473612
+    vein endothelial cell of respiratory system: 0.09745762711864407
+  sc_normal_abundance_class: high_abundance
+  sc_normal_ceiling_detection_fraction: 1.0
+  sc_normal_essential_donor_fraction: 0.9090909090909091
+  sc_normal_essential_max_cell_type: pancreatic acinar cell
+  sc_normal_essential_max_detection_fraction: 0.8392857142857143
+  sc_normal_essential_max_tissue: pancreas
+  sc_normal_essential_median_abund: 1.1982307276394344
+  sc_normal_essential_n_datasets_reliable: 7
   sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_peak_median_abund: 2.2648198164632505
   sc_normal_safety_essential_class: critical_organ_liability
   tissues_queried:
   - colon
@@ -179,16 +195,16 @@ tumor-protein-abundance-cptac:
   allgene_percentile_class: top_decile
   allgene_percentile_context: cptac-protein-tumor-vs-normal cohort=COAD metric=protein_effect_size
   cohort: COAD
-  method_version: 1.0.0
+  method_version: 1.2.0
   n_normal_samples: 100
   n_tumor_samples: 97
   protein_bh_q_value: 6.6860028996197e-05
-  protein_effect_cohens_d: 0.5868
+  protein_effect_cohens_d: 0.6176
   protein_effect_size: 0.831081889936636
-  protein_effect_size_se: null
+  protein_effect_size_se: 0.191769145184881
   protein_effect_standardized_class: medium
-  protein_effect_standardized_method: pvalue_zscore_approx
-  protein_effect_standardized_t: 4.1174
+  protein_effect_standardized_method: moderated_se_exact
+  protein_effect_standardized_t: 4.3338
   protein_expression_class: modest_up
   protein_median_log2_normal: -0.58651837103213
   protein_median_log2_tumor: -0.326866779728215
@@ -254,6 +270,7 @@ tumor-scrna-celltype-expression:
     n_donors: 40
   product_id: sc-pseudobulk-tumor-crc-coadread-v1
   sc_expression_class: malignant_subset_detected
+  stromal_confound_class: malignant_intrinsic
   tce_antigen_escape_class: escape_risk_high
   tce_homogeneity_class: heterogeneous
   top_microenvironment_compartment: stromal
