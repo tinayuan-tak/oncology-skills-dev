@@ -137,6 +137,97 @@ def test_abundance_floor_adequate_when_no_bottom_decile_level():
     assert flag == "adequate_abundance" and lenses == []
 
 
+# ── #980 surface-class anchor preference (Gygi TMT under-reads the surface/secreted class) ───────
+def _ihc_card(klass):
+    return {"card_id": "hpa-pathology-cancer-ihc", "summary": {"protein_presence_class": klass}}
+
+
+def _procan_card(pct, klass="mid"):
+    """ProCan card carrying BOTH the raw all-gene percentile (the surface re-anchor's ≥50 bar) and the
+    coarse class (the general #965 orthogonal-contradiction check)."""
+    return {"card_id": "cellline-protein-abundance-procan",
+            "summary": {"allgene_percentile": pct, "allgene_percentile_class": klass}}
+
+
+def test_surface_class_reanchors_lone_gygi_low_when_procan_at_least_median():
+    """#980: for a SURFACE antigen, a lone Gygi bottom-decile whose ProCan reads ≥ median (raw pct ≥ 50)
+    is a class under-read, not a floor → re-anchor to adequate (EPCAM 79.7 / CEACAM5 84.3 / MSLN 61.5 /
+    TACSTD2 87.0). Contrast the non-surface path (next test), which stays the SOFT single-lens flag —
+    the surface gate is the only difference."""
+    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
+                      "cellline-rna-distribution": "mid",
+                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(79.7)]
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    assert flag == "adequate_abundance" and lenses == []
+
+
+def test_non_surface_gygi_low_procan_recovers_stays_soft_flag_byte_stable():
+    """The SAME cards WITHOUT the surface gate keep the general PR #965 behavior (SOFT single-lens flag) —
+    proves the surface anchor is the ONLY behavior change (non-surface targets are byte-stable)."""
+    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
+                      "cellline-rna-distribution": "mid",
+                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(79.7)]
+    flag, _ = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=False)
+    assert flag == "present_low_abundance_single_lens"
+
+
+def test_surface_class_does_NOT_rescue_folr1_shape_procan_below_median():
+    """DON'T OVERSTATE (the issue's explicit caution): FOLR1 (ProCan 20.8 %ile) / DLL3 (25.7) are
+    genuinely lower-abundance even on the better platform — a class-level `mid` check would wrongly rescue
+    them. With the ≥50 RAW-percentile bar the surface re-anchor does NOT fire; it falls through to the
+    general #965 path → SOFT single-lens flag (ProCan `mid` still contradicts the hard floor). So FOLR1
+    keeps an honest low-abundance flag — neither a false `adequate` nor a spurious hard floor."""
+    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
+                      "cellline-rna-distribution": "mid",
+                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(20.8)]
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    assert flag == "present_low_abundance_single_lens"
+    assert lenses[0]["quorum"] == "single_lens_overridden"
+
+
+def test_surface_class_ihc_high_carries_reanchor_when_procan_missing():
+    """MUC1-class exception: Gygi low, ProCan absent/low, but IHC detected_high → the surface re-anchor
+    still fires (antibody-IHC carries the abundance signal)."""
+    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
+                      "cellline-rna-distribution": "mid",
+                      "cellline-protein-abundance": "bottom_decile"}) + [_ihc_card("ihc_detected_high")]
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    assert flag == "adequate_abundance" and lenses == []
+
+
+def test_surface_class_keeps_hard_floor_when_procan_also_bottom_decile_no_ihc():
+    """A surface antigen bottom-decile on BOTH Gygi AND ProCan (raw pct absent → below bar) with no
+    IHC-high is genuinely low on both platforms — no orthogonal contradiction, so the honest HARD floor
+    stands (single_lens_unopposed)."""
+    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
+                      "cellline-rna-distribution": "mid",
+                      "cellline-protein-abundance": "bottom_decile",
+                      "cellline-protein-abundance-procan": "bottom_decile"})
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    assert flag == "present_low_abundance"
+    assert lenses[0]["quorum"] == "single_lens_unopposed"
+
+
+def test_surface_class_does_not_rescue_a_multi_lens_low():
+    """A surface antigen ALSO bottom-decile on an RNA level anchor (not just Gygi) is a genuine multi-lens
+    low — the surface re-anchor (Gygi-only under-read) does NOT fire; the multi_lens HARD floor stands."""
+    cards = _cards(**{"tumor-rna-distribution": "mid",
+                      "cellline-rna-distribution": "bottom_decile",
+                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(79.7)]
+    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    assert flag == "present_low_abundance"
+    assert {x["quorum"] for x in lenses} == {"multi_lens"}
+
+
+def test_surface_secreted_vocab_loads_expected_members():
+    """The curated vocab loads and covers the issue panel (EPCAM incl. — biology_axis_curated MISSES it)
+    without over-claiming a cytoplasmic control."""
+    from _skills_common._live_readers import _load_surface_secreted_antigens
+    v = _load_surface_secreted_antigens()
+    assert {"EPCAM", "CEACAM5", "FOLR1", "MSLN", "TACSTD2", "DLL3", "MUC1"} <= v
+    assert "KRAS" not in v and "ACTB" not in v
+
+
 def test_abundance_floor_none_when_not_positive():
     """A negative / gap / insufficient headline gets no abundance-floor read (nothing to qualify)."""
     cards = _cards(**{"tumor-rna-distribution": "bottom_decile",

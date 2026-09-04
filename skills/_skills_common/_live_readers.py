@@ -57,6 +57,28 @@ def _load_internalizing_antigens_cached(contracts_root: str) -> frozenset:
         return frozenset()
 
 
+def _load_surface_secreted_antigens() -> frozenset:
+    """The curated surface/secreted-antigen gene set (target-contracts vocab
+    surface_secreted_antigen_targets.yaml, #980). Cell-surface / secreted antigens of the class
+    that Gygi TMT proteomics systematically UNDER-READS on an all-gene abundance percentile.
+    Consumed by tumor-presence's abundance-LEVEL floor to prefer ProCan/IHC over Gygi as the
+    absolute-abundance anchor for this class (VERDICT-INERT). Read-only, lru-cached, never raises —
+    an unreadable vocab yields an EMPTY set (→ every target keeps the general quorum-override, the
+    honest degrade). Positive-only: presence enables the surface-class re-anchor; absence unchanged."""
+    return _load_surface_secreted_antigens_cached(str(_TARGET_CONTRACTS_ROOT))
+
+
+@__import__("functools").lru_cache(maxsize=4)
+def _load_surface_secreted_antigens_cached(contracts_root: str) -> frozenset:
+    path = Path(contracts_root) / "vocabularies" / "surface_secreted_antigen_targets.yaml"
+    try:
+        import yaml
+        doc = yaml.safe_load(path.read_text())
+        return frozenset((doc or {}).get("entries", {}).keys())
+    except Exception:  # noqa: BLE001 — never break the reader on a vocab read
+        return frozenset()
+
+
 def _import_method(method_name: str):
     """Import a method module from methods repo by name. Adds the methods repo
     to sys.path on first call (idempotent)."""

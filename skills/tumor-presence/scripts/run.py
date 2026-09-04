@@ -47,6 +47,7 @@ from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.literature_retrieval import europe_pmc_retrieve, verify_citations
 from _skills_common.narrator_lenses import TUMOR_PRESENCE as _LENS
 from _skills_common import get_card_field, resolve_cards
+from _skills_common._live_readers import _load_surface_secreted_antigens
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_claims import (presence_claim_vector, presence_claim_vector_by_subtype,
@@ -265,7 +266,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.18.0"   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.19.0"   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -1002,8 +1003,15 @@ _LEVEL_ANCHOR_CARDS = (
 
 _ORTHOGONAL_HIGH_ANCHOR_CLASSES = ("top_1pct", "top_decile")
 
+# #980 surface-class anchor: the raw ProCan all-gene percentile a curated surface antigen must clear for
+# a Gygi bottom-decile to be treated as a class under-read (re-anchor to adequate) rather than a floor.
+# MEDIAN (>=50): "at least typical-abundance on the better platform". Separates the recovered surface
+# antigens (EPCAM 79.7 / CEACAM5 84.3 / MSLN 61.5 / TACSTD2 87.0) from the genuinely-lower-abundance
+# ones the issue warns not to overstate (FOLR1 20.8 / DLL3 25.7) — a class-level check cannot (both `mid`).
+_SURFACE_PROCAN_ADEQUATE_PCTILE = 50.0
 
-def _abundance_floor(cards, collapsed_verdict):
+
+def _abundance_floor(cards, collapsed_verdict, is_surface=False):
     """VERDICT-INERT (Principle 2 — breadth != level): a presence-POSITIVE call whose absolute abundance
     LEVEL reads bottom-decile (allgene percentile) in at least one lens. The presence classes are
     breadth-of-detection dominant (e.g. a protein detected in 100% of cell lines but bottom-decile
@@ -1031,6 +1039,32 @@ def _abundance_floor(cards, collapsed_verdict):
             high.append({"lens": label, "card_id": card_id, "allgene_percentile_class": klass})
     if not low:
         return "adequate_abundance", []
+    # SURFACE-CLASS ANCHOR PREFERENCE (#980, VERDICT-INERT): the Gygi TMT panel systematically
+    # UNDER-READS the curated surface/secreted antigen class (membrane / low-solubility / glycosylated
+    # peptides under-sampled) — bottom-decile for EPCAM/CEACAM5/MSLN/TACSTD2 even at tumor-RNA top-1%,
+    # while the cytoplasmic/structural controls (KRAS/ACTB) are NOT bottom-decile (the bias is
+    # class-specific). For a curated surface antigen, prefer ProCan (DIA-SWATH, better membrane coverage)
+    # + HPA-IHC as the protein LEVEL anchor: a Gygi bottom-decile that is the ONLY protein-panel low lens
+    # AND is RECOVERED by ProCan (not bottom-decile) or IHC (detected_high) is a surface-class MS
+    # under-read, not a genuine floor → re-anchor to adequate. This is the surface-class layer ON TOP of
+    # the general quorum-override below (PR #965). DO NOT blanket-rescue: a target ALSO bottom-decile on
+    # ProCan is genuinely lower-abundance (DLL3/FOLR1) and falls through to the honest floor logic.
+    if is_surface:
+        _sc = {c["card_id"]: (c.get("summary") or {}) for c in cards}
+        _procan_pct = (_sc.get("cellline-protein-abundance-procan") or {}).get("allgene_percentile")
+        _ihc = (_sc.get("hpa-pathology-cancer-ihc") or {}).get("protein_presence_class")
+        # RECOVERY BAR: ProCan must read the antigen at LEAST median-abundance (raw all-gene percentile
+        # >= 50), NOT merely "not bottom-decile". The allgene_percentile_class bins are too coarse — a
+        # `mid` class spans ~10th-90th percentile, so EPCAM (ProCan 79.7) and FOLR1 (ProCan 20.8) are BOTH
+        # `mid`. The issue's own caution: FOLR1/DLL3 are genuinely lower-abundance even on ProCan
+        # (20.8 / 25.7 %ile) — auto-rescuing them on the class alone OVERSTATES them. The >=50 bar cleanly
+        # separates the recovered class (EPCAM/CEACAM5/MSLN/TACSTD2, 61-87) from the legit-low (FOLR1 20.8).
+        _procan_recovers = isinstance(_procan_pct, (int, float)) and _procan_pct >= _SURFACE_PROCAN_ADEQUATE_PCTILE
+        _ihc_high = _ihc == "ihc_detected_high"
+        _gygi_low = [d for d in low if d["card_id"] == "cellline-protein-abundance"]
+        _non_gygi_low = [d for d in low if d["card_id"] != "cellline-protein-abundance"]
+        if _gygi_low and not _non_gygi_low and (_procan_recovers or _ihc_high):
+            return "adequate_abundance", []              # surface-class re-anchor to ProCan/IHC
     if len(low) >= 2:                                    # genuine multi-lens low → HARD floor
         for d in low:
             d["quorum"] = "multi_lens"
@@ -1155,8 +1189,12 @@ def _attach_subtype_firstclass(subgroup_signals, claim_vector_by_subtype):
     return subgroup_signals
 
 
-def _headline(cards, fired, verdict_pair):
+def _headline(cards, fired, verdict_pair, target=None, indication=None):
+    # `target` is injected by the dispatcher when declared (signature-introspected) — used ONLY to key
+    # the curated surface/secreted-antigen vocab for the #980 abundance anchor preference (VERDICT-INERT;
+    # no resolved card exposes the target symbol). Absent/None → is_surface False → byte-stable prior path.
     v, drv = verdict_pair or ("insufficient", None)
+    _is_surface = bool(target) and target.upper().strip() in _load_surface_secreted_antigens()
     per_modality = _per_modality_verdicts(fired, cards)
     # Legibility flag for a cell-line-anchored headline whose tier DIFFERS from the tumor-tissue lens
     # (bidirectional — understatement OR overstatement; see _headline_lens_discordance).
@@ -1191,7 +1229,7 @@ def _headline(cards, fired, verdict_pair):
     # (Principle 1), and a presence-positive whose absolute abundance level reads bottom-decile
     # (Principle 2). Both are additive legibility guards; neither touches v / drv / per_modality.
     _hl_conflict, _hl_conflict_note, _hl_conflict_buckets = _headline_conflict(v, per_modality)
-    _abundance_floor_flag, _abundance_low_lenses = _abundance_floor(cards, v)
+    _abundance_floor_flag, _abundance_low_lenses = _abundance_floor(cards, v, is_surface=_is_surface)
     # RNA→protein proxy quality: prefer the tumor arm (the disease-context proxy), fall back to cell-line.
     _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")
     _rna_biomarker_tumor = get_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
@@ -1501,11 +1539,13 @@ _SYNTHESIS_FACET_KEYS = (
 )
 
 
-def _synthesis_facet(cards, fired, verdict_pair):
+def _synthesis_facet(cards, fired, verdict_pair, target=None, indication=None):
     """Compact, VERDICT-INERT cross-modal reconciliation block for the composed target-profile synthesis
     prompt. Reuses `_headline` (single source of truth) and returns the reconciliation-relevant subset.
-    Never moves the verdict; safe to omit (fan-out treats absence as no-facet)."""
-    h = _headline(cards, fired, verdict_pair)
+    Never moves the verdict; safe to omit (fan-out treats absence as no-facet). `target` is injected by
+    the fan-out when declared (signature-introspected) so the composed abundance_floor_flag matches the
+    standalone one (#980 surface-class anchor keys on the target — no standalone-vs-composed drift)."""
+    h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
     facet["_facet_note"] = (
         "Deterministic cross-modal reconciliation from tumor-presence (a FACET, not a gate; presence is "
@@ -1523,7 +1563,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     narrator consumes standalone ({target, indication, headline, cards}) from the fan-out's already-
     resolved cards + this skill's _headline, then narrates through its OWN lens synthesizer. Best-
     effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow."""
-    headline = _headline(cards, fired, verdict_pair)
+    headline = _headline(cards, fired, verdict_pair, target=target, indication=indication)
     decision = {
         "target": target, "indication": indication, "headline": headline,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}

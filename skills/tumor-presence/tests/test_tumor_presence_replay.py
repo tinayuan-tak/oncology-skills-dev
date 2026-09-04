@@ -175,24 +175,23 @@ def test_replay_cptac_standardized_effect_wired(epcam_decision):
 def test_replay_robustness_guards_wired(epcam_decision):
     """End-to-end wiring of the verdict-inert robustness guards over the REAL EPCAM/COADREAD summaries
     (the helpers are unit-tested; this proves _headline emits them from a real run):
-      * abundance_floor_flag = present_low_abundance_single_lens — EPCAM cell-line Gygi PROTEIN is
-        bottom-decile (allgene pct 8.6), but that is a LONE MS-panel reading orthogonally contradicted by
-        the 2nd protein platform (ProCan `mid`) and antibody-IHC: the QUORUM guard demotes it to the SOFT
-        single-lens flag (a detection-sensitivity artifact, not genuine low abundance) rather than a hard
-        floor, so it no longer caps corroboration or leads the headline. The low lens is still NAMED, with
-        its overriding evidence recorded.
+      * abundance_floor_flag = adequate_abundance — EPCAM cell-line Gygi PROTEIN is bottom-decile (allgene
+        pct 8.6), but EPCAM is a curated SURFACE/SECRETED antigen (#980) and the Gygi TMT panel
+        systematically under-reads that class; ProCan (`mid`) recovers it. So the surface-class anchor
+        RE-ANCHORS to ProCan → adequate_abundance (no floor flag at all), superseding the general SOFT
+        single-lens flag. (For a NON-surface target the same shape stays the SOFT flag — unit-tested in
+        test_presence_robustness_guards.py.) The re-anchor is threaded via the dispatcher passing
+        target='EPCAM' into _headline (signature-introspected).
       * presence_headline_conflict = False — CPTAC is `ns` (present-not-elevated), a measured NEUTRAL,
         not a killer, so the conflict flag must stay silent (no false alarm).
       * presence_abundance_is_relative = True — the standing capability-ceiling flag."""
     h = epcam_decision.get("headline") or {}
-    assert h.get("abundance_floor_flag") == "present_low_abundance_single_lens", (
-        f"expected present_low_abundance_single_lens (lone Gygi bottom-decile overridden by ProCan/IHC); "
-        f"got {h.get('abundance_floor_flag')!r}")
-    low = h.get("abundance_floor_low_lenses") or []
-    _prot = [x for x in low if x.get("card_id") == "cellline-protein-abundance"]
-    assert _prot, "the Gygi cell-line protein lens must still be NAMED as the (demoted) low lens"
-    assert _prot[0].get("quorum") == "single_lens_overridden"
-    assert _prot[0].get("overridden_by"), "the orthogonal protein evidence that demoted the floor must be recorded"
+    assert h.get("abundance_floor_flag") == "adequate_abundance", (
+        f"expected adequate_abundance (#980 surface-class re-anchor: lone Gygi bottom-decile recovered by "
+        f"ProCan for the EPCAM surface antigen); got {h.get('abundance_floor_flag')!r}")
+    assert not (h.get("abundance_floor_low_lenses") or []), (
+        "a surface-class re-anchor to adequate leaves NO low lenses (Gygi-low is a class under-read, "
+        "not a floor)")
     assert h.get("presence_headline_conflict") is False
     assert h.get("presence_headline_conflict_note") is None
     assert h.get("presence_abundance_is_relative") is True

@@ -42,6 +42,7 @@ Usage from a skill's run.py:
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 import sys
@@ -639,7 +640,21 @@ def run_wired_skill(
             ]
         else:
             _headline_cards = card_outputs
-        headline = headline_fn(_headline_cards, fired, verdict_pair)
+        # A headline_fn may OPTIONALLY declare `target` / `indication` params (e.g. to key a
+        # target-scoped curated vocabulary that no resolved card exposes — tumor-presence's
+        # surface-class abundance anchor, #980). Pass them ONLY when the signature declares them, so
+        # every existing 3-arg headline_fn is called byte-identically (purely additive introspection;
+        # mirrors resolve_cards' plot_data_out signature-gating). Never breaks on an odd callable.
+        _hf_kwargs = {}
+        try:
+            _hf_params = inspect.signature(headline_fn).parameters
+            if "target" in _hf_params:
+                _hf_kwargs["target"] = args.target
+            if "indication" in _hf_params:
+                _hf_kwargs["indication"] = args.indication
+        except (ValueError, TypeError):  # unintrospectable callable → 3-arg call (byte-identical)
+            _hf_kwargs = {}
+        headline = headline_fn(_headline_cards, fired, verdict_pair, **_hf_kwargs)
     else:
         headline = {
             "verdict": verdict_pair[0] if verdict_pair else "insufficient",

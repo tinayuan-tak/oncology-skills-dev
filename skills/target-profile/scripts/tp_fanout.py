@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import importlib.util
+import inspect
 import json
 import os
 import re
@@ -985,7 +986,21 @@ def _run_sub_skills(target: str, indication: str,
         synthesis_facet = None
         if _facet_fn is not None:
             try:
-                synthesis_facet = _facet_fn(cards, fired, verdict_pair)
+                # A _synthesis_facet may OPTIONALLY declare target/indication (signature-introspected,
+                # mirrors the dispatcher's headline_fn call) — e.g. tumor-presence keys a curated surface-
+                # antigen vocab for its #980 abundance anchor. Pass them only when declared, so standalone
+                # (dispatcher) and composed (fan-out) compute the SAME facet (no drift); a 3-arg facet is
+                # called byte-identically.
+                _facet_kwargs = {}
+                try:
+                    _fp = inspect.signature(_facet_fn).parameters
+                    if "target" in _fp:
+                        _facet_kwargs["target"] = target
+                    if "indication" in _fp:
+                        _facet_kwargs["indication"] = indication
+                except (ValueError, TypeError):
+                    _facet_kwargs = {}
+                synthesis_facet = _facet_fn(cards, fired, verdict_pair, **_facet_kwargs)
             except Exception:  # noqa: BLE001 — a facet must never break the fan-out
                 synthesis_facet = None
         # OPTIONAL per-axis (strength, certainty) SIDECAR (CERTAINTY_MODEL). Best-effort +
