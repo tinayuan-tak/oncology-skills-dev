@@ -68,16 +68,36 @@ def _first(d: dict, keys, default=None):
     return default
 
 
+def _deciding_axis_rank(a: dict) -> int:
+    """Headline-worthiness of one entry in `deciding_axes` (lower = better). The list can LEAD with an
+    axis the framework cannot evidence (`framework_can_evidence: "blind"`, e.g. the gateless
+    cis_coherence lens) — headlining that as THE deciding axis is misleading and hides the marker from
+    the signals strip (a blind axis is a descriptive footnote, not a bar). Prefer an evidenced + gated
+    axis (the real decision driver), then evidenced, then gated, else anything."""
+    blind = a.get("framework_can_evidence") == "blind"
+    gated = bool(a.get("gate") or a.get("gate_name"))
+    if not blind and gated:
+        return 0
+    if not blind:
+        return 1
+    if gated:
+        return 2
+    return 3
+
+
 def _deciding_short(deciding_axis: Any, shorts) -> Optional[str]:
     """Best-effort extract the deciding skill's short from the target_call.deciding_axis object."""
     if not isinstance(deciding_axis, dict):
         return None
-    # canonical shape: {basis, deciding_axes: [{short, gate_name, band, ...}, ...]} — take the first.
+    # canonical shape: {basis, deciding_axes: [{short, gate_name, band, framework_can_evidence, ...}]}.
+    # Pick the most headline-worthy (evidenced + gated), NOT blindly the first — the list may lead with
+    # a framework-blind axis. Stable on original order within a rank.
     axes = deciding_axis.get("deciding_axes")
     if isinstance(axes, list):
-        for a in axes:
-            if isinstance(a, dict) and a.get("short"):
-                return a["short"]
+        cand = [(i, a) for i, a in enumerate(axes) if isinstance(a, dict) and a.get("short")]
+        if cand:
+            cand.sort(key=lambda t: (_deciding_axis_rank(t[1]), t[0]))
+            return cand[0][1]["short"]
     for k in ("short", "axis", "skill", "deciding_skill"):
         v = deciding_axis.get(k)
         if isinstance(v, str) and v in shorts:

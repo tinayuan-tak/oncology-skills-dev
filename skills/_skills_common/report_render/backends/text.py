@@ -144,7 +144,10 @@ class TextBackend:
         if not text:
             return []
         sev = t.get("severity")
+        # the source is an internal facet id (e.g. "key_signals.caveat", "normal_liability_flag") —
+        # humanize it (drop the dotted namespace, de-snake) rather than leak the raw token.
         src = t.get("source")
+        src = str(src).replace("_", " ").replace(".", " ") if src else None
         tail = " ".join(x for x in [f"({sev})" if sev else "", f"— {src}" if src else ""] if x)
         return [f"{self._b('Tension')}: {text} {tail}".rstrip()]
 
