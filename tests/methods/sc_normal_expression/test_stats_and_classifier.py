@@ -282,6 +282,30 @@ def test_tissues_for_indication_unions_matched_and_safety_essential():
     assert R.tissues_for_indication("UNKNOWN") == ["heart", "liver", "kidney", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
 
 
+def test_indication_coverage_wires_orphaned_shards_and_origin_correctness():
+    """2026-09-04 coverage: 3 previously-orphaned shards (bladder/skin/uterus) are now queried via an
+    indication map, and origin-organ tumors (KIRC/LIHC/GBM) de-dup their origin out of the always-on set
+    (front position) so it is treated as origin, not off-target."""
+    # orphaned shards now reachable via an indication → prepended to the always-on set
+    assert R.tissues_for_indication("BLCA")[0] == "bladder_organ"
+    assert R.tissues_for_indication("SKCM")[0] == "skin"
+    assert R.tissues_for_indication("UCEC")[0] == "uterus"
+    # origin organ already in the always-on set → de-duped to the front, queried ONCE
+    assert R.tissues_for_indication("KIRC") == ["kidney", "heart", "liver", "bone_marrow", "brain", "adrenal_gland", "lung", "pancreas"]
+    assert R.tissues_for_indication("GBM") == ["brain", "heart", "liver", "kidney", "bone_marrow", "adrenal_gland", "lung", "pancreas"]
+
+
+def test_kidney_origin_softens_own_organ_liability_for_renal_cancer(monkeypatch):
+    """A renal target expressed in kidney tubule reads critical_organ_liability for a NON-renal tumor,
+    but origin_tissue_liability for KIRC (kidney IS the tissue-of-origin) — the coverage correctness fix."""
+    rows = _tier1_rows([("kidney proximal tubule epithelial cell", 12, 0.60, 0.75)], tissue="kidney")
+    monkeypatch.setattr(R, "read_gene_celltype_rows", lambda t, ts: rows)
+    # non-renal tumor: kidney is off-origin → hard-veto class
+    assert R.read_target_summary("SOMEGENE", "COADREAD")["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    # renal tumor: kidney is origin → softened
+    assert R.read_target_summary("SOMEGENE", "KIRC")["sc_normal_safety_essential_class"] == "origin_tissue_liability"
+
+
 def test_all_tissue_products_resolve():
     """All wired tissues route to a Tier-1 product key (hyphenated slugs for multi-word tissues)."""
     for t in ["colon", "lung", "heart", "liver", "kidney", "stomach",

@@ -87,6 +87,23 @@ INDICATION_TO_TISSUES = {
     "HNSC":     ["esophagus"],    # squamous-normal proxy (oral/pharyngeal mucosa absent from Census)
     "OV":       ["ovary"],
     "PRAD":     ["prostate_gland"],
+    # 2026-09-04 coverage: (1) WIRE three landed-but-orphaned shards (bladder_organ / skin / uterus)
+    # into use — they existed in TISSUE_TO_PRODUCT but no indication mapped to them, so they were never
+    # queried; (2) fix ORIGIN-TISSUE correctness for tumors whose tissue-of-origin is an always-on
+    # safety-essential organ (kidney/liver/brain) — previously these indications were unmapped, so the
+    # origin organ was queried but as OFF-origin, wrongly reading its own-organ essential expression as
+    # critical_organ_liability. Adding the origin map softens that to origin_tissue_liability (window-
+    # arbitrated) — veto-monotonic (can only downgrade a veto, never create one).
+    "BLCA":     ["bladder_organ"],
+    "SKCM":     ["skin"],
+    "UCEC":     ["uterus"],
+    "UCS":      ["uterus"],
+    "KIRC":     ["kidney"],        # renal clear cell — kidney is the tissue-of-origin, not an off-target
+    "KIRP":     ["kidney"],
+    "KICH":     ["kidney"],
+    "LIHC":     ["liver"],         # hepatocellular — liver is the tissue-of-origin
+    "GBM":      ["brain"],         # glioblastoma — brain is the tissue-of-origin
+    "LGG":      ["brain"],
 }
 
 
