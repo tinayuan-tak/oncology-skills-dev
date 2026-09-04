@@ -18,6 +18,8 @@ either consistent detection or high fraction is enough to warrant a safety flag.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -40,8 +42,11 @@ NORMAL_ABUND_HIGH = 0.64
 NORMAL_ABUND_MODERATE = 0.24
 
 # Safety-essential normal cell types: any detection in these types forces a dedicated flag.
-# These map to Census Cell Ontology labels (raw, no synonymy). Partial prefix matching is
-# used where multiple subtypes share a lineage (e.g. "neuron" → "dopaminergic neuron").
+# These map to Census Cell Ontology labels (raw, no synonymy). WHOLE-TOKEN matching is used so a
+# lineage token matches its subtypes wherever the token appears as a standalone word (e.g. "neuron"
+# → "dopaminergic neuron", "cardiac neuron", "central nervous system neuron"), WITHOUT matching a
+# different word that merely CONTAINS the token as a substring (e.g. "neuron" must NOT match
+# "non-neuronal cell" / "neuronal-restricted precursor"). See _is_safety_essential.
 SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     "cardiomyocyte",
     "cardiac muscle cell",
@@ -66,9 +71,20 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
 )
 
 
+# Precompiled whole-token matchers, one per prefix. `\b...\b` requires a word boundary on BOTH
+# sides, so a token matches its subtypes ("neuron" → "dopaminergic neuron") but NOT a longer word
+# that merely embeds it ("neuron" ∉ "neuronal-restricted precursor" — the trailing \b fails because
+# "neuron" is followed by "al"). Multi-word prefixes ("kidney loop of henle", "type b pancreatic
+# cell") match as a contiguous token run. This replaces the former `pfx in ct` substring test, whose
+# mid-word matches produced false essential flags; it can only REMOVE false positives, never add.
+_SAFETY_ESSENTIAL_PATTERNS = tuple(
+    re.compile(r"\b" + re.escape(pfx) + r"\b") for pfx in SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES
+)
+
+
 def _is_safety_essential(cell_type: str) -> bool:
     ct = cell_type.lower()
-    return any(ct.startswith(pfx) or pfx in ct for pfx in SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES)
+    return any(pat.search(ct) for pat in _SAFETY_ESSENTIAL_PATTERNS)
 
 
 def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:

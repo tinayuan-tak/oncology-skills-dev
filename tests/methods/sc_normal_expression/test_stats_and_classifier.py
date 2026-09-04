@@ -91,6 +91,32 @@ def test_safety_essential_flags_excludes_near_zero_values():
     assert r["sc_normal_safety_essential_class"] == "none"
 
 
+def test_is_safety_essential_whole_token_not_substring():
+    """W3a: `_is_safety_essential` matches a lineage token wherever it stands as a whole word, but
+    must NOT match a longer word that merely embeds the token. 'neuron' → real neurons, NOT the
+    'neuronal'-prefixed non-neuron labels that the old `pfx in ct` substring test wrongly flagged."""
+    # TRUE positives (token appears as a standalone word):
+    assert S._is_safety_essential("neuron")
+    assert S._is_safety_essential("dopaminergic neuron")
+    assert S._is_safety_essential("central nervous system neuron")
+    assert S._is_safety_essential("cardiac muscle cell")
+    assert S._is_safety_essential("kidney loop of Henle thick ascending limb epithelial cell")
+    # FALSE positives the substring test produced — must now be rejected:
+    assert not S._is_safety_essential("non-neuronal cell")
+    assert not S._is_safety_essential("neuronal-restricted precursor")  # real Census label
+    # a cell type sharing no essential token stays unflagged
+    assert not S._is_safety_essential("fibroblast")
+
+
+def test_safety_essential_class_ignores_neuronal_substring_false_match():
+    """End-to-end: a gene detected ONLY in 'neuronal-restricted precursor' (off-origin brain) must
+    NOT be flagged essential — the substring 'neuron' no longer flips the safety-essential class."""
+    rows = _tier1_rows([("neuronal-restricted precursor", 10, 0.60, 0.80)], tissue="brain")
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert "neuronal-restricted precursor" not in r["safety_essential_flags"]
+    assert r["sc_normal_safety_essential_class"] == "none"
+
+
 def test_safety_essential_class_critical_organ_vs_origin_tissue():
     """ORGAN-AWARE veto instrument: an essential-cell hit in a NON-origin critical organ →
     critical_organ_liability (hard veto); essential hits ONLY in the tissue-of-origin →
