@@ -30,6 +30,24 @@ def test_flip_conditions_only_recommendation_flips_no_dev_notes():
     assert all("sentence" not in r for r in fc.payload["rows"])
 
 
+def test_flip_conditions_curated_not_exhaustive():
+    # dependency emits 5 recommendation-flips (rests-on + kill + 2 strengthen + 1 dup neutralize) — the
+    # block must CURATE, not dump: dedupe by direction, present-first, cap per axis + overall.
+    from collections import Counter
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    fc = _ov(ir, vocab.FLIP_CONDITIONS)
+    rows = fc.payload["rows"]
+    dep = [r for r in rows if r["axis"] == vocab.skill_title("dependency")]
+    assert len(dep) <= 2                                     # capped per axis
+    assert any(r["present"] for r in dep)                    # the load-bearing rest-on survives
+    dv = {r["to_verdict"] for r in dep}
+    assert "pan_essential_killer" in dv                      # adverse kill kept
+    assert "lineage_selective" not in dv and "selective_dependent" not in dv  # vacuous upside capped out
+    assert "insufficient_underpowered" not in dv             # same-direction dup collapsed into the rest-on
+    assert len(rows) <= 6                                    # global cap
+    assert max(Counter(r["axis"] for r in rows).values()) <= 2
+
+
 def test_flip_conditions_present_first_and_rendered_clean():
     t = render_report(make_nomination(), preset="full", backend="text")
     assert "What would change the call" in t

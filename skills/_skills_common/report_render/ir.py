@@ -553,42 +553,66 @@ def _deciding_axis_block(target_call: dict, nomination: dict, deciding_short) ->
 _FLIP_DIRECTION = {"kill": "would kill the call", "veto": "would kill the call",
                    "neutral": "would neutralize the axis", "positive": "would strengthen the call",
                    "negative": "would weaken the call"}
+# curation priority: what the call RESTS ON, then the ADVERSE flips (kill > neutralize > weaken),
+# then the upside (strengthen). The resolver enumerates every reachable verdict, so an axis like
+# dependency can emit ~10 recommendation-flips — a full dump is noise, not a decision aid.
+_FLIP_DIR_PRIORITY = {"would kill the call": 1, "would neutralize the axis": 2,
+                      "would weaken the call": 3, "would strengthen the call": 4}
+_FLIP_MAX_PER_AXIS = 2
+_FLIP_MAX_TOTAL = 6
 
 
 def _flip_conditions_block(nomination: dict) -> Optional[Block]:
     """"What would change the call" — the recommendation-FLIPPING counterfactuals per axis, read from
     narrative_by_axis[axis].flip_conditions. Rendered from the STRUCTURED fields (to_verdict, present,
-    to_role) — the dev-note `sentence` is deliberately NOT surfaced (it is engineering commentary, not
-    reader prose). `present=False` = a latent condition that would flip the call if it held; `present=
-    True` = a load-bearing signal the current call rests on (absent it, the call changes)."""
+    to_role) — the dev-note `sentence` is deliberately NOT surfaced (engineering commentary, not reader
+    prose). `present=True` = a load-bearing signal the current call rests on (absent it, the call
+    changes); `present=False` = a latent condition that would flip the call if it held.
+
+    The resolver enumerates EVERY reachable verdict, so a single axis can emit ~10 flips (incl.
+    near-duplicate `insufficient_*` flavours and vacuous same-direction upside). This is CURATED into a
+    decision aid: collapse to one representative per (axis, direction) — preferring the load-bearing
+    (present) row — then keep, per axis, the highest-priority directions (rests-on / adverse over
+    upside), capped per axis and overall."""
     nba = nomination.get("narrative_by_axis") or {}
     if not isinstance(nba, dict):
         return None
-    rows, seen = [], set()
+    # one representative per (axis, direction): a present=True row wins (it's a live fact, not a hypo).
+    reps: dict = {}
+    axis_order: list = []
     for short, ax in nba.items():
         if not isinstance(ax, dict):
             continue
+        title = vocab.skill_title(short)
         for fc in (ax.get("flip_conditions") or []):
             if not isinstance(fc, dict) or not fc.get("recommendation_flip"):
                 continue
-            to_verdict = fc.get("to_verdict")
-            key = (short, to_verdict, bool(fc.get("present")))
-            if key in seen:
-                continue
-            seen.add(key)
-            role = str(fc.get("to_role") or "").split(":")[0]
-            rows.append({
-                "axis": vocab.skill_title(short),
-                "to_verdict": to_verdict,
-                "present": bool(fc.get("present")),
-                "direction": _FLIP_DIRECTION.get(role),
-                "condition": fc.get("rule_id"),   # humanized by the backend
-            })
-    if not rows:
+            direction = _FLIP_DIRECTION.get(str(fc.get("to_role") or "").split(":")[0])
+            row = {"axis": title, "to_verdict": fc.get("to_verdict"),
+                   "present": bool(fc.get("present")), "direction": direction,
+                   "condition": fc.get("rule_id")}
+            key = (title, direction)
+            cur = reps.get(key)
+            if cur is None:
+                if title not in axis_order:
+                    axis_order.append(title)
+                reps[key] = row
+            elif row["present"] and not cur["present"]:
+                reps[key] = row     # promote the load-bearing representative for this direction
+    if not reps:
         return None
-    # load-bearing (present) first — those are live dependencies of the current call.
-    rows.sort(key=lambda r: (not r["present"], r["axis"]))
-    return Block(vocab.FLIP_CONDITIONS, {"rows": rows})
+
+    def _prio(r):
+        return 0 if r["present"] else _FLIP_DIR_PRIORITY.get(r["direction"], 5)
+
+    rows, per_axis = [], {}
+    for r in sorted(reps.values(), key=lambda r: (axis_order.index(r["axis"]), _prio(r))):
+        if per_axis.get(r["axis"], 0) >= _FLIP_MAX_PER_AXIS:
+            continue
+        per_axis[r["axis"]] = per_axis.get(r["axis"], 0) + 1
+        rows.append(r)
+    rows.sort(key=lambda r: (not r["present"], axis_order.index(r["axis"]), _prio(r)))
+    return Block(vocab.FLIP_CONDITIONS, {"rows": rows[:_FLIP_MAX_TOTAL]})
 
 
 def _subtype_block(tr: dict) -> Optional[Block]:

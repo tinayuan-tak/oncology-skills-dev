@@ -226,11 +226,22 @@ def make_nomination() -> dict:
         },
         # per-axis narrative w/ flip_conditions (real shape) — "what would change the call". Only the
         # recommendation_flip:True entries surface; the dev-note `sentence` is never rendered.
+        # dependency emits the resolver's FULL reachable-verdict enumeration (a present=True load-bearing
+        # rest-on + an adverse kill + several near-duplicate strengthen/neutralize) — the block must
+        # CURATE this (dedupe by direction, present-first, cap per axis), not dump all of it.
         "narrative_by_axis": {
             "dependency": {"axis": "dependency", "flip_conditions": [
+                {"rule_id": "non-dependent-killer", "present": True, "to_verdict": "insufficient",
+                 "to_role": "neutral", "recommendation_flip": True,
+                 "sentence": "H fix (2026-07-20): DEV NOTE — must not render."},   # rests-on (neutralize)
                 {"rule_id": "pan-essential-killer", "present": False, "to_verdict": "pan_essential_killer",
-                 "to_role": "kill:veto", "recommendation_flip": True,
-                 "sentence": "H fix (2026-07-20): DEV NOTE — must not render."},
+                 "to_role": "kill:veto", "recommendation_flip": True, "sentence": "dev note"},   # kill
+                {"rule_id": "would-be-lineage", "present": False, "to_verdict": "lineage_selective",
+                 "to_role": "positive", "recommendation_flip": True, "sentence": "dev"},   # strengthen (capped out)
+                {"rule_id": "would-be-selective", "present": False, "to_verdict": "selective_dependent",
+                 "to_role": "positive", "recommendation_flip": True, "sentence": "dev"},   # strengthen dup dir
+                {"rule_id": "would-be-insuff-up", "present": False, "to_verdict": "insufficient_underpowered",
+                 "to_role": "neutral", "recommendation_flip": True, "sentence": "dev"},   # neutralize dup dir
                 {"rule_id": "concordant-dependent-supportive", "present": True, "to_verdict": "concordant_dependent",
                  "to_role": "positive", "recommendation_flip": False,  # non-flip → must be filtered out
                  "sentence": "dev note"}]},
