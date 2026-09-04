@@ -42,6 +42,16 @@ _INDICATION_PHRASE = {
     "STAD": "gastric cancer", "OV": "ovarian cancer", "PRAD": "prostate cancer", "UCEC": "endometrial cancer",
     "SCLC": "small cell lung cancer", "HNSC": "head and neck squamous carcinoma", "SKCM": "melanoma",
     "GBM": "glioblastoma", "AML": "acute myeloid leukemia", "BLCA": "bladder cancer",
+    # Added 2026-09-04: common OncoTree/TCGA codes that were falling back to the weak "<CODE> cancer"
+    # free-text (observed live: FGFR2/CHOL literature grounding returned no PMID-bearing hits →
+    # internal-knowledge mode). All are standard, well-established code→disease names.
+    "CHOL": "cholangiocarcinoma", "LIHC": "hepatocellular carcinoma", "ESCA": "esophageal cancer",
+    "KIRC": "clear cell renal cell carcinoma", "KIRP": "papillary renal cell carcinoma",
+    "THCA": "thyroid carcinoma", "CESC": "cervical cancer", "MESO": "mesothelioma",
+    "SARC": "sarcoma", "ACC": "adrenocortical carcinoma", "UVM": "uveal melanoma",
+    "DLBC": "diffuse large B-cell lymphoma", "LAML": "acute myeloid leukemia",
+    "MB": "medulloblastoma", "NBL": "neuroblastoma", "GIST": "gastrointestinal stromal tumor",
+    "ESAD": "esophageal adenocarcinoma", "EGC": "esophagogastric cancer",
 }
 
 # Per-subskill query SPECIFICITY: curated domain terms keyed by LensConfig.name, ADDED to the lens's own
