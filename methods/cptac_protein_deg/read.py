@@ -1144,75 +1144,75 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    _load_takeda_style(target_contracts_dir)
+    pal = _load_takeda_style(target_contracts_dir)
     out_dir = Path(out_dir)
     out_path = out_dir / "figure_protein_per_cohort_tumor_vs_normal.svg"
     stats = presampled if presampled is not None else per_cohort_distribution_stats(target)
-    if not stats:
+    if not stats or pal is None:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target} — not quantified in any CPTAC cohort", ha="center",
                 va="center", fontsize=10, color="#777"); ax.set_axis_off()
         fig.savefig(out_path); plt.close(fig); return out_path
 
-    # most tumor-elevated (largest delta_median) at TOP → reverse for bottom-up y axis
-    stats = list(reversed(stats))
+    tfill, tline = pal.TUMOR_FILL, pal.TUMOR_LINE
+    nfill, nline = pal.NORMAL_FILL, pal.NORMAL_LINE
+    # driving metric for the takeaway: how many cohorts are significantly tumor-elevated (MWU/Welch p<.05).
+    def _p(s): return s["mwu_p"] if s.get("mwu_p") is not None else s.get("welch_p")
     n_cohorts = len(stats)
-    fig_h = min(max(3.2, n_cohorts * 0.62), 8.0)
-    fig, ax = plt.subplots(figsize=(7.6, fig_h))
+    n_up = sum(1 for s in stats if (s.get("delta_median") or 0) > 0 and (_p(s) is not None and _p(s) < 0.05))
+    take = (f"{target} protein is significantly elevated in tumor vs normal in "
+            f"{n_up}/{n_cohorts} CPTAC cohort(s).")
 
-    # single shared annotation column (right of the widest whisker across ALL cohorts) so the
-    # significance labels line up in a column instead of laddering per-row.
+    stats = list(reversed(stats))   # most tumor-elevated (largest Δ) at TOP → reverse for bottom-up y
+    fig_h = min(max(3.6, n_cohorts * 0.62 + 1.2), 8.4)
     ann_x = max([v for s in stats for v in (s["tumor_max"], s["normal_max"]) if v is not None]
                 or [0]) + 0.15
 
-    yticks, ylabels = [], []
-    for i, s in enumerate(stats):
-        y_t = i + 0.18   # tumor box (upper of the pair)
-        y_n = i - 0.18   # normal box (lower)
-        drew = False
-        if s["_tumor_values"]:
-            bp = ax.boxplot([s["_tumor_values"]], positions=[y_t], orientation="horizontal", widths=0.30,
-                            patch_artist=True, showfliers=False, manage_ticks=False)
-            bp["boxes"][0].set(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, linewidth=1.1)
-            for w in bp["whiskers"] + bp["caps"]:
-                w.set(color=_TUMOR_LINE, linewidth=1.0)
-            for m in bp["medians"]:
-                m.set(color="white", linewidth=1.4)
-            drew = True
-        if s["_normal_values"]:
-            bp = ax.boxplot([s["_normal_values"]], positions=[y_n], orientation="horizontal", widths=0.30,
-                            patch_artist=True, showfliers=False, manage_ticks=False)
-            bp["boxes"][0].set(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, linewidth=1.1)
-            for w in bp["whiskers"] + bp["caps"]:
-                w.set(color=_NORMAL_LINE, linewidth=1.0)
-            for m in bp["medians"]:
-                m.set(color=_NORMAL_LINE, linewidth=1.4)
-            drew = True
-        if not drew:
-            continue
-        yticks.append(i)
-        ylabels.append(f"{s['cohort']}\n(T={s['n_tumor']} N={s['n_normal']})")
-        # significance annotation at the right margin — MWU preferred (nonparametric), Welch fallback
-        p = s["mwu_p"] if s["mwu_p"] is not None else s["welch_p"]
-        stars = _sig_stars(p)
-        d = s["delta_median"]
-        label = (f"Δ{d:+.2f} {stars}" if d is not None else stars)
-        ax.text(ann_x, i, label, va="center", fontsize=7, color="#222")
-
-    # legend proxies (two boxes)
-    from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, label="tumor"),
-                       Patch(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, label="normal")],
-              loc="lower right", fontsize=8, frameon=True)
-    ax.axvline(0.0, color="#bbb", linewidth=0.8, linestyle="--", zorder=0)
-    # extend the right limit so the shared annotation column is inside the axes (tight_layout
-    # only accounts for artists inside the data limits; text beyond them would otherwise clip).
-    ax.set_xlim(right=ann_x + 0.9)
-    ax.set_yticks(yticks); ax.set_yticklabels(ylabels, fontsize=7)
-    ax.set_xlabel("log2 tumor-vs-reference protein ratio (CPTAC TMT MS, per aliquot)")
-    ax.set_title(f"{target} — tumor vs normal protein distribution, per CPTAC cohort "
-                 f"(n={n_cohorts}; * MWU p<.05)")
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    with pal.figure_frame(target, None, "tumor vs. normal protein", out_path=out_path,
+                          figsize=(7.4, fig_h), left=0.17, top=1 - 0.82 / fig_h, bottom=0.95 / fig_h,
+                          provenance=f"CPTAC TMT MS (whole-cell lysate)  ·  {n_cohorts} cohorts  ·  Δ = tumor − normal median",
+                          takeaway=take) as F:
+        ax = F.ax
+        yticks, ylabels = [], []
+        for i, s in enumerate(stats):
+            drew = False
+            if s["_tumor_values"]:
+                bp = ax.boxplot([s["_tumor_values"]], positions=[i + 0.18], orientation="horizontal",
+                                widths=0.30, patch_artist=True, showfliers=False, manage_ticks=False)
+                bp["boxes"][0].set(facecolor=tfill, edgecolor=tline, linewidth=1.1)
+                for w in bp["whiskers"] + bp["caps"]:
+                    w.set(color=tline, linewidth=1.0)
+                for m in bp["medians"]:
+                    m.set(color="white", linewidth=1.4)
+                drew = True
+            if s["_normal_values"]:
+                bp = ax.boxplot([s["_normal_values"]], positions=[i - 0.18], orientation="horizontal",
+                                widths=0.30, patch_artist=True, showfliers=False, manage_ticks=False)
+                bp["boxes"][0].set(facecolor=nfill, edgecolor=nline, linewidth=1.1)
+                for w in bp["whiskers"] + bp["caps"]:
+                    w.set(color=nline, linewidth=1.0)
+                for m in bp["medians"]:
+                    m.set(color=nline, linewidth=1.4)
+                drew = True
+            if not drew:
+                continue
+            yticks.append(i)
+            ylabels.append(f"{s['cohort']}\n(T={s['n_tumor']} N={s['n_normal']})")
+            stars = _sig_stars(_p(s)); d = s["delta_median"]
+            ax.text(ann_x, i, (f"Δ{d:+.2f} {stars}" if d is not None else stars),
+                    va="center", fontsize=7, color=pal.INK_SECONDARY)
+        ax.axvline(0.0, **pal.REFLINE_NEUTRAL)
+        ax.set_xlim(right=ann_x + 0.9)
+        ax.set_yticks(yticks); ax.set_yticklabels(ylabels, fontsize=7)
+        # DIRECT labels on the top cohort's pair (tumor = upper box, normal = lower) — the consistent
+        # ordering makes this the key for every row; no legend box to collide with the Δ column/data.
+        if yticks:
+            top = max(yticks)
+            ax.annotate("tumor", xy=(0.008, top + 0.18), xycoords=("axes fraction", "data"),
+                        ha="left", va="center", fontsize=7.5, color=tline, weight="bold")
+            ax.annotate("normal", xy=(0.008, top - 0.18), xycoords=("axes fraction", "data"),
+                        ha="left", va="center", fontsize=7.5, color=nline, weight="bold")
+        F.axis_label("x", "Tumor vs. normal protein", "log2 ratio (CPTAC TMT MS, per aliquot)")
     return out_path
 
 
