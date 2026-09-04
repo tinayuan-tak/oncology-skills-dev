@@ -45,7 +45,15 @@ from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04, literature-and-claims arc): (1) BAKE the OPTIONAL --literature lane
+SKILL_VERSION = "1.9.1"   # 1.9.1 (2026-09-04): + clonality_caveat headline field — COHORT-level (same-SAMPLE)
+                          #        co-occurrence != same-CELL/clonal (the (c) sub-inflation the v1.9.0 arc omitted): a pooled
+                          #        bulk TCGA-MC3+GENIE Fisher pair cannot resolve clonal vs subclonal/parallel evolution
+                          #        (Gerlinger 2012 PMID 22397650; McGranahan-Swanton 2017 PMID 28187284). Fires on the co-occurring
+                          #        path only (target/indication-independent), None on exclusivity-only/ns/data_unavailable; + a
+                          #        clonality clause in the DIFFERENTIATION polarity_note. VERDICT-INERT (reads only already-emitted
+                          #        headline fields; no new card-field read -> skills-only). differentiation_verdict + replay + golden
+                          #        byte-stable.
+                          # 1.9.0 (2026-09-04, literature-and-claims arc): (1) BAKE the OPTIONAL --literature lane
                           #        (was UNWIRED — literature_fn=make_literature_fn(DIFFERENTIATION_LANDSCAPE, default_retrieve,
                           #        verify_citations); refined _LENS_QUERY_TERMS +TMB/MSI/patient-strat/combo). (2) NEW consolidated
                           #        cooccurrence_confidence_caveat headline field — the co-mutation analog of mechanism's
@@ -384,6 +392,35 @@ def _cooccurrence_provenance(hl: dict, target=None, indication=None) -> dict | N
     }
 
 
+def _clonality_caveat(hl: dict) -> dict | None:
+    """COHORT-level (same-SAMPLE) co-occurrence ≠ same-CELL / CLONAL co-occurrence (VERDICT-INERT) — the (c)
+    sub-inflation. A pooled TCGA-MC3 + GENIE bulk Fisher scan counts two altered genes in the SAME PATIENT but
+    cannot resolve clonal architecture: the pair may be clonal co-drivers, or sit in separate subclones / on
+    branched lineages (subclonal / parallel evolution). Bulk without single-cell / multi-region / cancer-cell-
+    fraction (CCF) data cannot distinguish them. Fires ONLY on the CO-OCCURRING path (clonality is a
+    co-occurrence question — a mutual-exclusivity is an ABSENCE of same-sample co-mutation, so the same-cell
+    caveat does not apply); None on ns / data_unavailable / exclusivity-only → byte-stable negative path.
+    Keyed on the emitted headline only (no curated crosswalk): it applies to EVERY pooled co-occurrence."""
+    cls = hl.get("cooccurrence_class")
+    if cls not in _COMUT_POSITIVE:
+        return None                                              # ns / data_unavailable / insufficient → byte-stable
+    has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
+    if not has_cooc:
+        return None                                              # exclusivity-only → same-cell caveat N/A
+    return {
+        "reason": "cohort_not_same_cell_clonal",
+        "resolves_clonality": False,
+        "detail": ("Cohort-level co-occurrence, NOT same-cell / clonal. The pooled TCGA-MC3 + GENIE Fisher "
+                   "scan counts two altered genes in the SAME PATIENT / bulk SAMPLE but cannot resolve whether "
+                   "they share a CLONE (clonal co-drivers) or arose in separate subclones / by parallel "
+                   "(branched) evolution — bulk sequencing without single-cell / multi-region / cancer-cell-"
+                   "fraction (CCF) data cannot distinguish clonal from subclonal co-occurrence (Gerlinger 2012 "
+                   "PMID 22397650; McGranahan & Swanton 2017 PMID 28187284). A same-sample co-occurrence is a "
+                   "patient-level association, NOT proof of a same-cell co-driver relationship; a same-cell "
+                   "co-dependency / SL call is owned by functional-requirement + combination-and-vulnerability."),
+    }
+
+
 _DIFFERENTIATION_HEADLINE_SPEC = HeadlineSpec(
     gate="differentiation",
     axis_labels={"COMUT": "co-mutation landscape", "SURVIVAL": "expression↔survival",
@@ -599,6 +636,14 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["cooccurrence_provenance"] = f"{type(exc).__name__}: {exc}"
         hl["cooccurrence_provenance"] = None
+    # COHORT-level ≠ same-CELL / clonal co-occurrence (the (c) sub-inflation) — a pooled bulk Fisher pair is a
+    # same-PATIENT association, not a same-clone co-driver; fires only on the co-occurring path, None otherwise
+    # (target/indication-independent — applies to every pooled co-occurrence). Verdict-INERT, byte-stable spine.
+    try:
+        hl["clonality_caveat"] = _clonality_caveat(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["clonality_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["clonality_caveat"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
@@ -656,6 +701,8 @@ _SYNTHESIS_FACET_KEYS = (
     # the CONSOLIDATED statistical-vs-biological co-mutation confidence caveat + provenance quorum
     # (verdict-INERT; the co-mutation analog of mechanism's actionable-MoA / tumor-presence's presence caveat):
     "cooccurrence_confidence_caveat", "cooccurrence_provenance", "cooccurrence_class_prefloor",
+    # cohort-level ≠ same-cell/clonal co-occurrence (the (c) sub-inflation; verdict-inert, co-occurring path):
+    "clonality_caveat",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer

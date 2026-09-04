@@ -158,3 +158,36 @@ def test_field_absent_safe():
     m = _load_run_module()
     assert m._cooccurrence_confidence_caveat({}, None, None) is None
     assert m._cooccurrence_provenance({}, None, None) is None
+    assert m._clonality_caveat({}) is None
+
+
+# ── clonality caveat: cohort-level ≠ same-cell / clonal (the (c) sub-inflation) ────────────────────
+def test_clonality_caveat_fires_on_cooccurring_path():
+    m = _load_run_module()
+    for hl in (
+        {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True},
+        {"cooccurrence_class": "strong_cooccurring", "has_cooccurring_driver": True},
+        {"cooccurrence_class": "modest_cooccurring"},          # class alone carries the co-occurring component
+    ):
+        cav = m._clonality_caveat(hl)
+        assert cav and cav["reason"] == "cohort_not_same_cell_clonal"
+        assert cav["resolves_clonality"] is False
+        assert "PMID 22397650" in cav["detail"] and "subclon" in cav["detail"].lower()
+
+
+def test_clonality_caveat_none_on_exclusivity_only_and_negative_paths():
+    """A pure mutual-exclusivity (no co-occurring component) and the ns/data_unavailable path → None
+    (byte-stable). Clonality is a co-OCCURRENCE question; an exclusivity is an ABSENCE of co-mutation."""
+    m = _load_run_module()
+    assert m._clonality_caveat({"cooccurrence_class": "strong_mutually_exclusive",
+                                "has_cooccurring_driver": False, "has_mutually_exclusive_driver": True}) is None
+    for cls in ("ns", "data_unavailable", "insufficient", None):
+        assert m._clonality_caveat({"cooccurrence_class": cls}) is None
+
+
+def test_clonality_caveat_is_target_indication_independent():
+    """Unlike the confound/established/near-universal tiers, the clonality caveat has NO curated crosswalk —
+    it applies to EVERY pooled co-occurrence (incl. the KRAS false-demote-guarded pair)."""
+    m = _load_run_module()
+    hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True}
+    assert m._clonality_caveat(hl)["reason"] == "cohort_not_same_cell_clonal"
