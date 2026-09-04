@@ -40,6 +40,7 @@ from _skills_common.claim_record import assemble_claim_record
 # apply_family_wise_fdr is used by main(); _bh_qvalues is re-exported for this skill's tests.
 from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr, _bh_qvalues,
+    apply_promiscuous_amplicon_fusion_demotion as _apply_amplicon_fusion_demotion,
 )
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
 from _skills_common.genomic_question_table import genomic_question_table
@@ -93,7 +94,7 @@ from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.15.0"   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.16.0"   # 2.16.0 (2026-09-04, #983): COPY-NUMBER GATE completing the fusion over-read fix — a moderate_promiscuous recurrent_fusion_driver at a recurrently focally-AMPLIFIED locus (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) is demoted (card preprocessor, all paths) to promiscuous_amplicon_fusion → fires NO driver rung + drops out of the multi-class framing (amplicon passenger, ERBB2/STAD-class), while not-amplified promiscuous kinase fusions (ROS1/NTRK1/FGFR2) are SPARED. The v2.15.0 claim-vector downgrade now covers the not-focally-amplified half (MET/LUAD). VERDICT-MOVING only for the amplified amplicon-passenger subset (amplification-driver rung already carries their verdict).   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -698,10 +699,12 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
-                    fdr_provenance: dict, fired: "list[dict] | None" = None) -> dict:
+                    fdr_provenance: dict, fired: "list[dict] | None" = None,
+                    amplicon_fusion_provenance: "dict | None" = None) -> dict:
     """Assemble the deterministic headline: the computed verdict keys, every declarative field
     lift from _HEADLINE_FIELDS, then the card-availability roll-up. `fired` (optional) supplies the
-    skill_report provenance's fired_rule_ids; all callers have it in scope."""
+    skill_report provenance's fired_rule_ids; all callers have it in scope. `amplicon_fusion_provenance`
+    (optional, #983) carries the copy-number-gated fusion-demotion provenance."""
     card_by_id = {c["card_id"]: c for c in cards}
     headline: dict = {
         "genomic_alteration_profile":  verdict,
@@ -715,6 +718,9 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
         # When >=2 stratified-dependency classes fired, their p-values were BH-corrected jointly and
         # any class with family-wise q >= 0.05 was demoted so a multi-class call is not over-credited.
         "stratified_family_wise_fdr":  fdr_provenance,
+        # #983: provenance of the copy-number-gated fusion demotion (was a moderate_promiscuous fusion at a
+        # focally-amplified locus demoted to an amplicon passenger, or the no-op reason).
+        "amplicon_fusion_demotion":    amplicon_fusion_provenance or {},
     }
     for key, card_id, field in _HEADLINE_FIELDS:
         headline[key] = _lift_field(card_by_id, card_id, field)
@@ -1044,6 +1050,11 @@ def main() -> int:
     # Correct the stratified-dependency family for multiplicity BEFORE firing rules. Mutates demoted
     # cards in place; no-op when <2 classes fire (so single-class calls stay byte-stable).
     fdr_provenance = _apply_family_wise_fdr(cards)
+    # #983 copy-number gate: demote a moderate_promiscuous fusion at a focally-amplified locus to an
+    # amplicon PASSENGER (promiscuous_amplicon_fusion) BEFORE rules fire, so it fires no driver rung and
+    # drops out of the multi-class framing. Idempotent + mirrors the registry composite the composed paths
+    # apply (compose_core / tp_fanout) → standalone == composed. Spares not-amplified kinase fusions.
+    amplicon_fusion_provenance = _apply_amplicon_fusion_demotion(cards)
     fired = fired_rules(cards, axis="intracellular_intrinsic",
                         card_id_filter=CARDS)
     verdict, driving_rule = _verdict(fired)
@@ -1052,7 +1063,8 @@ def main() -> int:
     subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else []
     subtype_result = _resolve_subtype_panorama(args.target, args.indication, subtypes) if subtypes else None
 
-    headline = _build_headline(cards, verdict, driving_rule, fdr_provenance, fired=fired)
+    headline = _build_headline(cards, verdict, driving_rule, fdr_provenance, fired=fired,
+                               amplicon_fusion_provenance=amplicon_fusion_provenance)
 
     # Subtype panorama (only present when --subtypes was passed): surfaced for the LLM/render, but
     # not a verdict input (spine byte-stable).

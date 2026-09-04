@@ -40,6 +40,10 @@ _CN_SIGNAL = {"recurrently_amplified": "moderate", "recurrently_deleted": "moder
 _CN_FOCAL_POS = {"recurrent_focal_amplification", "recurrent_focal_deletion"}
 # fusion_class
 _FUS_SIGNAL = {"recurrent_fusion_driver": "strong", "sporadic_fusion": "weak",
+               # #983: a moderate_promiscuous fusion at a focally-amplified locus, demoted to an amplicon
+               # PASSENGER by the copy-number gate (card preprocessor). A measured SV but NOT a competent
+               # driver → WEAK (never absent: the rearrangement is real; never strong: it is a passenger).
+               "promiscuous_amplicon_fusion": "weak",
                "no_recurrent_fusion": "absent", "data_unavailable": "unmeasured"}
 # splice_exon_skip_class (splice-exon-skip-landscape) — curated oncogenic exon-skip DRIVER (METex14)
 _SPLICE_SIGNAL = {"recurrent_splice_driver": "strong", "no_exon_skip": "absent",
@@ -155,12 +159,21 @@ def _fus_signal(h, c):
     bc = _by_class(h).get("fusion") or {}
     cls = bc.get("verdict")   # fusion_class
     sig = _FUS_SIGNAL.get(cls, "unmeasured")
+    # #983 COPY-NUMBER GATE (upstream, card preprocessor): a moderate_promiscuous fusion at a recurrently
+    # focally-AMPLIFIED locus is demoted to `promiscuous_amplicon_fusion` (an amplicon passenger, not a
+    # competent driver) BEFORE rules fire — so it fires no driver rung and drops out of the multi-class
+    # framing. Here it reads WEAK with an explicit rationale (a real SV, but a passenger).
+    if cls == "promiscuous_amplicon_fusion":
+        return "weak", ("fusion: promiscuous_amplicon_fusion (copy-number-gated — a moderate_promiscuous SV "
+                        "at a focally-amplified locus: an amplicon passenger, not a competent fusion driver)"), None
     # VERDICT-INERT confidence-aware downgrade: a `recurrent_fusion_driver` call flagged
     # `fusion_recurrence_confidence == moderate_promiscuous` rests on a promiscuous recurrence with NO
-    # recurrent partner — the mixed bucket that also catches amplicon-artifact SVs at amplified oncogenes
-    # (SKILL.md). Downgrade strong->weak so the signals-first layer + key_signals headline stop over-reading
-    # a thin/promiscuous fusion as a co-driver (MET/LUAD: n=3 promiscuous, contradicted by literature). This
-    # does NOT touch the resolver rung — that verdict-moving fusion-competence/CN gate is tracked in #983.
+    # recurrent partner — the mixed bucket that also catches amplicon-artifact SVs at amplified oncogenes.
+    # This fires when the copy-number co-signal is ABSENT (so the #983 preprocessor did not demote — e.g.
+    # MET/LUAD, where MET amp is often below the CN-card focal threshold): downgrade strong->weak so the
+    # signals-first layer + key_signals headline stop over-reading a thin/promiscuous fusion as a co-driver
+    # (MET/LUAD: n=3 promiscuous, contradicted by literature). Complements the upstream CN gate (they cover
+    # the amplified vs not-focally-amplified halves of the moderate_promiscuous bucket).
     if sig == "strong" and h.get("fusion_recurrence_confidence") == "moderate_promiscuous":
         return "weak", f"fusion: {cls} (low-confidence: moderate_promiscuous — no recurrent partner)", None
     return sig, f"fusion: {cls or 'data_unavailable'}", None

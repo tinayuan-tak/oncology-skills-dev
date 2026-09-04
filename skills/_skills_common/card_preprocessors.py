@@ -88,9 +88,52 @@ def apply_family_wise_fdr(cards: list[dict], alpha: float = 0.05) -> dict:
             "family_wise_q": fam_q, "corrected": True}
 
 
+def apply_promiscuous_amplicon_fusion_demotion(cards: list[dict]) -> dict:
+    """#983 copy-number gate on the fusion driver call. A `recurrent_fusion_driver` whose confidence tier
+    is `moderate_promiscuous` (the target recurs but with NO recurrent 5'/3' partner — a MIXED bucket) AND
+    whose locus is ALSO recurrently focally AMPLIFIED (copy-number-distribution.patient_focal_cn_class ==
+    recurrent_focal_amplification) is an amplicon PASSENGER SV (ERBB2/STAD, MDM2/SARC), not a competent
+    fusion driver. DEMOTE fusion_class -> `promiscuous_amplicon_fusion` (mutate in place) so the
+    `fusion-landscape-recurrent-driver-supportive` rung no longer fires and the multi-class framing stops
+    naming a fusion co-driver.
+
+    Copy-number is the ORTHOGONAL signal the card caveat calls for: no STRUCTURAL feature separates an
+    amplicon passenger from a genuine promiscuous kinase fusion (ROS1/NTRK1/FGFR2), but the passenger
+    co-localises with focal amplification and the kinase fusion does not — so ROS1/NTRK1/FGFR2 (not
+    amplified) are SPARED. Verdict-moving ONLY for the amplified amplicon-passenger subset, whose
+    amplification-driver rung already carries the verdict (the fusion contribution was redundant). Idempotent
+    (a second pass sees the already-demoted class and no-ops). Returns a provenance dict."""
+    by = {c["card_id"]: c for c in cards}
+    fus = by.get("fusion-rearrangement-landscape")
+    if not fus:
+        return {"demoted": False, "reason": "no_fusion_card"}
+    fsum = fus.get("summary") or {}
+    csum = ((by.get("copy-number-distribution") or {}).get("summary") or {})
+    if (fsum.get("fusion_class") == "recurrent_fusion_driver"
+            and fsum.get("fusion_recurrence_confidence") == "moderate_promiscuous"
+            and csum.get("patient_focal_cn_class") == "recurrent_focal_amplification"):
+        fsum["fusion_class"] = "promiscuous_amplicon_fusion"
+        fsum["_amplicon_fusion_demoted"] = True
+        return {"demoted": True, "from": "recurrent_fusion_driver", "to": "promiscuous_amplicon_fusion",
+                "co_signal": "recurrent_focal_amplification"}
+    return {"demoted": False, "fusion_class": fsum.get("fusion_class"),
+            "fusion_recurrence_confidence": fsum.get("fusion_recurrence_confidence"),
+            "patient_focal_cn_class": csum.get("patient_focal_cn_class")}
+
+
+def _genomic_alteration_preprocess(cards: list[dict]) -> dict:
+    """Composite genomic_alteration preprocessor applied (in ALL resolution paths that use the registry)
+    before fired_rules: (1) family-wise FDR on the stratified-dependency family, then (2) the #983
+    copy-number-gated promiscuous-amplicon fusion demotion. The two mutate disjoint cards; provenance is
+    namespaced. (The skill's hand-rolled main() calls the two functions directly — the demotion is
+    idempotent, so standalone and composed converge on the same cards.)"""
+    return {"family_wise_fdr": apply_family_wise_fdr(cards),
+            "amplicon_fusion_demotion": apply_promiscuous_amplicon_fusion_demotion(cards)}
+
+
 # Per-gate registry: gate → preprocessor(cards) -> provenance. Applied before fired_rules in ALL paths.
 CARD_PREPROCESSORS = {
-    "genomic_alteration": apply_family_wise_fdr,
+    "genomic_alteration": _genomic_alteration_preprocess,
 }
 
 
