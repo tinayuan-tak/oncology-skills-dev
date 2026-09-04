@@ -167,12 +167,42 @@ SURFACE_MODALITY_FIT = LensConfig(
 
 TRACTABILITY_SM = LensConfig(
     name="tractability-small-molecule",
-    thesis="whether the target looks druggable by a SMALL MOLECULE — is there a compound that hits it, and "
-           "does the chemical signal agree with the genetic dependency.",
-    relevance_prompt="judge the small-molecule tractability (chemical + structural evidence).",
+    thesis="whether the target looks druggable by a SMALL MOLECULE — is there a compound that DIRECTLY "
+           "engages it (with measured binding potency + cellular activity), does that chemical signal AGREE "
+           "with the genetic dependency (chemical-genetic concordance = on-target; discordant = off-target), "
+           "and is there a ligandable POCKET even absent a known compound — WHILE distinguishing a direct "
+           "target-engaging compound from an INDIRECT / pathway / downstream compound merely tabulated "
+           "against the gene by DGIdb/ChEMBL (the druggability-inflation trap that makes an undruggable TF/"
+           "scaffold read druggable off raw interaction counts).",
+    relevance_prompt="judge the small-molecule tractability (DIRECT chemical engagement + structural "
+                     "ligandability), and whether the chemical signal agrees with the genetic dependency.",
     axis_labels={"POTENCY": "binding potency", "ACTIVITY": "cellular activity", "STRUCT": "structural ligandability",
                  "DRUG": "drug/tool compound", "DEGRADER": "degrader handle"},
-    scope_exclusions=("biologics/surface modality", "expression as presence"),
+    scope_exclusions=("biologics/surface modality (surface-modality-fit)", "expression as presence",
+                      "genetic-dependency magnitude (functional-requirement)"),
+    # NARRATOR RULE: lead with DIRECT engagement + chemical-genetic agreement, then the DGIdb/ChEMBL
+    # inflation caveat, then structural ligandability — the direct-vs-indirect distinction a one-word
+    # verdict hides.
+    polarity_note=(
+        "signal = strength of the evidence FOR small-molecule druggability. LEAD by stating whether there "
+        "is a DIRECT target-engaging compound — a measured binder (POTENCY) that also shows MEASURED "
+        "cellular activity (ACTIVITY = clinically_active, not merely a tool/annotation) — and whether that "
+        "chemical activity AGREES with the genetic dependency: chemical-genetic concordance = "
+        "triangulated/crispr_confirmed is on-target CORROBORATION, discordant_off_target_likely is a "
+        "CONFLICT that argues AGAINST tractability, thin/unmeasured leaves engagement uncorroborated (read "
+        "chemical_genetic_agreement). CRITICALLY, do NOT over-read a DGIdb known-drug / druggable-category "
+        "boolean or a ChEMBL gene-aggregated potent-ligand/approved-phase count as DIRECT engagement: those "
+        "tabulate a compound AGAINST THE GENE and are indirect-inclusive (pathway / downstream / off-target "
+        "compounds, even assay dyes, antibodies, or PPI-interface-tabulated ligands) — when directness_caveat "
+        "is present the positive snapshot rests on annotation WITHOUT a measured cellular hit or "
+        "chemical-genetic agreement, so report it as looks-druggable-but-UNCONFIRMED, not confirmed direct "
+        "druggability (the β-catenin/MYC undruggable-TF inflation pattern). Treat STRUCT as a FORWARD handle: "
+        "a real ligandable pocket (experimental co-crystal, hotspot-in-pocket) is a positive prospect even "
+        "before a compound exists (the KRAS-G12C switch-II archetype), but bulk PDB/structure COVERAGE is "
+        "not pocket tractability (a flat PPI-groove target scores high coverage with no druggable pocket) "
+        "and measured disorder is SM-opposing. Degrader feasibility and biologics/surface routes are a "
+        "verdict-inert breadcrumb here — hand off to functional-requirement (degrader efficacy / paralog) "
+        "and surface-modality-fit (biologics)."),
     mode="verdict",
     verdict_key="druggability_snapshot",         # the headline key holding the resolved snapshot token
                                                  # (NOT the legacy <name>_verdict guess, which would be

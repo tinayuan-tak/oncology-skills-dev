@@ -37,6 +37,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.narrator_lenses import TRACTABILITY_SM as _LENS
 from _skills_common import get_card_field
 from _skills_common.tractability_claims import small_molecule_claim_vector, small_molecule_key_signals
@@ -260,6 +262,99 @@ def _tractability_tension_extra(headline: dict):
     return None
 
 
+# ── DIRECTNESS caveat (verdict-INERT; the DGIdb/ChEMBL druggability-INFLATION surface) ────────────────
+# The sharpest determ-vs-literature divergence for this skill. A POSITIVE druggability_snapshot can be
+# carried by a RETROSPECTIVE-ANNOTATION rung — the DGIdb known-drug boolean, a ChEMBL approved-phase flag,
+# a DGIdb druggable-category prior, or a ChEMBL gene-aggregated potent-ligand series. Those sources count
+# an INTERACTION / a ligand tabulated AGAINST THE GENE; they do NOT establish that the compound engages
+# THIS target DIRECTLY. For a classically-undruggable TF/scaffold (β-catenin/CTNNB1, MYC) the interaction
+# roster is dominated by INDIRECT / pathway / downstream compounds — even assay dyes, antibodies, off-
+# target kinase inhibitors, or PPI-interface-tabulated ligands — so the snapshot reads `chemically_active`
+# with NO direct binder in existence. The verdict spine (frozen resolver + golden) is UNCHANGED; this is a
+# verdict-INERT field that names WHY the positive call is annotation-driven and, where direct-engagement
+# corroboration (a MEASURED PRISM cellular hit or chemical-genetic concordance) is absent, flags it as
+# looks-druggable-but-UNCONFIRMED. Fires ONLY on an annotation-driven positive rung WITHOUT direct
+# corroboration → None (byte-stable) for the on-target concordance rungs (KRAS well_covered /
+# e7-triangulated), the measured-PRISM-activity rung, and the structural / negative / gap verdicts.
+_ANNOTATION_DRIVEN_RUNGS = frozenset({
+    "known-drug-approved-antineoplastic-sm-supportive",   # DGIdb has_approved_drug (indirect-inclusive)
+    "measured-chembl-approved-sm-supportive",             # ChEMBL max_clinical_phase>=4 (gene-aggregated)
+    "known-drug-druggable-category-sm-supportive",        # DGIdb druggable-class prior (no bound compound)
+    "measured-potent-ligand-sm-supportive",               # ChEMBL potent series (gene-aggregated; direct?)
+    "measured-weak-ligand-sm-supportive",                 # ChEMBL weak measured series (gene-aggregated)
+})
+# A MEASURED cellular hit (PRISM) or chemical-genetic concordance PROVES direct engagement → suppresses the
+# caveat. `clinically_active` is a measured cell-panel kill; the two concordance tokens below mean the
+# compound-kill tracks the CRISPR/RNAi dependency (on-target). Kept in sync with the concordance vocab.
+_DIRECT_ENGAGEMENT_PRISM = frozenset({"clinically_active"})
+_DIRECT_ENGAGEMENT_CONCORD = frozenset({"triangulated_target_engaged", "crispr_confirmed_engagement"})
+
+
+def _directness_caveat(snapshot, driving_rule_id, prism_activity_class, prism_crispr_concord,
+                       known_drug_class=None, n_antineoplastic=None) -> str | None:
+    """Name the DGIdb/ChEMBL druggability-inflation risk on a positive snapshot that rests on retrospective
+    annotation WITHOUT direct-engagement corroboration. VERDICT-INERT: reports WHY the positive call is
+    annotation-driven; never changes it. None unless the pattern holds → byte-stable on the on-target /
+    measured-PRISM / structural / negative / gap paths (KRAS, EGFR/FOXA1 fixtures)."""
+    if driving_rule_id not in _ANNOTATION_DRIVEN_RUNGS:
+        return None
+    if snapshot not in _TRACTABILITY_POSITIVE:          # defensive; the annotation rungs are all positive
+        return None
+    if prism_activity_class in _DIRECT_ENGAGEMENT_PRISM:
+        return None                                     # a measured cell-panel hit — direct-ish, not inflated
+    if prism_crispr_concord in _DIRECT_ENGAGEMENT_CONCORD:
+        return None                                     # compound-kill tracks the dependency — on-target
+    n = f" ({n_antineoplastic} antineoplastic interactions)" if isinstance(n_antineoplastic, int) else ""
+    return (f"The positive snapshot ('{snapshot}') rests on a RETROSPECTIVE-ANNOTATION rung "
+            f"({driving_rule_id}) — a DGIdb known-drug / druggable-category boolean or a ChEMBL gene-"
+            f"aggregated ligand count{n} — which tabulates a compound AGAINST THE GENE but does NOT prove it "
+            "engages THIS target DIRECTLY. Direct engagement is UNCONFIRMED in-package: PRISM cellular "
+            f"activity = {prism_activity_class or 'data_unavailable'}, chemical-genetic concordance = "
+            f"{prism_crispr_concord or 'data_unavailable'} (neither a measured cell-panel hit nor "
+            "chemical-genetic agreement). For a classically-undruggable TF/scaffold the interaction roster "
+            "is dominated by INDIRECT / pathway / downstream compounds, so this can read druggable with no "
+            "direct binder in existence — treat as looks-druggable-but-UNCONFIRMED, not confirmed direct "
+            "druggability. Confirm target-directness from the literature lane (--literature).")
+
+
+# ── CHEMICAL-GENETIC AGREEMENT arm (verdict-INERT) ───────────────────────────────────────────────────
+# The concordance card answers the skill's core question — does compound-kill AGREE with the genetic
+# dependency? — but the raw `prism_crispr_concord` token buries the interpretation. This projects it onto
+# an explicit agreement class (corroboration / partial / off-target conflict / unmeasured) + a one-line
+# read, mirroring FR's concordance handling. VERDICT-INERT; None when the concordance is unread.
+_CONCORD_AGREEMENT = {
+    "triangulated_target_engaged": ("on_target_confirmed",
+        "compound-kill tracks BOTH the CRISPR and RNAi genetic dependency (triangulated) — direct "
+        "on-target engagement corroborated (the strongest chemical-genetic agreement)."),
+    "crispr_confirmed_engagement": ("on_target_crispr",
+        "compound-kill tracks the CRISPR genetic dependency — on-target engagement (single-channel)."),
+    "rnai_confirmed_engagement": ("on_target_rnai_only",
+        "compound-kill tracks the RNAi dependency only (orthogonal LoF, no CRISPR arm) — on-target but "
+        "single-channel and seed/off-target-prone; weaker corroboration."),
+    "mixed_engagement": ("partial",
+        "compound-kill only PARTIALLY tracks the genetic dependency — engagement ambiguous, neither "
+        "clean on-target nor clearly off-target."),
+    "discordant_off_target_likely": ("off_target_conflict",
+        "compound-kill does NOT track the genetic dependency — likely OFF-TARGET; a chemical-genetic "
+        "CONFLICT that argues AGAINST small-molecule tractability."),
+    "thin_evidence": ("unmeasured",
+        "chemical-genetic concordance is UNMEASURED (no/too-few compounds evaluated) — engagement neither "
+        "confirmed nor refuted; the positive chemical signal is uncorroborated by the genetic dependency."),
+    "data_unavailable": ("unmeasured",
+        "chemical-genetic concordance is unavailable — engagement neither confirmed nor refuted."),
+}
+
+
+def _chemical_genetic_agreement(prism_crispr_concord) -> dict | None:
+    """Explicit AGREEMENT arm over the concordance class: agree = corroboration, off-target = conflict,
+    thin = unmeasured. VERDICT-INERT; None when concordance is unread (byte-stable on the empty case)."""
+    if not prism_crispr_concord:
+        return None
+    cls, note = _CONCORD_AGREEMENT.get(prism_crispr_concord, ("unmeasured",
+        f"chemical-genetic concordance class '{prism_crispr_concord}' is unrecognised — treat as unmeasured."))
+    return {"agreement_class": cls, "note": note, "source_concordance_class": prism_crispr_concord}
+
+
 _TRACTABILITY_HEADLINE_SPEC = HeadlineSpec(
     gate="tractability_sm",
     axis_labels={"POTENCY": "measured binding", "ACTIVITY": "functional compound",
@@ -289,7 +384,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.7.0"   # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+SKILL_VERSION = "3.8.0"   # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
                             # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
@@ -493,6 +588,18 @@ def _headline(cards, fired, verdict_pair):
     # signal decomposition + citable atoms the composed fan-out lifts to the cross-evidence agent.
     hl["claim_vector"] = small_molecule_claim_vector(hl, cards)
     hl["key_signals"] = small_molecule_key_signals(hl, cards)
+    # Verdict-INERT signal-surfacing flags (2026-09-04, mirrors FR measurement_caveat / concordance_scope_note).
+    # (1) directness_caveat: a positive snapshot carried by a RETROSPECTIVE-ANNOTATION rung (DGIdb known-drug /
+    # ChEMBL aggregate) WITHOUT direct-engagement corroboration → the DGIdb/ChEMBL druggability-INFLATION
+    # surface (β-catenin/MYC read chemically_active off indirect interaction counts). None on the on-target
+    # concordance rungs / measured-PRISM / structural / gap verdicts → byte-stable (KRAS well_covered, the
+    # EGFR/FOXA1 replay fixtures). (2) chemical_genetic_agreement: the explicit AGREE/conflict/unmeasured arm
+    # over the concordance class. Neither touches the druggability_snapshot spine.
+    hl["directness_caveat"] = _directness_caveat(v, drv, hl.get("prism_activity_class"),
+                                                 hl.get("prism_crispr_concord"),
+                                                 known_drug_class=hl.get("known_drug_tractability"),
+                                                 n_antineoplastic=hl.get("n_antineoplastic_interactions"))
+    hl["chemical_genetic_agreement"] = _chemical_genetic_agreement(hl.get("prism_crispr_concord"))
 
     # The canonical HEADLINE block is a verdict-INERT projection over the claim_vector / key_signals just
     # built. Run it best-effort: a formatting/read fault must NEVER discard the druggability spine already
@@ -549,6 +656,9 @@ _SYNTHESIS_FACET_KEYS = (
     "druggability_verdict_by_modality",     # per-arm {small_molecule, degrader} projection (verdict-inert)
     "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
     "degradability_machinery", "claim_vector", "key_signals",
+    # verdict-INERT surfacing flags (2026-09-04): the DGIdb/ChEMBL druggability-inflation caveat + the
+    # explicit chemical-genetic AGREEMENT arm (mirrors FR measurement_caveat / concordance_scope_note).
+    "directness_caveat", "chemical_genetic_agreement",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
@@ -606,6 +716,16 @@ if __name__ == "__main__":
         # structurally impossible for the narration to alter druggability_snapshot. Without this
         # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
         synthesize_fn=make_synthesize_fn(_LENS),
+        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors FR #987
+        # / tumor-selectivity #964 / genomic-alteration #982). Attaches decision['literature_synthesis']
+        # (Europe PMC → PubTator3 fallback grounding + a post-synthesis verify_citations pass) and feeds the
+        # --synthesize narrator. The _LENS_QUERY_TERMS entry for "tractability-small-molecule" (small-molecule
+        # inhibitor / direct target engagement / tool compound / covalent / allosteric pocket / structural
+        # ligandability) lives in literature_retrieval.py. Two-slot / spine-untouched: the dispatcher attaches
+        # it AFTER the deterministic decision is composed, so it is structurally impossible for the literature
+        # lane to alter druggability_snapshot. This is the lane that RESOLVES the directness_caveat — the
+        # DGIdb/ChEMBL interaction roster (indirect-inclusive) is exactly what a literature pass adjudicates.
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Signals-first: tuned sub-group reader for the tractability vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_TRACT_VALUE_TIERS),
     ))

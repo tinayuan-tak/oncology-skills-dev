@@ -16,7 +16,7 @@ description: |
   dependency?"
 
 metadata:
-  version: 3.7.0   # +tuned signals-first sub-group reader; +question_table emitted into headline; +known-drug (#272) +degradation (#266) +T1/T3.1
+  version: 3.8.0   # +--literature lane + verdict-INERT surfacing (directness_caveat DGIdb/ChEMBL inflation flag, chemical_genetic_agreement arm, TRACTABILITY_SM thesis+polarity_note); +tuned signals-first sub-group reader; +question_table emitted into headline; +known-drug (#272) +degradation (#266) +T1/T3.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
