@@ -37,6 +37,8 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
 # The fleet-default heuristic tags this lens's strongest POSITIVE fit signals (both_viable, high /
@@ -219,7 +221,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
                           # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -583,6 +585,123 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     )
 
 
+# ── SURFACE-CONFIRMATION caveat + SHED caveat (verdict-INERT enrichment, v1.8.0) ─────────────────────
+# The surface analog of tractability-small-molecule's directness_caveat (the DGIdb/ChEMBL inflation flag).
+# fit_class is composed from surfaceome-FAMILY membership + sequence-PREDICTED topology ONLY (see
+# _live_readers.py::_compose_adc_tce_fit) — it does NOT consume CSPA/HPA-IF measured cell-surface protein,
+# antigen DENSITY, or MEASURED internalization. So a positive fit_class can rest on family/RNA/topology
+# ANNOTATION without confirmed cell-surface protein or a measured/clinically-precedented internalization —
+# the surface INFLATION trap (a surfaceome-family or RNA-based surface read looks ADC/TCE-favorable while
+# the protein/spatial evidence does not confirm it). These name that risk on the headline; they NEVER move
+# the verdict (the surface_modality resolver keys only on fit_class + the safety/density/shed rungs).
+_POSITIVE_FIT_CLASS = frozenset({"ADC_preferred", "TCE_preferred", "both_viable"})
+_CONFIRMED_SURFACE_CLASSES = frozenset({"confirmed_high", "confirmed"})
+_CORROBORATED_SURFACE_SUPPORT = frozenset({"corroborated_surface"})
+_ADC_FAVORABLE_FIT_CLASS = frozenset({"ADC_preferred", "both_viable"})
+_SHED_LIABILITY_CLASSES = frozenset({"clinically_shed", "secretome_proxy_shed"})
+_ABUNDANT_DENSITY = frozenset({"high", "moderate"})
+
+
+def _has_confirmed_surface_protein(hl) -> bool:
+    """MEASURED cell-surface protein residency (CSPA class or HPA-IF/CSPA multimodal corroboration)."""
+    return (hl.get("surface_confirmation_class") in _CONFIRMED_SURFACE_CLASSES
+            or hl.get("surface_multimodal_support") in _CORROBORATED_SURFACE_SUPPORT)
+
+
+def _has_clinical_biologic_precedent(hl) -> bool:
+    """A curated internalizing-ADC antigen (endocytosis_confidence=clinically_internalizing) or an
+    established CD/IO clinical-precedent backbone — a regulatory/trial FACT that the surface antigen is a
+    bona-fide biologics substrate even when CSPA/HPA-IF (cell-line surface proteomics) did not capture it."""
+    return (hl.get("endocytosis_confidence") == "clinically_internalizing"
+            or bool(hl.get("cd_established_io_precedent")))
+
+
+def _surface_confirmation_caveat(hl) -> dict | None:
+    """Name the surfaceome-family / RNA / predicted-topology INFLATION risk on a positive surface-modality
+    call that lacks confirmed cell-surface protein. VERDICT-INERT: reports WHY the positive fit_class may
+    be annotation-driven; never changes it. None unless a positive fit_class is unconfirmed → byte-stable
+    on the confirmed / clinically-precedented-and-confirmed / negative / gap paths (ERBB2/MSLN confirmed_high
+    fixtures unaffected; the WT1 neither_viable pMHC fixture unaffected). Two tiers:
+      * family_topology_annotation_unconfirmed — the SHARP over-call: positive fit + NO confirmed surface
+        protein + NO clinical biologic precedent (the LGR5/GPCR-family pattern — reads TCE/ADC-favorable off
+        surfaceome-family membership + predicted topology while CSPA=not_surface and no approved biologic).
+      * clinically_precedented_cspa_unconfirmed — the MILDER case: positive fit + clinical precedent but
+        CSPA/HPA-IF did NOT confirm (a surface-proteomics false-negative rescued by regulatory fact —
+        DLL3/CEACAM5-class validated antigens; NOT an over-call, surfaced so the gap is explicit)."""
+    fit_class = hl.get("fit_class")
+    if fit_class not in _POSITIVE_FIT_CLASS:
+        return None
+    if _has_confirmed_surface_protein(hl):
+        return None                                  # measured cell-surface protein — call is confirmed
+    scc = hl.get("surface_confirmation_class")
+    endo = hl.get("endocytosis_confidence")
+    # ADC rests on topology; internalization is not measured by the topology product (endocytosis_motif is
+    # hardcoded null) → an ADC-favorable call with endocytosis_confidence=unmeasured is honestly internal-
+    # ization-UNVERIFIED. Folded in as a sub-note (not a separate top-level field).
+    endo_gap = fit_class in _ADC_FAVORABLE_FIT_CLASS and endo == "unmeasured"
+    precedent = _has_clinical_biologic_precedent(hl)
+    if precedent:
+        reason = "clinically_precedented_cspa_unconfirmed"
+        detail = (
+            f"The positive surface call ('{fit_class}') carries a CLINICAL biologic precedent "
+            f"(endocytosis_confidence={endo}), but MEASURED cell-surface protein is UNCONFIRMED in-package "
+            f"(surface_confirmation_class={scc or 'data_unavailable'}, "
+            f"surface_multimodal_support={hl.get('surface_multimodal_support') or 'data_unavailable'}) — "
+            "a cell-line surface-proteomics (CSPA/HPA-IF) false-negative rescued by regulatory/trial fact, "
+            "NOT an over-call. Treat the surface substrate as clinically-established but note the "
+            "orthogonal-confirmation gap.")
+    else:
+        reason = "family_topology_annotation_unconfirmed"
+        detail = (
+            f"The positive surface call ('{fit_class}') rests on surfaceome-FAMILY membership + "
+            f"sequence-PREDICTED topology (family_class={hl.get('family_class') or 'data_unavailable'}, "
+            f"topology_class={hl.get('topology_class') or 'data_unavailable'}) WITHOUT confirmed "
+            f"cell-surface protein (surface_confirmation_class={scc or 'data_unavailable'}) or a clinical "
+            "biologics precedent. fit_class is composed from family+topology annotation only — it does NOT "
+            "consume CSPA/HPA-IF measured surface protein, antigen density, or measured internalization — "
+            "so a family/RNA-annotated target can read ADC/TCE-favorable with the protein/spatial evidence "
+            "unconfirming it (the surface annotation-INFLATION trap). Treat as looks-surface-accessible-"
+            "but-UNCONFIRMED, not confirmed surface accessibility. Confirm surface protein + internalization "
+            "from the literature lane (--literature).")
+    if endo_gap:
+        detail += (" ADC-favorability additionally rests on topology alone: receptor internalization is "
+                   "UNMEASURED (endocytosis_confidence=unmeasured) — the ADC payload-delivery requirement "
+                   "is unverified.")
+    return {"reason": reason, "surface_confirmed": False, "clinical_precedent": precedent,
+            "endocytosis_unmeasured_for_adc": endo_gap, "detail": detail}
+
+
+def _shed_caveat(hl) -> dict | None:
+    """Name the soluble-antigen-sink risk when a surface-abundant / positive-fit target is shed. The
+    resolver's shed_dominant_opposed rung is OUTRANKED whenever a higher-priority safety/escape downgrade
+    fires (MSLN/CEACAM5 resolve adc_preferred_tce_unsafe via the sc-normal killer, so the verdict token
+    never surfaces the shed liability) — this names the sink on the headline regardless. VERDICT-INERT;
+    None when the antigen is membrane-retained or shedding is unread → byte-stable on not_shed (DLL3/LGR5)."""
+    shed_class = hl.get("shed_liability_class")
+    measured = hl.get("measured_shed_class")
+    shed_present = shed_class in _SHED_LIABILITY_CLASSES or measured == "media_shed_high"
+    if not shed_present:
+        return None
+    fit_class = hl.get("fit_class")
+    abundant = fit_class in _POSITIVE_FIT_CLASS or hl.get("surface_density_class") in _ABUNDANT_DENSITY
+    if not abundant:
+        return None
+    hard = shed_class == "clinically_shed" or measured == "media_shed_high"
+    reason = "clinically_shed_soluble_sink" if hard else "secretome_proxy_possible_sink"
+    marker = hl.get("shed_serum_marker")
+    detail = (
+        f"The target reads surface-abundant/positive ('{fit_class}') but the ectodomain is SHED "
+        f"(shed_liability_class={shed_class}"
+        + (f", measured_shed_class={measured}" if measured and measured != "not_on_secreted_panel" else "")
+        + (f", serum marker {marker}" if marker else "") + ") — a circulating soluble antigen acts as a "
+        "decoy sink that neutralizes ADC/TCE binders before they reach the tumor-cell surface. A shed "
+        "antigen can read surface-abundant yet be a CAVEATED (not clean) ADC/TCE substrate: it needs a "
+        "shed-resistant (membrane-proximal) epitope + antigen-sink dose modeling (approved ADCs exist "
+        "against shed antigens — a caveat, not a veto).")
+    return {"reason": reason, "shed_liability_class": shed_class, "measured_shed_class": measured,
+            "serum_marker": marker, "detail": detail}
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
@@ -594,6 +713,12 @@ def _headline(cards, fired, verdict_pair):
         "surface_modality_verdict_by_modality": _surface_verdict_by_modality(v),
         "driving_rule_id":                drv,
         "fit_class":                      get_card_field(cards, "adc-tce-modality-fit", "fit_class"),
+        # Internalization confidence tier (endocytosis) — card-declared. clinically_internalizing (curated
+        # ADC precedent) / high|moderate|low (measured motif) / unmeasured (the topology product carries no
+        # endocytosis-motif data → honest gap). The ADC payload-delivery requirement; surfaced so the
+        # surface_confirmation_caveat can flag an ADC-favorable call that rests on topology with
+        # internalization unmeasured. Verdict-inert (fit_class already reachable without it, B1).
+        "endocytosis_confidence":         get_card_field(cards, "adc-tce-modality-fit", "endocytosis_confidence"),
         # Isoform-selective indication-scope (2026-08-14): TRUE when the target has a curated dominant
         # alt isoform but NOT in THIS indication — the fit_class is NOT suppressed (stands on merit), and
         # this flag surfaces the caveat so a reader knows an isoform consideration exists off-context
@@ -772,6 +897,16 @@ def _headline(cards, fired, verdict_pair):
     # this projection cannot move the verdict (pinned by the replay/golden guards).
     hl["claim_vector"] = surface_claim_vector(hl, cards)
     hl["key_signals"] = surface_key_signals(hl, cards)
+    # VERDICT-INERT enrichment (v1.8.0) — the surface analog of tractability-small-molecule's
+    # directness_caveat. (1) surface_confirmation_caveat: a positive fit_class that rests on surfaceome-
+    # family + predicted-topology ANNOTATION without confirmed cell-surface protein (the surface
+    # INFLATION trap; also folds in the endocytosis-unmeasured ADC gap). (2) shed_caveat: a
+    # surface-abundant/positive call whose ectodomain is SHED (soluble-antigen sink). Both are pure
+    # functions of the already-built headline fields, None on the confirmed/negative/not-shed paths →
+    # spine + resolver goldens + replay fixtures byte-stable (the resolver keys only on fit_class +
+    # the safety/density/shed rungs, never on a headline key).
+    hl["surface_confirmation_caveat"] = _surface_confirmation_caveat(hl)
+    hl["shed_caveat"] = _shed_caveat(hl)
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
     # headline message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
     # projection over the claim_vector / key_signals just built; best-effort (a build fault degrades to
@@ -827,6 +962,11 @@ _SYNTHESIS_FACET_KEYS = (
     "surface_density_class", "normal_tissue_breadth_class", "shed_liability_class",
     "window_class", "tce_antigen_escape_class",   # verdict-moving TCE safety + efficacy facets (2026-08-24)
     "pmhc_epitope_evidence_class",                 # verdict-moving pMHC-TCE facet (IEDB, 2026-08-25)
+    # VERDICT-INERT enrichment (v1.8.0): the surfaceome-family/RNA/topology annotation-INFLATION caveat +
+    # internalization tier + the shed soluble-antigen-sink caveat — surfaced for the narrator + composed
+    # synthesis so the biologics call foregrounds confirmed-vs-annotated surface protein.
+    "surface_confirmation_class", "surface_multimodal_support", "endocytosis_confidence",
+    "surface_confirmation_caveat", "shed_caveat",
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",
@@ -889,6 +1029,17 @@ if __name__ == "__main__":
         # surface_modality_verdict / fit_class. Without this synthesize_fn the dispatcher would fall back
         # to the PRESENCE narrator (wrong lens, 2026-08-06).
         synthesize_fn=make_synthesize_fn(_LENS),
+        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors
+        # tractability-small-molecule #1006 / FR #987 / selectivity #964 / genomic #982 / on-target-safety
+        # #1000). Attaches decision['literature_synthesis'] (Europe PMC → PubTator3 grounding + a
+        # verify_citations PMID pass) and feeds the --synthesize narrator. The SURFACE query terms (cell
+        # surface proteomics / receptor internalization / shed antigen / bispecific T-cell engager / antigen
+        # escape) live in literature_retrieval.py::_LENS_QUERY_TERMS. Two-slot / spine-untouched: the
+        # dispatcher attaches it AFTER the deterministic decision is composed, so it is structurally
+        # impossible for the literature lane to alter surface_modality_verdict / fit_class. This is the lane
+        # that RESOLVES the surface_confirmation_caveat — the family/RNA-annotation-vs-confirmed-protein
+        # question is exactly what a literature pass adjudicates per target at read time.
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
         # top tension). Additive / display-only.
         skill_figures_fn=_emit_skill_figures,

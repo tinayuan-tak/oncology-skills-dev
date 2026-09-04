@@ -151,11 +151,50 @@ GENOMIC_ALTERATION = LensConfig(
 SURFACE_MODALITY_FIT = LensConfig(
     name="surface-modality-fit",
     thesis="whether the surface biology supports a BIOLOGICS modality — ADC-favorable, TCE-favorable, both, "
-           "or neither — from topology, surfaceome family, density, and normal-tissue/shedding liabilities.",
-    relevance_prompt="judge the biologics surface-modality fit (ADC / TCE / both / neither).",
+           "or neither — from topology, surfaceome family, density, and normal-tissue/shedding liabilities, "
+           "WHILE distinguishing a CONFIRMED cell-surface protein (measured surface proteomics / IHC / flow + "
+           "measured or clinically-precedented internalization) from a target that merely reads surface-"
+           "accessible off surfaceome-FAMILY membership or an RNA/predicted-topology prior WITHOUT confirmed "
+           "cell-surface protein (the surface annotation-INFLATION trap), and flagging a SHED ectodomain "
+           "(soluble-antigen sink) that can make a surface-abundant antigen a poor ADC/TCE substrate.",
+    relevance_prompt="judge the biologics surface-modality fit (ADC / TCE / both / neither), and whether the "
+                     "surface call rests on CONFIRMED cell-surface protein or only on family/RNA annotation.",
     axis_labels={"FIT": "modality fit", "TOPOLOGY": "topology/accessibility", "DENSITY": "surface density",
                  "SAFETY": "normal-tissue safety", "SHED": "shedding"},
-    scope_exclusions=("small-molecule tractability", "intracellular mechanism"),
+    scope_exclusions=("small-molecule tractability (tractability-small-molecule)", "intracellular mechanism",
+                      "expression-as-presence (tumor-presence)", "safety severity (on-target-safety)"),
+    # NARRATOR RULE: lead with whether the surface call is CONFIRMED (measured cell-surface protein +
+    # internalization) or rests on family/RNA/topology ANNOTATION; then the shed soluble-sink caveat; then
+    # the normal-tissue-surface TCE veto and the ADC-vs-TCE split — the confirmed-vs-annotated distinction a
+    # one-word fit_class hides.
+    polarity_note=(
+        "signal = strength of the evidence FOR a viable biologics surface modality. LEAD by stating whether "
+        "the surface accessibility call is CONFIRMED or only ANNOTATED: fit_class (ADC_preferred / "
+        "TCE_preferred / both_viable) is composed from surfaceome-FAMILY membership + sequence-PREDICTED "
+        "topology ONLY — it does NOT consume measured cell-surface protein (CSPA/HPA-IF surface_confirmation_"
+        "class), antigen DENSITY, or MEASURED internalization. So a positive fit_class can rest on family/RNA "
+        "annotation while the protein/spatial evidence does NOT confirm it. When surface_confirmation_caveat "
+        "is present, report the positive call as looks-surface-accessible-but-UNCONFIRMED (reason "
+        "family_topology_annotation_unconfirmed = NO confirmed surface protein AND no clinical biologics "
+        "precedent — a genuine over-call, the LGR5/GPCR-family pattern; reason "
+        "clinically_precedented_cspa_unconfirmed = a validated antigen a cell-line surface-proteomics panel "
+        "simply missed — NOT an over-call). Treat surface_confirmation_class ∈ {confirmed_high, confirmed} or "
+        "surface_multimodal_support=corroborated_surface as the strongest presence signal (measured protein, "
+        "not an RNA/family proxy). For an ADC call, internalization is the payload-delivery requirement: "
+        "endocytosis_confidence=clinically_internalizing is a curated regulatory FACT, a measured motif is "
+        "high/moderate/low, and `unmeasured` is an honest gap (ADC-favorability then rests on topology alone "
+        "— say so). Flag a SHED ectodomain (shed_caveat / shed_liability_class ∈ {clinically_shed, "
+        "secretome_proxy_shed}, or a measured media_shed_high) as a soluble-antigen sink that neutralizes "
+        "ADC/TCE binders — a surface-abundant antigen can still be a caveated substrate needing a "
+        "shed-resistant epitope (a caveat, not a veto; approved ADCs exist against shed antigens). The TCE "
+        "arm is the safety-fragile one: a normal-tissue-surface liability (essential-normal-tissue / "
+        "sc-normal HIGH_LIABILITY / essential-window) is a bite_tce VETO but PRESERVES ADC (bystander "
+        "buffer), and within-tumor antigen-escape forecloses TCE efficacy while ADC tolerates heterogeneity "
+        "— so read the ADC-vs-TCE split, not a blanket call. Density below the soluble-TCE floor is a "
+        "DOWNGRADE not a veto (CD19 is a validated low-density antigen). Small-molecule tractability, "
+        "genetic-dependency magnitude, expression-as-presence, and safety SEVERITY are verdict-inert "
+        "breadcrumbs here — hand off to tractability-small-molecule, functional-requirement, tumor-presence, "
+        "and on-target-safety."),
     mode="verdict",
     verdict_key="surface_modality_verdict",   # the RESOLVED surface-modality verdict token (run.py headline
                                               # key); else the collapsed-verdict fallback lands on the
