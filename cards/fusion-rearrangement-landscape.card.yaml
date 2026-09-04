@@ -12,7 +12,7 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.3.0   # includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
+version: 1.4.0   # 1.4.0 (2026-09-04, #983): + promiscuous_amplicon_fusion fusion_class (skill-layer copy-number-gated demotion of a moderate_promiscuous fusion at a recurrently focally-amplified locus — an amplicon passenger SV, not a competent fusion driver). # 1.3.0: includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
 applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
@@ -46,6 +46,7 @@ outputs:
   summary_fields_vocabulary:
     fusion_class:
       - recurrent_fusion_driver                     # a recurrent partner (>=3 samples) OR the target recurs >=3 samples
+      - promiscuous_amplicon_fusion                 # SKILL-LAYER DEMOTION (#983): a moderate_promiscuous recurrent_fusion_driver whose locus is ALSO recurrently focally AMPLIFIED (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) — an amplicon passenger SV (ERBB2/STAD, MDM2/SARC), NOT a competent fusion driver. Narrative-only: fires NO driver rung (see caveat). Emitted by the genomic_alteration card preprocessor, not the underlying product reader.
       - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
       - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
       - data_unavailable                            # product/target absent — NOT a measured negative
@@ -74,7 +75,7 @@ caveats:
   - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is n_samples_with_fusion / assayed samples in the indication tissue (sample_coverage), or None when the coverage denominator is unavailable — never a rate over an unknown cohort."
   - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-sv-recurrence-v1) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
   - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
-  - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call WITHOUT changing the verdict. high_recurrent_partner (recurrent partner) is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — real promiscuous kinase fusions (ROS1/NTRK1/FGFR2) AND amplicon passenger SVs (ERBB2/STAD, MDM2/SARC) both fall here. No structural feature separates them, so it is NOT demoted; disambiguating needs an orthogonal signal (future refinement)."
+  - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call. high_recurrent_partner is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — genuine kinase fusions (ROS1/NTRK1) AND amplicon passenger SVs (ERBB2/STAD) both fall here. #983: the genomic_alteration preprocessor demotes fusion_class to promiscuous_amplicon_fusion when moderate_promiscuous co-occurs with patient_focal_cn_class==recurrent_focal_amplification, sparing not-amplified kinase fusions."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
 # [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
