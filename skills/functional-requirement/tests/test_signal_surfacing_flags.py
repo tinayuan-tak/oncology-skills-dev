@@ -69,3 +69,37 @@ def test_concordance_scope_note_none_when_concordance_is_dependent():
     """PLK1 shape: strongly_concordant_dependent → not the non_dependent-label case → no note."""
     assert run._concordance_scope_note("strongly_concordant_dependent",
                                        "common_essential", "common_essential") is None
+
+
+# ── indication_scope_note: positive pooled verdict enriched OUTSIDE the queried indication ────────────
+def _by_scope(cls):
+    return {"indication": {"class": cls, "depmap_lineage": "Bowel", "indication": "COADREAD",
+                           "median_chronos": -0.248}}
+
+
+def test_indication_scope_note_fires_on_positive_pooled_outside_indication():
+    """BRAF/COADREAD shape: lineage_selective pan-cancer but Bowel not_dependent_in_indication (enriched
+    in melanoma). Must flag the target-grain vs indication-lineage divergence."""
+    note = run._indication_scope_note("lineage_selective", _by_scope("not_dependent_in_indication"))
+    assert note and "TARGET-GRAIN" in note and "Bowel" in note and "COADREAD" in note
+    assert "dependency_verdict_by_scope" in note
+
+
+def test_indication_scope_note_none_when_indication_is_enriched():
+    """KRAS/COADREAD shape: selective_in_indication (Bowel IS the enriched lineage) → no flag (byte-stable)."""
+    assert run._indication_scope_note("lineage_selective", _by_scope("selective_in_indication")) is None
+    # dependent-but-not-enriched also means the indication IS dependent → no mismatch flag
+    assert run._indication_scope_note("lineage_selective", _by_scope("dependent_not_enriched")) is None
+
+
+def test_indication_scope_note_none_on_nonpositive_verdict():
+    """A non-positive verdict (discordant/non_dependent/insufficient) is not a target-grain positive →
+    the flag does not apply (SMARCA4 discordant is handled by the paralog caveat instead)."""
+    by = _by_scope("not_dependent_in_indication")
+    assert run._indication_scope_note("discordant", by) is None
+    assert run._indication_scope_note("non_dependent", by) is None
+    assert run._indication_scope_note("insufficient", by) is None
+
+
+def test_indication_scope_note_fires_on_not_in_panel():
+    assert run._indication_scope_note("selective_dependent", _by_scope("not_in_panel")) is not None

@@ -85,6 +85,10 @@ _CHEM_SIGNAL = {
     "data_unavailable": "unmeasured",
 }
 
+# Verdicts where a MEASURED absence (or CRISPR/RNAi disagreement) could be a paralog-masking artifact —
+# the case where a `partial` paralog buffer is the competing explanation worth surfacing in key_signals.
+_ABSENCE_VERDICTS = frozenset({"non_dependent", "discordant"})
+
 _INFORMS = {
     "DEP": "genetic dependency — the core actionability signal (is loss of the target lethal?)",
     "SEL": "context-selectivity — therapeutic-window / patient-selection lens (which lineages)",
@@ -360,6 +364,22 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
         ks["caveat"] = ("Strong paralog buffering" + (f" ({_par})" if _par else "")
                         + " — the single-gene dependency may be redundancy-masked; combined paralog loss "
                           "or an upstream pan-family node may be required [paralog-buffering]")
+    # PARTIAL paralog buffer on an ABSENCE verdict (2026-09-04): when CRISPR/RNAi read the target as
+    # non-dependent OR discordant AND a paralog exists (even at `partial`), the apparent absence may be a
+    # paralog-masking artifact — single-gene KO under-calls a vulnerability that shifts to the redundant
+    # paralog (the SMARCA4→SMARCA2 SL class; Hoffman 2014; Helming 2014). Scoped to absence verdicts so a
+    # weak `partial` paralog on a POSITIVE call (e.g. BRAF/MAP3K7 lineage_selective) does not add noise;
+    # `strong` on any verdict is already caught above. Gated on paralog_buffering_class + dependency_verdict
+    # HEADLINE fields → no-op on the KRAS unit fixture (omits both). Verdict-INERT (the resolver's
+    # non_dependent_paralog_buffered rung fires only on STRONG buffering; this only surfaces the caveat).
+    elif (h.get("paralog_buffering_class") == "partial"
+          and h.get("dependency_verdict") in _ABSENCE_VERDICTS):
+        _par = h.get("strongest_paralog_symbol")
+        ks["caveat"] = ("Non-dependent/discordant read, but a paralog buffer"
+                        + (f" ({_par}, partial)" if _par else " (partial)")
+                        + " may under-call a paralog-buffered vulnerability — the absence reflects direct "
+                          "single-gene requirement, not the paralog node; check the paralog synthetic-lethal "
+                          "(COND axis) [paralog-buffering]")
     return ks
 
 

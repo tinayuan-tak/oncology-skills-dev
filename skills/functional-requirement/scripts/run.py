@@ -40,7 +40,7 @@ from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
                           #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
                           # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
                           # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
@@ -913,6 +913,38 @@ def _concordance_scope_note(concordance_call, crispr_call, rnai_call) -> str | N
     return None
 
 
+# A POSITIVE pooled dependency call (strong or moderate/selective) — the verdicts where a target-grain
+# positive could be enriched OUTSIDE the queried indication.
+_POSITIVE_POOLED_VERDICTS = _DEP_STRONG_POS | _DEP_MOD_POS
+# by_scope.indication.class values that mean the QUERIED lineage is NOT a dependency (vs the pooled call).
+_INDICATION_MISMATCH_CLASSES = frozenset({"not_dependent_in_indication", "not_in_panel"})
+
+
+def _indication_scope_note(verdict, by_scope) -> str | None:
+    """Indication-SCOPE divergence flag: the pooled dependency_verdict is TARGET-GRAIN (lineage_selective
+    et al. fire on ANY enriched lineage), so a POSITIVE pooled call can be enriched OUTSIDE the queried
+    indication while the indication's own lineage reads non-dependent. Surface it so a consumer keying on
+    the one-word verdict token does not over-read a target-grain positive as an indication-specific
+    dependency — the honest indication answer already lives in dependency_verdict_by_scope.indication
+    (Phase-3). Fires ONLY on a positive pooled verdict + an indication-mismatch by_scope read (e.g.
+    BRAF/COADREAD: lineage_selective pan-cancer, but Bowel not_dependent_in_indication — enriched in
+    melanoma, not CRC); None otherwise → byte-stable where the indication IS the enriched lineage
+    (KRAS/COADREAD: selective_in_indication → no flag). VERDICT-INERT: the pooled verdict is unchanged."""
+    if verdict not in _POSITIVE_POOLED_VERDICTS:
+        return None
+    ind = (by_scope or {}).get("indication") or {}
+    if ind.get("class") not in _INDICATION_MISMATCH_CLASSES:
+        return None
+    lineage = ind.get("depmap_lineage") or "the queried lineage"
+    indication = ind.get("indication") or "this indication"
+    med = ind.get("median_chronos")
+    med_s = f" (median Chronos {med:.2f})" if isinstance(med, (int, float)) else ""
+    return (f"The pooled dependency_verdict ('{verdict}') is TARGET-GRAIN — selective to SOME lineage, not "
+            f"necessarily {indication}. For the queried {lineage} lineage the dependency reads "
+            f"`{ind.get('class')}`{med_s}: the pooled positive is enriched OUTSIDE this indication. Read the "
+            "indication answer from dependency_verdict_by_scope.indication, NOT the target-grain token.")
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
@@ -999,6 +1031,11 @@ def _headline(cards, fired, verdict_pair):
     # guard). Makes the SEL claim honest about the QUERIED indication's lineage (vs "selective to SOME
     # lineage"); the pooled call remains the pan_cancer rung. See _dependency_verdict_by_scope.
     hl["dependency_verdict_by_scope"] = _dependency_verdict_by_scope(cards, verdict_pair)
+    # Indication-SCOPE divergence flag (2026-09-04): a POSITIVE pooled verdict enriched OUTSIDE the queried
+    # indication (by_scope.indication = not_dependent_in_indication / not_in_panel). None where the
+    # indication IS the enriched lineage → byte-stable (KRAS/COADREAD = selective_in_indication). Reads the
+    # by_scope just built. Verdict-INERT.
+    hl["indication_scope_note"] = _indication_scope_note(v, hl["dependency_verdict_by_scope"])
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built; best-effort (a formatting/read fault must NEVER discard the
@@ -1087,6 +1124,9 @@ _SYNTHESIS_FACET_KEYS = (
     # signal held at a coverage-gap verdict) + pooled-scope concordance reconciliation. Fed to the
     # narrator so the synthesis cites them deterministically instead of re-deriving them.
     "measurement_caveat", "concordance_scope_note",
+    # indication-scope divergence flag (2026-09-04): a positive pooled verdict enriched OUTSIDE the
+    # queried indication (target-grain vs indication-lineage). Verdict-inert.
+    "indication_scope_note",
 )
 
 

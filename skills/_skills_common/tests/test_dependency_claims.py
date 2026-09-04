@@ -167,6 +167,26 @@ def test_pan_essential_conflict_outranks_paralog_caveat():
     assert "pan-essential" in dependency_key_signals(h, [])["caveat"]
 
 
+def test_partial_paralog_caveat_on_absence_verdict():
+    """A PARTIAL paralog buffer on a discordant/non-dependent verdict (SMARCA4→SMARCA2 class) surfaces the
+    paralog-masking caveat — the absence may under-call a paralog-buffered vulnerability. Gated on
+    dependency_verdict ∈ {discordant, non_dependent}; byte-stable on the KRAS unit fixture (omits both)."""
+    h = dict(_kras_headline(), crispr_call="non_dependent", rnai_call="non_dependent",
+             paralog_buffering_class="partial", strongest_paralog_symbol="SMARCA2",
+             dependency_verdict="discordant")
+    ks = dependency_key_signals(h, [])
+    assert ks["caveat"] and "SMARCA2" in ks["caveat"] and "paralog" in ks["caveat"].lower()
+
+
+def test_partial_paralog_no_caveat_on_positive_verdict():
+    """A PARTIAL paralog on a POSITIVE call (e.g. BRAF/MAP3K7 lineage_selective) must NOT add noise —
+    scoped to absence verdicts only."""
+    h = dict(_kras_headline(), paralog_buffering_class="partial", strongest_paralog_symbol="MAP3K7",
+             dependency_verdict="lineage_selective")
+    ks = dependency_key_signals(h, [])
+    assert not (ks["caveat"] and "MAP3K7" in ks["caveat"])   # partial+positive → no paralog caveat
+
+
 def test_partner_conditional_strong_signal():
     h = _kras_headline()
     h["partner_conditional_class"] = "partner_conditional_moderately_dependent"

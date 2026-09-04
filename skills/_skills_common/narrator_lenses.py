@@ -31,12 +31,17 @@ FUNCTIONAL_REQUIREMENT = LensConfig(
         "broad-toxicity LIABILITY, not support, and must key on the CURATED common-essential control "
         "(depmap_curated_common_essential), NOT a raw dependent-fraction (the 'oncogene reads pan-essential' "
         "trap) — a selective dependency sitting between the essential/non-essential controls is the win. "
-        "Flag STRONG paralog buffering (paralog_buffering_class): the single-gene dependency may be "
-        "redundancy-masked and need combined paralog loss or an upstream pan-family node. Finally, do NOT "
-        "over-read two data-shape artifacts: (1) a `*_concordant_non_dependent` CRISPR↔RNAi concordance "
-        "alongside both distributions reading a selective class is a POOLED-SCOPE selective signature "
-        "(concordance_scope_note), not a modality contradiction; (2) a decisive single-arm signal held at a "
-        "coverage-gap verdict (measurement_caveat) is decisive-but-unconfirmed, not measured-absent."),
+        "Flag paralog buffering (paralog_buffering_class): a STRONG buffer means the single-gene dependency "
+        "may be redundancy-masked and need combined paralog loss or an upstream pan-family node; even a "
+        "PARTIAL buffer on a non-dependent/discordant read can under-call a paralog-buffered vulnerability "
+        "that shifts to the redundant paralog (the SMARCA4→SMARCA2 SL class — check the COND axis). Finally, "
+        "do NOT over-read three scope/data-shape artifacts: (1) a `*_concordant_non_dependent` CRISPR↔RNAi "
+        "concordance alongside both distributions reading a selective class is a POOLED-SCOPE selective "
+        "signature (concordance_scope_note), not a modality contradiction; (2) a decisive single-arm signal "
+        "held at a coverage-gap verdict (measurement_caveat) is decisive-but-unconfirmed, not measured-"
+        "absent; (3) the pooled verdict is TARGET-GRAIN — when indication_scope_note is present the queried "
+        "indication is NOT the enriched lineage, so report the indication-scope answer "
+        "(dependency_verdict_by_scope.indication), not the target-grain token."),
     mode="verdict",
     verdict_key="dependency_verdict",   # the RESOLVED dependency verdict token; else the collapsed-verdict
                                         # prompt line fell through to driving_rule_id (a rule-id string, e.g.
