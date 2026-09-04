@@ -120,6 +120,10 @@ _NEGATIVE_SNAPSHOT_HEADLINE = {
                                 "dependency) — argues against small-molecule tractability.",
     "structurally_intractable": "Structurally intractable — no small-molecule handle.",
     "chemically_unhit":         "No compound found — small-molecule tractability unestablished.",
+    # directness gate (resolver v1.5.0): an approved drug is catalogued but the DGIdb roster is INDIRECT
+    # (no direct binder) — must NOT read "tractable" off the positive-valence DRUG/POTENCY axes.
+    "annotation_only_indirect": "Approved drugs are catalogued but INDIRECT (pathway/downstream) — no "
+                                "direct small-molecule binder established.",
 }
 
 

@@ -95,6 +95,7 @@ _DRUGGABILITY_VERDICT_PHRASE = {
     "structurally_intractable":     "Structurally intractable",
     "chemically_unhit":             "Chemically unhit (no compound found)",
     "discordant":                   "Discordant off-target activity",
+    "annotation_only_indirect":     "Annotation-only (indirect compounds; no direct binder)",
     # gap
     "insufficient":                 "Insufficient evidence",
 }
@@ -105,7 +106,13 @@ _TRACTABILITY_POSITIVE = frozenset({
     "well_covered", "chemically_confirmed_genetic", "chemically_active", "measured_potent_ligand",
     "clinical_precedent_only", "tool_compound_only", "weakly_active", "structurally_ligandable",
 })
-_TRACTABILITY_NEGATIVE = frozenset({"structurally_intractable", "chemically_unhit", "discordant"})
+# annotation_only_indirect (resolver v1.5.0 directness gate): an approved drug is catalogued but the DGIdb
+# roster is INDIRECT/sparse — no DIRECT small-molecule binder established. A non-positive SM-tractability
+# outcome (hero badge negative-polarity is honest: "no direct binder"), distinct from chemically_unhit
+# (compounds ARE catalogued, just indirect) — the nuance rides in the phrase. NON-nominating (the TC
+# nomination gate leaves it out of the positive/kill sets), so this membership only colours display.
+_TRACTABILITY_NEGATIVE = frozenset({"structurally_intractable", "chemically_unhit", "discordant",
+                                    "annotation_only_indirect"})
 
 
 def _tractability_verdict_polarity(v) -> str:
@@ -136,6 +143,9 @@ _SM_ARM = {
     "weakly_active": "caveated", "structurally_ligandable": "caveated",
     # negatives
     "discordant": "opposed", "structurally_intractable": "not_viable", "chemically_unhit": "not_viable",
+    # indirect-only: catalogued compounds exist but none direct → a CAVEATED (non-direct) handle, not a
+    # clean not_viable (there IS chemical matter) nor viable (no direct binder). Verdict-inert projection.
+    "annotation_only_indirect": "caveated",
     "insufficient": "insufficient",
 }
 _DEG_ARM = {
@@ -384,7 +394,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.8.0"   # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+SKILL_VERSION = "3.9.0"   # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
                             # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
@@ -499,6 +509,11 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
         return "structurally_intractable", "structure-low-confidence-sm-opposing"
     if "ligandability-disordered-sm-opposing" in fired_by_id:
         return "structurally_intractable", "ligandability-disordered-sm-opposing"
+    # annotation_only_indirect (2026-09-04, directness gate): an approved drug is catalogued but the DGIdb
+    # roster is INDIRECT/sparse — no direct binder. Below every genuine positive + the measured structural
+    # negative, above chemically_unhit. Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
+    if "known-drug-approved-indirect-only-sm-weak" in fired_by_id:
+        return "annotation_only_indirect", "known-drug-approved-indirect-only-sm-weak"
     if "prism-no-compounds-found-neutral" in fired_by_id:
         return "chemically_unhit", "prism-no-compounds-found-neutral"
     return "insufficient", None

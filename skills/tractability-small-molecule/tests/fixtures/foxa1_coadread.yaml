@@ -203,6 +203,10 @@ gdsc-drug-activity:
   resolved_via: null
 known-drug-tractability:
   _data_source: dgidb-drug-gene-per-gene-v1
+  approved_drug_engagement_class: not_approved
+  direct_engagement_class: indirect_or_untyped_only
+  directness_context: 'FOXA1: 0 DIRECT typed small-molecule interaction(s); no approved-drug
+    flag.'
   druggability_tier: clinically_actionable
   gene_categories: CLINICALLY ACTIONABLE|TRANSCRIPTION FACTOR
   has_approved_drug: false
@@ -212,22 +216,25 @@ known-drug-tractability:
     \ antineoplastic) \u2014 a clinically-relevant drug exists. Categories: CLINICALLY\
     \ ACTIONABLE|TRANSCRIPTION FACTOR."
   known_drug_tractability_class: clinically_actionable
-  method_version: 0.1.0
+  method_version: 0.2.0
   n_antineoplastic_interactions: 0
   n_approved_drug_interactions: 0
+  n_direct_interactions: 0
   n_drug_interactions: 0
 measured-potency-tractability:
   _data_source: chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1
   best_measured_potency_neglog_m: null
   bindingdb_best_p_affinity: null
   bindingdb_n_potent_ligands: null
+  chembl_approved_engagement_class: not_chembl_approved
   chembl_best_pchembl: null
   chembl_clinical_phase_class: data_unavailable
   chembl_max_clinical_phase: null
   chembl_n_potent_ligands: null
   measured_bioactivity_class: data_unavailable
   measured_potency_context: null
-  method_version: 0.2.0
+  method_version: 0.3.0
+  n_direct_interactions: 0
 prism-compound-activity:
   _data_note: Target 'FOXA1' has no PRISM-annotated compounds across either OncRef
     25Q4 or Repurposing 24Q2. First-in-class opportunity, not a data-availability

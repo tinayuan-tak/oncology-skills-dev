@@ -217,6 +217,10 @@ gdsc-drug-activity:
   resolved_via: direct
 known-drug-tractability:
   _data_source: dgidb-drug-gene-per-gene-v1
+  approved_drug_engagement_class: approved_direct
+  direct_engagement_class: direct_typed
+  directness_context: "EGFR: 157 DIRECT typed small-molecule interaction(s) (>= 5)\
+    \ \u2014 an approved drug rests on demonstrated direct engagement."
   druggability_tier: clinically_actionable
   gene_categories: CELL SURFACE|CLINICALLY ACTIONABLE|DRUG RESISTANCE|DRUGGABLE GENOME|KINASE|TYROSINE
     KINASE
@@ -228,15 +232,17 @@ known-drug-tractability:
     \ demonstrated). Categories: CELL SURFACE|CLINICALLY ACTIONABLE|DRUG RESISTANCE|DRUGGABLE\
     \ GENOME|KINASE|TYROSINE KINASE."
   known_drug_tractability_class: approved_drug_tractable
-  method_version: 0.1.0
+  method_version: 0.2.0
   n_antineoplastic_interactions: 311
   n_approved_drug_interactions: 217
+  n_direct_interactions: 157
   n_drug_interactions: 549
 measured-potency-tractability:
   _data_source: chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1
   best_measured_potency_neglog_m: 11.699
   bindingdb_best_p_affinity: 11.699
   bindingdb_n_potent_ligands: 22078
+  chembl_approved_engagement_class: approved_direct
   chembl_best_pchembl: 11.0
   chembl_clinical_phase_class: approved
   chembl_max_clinical_phase: 4.0
@@ -246,7 +252,8 @@ measured-potency-tractability:
     \ (best 11.7 -log10 M, <= 1 uM) (ChEMBL/BindingDB). A real sub-micromolar chemical\
     \ start point \u2014 stronger than a predicted pocket or a bare drug catalogue\
     \ entry."
-  method_version: 0.2.0
+  method_version: 0.3.0
+  n_direct_interactions: 157
 prism-compound-activity:
   highest_clinical_phase: phase_1_plus
   median_log2auc_across_compounds: -0.07906319200992584
