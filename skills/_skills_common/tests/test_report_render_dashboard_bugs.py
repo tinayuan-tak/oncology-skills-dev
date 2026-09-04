@@ -35,7 +35,7 @@ def test_recommendation_badge_gets_semantic_color():
     nom = make_nomination()
     nom["target_report"]["target_call"]["recommendation"] = "nominate"
     html = render_report(nom, preset="full", backend="html")
-    assert "badge go" in html, "recommendation 'nominate' fell through to the grey (empty-class) chip"
+    assert "rec go" in html, "recommendation 'nominate' fell through to the grey (empty-class) chip"
 
 
 def test_deciding_axis_resolves_from_deciding_axes_list_not_dash():

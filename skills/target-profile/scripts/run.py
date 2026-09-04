@@ -1048,7 +1048,11 @@ def main() -> int:
     try:
         write_artifact(args.out, "html",
                        _render_report(nomination, preset="full", backend="html",
-                                      target=args.target, indication=args.indication), _written)
+                                      target=args.target, indication=args.indication,
+                                      # asset_root = the run dir → the html backend INLINES figure SVGs
+                                      # (data-URIs) so target_profile.html is self-contained and renders
+                                      # in any viewer, not only a browser opened from the run dir.
+                                      asset_root=args.out), _written)
         print(f"[target-profile] wrote {args.out}/target_profile.html (report_render)", file=sys.stderr)
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: report_render HTML failed: {e}", file=sys.stderr)

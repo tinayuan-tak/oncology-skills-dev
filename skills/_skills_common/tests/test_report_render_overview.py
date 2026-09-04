@@ -58,7 +58,7 @@ def test_html_renders_svg_strip_and_risk_tiles():
     html = render_report(make_nomination(), preset="full", backend="html")
     assert "<svg" in html and "signal-strip" in html          # the diverging strip
     assert "risk-tiles" in html and "risk-tile" in html        # the risk tiles
-    assert "Signals across skills" in html
+    assert "Signals across subskills" in html
 
 
 def test_text_and_json_render_overview():

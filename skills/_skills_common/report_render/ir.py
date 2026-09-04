@@ -355,6 +355,7 @@ def _signals_overview_block(selected, deciding_short, thesis_primary=None) -> Op
             descriptive.append(title)          # context, not a bar
             continue
         expected_note = _negative_expected_under_thesis(short, polarity, thesis_primary)
+        prov = report.get("provenance") if isinstance(report.get("provenance"), dict) else {}
         rows.append({"short": short, "title": title,
                      # a thesis-expected negative renders + tallies as NEUTRAL (orthogonal, not against);
                      # the raw polarity + note are carried so a backend can show it was a measured negative.
@@ -364,6 +365,10 @@ def _signals_overview_block(selected, deciding_short, thesis_primary=None) -> Op
                      "expected_note": expected_note,
                      "call": report.get("call"),
                      "honest_phrase": report.get("honest_phrase"),  # plain-language, preferred over the snake_case call
+                     # provenance for the "where does this signal come from" context: each bar is one
+                     # sub-skill's verdict rolled up from N evidence cards / M fired rules.
+                     "n_cards": len(prov.get("cards_used") or []),
+                     "n_rules": len(prov.get("fired_rule_ids") or []),
                      "is_deciding": short == deciding_short})
     if not rows:
         return None
@@ -495,9 +500,11 @@ def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
     # (+ non-empty caveats), never the raw dict (str(dict) was leaking into the page).
     coherence = coh.get("class") if isinstance(coh, dict) else coh
     caveats = [c for c in (coh.get("caveats") or [])] if isinstance(coh, dict) else []
-    # thesis is rendered in the report header now; the coherence block adds only the coherence class +
-    # caveats, so it emits only when there's a coherence class (avoids a duplicate thesis line).
-    if not coherence and not caveats:
+    # A bare "Coherence: coherent" line carries no information (it's the expected default) — the block
+    # is worth showing ONLY when it adds a caveat or flags a NON-coherent class. Drop the trivial case
+    # so the report doesn't accrue context-free one-word sections. (thesis lives in the header.)
+    _trivial = (not caveats) and (coherence in (None, "", "coherent", "coherent_with_caveats"))
+    if _trivial:
         return None
     return Block(vocab.COHERENCE, {"thesis": thesis, "coherence": coherence, "caveats": caveats})
 
@@ -508,19 +515,74 @@ def _row_has_on_scale(row: dict) -> bool:
     return any((c or {}).get("on_scale") for c in (row.get("cells") or {}).values())
 
 
+# drug-delivery channel → reader label, in decision display order (intracellular first, then surface).
+_CHANNEL_LABEL = {
+    "small_molecule": "Small molecule", "degrader": "Degrader", "biologics": "Biologic (generic)",
+    "adc": "ADC", "bite_tce": "T-cell engager (TCE)", "antibody": "Antibody",
+}
+_CHANNEL_ORDER = ["small_molecule", "degrader", "biologics", "adc", "bite_tce", "antibody"]
+# per-channel fit → display rank (viable first) + status token (mapped to the reserved status palette).
+_FIT_RANK = {"favorable": 0, "viable": 0, "conditional": 1, "unfavorable": 2}
+_FIT_STATUS = {"favorable": ("viable", "Viable"), "viable": ("viable", "Viable"),
+               "conditional": ("conditional", "Conditional"), "unfavorable": ("unfavorable", "Unfavorable")}
+
+
+def _modality_fit_channels(nomination: dict, tr: dict) -> list:
+    """Per-modality readout from the AUTHORITATIVE `modality_fit_by_channel` (worst-case conjunction of
+    each axis's RESOLVED modality_scope — the spine-safe per-channel view, NOT the raw gate×modality
+    column-min the matrix disclaimer forbids aggregating). Each channel → {name, status, label,
+    limiting_axis, by_axis, masked_by_axis}. Applicable channels first (ranked viable→unfavorable),
+    then the not-applicable/masked channels."""
+    mf = tr.get("modality_fit") or nomination.get("modality_fit_by_channel") or {}
+    by = mf.get("by_channel") if isinstance(mf, dict) else None
+    if not isinstance(by, dict) or not by:
+        return []
+    applic, masked = [], []
+    for ch in list(_CHANNEL_ORDER) + [c for c in by if c not in _CHANNEL_ORDER]:
+        d = by.get(ch)
+        if not isinstance(d, dict):
+            continue
+        fit = d.get("fit")
+        masked_by = d.get("masked_by_axis")
+        row = {"channel": ch, "name": _CHANNEL_LABEL.get(ch, ch.replace("_", " ").title()),
+               "limiting_axis": d.get("limiting_axis"),
+               "by_axis": d.get("by_axis") if isinstance(d.get("by_axis"), dict) else {},
+               "masked_by_axis": masked_by}
+        if fit in ("not_applicable_by_axis", "not_applicable", None) or masked_by:
+            row["status"], row["label"] = "not_applicable", "Not applicable"
+            masked.append(row)
+        else:
+            row["status"], row["label"] = _FIT_STATUS.get(fit, ("unfavorable", _humanize_local(fit)))
+            row["_rank"] = _FIT_RANK.get(fit, 3)
+            applic.append(row)
+    applic.sort(key=lambda r: (r.get("_rank", 3), _CHANNEL_ORDER.index(r["channel"])
+                               if r["channel"] in _CHANNEL_ORDER else 99))
+    return applic + masked
+
+
+def _humanize_local(x) -> str:
+    return str(x).replace("_", " ") if x is not None else ""
+
+
 def _modality_matrix_block(tr: dict, nomination: dict) -> Optional[Block]:
+    """Modality FIT: a per-channel status readout (from modality_fit_by_channel) + the raw gate×modality
+    ordinal grid retained as a drill-down (it preserves the killer-vs-opposing shape + the per-axis
+    detail the scalar per-channel view can flatten). Emits if EITHER source is present."""
+    channels = _modality_fit_channels(nomination, tr)
     mtx = tr.get("evidence_matrix") or nomination.get("ordinal_matrix")
-    if not isinstance(mtx, dict) or not mtx.get("rows"):
-        return None
-    # drop all-`·` rows (no on-scale cell) — an axis with no measured modality signal adds only noise.
-    rows = [r for r in (mtx.get("rows") or []) if isinstance(r, dict) and _row_has_on_scale(r)]
-    if not rows:
+    grid_rows, columns = [], []
+    if isinstance(mtx, dict) and mtx.get("rows"):
+        # drop all-`·` rows (no on-scale cell) — an axis with no measured modality signal adds only noise.
+        grid_rows = [r for r in (mtx.get("rows") or []) if isinstance(r, dict) and _row_has_on_scale(r)]
+        columns = (mtx.get("axes") or {}).get("columns") or []
+    if not channels and not grid_rows:
         return None
     return Block(vocab.MODALITY_MATRIX, {
-        "columns": (mtx.get("axes") or {}).get("columns") or [],
-        "rows": rows, "legend": mtx.get("legend") or {},
-        "glyph_legend": vocab.ordinal_glyph_legend(),   # inline "+2 supports … −3 killer · off-scale"
-        "disclaimer": mtx.get("_disclaimer"),
+        "channels": channels,                       # the lead: per-modality status readout
+        "columns": columns, "rows": grid_rows,      # the raw ordinal grid → drill-down
+        "legend": (mtx or {}).get("legend") or {},
+        "glyph_legend": vocab.ordinal_glyph_legend(),
+        "disclaimer": (mtx or {}).get("_disclaimer"),
     })
 
 
@@ -663,6 +725,35 @@ def _biomarker_block(tr: dict) -> Optional[Block]:
     })
 
 
+# archetype phenotype-mixture key → reader phrase (the "what kind of target IS this" characterization).
+_PHENOTYPE_LABEL = {
+    "control_housekeeping": "housekeeping / broadly-essential control",
+    "amp_driver": "amplification-driven oncogene",
+    "dependency_essential": "selective genetic dependency",
+    "snv_driver": "SNV / mutation driver",
+    "tsg_loss": "tumor-suppressor (loss-of-function)",
+    "expression_surface": "surface / expression antigen",
+    "immune_checkpoint": "immune-checkpoint",
+    "fusion_driver": "fusion driver",
+}
+
+
+def _target_characterization(tr: dict) -> Optional[dict]:
+    """A concrete, data-backed 'what kind of target is this' from the archetype phenotype-mixture
+    (soft kNN membership against the reference atlas) — the leading CONTEXT that frames the target
+    itself BEFORE any verdict. Returns the top phenotype components (weight ≥ 8%), or None."""
+    arche = tr.get("archetype") if isinstance(tr.get("archetype"), dict) else {}
+    mix = arche.get("phenotype_mixture")
+    if not isinstance(mix, dict) or not mix:
+        return None
+    items = sorted(((k, v) for k, v in mix.items() if isinstance(v, (int, float)) and v >= 0.08),
+                   key=lambda kv: -kv[1])[:3]
+    if not items:
+        return None
+    return {"mixture": [{"label": _PHENOTYPE_LABEL.get(k, str(k).replace("_", " ")),
+                         "weight": round(float(v), 2)} for k, v in items]}
+
+
 def build_ir(nomination: dict, spec: ReportSpec,
              target: Optional[str] = None, indication: Optional[str] = None) -> ReportIR:
     """Project a nomination + spec into the presentation IR. Pure, deterministic, fail-soft."""
@@ -688,6 +779,9 @@ def build_ir(nomination: dict, spec: ReportSpec,
         "target": target,
         "indication": indication,
         "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
+        # data-backed "what kind of target is this" (archetype phenotype-mixture) — leads the header so
+        # the target is CHARACTERIZED before the one-word recommendation.
+        "characterization": _target_characterization(tr),
         "recommendation": target_call.get("recommendation"),
         "confidence": target_call.get("confidence"),
         "deciding_axis": target_call.get("deciding_axis"),

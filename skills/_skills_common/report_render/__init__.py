@@ -59,15 +59,16 @@ def build_ir_auto(data: dict, spec: ReportSpec, *, target=None, indication=None)
 
 def render_report(nomination: dict, *, preset: Optional[str] = None, backend: str = "text",
                   spec: Optional[ReportSpec] = None, target: Optional[str] = None,
-                  indication: Optional[str] = None, **spec_overrides) -> str:
+                  indication: Optional[str] = None, asset_root=None, **spec_overrides) -> str:
     """Render one nomination to one backend's string. Provide a `preset` name and/or explicit
-    `spec_overrides` (level/medium/scope/lead/bump_deciding), or pass a full `spec`."""
+    `spec_overrides` (level/medium/scope/lead/bump_deciding), or pass a full `spec`. `asset_root` (the
+    run dir where `figures/` lives) makes the html backend INLINE figure SVGs → a self-contained page."""
     if spec is None:
         spec = resolve_spec(preset, **spec_overrides)
     elif spec_overrides:
         raise ValueError("pass either an explicit spec OR spec_overrides, not both")
     ir = build_ir(nomination, spec, target=target, indication=indication)
-    return _backends.render(ir, backend)
+    return _backends.render(ir, backend, asset_root=asset_root)
 
 
 def render_all(nomination: dict, *, preset: Optional[str] = None, spec: Optional[ReportSpec] = None,

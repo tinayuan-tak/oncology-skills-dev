@@ -64,7 +64,7 @@ def test_html_matrix_shades_cells_and_collapses_disclaimer():
     h = render_report(make_nomination(), preset="full", backend="html")
     assert "td class='mx-pos'" in h                          # supportive cell shaded
     assert "td class='mx-killer'" in h or "td class='mx-neg'" in h
-    assert "Reading this matrix — caveats" in h              # disclaimer collapsed into <details>
+    assert "Per-axis × modality detail" in h                # raw grid + caveats collapsed into <details>
     assert "not calibrated measurement" in h                 # full caveat retained inside the details
 
 

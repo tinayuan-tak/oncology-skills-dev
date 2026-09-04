@@ -10,14 +10,16 @@ from .json_backend import JsonBackend
 from .pptx import PptxBackend
 from .text import TextBackend
 
-# name → zero-arg factory. `markdown`/`md` and `text` share TextBackend (syntax toggle only).
+# name → factory(asset_root). `markdown`/`md` and `text` share TextBackend (syntax toggle only).
+# Only the html backend uses asset_root (to inline figure SVGs as data-URIs → self-contained page);
+# the others accept + ignore it so the registry stays uniform.
 BACKENDS: dict = {
-    "text": lambda: TextBackend(markdown=False),
-    "markdown": lambda: TextBackend(markdown=True),
-    "md": lambda: TextBackend(markdown=True),
-    "html": lambda: HtmlBackend(),
-    "json": lambda: JsonBackend(),
-    "pptx": lambda: PptxBackend(),
+    "text": lambda asset_root=None: TextBackend(markdown=False),
+    "markdown": lambda asset_root=None: TextBackend(markdown=True),
+    "md": lambda asset_root=None: TextBackend(markdown=True),
+    "html": lambda asset_root=None: HtmlBackend(asset_root=asset_root),
+    "json": lambda asset_root=None: JsonBackend(),
+    "pptx": lambda asset_root=None: PptxBackend(),
 }
 
 # backends whose render() returns BYTES (must be written to a file, never printed to stdout).
@@ -37,15 +39,15 @@ def string_backend_names() -> list:
     return sorted(set(BACKENDS) - BINARY_BACKENDS)
 
 
-def get_backend(name: str):
+def get_backend(name: str, asset_root=None):
     try:
-        return BACKENDS[name]()
+        return BACKENDS[name](asset_root)
     except KeyError:
         raise ValueError(f"unknown backend {name!r}; choose one of {backend_names()}")
 
 
-def render(ir: ReportIR, backend: str) -> str:
-    return get_backend(backend).render(ir)
+def render(ir: ReportIR, backend: str, asset_root=None) -> str:
+    return get_backend(backend, asset_root).render(ir)
 
 
 def coverage() -> dict:

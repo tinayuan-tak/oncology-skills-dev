@@ -166,7 +166,11 @@ def make_nomination() -> dict:
             },
             "thesis": {"schema": "target_coherence.v1",
                        "thesis": {"primary": "selective_dependency_with_safety_ceiling"},
-                       "coherence": {"class": "coherent", "confirms": [], "caveats": [],
+                       # a NON-trivial coherence: a caveat present → the block emits (a bare "coherent"
+                       # with no caveat is suppressed by _coherence_block as context-free).
+                       "coherence": {"class": "coherent", "confirms": [],
+                                     "caveats": ["dependency is MSI-context-conditional — confirm the "
+                                                 "partner background"],
                                      "artifact_flags": []}},
             "evidence_matrix": {
                 "axes": {"columns": ["small_molecule", "degrader", "adc", "bite_tce"]},
@@ -193,6 +197,23 @@ def make_nomination() -> dict:
                            "off_scale": ["insufficient", "not_applicable"]},
                 "_disclaimer": "ORDINAL VIEW — display/ranking only, not calibrated measurement.",
             },
+            # authoritative per-modality rollup (worst-case conjunction of each axis's RESOLVED
+            # modality_scope) — the spine-safe source the "Modality fit" readout renders. MYC-like:
+            # SM/degrader unfavorable (limited by safety); the surface channels are a category error.
+            "modality_fit": {"by_channel": {
+                "small_molecule": {"fit": "unfavorable", "limiting_axis": "safety",
+                                   "by_axis": {"tractability_sm": "favorable", "safety": "unfavorable",
+                                               "dependency": "conditional"}},
+                "degrader": {"fit": "unfavorable", "limiting_axis": "safety",
+                             "by_axis": {"tractability_sm": "favorable", "safety": "unfavorable",
+                                         "dependency": "favorable"}},
+                "biologics": {"fit": "not_applicable_by_axis", "limiting_axis": None, "by_axis": {},
+                              "masked_by_axis": "intracellular_intrinsic"},
+                "adc": {"fit": "not_applicable_by_axis", "by_axis": {},
+                        "masked_by_axis": "intracellular_intrinsic"},
+                "bite_tce": {"fit": "not_applicable_by_axis", "by_axis": {},
+                             "masked_by_axis": "intracellular_intrinsic"},
+            }},
             "skill_report_rollup": {
                 "by_role": {"gating": [{"short": "safety", "call": "lof_constrained", "polarity": "killer"},
                                        {"short": "dependency", "call": "genetic_dependency",
