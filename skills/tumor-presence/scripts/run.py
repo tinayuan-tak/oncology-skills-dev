@@ -266,7 +266,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.19.0"   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.20.0"   # 1.20.0 (2026-09-04): CONSOLIDATED presence_confirmation_caveat (folds the already-computed protein_confirmation_state / abundance_floor_flag / sc_expression_class + caf / cell_line_vs_tumor / HPA-IHC signals into ONE consumer-facing malignant-cell-PROTEIN-confirmed-vs-bulk-RNA/cell-line/stromal-annotated call; tiers malignant_compartment_unconfirmed [FAP/stromal driver] / rna_or_cellline_present_protein_unconfirmed [RNA-proxy] / protein_confirmed_malignant_present + clinically_precedented_antigen_present [false-demote guard, EPCAM/FOLR1 spared]) + presence_provenance quorum + compartment_note + TUMOR_PRESENCE thesis/polarity_note (was NONE) + refined --literature _LENS_QUERY_TERMS. VERDICT-INERT (reads only headline fields, feeds no rule → presence_verdict + presence_verdict_by_modality + goldens byte-stable).   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -1136,6 +1136,221 @@ def _protein_confirmation_state(per_modality: dict, collapsed_verdict: str | Non
     return "untested"
 
 
+# ─── Presence-confirmation caveat (VERDICT-INERT consolidation) ──────────────────────────────
+# The analog of surface_confirmation_caveat / mechanism_confirmation_caveat / tractability directness_caveat.
+# tumor-presence already computes the raw confirmation signals (protein_confirmation_state,
+# abundance_floor_flag, sc_expression_class / caf_vs_malignant, presence_state.malignant_intrinsic,
+# cell_line_vs_tumor_direction). This FOLDS them into ONE consumer-facing call keyed on the biology the
+# one-word presence_verdict hides: does a POSITIVE presence read rest on MALIGNANT-CELL PROTEIN, or on
+# bulk-RNA / pan-cancer cell-line annotation / a STROMAL compartment (looks-present-but-UNCONFIRMED)?
+# Four inflation sub-modes (task-defined): (a) RNA≠protein (RNA/cell-line present, malignant protein
+# unconfirmed); (b) bulk≠malignant compartment (stromal/immune — the FAP/CAF driver); (c) cell-line≠tumor
+# tissue; (d) present≠tumor-elevated (owned by tumor-selectivity — NOT this caveat; carried by
+# presence_state.elevated_vs_normal + the thesis). VERDICT-INERT: reads only headline fields already on
+# `hl`, never presence_verdict, never fed to any rule → presence_verdict + presence_verdict_by_modality
+# + goldens byte-stable.
+#
+# FALSE-DEMOTE GUARD (the EPCAM/ERBB2/DLL3/BRAF analog): a target whose MALIGNANT-CELL protein is
+# CONFIRMED (CPTAC/cell-line-MS present or HPA-IHC detected) OR that is a clinically-precedented tumor
+# antigen resolves the MILDER `*_confirmed`/`*_precedented` tier — explicitly NOT an over-call — so an
+# abundance-floor MS artifact (FOLR1: Gygi bottom-decile recovered by ProCan) never sharp-caveats a
+# validated antigen. NOTE: the crosswalk confirms PROTEIN presence, NOT the malignant COMPARTMENT — the
+# compartment tier OUTRANKS it (a bulk-protein-confirmed CAF antigen like FAP is still
+# malignant_compartment_unconfirmed). Small, disclaimed, NON-EXHAUSTIVE (mirrors surface's
+# internalizing_antigen_targets / mechanism's _VALIDATED_ACTIONABLE_MOA_PRECEDENT); an absent target
+# degrades to the honest DATA-based tier, never a false sharp caveat and never a verdict change.
+_CLINICALLY_PRECEDENTED_TUMOR_ANTIGENS = frozenset({
+    # Malignant-cell antigens with an IHC-standard diagnostic assay AND/OR an approved / late-clinical
+    # ADC / CAR / T-cell-engager / imaging agent that CONFIRMS tumor-CELL protein presence. Curated,
+    # non-exhaustive, disclaimed — a reviewer edits this by hand.
+    "EPCAM", "ERBB2", "ERBB3", "EGFR", "MET", "FOLR1", "FOLH1", "MSLN", "CEACAM5", "TACSTD2", "MUC1",
+    "MUC16", "DLL3", "GPC3", "NECTIN4", "PROM1", "CD19", "MS4A1", "TNFRSF17", "CD22", "CD33", "CD70",
+    "SLC34A2", "CLDN18", "CLDN6", "STEAP1", "ROR1", "CD276", "SLC39A6", "TROP2",
+})
+
+# sc_expression_class values that CONFIRM malignant-cell detection (vs microenvironment_dominant / low).
+_SC_MALIGNANT_CONFIRMED = frozenset({"malignant_broadly_detected", "malignant_subset_detected"})
+# The clean-ish POSITIVE presence_state.present values a naive consumer would read as "present in tumor".
+# The *_absent conflict states + no/untested are handled by presence_headline_conflict + presence_state.
+_PRESENCE_STATE_POSITIVE = frozenset({"yes", "rna_only", "protein_only"})
+
+
+def _presence_confirmation_caveat(hl: dict, target: str | None = None) -> dict | None:
+    """CONSOLIDATED, VERDICT-INERT confirmation call for the presence headline. Returns a
+    {reason, tier, detail} dict, or None on a non-positive / conflicted / untested read (those are
+    surfaced by presence_verdict + presence_headline_conflict + presence_state). Reads only headline
+    fields already built on `hl`; never reads presence_verdict; never fed to a rule."""
+    ps = hl.get("presence_state") or {}
+    present = ps.get("present")
+    if present not in _PRESENCE_STATE_POSITIVE:
+        return None                                       # honest negative / conflict / untested → no over-call
+    pcs = hl.get("protein_confirmation_state")
+    scc = hl.get("sc_expression_class")
+    caf = hl.get("sc_caf_vs_malignant_class")
+    floor = hl.get("abundance_floor_flag")
+    cl_dir = hl.get("cell_line_vs_tumor_direction")
+    ihc = hl.get("hpa_ihc_protein_presence_class")
+    malignant = ps.get("malignant_intrinsic")
+    mal_frac = hl.get("sc_malignant_detection_fraction")
+    micro_comp = hl.get("sc_top_microenvironment_compartment")
+    micro_frac = hl.get("sc_top_microenvironment_detection_fraction")
+    tgt = (target or "").upper().strip()
+    precedented = bool(tgt) and tgt in _CLINICALLY_PRECEDENTED_TUMOR_ANTIGENS
+    ihc_positive = isinstance(ihc, str) and ihc.startswith("ihc_detected")
+    protein_confirmed_in_tumor = (pcs == "confirmed") or ihc_positive
+
+    # TIER 1 (SHARP) — malignant COMPARTMENT unconfirmed (the FAP/stromal driver; the bulk≠malignant
+    # confound). Single-cell/spatial RE-ATTRIBUTES the bulk-present signal to the microenvironment;
+    # malignant-cell protein is unconfirmed REGARDLESS of bulk protein (FAP protein is real but on CAFs),
+    # so this OUTRANKS the protein-confirmed guard.
+    if malignant == "stroma" or scc == "microenvironment_dominant" or caf == "caf_dominant":
+        return {
+            "reason": "malignant_compartment_unconfirmed",
+            "tier": "compartment",
+            "detail": (
+                f"single-cell attributes the bulk presence signal to the tumor MICROENVIRONMENT "
+                f"(sc_expression_class={scc}, caf_vs_malignant={caf}, top microenvironment compartment="
+                f"{micro_comp} det={micro_frac}); malignant-cell detection fraction is {mal_frac}. "
+                f"Bulk RNA/protein cannot separate malignant cells from stromal/immune admixture — the "
+                f"presence is a compartment (stromal/immune) signal, NOT confirmed malignant-cell "
+                f"presence. protein_confirmation_state={pcs} reflects BULK protein (which may be "
+                f"stromal). The therapeutic-window / normal-tissue call is owned by tumor-selectivity + "
+                f"on-target-safety (breadcrumb)."),
+        }
+
+    # TIER 3 (MILDER, FALSE-DEMOTE GUARD) — malignant PROTEIN confirmed, or a clinically-precedented
+    # tumor antigen. NOT an over-call (the EPCAM/ERBB2/FOLR1 spare; the surface-DLL3 / mechanism-BRAF
+    # analog). A residual confirmation NUANCE (an overridden single-lens abundance floor, a ubiquitous
+    # cross-compartment read, an IHC gap covered by precedent) is NAMED, never escalated to a sharp tier.
+    if protein_confirmed_in_tumor or precedented:
+        residual = []
+        if isinstance(floor, str) and floor.endswith("_single_lens"):
+            residual.append("a lone protein bottom-decile lens (single-lens, orthogonally recovered — an "
+                            "MS-coverage artifact, not a true floor)")
+        if caf == "shared_caf_malignant":
+            residual.append("detected across BOTH malignant and stromal compartments (ubiquitous — not "
+                            "compartment-discriminating; present-vs-tumor-ELEVATED is a tumor-selectivity call)")
+        if (not protein_confirmed_in_tumor) and precedented:
+            residual.append(f"malignant protein not directly confirmed here (protein_confirmation_state="
+                            f"{pcs}, HPA-IHC={ihc}) — rescued by clinical-antigen precedent, not this run's data")
+        if pcs == "confirmed_cell_line_only":
+            residual.append("protein confirmed in CELL LINES only (tumor CPTAC untested)")
+        reason = ("protein_confirmed_malignant_present" if protein_confirmed_in_tumor
+                  else "clinically_precedented_antigen_present")
+        basis = []
+        if pcs == "confirmed":
+            basis.append("CPTAC/cell-line-MS protein present")
+        if ihc_positive:
+            basis.append(f"HPA-IHC {ihc}")
+        if precedented:
+            basis.append(f"{tgt} is a clinically-precedented tumor antigen")
+        if scc in _SC_MALIGNANT_CONFIRMED:
+            basis.append(f"single-cell {scc} (malignant det {mal_frac})")
+        return {
+            "reason": reason,
+            "tier": "confirmed",
+            "detail": (
+                f"malignant-cell presence CONFIRMED — NOT an over-call ({'; '.join(basis) or 'protein present'})."
+                + (f" Residual: {'; '.join(residual)}." if residual else "")),
+        }
+
+    # TIER 2 (SHARP) — RNA / pan-cancer cell-line present but malignant PROTEIN unconfirmed (the RNA-proxy
+    # / cell-line-annotation inflation): protein untested, or a HARD (quorum) abundance floor, or the
+    # cell-line lens over-states the tumor-tissue lens, with no clinical-antigen precedent to rescue it.
+    sub = []
+    if present == "rna_only" or pcs == "untested":
+        sub.append("RNA present, protein UNTESTED (no CPTAC/cell-line-MS/IHC confirmation)")
+    if pcs == "confirmed_cell_line_only":
+        sub.append("protein present in CELL LINES only — tumor-tissue protein unconfirmed")
+    if floor == "present_low_abundance":
+        sub.append("absolute abundance reads a QUORUM-confirmed bottom-decile floor")
+    if cl_dir == "cell_line_overstates_tumor":
+        sub.append("the pan-cancer cell-line RNA lens over-states the tumor-tissue lens")
+    if scc == "broadly_low":
+        sub.append("single-cell reads broadly-low (no compartment strongly detects)")
+    return {
+        "reason": "rna_or_cellline_present_protein_unconfirmed",
+        "tier": "confirmation",
+        "detail": (
+            "looks-present-but-UNCONFIRMED at the malignant-cell PROTEIN level: "
+            + ("; ".join(sub) if sub else "no orthogonal malignant-cell protein confirmation")
+            + ". Confirm with CPTAC/IHC protein + single-cell/spatial before reading this as "
+              "malignant-cell presence."),
+    }
+
+
+def _presence_provenance(hl: dict) -> dict:
+    """VERDICT-INERT quorum/provenance summary: which independent layers (bulk RNA, bulk protein MS,
+    HPA-IHC, single-cell, cell-line-vs-tumor) corroborate MALIGNANT-CELL presence — so a bulk-RNA or
+    cell-line signal alone is NOT read as confirmed malignant-cell presence. Reads only headline fields."""
+    ps = hl.get("presence_state") or {}
+    pcs = hl.get("protein_confirmation_state")
+    scc = hl.get("sc_expression_class")
+    ihc = hl.get("hpa_ihc_protein_presence_class")
+    pm = hl.get("presence_verdict_by_modality") or {}
+    def _bucket_state(key):
+        b = pm.get(key) or {}
+        return b.get("verdict") if b.get("evidence_state") == "measured" else (b.get("evidence_state") or "data_unavailable")
+    ihc_positive = isinstance(ihc, str) and ihc.startswith("ihc_detected")
+    sc_malignant = scc in _SC_MALIGNANT_CONFIRMED
+    # THE load-bearing summary: is there MALIGNANT-CELL protein confirmation (protein-level AND a
+    # malignant-compartment attribution)? A bulk protein signal on a stromal antigen is NOT this.
+    malignant_protein_confirmed = bool(
+        ((pcs == "confirmed") or ihc_positive) and sc_malignant and ps.get("malignant_intrinsic") == "yes")
+    corroborating = []
+    if _bucket_state(_BULK_RNA_TUMOR) not in (None, "data_unavailable"):
+        corroborating.append("bulk_rna/tumor")
+    if _bucket_state(_BULK_RNA_CELL_LINE) not in (None, "data_unavailable"):
+        corroborating.append("bulk_rna/cell_line")
+    if pcs in {"confirmed", "confirmed_cell_line_only"}:   # SET literal, not a tuple — a 2-string tuple
+        corroborating.append("bulk_protein_ms")            # is misread as a (rule_id, verdict) drift ref
+    if ihc_positive:
+        corroborating.append("hpa_ihc/tumor")
+    if sc_malignant:
+        corroborating.append("sc_rna/tumor(malignant)")
+    return {
+        "rna": {"tumor": _bucket_state(_BULK_RNA_TUMOR), "cell_line": _bucket_state(_BULK_RNA_CELL_LINE)},
+        "protein_ms": pcs,
+        "protein_ihc": ihc,
+        "single_cell": scc,
+        "single_cell_malignant_detection": hl.get("sc_malignant_detection_fraction"),
+        "cell_line_vs_tumor": hl.get("cell_line_vs_tumor_direction") or "concordant",
+        "rna_protein_proxy": hl.get("bulk_rna_proxy_quality"),
+        "malignant_protein_confirmed": malignant_protein_confirmed,
+        "corroborating_layers": corroborating,
+        "note": ("a bulk-RNA or pan-cancer cell-line signal ALONE is not confirmed malignant-cell "
+                 "presence; malignant_protein_confirmed requires protein-level (CPTAC/cell-line-MS/IHC) "
+                 "AND a single-cell malignant-compartment attribution."),
+    }
+
+
+def _compartment_note(hl: dict) -> str | None:
+    """VERDICT-INERT note when single-cell RESOLVES the malignant-vs-microenvironment attribution the
+    bulk lens cannot. None when single-cell is data_unavailable (no attribution to add)."""
+    scc = hl.get("sc_expression_class")
+    if not scc or scc == "data_unavailable":
+        return None
+    caf = hl.get("sc_caf_vs_malignant_class")
+    mal = hl.get("sc_malignant_detection_fraction")
+    micro = hl.get("sc_top_microenvironment_compartment")
+    micro_f = hl.get("sc_top_microenvironment_detection_fraction")
+    if scc == "microenvironment_dominant":
+        return (f"single-cell RE-ATTRIBUTES the bulk presence signal to the tumor MICROENVIRONMENT "
+                f"(top compartment {micro} det={micro_f}); malignant-cell detection is only {mal} — the "
+                f"bulk lens cannot make this separation. Presence is a compartment (stromal/immune) "
+                f"signal, not malignant-cell-intrinsic.")
+    if caf == "shared_caf_malignant":
+        return (f"single-cell detects the target across BOTH malignant (det {mal}) and stromal "
+                f"compartments — ubiquitous / not compartment-discriminating.")
+    if scc in _SC_MALIGNANT_CONFIRMED:
+        return (f"single-cell CONFIRMS malignant-cell presence ({scc}, malignant detection {mal}); the "
+                f"bulk presence signal is malignant-intrinsic.")
+    if scc == "broadly_low":
+        return (f"single-cell reads broadly-low (malignant detection {mal}) — no compartment strongly "
+                f"expresses the target.")
+    return None
+
+
 # Hierarchy-derived sub-group signals (signals-first spec) — sources bound by measurement_type from
 # question_hierarchy.yaml; confidence = agreement × sample-size. ADDITIVE + verdict-INERT; the hand-
 # wired claim_vector stays until consumers migrate (strangler). Best-effort (degrades to {} off-contract).
@@ -1429,6 +1644,17 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         if _reconciled != v:
             hl["presence_verdict_ladder"] = v
             hl["presence_verdict"] = _reconciled
+    # CONSOLIDATED presence-confirmation caveat + provenance + compartment note (verdict-INERT; the
+    # analog of surface_confirmation_caveat / mechanism_confirmation_caveat). They FOLD the already-built
+    # confirmation signals (presence_state, protein_confirmation_state, abundance_floor_flag,
+    # sc_expression_class / caf, cell_line_vs_tumor_direction, HPA-IHC) into ONE consumer-facing call:
+    # is a POSITIVE presence read backed by MALIGNANT-CELL protein, or does it rest on bulk-RNA /
+    # cell-line annotation / a stromal compartment? Must run AFTER presence_state (they read it); never
+    # touch presence_verdict / per_modality / any rule → spine byte-stable.
+    hl["presence_confirmation_caveat"] = _enrich("presence_confirmation_caveat",
+                                                 _presence_confirmation_caveat, hl, target)
+    hl["presence_provenance"] = _enrich("presence_provenance", _presence_provenance, hl)
+    hl["compartment_note"] = _enrich("compartment_note", _compartment_note, hl)
     # (strength, certainty) sidecar + continuous composite — emitted STANDALONE here (was fan-out-only)
     # with the RE-BASED strength (claim_vector peak + presence_state floor, not the collapsed verdict), so
     # a portfolio-ranking consumer sees the same composite standalone and composed. Verdict-INERT; must run
@@ -1497,6 +1723,10 @@ _SYNTHESIS_FACET_KEYS = (
     "presence_headline_conflict", "presence_headline_conflict_note", "presence_headline_conflict_modalities",
     "abundance_floor_flag", "abundance_floor_low_lenses", "presence_abundance_is_relative",
     "protein_confirmation_state",   # confirmed / measured_absent / untested (RNA-only) / not_applicable
+    # CONSOLIDATED confirmation call + provenance quorum + compartment attribution — the single
+    # consumer-facing "is the malignant-cell presence CONFIRMED, or does it rest on bulk-RNA / cell-line
+    # annotation / a stromal compartment?" read (verdict-inert; the surface/mechanism caveat analog).
+    "presence_confirmation_caveat", "presence_provenance", "compartment_note",
 
     # Variance-standardized CPTAC effect — qualifies whether a `modest_up` is a real per-sample effect
     # or a large-cohort significance artifact (the raw-log2 class can't tell).

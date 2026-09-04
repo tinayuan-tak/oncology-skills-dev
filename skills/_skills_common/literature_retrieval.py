@@ -61,7 +61,10 @@ _INDICATION_PHRASE = {
 _LENS_QUERY_TERMS = {
     "tumor-selectivity":          ["tumor versus normal expression", "therapeutic window",
                                    "normal tissue expression", "immunohistochemistry"],
-    "tumor-presence":             ["overexpression", "protein abundance", "expression"],
+    "tumor-presence":             ["immunohistochemistry", "protein abundance mass spectrometry",
+                                   "single-cell RNA sequencing", "tumor microenvironment stromal expression",
+                                   "RNA protein correlation", "cell of origin", "overexpression",
+                                   "protein abundance"],
     "functional-requirement":     ["genetic dependency", "essential gene", "CRISPR knockout",
                                    "RNA interference", "oncogene addiction", "selective dependency"],
     "on-target-safety-liability": ["loss-of-function intolerance", "haploinsufficiency",

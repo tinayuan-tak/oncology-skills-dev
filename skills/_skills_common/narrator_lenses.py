@@ -86,13 +86,38 @@ TUMOR_PRESENCE = LensConfig(
            "abundant + tumor-elevated/selective supports it; merely present but ubiquitous is uninformative "
            "and (when the normal comparators read HIGH_LIABILITY) flags a therapeutic-window liability whose "
            "VERDICT is owned by the tumor-selectivity + on-target-safety lenses — note the hand-off, do not "
-           "adjudicate the window here.",
+           "adjudicate the window here — WHILE distinguishing a MALIGNANT-CELL PROTEIN-CONFIRMED presence "
+           "(CPTAC/cell-line-MS or HPA-IHC protein + a single-cell malignant-compartment attribution) from "
+           "a target that merely reads present off BULK RNA, a pan-cancer CELL-LINE annotation, or a "
+           "STROMAL/immune compartment WITHOUT confirmed malignant-cell protein (the bulk-RNA-over-calls-"
+           "malignant-protein inflation — the FAP/stromal-marker analog), and from a ubiquitous/housekeeping "
+           "level that reads present but is not tumor-ELEVATED.",
     relevance_prompt="judge how much the presence evidence supports this target's relevance in this cancer "
                      "(indication and, where measured, subtype grain).",
     axis_labels={"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"},
     scope_exclusions=("therapeutic modality", "surface accessibility",
                       "the normal-tissue-liability VERDICT (owned by tumor-selectivity / on-target-safety) — "
                       "note the hand-off but do not make the window call"),
+    # NARRATOR RULE: lead with malignant-cell-PROTEIN-CONFIRMED vs bulk-RNA/cell-line-ANNOTATED presence,
+    # then the compartment confound, then present-vs-tumor-elevated — the three things the one-word
+    # collapsed verdict hides — with the window/surface/safety verdicts as breadcrumbs.
+    polarity_note=(
+        "LEAD by stating whether the presence is CONFIRMED at the MALIGNANT-CELL PROTEIN level — CPTAC or "
+        "cell-line-MS protein (or HPA-IHC) PLUS a single-cell malignant-compartment attribution "
+        "(read presence_confirmation_caveat + presence_provenance.malignant_protein_confirmed) — or "
+        "whether it rests only on BULK RNA / a pan-cancer CELL-LINE annotation (RNA≠protein; cell-line "
+        "de-differentiation vs tumor tissue) or a STROMAL/immune compartment (the FAP/CAF pattern: bulk "
+        "cannot separate malignant cells from stromal/immune admixture — single-cell/spatial is decisive; "
+        "read compartment_note). A `malignant_compartment_unconfirmed` caveat means the bulk signal is a "
+        "microenvironment (stromal/immune) read, NOT malignant-cell presence, EVEN IF bulk protein is "
+        "detected (stromal protein is still protein). Then distinguish PRESENT from tumor-ELEVATED: a "
+        "ubiquitous/housekeeping level (GAPDH-class) reads present but is uninformative for relevance — "
+        "the tumor-elevation/window call is owned by tumor-selectivity (breadcrumb). Do NOT over-demote a "
+        "protein-CONFIRMED or clinically-precedented antigen: an abundance-floor MS artifact "
+        "(`protein_confirmed_malignant_present`/`clinically_precedented_antigen_present`, e.g. a GPI-"
+        "anchored antigen the Gygi TMT panel under-reads but ProCan/IHC recover) is NOT an over-call. "
+        "Surface accessibility (surface-modality-fit) and normal-tissue safety severity (on-target-"
+        "safety) are breadcrumbs, never the presence call."),
     mode="verdict",
     verdict_key="presence_verdict",   # the collapsed word lives here (was mis-read as driving_rule_id)
 )
