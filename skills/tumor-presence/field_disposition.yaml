@@ -864,3 +864,36 @@ sc-normal-celltype-expression:
   tissues_queried:
     role: provenance
     reason: identity/scope key
+  # sc-normal selectivity-optimization emit (W1a, 2026-09-04): the named essential-cell driver + its
+  # per-cell-type magnitudes/coverage. Verdict-INERT in tumor-presence — NONE of these are read by any
+  # tumor-presence signal ladder (0 refs in scripts/); they feed the SELECTIVITY/safety hand-off, not the
+  # presence verdict. Classified as non-signal per the card's own precedent (magnitude→context, named
+  # label→display, coverage/power→context). The sc-normal owner may refine context-vs-display, but the
+  # roles are verdict-safe as-is (no field here drives the presence verdict).
+  sc_normal_essential_max_cell_type:
+    role: display
+    reason: named essential cell-type label (human-facing driver identity)
+  sc_normal_essential_max_tissue:
+    role: display
+    reason: named essential tissue label (human-facing driver identity)
+  sc_normal_essential_max_detection_fraction:
+    role: context
+    reason: detection magnitude behind the named essential driver
+  sc_normal_essential_median_abund:
+    role: context
+    reason: abundance magnitude behind the named essential driver (cf. sc_normal_peak_median_abund)
+  sc_normal_essential_donor_fraction:
+    role: context
+    reason: power / statistical qualifier for the essential read
+  sc_normal_essential_n_datasets_reliable:
+    role: context
+    reason: dataset-coverage / power qualifier for the essential read
+  sc_normal_ceiling_detection_fraction:
+    role: context
+    reason: detection-ceiling magnitude behind the essential read
+  n_reliable_cell_types:
+    role: context
+    reason: power / statistical qualifier (cf. n_cell_types_above_20pct)
+  per_cell_type_top:
+    role: display
+    reason: human-facing detail / large per-cell-type container (cf. safety_essential_flags)
