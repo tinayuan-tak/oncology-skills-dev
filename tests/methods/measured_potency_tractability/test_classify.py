@@ -15,7 +15,26 @@ if str(REPO) not in sys.path:
 
 from methods.measured_potency_tractability.read import (  # noqa: E402
     classify_measured_bioactivity, measured_potency_for_gene, POTENT_PCHEMBL, POTENT_SERIES_MIN,
-    classify_chembl_clinical_phase)
+    classify_chembl_clinical_phase, classify_chembl_approved_engagement)
+
+
+def test_chembl_approved_engagement_directness_gate_2026_09_04():
+    # approved-phase + direct engagement (>=5 typed-direct) → approved_direct (BRAF/KRAS/BTK/IDH1)
+    assert classify_chembl_approved_engagement("approved", 44) == "approved_direct"
+    assert classify_chembl_approved_engagement("approved", 5) == "approved_direct"
+    # approved-phase + indirect/sparse roster → approved_indirect_only (CTNNB1 1 / MYC 0 — the inflation)
+    assert classify_chembl_approved_engagement("approved", 4) == "approved_indirect_only"
+    assert classify_chembl_approved_engagement("approved", 0) == "approved_indirect_only"
+    # UNMEASURED directness must NOT demote (fail toward prior behaviour)
+    assert classify_chembl_approved_engagement("approved", None) == "approved_direct"
+    # non-approved phase → not_chembl_approved (the approved rung never applied)
+    assert classify_chembl_approved_engagement("clinical", 0) == "not_chembl_approved"
+    assert classify_chembl_approved_engagement("data_unavailable", None) == "not_chembl_approved"
+    # surfaced in the summary dict with the injected directness count
+    g = measured_potency_for_gene("CTNNB1", chembl_row={"max_clinical_phase": 4}, bdb_row=None,
+                                  directional_direct_count=1)
+    assert g["chembl_approved_engagement_class"] == "approved_indirect_only"
+    assert g["n_direct_interactions"] == 1
 
 
 def test_chembl_clinical_phase_class_2026_08_24():

@@ -31,7 +31,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "0.2.0"   # 2026-08-24: + chembl_clinical_phase_class (rule-matchable real-phase categorical)
+METHOD_VERSION = "0.3.0"   # 2026-09-04: + chembl_approved_engagement_class (directness-gated approved signal, shared DGIdb-directional metric)     # 2026-08-24: + chembl_clinical_phase_class (rule-matchable real-phase categorical)
 CHEMBL_MANIFEST_ID = "chembl-bioactivity-per-protein-v1"
 BINDINGDB_MANIFEST_ID = "bindingdb-affinity-per-protein-v1"
 POTENT_PCHEMBL = 6.0   # -log10(M); pchembl/p_affinity >= 6 == <= 1 uM (the per-activity potent bar)
@@ -176,17 +176,46 @@ def classify_chembl_clinical_phase(chembl_row: Optional[dict]) -> str:
     return "preclinical_or_none"
 
 
+def classify_chembl_approved_engagement(phase_class: str, n_direct: Optional[int]) -> str:
+    """Gate the ChEMBL APPROVED signal on DIRECT engagement — the SAME directness metric the DGIdb leg
+    uses (typed direct-SM interactions in dgidb-drug-target-directional-v1). Mirrors dgidb_drug_gene's
+    approved_drug_engagement_class so the ChEMBL-approved rung (max_phase>=4 → chemically_active) cannot
+    inflate an undruggable TF/scaffold whose approved-phase compounds are INDIRECT (β-catenin, MYC).
+    Directness UNMEASURED (transient read) fails toward approved_direct (never demote on a read failure).
+      approved_direct        ChEMBL max_phase>=4 AND (>=5 typed-direct interactions OR directness unmeasured)
+      approved_indirect_only ChEMBL max_phase>=4 BUT indirect/sparse roster
+      not_chembl_approved     ChEMBL max_phase<4 / absent (the approved rung never applied)
+    """
+    if phase_class != "approved":
+        return "not_chembl_approved"
+    from methods.dgidb_drug_gene.read import DIRECT_ENGAGEMENT_MIN
+    if n_direct is None or n_direct >= DIRECT_ENGAGEMENT_MIN:
+        return "approved_direct"
+    return "approved_indirect_only"
+
+
 def measured_potency_for_gene(target: str,
                               chembl_row: Optional[dict] = None, bdb_row: Optional[dict] = None,
                               chembl_payload=None, chembl_sidecar=None,
-                              bdb_payload=None, bdb_sidecar=None) -> dict:
-    """Per-target measured-potency summary_fields. rows may be injected for tests."""
-    if chembl_row is None and bdb_row is None:
+                              bdb_payload=None, bdb_sidecar=None,
+                              directional_direct_count: Optional[int] = None) -> dict:
+    """Per-target measured-potency summary_fields. rows may be injected for tests.
+    directional_direct_count may be injected for tests; None triggers a live directional read UNLESS
+    chembl_row was injected (hermetic unit-test path → directness left unmeasured)."""
+    live = chembl_row is None and bdb_row is None
+    if live:
         chembl_idx, bdb_idx = _load_indexed(chembl_payload, chembl_sidecar, bdb_payload, bdb_sidecar)
         chembl_row = _lookup(chembl_idx, target)
         bdb_row = _lookup(bdb_idx, target)
 
     klass = classify_measured_bioactivity(chembl_row, bdb_row)
+    phase_class = classify_chembl_clinical_phase(chembl_row)
+    # DIRECTNESS (2026-09-04): count typed direct-SM interactions (reuse the DGIdb directional leg). Live
+    # read only when nothing was injected; a transient failure leaves directness unmeasured (fail-safe).
+    if directional_direct_count is None and live:
+        from methods.dgidb_drug_gene.read import _read_directional_rows, _count_direct
+        directional_direct_count = _count_direct(_read_directional_rows(target))
+    chembl_approved_engagement = classify_chembl_approved_engagement(phase_class, directional_direct_count)
     best_pchembl = (chembl_row or {}).get("best_pchembl")
     best_p_aff = (bdb_row or {}).get("best_p_affinity")
     # best measured potency across the two sources (both are -log10 M, directly comparable)
@@ -197,7 +226,12 @@ def measured_potency_for_gene(target: str,
         "chembl_best_pchembl": best_pchembl,
         "chembl_n_potent_ligands": (chembl_row or {}).get("n_potent_ligands"),
         "chembl_max_clinical_phase": (chembl_row or {}).get("max_clinical_phase"),
-        "chembl_clinical_phase_class": classify_chembl_clinical_phase(chembl_row),   # rule-matchable (2026-08-24)
+        "chembl_clinical_phase_class": phase_class,                                  # rule-matchable (2026-08-24)
+        # DIRECTNESS-gated approved signal (2026-09-04): the ChEMBL-approved rung keys on THIS, not the raw
+        # phase class, so an approved-phase compound annotated against an undruggable TF (indirect) does not
+        # inflate to chemically_active. n_direct from dgidb-drug-target-directional-v1 (shared metric).
+        "chembl_approved_engagement_class": chembl_approved_engagement,
+        "n_direct_interactions": directional_direct_count,
         "bindingdb_best_p_affinity": best_p_aff,
         "bindingdb_n_potent_ligands": (bdb_row or {}).get("n_potent_ligands"),
         "measured_potency_context": _context(target, klass, best_measured),
