@@ -476,12 +476,45 @@ CIS_FEATURE_COHERENCE = LensConfig(
 COMBINATION_VULNERABILITY = LensConfig(
     name="combination-and-vulnerability",
     thesis="the relational (gene×gene) opportunities — synthetic-lethal partners, measured dual-KO "
-           "co-dependencies, combination co-targets under inhibition, and resistance mediators.",
-    relevance_prompt="give the combination / vulnerability context read (descriptive ranked-partner annex; no nomination call).",
+           "co-dependencies, combination co-targets that become MORE essential under inhibition, chemical "
+           "drug×drug synergy, and resistance mediators that RESCUE — as a RANKED PARTNER TABLE, "
+           "distinguishing a CLINICALLY / FUNCTIONALLY-VALIDATED, druggable relationship (BRCA↔PARP, "
+           "WRN↔MSI, KRAS↔SHP2/SOS1) from a merely STATISTICAL relational signal (a curated SynLethDB edge, "
+           "a DepMap co-essentiality delta, a paralog GI, a drug-anchor screen delta) that OVER-CALLS a "
+           "portable, druggable synthetic lethality — a pan-essential co-fitness, a cell-line/lineage "
+           "artifact, a non-replicating single-screen hit, or a genetic-KO SL whose partner is an "
+           "undruggable scaffold (KO ≠ pharmacological inhibition).",
+    relevance_prompt="give the combination / vulnerability context read (descriptive ranked-partner annex; "
+                     "no nomination call). Foreground whether the TOP-ranked partner is validated vs a "
+                     "statistical / cell-line / pan-essential over-call.",
     axis_labels={"SL": "synthetic-lethal", "CODEP": "paralog dual-KO co-dependency",
                  "COMBO": "combination co-target", "SYNERGY": "chemical drug×drug synergy",
                  "RESISTANCE": "resistance mediators"},
-    scope_exclusions=("single-target nomination verdict",),
+    scope_exclusions=("single-target nomination verdict",
+                      "the single-target dependency MAGNITUDE (owned by functional-requirement)",
+                      "the druggability of a partner (owned by tractability-small-molecule / surface-modality-fit)"),
+    # NARRATOR RULE: this is a DESCRIPTIVE ranked-partner annex (gateless — no nomination call). LEAD by
+    # separating a clinically/functionally-CORROBORATED partner from a statistically-ANNOTATED one, then
+    # name the four inflation modes, with the dependency-magnitude + druggability hand-offs as breadcrumbs.
+    polarity_note=(
+        "This is a DESCRIPTIVE ranked-partner annex — there is NO nomination verdict; do NOT imply the "
+        "relational signal nominates the target. LEAD by stating whether the TOP-ranked partner is "
+        "CLINICALLY or FUNCTIONALLY VALIDATED (read partner_confirmation_caveat / combination_provenance: "
+        "a clinically_or_functionally_validated_partner — BRCA↔PARP, WRN↔MSI-H, KRAS↔SHP2/SOS1 — is NOT an "
+        "over-call and must not be demoted) or rests only on a STATISTICAL relational signal. Then name the "
+        "four inflation modes the raw table cannot self-distinguish: (a) a curated SynLethDB edge / DepMap "
+        "co-essentiality delta / paralog GI / drug-anchor delta can be a passenger co-fitness, a "
+        "pan-essential co-dependency (ribosome/proteasome/spliceosome-class — a therapeutic-window problem, "
+        "not a selective SL), or a non-replicating single-screen artifact (statistical_partner_functionally_"
+        "unconfirmed / cell_line_context_or_pan_essential_confounded); (b) DepMap is IMMORTALIZED 2D cell "
+        "lines — SL is context/genotype-dependent and frequently fails to replicate across screens "
+        "(context_generalization_caveat); (c) a GENETIC KO removes the ENTIRE protein whereas a drug "
+        "inhibits ONE activity partially, so a KO-SL OVER-CALLS druggability and a scaffold/non-catalytic "
+        "partner (STAG1, SMARCA2, ARID1B) needs a DEGRADER not an inhibitor (druggability_translation_"
+        "caveat); (d) a resistance-RESCUE hit is a monitoring LIABILITY / hypothesis, not a combination "
+        "win. The single-target dependency MAGNITUDE is owned by functional-requirement and the "
+        "druggability call by tractability-small-molecule / surface-modality-fit — breadcrumb, do not "
+        "adjudicate them here. NEVER invent partner symbols, screen deltas, PMIDs, or NCTs."),
     mode="descriptive",
 )
 

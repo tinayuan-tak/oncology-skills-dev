@@ -95,7 +95,20 @@ _LENS_QUERY_TERMS = {
                                    "T-cell exhaustion", "multiplex immunohistochemistry spatial",
                                    "immune checkpoint response", "tertiary lymphoid structure",
                                    "T-cell exclusion stroma", "tumor-infiltrating lymphocytes", "CD8 T cell"],
-    "combination-and-vulnerability": ["synthetic lethality", "combination therapy"],
+    # Front-loaded so the highest-value RELATIONAL-TRAP discriminators (statistical relational signal
+    # OVER-CALLS a druggable/portable SL) lead: a curated SynLethDB edge / DepMap co-essentiality delta
+    # / paralog GI / drug-anchor screen delta can be a cell-line artifact, a pan-essential co-fitness, or
+    # a non-replicating single-screen hit — the precision query needs the SL-reproducibility, the
+    # KO-vs-inhibition, and the clinical-validation (PARP/BRCA, WRN/MSI) terms, not a generic string. This
+    # lens declares FIVE axis_labels (SL/CODEP/COMBO/SYNERGY/RESISTANCE), which alone would fill the default
+    # 5-term cap — so it gets a per-lens cap bump (_LENS_MAX_TERMS below) to let the first ~4 discriminators
+    # through alongside the axis labels.
+    "combination-and-vulnerability": ["synthetic lethality", "drug combination therapy",
+                                      "resistance mechanism",
+                                      "genetic knockout versus pharmacological inhibition",
+                                      "paralog buffering", "DepMap co-dependency screen",
+                                      "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
+                                      "context dependence reproducibility"],
     "translational-readiness":    ["patient-derived organoid", "patient-derived xenograft"],
     "target-intrinsic":           ["protein structure", "gene expression atlas"],
     "cis-feature-coherence":      ["copy-number-driven expression", "promoter methylation silencing"],
@@ -108,11 +121,22 @@ def _indication_phrase(indication: Optional[str]) -> str:
     return _INDICATION_PHRASE.get(indication.upper(), f"{indication} cancer")
 
 
+# Per-lens override of the term cap. Default is 5; a lens whose axis_labels alone would fill (or overflow)
+# the default — leaving no room for its curated discriminators — gets a bump here. combination-and-
+# vulnerability declares FIVE axis_labels (SL/CODEP/COMBO/SYNERGY/RESISTANCE), so a cap of 5 would admit
+# ZERO curated terms; 9 lets the first ~4 discriminators (synthetic lethality / drug combination /
+# resistance mechanism / KO-vs-inhibition) through. Surgical: every other lens keeps the default cap →
+# byte-identical query strings.
+_LENS_MAX_TERMS = {"combination-and-vulnerability": 9}
+
+
 def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:
     """The lens-specific query terms: the LensConfig's own axis_labels (what the skill declares it
-    measures) PLUS the curated per-lens supplement. Deduped (case-insensitive), capped. [] when no lens."""
+    measures) PLUS the curated per-lens supplement. Deduped (case-insensitive), capped. [] when no lens.
+    The cap is the per-lens _LENS_MAX_TERMS override when present, else `max_terms`."""
     if lens is None:
         return []
+    cap = _LENS_MAX_TERMS.get(getattr(lens, "name", ""), max_terms)
     seen: set = set()
     out: list[str] = []
     def _add(t):
@@ -125,7 +149,7 @@ def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:
         _add(v)
     for t in _LENS_QUERY_TERMS.get(getattr(lens, "name", ""), []):
         _add(t)
-    return out[:max_terms]
+    return out[:cap]
 
 
 def _build_query_variations(target: str, indication: Optional[str], lens) -> list[str]:
