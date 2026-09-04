@@ -385,3 +385,71 @@ def test_abundance_class_data_unavailable_when_column_absent():
 def test_abundance_class_present_in_data_unavailable_branch():
     r = S.classify_sc_normal_expression(pd.DataFrame([]))
     assert r["sc_normal_abundance_class"] == "data_unavailable" and r["sc_normal_peak_median_abund"] is None
+
+
+# --- W1a: NAMED essential-cell driver + ceiling + enriched footprint -----------------------------
+
+def test_named_essential_driver_is_off_origin_cell_not_pooled_argmax():
+    """The named essential driver must be the OFF-ORIGIN critical-organ cell that fired the veto —
+    NOT the pooled max_detection_cell_type (which can be an origin-tissue epithelial cell with higher
+    detection). This is the de-anonymization: name the organ the clamp actually keyed on."""
+    rows = pd.concat([
+        _tier1_rows([("colonocyte", 20, 0.85, 0.90)], tissue="colon"),
+        _tier1_rows([("cardiac muscle cell", 18, 0.60, 0.75)], tissue="heart"),
+    ], ignore_index=True)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    # pooled anchor is the higher-detection ORIGIN cell; the veto driver is the off-origin heart cell
+    assert r["max_detection_cell_type"] == "colonocyte"
+    assert r["sc_normal_essential_max_cell_type"] == "cardiac muscle cell"
+    assert r["sc_normal_essential_max_tissue"] == "heart"
+    assert r["sc_normal_essential_max_detection_fraction"] == pytest.approx(0.60)
+    assert r["sc_normal_essential_donor_fraction"] == pytest.approx(0.75)
+    assert r["sc_normal_essential_n_datasets_reliable"] == max(1, 18 // 5)
+
+
+def test_named_essential_driver_origin_only():
+    """When essential hits are ONLY in the tissue-of-origin, the named driver is that origin cell."""
+    rows = _tier1_rows([("pulmonary alveolar type 1 cell", 12, 0.60, 0.70)], tissue="lung")
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["lung"])
+    assert r["sc_normal_safety_essential_class"] == "origin_tissue_liability"
+    assert r["sc_normal_essential_max_cell_type"] == "pulmonary alveolar type 1 cell"
+    assert r["sc_normal_essential_max_tissue"] == "lung"
+
+
+def test_named_essential_driver_none_when_no_essential_hit():
+    rows = _tier1_rows([("fibroblast", 15, 0.50, 0.60), ("B cell", 15, 0.10, 0.20)])
+    r = S.classify_sc_normal_expression(rows)
+    assert r["sc_normal_safety_essential_class"] == "none"
+    assert r["sc_normal_essential_max_cell_type"] is None
+    assert r["sc_normal_essential_max_detection_fraction"] is None
+
+
+def test_ceiling_detection_fraction_is_global_max():
+    """The single-cell WINDOW denominator is the global max detection across reliable cell types —
+    distinct from max_detection_fraction (the liability-anchor cell, which for HIGH is the AND-gate
+    argmax and may be lower than a MODERATE-only high-detection cell)."""
+    rows = _tier1_rows([
+        ("colonocyte",  20, 0.55, 0.80),   # fires HIGH (anchor); det 0.55
+        ("goblet cell", 20, 0.88, 0.40),   # MODERATE only, but the GLOBAL detection ceiling
+    ])
+    r = S.classify_sc_normal_expression(rows)
+    assert r["max_detection_fraction"] == pytest.approx(0.55)          # anchor
+    assert r["sc_normal_ceiling_detection_fraction"] == pytest.approx(0.88)  # global ceiling
+
+
+def test_per_cell_type_top_carries_abundance_and_atlas_count():
+    """W1a enrichment: each footprint element now carries median_abund + n_datasets_reliable."""
+    rows = _tier1_rows([("colonocyte", 20, 0.85, 0.90)], tissue="colon")
+    top = S.classify_sc_normal_expression(rows)["per_cell_type_top"]
+    assert top[0]["median_abund"] == pytest.approx(0.85 * 3.0)   # _tier1_rows sets median_abund = med*3
+    assert top[0]["n_datasets_reliable"] == max(1, 20 // 5)
+
+
+def test_new_fields_present_in_data_unavailable_branch():
+    r = S._data_unavailable_class()
+    for k in ("sc_normal_essential_max_cell_type", "sc_normal_essential_max_tissue",
+              "sc_normal_essential_max_detection_fraction", "sc_normal_essential_donor_fraction",
+              "sc_normal_essential_n_datasets_reliable", "sc_normal_essential_median_abund",
+              "sc_normal_ceiling_detection_fraction"):
+        assert k in r and r[k] is None
