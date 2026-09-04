@@ -55,6 +55,22 @@ outputs:
     - has_pd_marker                         # bool — >= 1 downstream partner
     - moa_ontology_version                  # string — pin for reproducibility
     - moa_ontology_unmapped_fraction        # float — fraction of edges that fell to 'unmapped' class
+    # PROVENANCE / QUORUM fields the mechanism_composed reader ALREADY emits (declared 2026-09-04 so the
+    # mechanism-and-pharmacology skill's verdict-INERT provenance/actionable-MoA-inflation surfacing can read
+    # them under the card-field-conformance contract). None feeds a resolver rung — verdict is byte-stable.
+    - high_confidence_edges_count            # int — curated edges supported by >= 2 sources (the QUORUM signal;
+                                             #       0 = single-source-dominant, the common case)
+    - source_counts                          # map<source, int> — per-source curated + prediction/functional
+                                             #       edge counts (signor / collectri / reactome /
+                                             #       kinome_atlas_prediction / depmap_coessentiality)
+    - sources_wired                          # list<string> — which sources contributed edges for this target
+    - kinome_atlas_predictions               # struct — the kinome-atlas PWM PREDICTION lane (network_class,
+                                             #       n_upstream_predicted_kinases, n_downstream_predicted_
+                                             #       substrates, ...); carried ALONGSIDE, never merged into
+                                             #       network_class / has_actionable_moa
+    - coessentiality_context                 # struct — the DepMap co-essentiality FUNCTIONAL lane
+                                             #       (data_available, n_partners, n_cell_lines, top_partners);
+                                             #       correlational, not a curated mechanism edge
 
   summary_fields_vocabulary:
     # bool field keyed by has-pd-marker-supportive (equals: 'true'). String vocab (schema requires
