@@ -56,6 +56,20 @@ DISEASE_TERMS = {
 }
 
 
+def gene_search_term(gene: str) -> str:
+    """Disambiguated PubMed term for a gene symbol. A BARE symbol ('{gene}') is free-text and matches
+    any abstract that merely MENTIONS the token — catastrophic for short/ambiguous symbols (e.g. "AR"
+    pulls transglutaminase/TGM2 papers that say "AR transcriptional repression"). We require the paper
+    to be either NCBI-gene-annotated to this gene ([Gene], entity-resolved) OR to name the symbol in its
+    TITLE (a title mention is about the gene, not incidental) — precise without collapsing recall to the
+    subset PubMed has gene-tagged. Precision matters more than recall for this verdict-inert CONTEXT
+    read: a wrong-gene abstract is worse than a missed one."""
+    g = (gene or "").strip()
+    if not g:
+        return g
+    return f'({g}[Gene] OR "{g}"[Title])'
+
+
 @dataclass(frozen=True)
 class PubMedAbstract:
     """One abstract record from PubMed efetch."""
@@ -118,8 +132,9 @@ def search_pubmed(
     result = PubMedSearchResult(gene=gene, disease=disease)
     abstracts_by_cat: dict[str, list[PubMedAbstract]] = {}
 
+    gene_term = gene_search_term(gene)   # entity/title-qualified — never a bare ambiguous symbol
     for category, pattern in SEARCH_PATTERNS_BY_CATEGORY.items():
-        query = pattern.format(gene=gene, disease=disease_terms)
+        query = pattern.format(gene=gene_term, disease=disease_terms)
         # esearch → list of PMIDs
         pmids = _esearch(query, retmax=abstracts_per_category, timeout_s=timeout_s,
                          mindate=mindate, maxdate=maxdate)

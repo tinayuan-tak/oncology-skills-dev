@@ -146,7 +146,8 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6)
     for dim, (pillar, question, akey) in DIMENSIONS.items():
         abstracts = retrieved.get(dim, [])
         rpmids = {a.pmid for a in abstracts}
-        corpus[dim] = {"query": ps.SEARCH_PATTERNS_BY_CATEGORY[dim].format(gene=target, disease=ps.DISEASE_TERMS[key]),
+        corpus[dim] = {"query": ps.SEARCH_PATTERNS_BY_CATEGORY[dim].format(
+                           gene=ps.gene_search_term(target), disease=ps.DISEASE_TERMS[key]),
                        "pmids": sorted(rpmids)}
         anchor = anchors.get(akey) if akey else None
         if not abstracts:

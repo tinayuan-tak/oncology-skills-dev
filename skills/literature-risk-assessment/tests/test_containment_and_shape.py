@@ -105,3 +105,21 @@ def test_tool_schema_null_state_and_required():
     assert "not_assessed" in props["risk_level"]["enum"]   # null != MEDIUM
     # two reads per axis: a risk grade AND an interpretation (context) — the general primitive
     assert set(rc.TOOL_SCHEMA["required"]) >= {"risk_level", "interpretation", "cited_pmids", "contradicts_deterministic"}
+
+
+# ── gene-symbol disambiguation (the AR→TG2 wrong-gene retrieval fix) ────────────────────────────
+def test_gene_search_term_disambiguates_ambiguous_symbol():
+    q = rc.ps.gene_search_term("AR")
+    assert "[Gene]" in q and '"AR"[Title]' in q
+    assert q != "AR"                                  # never a bare free-text symbol
+    assert rc.ps.gene_search_term("") == ""           # empty is a no-op
+
+
+def test_search_pubmed_queries_are_gene_qualified(monkeypatch):
+    seen = []
+    monkeypatch.setattr(rc.ps, "_esearch", lambda query, **kw: seen.append(query) or [])
+    monkeypatch.setattr(rc.ps.time, "sleep", lambda *a, **k: None)
+    rc.ps.search_pubmed("AR", "crc", abstracts_per_category=3)
+    assert seen, "expected per-category esearch queries"
+    assert all("[Gene]" in q for q in seen)           # every category query is entity-qualified
+    assert not any("(AR)" in q for q in seen)         # never the bare free-text gene group
