@@ -103,9 +103,6 @@ def build_narrative(
     driver_signals = (fired_by_id.get(driving_rule_id) or {}).get("signals") or {} if driving_rule_id else {}
     ref_sign = {ch: _sign(s) for ch, s in driver_signals.items()}
 
-    def _agrees(sigs) -> bool:
-        return any(_sign(sigs.get(ch)) != 0 and _sign(sigs.get(ch)) == ref_sign.get(ch, 0) for ch in sigs)
-
     def _opposes(sigs) -> bool:
         return any(_sign(sigs.get(ch)) != 0 and ref_sign.get(ch, 0) != 0 and _sign(sigs.get(ch)) != ref_sign.get(ch, 0) for ch in sigs)
 
@@ -118,8 +115,17 @@ def build_narrative(
         if rid == driving_rule_id:
             continue
         sigs = fired_by_id[rid].get("signals") or {}
-        # a referenced+present rule is a mover UNLESS it is a pure opposer (dissents, agrees on nothing)
-        if _opposes(sigs) and not _agrees(sigs):
+        # A referenced+present rule is a mover ONLY if it does NOT oppose the driver on ANY channel — a
+        # rule that opposes the driver anywhere is a DISSENTER (surfaced per-channel below), never ALSO a
+        # "supporting" mover. Previously the test excluded only a PURE opposer (opposes AND agrees on
+        # nothing), so a MIXED rule that agrees on one channel but opposes on another was double-classified
+        # as both a mover and a dissenter — e.g. `non-dependent-killer` (small_molecule=killer AGREES with
+        # the paralog driver's small_molecule=opposing, but degrader=killer OPPOSES its degrader=supportive)
+        # rendered as "also supports" the `non_dependent_paralog_buffered` verdict while ALSO dissenting on
+        # degrader, feeding the synthesis its contradictory "non-dependent KILLER for degrader" argument
+        # against a degrader-PREFERRED verdict. The agree-channel info is redundant (the driver already
+        # carries it); the novel opposing signal is preserved as a dissenter.
+        if _opposes(sigs):
             continue
         mover_ids.append(rid)
     for rid in mover_ids:

@@ -120,6 +120,43 @@ def test_modality_filter_scopes_dissenters(contracts):
     assert n["dissenters"] == []
 
 
+def test_mixed_agree_oppose_referenced_rule_is_dissenter_not_mover(tmp_path):
+    """A referenced+present rule that AGREES with the driver on one channel but OPPOSES on another
+    (the ERBB2 non-dependent-killer × paralog-degrader-preferred shape) is a DISSENTER ONLY — never
+    ALSO a 'supporting' mover. Guards the fix: previously the mover test excluded only a PURE opposer,
+    so a mixed rule was double-classified, and the synthesis read a defeated killer as corroborating
+    the degrader-preferred verdict ('non-dependent KILLER for degrader')."""
+    spec = {"default": "D", "resolve": [
+        {"when_fired": "paralog-degrader-preferred", "verdict": "buffered"},
+        {"when_fired": "nd-killer", "verdict": "non_dependent"},
+    ]}
+    rules = {"axis": "dep_axis", "rules_id": "t", "rules": [
+        {"rule_id": "paralog-degrader-preferred", "when": {"card_id": "cP", "field": "f", "equals": "x"},
+         "signals": {"small_molecule": "opposing", "degrader": "supportive"}, "dominant": True,
+         "rationale": "paralog degrader-preferred"},
+        {"rule_id": "nd-killer", "when": {"card_id": "cK", "field": "f", "equals": "y"},
+         "signals": {"small_molecule": "killer", "degrader": "killer"}, "rationale": "nd killer"},
+    ]}
+    (tmp_path / "resolvers").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "resolvers" / "dep.resolver.yaml").write_text(yaml.safe_dump(spec))
+    (tmp_path / "interpretation-rules").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "interpretation-rules" / "dep-axis.rules.yaml").write_text(yaml.safe_dump(rules))
+    rule_text_index.cache_clear()
+    fired = [
+        {"rule_id": "paralog-degrader-preferred", "card_id": "cP",
+         "signals": {"small_molecule": "opposing", "degrader": "supportive"}, "rationale": "paralog"},
+        {"rule_id": "nd-killer", "card_id": "cK",
+         "signals": {"small_molecule": "killer", "degrader": "killer"}, "rationale": "nd killer"},
+    ]
+    n = build_narrative(axis="dep_axis", gate="dep", fired=fired, verdict="buffered",
+                        driving_rule_id="paralog-degrader-preferred", contracts_repo=tmp_path)
+    rule_text_index.cache_clear()
+    mover_ids = [m["rule_id"] for m in n["movers"]]
+    assert mover_ids == ["paralog-degrader-preferred"], f"nd-killer must NOT be a mover: {mover_ids}"
+    # it IS surfaced as a dissenter on the degrader channel (opposes the driver's degrader=supportive)
+    assert ("nd-killer", "degrader") in {(d["rule_id"], d["channel"]) for d in n["dissenters"]}
+
+
 def test_rule_text_index_indexes_all_rules_including_nonfiring(contracts):
     idx = rule_text_index(contracts)
     assert set(idx) == {"pos-rule", "veto-rule", "opp-rule"}
