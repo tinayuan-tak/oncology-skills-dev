@@ -50,6 +50,8 @@ outputs:
     - is_adc_topology_favorable                   # bool — biology-only signal
     - is_tce_topology_favorable                   # bool — biology-only signal
     - endocytosis_confidence                      # 'high' | 'moderate' | 'low' | 'clinically_internalizing' | 'unmeasured'
+    - biologics_precedented                       # bool — 2026-09-04 Phase-6: target ∈ biologics_precedent_targets.yaml (widened ADC/TCE/CAR/mAb crosswalk). A regulatory/trial fact of surface accessibility; feeds the clinically_precedented tier of surface_confirmation_state so a validated antigen a CSPA panel MISSES (e.g. DLL3) is not false-demoted.
+    - surface_confirmation_state                  # 2026-09-04 Phase-6 (VERDICT-MOVING): confirmed_protein | clinically_precedented | annotation_only | not_applicable — DERIVED cross-card by the surface_modality card preprocessor (adc-tce fit_class/endocytosis/biologics_precedented + protein-surface-evidence CSPA/multimodal + cd-antigen-backbone). Classes whether a POSITIVE fit_class rests on measured/precedented surface protein vs family/topology ANNOTATION only. annotation_only fires surface-annotation-only-unconfirmed-opposing → the surface_annotation_only_unconfirmed verdict rung. not_applicable when fit_class is non-positive (the derivation is a no-op).
     - surface_family_class                        # from surfaceome-family-classification
     - isoform_selective_suppressed                # bool — TRUE if letter grades were suppressed (in-context isoform)
     - isoform_selective_offcontext                # bool — 2026-08-14: gene HAS a curated dominant alt isoform but NOT in this indication → fit_class NOT suppressed, caveat only
@@ -101,6 +103,11 @@ outputs:
       - clinically_internalizing   # curated clinical-ADC precedent tier (internalizing_antigen_targets.yaml); a
                                    # measured-positive that supersedes topology-only 'unmeasured'. Emitted by the composed dispatcher.
       - unmeasured
+    surface_confirmation_state:    # 2026-09-04 Phase-6 (VERDICT-MOVING). DERIVED cross-card by the surface_modality preprocessor.
+      - confirmed_protein          # CSPA/HPA-IF measured cell-surface protein (surface_confirmation_class ∈ {confirmed_high, confirmed} or multimodal corroborated_surface).
+      - clinically_precedented     # endocytosis clinically_internalizing OR CD/IO backbone OR biologics_precedented (validated ADC/TCE/CAR/mAb) — a CSPA false-negative rescued by regulatory fact.
+      - annotation_only            # positive fit_class resting on surfaceome-family + predicted-topology ANNOTATION with NO confirmed protein and NO clinical precedent (the surface INFLATION over-call).
+      - not_applicable             # fit_class is non-positive (neither_viable / modality_ambiguous / isoform_dependent_undefined / data_unavailable) — the derivation is a no-op.
 
   figure: modality_fit_2x2_grid                   # ADC-vs-TCE dual scoring visualization
 

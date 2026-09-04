@@ -27,7 +27,13 @@
 #     a bite_tce-scoped modality positive registered in nomination_verdict_gate.yaml (positive_signals_
 #     modality_scoped, when_modality_in [bite_tce]); it is NOT kill-capable.
 gate: surface_modality
-version: 1.6.0   # 2026-09-04 (#979): consume the MIDDLE antigen-escape band escape_risk_patient_variable — two
+version: 1.7.0   # 2026-09-04 Phase-6 (VERDICT-MOVING): NEW surface_annotation_only_unconfirmed rung (3c, priority
+                # 25-27) — a positive fit_class resting on surfaceome-family + PREDICTED topology with NO confirmed
+                # surface protein AND no clinical-biologic precedent (surface_confirmation_state==annotation_only,
+                # derived by the surface_modality card preprocessor) is DEMOTED to a NON-NOMINATING caveat. Ranks
+                # above plain fit rungs (renumbered 28-33) but below all liability downgrades. The false-demote of
+                # CSPA-missed validated antigens (DLL3/CEACAM5) is AVOIDED via the clinically_precedented tier.
+                # 1.6.0 (#979): consume the MIDDLE antigen-escape band escape_risk_patient_variable — two
                 # new (1c') rungs (priority 13/14) → positive-caveated adc_preferred_tce_patient_variable /
                 # tce_patient_variable (TCE arm TEMPERED dominant→supportive, NOT foreclosed like escape_risk_high),
                 # so a validated ADC/TCE antigen with normal patient-variability is not over-penalized. Density/shed/
@@ -141,25 +147,43 @@ resolve:
   - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 23}
   - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 24}
 
+  # (3c) SURFACE ANNOTATION-ONLY UNCONFIRMED (2026-09-04 Phase-6, VERDICT-MOVING). The surface analog of
+  #      tractability's annotation_only_indirect. A POSITIVE fit_class (composed from surfaceome-family +
+  #      PREDICTED topology only) whose surface_confirmation_state == annotation_only — NO confirmed
+  #      cell-surface protein (CSPA/HPA-IF) AND NO clinically-validated biologic precedent (the widened
+  #      ADC/TCE/CAR/mAb crosswalk) — is DEMOTED from the clean positive to this NON-NOMINATING caveat
+  #      verdict. Ranks ABOVE the plain fit_class rungs (so an annotation-only positive resolves here, not
+  #      to the clean positive) but BELOW every safety/escape/shed/density/pMHC liability above (those are
+  #      the more fundamental call; e.g. LGR5 still resolves tce_unsafe_normal_liability via the sc-normal
+  #      killer, which outranks this). The clinically_precedented / confirmed_protein states never fire the
+  #      opposing rule, so a validated antigen that a CSPA panel merely MISSED (DLL3/CEACAM5) is untouched —
+  #      the false-demote the naive clamp would cause is AVOIDED. NON-NOMINATING (not in
+  #      nomination_verdict_gate positive_signals). fit_class is still emitted alongside (the caveat is a
+  #      confidence demotion of an unconfirmed positive, not a biology negative like neither_viable).
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [adc-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 25}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [tce-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 26}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [both-viable-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 27}
+
   # (4) PLAIN fit_class rungs (topology+family gate) — unchanged; the byte-stable base ladder. Reached
-  #     when no liability combination above fires (first-match).
+  #     when no liability combination above fires (first-match). Priorities renumbered 25-30 -> 28-33
+  #     (order-independent interpreter; relative order preserved) to seat the (3c) annotation-only rungs.
   - verdict: adc_preferred
     when_fired: adc-preferred-supportive
-    priority: 25
+    priority: 28
   - verdict: tce_preferred
     when_fired: tce-preferred-supportive
-    priority: 26
+    priority: 29
   - verdict: both_viable
     when_fired: both-viable-supportive
-    priority: 27
+    priority: 30
   - verdict: neither_viable
     when_fired: neither-viable-killer
-    priority: 28
+    priority: 31
   - verdict: isoform_dependent_undefined
     when_fired: isoform-dependent-modality-suppression
-    priority: 29
+    priority: 32
   - verdict: modality_ambiguous
     when_fired: modality-ambiguous-insufficient
-    priority: 30
+    priority: 33
 default: insufficient
 evaluation: match_all_reduce

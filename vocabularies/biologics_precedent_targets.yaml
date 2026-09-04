@@ -1,0 +1,122 @@
+# biologics_precedent_targets.yaml
+#
+# Curated vocabulary of gene symbols whose cell-surface antigen has a CLINICALLY
+# VALIDATED BIOLOGIC of ANY class — an approved or late-clinical antibody-drug
+# conjugate (ADC), T-cell engager (TCE / bispecific), CAR-T, or naked/approved
+# monoclonal antibody directed at the extracellular target. Membership is a
+# regulatory/trial FACT that the target IS a bona-fide cell-surface biologics
+# substrate.
+#
+# WHY THIS VOCABULARY EXISTS (the surface annotation-INFLATION Phase-6 fix, 2026-09-04):
+#   The surface-modality-fit `fit_class` is composed from surfaceome-FAMILY
+#   membership + sequence-PREDICTED topology ONLY — it does NOT consume CSPA/HPA-IF
+#   measured cell-surface protein. So a family/RNA/topology-annotated target can read
+#   ADC/TCE-favorable without confirmed surface protein (the inflation trap; LGR5 =
+#   GPCR-family TCE_preferred, CSPA not_surface, no clinical biologic). The
+#   `surface_confirmation_state` derivation (skills card preprocessor) classes a
+#   positive fit as:
+#     - confirmed_protein      (CSPA/HPA-IF measured surface residency), else
+#     - clinically_precedented (endocytosis clinically_internalizing OR CD/IO backbone
+#                               OR THIS crosswalk), else
+#     - annotation_only        (family/topology annotation with NO confirmation).
+#   Only `annotation_only` is caveated/gated. This crosswalk supplies the
+#   clinically_precedented rescue for validated antigens that a cell-line surface-
+#   proteomics panel (CSPA) MISSES (a false-negative), so they are NOT wrongly demoted.
+#
+# WHY WIDER THAN internalizing_antigen_targets.yaml (the load-bearing distinction):
+#   internalizing_antigen_targets.yaml is ADC-ONLY (internalizing antigens with an
+#   approved/late-clinical ADC). It correctly EXCLUDES DLL3, whose ADC (rovalpituzumab
+#   tesirine) FAILED — yet DLL3 is a VALIDATED cell-surface antigen: the DLL3xCD3 TCE
+#   tarlatamab is FDA-approved for SCLC (DeLLphi-301, Ahn 2023 NEJM PMID 37861218).
+#   A precedent leg that only knew the ADC vocab would false-demote DLL3 to
+#   annotation_only (the exact calibration trap this crosswalk prevents). So this
+#   vocabulary spans ADC + TCE + CAR + approved-mAb precedent, a SUPERSET.
+#
+# WHY A CURATED CROSSWALK, NOT A PREDICTION (mirrors internalizing_antigen_targets.yaml):
+#   An approved or late-clinical biologic against the extracellular target is a citable
+#   regulatory/trial fact of surface accessibility — not a research-grade "may be
+#   surface" prediction. This is deliberately CONSERVATIVE: it does NOT include
+#   preclinical-only or discovery-stage targets (e.g. LGR5, whose only clinical molecule
+#   petosemtamab is an EGFRxLGR5 ADCC bispecific that exploits LGR5 for selectivity, and
+#   whose ADC/CAR programs are all preclinical — so LGR5 is correctly ABSENT and resolves
+#   annotation_only).
+#
+# Usage discipline: POSITIVE-ONLY. If the target's HGNC symbol appears in `entries:`,
+# the skills preprocessor treats the surface substrate as clinically-precedented (a
+# CSPA/HPA-IF false-negative is rescued by regulatory fact). A target NOT in the list is
+# UNCHANGED — absence NEVER marks a target non-surface (it falls to annotation_only ONLY
+# if it also lacks confirmed protein AND CD/IO precedent AND internalizing-ADC precedent).
+# Adding a target here can only PREVENT an annotation_only caveat, never create one.
+#
+# schema: entries is a gene-keyed map; each value carries a modality tag + a one-line
+# grounded note (approved/clinical agent + PMID/NCT where available).
+
+version: "1.0.0"
+owner: ryan.abo@takeda.com
+
+entries:
+  # ── approved/late-clinical ADC antigens (superset of internalizing_antigen_targets.yaml) ──
+  ERBB2:
+    modality: adc_tce
+    note: "T-DXd/T-DM1 ADCs approved (DESTINY-Gastric01, Shitara 2020 NEJM PMID 32469182); HER2xCD3 TCEs clinical."
+  ERBB3:
+    modality: adc
+    note: "Patritumab deruxtecan (HER3-DXd) late-clinical ADC (HERTHENA-Lung01)."
+  TACSTD2:
+    modality: adc
+    note: "TROP2 ADC sacituzumab govitecan approved (ASCENT)."
+  NECTIN4:
+    modality: adc
+    note: "Enfortumab vedotin approved (EV-301)."
+  FOLR1:
+    modality: adc
+    note: "Mirvetuximab soravtansine (Elahere) approved, FRalpha-high ovarian (MIRASOL)."
+  CEACAM5:
+    modality: adc_tce
+    note: "Tusamitamab ravtansine (late-clinical ADC, Gazzah 2022); cibisatamab CEAxCD3 TCE clinical."
+  MSLN:
+    modality: adc_tce
+    note: "Anetumab ravtansine ADC (phase 2); multiple mesothelin TCE/CAR programs clinical."
+  CD22:
+    modality: adc
+    note: "Inotuzumab ozogamicin approved (INO-VATE ALL)."
+  CD79B:
+    modality: adc
+    note: "Polatuzumab vedotin approved (POLARIX)."
+  # ── validated TCE / CAR antigens whose ADC is absent/failed (the widening beyond the ADC vocab) ──
+  DLL3:
+    modality: tce
+    note: "DLL3xCD3 TCE tarlatamab APPROVED for SCLC (DeLLphi-301, Ahn 2023 NEJM PMID 37861218). ADC Rova-T failed on payload TI, NOT target — so DLL3 is validated-surface but absent from the ADC-internalizing vocab."
+  MS4A1:
+    modality: tce
+    note: "CD20 — rituximab (approved mAb) + CD20xCD3 TCEs mosunetuzumab/epcoritamab/glofitamab approved."
+  TNFRSF17:
+    modality: tce_car
+    note: "BCMA — CAR-T ide-cel/cilta-cel + TCE teclistamab/elranatamab approved (multiple myeloma)."
+  GPRC5D:
+    modality: tce
+    note: "GPRC5DxCD3 TCE talquetamab approved (MonumenTAL-1)."
+  FCRL5:
+    modality: tce
+    note: "FCRH5 — cevostamab FCRL5xCD3 TCE clinical (multiple myeloma)."
+  GPC3:
+    modality: car
+    note: "Glypican-3 CAR-T clinical in hepatocellular carcinoma (GPI-anchored surface antigen)."
+  FOLH1:
+    modality: tce_car
+    note: "PSMA — approved radioligand (Pluvicto) + PSMAxCD3 TCE and CAR-T clinical (prostate)."
+  STEAP1:
+    modality: tce
+    note: "STEAP1xCD3 TCE xaluritamig (AMG 509) clinical in metastatic prostate."
+  CLDN18:
+    modality: mab_car
+    note: "CLDN18.2 — zolbetuximab (approved mAb, gastric, SPOTLIGHT/GLOW); CLDN18.2 CAR-T and ADC clinical."
+  EGFR:
+    modality: adc_tce
+    note: "Multiple EGFR-directed biologics approved/clinical (cetuximab mAb; EGFR-MET bispecific amivantamab approved)."
+  MET:
+    modality: adc
+    note: "Telisotuzumab vedotin (Teliso-V) late-clinical MET ADC (LUMINOSITY)."
+  EPCAM:
+    modality: tce
+    note: "EpCAMxCD3 TCE catumaxomab historically approved (malignant ascites); EpCAM CAR clinical."

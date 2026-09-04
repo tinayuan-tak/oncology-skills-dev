@@ -1042,6 +1042,40 @@ rules:
       against surface modalities) rather than a KILLER veto, at moderate (not important) importance.
       A corroborating intracellular-only localization call would strengthen it to a killer.
 
+  # 2026-09-04 Phase-6 (VERDICT-MOVING): the surface annotation-INFLATION gate. fit_class is composed from
+  # surfaceome-FAMILY membership + sequence-PREDICTED topology ONLY — it never consumes CSPA/HPA-IF measured
+  # surface protein, density, or measured internalization. So a positive fit_class can rest on family/RNA/
+  # topology annotation with the protein/spatial evidence UNCONFIRMING it (LGR5 = GPCR-family TCE_preferred,
+  # CSPA not_surface, no clinical biologic). The surface_modality card preprocessor derives the cross-card
+  # surface_confirmation_state; this rule fires ONLY the annotation_only class (positive fit + NO confirmed
+  # protein + NO clinical precedent). It feeds the surface_annotation_only_unconfirmed resolver rung, which
+  # DEMOTES a clean-looking positive to a NON-NOMINATING caveat verdict — BUT only when no higher-priority
+  # safety/escape/shed/density liability outranks it (those are the more fundamental call). The
+  # clinically_precedented / confirmed_protein classes DO NOT fire this rule (DLL3/CEACAM5/ERBB2/MSLN spared —
+  # the CSPA false-negative trap the naive clamp fell into). Analog of tractability's annotation_only_indirect.
+  - rule_id: surface-annotation-only-unconfirmed-opposing
+    when:
+      card_id: adc-tce-modality-fit
+      field: surface_confirmation_state
+      equals: annotation_only
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The positive surface-modality call (fit_class ADC_preferred / TCE_preferred / both_viable) rests on
+      surfaceome-FAMILY membership + sequence-PREDICTED topology ALONE — there is NO confirmed cell-surface
+      protein (CSPA/HPA-IF) and NO clinically-validated biologic (ADC/TCE/CAR/mAb) precedent for the target.
+      fit_class does not consume measured surface protein, so a family/RNA-annotated target can read
+      ADC/TCE-favorable while the protein/spatial evidence does not confirm it (the surface annotation-
+      INFLATION trap). This OPPOSES all antibody-based modalities at secondary importance — a looks-surface-
+      accessible-but-UNCONFIRMED flag, not a killer. A CSPA/HPA-IF confirmation OR a clinical-biologic
+      precedent removes it (surface_confirmation_state becomes confirmed_protein / clinically_precedented).
+
   # ============================================================================
   # H — Protein-presence-cptac card (P4 Tier-2, 2026-07-24)
   # The SM/degrader axis already reads protein_expression_class (intracellular

@@ -2,8 +2,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 412
-  gating: 129
+  total: 413
+  gating: 130
   display: 283
 gating:
 - adc-preferred-supportive
@@ -125,6 +125,7 @@ gating:
 - strongly-selective-supportive
 - structure-low-confidence-sm-opposing
 - structure-pocket-adjacent-sm-supportive
+- surface-annotation-only-unconfirmed-opposing
 - surface-density-below-tce-floor-measured-downgrade
 - tce-preferred-supportive
 - tolerant-safety-supportive
