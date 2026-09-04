@@ -290,11 +290,44 @@ DIFFERENTIATION_LANDSCAPE = LensConfig(
 MECHANISM_PHARMACOLOGY = LensConfig(
     name="mechanism-and-pharmacology",
     thesis="the signaling-network mechanism + candidate MoA hooks + PD-marker suggestions — how well the "
-           "target's mechanism is characterized and what it implies for SM/degrader/glue programs.",
-    relevance_prompt="give the mechanism / MoA-hook context read for this target (descriptive; no nomination call).",
+           "target's mechanism is characterized and what it implies for SM/degrader/glue programs, WHILE "
+           "distinguishing an INDICATION-OPERATIVE, functionally-validated mechanism from a CONTEXT-FREE "
+           "CURATED edge aggregate (a curated SIGNOR/Reactome/CollecTRI edge is tissue-agnostic — its "
+           "presence does NOT prove the MoA DRIVES this indication), and flagging when has_actionable_moa "
+           "rests on a generic curated edge or a low-weighted PREDICTION lane (kinome-atlas / co-essentiality) "
+           "rather than a curated-and-validated, directly-druggable mechanism (the actionable-MoA "
+           "annotation-INFLATION trap).",
+    relevance_prompt="give the mechanism / MoA-hook context read for this target (descriptive; no nomination "
+                     "call), separating an indication-operative validated mechanism from a context-free "
+                     "curated / prediction-lane aggregate.",
     axis_labels={"NETWORK": "signaling network", "PHOSPHO": "phospho activity", "PATHWAY": "pathway activity",
                  "PERTURBATION": "drug-perturbation MoA", "PREDICTABILITY": "dependency predictability"},
-    scope_exclusions=("nomination verdict", "therapeutic modality selection"),
+    scope_exclusions=("nomination verdict", "therapeutic modality selection",
+                      "small-molecule directness (tractability-small-molecule)"),
+    # NARRATOR RULE: lead with curated-vs-operative + curated-vs-predicted PROVENANCE and the actionable-MoA
+    # inflation caveat — the annotation-density / context-free distinction the one-word network_class hides.
+    polarity_note=(
+        "This lens is DESCRIPTIVE: network_class is ANNOTATION DENSITY (curated edge COUNT = curation depth, "
+        "NOT target quality — capped at moderate) and every verdict rung is neutral. LEAD by separating an "
+        "INDICATION-OPERATIVE, functionally-validated mechanism from a CONTEXT-FREE CURATED aggregate: a "
+        "curated SIGNOR/Reactome/CollecTRI edge is a tissue-agnostic literature record, so a rich "
+        "network_class or a has_actionable_moa=True can reflect curation depth, not a mechanism that DRIVES "
+        "this indication. has_actionable_moa is composed as (>=1 curated upstream edge), so it fires for a "
+        "validated-drugged kinase (BRAF/EGFR) AND an undruggable pleiotropic hub / metabolic enzyme "
+        "(MYC/MTAP) alike — when mechanism_confirmation_caveat is present, report the actionable-MoA call as "
+        "looks-actionable-but-UNVALIDATED (reason actionable_moa_curated_context_free_unvalidated[_thin_"
+        "network] = a generic curated edge with no validated direct hook, the MYC pattern; reason "
+        "actionable_moa_curated_clinically_precedented = a target with an approved directly-acting agent, "
+        "NOT an over-call — do NOT demote it). Treat the kinome-atlas PREDICTION lane and DepMap "
+        "co-essentiality lane (prediction_lane_caveat) as carried ALONGSIDE but NEVER merged into "
+        "network_class/has_actionable_moa — a predicted or correlational edge alone must not lift the "
+        "actionable-MoA call. When curation_gap_note is present, a thin network_class co-occurs with an "
+        "operative signal (phospho-activity / PROGENy pathway activity / drug-perturbation / co-essentiality) "
+        "the context-free curation under-reads — read it as a possible curation gap (e.g. a fusion-rewired "
+        "driver), not proof of no mechanism. PHOSPHO (measured activation beyond abundance) is the one "
+        "decision-grade positive signal. Small-molecule DIRECTNESS, dependency magnitude, and modality "
+        "selection are verdict-inert breadcrumbs — hand off to tractability-small-molecule, "
+        "functional-requirement, and surface-modality-fit."),
     mode="descriptive",
     # DESCRIPTIVE mode still builds a COLLAPSED VERDICT prompt line, and mechanism-and-pharmacology DOES emit
     # a resolved token (`mechanism_verdict`: well_characterized / partial / sparse / has_pd_marker / …) — so it

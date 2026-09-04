@@ -34,6 +34,8 @@ from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.mechanism_question_table import mechanism_question_table
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: mechanistic characterization + MoA hooks
 # present. The fleet-default heuristic tags these values `absent`; default_classify is the fallback.
@@ -47,7 +49,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
                                               #        facet (verdict-inert; SIGNOR cross-referenced)
                                               # 1.5.0: pathway-activity-context (PROGENy)
                                               # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -255,6 +257,129 @@ def _mechanism_verdict_polarity(v) -> str:
     return "neutral"
 
 
+# ── VERDICT-INERT actionable-MoA INFLATION surfacing (2026-09-04; mirrors tractability `directness_caveat`
+#    / surface `surface_confirmation_caveat`). The mechanism resolver keys ONLY on network_class, so NONE of
+#    these fields can move mechanism_verdict — they name WHY a has_actionable_moa=True call may be inflated.
+#
+# THE TRAP: upstream `has_actionable_moa` is composed as (n_upstream_curated_edges >= 1) — it fires off ANY
+# curated upstream edge, so it reads True for a validated-drugged kinase (BRAF/EGFR) AND for an undruggable
+# pleiotropic hub / metabolic enzyme (MYC/MTAP) alike. A curated SIGNOR/Reactome/CollecTRI edge is a
+# CONTEXT-FREE literature aggregate; its presence does NOT prove the MoA is OPERATIVE/DRIVING or DIRECTLY
+# DRUGGABLE in THIS indication. Small-molecule DIRECTNESS is owned by tractability-small-molecule — the
+# caveat is a breadcrumb to it, never a verdict move here.
+
+# FALSE-DEMOTE GUARD: targets whose actionable MoA rests on an APPROVED / registrational DIRECTLY-ACTING
+# agent are NOT annotation over-calls (the surface DLL3 / tractability BRAF analog). Small, disclaimed,
+# NON-EXHAUSTIVE skills-side curated set (HGNC symbols); an absent target simply gets the honest sharp
+# caveat ("unvalidated IN-PACKAGE; confirm via tractability-small-molecule + the literature lane"), never a
+# verdict change (this field is verdict-INERT). Basis = an approved / late-clinical directly-acting
+# small-molecule or degrader engaging the target (or its immediate operative node).
+_VALIDATED_ACTIONABLE_MOA_PRECEDENT = frozenset({
+    "BRAF", "EGFR", "KRAS", "MAP2K1", "MAP2K2", "MET", "ALK", "ROS1", "RET",
+    "NTRK1", "NTRK2", "NTRK3", "FGFR1", "FGFR2", "FGFR3", "FGFR4", "ERBB2", "KIT",
+    "PDGFRA", "PDGFRB", "ABL1", "JAK1", "JAK2", "FLT3", "PIK3CA", "AKT1", "MTOR",
+    "CDK4", "CDK6", "CDK7", "CDK9", "BTK", "IDH1", "IDH2", "EZH2", "BCL2", "PARP1",
+    "AR", "ESR1", "SMO", "KDR", "MDM2", "MCL1", "WEE1", "ATR", "CHEK1",
+})
+
+
+def _mechanism_confirmation_caveat(has_actionable_moa, target, network_class, n_up,
+                                   high_conf_edges, moa_classes) -> dict | None:
+    """Name the actionable-MoA INFLATION risk when has_actionable_moa=True. VERDICT-INERT.
+
+    Reports WHY the actionable-MoA call may be over-called (curated context-free edge, single-source,
+    no indication-operative validation); the false-demote guard spares a target with an approved
+    directly-acting agent. Never changes mechanism_verdict (the resolver keys only on network_class)."""
+    if not has_actionable_moa:
+        return None
+    moa_list = list(moa_classes or [])
+    single_source = (high_conf_edges or 0) == 0
+    prov = ("all curated edges single-source (no >=2-source corroboration)" if single_source
+            else f"{high_conf_edges} of {n_up or '?'} curated edges >=2-source-corroborated")
+    if bool(target) and str(target).upper() in _VALIDATED_ACTIONABLE_MOA_PRECEDENT:
+        return {
+            "reason": "actionable_moa_curated_clinically_precedented",
+            "note": (f"has_actionable_moa=True and {target} has an APPROVED / late-clinical directly-acting "
+                     "agent — the curated MoA edge reflects a real, indication-operative, validated "
+                     "druggable mechanism, NOT an annotation over-call (false-demote guard: NOT flagged as "
+                     "inflated). Directness / indication-fit is owned by tractability-small-molecule."),
+            "moa_classes_present": moa_list,
+            "curated_provenance": prov,
+        }
+    thin = network_class in {"sparse", "partial"}   # set literal, NOT a 2-string tuple — a tuple is
+    # misread as a (rule_id, verdict) precedence tuple by the reference-drift guard (test_no_reference_drift).
+    reason = "actionable_moa_curated_context_free_unvalidated" + ("_thin_network" if thin else "")
+    thin_clause = (f" The curated network itself is THIN (network_class={network_class}) — the actionable "
+                   "call rests on very few edges." if thin else "")
+    return {
+        "reason": reason,
+        "note": (f"has_actionable_moa=True is composed as (>=1 curated upstream edge) off MoA classes "
+                 f"[{', '.join(moa_list) or 'curated upstream edges'}] — a CONTEXT-FREE curated aggregate "
+                 f"({prov}). Presence of a curated edge does NOT prove the MoA is OPERATIVE/DRIVING or "
+                 "DIRECTLY DRUGGABLE in this indication: for a pleiotropic hub / undruggable TF or metabolic "
+                 "enzyme this reads actionable with no validated direct hook in existence. Treat as "
+                 "looks-actionable-but-UNVALIDATED; confirm target-directness via tractability-small-molecule "
+                 f"+ the literature lane (--literature).{thin_clause}"),
+        "moa_classes_present": moa_list,
+        "curated_provenance": prov,
+    }
+
+
+def _prediction_lane_caveat(kinome_atlas, coessentiality) -> dict | None:
+    """Surface MoA hooks carried by the PREDICTION / FUNCTIONAL lanes (kinome-atlas PWM predictions +
+    DepMap co-essentiality) that ride ALONGSIDE the curated network but are NEVER merged into
+    network_class / has_actionable_moa. VERDICT-INERT; None when no prediction/functional lane is present."""
+    ka = kinome_atlas or {}
+    co = coessentiality or {}
+    n_pred = (ka.get("n_upstream_predicted_kinases") or 0) + (ka.get("n_downstream_predicted_substrates") or 0)
+    n_coess = (co.get("n_partners") or 0) if co.get("data_available") else 0
+    lanes = []
+    if ka.get("network_class") not in (None, "data_unavailable") and n_pred > 0:
+        lanes.append(f"kinome-atlas PREDICTION ({ka.get('n_upstream_predicted_kinases') or 0} predicted "
+                     f"upstream kinases + {ka.get('n_downstream_predicted_substrates') or 0} predicted "
+                     "downstream substrates; PWM motif-based, never functionally validated)")
+    if n_coess > 0:
+        lanes.append(f"DepMap co-essentiality ({n_coess} correlated partners; correlational, not a "
+                     "curated mechanism edge)")
+    if not lanes:
+        return None
+    return {
+        "reason": "prediction_lanes_carried_alongside",
+        "lanes": lanes,
+        "note": ("Prediction / functional lanes are surfaced ALONGSIDE the curated network but are NEVER "
+                 "merged into network_class or has_actionable_moa: " + "; ".join(lanes) + ". Do NOT read a "
+                 "predicted kinase-substrate motif or a co-essential partner as a curated or validated MoA "
+                 "hook — a predicted or correlational edge alone must not lift the actionable-MoA call."),
+    }
+
+
+def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_partners) -> dict | None:
+    """Fire when the CONTEXT-FREE curated network UNDER-reads an indication-operative mechanism: a thin
+    curated shape co-occurring with measured operative activity (phospho / PROGENy / drug-perturbation) or a
+    functional co-essentiality signal. VERDICT-INERT; None otherwise. (Cannot detect a fusion-rewired driver
+    from these fields — the narrator + literature lane cover that gap.)"""
+    thin = network_class in {"sparse", "partial", "data_unavailable"}   # set, not tuple (drift-guard)
+    operative = []
+    if phospho in ("phospho_active", "phospho_present"):
+        operative.append(f"measured phospho-activity ({phospho})")
+    if pathway_activity == "relatively_high":
+        operative.append("elevated pathway activity (PROGENy)")
+    if tahoe in ("drug_suppressed", "drug_induced", "bidirectionally_perturbed"):
+        operative.append(f"drug-perturbation engagement ({tahoe})")
+    if (coess_partners or 0) > 0:
+        operative.append(f"{coess_partners} DepMap co-essential partners")
+    if not (thin and operative):
+        return None
+    return {
+        "reason": "curated_network_under_reads_operative_signal",
+        "note": (f"The curated signaling network is thin (network_class={network_class}) yet independent "
+                 "signals suggest an operative mechanism this context-free curation under-reads: "
+                 + "; ".join(operative) + ". An indication-operative mechanism (e.g. a fusion-rewired driver "
+                 "or a context-conditional dependency) can be missing from tissue-agnostic curated edges — "
+                 "read a thin network_class as a possible CURATION gap here, not proof of no mechanism."),
+    }
+
+
 _MECHANISM_HEADLINE_SPEC = HeadlineSpec(
     gate="mechanism",
     axis_labels={"NETWORK": "signaling-network topology", "PHOSPHO": "phospho-activity",
@@ -290,8 +415,12 @@ def _emit_skill_figures(decision, figures_root):
     return emit_headline_hero(decision, figures_root)
 
 
-def _headline(cards, fired, verdict_pair):
-    """Skill-specific headline: SIGNOR-network descriptive fields + verdict-inert facets."""
+def _headline(cards, fired, verdict_pair, target=None):
+    """Skill-specific headline: SIGNOR-network descriptive fields + verdict-inert facets.
+
+    `target` is threaded in by the dispatcher (introspected — 3-arg callers are byte-identical) so the
+    verdict-INERT actionable-MoA `mechanism_confirmation_caveat` can apply its clinically-precedented
+    false-demote guard by symbol. None (composed-facet path) → no milder tier, the honest sharp default."""
     v, drv = verdict_pair or ("insufficient", None)
     headline = {
         "mechanism_verdict":         v,
@@ -339,6 +468,50 @@ def _headline(cards, fired, verdict_pair):
     }
     # Predictability feature-attribution facet (verdict-inert; SIGNOR-cross-referenced).
     headline.update(_predictability_mechanism_facet(cards))
+    # ── PROVENANCE / QUORUM fields lifted from the composed card (NOT previously surfaced) + the
+    #    VERDICT-INERT actionable-MoA INFLATION caveats (2026-09-04). The mechanism resolver keys ONLY on
+    #    network_class, so none of this can move mechanism_verdict; the EGFR/CEACAM5 replay guard asserts
+    #    verdict + driving_rule_id only → spine byte-stable.
+    def _as_dict(x):    # frozen fixtures stringify big nested structs — coerce defensively
+        return x if isinstance(x, dict) else {}
+    def _as_list(x):
+        return x if isinstance(x, list) else []
+    _hce = get_card_field(cards, "signaling-network-mechanism", "high_confidence_edges_count")
+    _hce = _hce if isinstance(_hce, int) else 0
+    _kinome = _as_dict(get_card_field(cards, "signaling-network-mechanism", "kinome_atlas_predictions"))
+    _coess = _as_dict(get_card_field(cards, "signaling-network-mechanism", "coessentiality_context"))
+    _pathway_activity = get_card_field(cards, "pathway-activity-context", "pathway_activity_class")
+    _n_up = headline.get("n_upstream_regulators") or 0
+    _n_dn = headline.get("n_downstream_effectors") or 0
+    _n_coess = (_coess.get("n_partners") or 0) if _coess.get("data_available") else 0
+    headline["high_confidence_edges_count"] = _hce
+    headline["mechanism_source_counts"] = _as_dict(get_card_field(cards, "signaling-network-mechanism", "source_counts"))
+    headline["mechanism_sources_wired"] = _as_list(get_card_field(cards, "signaling-network-mechanism", "sources_wired"))
+    headline["kinome_atlas_prediction_lane"] = {
+        "network_class":                     _kinome.get("network_class"),
+        "n_upstream_predicted_kinases":      _kinome.get("n_upstream_predicted_kinases"),
+        "n_downstream_predicted_substrates": _kinome.get("n_downstream_predicted_substrates"),
+    }
+    headline["coessentiality_lane"] = {"data_available": _coess.get("data_available"),
+                                       "n_partners": _coess.get("n_partners")}
+    # QUORUM/PROVENANCE-aware summary — curated vs predicted vs functional provenance of the mechanism.
+    # A curated multi-source edge + indication-operative validation is the strong case; a prediction lane
+    # or a single context-free edge alone must NOT be read as a lifted actionable-MoA signal.
+    headline["mechanism_provenance"] = {
+        "curated_edge_count":            (_n_up if isinstance(_n_up, int) else 0) + (_n_dn if isinstance(_n_dn, int) else 0),
+        "curated_multisource_edge_count": _hce,
+        "single_source_dominant":        bool((_hce == 0) and ((_n_up or 0) + (_n_dn or 0) > 0)),
+        "prediction_lane_edge_count":    (_kinome.get("n_upstream_predicted_kinases") or 0)
+                                          + (_kinome.get("n_downstream_predicted_substrates") or 0),
+        "coessentiality_partner_count":  _n_coess,
+    }
+    headline["mechanism_confirmation_caveat"] = _mechanism_confirmation_caveat(
+        headline.get("has_actionable_moa"), target, headline.get("network_class"),
+        _n_up, _hce, headline.get("moa_classes_present"))
+    headline["prediction_lane_caveat"] = _prediction_lane_caveat(_kinome, _coess)
+    headline["curation_gap_note"] = _curation_gap_note(
+        headline.get("network_class"), headline.get("phospho_activity_class"),
+        _pathway_activity, headline.get("tahoe_perturbation_class"), _n_coess)
     # verdict-INERT claim-vector projection (11th concrete) — NETWORK/PHOSPHO/PATHWAY/PERTURBATION/
     # PREDICTABILITY decomposition + citable atoms. NETWORK is capped at moderate (annotation density,
     # not biology); PHOSPHO is the one positive signal. The mechanism resolver keys only on
@@ -394,6 +567,11 @@ _SYNTHESIS_FACET_KEYS = (
     "mechanism_verdict", "driving_rule_id", "network_class", "has_actionable_moa",
     "phospho_activity_class", "pathway_activity_class", "tahoe_perturbation_class",
     "pred_predictability_class", "claim_vector", "key_signals",
+    # verdict-INERT actionable-MoA INFLATION surfacing (2026-09-04): the has_actionable_moa context-free /
+    # prediction-lane inflation caveats + the quorum/provenance summary (mirrors tractability
+    # directness_caveat / surface surface_confirmation_caveat). None on the no-actionable-MoA path.
+    "mechanism_confirmation_caveat", "prediction_lane_caveat", "curation_gap_note",
+    "mechanism_provenance", "high_confidence_edges_count", "kinome_atlas_prediction_lane",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
@@ -430,6 +608,16 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
         synthesize_fn=make_synthesize_fn(_LENS),
+        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors FR #987
+        # / tumor-selectivity #964 / genomic #982 / on-target-safety #1000 / tractability-SM #1006 /
+        # surface-modality-fit #1021). Attaches decision['literature_synthesis'] AFTER the deterministic
+        # decision is composed + feeds the --synthesize narrator; the mechanism-and-pharmacology query terms
+        # (signal transduction / pathway activation / PD biomarker / resistance / driver pathway / degrader)
+        # live in literature_retrieval.py::_LENS_QUERY_TERMS. Two-slot / spine-untouched: structurally
+        # impossible for the lane to alter mechanism_verdict. This is the lane that adjudicates per target
+        # whether a curated actionable-MoA edge is indication-OPERATIVE vs a context-free/prediction aggregate
+        # (the mechanism_confirmation_caveat / prediction_lane_caveat question) at read time.
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         isoform_check_target=True,          # warn on p95HER2 / AR-V7 / etc.
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
         skill_figures_fn=_emit_skill_figures,
