@@ -80,7 +80,14 @@ _LENS_QUERY_TERMS = {
     "tractability-small-molecule": ["small molecule inhibitor", "druggability", "direct target engagement",
                                     "tool compound", "covalent inhibitor", "allosteric pocket"],
     "differentiation-landscape":  ["co-mutation", "mutual exclusivity"],
-    "immune-context":             ["tumor-infiltrating lymphocytes", "CD8 T cell"],
+    # Front-loaded so the highest-value SPATIAL/FUNCTIONAL discriminators survive the _lens_terms cap
+    # (max_terms=5: the axis_label "CD8 / immune infiltration" + the first 4 here). The base gene∧disease
+    # query already supplies TIL/CD8 recall; the precision query needs the exclusion / phenotype /
+    # exhaustion / spatial terms that separate an INFLAMED from an EXCLUDED/DESERT/EXHAUSTED read.
+    "immune-context":             ["immune exclusion", "immune phenotype inflamed excluded desert",
+                                   "T-cell exhaustion", "multiplex immunohistochemistry spatial",
+                                   "immune checkpoint response", "tertiary lymphoid structure",
+                                   "T-cell exclusion stroma", "tumor-infiltrating lymphocytes", "CD8 T cell"],
     "combination-and-vulnerability": ["synthetic lethality", "combination therapy"],
     "translational-readiness":    ["patient-derived organoid", "patient-derived xenograft"],
     "target-intrinsic":           ["protein structure", "gene expression atlas"],

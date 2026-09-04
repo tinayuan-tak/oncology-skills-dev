@@ -26,6 +26,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import IMMUNE_CONTEXT as _LENS
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common import get_card_field
 from _skills_common.immune_context_question_table import immune_context_question_table
 from _skills_common.immune_context_claims import (
@@ -45,7 +47,7 @@ _IMMUNE_VALUE_TIERS = {
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.5.0"   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
                           # headline hero — a verdict-INERT projection over the effector-context
                           # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -150,7 +152,11 @@ def _immune_tension_extra(headline: dict):
     (the relative hot/cold call is contradicted by the orthogonal absolute H&E-DL TIL corroborator —
     surfaced whenever til_cibersort_agreement is False, either direction); else (2) an immune-COLD
     indication is a MEASURED CD8 effector-absence — a TCE-EFFICACY risk (no effector population to
-    redirect), NOT a target-level veto (CIBERSORT is a RELATIVE, non-spatial bulk-deconvolution screen)."""
+    redirect), NOT a target-level veto (CIBERSORT is a RELATIVE, non-spatial bulk-deconvolution screen);
+    else (3) a POSITIVE bulk read with NO orthogonal absolute-TIL corroboration is SPATIALLY-UNCONFIRMED —
+    the bulk-fraction-over-calls-spatial-infiltration risk (immune_confirmation_caveat sharp tier). The
+    orthogonally_corroborated MILDER tier does NOT raise a tension (an independent platform agrees — the
+    false-demote guard: a genuinely-inflamed, ICI-validated indication like melanoma stays clean)."""
     discord = _til_discordance_text(headline)
     if discord:
         return {"text": discord, "source": "til_cibersort_agreement", "severity": 3}
@@ -158,6 +164,9 @@ def _immune_tension_extra(headline: dict):
         return {"text": ("immune-cold: a MEASURED CD8 effector-absence is a TCE-EFFICACY risk (no effector "
                          "population to redirect) — NOT a target veto; CIBERSORT is relative + non-spatial"),
                 "source": "immune_context_class", "severity": 3}
+    cav = headline.get("immune_confirmation_caveat")
+    if isinstance(cav, dict) and cav.get("reason") == "bulk_fraction_spatially_unconfirmed":
+        return {"text": cav.get("detail"), "source": "immune_confirmation_caveat", "severity": 2}
     return None
 
 
@@ -195,6 +204,126 @@ def _emit_skill_figures(decision, figures_root):
     """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
     display-only, offline, best-effort (missing block → [], spine unaffected)."""
     return emit_headline_hero(decision, figures_root)
+
+
+# ── VERDICT-INERT enrichment: the bulk-CIBERSORT-CD8-fraction annotation-INFLATION surface ────────────
+# The immune-context analog of surface-modality-fit's surface_confirmation_caveat and mechanism's
+# mechanism_confirmation_caveat. A bulk CIBERSORT LM22 CD8 FRACTION over-calls actual SPATIAL T-cell
+# infiltration: it reports the SHARE (relative, reference-model-dependent, non-spatial, function-blind),
+# not the LOCALIZATION (inflamed tumour-nest CD8 vs immune-EXCLUDED stroma/margin CD8 vs DESERT) or the
+# FUNCTION (functional vs exhausted). These fields NAME that confirmation deficit; they gate on the
+# already-emitted headline fields (immune_context_verdict / immune_context_class / til_cibersort_agreement)
+# and are NEVER read by the verdict path (the skill is gateless; the verdict is a direct read of
+# immune_context_class) → the immune_context_verdict spine + goldens/replay stay byte-stable. SET literals
+# (not 2-string tuples) throughout — a 2-string tuple in a membership check is misread by the reference-
+# drift guard as a (rule_id, verdict) precedence tuple.
+_POSITIVE_IMMUNE = {"immune_hot", "immune_intermediate"}   # a positive bulk read that would support a TCE arm
+_HOT_CLASSES = {"immune_hot", "immune_inflamed", "t_cell_inflamed"}   # the strongest presence call
+
+
+def _immune_confirmation_caveat(headline: dict) -> "dict | None":
+    """The bulk-CD8-fraction annotation-INFLATION surface. Fires on a POSITIVE bulk read (immune_hot /
+    immune_intermediate) — a call that would support a TCE effector arm — and names WHY the bulk fraction
+    alone is not confirmed tumour-nest infiltration. Returns None on the negative (immune_cold) /
+    insufficient paths → byte-stable there. Reason tiers, SHARP → MILD (mirrors surface's
+    family_topology_annotation_unconfirmed vs clinically_precedented_cspa_unconfirmed):
+      * bulk_fraction_til_discordant        — the orthogonal absolute H&E-DL TIL (Saltz) CONTRADICTS the
+                                              relative CD8-share call (til_cibersort_agreement is False):
+                                              CD8-rich SHARE but low ABSOLUTE lymphocyte density (the PRAD
+                                              case) — the sharpest over-call.
+      * bulk_fraction_spatially_unconfirmed — a positive read with NO orthogonal absolute-TIL check for this
+                                              indication (til_cibersort_agreement is None) → looks-hot-but-
+                                              SPATIALLY-UNCONFIRMED, the immune-EXCLUDED / desert risk.
+      * orthogonally_corroborated           — the MILDER false-demote-guard tier: the absolute H&E-DL TIL
+                                              CORROBORATES the CIBERSORT call (til_cibersort_agreement is
+                                              True) → NOT an over-call (an independent morphology platform
+                                              agrees; spares a genuinely-inflamed, ICI-validated indication
+                                              like melanoma / MSI-H — the SKCM/DLL3 analog)."""
+    v = headline.get("immune_context_verdict")
+    if v not in _POSITIVE_IMMUNE:
+        return None
+    agree = headline.get("til_cibersort_agreement")
+    icls = headline.get("immune_context_class")
+    cd8 = headline.get("median_cd8_fraction")
+    tcls = headline.get("til_fraction_class")
+    tpct = headline.get("median_til_percentage")
+    til_measured = tcls not in (None, "data_unavailable")
+    til_tail = f"absolute H&E-DL TIL={tcls}" + (f" (median {tpct}%)" if tpct is not None else "")
+    base = (f"immune_context_class={icls} (median CD8 share={cd8}) is a bulk CIBERSORT LM22 deconvolution "
+            f"FRACTION — relative, reference-model-dependent, non-spatial and function-blind")
+    # The tier keys on whether the orthogonal absolute-TIL (Saltz) is MEASURED and whether it contradicts —
+    # NOT on the raw agreement flag alone (a hot call + til_intermediate reads agreement=None yet Saltz IS
+    # measured and does NOT contradict, so it must SPARE, not sharp-flag — the SKCM/MSI-H false-demote guard).
+    if til_measured and agree is False:
+        reason = "bulk_fraction_til_discordant"
+        detail = (f"{base}; the orthogonal {til_tail} CONTRADICTS it — CD8-rich SHARE but low ABSOLUTE "
+                  f"lymphocyte density. The TCE-favourable effector read OVER-CALLS tumour infiltration.")
+    elif til_measured:
+        reason = "orthogonally_corroborated"
+        strength = "CORROBORATES" if agree is True else "does NOT contradict"
+        detail = (f"{base}, and the orthogonal {til_tail} {strength} it — an independent morphology platform "
+                  f"agrees the tumour is infiltrated, so this is NOT an over-call of DENSITY (the false-demote "
+                  f"guard: a genuinely-inflamed, ICI-validated indication is spared). BUT absolute TIL is a "
+                  f"density/morphology read, NOT spatial localization: it cannot confirm tumour-NEST (vs "
+                  f"stroma-EXCLUDED / margin-restricted) CD8, nor CD8 function — an IMMUNE-EXCLUDED tumour can "
+                  f"read high on both bulk platforms (see spatial_localization_caveat).")
+    else:  # Saltz unmeasured for this indication — no orthogonal absolute-TIL check at all
+        reason = "bulk_fraction_spatially_unconfirmed"
+        detail = (f"{base}, with NO orthogonal absolute-TIL corroboration for this indication (Saltz "
+                  f"unmeasured / non-comparable). Looks-hot-but-SPATIALLY-UNCONFIRMED — the bulk fraction "
+                  f"cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one "
+                  f"(stroma/margin CD8) or a DESERT.")
+    if icls in _HOT_CLASSES:
+        detail += (" CD8 PRESENCE != FUNCTION: a bulk fraction cannot exclude an exhausted/dysfunctional "
+                   "infiltrate that reads hot but is not cytotoxically effective.")
+    return {"reason": reason, "detail": detail}
+
+
+def _spatial_localization_caveat(headline: dict) -> "str | None":
+    """Names the inflamed-vs-excluded-vs-desert distinction a BULK CD8 fraction cannot make — surfaced on
+    every POSITIVE bulk read (the decisive TCE distinction). Target-independent; verdict-inert; None on the
+    immune_cold / insufficient paths."""
+    if headline.get("immune_context_verdict") not in _POSITIVE_IMMUNE:
+        return None
+    return ("a bulk CD8 fraction reports the SHARE of the leukocyte compartment, not the spatial "
+            "LOCALIZATION: it cannot distinguish an INFLAMED tumour (CD8 in the malignant nest — "
+            "TCE-favourable) from an IMMUNE-EXCLUDED tumour (CD8 trapped in peritumoral stroma / at the "
+            "invasive margin, not touching malignant cells — TCE-UNfavourable) from a DESERT. Resolving it "
+            "needs spatial / multiplex-IHC / pathology, not bulk deconvolution.")
+
+
+def _immune_provenance(headline: dict) -> dict:
+    """QUORUM/PROVENANCE summary: which platforms speak to the effector-context call, and whether the bulk
+    CIBERSORT fraction is corroborated by an orthogonal absolute-TIL read. A bulk fraction ALONE must NOT be
+    read as confirmed tumour-nest infiltration — confirmed_tumor_nest_infiltration is always False (bulk
+    deconvolution is never spatial). Verdict-inert."""
+    agree = headline.get("til_cibersort_agreement")
+    tcls = headline.get("til_fraction_class")
+    til_measured = tcls not in (None, "data_unavailable")
+    if not til_measured:
+        corr = "unmeasured"
+    else:
+        corr = {True: "corroborates", False: "contradicts", None: "not_comparable"}.get(agree, "not_comparable")
+    return {
+        "bulk_cibersort": {
+            "immune_context_class": headline.get("immune_context_class"),
+            "median_cd8_fraction": headline.get("median_cd8_fraction"),
+            "n_samples": headline.get("n_samples"),
+            "tumor_studies": headline.get("tumor_studies"),
+            "platform": "CIBERSORT LM22 (relative, reference-model-dependent, non-spatial, function-blind)",
+        },
+        "absolute_til_corroboration": {
+            "til_fraction_class": tcls,
+            "median_til_percentage": headline.get("median_til_percentage"),
+            "til_n_samples": headline.get("til_n_samples"),
+            "orthogonal_agreement": corr,   # corroborates | contradicts | not_comparable | unmeasured
+        },
+        "confirmed_tumor_nest_infiltration": False,   # NEVER confirmed by bulk deconvolution alone
+        "note": ("A bulk CIBERSORT CD8 fraction is RELATIVE, non-spatial and function-blind; a positive read "
+                 "is CONFIRMED tumour-nest infiltration only with spatial / multiplex-IHC corroboration. The "
+                 "absolute H&E-DL TIL (Saltz) is an orthogonal ABSOLUTE-density check (still not spatial "
+                 "localization or CD8 function)."),
+    }
 
 
 def _headline(cards, fired, verdict_pair):
@@ -242,6 +371,18 @@ def _headline(cards, fired, verdict_pair):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         hl["question_table"] = None
+    # VERDICT-INERT bulk-CD8-fraction annotation-INFLATION surface (the surface_confirmation_caveat /
+    # mechanism_confirmation_caveat analog). Computed BEFORE the headline_block so the spatial-unconfirmed
+    # tier can feed the headline top_tension. Best-effort — a projection fault must never discard the spine.
+    try:
+        hl["immune_confirmation_caveat"] = _immune_confirmation_caveat(hl)
+        hl["spatial_localization_caveat"] = _spatial_localization_caveat(hl)
+        hl["immune_provenance"] = _immune_provenance(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["immune_confirmation"] = f"{type(exc).__name__}: {exc}"
+        hl.setdefault("immune_confirmation_caveat", None)
+        hl.setdefault("spatial_localization_caveat", None)
+        hl.setdefault("immune_provenance", None)
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
     # headline message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
     # projection over the claim_vector / key_signals just built. Best-effort: a formatting/read fault must
@@ -279,6 +420,9 @@ _SYNTHESIS_FACET_KEYS = (
     "immune_context_verdict", "driving_rule_id", "immune_context_class", "median_cd8_fraction",
     "median_total_t_cell_fraction", "n_samples",
     "til_fraction_class", "median_til_percentage", "til_cibersort_agreement",
+    # VERDICT-INERT bulk-CD8-fraction annotation-INFLATION surface (bulk fraction != spatial localization
+    # != CD8 function) — the surface_confirmation_caveat / mechanism_confirmation_caveat analog.
+    "immune_confirmation_caveat", "spatial_localization_caveat", "immune_provenance",
     "claim_vector", "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
@@ -353,4 +497,11 @@ if __name__ == "__main__":
         skill_figures_fn=_emit_skill_figures,
         # Signals-first: tuned sub-group reader for the immune-context vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_IMMUNE_VALUE_TIERS),
+        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors surface
+        # #1021 / mechanism skills#1030). Attaches decision['literature_synthesis'] (Europe PMC → PubTator3
+        # grounding + a verify_citations PMID pass) and feeds the --synthesize narrator. The IMMUNE query
+        # terms (immune exclusion / inflamed-excluded-desert phenotype / spatial multiplex-IHC / T-cell
+        # exhaustion / checkpoint response) live in literature_retrieval.py::_LENS_QUERY_TERMS. Spine-
+        # untouched: the lane attaches AFTER the deterministic decision is composed (gateless verdict).
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
     ))

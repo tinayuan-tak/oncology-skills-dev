@@ -25,7 +25,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -97,3 +97,28 @@ does not gate it. **Caveats** (from the card): CIBERSORT gives RELATIVE composit
 not absolute density; bulk deconvolution does not resolve spatial T-cell exclusion.
 The antigen-conditioned join (T-cell infiltration among antigen-HIGH patients) is
 the documented v2 next layer.
+
+## v1.6.0 (2026-09-04) — --literature lane + the bulk-CD8-fraction annotation-INFLATION surface
+
+VERDICT-INERT (the skill is gateless; `immune_context_verdict` is a direct read of `immune_context_class`
+— the enrichment is a one-way projection that never moves it, so goldens/replay stay byte-stable):
+
+- **`--literature`** — `make_literature_fn(IMMUNE_CONTEXT)` wired into `run_wired_skill` (Europe PMC →
+  PubTator3 grounding + PMID `verify_citations`); refined IMMUNE query terms (immune exclusion /
+  inflamed-excluded-desert phenotype / spatial multiplex-IHC / T-cell exhaustion / checkpoint response /
+  tertiary lymphoid structure). Attaches `decision['literature_synthesis']` and feeds `--synthesize`.
+- **`immune_confirmation_caveat`** — a bulk CIBERSORT LM22 CD8 FRACTION (relative, reference-model-dependent,
+  NON-SPATIAL, FUNCTION-BLIND) OVER-CALLS spatial T-cell infiltration. Fires on a POSITIVE bulk read
+  (immune_hot / immune_intermediate). Tiers: `bulk_fraction_til_discordant` (the orthogonal absolute H&E-DL
+  TIL contradicts — CD8-rich SHARE but low ABSOLUTE density, the PRAD case, sharpest) ·
+  `bulk_fraction_spatially_unconfirmed` (no orthogonal absolute-TIL check for this indication — LIHC/KIRC/GBM
+  not in the 13 Saltz studies) · `orthogonally_corroborated` (the MILDER false-demote guard — absolute TIL is
+  measured & non-contradicting, so a genuinely-inflamed ICI-validated indication like SKCM/MSI-H is spared;
+  density confirmed, but localization/function still open). `None` on the immune_cold / insufficient paths.
+- **`spatial_localization_caveat`** — names the inflamed-vs-EXCLUDED-vs-desert distinction a bulk fraction
+  cannot make (the decisive TCE call, needs spatial / multiplex-IHC). Fires on every positive read.
+- **`immune_provenance`** — bulk-CIBERSORT-vs-absolute-TIL quorum; `confirmed_tumor_nest_infiltration` is
+  NEVER True from bulk alone.
+- **IMMUNE_CONTEXT thesis + `polarity_note`** (was NONE) — the narrator now leads with
+  spatially-confirmed-vs-bulk-fraction-annotated CD8 + the exclusion / exhaustion / cohort-median caveats,
+  with the TCE surface hand-off to surface-modality-fit as a breadcrumb.

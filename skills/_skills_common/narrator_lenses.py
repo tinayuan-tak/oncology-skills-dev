@@ -278,11 +278,54 @@ TRACTABILITY_SM = LensConfig(
 
 IMMUNE_CONTEXT = LensConfig(
     name="immune-context",
-    thesis="the immune/TME context for a T-cell-engager — CD8 infiltration and whether the tumor is "
-           "inflamed vs excluded/desert (the effector-arm companion to surface-modality-fit).",
-    relevance_prompt="judge how the immune-context evidence supports a TCE effector arm for this target.",
+    thesis="the immune/TME context for a T-cell-engager (TCE) effector arm — is the indication immune-HOT "
+           "(a CD8 effector infiltrate to redirect) — WHILE distinguishing a SPATIALLY-CONFIRMED, functional "
+           "INFLAMED infiltrate (tumor-nest CD8 — TCE-favorable) from a BULK-CIBERSORT-FRACTION-ANNOTATED CD8 "
+           "read that a RELATIVE, reference-model-dependent, non-spatial, function-blind deconvolution CANNOT "
+           "localize (inflamed vs immune-EXCLUDED stroma/margin vs DESERT) or verify as functional-vs-"
+           "exhausted, and from a cohort-MEDIAN that hides per-patient heterogeneity (the bulk-CD8-fraction-"
+           "over-calls-spatial-infiltration trap). The effector-arm companion to surface-modality-fit "
+           "(antigen); a TCE needs BOTH.",
+    relevance_prompt="judge whether there is a CD8 effector context to support a TCE effector arm, and "
+                     "whether an immune-hot/intermediate call is spatially/orthogonally CONFIRMED or rests "
+                     "only on a bulk CIBERSORT deconvolution fraction.",
     axis_labels={"IMMUNE": "CD8 / immune infiltration"},
-    scope_exclusions=("surface antigen accessibility (owned by surface-modality-fit)", "small-molecule tractability"),
+    scope_exclusions=("surface antigen accessibility (owned by surface-modality-fit)",
+                      "small-molecule tractability", "expression-as-presence (tumor-presence)",
+                      "genetic dependency (functional-requirement)"),
+    # NARRATOR RULE: lead with whether the immune-hot/intermediate call is SPATIALLY-CONFIRMED (or at least
+    # orthogonally corroborated by the absolute H&E-DL TIL) or rests only on a bulk CIBERSORT FRACTION; then
+    # the inflamed-vs-excluded-vs-desert localization caveat + the presence-vs-exhaustion caveat; then the
+    # immune-cold effector-absence efficacy risk and the cohort-median heterogeneity caveat.
+    polarity_note=(
+        "signal = strength of the evidence FOR a CD8 effector context to support a TCE. LEAD by stating "
+        "whether the immune-hot / immune-intermediate call is SPATIALLY-CONFIRMED (or at least orthogonally "
+        "corroborated) or rests ONLY on a bulk CIBERSORT deconvolution FRACTION: immune_context_class / "
+        "immune_context_verdict come from the indication's MEDIAN CD8 T-cell SHARE of the leukocyte "
+        "compartment (CIBERSORT LM22) — a RELATIVE, reference-model-dependent, NON-SPATIAL, FUNCTION-BLIND "
+        "estimate. So a positive read can rest on a bulk fraction while spatial localization + CD8 function "
+        "are UNCONFIRMED. When immune_confirmation_caveat is present, report the positive call accordingly: "
+        "reason bulk_fraction_til_discordant = the orthogonal absolute H&E-DL TIL (Saltz) CONTRADICTS the "
+        "CD8 share (CD8-rich share but low absolute lymphocyte density — the PRAD over-call, the sharpest); "
+        "reason bulk_fraction_spatially_unconfirmed = a positive read with NO orthogonal absolute-TIL check "
+        "→ looks-hot-but-SPATIALLY-UNCONFIRMED (the immune-EXCLUDED / desert risk); reason "
+        "orthogonally_corroborated = an independent morphology platform AGREES the tumor is infiltrated (NOT "
+        "an over-call — do NOT demote a genuinely-inflamed, ICI-validated indication like melanoma / MSI-H). "
+        "ALWAYS surface spatial_localization_caveat: a bulk fraction reports the SHARE, not the LOCALIZATION "
+        "— it cannot separate an INFLAMED tumor (tumor-nest CD8, TCE-favorable) from an IMMUNE-EXCLUDED one "
+        "(CD8 trapped in peritumoral stroma / at the invasive margin, TCE-UNfavorable) from a DESERT, and it "
+        "cannot separate a functional from an EXHAUSTED / dysfunctional infiltrate that reads hot but is not "
+        "cytotoxically effective (the ccRCC/KIRC high-fraction-but-exhausted paradox). Treat "
+        "til_cibersort_agreement=True (absolute H&E-DL TIL corroborates) as the strongest available presence "
+        "corroboration (measured morphology, orthogonal to RNA deconvolution); immune_provenance summarizes "
+        "the bulk-CIBERSORT-vs-absolute-TIL quorum — confirmed_tumor_nest_infiltration is NEVER True from "
+        "bulk alone. An immune_COLD read is a MEASURED effector-absence = a TCE-EFFICACY risk (no effector "
+        "pool to redirect), NOT a target veto and NOT a surface/antigen problem (CIBERSORT is relative + "
+        "non-spatial); a cohort-MEDIAN also hides per-patient heterogeneity (the antigen-conditioned "
+        "per-patient join is a deferred v2 facet). Surface antigen accessibility, small-molecule "
+        "tractability, dependency, and expression are verdict-inert breadcrumbs — hand off to "
+        "surface-modality-fit (the antigen arm this effector arm composes with), tractability-small-molecule, "
+        "functional-requirement, and tumor-presence."),
     mode="verdict",
     # The collapsed-verdict line reads the RESOLVED effector-context token from this declared headline key.
     # Without it, the fallback relies on the legacy `<name>_verdict` guess ("immune-context" →
