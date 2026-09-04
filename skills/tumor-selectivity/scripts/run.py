@@ -318,6 +318,28 @@ def _selectivity_verdict_polarity(v) -> str:
 _SELECTIVITY_KILLER_VERDICTS = frozenset({"selective_but_broadly_normal", "selective_but_stromal_confound"})
 
 
+def _sc_normal_liability_detail(sc_normal: dict):
+    """Human-readable named-organ liability from the sc-normal essential-cell driver, or None.
+
+    Names the organ + cell type + (when present) the independent-atlas replication count the
+    safety-essential class keyed on — e.g. "kidney proximal tubule cell (3 atlases)". Populated
+    whenever an essential hit fired (critical_organ_liability OR origin_tissue_liability), so the
+    named liability is preserved even when a coarser veto arm wins the verdict LABEL (the masking fix)."""
+    cls = (sc_normal or {}).get("sc_normal_safety_essential_class")
+    if cls not in ("critical_organ_liability", "origin_tissue_liability"):
+        return None
+    cell = sc_normal.get("sc_normal_essential_max_cell_type")
+    if not cell:
+        return None
+    tissue = sc_normal.get("sc_normal_essential_max_tissue")
+    n_atlas = sc_normal.get("sc_normal_essential_n_datasets_reliable")
+    where = f"{tissue} {cell}" if tissue else str(cell)
+    detail = where
+    if isinstance(n_atlas, int) and n_atlas > 0:
+        detail += f" ({n_atlas} atlas{'es' if n_atlas != 1 else ''})"
+    return detail
+
+
 def _selectivity_tension_extra(headline: dict):
     """The sharpest cross-cutting selectivity caveat the per-axis claim conflicts don't already carry:
     the normal-breadth VETO downgrade. The resolved selectivity_class (post-veto) differs from the raw
@@ -326,18 +348,24 @@ def _selectivity_tension_extra(headline: dict):
     invisible to rank_tension. Severity 4 (> the max signal tier 3) makes the KILL veto win the single
     tension slot; the selectivity-preserving named-organ flag rides at severity 3."""
     resolved = headline.get("selectivity_class")
+    liability = headline.get("sc_normal_liability_detail")   # named organ+cell, or None (masking-safe)
     if resolved == "selective_but_stromal_confound":
         return {"text": ("axis-A selective in bulk but single-cell attribution shows the signal is "
                          "CAF/stroma-driven, NOT malignant-cell-intrinsic — a false window for "
                          "tumor-cell-targeted modalities (stromal-confound veto)"),
                 "source": "stromal_confound_veto", "severity": 4}
     if resolved == "selective_but_broadly_normal":
+        # The window KILL won the LABEL, but if the sc-normal arm ALSO flagged a named critical organ,
+        # surface it here so the masked liability is not discarded (the de-anonymization masking fix).
+        extra = f"; also flags a critical-organ single-cell liability ({liability})" if liability else ""
         return {"text": ("selective vs tissue-of-origin but no therapeutic window vs the worst critical "
-                         "normal — broadly-normal liability (normal-breadth veto)"),
+                         f"normal — broadly-normal liability (normal-breadth veto){extra}"),
                 "source": "normal_breadth_veto", "severity": 4}
     if resolved == "selective_with_normal_liability":
-        return {"text": ("tumor-selective but with a critical-organ normal-tissue liability — named-organ "
-                         "safety flag (severity owned by on-target-safety-liability + modality-fit)"),
+        named = f" in {liability}" if liability else ""
+        return {"text": (f"tumor-selective but with a critical-organ normal-tissue liability{named} — "
+                         "named-organ safety flag (severity owned by on-target-safety-liability + "
+                         "modality-fit)"),
                 "source": "normal_liability_flag", "severity": 3}
     return None
 
@@ -649,6 +677,24 @@ def _headline(cards, fired, verdict_pair):
         "sc_normal_safety_essential_class": sc_normal.get("sc_normal_safety_essential_class"),
         "sc_normal_max_detection_cell_type": sc_normal.get("max_detection_cell_type"),
         "sc_normal_max_detection_fraction": sc_normal.get("max_detection_fraction"),
+        # NAMED essential-cell driver of the veto (analysis-methods #572): the organ + cell type the
+        # safety-essential class actually keyed on — NOT the pooled max_detection_cell_type above (which
+        # can name a non-essential epithelial cell). This de-anonymizes the clamp: the headline/narrator
+        # can now say "kidney proximal tubule (3 atlases)" instead of an anonymous liability flag.
+        "sc_normal_essential_max_cell_type": sc_normal.get("sc_normal_essential_max_cell_type"),
+        "sc_normal_essential_max_tissue":   sc_normal.get("sc_normal_essential_max_tissue"),
+        "sc_normal_essential_max_detection_fraction": sc_normal.get("sc_normal_essential_max_detection_fraction"),
+        "sc_normal_essential_n_datasets_reliable": sc_normal.get("sc_normal_essential_n_datasets_reliable"),
+        # Abundance at the liability-anchor cell (merged #571) — previously emitted+declared but consumed
+        # by NO skill; surface it so a low-abundance normal footprint (FOLR1-class) is visible next to the
+        # liability. + the single-cell tumor-vs-normal window denominator (the positive atlas use).
+        "sc_normal_abundance_class":        sc_normal.get("sc_normal_abundance_class"),
+        "sc_normal_ceiling_detection_fraction": sc_normal.get("sc_normal_ceiling_detection_fraction"),
+        # Human-readable named-organ liability string, populated whenever an essential-cell hit exists —
+        # INDEPENDENT of which veto arm won the verdict. This is the masking fix: when a coarser window
+        # KILL outranks the sc-normal arm (e.g. TROP2), the named kidney liability was discarded entirely;
+        # now it survives as a caveat the narrator/headline can still surface.
+        "sc_normal_liability_detail":       _sc_normal_liability_detail(sc_normal),
         # The FULL safety-essential-cell set {cell_type: median_det}, not just the argmax. The single
         # max_detection_cell_type is a pooled detection argmax over all surveyed cell types, so for a
         # broadly-expressed target the large brain shard (172 cell types) usually wins it — asserting one
@@ -755,6 +801,10 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     "cells_supporting", "cells_ran", "max_abs_log2fc",
     "therapeutic_window_class", "sc_normal_max_detection_cell_type", "sc_normal_safety_essential_flags",
+    # the NAMED sc-normal essential-cell liability (de-anonymized organ+cell+atlases) + the masking-safe
+    # detail string + abundance at the liability cell — so the synthesis narrator names the organ.
+    "sc_normal_essential_max_cell_type", "sc_normal_essential_max_tissue", "sc_normal_liability_detail",
+    "sc_normal_abundance_class",
     "percentile_crossing_class", "fraction_tumor_above_normal_p95", "distribution_overlap_tumor_normal",
     "selectivity_allgene_percentile",
     "sc_tumor_expression_class", "sc_malignant_detection_fraction", "sc_caf_vs_malignant_class",
