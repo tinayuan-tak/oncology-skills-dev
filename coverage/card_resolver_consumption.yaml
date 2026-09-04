@@ -351,6 +351,7 @@ detail:
     - surface_modality
     rules:
     - sc-antigen-escape-high-tce-opposing
+    - sc-antigen-escape-patient-variable-tce-opposing
   tumor-vs-normal-selectivity:
     resolvers:
     - selectivity

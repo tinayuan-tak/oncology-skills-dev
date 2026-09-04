@@ -1561,11 +1561,39 @@ rules:
       avidity engineering, antigen-density-independent formats, or a combination/OR-gate can still rescue
       a heterogeneous target. Neutral for ADC (bystander payload reaches antigen-low neighbours).
 
-  # escape_risk_moderate / escape_risk_patient_variable / coverage_high_donor_underpowered DELIBERATELY
-  # fire NO rule — a real expressing subset exists but partial coverage or inter-donor inconsistency
-  # (dropout-aware scRNA) is too uncertain to move the verdict (the stricter-cut design decision;
-  # patient_variable is surfaced as a patient-selection caution by the card, not a modality negative).
-  # data_unavailable likewise fires nothing (coverage gap → abstain).
+  # escape_risk_patient_variable — coverage is ADEQUATE but malignant detection is INCONSISTENT across
+  # donors (inter-donor variable): the antigen works in SOME patients and not others. This is a patient-
+  # SELECTION escape risk (a biomarker-stratification problem), MILDER than the coverage-low escape
+  # reservoir of escape_risk_high (which forecloses the TCE arm outright). Made verdict-MOVING 2026-09-04
+  # (#979): it TEMPERS — not forecloses — the TCE arm (bite_tce opposing but modality_importance SECONDARY,
+  # vs escape_risk_high's `important`); ADC is preserved (bystander-tolerant). The resolver maps this to the
+  # positive-caveated adc_preferred_tce_patient_variable / tce_patient_variable verdicts (TCE arm demoted
+  # dominant→supportive in nomination, NOT excluded), so a validated ADC/TCE antigen with normal patient-
+  # variability is not over-penalized.
+  - rule_id: sc-antigen-escape-patient-variable-tce-opposing
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: tce_antigen_escape_class
+      equals: escape_risk_patient_variable
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: secondary
+    rationale: |
+      Within-tumour coverage is ADEQUATE but malignant detection is INCONSISTENT across donors (single-cell
+      Census; the inter-donor-consistency axis of the coverage x consistency escape model). The antigen is a
+      dependable TCE target in some patients and an escape-prone one in others — a patient-SELECTION escape
+      risk, milder than the coverage-low reservoir of escape_risk_high. TEMPERS the TCE arm (bite_tce
+      opposing, SECONDARY importance — a caveat, not the escape_risk_high foreclosure); ADC preserved
+      (bystander payload tolerates the antigen-low fraction). Keep escape_risk_moderate /
+      coverage_high_donor_underpowered / data_unavailable inert (partial coverage / underpowered / coverage
+      gap → too uncertain to move the verdict — the stricter-cut design decision).
+
+  # escape_risk_moderate / coverage_high_donor_underpowered DELIBERATELY fire NO rule — a real expressing
+  # subset exists but partial coverage or an underpowered donor count (dropout-aware scRNA) is too uncertain
+  # to move the verdict. data_unavailable likewise fires nothing (coverage gap → abstain).
 
   # ============================================================================
   # M — Modality therapeutic-window (biologics-augment, 2026-08-06)

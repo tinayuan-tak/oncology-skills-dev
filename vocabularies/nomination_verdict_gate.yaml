@@ -26,7 +26,11 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.8.0   # 1.8.0 (2026-08-25): + surface_modality pmhc_tce_supported to positive_signals_modality_scoped
+version: 1.9.0   # 1.9.0 (2026-09-04, #979): + surface_modality adc_preferred_tce_patient_variable / tce_patient_variable
+                 #   to positive_signals_modality_scoped (TCE arm dominant→supportive temper; escape-insensitive arms
+                 #   stay dominant) + to biology_axis_scoped_veto_downgrade.when_surface_verdict_in (favorable-surface
+                 #   veto downgrade preserved). The MIDDLE antigen-escape band: tempers, does not foreclose, the TCE arm.
+                 # 1.8.0 (2026-08-25): + surface_modality pmhc_tce_supported to positive_signals_modality_scoped
                  #   (bite_tce-scoped POSITIVE, weight supportive). The IEDB pMHC-epitope promotion: the pMHC-TCE
                  #   route for a folded-surface-dead intracellular oncoprotein. POSITIVE, not kill-capable — no
                  #   gates / excluded_modality_scoped / kill_capable_verdicts entry (F-symmetry: applies only under
@@ -368,7 +372,7 @@ biology_axis_scoped_veto_downgrade:
   - downgrades: {sub_skill: dependency, verdict: non_dependent}
     to_action: hold
     when_biology_axis_in: [surface_intrinsic, unknown]
-    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, surface_viable_density_caveated]
+    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, adc_preferred_tce_patient_variable, tce_patient_variable, surface_viable_density_caveated]
     rationale: |
       A surface antigen with a FAVORABLE surface_modality fit is engaged via antigen binding, so a
       pooled pan-cancer `non_dependent` is not a trusted reason to VETO — it is downgraded to `hold`,
@@ -507,6 +511,16 @@ positive_signals_modality_scoped:
   # ADC-preserving analog for the EFFICACY escape verdict (2026-08-24): TCE arm dropped for antigen escape,
   # but ADC remains a favored, bystander-tolerant arm → positive weight for adc/antibody (mirrors above).
   - {sub_skill: surface_modality, verdict: adc_preferred_tce_escape_risk, weight: dominant, when_modality_in: [adc, antibody]}
+  # Patient-variable antigen-escape (#979, 2026-09-04): the MIDDLE escape band (escape_risk_patient_variable)
+  # TEMPERS the TCE arm rather than foreclosing it (unlike escape_risk_high → excluded_modality_scoped). The
+  # bite_tce arm is DEMOTED dominant→SUPPORTIVE (a patient-SELECTION caveat: the antigen works in some patients,
+  # not others), while the escape-INSENSITIVE arms stay dominant (ADC = bystander-tolerant; naked antibody does
+  # not depend on within-tumor uniformity) — so a validated ADC/TCE antigen with normal patient-variability is
+  # tempered, not over-penalized.
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_patient_variable, weight: dominant,   when_modality_in: [adc, antibody]}
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_patient_variable, weight: supportive, when_modality_in: [bite_tce]}
+  - {sub_skill: surface_modality, verdict: tce_patient_variable,               weight: dominant,   when_modality_in: [antibody]}
+  - {sub_skill: surface_modality, verdict: tce_patient_variable,               weight: supportive, when_modality_in: [bite_tce]}
   # R1-casing (2026-08-15): the surface_modality resolver EMITS lowercase `tce_preferred`/`adc_preferred`
   # (surface_modality.resolver.yaml:61-63); the gate loader matches verdicts case-sensitively, so the
   # prior TitleCase `TCE_preferred`/`ADC_preferred` here never matched — these two positives were DEAD.

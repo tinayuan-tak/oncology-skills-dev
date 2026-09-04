@@ -2,8 +2,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 410
-  gating: 127
+  total: 411
+  gating: 128
   display: 283
 gating:
 - adc-preferred-supportive
@@ -109,6 +109,7 @@ gating:
 - rnai-pan-essential-killer
 - rnai-strongly-selective-supportive
 - sc-antigen-escape-high-tce-opposing
+- sc-antigen-escape-patient-variable-tce-opposing
 - sc-normal-high-liability-bite-killer
 - shed-ectodomain-clinical-opposing
 - sl-computational-partner-informational
