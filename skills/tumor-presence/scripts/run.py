@@ -265,7 +265,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.17.0"   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.18.0"   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -1344,6 +1344,11 @@ def _headline(cards, fired, verdict_pair):
         "sc_normal_safety_essential_class": get_card_field(cards, "sc-normal-celltype-expression", "sc_normal_safety_essential_class"),
         "sc_normal_max_det_cell_type":      get_card_field(cards, "sc-normal-celltype-expression", "max_detection_cell_type"),
         "sc_normal_max_det_fraction":       get_card_field(cards, "sc-normal-celltype-expression", "max_detection_fraction"),
+        # #984 Tier-2: normal-tissue ABUNDANCE at the liability-anchor cell type — distinguishes a genuinely
+        # high-abundance normal liability (EPCAM/CEA-class) from a trivial-abundance normal detection
+        # (FOLR1-class). Verdict-inert here; sharpens the tumor-selectivity hand-off breadcrumb.
+        "sc_normal_abundance_class":        get_card_field(cards, "sc-normal-celltype-expression", "sc_normal_abundance_class"),
+        "sc_normal_peak_median_abund":      get_card_field(cards, "sc-normal-celltype-expression", "sc_normal_peak_median_abund"),
         "sc_normal_expressing_donor_fraction_max": get_card_field(cards, "sc-normal-celltype-expression", "expressing_donor_fraction_max"),
         "sc_normal_n_cell_types_above_20pct":      get_card_field(cards, "sc-normal-celltype-expression", "n_cell_types_above_20pct"),
         "sc_normal_tissues_queried":               get_card_field(cards, "sc-normal-celltype-expression", "tissues_queried"),

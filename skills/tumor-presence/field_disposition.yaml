@@ -807,6 +807,12 @@ sc-normal-celltype-expression:
   expressing_donor_fraction_max:
     role: context
     reason: power / statistical qualifier
+  sc_normal_abundance_class:
+    role: signal
+    reason: normal-tissue abundance at the liability-anchor cell — sharpens window breadcrumb (#984 Tier-2)
+  sc_normal_peak_median_abund:
+    role: context
+    reason: magnitude behind sc_normal_abundance_class (#984 Tier-2)
   max_detection_cell_type:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"

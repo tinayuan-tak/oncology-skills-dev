@@ -371,8 +371,15 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
     # normal-tissue breadth is broad OR the single-cell normal footprint reads HIGH_LIABILITY.
     if caveat is None and ("broad" in str(headline.get("normal_tissue_ihc_breadth_class") or "")
                            or headline.get("sc_normal_expression_class") == "HIGH_LIABILITY"):
-        caveat = ("Broadly expressed in normal tissue → therapeutic-window liability; the window VERDICT is "
-                  "owned by tumor-selectivity / on-target-safety [normal comparators]")
+        # #984 Tier-2: sharpen the hand-off with normal-tissue ABUNDANCE — a low-abundance normal liability
+        # (FOLR1-class) implies a workable window despite broad detection; high-abundance (EPCAM/CEA-class)
+        # is the real concern. Still just a breadcrumb — the window VERDICT is owned by tumor-selectivity.
+        _ab = headline.get("sc_normal_abundance_class")
+        _ab_note = {"low_abundance": " — but LOW normal abundance (window may be workable; FOLR1-class)",
+                    "moderate_abundance": " — at moderate normal abundance",
+                    "high_abundance": " — at HIGH normal abundance (real window concern)"}.get(_ab, "")
+        caveat = ("Broadly expressed in normal tissue → therapeutic-window liability" + _ab_note
+                  + "; the window VERDICT is owned by tumor-selectivity / on-target-safety [normal comparators]")
     # deterministic headline from the vector (NOT the LLM)
     sa, sb = vec["A"]["signal"], vec["B"]["signal"]
     if _SIG_ORD.get(sa) and _SIG_ORD.get(sb) and _SIG_ORD[sa] >= 2 and _SIG_ORD[sb] >= 2:
