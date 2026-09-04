@@ -126,7 +126,87 @@ def _unmeasured(slot: str) -> Block:
                                     "note": f"{slot.replace('_', ' ')}: not measured / not surfaced"})
 
 
-def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool) -> Section:
+# run-dir figure channel: card_figures descriptor `path` is relative to the run's figures/ dir, and the
+# default target_profile.html/.md sit at the run root beside it — so a stable `figures/` prefix resolves
+# for a browser/markdown viewer with NO file reads (backends stay dumb; ref is the final relative URL).
+_FIGURE_BASE = "figures/"
+
+
+def _card_figure_blocks(card_figs: list, eff_level: int, medium: str,
+                        polarity: Optional[str], role: Optional[str]) -> list:
+    """Join a section's run-dir card figures (nomination.card_figures) into FIGURE blocks. Each figure
+    carries a verdict BADGE derived from the section's spine polarity (the figure-emitter redesign moved
+    the verdict OFF the figure onto the composing layer — see vocab.figure_status). L2 shows each card's
+    PRIMARY figure; L3 shows all its SVGs. Plotly `.plotly.json` siblings are carried as `dynamic_ref`
+    (an interactive-embed hook) but never emitted as their own image block. medium is RESOLVED here."""
+    if not card_figs:
+        return []
+    show_image = medium in ("figure", "both")
+    status = vocab.figure_status(polarity, role)
+    out = []
+    for card_id, descs in card_figs:
+        svgs = [d for d in (descs or []) if isinstance(d, dict)
+                and not d.get("dynamic") and str(d.get("path") or "").endswith(".svg")]
+        dyn = [d for d in (descs or []) if isinstance(d, dict) and d.get("dynamic")]
+        if not svgs:
+            continue
+        svgs.sort(key=lambda d: 0 if d.get("primary") else 1)   # primary first, else stable
+        selected = svgs if eff_level >= 3 else svgs[:1]
+        for d in selected:
+            cap = vocab.humanize_figure_type(d.get("type"), d.get("id"))
+            ref = _FIGURE_BASE + str(d["path"]) if d.get("path") else None
+            dref = next((x.get("path") for x in dyn if x.get("id") == d.get("id")),
+                        (dyn[0].get("path") if dyn else None))
+            out.append(Block(vocab.FIGURE, {
+                # 'fig_kind' NOT 'kind' (reserved — see _figure_blocks / test_no_payload_shadows_kind).
+                "slot": None, "fig_kind": d.get("type"), "ref": ref,
+                "caption": cap, "fallback_text": cap, "show_image": show_image,
+                "card_id": card_id, "primary": bool(d.get("primary")), "status": status,
+                "dynamic_ref": (_FIGURE_BASE + str(dref)) if dref else None,
+            }))
+    return out
+
+
+def _card_figure_owner_map(nomination: dict, skill_reports: dict) -> dict:
+    """Assign each card_id in `card_figures` to ONE owning skill short. A card composes under several
+    lenses (its card_id appears in multiple sub_verdicts.cards_used); prefer the GATING lister (spine
+    role, else GATING_SHORTS), then canonical SKILL_ORDER — so a card that carries a gating verdict
+    (e.g. normal-tissue-liability under safety) lands there, not under a descriptive lister (presence)
+    that merely displays it. One owner → a figure is never duplicated across sections."""
+    listers: dict = {}
+    for short, sv in (nomination.get("sub_verdicts") or {}).items():
+        if not isinstance(sv, dict):
+            continue
+        for cid in (sv.get("cards_used") or []):
+            listers.setdefault(cid, []).append(short)
+
+    def _is_gating(short: str) -> bool:
+        rep = skill_reports.get(short)
+        rrole = rep.get("role") if isinstance(rep, dict) else None
+        return rrole == "gating" or (rrole is None and short in vocab.GATING_SHORTS)
+
+    def _pick(shorts: list) -> str:
+        pool = [s for s in shorts if _is_gating(s)] or shorts
+        return sorted(pool, key=vocab.skill_order_index)[0]
+
+    return {cid: _pick(shorts) for cid, shorts in listers.items() if shorts}
+
+
+def _figures_by_owner(nomination: dict, owner_map: dict) -> dict:
+    """{owner_short: [(card_id, [descriptor,...]), ...]} — the card figures grouped by owning section,
+    in nomination.card_figures insertion order (deterministic upstream)."""
+    by: dict = {}
+    for cid, descs in (nomination.get("card_figures") or {}).items():
+        if not isinstance(descs, list):
+            continue
+        owner = owner_map.get(cid)
+        if owner:
+            by.setdefault(owner, []).append((cid, descs))
+    return by
+
+
+def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool,
+                   card_figs: list = ()) -> Section:
     role = report.get("role") or ("gating" if short in vocab.GATING_SHORTS else "descriptive")
     eff = spec.level_int_for(short, is_deciding)
 
@@ -170,6 +250,8 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
         blocks.append(Block(vocab.PHASE_METRICS, {"rows": report["per_phase_metrics"]}))
     if eff >= vocab.TIER[vocab.FIGURE]:
         blocks.extend(_figure_blocks(report, eff, spec.medium))
+        blocks.extend(_card_figure_blocks(card_figs, eff, spec.medium,
+                                          report.get("polarity"), role))
 
     # L3: provenance
     if eff >= vocab.TIER[vocab.PROVENANCE] and report.get("provenance"):
@@ -378,7 +460,11 @@ def build_ir(nomination: dict, spec: ReportSpec,
     selected.sort(key=lambda t: _sort_key(
         t[0], t[2], t[1].get("polarity"), t[0] == deciding_short, spec))
 
-    sections = [_build_section(short, report, spec, is_deciding=(short == deciding_short))
+    # run-dir figure join: map each produced card figure to its owning section (gating-lister first).
+    figs_by_owner = _figures_by_owner(nomination, _card_figure_owner_map(nomination, skill_reports))
+
+    sections = [_build_section(short, report, spec, is_deciding=(short == deciding_short),
+                               card_figs=figs_by_owner.get(short, []))
                 for short, report, role in selected]
 
     overview = []

@@ -61,6 +61,15 @@ th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); v
 th { color:var(--muted); font-weight:600; }
 figure { margin:10px 0; } figure img { max-width:100%; border:1px solid var(--line); border-radius:8px; }
 figcaption { color:var(--muted); font-size:13px; margin-top:4px; }
+.fig-badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.03em;
+             border-radius:999px; padding:1px 8px; margin-right:6px; color:#fff;
+             background:var(--none); vertical-align:middle; }
+.fig-badge.sig-supportive { background:var(--supportive); }
+.fig-badge.sig-neutral { background:var(--neutral); }
+.fig-badge.sig-opposing { background:var(--opposing); }
+.fig-badge.sig-killer { background:var(--killer); }
+.fig-badge.sig-insufficient, .fig-badge.sig-not_applicable { background:var(--none); }
+.fig-badge.sig-context { background:transparent; color:var(--muted); border:1px solid var(--line); }
 .unmeasured { color:var(--muted); font-size:13px; font-style:italic; }
 .prov { color:var(--muted); font-size:13px; }
 .about { color:var(--muted); font-size:13px; margin-top:22px; }
@@ -224,10 +233,22 @@ class HtmlBackend:
     def _figure(self, p: dict) -> list:
         cap = _esc(p.get("caption") or "figure")
         ref = p.get("ref")
+        badge = self._fig_badge(p.get("status"))
         if p.get("show_image") and ref:
-            return [f"<figure><img src='{_esc(ref)}' alt='{cap}'><figcaption>{cap}</figcaption></figure>"]
+            return [f"<figure><img src='{_esc(ref)}' alt='{cap}'>"
+                    f"<figcaption>{badge}{cap}</figcaption></figure>"]
         loc = f" <span class='prov'>[{_esc(ref)}]</span>" if ref else ""
-        return [f"<p class='kv'><b>Figure:</b> {cap}{loc}</p>"]
+        return [f"<p class='kv'>{badge}<b>Figure:</b> {cap}{loc}</p>"]
+
+    @staticmethod
+    def _fig_badge(status) -> str:
+        """The verdict pill beside a figure (reserved status palette, icon+label so it survives CVD /
+        greyscale — never colour-alone). `context` is an outlined no-call, not a filled negative."""
+        if not isinstance(status, dict) or not status.get("label"):
+            return ""
+        sig = _esc(status.get("signal") or "context")
+        return (f"<span class='fig-badge sig-{sig}'>{_esc(status.get('icon') or '')} "
+                f"{_esc(status.get('label'))}</span> ")
 
     def _provenance(self, p: dict) -> list:
         prov = p.get("provenance") or {}

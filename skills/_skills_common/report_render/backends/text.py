@@ -174,11 +174,14 @@ class TextBackend:
     def _figure(self, p: dict) -> list:
         cap = p.get("caption") or "figure"
         ref = p.get("ref")
+        st = p.get("status") if isinstance(p.get("status"), dict) else None
+        badge = f"{st.get('icon')} {st.get('label')} — " if (st and st.get("label")) else ""
         if self.md and ref:
-            return [f"![{cap}]({ref})"]
-        # text-only fallback: name the figure + its caption (the figure→text degrade path)
+            # keep the verdict in the caption so the figure↔verdict binding survives the markdown embed.
+            return [f"![{badge}{cap}]({ref})"]
+        # text-only fallback: badge + name the figure + its caption (the figure→text degrade path)
         loc = f" [{ref}]" if ref else ""
-        return [f"{self._b('Figure')}: {cap}{loc}"]
+        return [f"{self._b('Figure')}: {badge}{cap}{loc}"]
 
     def _provenance(self, p: dict) -> list:
         prov = p.get("provenance") or {}

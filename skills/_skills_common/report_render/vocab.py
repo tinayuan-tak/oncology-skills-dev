@@ -183,6 +183,47 @@ def polarity_legend() -> dict:
     return scale_legend()
 
 
+# ---------------------------------------------------------------------------------------------------
+# Figure verdict badge — the "status beside the figure" the figure-emitter redesign (2026-09-03) moved
+# OFF the figure and onto the composing layer (see target-contracts plot_styles/takeda_palette
+# status_for_card / verdict_badge; FIGURE_STYLE_GUIDE §"The VERDICT does NOT appear on the figure").
+# report_render is spine-sourced, so the badge is derived from the SAME `skill_report.polarity` the
+# signals-overview strip reads — figure status and written verdict are one fact and cannot drift, with
+# NO cross-repo import of takeda_palette. The signal vocabulary + short UPPERCASE label mirror
+# VERDICT_STATUS; `signal` is a CSS-class-safe token backends colour with the reserved-status palette.
+# A descriptive/inert card (or off-scale/None polarity) is an honest "context" no-call, never a grey
+# killer. (Per-CARD badges — a figure showing its own card's fired-rule signal rather than the parent
+# skill's — need the nomination spine to carry per-card fired-rule dicts; that is an upstream change.)
+_FIGURE_STATUS: dict[str, tuple] = {          # polarity → (signal token, label, icon)
+    "supportive":     ("supportive", "SUPPORTS", "△"),
+    "neutral":        ("neutral", "NEUTRAL", "•"),
+    "opposing":       ("opposing", "AGAINST", "▽"),
+    "killer":         ("killer", "KILLER", "⛔"),
+    "insufficient":   ("insufficient", "INSUFFICIENT", "◌"),
+    "not_applicable": ("not_applicable", "N/A", "◌"),
+}
+_FIGURE_STATUS_CONTEXT = ("context", "CONTEXT", "◇")
+
+
+def figure_status(polarity: Optional[str], role: Optional[str] = None) -> dict:
+    """One card figure's verdict badge, derived from its section's spine polarity. Returns
+    {signal, label, icon}. Off-scale / descriptive / inert / unknown → the `context` no-call."""
+    if role in ("descriptive", "inert") or polarity in (None, "not_scored"):
+        sig, label, icon = _FIGURE_STATUS_CONTEXT
+    else:
+        sig, label, icon = _FIGURE_STATUS.get(polarity, _FIGURE_STATUS_CONTEXT)
+    return {"signal": sig, "label": label, "icon": icon}
+
+
+def humanize_figure_type(fig_type: Optional[str], fallback: Optional[str] = None) -> str:
+    """A card figure descriptor carries a machine `type`/`id` (e.g. 'density_histogram_with_kde'), not a
+    prose caption — humanize it into a readable caption (fallback → id → 'figure')."""
+    for cand in (fig_type, fallback):
+        if cand:
+            return str(cand).replace("_", " ").strip().capitalize()
+    return "figure"
+
+
 __all__ = [
     "SKILL_DISPLAY", "SKILL_ORDER", "GATING_SHORTS", "ROLE_RANK", "SKILL_NAME_TO_SHORT",
     "skill_title", "skill_order_index", "skill_short_for_name",
@@ -192,4 +233,5 @@ __all__ = [
     "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",
     "LITERATURE_RISK", "DECIDING_AXIS",
     "polarity_glyph", "polarity_label", "polarity_rank", "polarity_legend",
+    "figure_status", "humanize_figure_type",
 ]

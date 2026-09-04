@@ -76,6 +76,57 @@ def make_nomination() -> dict:
                        "cited_pmids": ["12345678", "23456789"]},
             "clinical": {"risk_level": "MEDIUM", "interpretation": "no approved precedent"},
         }},
+        # top-level sub_verdicts (the real nomination shape) — cards_used gives report_render the
+        # card_id → owning-skill join. normal-tissue-liability composes under BOTH safety (gating) and
+        # target_intrinsic (descriptive) → the figure join must route it to safety (gating-lister wins),
+        # never duplicate it under both.
+        "sub_verdicts": {
+            "dependency": {"skill_dir": "functional-requirement", "verdict": "genetic_dependency",
+                           "driving_rule_id": "strongly-selective-supportive",
+                           "fired_rule_ids": ["strongly-selective-supportive"],
+                           "cards_used": ["pan-cancer-crispr-dependency-distribution",
+                                          "dependency-lineage-selectivity"], "cards_missing": []},
+            "safety": {"skill_dir": "on-target-safety-liability", "verdict": "lof_constrained",
+                       "driving_rule_id": "gnomad-lof-constrained-veto",
+                       "fired_rule_ids": ["gnomad-lof-constrained-veto"],
+                       "cards_used": ["gnomad-lof-constraint", "normal-tissue-liability"],
+                       "cards_missing": []},
+            "target_intrinsic": {"skill_dir": "target-intrinsic", "verdict": None,
+                                 "driving_rule_id": None, "fired_rule_ids": [],
+                                 "cards_used": ["normal-tissue-liability", "functional-gene-state"],
+                                 "cards_missing": []},
+        },
+        # per-card figures produced this run (descriptor shape from _figure_emitters: id/path/type/
+        # primary/dynamic; path relative to figures/). A plotly.json sibling (dynamic:True) is carried
+        # as dynamic_ref, never its own image block.
+        "card_figures": {
+            "pan-cancer-crispr-dependency-distribution": [
+                {"id": "chronos_density",
+                 "path": "cards/pan-cancer-crispr-dependency-distribution/figure_chronos_density.svg",
+                 "type": "chronos_dependency_density", "primary": True, "dynamic": None},
+                {"id": "chronos_lineage",
+                 "path": "cards/pan-cancer-crispr-dependency-distribution/figure_chronos_lineage.svg",
+                 "type": "per_lineage_strip_plot", "primary": False, "dynamic": None},
+                {"id": "chronos_density",
+                 "path": "cards/pan-cancer-crispr-dependency-distribution/figure_chronos_density.plotly.json",
+                 "type": "plotly", "primary": None, "dynamic": True},
+            ],
+            "gnomad-lof-constraint": [
+                {"id": "loeuf_vs_genome",
+                 "path": "cards/gnomad-lof-constraint/figure_loeuf_vs_genome.svg",
+                 "type": "loeuf_vs_genome_distribution", "primary": True, "dynamic": None},
+            ],
+            "normal-tissue-liability": [
+                {"id": "normal_tissue_heatmap",
+                 "path": "cards/normal-tissue-liability/figure_normal_tissue_expression_heatmap.svg",
+                 "type": "normal_tissue_expression_heatmap", "primary": True, "dynamic": None},
+            ],
+            "functional-gene-state": [
+                {"id": "gene_state",
+                 "path": "cards/functional-gene-state/figure_functional_gene_state.svg",
+                 "type": "functional_gene_state_bar", "primary": True, "dynamic": None},
+            ],
+        },
         "target_report": {
             "schema": "target_report.v1",
             "skill_reports": {
