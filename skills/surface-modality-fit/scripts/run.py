@@ -97,6 +97,10 @@ _SURFACE_DOWNGRADE_REASON = {
     "tce_unsafe_normal_liability":    "a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe",
     "surface_viable_density_caveated": "measured antigen surface density reads below the TCE payload floor",
     "shed_dominant_opposed":          "a clinically-shed ectodomain acts as a circulating antigen sink / decoy",
+    # #979: the MIDDLE antigen-escape band — coverage adequate but inconsistent across donors. Surface it as
+    # an explicit patient-selection escape flag (the issue's "raise an explicit escape-risk flag" ask).
+    "adc_preferred_tce_patient_variable": "within-tumor antigen detection is inconsistent across donors (patient-variable escape) — a TCE/CAR patient-selection risk (ADC unaffected)",
+    "tce_patient_variable":           "within-tumor antigen detection is inconsistent across donors (patient-variable escape) — a TCE/CAR patient-selection risk",
 }
 
 
@@ -170,6 +174,11 @@ _VERDICT_ARMS = {
     "tce_unsafe_normal_liability":   {"adc": "not_preferred", "bite_tce": "unsafe",       "antibody": "not_preferred"},
     "adc_preferred_tce_escape_risk": {"adc": "viable",        "bite_tce": "escape_risk",  "antibody": "viable"},
     "tce_escape_risk":               {"adc": "not_preferred", "bite_tce": "escape_risk",  "antibody": "not_preferred"},
+    # Patient-variable antigen-escape (#979): the MIDDLE escape band TEMPERS the TCE arm (patient-selection
+    # caveat), NOT the escape_risk foreclosure — bite_tce reads `patient_variable_escape` (a caveat, distinct
+    # from `escape_risk`). ADC/antibody preserved (escape-insensitive).
+    "adc_preferred_tce_patient_variable": {"adc": "viable",   "bite_tce": "patient_variable_escape", "antibody": "viable"},
+    "tce_patient_variable":          {"adc": "not_preferred", "bite_tce": "patient_variable_escape", "antibody": "viable"},
     "surface_viable_density_caveated": {"adc": "caveated",    "bite_tce": "caveated",     "antibody": "caveated"},
     "shed_dominant_opposed":         {"adc": "opposed",       "bite_tce": "opposed",      "antibody": "opposed"},
     "pmhc_tce_supported":            {"adc": "not_viable",    "bite_tce": "not_viable",   "antibody": "not_viable",
@@ -210,7 +219,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.7.0"   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
                           # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -398,7 +407,10 @@ _SM_STRONG_POS = {"both_viable"}
 # a moderate bite_tce-scoped positive (experimentally-validated IEDB epitope ground truth, single-axis /
 # necessary-not-sufficient), grouped with the other modality-preferring positives.
 _SM_MOD_POS = {"adc_preferred", "tce_preferred", "surface_viable_density_caveated",
-               "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk", "pmhc_tce_supported"}
+               "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk", "pmhc_tce_supported",
+               # patient-variable antigen-escape (#979): positive-caveated (TCE tempered, not foreclosed) —
+               # NOT in _SM_NEG (unlike tce_escape_risk), so a validated antigen stays a moderate positive.
+               "adc_preferred_tce_patient_variable", "tce_patient_variable"}
 _SM_WEAK_POS = {"shed_dominant_opposed"}
 _SM_NEG = {"neither_viable", "tce_unsafe_normal_liability", "tce_escape_risk"}
 _SM_NONE = {"modality_ambiguous", "isoform_dependent_undefined", "insufficient", "data_unavailable", None}
@@ -510,10 +522,18 @@ def _sm_modality_scope(v) -> dict | None:
     """The verdict's native per-biologic-modality preference. small_molecule = na (out of scope for
     surface fit); adc/bite_tce carried as _refinements; biologics base = best of the two."""
     adc = bite = None
-    if v in ("adc_preferred", "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk"):
+    if v in ("adc_preferred", "adc_preferred_tce_unsafe", "adc_preferred_tce_escape_risk",
+             "adc_preferred_tce_patient_variable"):
         adc = "favorable"
         bite = {"adc_preferred_tce_unsafe": "unfavorable",
-                "adc_preferred_tce_escape_risk": "conditional"}.get(v, "unfavorable")
+                "adc_preferred_tce_escape_risk": "conditional",
+                # #979: patient-variable escape TEMPERS the TCE arm to conditional (a patient-selection
+                # caveat), milder than the escape_risk foreclosure — ADC stays favorable.
+                "adc_preferred_tce_patient_variable": "conditional"}.get(v, "unfavorable")
+    elif v == "tce_patient_variable":
+        # #979: TCE-preferred base with a patient-variable escape caveat — TCE conditional (not excluded,
+        # unlike tce_escape_risk); ADC not excluded (mirrors tce_preferred). Biologics stays favorable.
+        adc, bite = "favorable", "conditional"
     elif v == "tce_preferred":
         adc, bite = "favorable", "favorable"     # TCE preferred; ADC not excluded
     elif v == "both_viable":

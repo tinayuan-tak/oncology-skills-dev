@@ -159,6 +159,34 @@ def test_tce_antigen_escape_is_an_efficacy_mover_distinct_from_safety_2026_08_24
     assert _vv("adc-preferred-supportive", "sc-antigen-escape-high-tce-opposing")[0] == "adc_preferred"
 
 
+def test_tce_antigen_escape_patient_variable_tempers_not_forecloses_2026_09_04():
+    # EFFICACY mover (#979): the MIDDLE escape band (escape_risk_patient_variable) TEMPERS the TCE arm with
+    # a patient-selection caveat → OWN positive-caveated verdicts, distinct from the escape_risk_high
+    # foreclosure. ADC preserved.
+    assert _vv("both-viable-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred_tce_patient_variable"
+    assert _vv("tce-preferred-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "tce_patient_variable"
+    # an ADC_preferred base is unaffected (escape is a TCE concern only).
+    assert _vv("adc-preferred-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred"
+    # DON'T-OVER-PENALIZE: unlike tce_escape_risk (a _SM_NEG negative), the patient_variable tokens are
+    # positive-caveated (_SM_MOD_POS) — a validated antigen with normal patient-variability stays a positive.
+    assert "adc_preferred_tce_patient_variable" in smf._SM_MOD_POS
+    assert "tce_patient_variable" in smf._SM_MOD_POS
+    assert "tce_patient_variable" not in smf._SM_NEG
+
+
+def test_patient_variable_ranks_below_high_escape_and_above_density():
+    # The escape class is single-valued so the two escape rungs cannot co-fire on live data; the ordering
+    # is still priority-pinned. escape_risk_high (harder foreclosure) outranks patient_variable.
+    assert _vv("both-viable-supportive", "sc-antigen-escape-high-tce-opposing",
+               "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred_tce_escape_risk"
+    # patient_variable (an efficacy TCE caveat) outranks the density caveat.
+    assert _vv("both-viable-supportive", "sc-antigen-escape-patient-variable-tce-opposing",
+               "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_patient_variable"
+    # SAFETY still outranks the patient-variable efficacy caveat.
+    assert _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing",
+               "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+
+
 def test_liability_precedence_absence_beats_safety_beats_escape_beats_density():
     # protein-absence (both dead) > TCE-safety downgrade > TCE-efficacy escape > density caveat (first-match).
     assert _vv("both-viable-supportive", "ihc-not-detected-killer", "shed-ectodomain-clinical-opposing")[0] == "neither_viable"
