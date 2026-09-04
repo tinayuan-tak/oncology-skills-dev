@@ -16,7 +16,8 @@
       "properties": {
         "level": {"type": ["string", "null"]},
         "basis": {"type": ["string", "null"]},
-        "coverage": {"type": ["string", "null"]}
+        "coverage": {"type": ["string", "object", "null"],
+                     "description": "free string OR {n_measured, n_axes, n_critical_measured}"}
       }
     },
     "top_tension": {

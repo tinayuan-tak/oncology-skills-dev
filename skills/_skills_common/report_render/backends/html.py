@@ -149,7 +149,11 @@ class HtmlBackend:
         out = [f"<h1>Target report — {tgt} × {ind}</h1>"]
         rec = p.get("recommendation")
         if rec:
-            klass = {"go": "go", "hold": "hold", "kill": "kill", "no": "kill"}.get(
+            # map the actual recommendation vocabulary → semantic badge color (was only go/hold/kill,
+            # so "nominate"/"advance"/"decline" fell through to the grey 'none' chip — bug).
+            klass = {"nominate": "go", "advance": "go", "go": "go",
+                     "hold": "hold", "conditional": "hold", "watch": "hold",
+                     "kill": "kill", "decline": "kill", "no": "kill", "drop": "kill"}.get(
                 str(rec).strip().lower().split()[0], "")
             out.append(f"<p class='kv'><b>Recommendation:</b> "
                        f"<span class='badge {klass}'>{_esc(rec)}</span></p>")
@@ -329,9 +333,10 @@ class HtmlBackend:
                 f"<tbody>{''.join(trs)}</tbody></table>"]
 
     def _deciding_axis(self, p: dict) -> list:
-        title = _esc(p.get("title") or p.get("short") or "—")
-        detail = _esc(p.get("routing") or p.get("basis") or "")
-        return [f"<h2>Deciding axis</h2><p class='kv'><b>{title}</b>"
+        axes = p.get("axes") or []
+        name = _esc(", ".join(axes) if axes else (p.get("title") or p.get("short") or "—"))
+        detail = _esc(p.get("routing") or (_humanize(p.get("basis")) if p.get("basis") else ""))
+        return [f"<h2>Deciding axis</h2><p class='kv'><b>{name}</b>"
                 + (f" — {detail}" if detail else "") + "</p>"]
 
 
@@ -340,9 +345,11 @@ def _signal_strip_svg(rows, deciding_short) -> str:
     right = supports / left = counts-against, width ∝ |ordinal level|; neutral = a dot, off-scale = a
     dashed hollow square (a gap, NOT 'worst'). Direction is encoded by side + label too (CVD-safe).
     Ported from the tp_dashboard v2 design; fed from the spine's canonical polarity level."""
+    # worst-first (killer −3 → supportive +2), matching the killers-lead per-skill section order;
+    # off-scale (level None) trails. (Was descending → supportive-first, contradicting the sections.)
     def _key(r):
         lv = r.get("level")
-        return (0, -lv) if lv is not None else (1, 0)
+        return (0, lv) if lv is not None else (1, 0)
     rows = sorted(rows, key=_key)
     n = len(rows)
     LBL, AX = 300, 122

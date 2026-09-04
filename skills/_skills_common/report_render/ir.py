@@ -71,7 +71,13 @@ def _deciding_short(deciding_axis: Any, shorts) -> Optional[str]:
     """Best-effort extract the deciding skill's short from the target_call.deciding_axis object."""
     if not isinstance(deciding_axis, dict):
         return None
-    for k in ("short", "axis", "skill", "deciding_skill", "deciding_axis"):
+    # canonical shape: {basis, deciding_axes: [{short, gate_name, band, ...}, ...]} — take the first.
+    axes = deciding_axis.get("deciding_axes")
+    if isinstance(axes, list):
+        for a in axes:
+            if isinstance(a, dict) and a.get("short"):
+                return a["short"]
+    for k in ("short", "axis", "skill", "deciding_skill"):
         v = deciding_axis.get(k)
         if isinstance(v, str) and v in shorts:
             return v
@@ -281,10 +287,14 @@ def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
         return None
     th = tc.get("thesis")
     thesis = th.get("primary") if isinstance(th, dict) else tc.get("primary")
-    coherence = tc.get("coherence")
+    coh = tc.get("coherence")
+    # coherence is a dict {class, confirms, caveats, artifact_flags} — surface only the class string
+    # (+ non-empty caveats), never the raw dict (str(dict) was leaking into the page).
+    coherence = coh.get("class") if isinstance(coh, dict) else coh
+    caveats = [c for c in (coh.get("caveats") or [])] if isinstance(coh, dict) else []
     if (not thesis or thesis == "insufficient_thesis") and not coherence:
         return None
-    return Block(vocab.COHERENCE, {"thesis": thesis, "coherence": coherence})
+    return Block(vocab.COHERENCE, {"thesis": thesis, "coherence": coherence, "caveats": caveats})
 
 
 def _modality_matrix_block(tr: dict, nomination: dict) -> Optional[Block]:
@@ -313,9 +323,12 @@ def _deciding_axis_block(target_call: dict, nomination: dict, deciding_short) ->
     da = (target_call or {}).get("deciding_axis") or nomination.get("deciding_axis")
     if not isinstance(da, dict) or not da:
         return None
+    axis_titles = [vocab.skill_title(a["short"]) for a in (da.get("deciding_axes") or [])
+                   if isinstance(a, dict) and a.get("short")]
+    primary = (vocab.skill_title(deciding_short) if deciding_short
+               else (axis_titles[0] if axis_titles else None))
     return Block(vocab.DECIDING_AXIS, {
-        "short": deciding_short,
-        "title": vocab.skill_title(deciding_short) if deciding_short else None,
+        "short": deciding_short, "title": primary, "axes": axis_titles,
         "routing": da.get("routing"), "basis": da.get("basis"),
     })
 

@@ -26,7 +26,7 @@ def _skill(*, call, role, polarity, honest_phrase="phrase", with_evidence=False,
     }
     if with_evidence:
         r["confidence"] = confidence or {"level": "moderate", "basis": "2 concordant assays",
-                                         "coverage": "3/4 cards"}
+                                         "coverage": {"n_measured": 4, "n_axes": 5, "n_critical_measured": 2}}
         r["claim_chips"] = [
             {"key": "A", "label": "constraint", "signal": "supportive",
              "corroboration": "high", "conflict": None, "evidence": "pLI 0.99",
@@ -95,7 +95,9 @@ def make_nomination() -> dict:
                 "schema": "target_call.v1",
                 "recommendation": "hold",
                 "confidence": {"level": "moderate", "basis": "killer safety vs supportive dependency"},
-                "deciding_axis": {"short": "safety", "basis": "gate_fired"},
+                "deciding_axis": {"basis": "gate_fired", "coverage_source": "vocab",
+                                  "deciding_axes": [{"short": "safety", "gate_name": "On-target safety",
+                                                     "band": "necessity"}]},
                 "dissent": [{"source": "dependency", "detail": "supportive signal overruled by safety",
                              "resolved_to": "hold"}],
                 "gate": {"recommendation_gate": "hold"},
@@ -105,8 +107,10 @@ def make_nomination() -> dict:
                 "safety": {"bin": "HIGH"}, "translational": {"bin": "LOW"},
                 "clinical": {"bin": "MED"}, "commercial": {"bin": "ENGINE-BLIND"},
             },
-            "thesis": {"thesis": {"primary": "selective_dependency_with_safety_ceiling"},
-                       "coherence": "locus→expression→dependency coherent in MSI-high"},
+            "thesis": {"schema": "target_coherence.v1",
+                       "thesis": {"primary": "selective_dependency_with_safety_ceiling"},
+                       "coherence": {"class": "coherent", "confirms": [], "caveats": [],
+                                     "artifact_flags": []}},
             "evidence_matrix": {
                 "axes": {"columns": ["small_molecule", "degrader", "adc", "bite_tce"]},
                 "rows": [

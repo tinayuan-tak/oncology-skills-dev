@@ -273,11 +273,13 @@ class TextBackend:
         return self._h2("Literature risk (context)") + self._table(["dimension", "risk", "note"], rows)
 
     def _deciding_axis(self, p: dict) -> list:
-        line = f"{self._b('Deciding axis')}: {p.get('title') or p.get('short') or '—'}"
+        axes = p.get("axes") or []
+        name = ", ".join(axes) if axes else (p.get("title") or p.get("short") or "—")
+        line = f"{self._b('Deciding axis')}: {name}"
         if p.get("routing"):
             line += f" — {p['routing']}"
         elif p.get("basis"):
-            line += f" ({p['basis']})"
+            line += f" ({_humanize(p['basis'])})"
         return [line]
 
 
@@ -290,6 +292,9 @@ def _confidence_summary(conf) -> Optional[str]:
     level = conf.get("level") or conf.get("tier")
     basis = conf.get("basis")
     cov = conf.get("coverage")
+    if isinstance(cov, dict):  # {n_measured, n_axes, n_critical_measured} — format, never str(dict)
+        nm, na, nc = cov.get("n_measured"), cov.get("n_axes"), cov.get("n_critical_measured")
+        cov = (f"{nm}/{na} axes" + (f" ({nc} critical)" if nc is not None else "")) if na is not None else None
     parts = [p for p in [level, f"basis: {basis}" if basis else None,
                          f"coverage: {cov}" if cov else None] if p]
     return " · ".join(map(str, parts)) if parts else None
