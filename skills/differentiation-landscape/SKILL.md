@@ -25,7 +25,7 @@ description: |
   artifactual mutual-exclusivity signals for panel-absent genes.
 
 metadata:
-  version: 1.9.1
+  version: 1.10.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 

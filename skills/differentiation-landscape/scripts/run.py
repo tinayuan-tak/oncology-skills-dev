@@ -45,14 +45,21 @@ from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.9.1"   # 1.9.1 (2026-09-04): + clonality_caveat headline field — COHORT-level (same-SAMPLE)
-                          #        co-occurrence != same-CELL/clonal (the (c) sub-inflation the v1.9.0 arc omitted): a pooled
-                          #        bulk TCGA-MC3+GENIE Fisher pair cannot resolve clonal vs subclonal/parallel evolution
-                          #        (Gerlinger 2012 PMID 22397650; McGranahan-Swanton 2017 PMID 28187284). Fires on the co-occurring
-                          #        path only (target/indication-independent), None on exclusivity-only/ns/data_unavailable; + a
-                          #        clonality clause in the DIFFERENTIATION polarity_note. VERDICT-INERT (reads only already-emitted
-                          #        headline fields; no new card-field read -> skills-only). differentiation_verdict + replay + golden
-                          #        byte-stable.
+SKILL_VERSION = "1.10.0"  # 1.10.0 (2026-09-04, cross-indication generalization follow-up): the v1.9.0 cooccurrence
+                          #        confidence crosswalks were COADREAD-only, so BRAF/SKCM, KRAS/LUAD, KRAS/PAAD, NRAS/SKCM,
+                          #        TP53/BRCA, TP53/LUAD, EGFR/LUAD all read caveat=None (the canonical MAPK/RTK exclusivity +
+                          #        TP53 near-universality signals silently vanished outside CRC). Generalized: the RAS/RAF MAPK-
+                          #        exclusivity guard (_ESTABLISHED_MAPK_EXCLUSIVITY_GENES = KRAS/NRAS/HRAS/BRAF) + TP53
+                          #        near-universal (_NEAR_UNIVERSAL_GENES) are now PAN-CANCER gene-level; +NSCLC RTK-driver
+                          #        exclusivity (EGFR/LUAD/LUSC/NSCLC explicit); +IDH1/GBM as the LINEAGE arm of the confound tier
+                          #        (WHO-2021 IDH-mutant glioma is a distinct lineage). The TMB/lineage confound stays
+                          #        (target,indication)-specific (BRAF/COADREAD TMB arm) and OUTRANKS the pan-cancer guard.
+                          #        VERDICT-INERT (crosswalks feed only the caveat/provenance; resolver + replay + golden byte-stable).
+                          # 1.9.1 (2026-09-04, #1037): + clonality_caveat headline field — COHORT-level (same-SAMPLE)
+                          #        co-occurrence != same-CELL/clonal (the (c) sub-inflation): a pooled bulk TCGA-MC3+GENIE Fisher
+                          #        pair cannot resolve clonal vs subclonal/parallel evolution (Gerlinger 2012 PMID 22397650;
+                          #        McGranahan-Swanton 2017 PMID 28187284). Fires on the co-occurring path only; + a clonality clause
+                          #        in the DIFFERENTIATION polarity_note. VERDICT-INERT.
                           # 1.9.0 (2026-09-04, literature-and-claims arc): (1) BAKE the OPTIONAL --literature lane
                           #        (was UNWIRED — literature_fn=make_literature_fn(DIFFERENTIATION_LANDSCAPE, default_retrieve,
                           #        verify_citations); refined _LENS_QUERY_TERMS +TMB/MSI/patient-strat/combo). (2) NEW consolidated
@@ -252,33 +259,52 @@ def _norm_ind(indication) -> str:
 # pairwise biological interaction (the SHARP driver). Keyed on the CO-OCCURRENCE component; the target's
 # MUTUAL-EXCLUSIVITY may still be real (BRAF↔KRAS/NRAS MAPK redundancy) — the detail + polarity_note carry
 # that nuance. DISCLAIMED / non-exhaustive; an absent target degrades to a data tier or None.
+# (target, indication)-SPECIFIC because the confound IS indication-specific — the SAME target can be a
+# burden/lineage-confounded co-occurrence HUB in one indication and a clean driver in another (BRAF-V600E is
+# MSI-confounded in CRC but NOT in melanoma; IDH1 defines a distinct glioma lineage but is a clean AML driver).
+# Two ARMS: TMB/hypermutation and LINEAGE/subtype. DISCLAIMED / non-exhaustive; an absent (target,indication)
+# degrades to the pan-cancer established/near-universal check, then a data tier, then None.
 _TMB_LINEAGE_CONFOUNDED_COMUT = {
     ("BRAF", "COADREAD"): (
-        "BRAF-V600E CRC is tightly bound to CIMP-high / MLH1-hypermethylated sporadic MSI-H / hypermutation "
-        "(serrated pathway; ~half of BRAF-mutant CRC is MSI-H), so its apparent co-occurrence with a long "
-        "passenger tail is a tumor-mutational-burden artifact, not a pairwise biological interaction "
-        "(Weisenberger 2006 PMID 16804544; TCGA 2012 PMID 22810696; van de Haar 2019 PMID 31150618; DISCOVER "
-        "Canisius 2016 PMID 27986087 — chance explains most co-occurrence). The actionable axis in this "
-        "subset is MSI/dMMR (checkpoint benefit; KEYNOTE-177), not the BRAF co-mutation per se."),
+        "TMB arm — BRAF-V600E CRC is tightly bound to CIMP-high / MLH1-hypermethylated sporadic MSI-H / "
+        "hypermutation (serrated pathway; ~half of BRAF-mutant CRC is MSI-H), so its apparent co-occurrence "
+        "with a long passenger tail is a tumor-mutational-burden artifact, not a pairwise biological "
+        "interaction (Weisenberger 2006 PMID 16804544; TCGA 2012 PMID 22810696; van de Haar 2019 PMID "
+        "31150618; DISCOVER Canisius 2016 PMID 27986087 — chance explains most co-occurrence). The actionable "
+        "axis in this subset is MSI/dMMR (checkpoint benefit; KEYNOTE-177), not the BRAF co-mutation per se."),
+    ("IDH1", "GBM"): (
+        "LINEAGE arm — IDH1 mutation defines a DISTINCT glioma lineage (IDH-mutant lower-grade glioma / "
+        "secondary GBM) that is molecularly separate from IDH-wildtype primary GBM (EGFR-amplified / "
+        "PTEN-lost / +7/-10); WHO 2021 classifies them as different entities. So IDH1's co-occurrence / "
+        "mutual-exclusivity in a pooled GBM cohort reflects the IDH-mutant SUBTYPE restriction (a Simpson's-"
+        "paradox / population-stratification confound), not a pairwise interaction (Yan 2009 PMID 19228619; "
+        "Ceccarelli 2016 PMID 26824661; Guinney-style subtype confound van de Haar 2019 PMID 31150618)."),
 }
 
-# canonical, biologically-ESTABLISHED same-pathway relationships that must NOT be demoted (the KRAS/BRAF-
-# class MAPK mutual-exclusivity FALSE-DEMOTE GUARD). One activating MAPK hit is sufficient, so KRAS/NRAS/BRAF
-# are mutually exclusive by pathway redundancy (Rajagopalan 2002 PMID 12198537; Davies 2002 PMID 12068308) —
-# a validated patient-selection biomarker (anti-EGFR negative predictor; CRYSTAL PMID 19339720 / PRIME PMID
-# 24024839). KRAS-mutant CRC is MSS/CIN (NOT hypermutated), so its APC/TP53/SMAD4 co-occurrence is the real
-# adenoma-carcinoma sequence (Fearon-Vogelstein PMID 2188735), not a burden artifact.
+# canonical, biologically-ESTABLISHED same-pathway relationships that must NOT be demoted (the FALSE-DEMOTE
+# GUARD). The RAS/RAF MAPK-activating drivers are mutually exclusive by same-pathway redundancy in ANY cancer
+# — one activating hit is sufficient (Rajagopalan 2002 PMID 12198537; Davies 2002 PMID 12068308; MEMo module
+# analysis Ciriello 2012 PMID 21908773) — a validated patient-selection biomarker (anti-EGFR negative
+# predictor; CRYSTAL PMID 19339720 / PRIME PMID 24024839). So this arm is GENE-LEVEL / PAN-CANCER (the
+# exclusivity is canonical regardless of indication); a target here is spared UNLESS the (target, indication)
+# is in the confound set above (the confound OUTRANKS — BRAF/COADREAD is still confounded).
+_ESTABLISHED_MAPK_EXCLUSIVITY_GENES = {"KRAS", "NRAS", "HRAS", "BRAF"}
+
+# non-MAPK canonical same-pathway exclusivities that ARE indication-specific (kept as explicit
+# (target, indication) rows): the NSCLC RTK-driver exclusivity — EGFR is mutually exclusive with KRAS/ALK in
+# lung adenocarcinoma because one activating RTK→RAS→MAPK driver is sufficient (the canonical NSCLC oncogenic-
+# driver partition). DISCLAIMED / non-exhaustive.
 _BIOLOGICALLY_ESTABLISHED_COMUT = {
-    ("KRAS", "COADREAD"), ("NRAS", "COADREAD"),
+    ("EGFR", "LUAD"), ("EGFR", "LUSC"), ("EGFR", "NSCLC"),
 }
 
 # near-universal drivers whose HIGH co-occurrence count is chiefly a marginal-FREQUENCY consequence (co-occurs
 # with a long partner tail because it is mutated in a majority of tumors) → a q-significant pair is not a
-# patient-selection hypothesis: significance ≠ actionability (the TP53 housekeeping/ubiquitous analog;
-# DISCOVER PMID 27986087). DISCLAIMED / non-exhaustive.
-_NEAR_UNIVERSAL_MUTATION = {
-    ("TP53", "COADREAD"),
-}
+# patient-selection hypothesis: significance ≠ actionability (the housekeeping/ubiquitous analog; DISCOVER
+# PMID 27986087). TP53 is near-universal PAN-CANCER (most solid tumors), so this arm is GENE-LEVEL; an
+# indication-specific near-universal driver can be added to the explicit set below. DISCLAIMED / non-exhaustive.
+_NEAR_UNIVERSAL_GENES = {"TP53"}
+_NEAR_UNIVERSAL_MUTATION: set = set()   # explicit (target, indication) rows for non-pan-cancer near-universal drivers
 
 # cooccurrence_class values that carry a POSITIVE / significant pattern (the caveat fires ONLY on these; a
 # ns / data_unavailable / insufficient / absent read → None, byte-stable on the negative path). SET literal
@@ -291,6 +317,17 @@ _COMUT_COOC_COMPONENT = {"both_patterns_present", "strong_cooccurring", "modest_
 _COMUT_MODEST = {"modest_cooccurring", "modest_mutually_exclusive"}
 
 
+def _is_established(gene: str, key: tuple) -> bool:
+    """Canonical biologically-established same-pathway relationship — the pan-cancer GENE-LEVEL MAPK-triad
+    exclusivity OR an explicit (target, indication) row (the NSCLC RTK-driver exclusivity)."""
+    return gene in _ESTABLISHED_MAPK_EXCLUSIVITY_GENES or key in _BIOLOGICALLY_ESTABLISHED_COMUT
+
+
+def _is_near_universal(gene: str, key: tuple) -> bool:
+    """Near-universal driver — the pan-cancer GENE-LEVEL set (TP53) OR an explicit (target, indication) row."""
+    return gene in _NEAR_UNIVERSAL_GENES or key in _NEAR_UNIVERSAL_MUTATION
+
+
 def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> dict | None:
     """CONSOLIDATED statistical-vs-biological co-mutation confidence call (VERDICT-INERT). Folds effect-size +
     TMB/subtype-confound (curated) + panel-eligibility into ONE consumer-facing "statistically-significant-
@@ -300,11 +337,15 @@ def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> d
     cls = hl.get("cooccurrence_class")
     if cls not in _COMUT_POSITIVE:
         return None                                              # ns / data_unavailable / insufficient → byte-stable
-    key = ((target or "").upper().strip(), _norm_ind(indication))
+    gene = (target or "").upper().strip()
+    key = (gene, _norm_ind(indication))
     has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
     has_mutex = bool(hl.get("has_mutually_exclusive_driver")) or cls == "strong_mutually_exclusive"
 
-    # TIER (i) SHARP — TMB / hypermutation / lineage confound (curated), requires a co-occurring component.
+    # TIER (i) SHARP — TMB / hypermutation / lineage confound ((target,indication)-specific), requires a
+    # co-occurring component. OUTRANKS the pan-cancer established guard (BRAF ∈ the MAPK gene-set, but
+    # BRAF/COADREAD is still confounded — the co-occurrence hub is burden-driven even though the KRAS/NRAS
+    # exclusivity is real).
     if key in _TMB_LINEAGE_CONFOUNDED_COMUT and has_cooc:
         detail = _TMB_LINEAGE_CONFOUNDED_COMUT[key]
         if has_mutex:
@@ -313,19 +354,21 @@ def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> d
         return {"reason": "cooccurrence_tmb_or_lineage_confounded", "tier": "sharp",
                 "false_demote_guarded": False, "detail": detail}
 
-    # TIER (iii) MILDER — biologically-established same-pathway guard OUTRANKS the data cautions (a canonical
-    # KRAS/NRAS/BRAF-class MAPK exclusivity must NOT be flagged as low-effect / uninformative).
-    if key in _BIOLOGICALLY_ESTABLISHED_COMUT:
+    # TIER (iii) MILDER — biologically-established same-pathway guard (pan-cancer MAPK-triad OR the explicit
+    # NSCLC RTK-driver rows) OUTRANKS the data cautions (a canonical KRAS/NRAS/BRAF/EGFR-class exclusivity must
+    # NOT be flagged as low-effect / uninformative).
+    if _is_established(gene, key):
         return {"reason": "biologically_established_pattern", "tier": "milder", "false_demote_guarded": True,
                 "detail": ("Canonical, biologically-established same-pathway relationship — NOT an over-call, "
-                           "explicitly NOT demoted. KRAS/NRAS/BRAF MAPK mutual-exclusivity = one activating hit "
-                           "is sufficient (Rajagopalan 2002 PMID 12198537), a validated anti-EGFR negative "
-                           "predictor (CRYSTAL/PRIME); KRAS-mutant CRC is MSS/CIN, so its APC/TP53/SMAD4 "
-                           "co-occurrence is the real adenoma-carcinoma sequence, not a burden artifact.")}
+                           "explicitly NOT demoted. The RAS/RAF MAPK-activating drivers (KRAS/NRAS/HRAS/BRAF) "
+                           "are mutually exclusive by same-pathway redundancy in ANY cancer — one activating "
+                           "hit is sufficient (Rajagopalan 2002 PMID 12198537; Davies 2002 PMID 12068308) — a "
+                           "validated anti-EGFR negative predictor (CRYSTAL/PRIME); the NSCLC RTK-driver "
+                           "exclusivity (EGFR vs KRAS/ALK) is the same one-driver-sufficient partition.")}
 
-    # TIER (ii) SHARP — significance ≠ actionability: near-universal (curated), then DATA-derived
-    # panel-ineligibility / low effect size.
-    if key in _NEAR_UNIVERSAL_MUTATION:
+    # TIER (ii) SHARP — significance ≠ actionability: near-universal (pan-cancer TP53 OR explicit row), then
+    # DATA-derived panel-ineligibility / low effect size.
+    if _is_near_universal(gene, key):
         return {"reason": "significant_but_near_universal", "tier": "sharp", "false_demote_guarded": False,
                 "detail": ("Near-universal driver: co-occurs with a long partner tail chiefly as a "
                            "marginal-frequency consequence (mutated in a majority of tumors), so a "
@@ -372,7 +415,8 @@ def _cooccurrence_provenance(hl: dict, target=None, indication=None) -> dict | N
     top_mutex = hl.get("top_mutually_exclusive") or []
     srcs = sorted({str((p or {}).get("source", "")).lower()
                    for p in (top_cooc[:10] + top_mutex[:10]) if isinstance(p, dict) and p.get("source")})
-    key = ((target or "").upper().strip(), _norm_ind(indication))
+    gene = (target or "").upper().strip()
+    key = (gene, _norm_ind(indication))
     return {
         "cooccurrence_class": cls,
         "cooccurrence_class_prefloor": hl.get("cooccurrence_class_prefloor"),
@@ -387,8 +431,8 @@ def _cooccurrence_provenance(hl: dict, target=None, indication=None) -> dict | N
         "sources_present": srcs,
         # curated confounder / established flags (the discriminator the pooled Fisher scan is blind to):
         "tmb_or_subtype_confounder_flag": key in _TMB_LINEAGE_CONFOUNDED_COMUT,
-        "biologically_established_flag": key in _BIOLOGICALLY_ESTABLISHED_COMUT,
-        "near_universal_flag": key in _NEAR_UNIVERSAL_MUTATION,
+        "biologically_established_flag": _is_established(gene, key),
+        "near_universal_flag": _is_near_universal(gene, key),
     }
 
 

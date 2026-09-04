@@ -146,7 +146,10 @@ def test_provenance_none_on_negative_and_populated_on_positive():
     }
     prov = m._cooccurrence_provenance(hl, "BRAF", "COADREAD")
     assert prov["tmb_or_subtype_confounder_flag"] is True
-    assert prov["biologically_established_flag"] is False and prov["near_universal_flag"] is False
+    # BRAF ∈ the pan-cancer MAPK-exclusivity gene-set → established_flag True too (its KRAS/NRAS exclusivity is
+    # real); the CAVEAT still resolves to confounded because the (target,indication) confound OUTRANKS the guard.
+    assert prov["biologically_established_flag"] is True and prov["near_universal_flag"] is False
+    assert m._cooccurrence_confidence_caveat(hl, "BRAF", "COADREAD")["reason"] == "cooccurrence_tmb_or_lineage_confounded"
     assert prov["panel_ineligible_exceeds_eligible"] is True
     assert prov["best_cooccurring"]["partner_gene_symbol"] == "ERBB4"
     assert prov["best_mutually_exclusive"]["partner_gene_symbol"] == "KRAS"
@@ -161,7 +164,7 @@ def test_field_absent_safe():
     assert m._clonality_caveat({}) is None
 
 
-# ── clonality caveat: cohort-level ≠ same-cell / clonal (the (c) sub-inflation) ────────────────────
+# ── clonality caveat: cohort-level ≠ same-cell / clonal (the (c) sub-inflation, #1037) ─────────────
 def test_clonality_caveat_fires_on_cooccurring_path():
     m = _load_run_module()
     for hl in (
@@ -191,3 +194,59 @@ def test_clonality_caveat_is_target_indication_independent():
     m = _load_run_module()
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True}
     assert m._clonality_caveat(hl)["reason"] == "cohort_not_same_cell_clonal"
+
+
+# ── CROSS-INDICATION generalization (v1.10.0): the MAPK-exclusivity guard + TP53 near-universal are PAN-CANCER
+#    gene-level, so the canonical signals do not vanish outside COADREAD. The TMB/lineage confound stays
+#    (target,indication)-specific and OUTRANKS the pan-cancer guard. ────────────────────────────────────────
+def test_mapk_exclusivity_guard_is_pan_cancer_gene_level():
+    m = _load_run_module()
+    hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
+          "has_mutually_exclusive_driver": True}
+    # KRAS/NRAS/BRAF are spared as biologically-established in ANY indication (not just COADREAD)
+    for t, ind in [("BRAF", "SKCM"), ("KRAS", "LUAD"), ("KRAS", "PAAD"), ("NRAS", "SKCM"), ("HRAS", "HNSC")]:
+        cav = m._cooccurrence_confidence_caveat(hl, target=t, indication=ind)
+        assert cav and cav["reason"] == "biologically_established_pattern" and cav["false_demote_guarded"] is True, \
+            f"{t}/{ind} expected biologically_established_pattern, got {cav}"
+
+
+def test_braf_coadread_confound_outranks_the_pan_cancer_mapk_guard():
+    """BRAF ∈ the pan-cancer MAPK gene-set, but BRAF/COADREAD is still the TMB-confounded co-occurrence hub —
+    the (target,indication) confound OUTRANKS the gene-level established guard."""
+    m = _load_run_module()
+    hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
+          "has_mutually_exclusive_driver": True}
+    assert m._cooccurrence_confidence_caveat(hl, "BRAF", "COADREAD")["reason"] == "cooccurrence_tmb_or_lineage_confounded"
+    # …but BRAF outside CRC is spared (not MSI-confounded there)
+    assert m._cooccurrence_confidence_caveat(hl, "BRAF", "SKCM")["reason"] == "biologically_established_pattern"
+
+
+def test_tp53_near_universal_is_pan_cancer_gene_level():
+    m = _load_run_module()
+    hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True}
+    for ind in ["BRCA", "LUAD", "LUSC", "OV", "HNSC", "COADREAD"]:
+        cav = m._cooccurrence_confidence_caveat(hl, target="TP53", indication=ind)
+        assert cav and cav["reason"] == "significant_but_near_universal", f"TP53/{ind} got {cav}"
+
+
+def test_nsclc_rtk_driver_exclusivity_explicit_rows():
+    m = _load_run_module()
+    hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
+          "has_mutually_exclusive_driver": True}
+    for ind in ["LUAD", "LUSC", "NSCLC"]:
+        assert m._cooccurrence_confidence_caveat(hl, "EGFR", ind)["reason"] == "biologically_established_pattern"
+    # EGFR outside NSCLC is NOT auto-established (no gene-level EGFR rule) → falls to a data tier or None
+    assert (m._cooccurrence_confidence_caveat(hl, "EGFR", "GBM") or {}).get("reason") != "biologically_established_pattern"
+
+
+def test_idh1_gbm_lineage_confound_arm():
+    """IDH1/GBM exercises the LINEAGE arm of the confound tier (IDH-mutant glioma is a distinct WHO-2021
+    lineage) — the analog of the BRAF/COADREAD TMB arm."""
+    m = _load_run_module()
+    hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
+          "has_mutually_exclusive_driver": True}
+    cav = m._cooccurrence_confidence_caveat(hl, "IDH1", "GBM")
+    assert cav and cav["reason"] == "cooccurrence_tmb_or_lineage_confounded"
+    assert "LINEAGE" in cav["detail"] or "lineage" in cav["detail"]
+    # IDH1 outside GBM is not auto-confounded
+    assert (m._cooccurrence_confidence_caveat(hl, "IDH1", "AML") or {}).get("reason") != "cooccurrence_tmb_or_lineage_confounded"
