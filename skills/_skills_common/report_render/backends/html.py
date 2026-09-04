@@ -389,10 +389,14 @@ class HtmlBackend:
 
     def _deciding_axis(self, p: dict) -> list:
         axes = p.get("axes") or []
-        name = _esc(", ".join(axes) if axes else (p.get("title") or p.get("short") or "—"))
+        name = ", ".join(axes) if axes else (p.get("title") or p.get("short"))
         detail = _esc(p.get("routing") or (_humanize(p.get("basis")) if p.get("basis") else ""))
-        return [f"<h2>Deciding axis</h2><p class='kv'><b>{name}</b>"
-                + (f" — {detail}" if detail else "") + "</p>"]
+        if name:
+            body = f"<b>{_esc(name)}</b>" + (f" — {detail}" if detail else "")
+        else:
+            # no NAMED axis — lead with the routing, never an empty "— —" pair.
+            body = detail or "—"
+        return [f"<h2>Deciding axis</h2><p class='kv'>{body}</p>"]
 
     def _flip_conditions(self, p: dict) -> list:
         rows = p.get("rows") or []

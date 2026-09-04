@@ -64,3 +64,26 @@ def test_tension_source_is_humanized_not_raw():
     t = render_report(nom, preset="full", backend="text")
     assert "key_signals.caveat" not in t
     assert "key signals caveat" in t
+
+
+# a no-NAMED-axis deciding_axis (gate-forced hold / "cannot decide") — routing only, no named axes.
+# Surfaced by the MYC/MSLN/ALK panel: header read "Deciding axis: — — cannot decide…".
+_NO_NAME_DA = {"basis": "no_signal", "deciding_axes": [],
+               "routing": "cannot decide; no gate produced a signal and no coverage map available."}
+
+
+def test_deciding_axis_no_named_axis_has_no_double_dash_placeholder_text():
+    nom = make_nomination()
+    nom["target_report"]["target_call"]["deciding_axis"] = _NO_NAME_DA
+    t = render_report(nom, preset="full", backend="text")
+    line = next(ln for ln in t.splitlines() if ln.upper().startswith("DECIDING AXIS:"))
+    assert "— —" not in line and "—  —" not in line
+    assert "cannot decide" in line                              # routing leads
+
+
+def test_deciding_axis_no_named_axis_html_has_no_empty_bold():
+    nom = make_nomination()
+    nom["target_report"]["target_call"]["deciding_axis"] = _NO_NAME_DA
+    h = render_report(nom, preset="full", backend="html")
+    assert "<b></b>" not in h and "<b>—</b> —" not in h
+    assert "cannot decide" in h

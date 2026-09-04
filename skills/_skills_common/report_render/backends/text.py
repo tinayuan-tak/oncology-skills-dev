@@ -304,12 +304,16 @@ class TextBackend:
 
     def _deciding_axis(self, p: dict) -> list:
         axes = p.get("axes") or []
-        name = ", ".join(axes) if axes else (p.get("title") or p.get("short") or "—")
-        line = f"{self._b('Deciding axis')}: {name}"
-        if p.get("routing"):
-            line += f" — {p['routing']}"
-        elif p.get("basis"):
-            line += f" ({_humanize(p['basis'])})"
+        name = ", ".join(axes) if axes else (p.get("title") or p.get("short"))
+        routing = p.get("routing") or (f"({_humanize(p['basis'])})" if p.get("basis") else "")
+        if name:
+            line = f"{self._b('Deciding axis')}: {name}"
+            if routing:
+                line += f" — {routing}"
+        else:
+            # no NAMED axis (e.g. gate-forced hold, or "cannot decide") — lead with the routing text,
+            # never render an empty "— —" placeholder pair.
+            line = f"{self._b('Deciding axis')}: {routing or '—'}"
         return [line]
 
     def _flip_conditions(self, p: dict) -> list:
