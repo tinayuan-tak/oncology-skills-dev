@@ -106,3 +106,16 @@ def test_intracellular_not_cleared_by_biologics_without_viability():
     viable) must NOT have its WT-loss hold cleared just because biologics report not_applicable."""
     survives, _ = _survives(_NONGOF)  # no surface_modality present → biologics arm not viable
     assert survives, "not_applicable must not clear a hold when the biologics arm is not viable"
+
+
+def test_surface_foreclosed_channel_not_listed_safe():
+    """safe_channels honesty: under `adc_preferred_tce_unsafe` the surface verdict EXPLICITLY forecloses
+    the TCE channel, so bite_tce must NOT appear in safe_channels (it is not a genuinely viable escape) —
+    while the truly-viable adc/antibody arms still clear the hold. Prevents the per-veto escape scope from
+    over-reading as global modality viability (the ERBB2 ADC-only case)."""
+    survives, supp = _survives_surface(_AMP, "adc_preferred_tce_unsafe")
+    assert not survives
+    rec = next(s for s in supp if s.get("suppressed_by", {}).get("kind") == "exists_safe_modality")
+    chans = rec["suppressed_by"]["safe_channels"]
+    assert "adc" in chans and "antibody" in chans
+    assert "bite_tce" not in chans, "TCE-unsafe channel must not be listed as a safe modality"

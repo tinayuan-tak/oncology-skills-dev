@@ -276,6 +276,17 @@ _SURFACE_FAVORABLE_VERDICTS = frozenset({
     "surface_viable_density_caveated",
 })
 
+# Among the FAVORABLE surface verdicts, the tokens that nonetheless EXPLICITLY foreclose a specific
+# biologics channel — so a WT-loss escape must NOT cite that (foreclosed) channel as a safe modality.
+# Only `adc_preferred_tce_unsafe` names an explicit foreclosure within the favorable set (TCE unsafe;
+# it is the surface_modality `excluded_modality_scoped` verdict); the others foreclose nothing. This keeps
+# `exists_safe_modality.safe_channels` = channels that are BOTH WT-loss-safe AND not surface-foreclosed
+# (the "genuinely viable" arm the escape actually rests on), rather than a per-veto scope list that a
+# reader could over-read as global modality viability (e.g. listing bite_tce for an ADC-only ERBB2).
+_SURFACE_VERDICT_FORECLOSED_CHANNELS = {
+    "adc_preferred_tce_unsafe": frozenset({"bite_tce"}),
+}
+
 
 def _load_veto_suppressors(
     contracts_repo: Path | None = None,
@@ -419,11 +430,17 @@ def _suppressed_gate_hits(
             _vbm = safety_verdict_by_modality(_sfired, str(contracts_repo) if contracts_repo else None)
             _surface_ok = surface_verdict in _SURFACE_FAVORABLE_VERDICTS
 
+            _surface_foreclosed = _SURFACE_VERDICT_FORECLOSED_CHANNELS.get(surface_verdict, frozenset())
+
             def _channel_is_safe(ch: str, action: Optional[str]) -> bool:
                 if action in _SAFETY_SAFE_ACTIONS:            # allele-selective SM escape (GoF)
                     return True
                 if action == "not_applicable" and ch in _BIOLOGICS_CHANNELS:
-                    # WT-loss n/a to a biologic — clears only if that arm is genuinely viable.
+                    # WT-loss n/a to a biologic — clears only if that arm is genuinely viable, i.e. the
+                    # surface verdict does not EXPLICITLY foreclose THIS channel (e.g. bite_tce under
+                    # adc_preferred_tce_unsafe) — else safe_channels over-reads as global viability.
+                    if ch in _surface_foreclosed:
+                        return False
                     return (modality == ch) or (modality is None and _surface_ok)
                 return False
 

@@ -115,8 +115,20 @@ def _strongest_signal_for_modality(fired: list[dict], modality: str) -> Optional
     """The most-decisive signal a gate's fired rules emit for one modality channel. 'Most
     decisive' = lowest ordinal (killer < opposing < neutral < supportive); off-scale
     (insufficient/not_applicable) only when NO on-scale signal was emitted. Mirrors the
-    display convention that a killer dominates a co-fired supportive in the same cell."""
+    display convention that a killer dominates a co-fired supportive in the same cell.
+
+    DOMINANT PRECEDENCE: a `dominant: true` rule is the resolver's declared per-rule precedence,
+    so its on-scale signal for the modality WINS the cell over co-fired NON-dominant signals —
+    otherwise a non-dominant killer masks the dominant rule and the cell contradicts the resolved
+    verdict. The canonical case: `strong-paralog-buffering-degrader-preferred` (dominant;
+    small_molecule=opposing, degrader=supportive — the SM-vs-degrader split that DRIVES the
+    `non_dependent_paralog_buffered` verdict) co-fires with `non-dependent-killer` (non-dominant;
+    both=killer). Without this the degrader cell reads killer, inverting the degrader-preferred
+    verdict + the authoritative modality_fit_by_channel. Among dominant rules (if >1) the
+    most-decisive still wins, so a dominant killer is never softened. Falls back to the min over
+    ALL fired only when NO dominant rule emits an on-scale signal for the modality (unchanged)."""
     on_scale: list[tuple[int, str]] = []
+    dominant_on_scale: list[tuple[int, str]] = []
     off_scale: Optional[str] = None
     for r in fired:
         sig = (r.get("signals") or {}).get(modality)
@@ -127,6 +139,11 @@ def _strongest_signal_for_modality(fired: list[dict], modality: str) -> Optional
             off_scale = off_scale or sig      # remember an off-scale signal as a fallback
         else:
             on_scale.append((o, sig))
+            if r.get("dominant"):
+                dominant_on_scale.append((o, sig))
+    # a dominant rule's signal wins the cell (most-decisive among dominants); else the min over all.
+    if dominant_on_scale:
+        return min(dominant_on_scale, key=lambda t: t[0])[1]
     if on_scale:
         return min(on_scale, key=lambda t: t[0])[1]   # most-negative wins the cell
     return off_scale                                   # else an off-scale coverage marker (or None)

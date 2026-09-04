@@ -70,6 +70,51 @@ def test_matrix_shape_and_disclaimer():
     assert rows["dependency"]["verdict"] == "lineage_selective"
 
 
+def test_dominant_rule_wins_cell_over_nondominant_killer():
+    """The ERBB2 paralog-buffering case: a DOMINANT rule (strong-paralog-buffering-degrader-preferred:
+    degrader=supportive) co-fires with a NON-dominant `non-dependent-killer` (degrader=killer). The
+    dominant rule's signal must win the cell — else the degrader cell reads killer, inverting the
+    degrader-preferred verdict + the authoritative modality_fit_by_channel."""
+    fired = [
+        {"rule_id": "non-dependent-killer", "signals": {"small_molecule": "killer", "degrader": "killer"}},
+        {"rule_id": "strong-paralog-buffering-degrader-preferred", "dominant": True,
+         "signals": {"small_molecule": "opposing", "degrader": "supportive"}},
+    ]
+    assert tp._strongest_signal_for_modality(fired, "degrader") == "supportive"
+    assert tp._strongest_signal_for_modality(fired, "small_molecule") == "opposing"
+
+
+def test_dominant_killer_is_not_softened():
+    """A DOMINANT killer co-fired with a non-dominant supportive still shows killer (the dominant
+    precedence never softens a dominant veto — most-decisive AMONG dominants wins)."""
+    fired = [
+        {"rule_id": "sup", "signals": {"small_molecule": "supportive"}},
+        {"rule_id": "dom-kill", "dominant": True, "signals": {"small_molecule": "killer"}},
+    ]
+    assert tp._strongest_signal_for_modality(fired, "small_molecule") == "killer"
+
+
+def test_most_decisive_among_multiple_dominants():
+    """Two dominant rules on the same cell → the most-decisive (most-negative) dominant wins; a
+    co-fired non-dominant signal (even a killer) does not participate once any dominant is present."""
+    fired = [
+        {"rule_id": "nd-kill", "signals": {"degrader": "killer"}},               # non-dominant
+        {"rule_id": "dom-sup", "dominant": True, "signals": {"degrader": "supportive"}},
+        {"rule_id": "dom-opp", "dominant": True, "signals": {"degrader": "opposing"}},
+    ]
+    assert tp._strongest_signal_for_modality(fired, "degrader") == "opposing"
+
+
+def test_no_dominant_signal_falls_back_to_min_over_all():
+    """When no DOMINANT rule emits a signal for the modality, behavior is unchanged (min over all)."""
+    fired = [
+        {"rule_id": "a", "signals": {"degrader": "supportive"}},
+        {"rule_id": "b", "signals": {"degrader": "killer"}},
+        {"rule_id": "dom-other-modality", "dominant": True, "signals": {"small_molecule": "supportive"}},
+    ]
+    assert tp._strongest_signal_for_modality(fired, "degrader") == "killer"
+
+
 def test_render_matrix_md_is_labeled_and_tabular():
     sub_results = {
         "dependency": {"skill_dir": "functional-requirement", "verdict": ("lineage_selective", "x"),
