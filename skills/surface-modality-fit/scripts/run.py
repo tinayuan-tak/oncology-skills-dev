@@ -103,6 +103,9 @@ _SURFACE_DOWNGRADE_REASON = {
     # an explicit patient-selection escape flag (the issue's "raise an explicit escape-risk flag" ask).
     "adc_preferred_tce_patient_variable": "within-tumor antigen detection is inconsistent across donors (patient-variable escape) — a TCE/CAR patient-selection risk (ADC unaffected)",
     "tce_patient_variable":           "within-tumor antigen detection is inconsistent across donors (patient-variable escape) — a TCE/CAR patient-selection risk",
+    # Phase-6 (2026-09-04): the surface annotation-INFLATION demotion — a positive fit_class resting on
+    # surfaceome-family + PREDICTED topology with NO confirmed cell-surface protein and NO clinical biologic.
+    "surface_annotation_only_unconfirmed": "the positive surface call rests on surfaceome-family + predicted-topology ANNOTATION with no confirmed cell-surface protein (CSPA/HPA-IF) and no clinical-biologic precedent — looks-surface-accessible-but-UNCONFIRMED",
 }
 
 
@@ -182,6 +185,9 @@ _VERDICT_ARMS = {
     "adc_preferred_tce_patient_variable": {"adc": "viable",   "bite_tce": "patient_variable_escape", "antibody": "viable"},
     "tce_patient_variable":          {"adc": "not_preferred", "bite_tce": "patient_variable_escape", "antibody": "viable"},
     "surface_viable_density_caveated": {"adc": "caveated",    "bite_tce": "caveated",     "antibody": "caveated"},
+    # Phase-6 (2026-09-04): surface accessibility UNCONFIRMED (annotation-only) — caveats every antibody-based
+    # arm equally (the deficit is the surface substrate itself, not an ADC-vs-TCE split).
+    "surface_annotation_only_unconfirmed": {"adc": "caveated", "bite_tce": "caveated",    "antibody": "caveated"},
     "shed_dominant_opposed":         {"adc": "opposed",       "bite_tce": "opposed",      "antibody": "opposed"},
     "pmhc_tce_supported":            {"adc": "not_viable",    "bite_tce": "not_viable",   "antibody": "not_viable",
                                       "pmhc_tce": "supported"},
@@ -221,7 +227,7 @@ def _emit_skill_figures(decision, figures_root):
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.8.0"   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
                           # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -413,7 +419,10 @@ _SM_MOD_POS = {"adc_preferred", "tce_preferred", "surface_viable_density_caveate
                # patient-variable antigen-escape (#979): positive-caveated (TCE tempered, not foreclosed) —
                # NOT in _SM_NEG (unlike tce_escape_risk), so a validated antigen stays a moderate positive.
                "adc_preferred_tce_patient_variable", "tce_patient_variable"}
-_SM_WEAK_POS = {"shed_dominant_opposed"}
+# surface_annotation_only_unconfirmed (Phase-6, 2026-09-04): a positive fit DEMOTED for unconfirmed surface
+# accessibility (annotation-only) — the surface substrate may be real but is UNCONFIRMED, so a weak positive
+# (not a measured negative like neither_viable), and NON-NOMINATING (neutral in nomination_verdict_gate).
+_SM_WEAK_POS = {"shed_dominant_opposed", "surface_annotation_only_unconfirmed"}
 _SM_NEG = {"neither_viable", "tce_unsafe_normal_liability", "tce_escape_risk"}
 _SM_NONE = {"modality_ambiguous", "isoform_dependent_undefined", "insufficient", "data_unavailable", None}
 _SM_DECISION_CARDS = ("adc-tce-modality-fit", "surface-abundance-density", "normal-tissue-liability",
@@ -719,6 +728,12 @@ def _headline(cards, fired, verdict_pair):
         # surface_confirmation_caveat can flag an ADC-favorable call that rests on topology with
         # internalization unmeasured. Verdict-inert (fit_class already reachable without it, B1).
         "endocytosis_confidence":         get_card_field(cards, "adc-tce-modality-fit", "endocytosis_confidence"),
+        # Phase-6 (VERDICT-MOVING): the cross-card surface-confirmation state derived by the surface_modality
+        # card preprocessor (confirmed_protein / clinically_precedented / annotation_only / not_applicable).
+        # annotation_only drives the surface_annotation_only_unconfirmed verdict. Read from the card (the
+        # preprocessor writes it onto the summary before fired_rules).
+        "surface_confirmation_state":     get_card_field(cards, "adc-tce-modality-fit", "surface_confirmation_state"),
+        "biologics_precedented":          get_card_field(cards, "adc-tce-modality-fit", "biologics_precedented"),
         # Isoform-selective indication-scope (2026-08-14): TRUE when the target has a curated dominant
         # alt isoform but NOT in THIS indication — the fit_class is NOT suppressed (stands on merit), and
         # this flag surfaces the caveat so a reader knows an isoform consideration exists off-context
@@ -967,6 +982,7 @@ _SYNTHESIS_FACET_KEYS = (
     # synthesis so the biologics call foregrounds confirmed-vs-annotated surface protein.
     "surface_confirmation_class", "surface_multimodal_support", "endocytosis_confidence",
     "surface_confirmation_caveat", "shed_caveat",
+    "surface_confirmation_state",   # Phase-6 (VERDICT-MOVING): the derived annotation-inflation state driving surface_annotation_only_unconfirmed
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
     "claim_vector", "key_signals",
@@ -1045,6 +1061,10 @@ if __name__ == "__main__":
         skill_figures_fn=_emit_skill_figures,
         # Signals-first: tuned sub-group reader for the surface-modality vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_SURFACE_VALUE_TIERS),
+        # Phase-6 (2026-09-04, VERDICT-MOVING): opt the standalone wired path into the surface_modality card
+        # preprocessor so surface_confirmation_state is derived cross-card BEFORE fired_rules (the composed
+        # paths already run it). Drives the surface_annotation_only_unconfirmed resolver rung.
+        preprocess_gate="surface_modality",
         partial_status_note=("Most surface derived products (structure-features, "
                              "surfaceome-family, cohort-ranking) are not yet on S3; "
                              "verdict is honest-insufficient until they land."),

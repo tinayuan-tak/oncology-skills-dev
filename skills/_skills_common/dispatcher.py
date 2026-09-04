@@ -397,6 +397,7 @@ def run_wired_skill(
     on_dependency_status: Optional[dict[str, str]] = None,
     partial_status_note: Optional[str] = None,
     isoform_check_target: bool = False,
+    preprocess_gate: Optional[str] = None,
     synthesize_fn: Optional[SynthesizeFn] = None,
     literature_fn: Optional[Callable[[dict, Optional[str]], dict]] = None,
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
@@ -583,6 +584,17 @@ def run_wired_skill(
     card_outputs, skipped_card_ids, a4_caveats = _apply_on_dependency_status(
         card_outputs, on_dependency_status or {}
     )
+
+    # 2c. CARD PREPROCESSORS (before fired_rules) — a per-gate cross-card correction that MUST travel to
+    # every resolution path (standalone here + target-profile fan-out + resolve_gate_spine). The composed
+    # paths already call preprocess_cards_for_gate; the standalone run_wired_skill path did NOT, so a
+    # genomic-style preprocessor was silently bypassed standalone. `preprocess_gate` opts a wired skill in
+    # (surface-modality-fit passes "surface_modality" to derive surface_confirmation_state). A no-op when
+    # unset or the gate has no registered preprocessor, so it is byte-stable for every other skill.
+    preprocess_provenance = {}
+    if preprocess_gate:
+        from _skills_common.card_preprocessors import preprocess_cards_for_gate
+        preprocess_provenance = preprocess_cards_for_gate(card_outputs, preprocess_gate)
 
     # 3. Fire rules against surviving cards only
     surviving_card_ids = [c["card_id"] for c in card_outputs]

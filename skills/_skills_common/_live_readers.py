@@ -57,6 +57,29 @@ def _load_internalizing_antigens_cached(contracts_root: str) -> frozenset:
         return frozenset()
 
 
+def _load_biologics_precedent_targets() -> frozenset:
+    """Phase-6 (2026-09-04): the WIDENED biologics-precedent gene set (target-contracts vocab
+    biologics_precedent_targets.yaml) — targets with an approved/late-clinical biologic of ANY class
+    (ADC / TCE / CAR / mAb). A SUPERSET of internalizing_antigen_targets.yaml: it also covers validated
+    TCE/CAR antigens whose ADC is absent or failed (DLL3 — ADC Rova-T failed, TCE tarlatamab approved),
+    so a CSPA-missed validated antigen is NOT false-demoted to annotation_only. Feeds `biologics_precedented`
+    on the adc-tce-modality-fit card → the clinically_precedented tier of surface_confirmation_state.
+    Read-only, lru-cached, never raises — an unreadable vocab yields an EMPTY set (the honest degrade:
+    absence never marks a target non-surface). Positive-only."""
+    return _load_biologics_precedent_targets_cached(str(_TARGET_CONTRACTS_ROOT))
+
+
+@__import__("functools").lru_cache(maxsize=4)
+def _load_biologics_precedent_targets_cached(contracts_root: str) -> frozenset:
+    path = Path(contracts_root) / "vocabularies" / "biologics_precedent_targets.yaml"
+    try:
+        import yaml
+        doc = yaml.safe_load(path.read_text())
+        return frozenset((doc or {}).get("entries", {}).keys())
+    except Exception:  # noqa: BLE001 — never break the dispatcher on a vocab read
+        return frozenset()
+
+
 def _load_surface_secreted_antigens() -> frozenset:
     """The curated surface/secreted-antigen gene set (target-contracts vocab
     surface_secreted_antigen_targets.yaml, #980). Cell-surface / secreted antigens of the class
@@ -1435,6 +1458,11 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         # endocytosis-motif data), so an ADC_preferred call rests on topology + is flagged as
         # internalization-unverified rather than internalization-confirmed.
         "endocytosis_confidence": endocytosis_confidence,
+        # Phase-6 (2026-09-04): widened biologics-precedent crosswalk (ADC/TCE/CAR/mAb) — a regulatory/trial
+        # fact of surface accessibility. Feeds the clinically_precedented tier of the surface_confirmation_state
+        # derived by the surface_modality card preprocessor, so a validated antigen a CSPA panel MISSES (DLL3)
+        # is not classed annotation_only. Positive-only; absence never marks a target non-surface.
+        "biologics_precedented": target.upper().strip() in _load_biologics_precedent_targets(),
         "is_adc_topology_favorable": tm_count == 1 and ec_length >= 200,
         "is_tce_topology_favorable": tm_count >= 1 and ec_length >= 100,
         "surface_family_class": family.get("family_class"),

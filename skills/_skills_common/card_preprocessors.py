@@ -121,6 +121,54 @@ def apply_promiscuous_amplicon_fusion_demotion(cards: list[dict]) -> dict:
             "patient_focal_cn_class": csum.get("patient_focal_cn_class")}
 
 
+_SURFACE_POSITIVE_FIT = frozenset({"ADC_preferred", "TCE_preferred", "both_viable"})
+_SURFACE_CONFIRMED_CSPA = frozenset({"confirmed_high", "confirmed"})
+
+
+def derive_surface_confirmation_state(cards: list[dict]) -> dict:
+    """Phase-6 (2026-09-04, VERDICT-MOVING): derive `surface_confirmation_state` on the adc-tce-modality-fit
+    card summary from CROSS-CARD signals, BEFORE fired_rules. fit_class is composed from surfaceome-family +
+    PREDICTED topology ONLY (never CSPA/HPA-IF measured surface protein), so a positive fit can rest on
+    annotation alone. This classes it:
+      - confirmed_protein      — CSPA/HPA-IF measured surface residency (protein-surface-evidence);
+      - clinically_precedented — endocytosis clinically_internalizing OR CD/IO backbone OR the widened
+                                 biologics-precedent crosswalk (adc-tce-modality-fit.biologics_precedented);
+      - annotation_only        — a positive fit with NEITHER (the surface INFLATION over-call — fires
+                                 surface-annotation-only-unconfirmed-opposing → the resolver caveat rung);
+      - not_applicable         — fit_class is non-positive (no-op).
+    Mutates the adc-tce-modality-fit summary in place (idempotent). Returns a provenance dict. The
+    clinically_precedented tier is the false-demote guard: a CSPA-missed validated antigen (DLL3/CEACAM5)
+    resolves clinically_precedented, NOT annotation_only."""
+    by = {c.get("card_id"): c for c in cards if isinstance(c, dict)}
+    adc_card = by.get("adc-tce-modality-fit")
+    if not isinstance(adc_card, dict):
+        return {"applied": False, "reason": "no_adc_tce_modality_fit_card"}
+    adc = adc_card.get("summary")
+    if not isinstance(adc, dict):
+        return {"applied": False, "reason": "no_adc_tce_summary"}
+    fit = adc.get("fit_class")
+    if fit not in _SURFACE_POSITIVE_FIT:
+        adc["surface_confirmation_state"] = "not_applicable"
+        return {"applied": True, "state": "not_applicable", "fit_class": fit}
+    pse = (by.get("protein-surface-evidence") or {}).get("summary") or {}
+    cd = (by.get("cd-antigen-backbone") or {}).get("summary") or {}
+    confirmed = (pse.get("surface_confirmation_class") in _SURFACE_CONFIRMED_CSPA
+                 or pse.get("surface_multimodal_support") == "corroborated_surface")
+    precedented = (adc.get("endocytosis_confidence") == "clinically_internalizing"
+                   or bool(adc.get("biologics_precedented"))
+                   or bool(cd.get("established_io_precedent")))
+    state = "confirmed_protein" if confirmed else "clinically_precedented" if precedented else "annotation_only"
+    adc["surface_confirmation_state"] = state
+    return {"applied": True, "state": state, "fit_class": fit,
+            "confirmed_protein": confirmed, "clinically_precedented": precedented}
+
+
+def _surface_modality_preprocess(cards: list[dict]) -> dict:
+    """surface_modality preprocessor applied before fired_rules in ALL paths: derive the cross-card
+    surface_confirmation_state (the annotation-INFLATION gate)."""
+    return {"surface_confirmation_state": derive_surface_confirmation_state(cards)}
+
+
 def _genomic_alteration_preprocess(cards: list[dict]) -> dict:
     """Composite genomic_alteration preprocessor applied (in ALL resolution paths that use the registry)
     before fired_rules: (1) family-wise FDR on the stratified-dependency family, then (2) the #983
@@ -134,6 +182,7 @@ def _genomic_alteration_preprocess(cards: list[dict]) -> dict:
 # Per-gate registry: gate → preprocessor(cards) -> provenance. Applied before fired_rules in ALL paths.
 CARD_PREPROCESSORS = {
     "genomic_alteration": _genomic_alteration_preprocess,
+    "surface_modality": _surface_modality_preprocess,
 }
 
 
