@@ -65,13 +65,15 @@ from _skills_common.selectivity_veto import (  # noqa: F401
     _AXIS_A_SELECTIVE, _NORMAL_BREADTH_VETO_RULES, _SELECTIVITY_VETO_PRECEDENCE, _WINDOW_VETO_RULE,
     _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE, _STROMAL_CONFOUND_VETO_RULE,
     _STROMAL_CONFOUND_VERDICT, apply_normal_breadth_veto,
+    apply_protein_population_rescue, _PROTEIN_POPULATION_RESCUE_DRIVER,
+    _CPTAC_UP_RULES, _POP_NORMAL_UP_RULES, _RESCUE_ELIGIBLE,
 )
 
 
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.21.0"   # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.22.0"   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -190,11 +192,18 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     + all three veto arms) and _skills_common/tests/test_compose_core.py (the engine applies the same
     clamp)."""
     verdict, driving = resolve_or_raise(fired, "selectivity")
+    # #978 PROTEIN + POPULATION-NORMAL RESCUE (one-directional UPGRADE) — applied BEFORE the veto: a flat/
+    # mixed matched-ADJACENT RNA arm (a CEA/EpCAM-class antigen whose adjacent normal ALSO expresses the
+    # target) collapses the RNA classifier to not_informative/discordant even when the tumor is elevated;
+    # lift it to field_effect_tumor_selective when the INDEPENDENT CPTAC-protein AND population-normal arms
+    # are both up, so the flat adjacent arm does not sink a call those arms support.
+    verdict, driving = apply_protein_population_rescue(verdict, driving, fired)
     # NORMAL-BREADTH VETO: the resolver verdict (axis-A tumor-vs-origin over-expression) is NECESSARY
     # but NOT SUFFICIENT — a gene with no therapeutic window vs the worst critical normal (housekeeping
     # GAPDH/ACTB, or the TROP2/TACSTD2 broadly-normal surface archetype) is not a target regardless of
     # fold-change. This one-directional clamp downgrades a selective axis-A call to
-    # selective_but_broadly_normal when any normal-breadth veto rule fired.
+    # selective_but_broadly_normal when any normal-breadth veto rule fired. Runs AFTER the rescue so a
+    # rescued field_effect call is still subject to the stromal-confound / no-window safety nets.
     return apply_normal_breadth_veto(verdict, driving, fired)
 
 
@@ -595,9 +604,29 @@ def _headline(cards, fired, verdict_pair):
     # selective_but_broadly_normal — while the raw pre-veto axis-A class is preserved separately for
     # transparency/audit (and so the synthesis narrator cannot over-claim off the pre-veto class).
     resolved_verdict, resolved_driving = (verdict_pair or (tvn.get("selectivity_class"), None))
+    # #978 comparator note (VERDICT-INERT): surface the multi-arm picture when the matched-ADJACENT RNA-DGE
+    # arm is flat/uninformative BUT the independent CPTAC-protein + population-normal arms are up — so the
+    # flat adjacent arm (adjacent tissue also expresses the antigen — CEA/EpCAM class) is not misread as
+    # counter-evidence. Names whether the #978 rescue actually lifted the call. Display/synthesis only.
+    _fired_ids = {r.get("rule_id") for r in (fired or [])}
+    _cptac_up = bool(_CPTAC_UP_RULES & _fired_ids)
+    _pop_up = bool(_POP_NORMAL_UP_RULES & _fired_ids)
+    _adj_flat = tvn.get("selectivity_class") in _RESCUE_ELIGIBLE
+    if resolved_driving == _PROTEIN_POPULATION_RESCUE_DRIVER:
+        _comparator_note = ("selectivity rescued to field_effect on CPTAC tumor-vs-normal protein + "
+                            "population-normal percentile-crossing; the matched-adjacent RNA-DGE arm is "
+                            "flat/uninformative (adjacent normal also expresses the antigen — CEA/EpCAM "
+                            "class), so it is not counted against the call (#978).")
+    elif _adj_flat and _cptac_up and _pop_up:
+        _comparator_note = ("matched-adjacent RNA-DGE is flat/uninformative, but CPTAC protein + "
+                            "population-normal are both up — the adjacent-RNA arm reflects adjacent-tissue "
+                            "expression, not absence of tumor elevation.")
+    else:
+        _comparator_note = None
     hl = {
         "selectivity_class":  resolved_verdict,               # RESOLVED (post-veto) — the audit spine
         "driving_rule_id":    resolved_driving,               # the rule that set it (e.g. the veto rule)
+        "selectivity_comparator_note": _comparator_note,      # #978 verdict-inert multi-arm comparator note
         "axis_a_selectivity_class": tvn.get("selectivity_class"),  # raw tumor-vs-origin class (pre-veto)
         "cells_supporting":   tvn.get("cells_supporting"),
         "cells_ran":          tvn.get("cells_ran"),
@@ -789,6 +818,7 @@ def _headline(cards, fired, verdict_pair):
 # sidecar, NOT this facet (CERTAINTY_MODEL — this is the SIGNAL half).
 _SYNTHESIS_FACET_KEYS = (
     "selectivity_class", "driving_rule_id", "axis_a_selectivity_class",
+    "selectivity_comparator_note",   # #978 verdict-inert multi-arm comparator note (protein+population vs flat adjacent-RNA)
     "dominant_direction", "discordant",
     "selectivity_allgene_percentile_class", "purity_confound_class",
     "rna_protein_tvn_concordance",

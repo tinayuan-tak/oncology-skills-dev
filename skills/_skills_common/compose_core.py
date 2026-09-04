@@ -107,7 +107,8 @@ def resolve_gate_spine(
     # Lazy import (skills/ dir already on sys.path via the caller's shim) — mirrors the
     # exact import the inline implementation used, so name resolution is identical.
     from _skills_common import fired_rules, resolve_verdict_for_gate
-    from _skills_common.selectivity_veto import SELECTIVITY_GATE, apply_normal_breadth_veto
+    from _skills_common.selectivity_veto import (
+        SELECTIVITY_GATE, apply_normal_breadth_veto, apply_protein_population_rescue)
     from _skills_common.card_preprocessors import preprocess_cards_for_gate
 
     normed = [
@@ -141,6 +142,12 @@ def resolve_gate_spine(
         # a normal-breadth veto rule fired AND the verdict is a selective axis-A class → non-veto
         # targets are byte-unchanged.
         if gate == SELECTIVITY_GATE:
+            # #978 protein+population RESCUE (one-directional UPGRADE) BEFORE the veto — mirrors
+            # tumor-selectivity/run.py::_verdict so standalone == composed. (Inert unless the CPTAC-up +
+            # population-up rules both fired; in the composed fan-out the CPTAC-up rule fires only when
+            # tumor-protein-abundance-cptac is in the selectivity card set — a deferred SUB_SKILL_CARDS
+            # addition — so the rescue is currently a no-op here, identical to standalone on current data.)
+            verdict, driving = apply_protein_population_rescue(verdict, driving, fired)
             verdict, driving = apply_normal_breadth_veto(verdict, driving, fired)
         return GateVerdict(
             gate=gate,

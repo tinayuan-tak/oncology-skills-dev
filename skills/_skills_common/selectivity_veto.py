@@ -87,6 +87,50 @@ _SELECTIVITY_VETO_PRECEDENCE = (
 _VETO_OUTCOMES = frozenset(_VETO_RULE_VERDICT.values())
 
 
+# ── #978: protein + population-normal RESCUE of a flat/discordant matched-adjacent-RNA arm ───────────
+# For a CEA/EpCAM-class antigen whose ADJACENT normal tissue ALSO expresses the target, the tumor-vs-
+# matched-adjacent RNA-DGE arm is flat/mixed even when the tumor is genuinely elevated — collapsing the
+# aggregate RNA classifier to `not_informative` / `discordant_across_comparators`. That flat adjacent arm
+# must NOT sink a selectivity call that the INDEPENDENT protein + population-normal arms support. This is a
+# one-directional UPGRADE clamp (the sign-mirror of apply_normal_breadth_veto): a rescue-eligible RNA
+# verdict is lifted to `field_effect_tumor_selective` ONLY when BOTH (a) CPTAC tumor-vs-normal protein is up
+# (sig + non-negligible effect — the strongly/modestly-up rules) AND (b) the population-normal percentile-
+# crossing is up (the strong-crossing rule). Rests the rescue on TWO orthogonal arms, not the single
+# batch-confounded GTEx comparator the classifier's own field-effect FIXes use, and extends the rescue to
+# modest-GTEx / mixed-adjacent antigens the classifier cannot reach.
+#
+# APPLIED BEFORE apply_normal_breadth_veto (see run.py::_verdict / compose_core): the upgraded
+# field_effect_tumor_selective is still a selective axis-A class, so the stromal-confound / no-window /
+# sc-normal vetoes can STILL downgrade it — the FAP (stromal), TACSTD2 (no-window), GAPDH (housekeeping)
+# safety nets are preserved. One-directional: only lifts a rescue-eligible RNA verdict, never touches a
+# positive/negative call.
+#
+# BACKTEST NOTE (2026-09-04): inert on the current surface-antigen panel — CEACAM5 is already
+# field_effect via the classifier's GTEx-based FIX2 (not rescue-eligible), and EPCAM's CPTAC protein is
+# NOT tumor-elevated (its downgrade is a distinct mixed-adjacent RNA-classifier problem, tracked
+# separately). Shipped as a byte-stable DEFENSIVE guard (unit-tested on synthetic fired-sets) that fires
+# for a future modest-GTEx antigen with independent CPTAC + population support.
+_RESCUE_ELIGIBLE = frozenset({"not_informative", "discordant_across_comparators"})
+_CPTAC_UP_RULES = frozenset({"protein-strongly-up-supportive", "protein-modestly-up-neutral"})
+_POP_NORMAL_UP_RULES = frozenset({"tumor-vs-normal-crossing-strong-supportive"})
+_PROTEIN_POPULATION_RESCUE_DRIVER = "tvn-protein-population-field-effect-rescue"  # provenance label (not a resolver rung)
+
+
+def apply_protein_population_rescue(verdict, driving_rule_id, fired):
+    """Post-resolver one-directional UPGRADE clamp (#978): lift a rescue-eligible RNA verdict
+    (``not_informative`` / ``discordant_across_comparators`` — a flat/mixed matched-adjacent arm) to
+    ``field_effect_tumor_selective`` when BOTH a CPTAC-protein-up rule AND the population-normal-crossing-up
+    rule are in ``fired``. Returns the input pair unchanged otherwise. MUST be applied BEFORE
+    apply_normal_breadth_veto so the normal-breadth / stromal-confound vetoes still downgrade the upgraded
+    call. ``fired`` is the flat list of fired-rule dicts."""
+    if verdict not in _RESCUE_ELIGIBLE:
+        return verdict, driving_rule_id
+    fired_ids = {r.get("rule_id") for r in fired}
+    if (_CPTAC_UP_RULES & fired_ids) and (_POP_NORMAL_UP_RULES & fired_ids):
+        return "field_effect_tumor_selective", _PROTEIN_POPULATION_RESCUE_DRIVER
+    return verdict, driving_rule_id
+
+
 def apply_normal_breadth_veto(verdict, driving_rule_id, fired):
     """Post-resolver clamp: downgrade a SELECTIVE axis-A ``(verdict, driving_rule_id)`` when ANY
     selectivity veto rule is in ``fired``. The INT-axis stromal-confound arm → ``selective_but_stromal_

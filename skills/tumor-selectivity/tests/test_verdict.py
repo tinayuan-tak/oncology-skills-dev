@@ -500,3 +500,54 @@ def test_measurement_caveat_none_for_measured_call():
 
 def test_measurement_caveat_in_synthesis_facet_keys():
     assert "measurement_caveat" in ts._SYNTHESIS_FACET_KEYS
+
+
+# --- #978 PROTEIN + POPULATION-NORMAL RESCUE (one-directional UPGRADE, applied BEFORE the veto) -------
+# A CEA/EpCAM-class antigen whose ADJACENT normal also expresses it reads a flat/mixed matched-adjacent
+# RNA arm → the aggregate RNA classifier lands not_informative / discordant_across_comparators. That flat
+# arm must NOT sink a call the INDEPENDENT CPTAC-protein + population-normal arms support: the rescue lifts
+# it to field_effect_tumor_selective ONLY when a CPTAC-up rule AND the population-crossing-up rule both fire.
+_CPTAC = "protein-modestly-up-neutral"           # a CPTAC tumor-vs-normal protein-up rule
+_CPTAC_STRONG = "protein-strongly-up-supportive"
+_POP = "tumor-vs-normal-crossing-strong-supportive"   # population-normal percentile-crossing up
+_RESCUE_DRIVER = "tvn-protein-population-field-effect-rescue"
+
+
+def _fire_ids(*rule_ids):
+    return ts._verdict([{"rule_id": r} for r in rule_ids])
+
+
+def test_rescue_lifts_discordant_when_protein_and_population_up():
+    v, drv = _fire_ids("tvn-discordant-neutral-flagged", _CPTAC, _POP)
+    assert v == "field_effect_tumor_selective"
+    assert drv == _RESCUE_DRIVER
+
+
+def test_rescue_lifts_not_informative_when_protein_and_population_up():
+    assert _fire_ids("tvn-not-informative-neutral", _CPTAC_STRONG, _POP)[0] == "field_effect_tumor_selective"
+
+
+def test_rescue_needs_BOTH_arms_cptac_only_does_not_fire():
+    assert _fire_ids("tvn-discordant-neutral-flagged", _CPTAC)[0] == "discordant_across_comparators"
+
+
+def test_rescue_needs_BOTH_arms_population_only_does_not_fire_EPCAM_shape():
+    # EPCAM/COADREAD live shape: population-normal up but CPTAC protein NOT tumor-elevated → NO rescue
+    # (its downgrade is a distinct mixed-adjacent RNA-classifier problem, tracked separately).
+    assert _fire_ids("tvn-discordant-neutral-flagged", _POP)[0] == "discordant_across_comparators"
+
+
+def test_rescue_is_one_directional_does_not_touch_a_non_eligible_verdict():
+    # not_selective is not a rescue-eligible RNA verdict — the rescue never manufactures selectivity.
+    assert _fire_ids("tvn-not-selective-neutral", _CPTAC, _POP)[0] == "not_selective"
+
+
+def test_rescue_then_window_veto_still_downgrades_GAPDH_safety_net():
+    # A rescued field_effect call is STILL subject to the normal-breadth veto (rescue runs BEFORE it):
+    # a no-therapeutic-window gene downgrades to selective_but_broadly_normal despite the rescue.
+    assert _fire_ids("tvn-discordant-neutral-flagged", _CPTAC, _POP, _VETO)[0] == "selective_but_broadly_normal"
+
+
+def test_rescue_then_stromal_confound_veto_still_downgrades_FAP_safety_net():
+    assert _fire_ids("tvn-discordant-neutral-flagged", _CPTAC, _POP,
+                     "tvn-stromal-confound-veto")[0] == "selective_but_stromal_confound"
