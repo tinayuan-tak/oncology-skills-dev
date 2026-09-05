@@ -1,0 +1,86 @@
+# Canonical question + axis registry for the differentiation-landscape dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for the consumer-facing differentiation questions and the
+# unified axis_id vocabulary {COMUT, SURVIVAL, PROGNOSIS, NODE} — the SAME axis letters the differentiation
+# narrator lens uses (narrator_lenses.py DIFFERENTIATION_LANDSCAPE.axis_labels: COMUT co-mutation /
+# mutual-exclusivity / SURVIVAL subtype survival / PROGNOSIS prognostic association / NODE pathway
+# node-leverage), so the literature axis->question crosswalk resolves. The same four sub_group axes are
+# declared in question_hierarchy.yaml (sub_groups->measurement_types), and the framework's own
+# subgroup_signals blocks group the cards identically (COMUT->co-mutation; SURVIVAL->subtype-survival;
+# PROGNOSIS->expression/precog/alteration; NODE->stemness/pathway-node).
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q4 the differentiation_question_table
+# builder emits) — the emitted question_table itself is NOT modified (byte-stable).
+#
+# GATELESS note: differentiation-landscape runs in mode=verdict and DOES emit a resolved differentiation
+# token (both_patterns_present / strong_cooccurring / …) with a driving_rule_id, but the token is
+# VERDICT-INERT — it is DESCRIPTIVE (co-occurrence vs mutual-exclusivity is a pattern TYPE, not good/bad)
+# and moves no nomination gate. Only the co-mutation card feeds the resolver; every other card fires
+# neutral / no rules and is a render facet. So exactly one question (comut_landscape) is verdict_bearing;
+# the SURVIVAL / PROGNOSIS / NODE / precedent questions are display_only render facets.
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id differentiation_question_table emits (Q1..Q4). OMITTED when the
+#                   question has no emitted question_table row (subtype_survival — the subtype-survival card
+#                   has no dedicated Q-row; it lands via its measurement_type only).
+#   seq             1-based display order (follows the lens axis order COMUT, SURVIVAL, PROGNOSIS, NODE)
+#   text            human question text
+#   axis_id         unified claim/literature axis (COMUT|SURVIVAL|PROGNOSIS|NODE); null = no axis (precedent)
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types) + the card
+#                   contracts (target-contracts/cards/<id>.card.yaml measurement_type), verified live off
+#                   headline.evidence_capsules.capsules[card_id].measurement_type.
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => COMUT->[comut_landscape]  SURVIVAL->[subtype_survival]
+#      PROGNOSIS->[prognostic_stratification]  NODE->[node_leverage]
+#
+# NOTE (no subtype question): differentiation-landscape emits no tier:subtype card in standard runs (every
+# capsule is tier None/target/indication), so — mirroring functional-requirement — the registry carries no
+# subtype:true question. Every standard-run card joins exactly one question by measurement_type.
+skill: differentiation-landscape
+axis_vocabulary:
+  COMUT: co-mutation / mutual-exclusivity
+  SURVIVAL: subtype survival
+  PROGNOSIS: prognostic association
+  NODE: pathway node-leverage
+questions:
+- id: comut_landscape
+  legacy_id: Q1
+  seq: 1
+  text: Co-mutation / mutual-exclusivity landscape (patient-selection + combination biology)?
+  axis_id: COMUT
+  role: verdict_bearing
+  measurement_types: [mutation_cooccurrence]
+- id: subtype_survival
+  seq: 2
+  text: Does survival differ across the indication's molecular subtypes?
+  axis_id: SURVIVAL
+  role: display_only
+  measurement_types: [subtype_survival_association]
+- id: prognostic_stratification
+  legacy_id: Q2
+  seq: 3
+  text: Expression / alteration↔survival association (prognostic / patient-stratification)?
+  axis_id: PROGNOSIS
+  role: display_only
+  measurement_types: [precog_prognostic_association, expression_clinical_association,
+    alteration_clinical_association]
+- id: node_leverage
+  legacy_id: Q3
+  seq: 4
+  text: Pathway-node leverage — dominant vs dominated network node (+ stemness context)?
+  axis_id: NODE
+  role: display_only
+  measurement_types: [pathway_node_leverage, stemness_context]
+- id: clinical_precedent
+  legacy_id: Q4
+  seq: 5
+  text: Clinical / competitive precedent?
+  axis_id: null
+  role: display_only
+  measurement_types: [clinical_precedent, competitor_landscape]

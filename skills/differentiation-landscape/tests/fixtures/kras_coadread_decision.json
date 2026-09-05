@@ -1,0 +1,978 @@
+{
+  "skill": "differentiation-landscape",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "What genes co-occur with or are mutually exclusive to KRAS mutations across TCGA MC3 + GENIE 19.0-public, and what patient-selection or combination-biology hypotheses does the pattern support in COADREAD?",
+  "fired_rules": [
+    {
+      "rule_id": "has-cooccurring-driver-supportive",
+      "card_id": "co-mutation-and-mutual-exclusivity",
+      "field": "has_cooccurring_driver",
+      "value": true,
+      "dominant": false,
+      "rationale_summary": ">= 1 significantly-cooccurring driver partner at q<0.001. Combination"
+    },
+    {
+      "rule_id": "cooccurrence-both-patterns-supportive",
+      "card_id": "co-mutation-and-mutual-exclusivity",
+      "field": "cooccurrence_class",
+      "value": "both_patterns_present",
+      "dominant": true,
+      "rationale_summary": "Target has BOTH strong co-occurring (q<0.001, log2_or>1) AND strong"
+    },
+    {
+      "rule_id": "clinical-high-better-survival-neutral",
+      "card_id": "expression-clinical-association",
+      "field": "survival_association_class",
+      "value": "expression_high_better_survival",
+      "dominant": false,
+      "rationale_summary": "High target expression associates with BETTER overall survival (significant). A CAUTION for the"
+    },
+    {
+      "rule_id": "alteration-no-survival-association-neutral",
+      "card_id": "alteration-clinical-association",
+      "field": "alteration_survival_association_class",
+      "value": "no_survival_association",
+      "dominant": false,
+      "rationale_summary": "{target} mutation status does not significantly stratify overall survival in this indication. No"
+    },
+    {
+      "rule_id": "subtype-stratifies-survival-neutral",
+      "card_id": "subtype-survival-association",
+      "field": "subtype_survival_association_class",
+      "value": "subtype_stratifies_survival",
+      "dominant": false,
+      "rationale_summary": "Overall survival differs significantly across this indication's molecular subtypes (omnibus"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "co-mutation-and-mutual-exclusivity",
+      "input_manifest_ids": [
+        "pancohort-cooccurrence-fisher-v1"
+      ]
+    },
+    {
+      "card_id": "stemness-context",
+      "input_manifest_ids": [
+        "stemness-mrnasi-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "expression-clinical-association",
+      "input_manifest_ids": [
+        "tcga-tumor-tpm-recount3-long-v1",
+        "gdc-pancanatlas-clinical-2018"
+      ]
+    },
+    {
+      "card_id": "precog-prognostic-association",
+      "input_manifest_ids": [
+        "precog-prognostic-meta-z-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "pathway-node-leverage",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "corum-5-3",
+        "msigdb-human-v2026-1-hs",
+        "pharos-idg-tcrd-snapshot-2026-08-10",
+        "biogrid-physical-interactions-per-gene-v1",
+        "depmap-paralog-buffering-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "alteration-clinical-association",
+      "input_manifest_ids": [
+        "tcga-mc3-per-sample-maf-v1",
+        "gdc-pancanatlas-clinical-2018"
+      ]
+    },
+    {
+      "card_id": "subtype-survival-association",
+      "input_manifest_ids": [
+        "gdc-pancanatlas-clinical-2018",
+        "subgroup-catalog"
+      ]
+    },
+    {
+      "card_id": "clinical-precedent",
+      "input_manifest_ids": [
+        "aact-oncology-trial-precedent-per-condition-intervention-v1",
+        "dgidb-drug-target-directional-v1"
+      ]
+    },
+    {
+      "card_id": "competitor-landscape",
+      "input_manifest_ids": [
+        "opentargets-target-competitor-drugs-per-gene-v1"
+      ]
+    }
+  ],
+  "headline": {
+    "evidence_capsules": {
+      "capsules": {
+        "alteration-clinical-association": {
+          "card_id": "alteration-clinical-association",
+          "measurement_type": "alteration_clinical_association",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "no_survival_association",
+          "numeric_anchors": [
+            {
+              "metric": "median_ostime_mutated_days",
+              "value": 685.0
+            },
+            {
+              "metric": "median_ostime_wildtype_days",
+              "value": 638.0
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_ostime_mutated_days": 685.0,
+            "median_ostime_wildtype_days": 638.0,
+            "n_events": 117
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "survival_source",
+              "value": "pancanatlas_tcga_cdr"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "clinical-precedent": {
+          "card_id": "clinical-precedent",
+          "measurement_type": "clinical_precedent",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "trial_precedent_present",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_active_trials": 33,
+            "n_agents_engaging_target": 12,
+            "n_trials": 170
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "co-mutation-and-mutual-exclusivity": {
+          "card_id": "co-mutation-and-mutual-exclusivity",
+          "measurement_type": "mutation_cooccurrence",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "both_patterns_present",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_pairs_panel_intersect_eligible": 1084,
+            "n_pairs_per_source_only": 2278,
+            "n_significant_cooccurring": 709
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "pancohort-cooccurrence-fisher-v1"
+            },
+            {
+              "key": "n_pairs_per_source_only",
+              "value": 2278
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "competitor-landscape": {
+          "card_id": "competitor-landscape",
+          "measurement_type": "competitor_landscape",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "active_clinical_competitor",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_approved": 0,
+            "n_competitor_programs": 2
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "expression-clinical-association": {
+          "card_id": "expression-clinical-association",
+          "measurement_type": "expression_clinical_association",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "expression_high_better_survival",
+          "numeric_anchors": [
+            {
+              "metric": "median_ostime_high_days",
+              "value": 669.0
+            },
+            {
+              "metric": "median_ostime_low_days",
+              "value": 609.0
+            },
+            {
+              "metric": "median_split_log2tpm",
+              "value": 3.9707
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_ostime_high_days": 669.0,
+            "median_ostime_low_days": 609.0,
+            "median_split_log2tpm": 3.9707
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "survival_source",
+              "value": "pancanatlas_tcga_cdr"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "pathway-node-leverage": {
+          "card_id": "pathway-node-leverage",
+          "measurement_type": "pathway_node_leverage",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "dominant_node",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "paralog_buffering_class": "strong",
+            "strongest_buffering_paralog": "NRAS"
+          },
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "precog-prognostic-association": {
+          "card_id": "precog-prognostic-association",
+          "measurement_type": "precog_prognostic_association",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "no_prognostic_association",
+          "numeric_anchors": null,
+          "categorical_anchors": [
+            {
+              "field": "prognostic_class",
+              "value": "no_prognostic_association"
+            },
+            {
+              "field": "pan_cancer_prognostic_class",
+              "value": "no_prognostic_association"
+            },
+            {
+              "field": "precog_indication_approx",
+              "value": true
+            }
+          ],
+          "n_basis": {
+            "pan_cancer_meta_z": -1.3338,
+            "precog_indication_approx": true
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "PRECOG pan-cancer prognostic meta-Z (Gentles 2015 Nat Med + 2026 NAR). POSITIVE meta-Z = high expression -> WORSE overall survival. Verdict-inert; meta-analytic corroboration of the single-cohort expression-clinical-association."
+            },
+            {
+              "key": "precog_source_column",
+              "value": "Colon_cancer"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "stemness-context": {
+          "card_id": "stemness-context",
+          "measurement_type": "stemness_context",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "stem_high",
+          "numeric_anchors": [
+            {
+              "metric": "median_mrnasi",
+              "value": 0.509
+            },
+            {
+              "metric": "pan_cancer_median_mrnasi",
+              "value": 0.3688
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_mrnasi": 0.509,
+            "n_samples": 669,
+            "pan_cancer_median_mrnasi": 0.3688
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "Malta 2018 mRNAsi signature, REIMPLEMENTED on recount3 (Spearman+pan-cancer min-max); verdict-inert cohort context"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "subtype-survival-association": {
+          "card_id": "subtype-survival-association",
+          "measurement_type": "subtype_survival_association",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "subtype_stratifies_survival",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_admissible_strata": 14,
+            "n_axes_tested": 5,
+            "n_events": 47
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "survival_source",
+              "value": "pancanatlas_tcga_cdr"
+            }
+          ],
+          "data_quality_flags": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "alteration-clinical-association",
+          "status": "full"
+        },
+        {
+          "card_id": "clinical-precedent",
+          "status": "full"
+        },
+        {
+          "card_id": "co-mutation-and-mutual-exclusivity",
+          "status": "full"
+        },
+        {
+          "card_id": "competitor-landscape",
+          "status": "full"
+        },
+        {
+          "card_id": "expression-clinical-association",
+          "status": "full"
+        },
+        {
+          "card_id": "pathway-node-leverage",
+          "status": "full"
+        },
+        {
+          "card_id": "precog-prognostic-association",
+          "status": "full"
+        },
+        {
+          "card_id": "stemness-context",
+          "status": "full"
+        },
+        {
+          "card_id": "subtype-survival-association",
+          "status": "full"
+        }
+      ]
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "Co-mutation / mutual-exclusivity landscape (patient-selection + combination biology)?",
+        "primary": "co-mutation-and-mutual-exclusivity: both_patterns_present",
+        "support": "co-occurrence: both_patterns_present",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "informs",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q2",
+        "question": "Expression\u2194survival association (prognostic / patient-stratification)?",
+        "primary": "expression-clinical-association: expression_high_better_survival",
+        "support": "PRECOG meta prognostic: absent",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "informs",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q3",
+        "question": "Pathway-node leverage \u2014 dominant vs dominated network node?",
+        "primary": "pathway-node-leverage: dominant_node",
+        "support": "node leverage: dominant_node",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q4",
+        "question": "Clinical / competitive precedent?",
+        "primary": "approved",
+        "support": "competitor: active_clinical_competitor \u00b7 33 active trials \u00b7 notable failures",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "approved"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "AACT + Open Targets (verdict-inert)"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": "both_patterns_present",
+        "phrase": "Co-occurring + mutually-exclusive partners",
+        "gate": "differentiation",
+        "driving_rule_id": "cooccurrence-both-patterns-supportive",
+        "polarity": "neutral"
+      },
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 4,
+          "n_axes": 4,
+          "n_critical_measured": 2
+        }
+      },
+      "top_tension": null,
+      "headline_text": "Co-occurring + mutually-exclusive partners \u2014 moderate confidence.",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "both_patterns_present",
+          "phrase": "Co-occurring + mutually-exclusive partners",
+          "gate": "differentiation",
+          "polarity": "neutral"
+        },
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 4,
+            "n_axes": 4,
+            "n_critical_measured": 2
+          }
+        },
+        "tension": null,
+        "axes": [
+          {
+            "key": "COMUT",
+            "label": "co-mutation landscape",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "SURVIVAL",
+            "label": "expression\u2194survival",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PROGNOSIS",
+            "label": "PRECOG prognostic",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "NODE",
+            "label": "pathway-node leverage",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "COMUT",
+          "card_id": "co-mutation-and-mutual-exclusivity",
+          "fields": [
+            "cooccurrence_class",
+            "n_pairs_panel_intersect_eligible",
+            "n_significant_cooccurring",
+            "n_significant_mutually_exclusive",
+            "top_cooccurring",
+            "top_mutually_exclusive"
+          ]
+        },
+        {
+          "axis": "SURVIVAL",
+          "card_id": "expression-clinical-association",
+          "fields": [
+            "logrank_p",
+            "n_events",
+            "n_high_expr",
+            "n_low_expr",
+            "n_patients",
+            "survival_association_class"
+          ]
+        },
+        {
+          "axis": "PROGNOSIS",
+          "card_id": "precog-prognostic-association",
+          "fields": [
+            "meta_z",
+            "n_precog_datasets",
+            "pan_cancer_meta_z",
+            "prognostic_class"
+          ]
+        },
+        {
+          "axis": "NODE",
+          "card_id": "pathway-node-leverage",
+          "fields": [
+            "evidence_scope",
+            "node_leverage_class",
+            "paralog_buffering_class",
+            "strongest_buffering_paralog"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "driving_rule_id": "cooccurrence-both-patterns-supportive",
+    "differentiation_verdict": "both_patterns_present",
+    "verdict": null,
+    "confidence": null,
+    "top_tension": null,
+    "subgroup_signals": {
+      "COMUT": {
+        "signal": "moderate",
+        "confidence": "high",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "co-mutation-and-mutual-exclusivity",
+            "tier": "moderate",
+            "n": 1084,
+            "label": "cooccurrence",
+            "conflict": false,
+            "value": "both_patterns_present"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "COMUT",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "co-mutation-and-mutual-exclusivity: both_patterns_present",
+            "evidence_atom": {
+              "read": "both_patterns_present",
+              "values": {
+                "cooccurrence_class": "both_patterns_present",
+                "n_significant_cooccurring": 709,
+                "n_significant_mutually_exclusive": 59,
+                "top_cooccurring": [
+                  {
+                    "partner_gene_symbol": "APC",
+                    "log2_odds_ratio": 1.6377769185514766,
+                    "bh_q_value": 0.0,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "CDKN2A",
+                    "log2_odds_ratio": 1.223074643392247,
+                    "bh_q_value": 0.0,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "SMAD4",
+                    "log2_odds_ratio": 2.384440291397894,
+                    "bh_q_value": 0.0,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "STK11",
+                    "log2_odds_ratio": 1.8446330509410984,
+                    "bh_q_value": 0.0,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "RBM10",
+                    "log2_odds_ratio": 1.2968400466900145,
+                    "bh_q_value": 1.9123563392127378e-252,
+                    "source": "genie_v19",
+                    "pooled_eligible": false
+                  },
+                  {
+                    "partner_gene_symbol": "SOX9",
+                    "log2_odds_ratio": 1.3600817420867264,
+                    "bh_q_value": 9.005586691501996e-217,
+                    "source": "genie_v19",
+                    "pooled_eligible": false
+                  },
+                  {
+                    "partner_gene_symbol": "KEAP1",
+                    "log2_odds_ratio": 1.1689274600360193,
+                    "bh_q_value": 4.7130899061214033e-206,
+                    "source": "genie_v19",
+                    "pooled_eligible": false
+                  },
+                  {
+                    "partner_gene_symbol": "FBXW7",
+                    "log2_odds_ratio": 0.9542407691170904,
+                    "bh_q_value": 7.500378796533038e-176,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "RNF43",
+                    "log2_odds_ratio": 1.0039633132910555,
+                    "bh_q_value": 1.178584595575676e-141,
+                    "source": "genie_v19",
+                    "pooled_eligible": false
+                  },
+                  {
+                    "partner_gene_symbol": "PIK3CA",
+                    "log2_odds_ratio": 0.9461877622422993,
+                    "bh_q_value": 4.4105622859471766e-85,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  }
+                ],
+                "top_mutually_exclusive": [
+                  {
+                    "partner_gene_symbol": "EGFR",
+                    "log2_odds_ratio": -2.7992391580978815,
+                    "bh_q_value": 0.0,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "TP53",
+                    "log2_odds_ratio": -1.3469665575266174,
+                    "bh_q_value": 0.0,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "BRAF",
+                    "log2_odds_ratio": -3.0001736453480223,
+                    "bh_q_value": 6.6900479326e-314,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "MEN1",
+                    "log2_odds_ratio": -4.695898766950642,
+                    "bh_q_value": 2.320200012382331e-270,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "NRAS",
+                    "log2_odds_ratio": -2.786401778310298,
+                    "bh_q_value": 1.1460028222714354e-107,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "RB1",
+                    "log2_odds_ratio": -0.7855203132908531,
+                    "bh_q_value": 1.5539888077685897e-69,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "ATRX",
+                    "log2_odds_ratio": -2.5154240653070943,
+                    "bh_q_value": 9.534406072995406e-59,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "NF1",
+                    "log2_odds_ratio": -0.5825243278273454,
+                    "bh_q_value": 1.5180904416018812e-55,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "DNMT3A",
+                    "log2_odds_ratio": -0.6509624217218165,
+                    "bh_q_value": 3.9762459886502705e-51,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  },
+                  {
+                    "partner_gene_symbol": "IDH1",
+                    "log2_odds_ratio": -0.8076356985472443,
+                    "bh_q_value": 1.680069896397239e-48,
+                    "source": "genie_v19",
+                    "pooled_eligible": true
+                  }
+                ],
+                "n_pairs_panel_intersect_eligible": 1084
+              },
+              "cite": {
+                "card_id": "co-mutation-and-mutual-exclusivity",
+                "fields": [
+                  "cooccurrence_class",
+                  "n_pairs_panel_intersect_eligible",
+                  "n_significant_cooccurring",
+                  "n_significant_mutually_exclusive",
+                  "top_cooccurring",
+                  "top_mutually_exclusive"
+                ]
+              },
+              "entity": {
+                "measurement_type": "differentiation_landscape",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      },
+      "NODE": {
+        "signal": "strong",
+        "confidence": "high",
+        "n_sources": 2,
+        "n_agree": 2,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "stemness-context",
+            "tier": "strong",
+            "n": 669,
+            "label": "stemness",
+            "conflict": false,
+            "value": "stem_high"
+          },
+          {
+            "card": "pathway-node-leverage",
+            "tier": "strong",
+            "n": null,
+            "label": "node leverage",
+            "conflict": false,
+            "value": "dominant_node"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "NODE",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "pathway-node-leverage: dominant_node",
+            "evidence_atom": {
+              "read": "dominant_node",
+              "values": {
+                "node_leverage_class": "dominant_node",
+                "evidence_scope": "within_indication_lineage",
+                "paralog_buffering_class": "strong",
+                "strongest_buffering_paralog": "NRAS"
+              },
+              "cite": {
+                "card_id": "pathway-node-leverage",
+                "fields": [
+                  "evidence_scope",
+                  "node_leverage_class",
+                  "paralog_buffering_class",
+                  "strongest_buffering_paralog"
+                ]
+              },
+              "entity": {
+                "measurement_type": "differentiation_landscape",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      },
+      "PROGNOSIS": {
+        "signal": "absent",
+        "confidence": "moderate",
+        "n_sources": 3,
+        "n_agree": 1,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "expression-clinical-association",
+            "tier": "moderate",
+            "n": 620,
+            "label": "survival association",
+            "conflict": false,
+            "value": "expression_high_better_survival"
+          },
+          {
+            "card": "precog-prognostic-association",
+            "tier": "absent",
+            "n": null,
+            "label": "prognostic",
+            "conflict": false,
+            "value": "no_prognostic_association"
+          },
+          {
+            "card": "alteration-clinical-association",
+            "tier": "absent",
+            "n": 552,
+            "label": "alteration survival association",
+            "conflict": false,
+            "value": "no_survival_association"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "PROGNOSIS",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "evidence": "precog-prognostic-association: no_prognostic_association",
+            "evidence_atom": {
+              "read": "no_prognostic_association",
+              "values": {
+                "prognostic_class": "no_prognostic_association",
+                "meta_z": 1.821,
+                "pan_cancer_meta_z": -1.3338,
+                "n_precog_datasets": "166 datasets / ~18k patients (pan-cancer meta-analysis)"
+              },
+              "cite": {
+                "card_id": "precog-prognostic-association",
+                "fields": [
+                  "meta_z",
+                  "n_precog_datasets",
+                  "pan_cancer_meta_z",
+                  "prognostic_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "differentiation_landscape",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      },
+      "SURVIVAL": {
+        "signal": "moderate",
+        "confidence": "high",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "subtype-survival-association",
+            "tier": "strong",
+            "n": 265,
+            "label": "subtype survival association",
+            "conflict": false,
+            "value": "subtype_stratifies_survival"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "SURVIVAL",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "expression-clinical-association: expression_high_better_survival",
+            "evidence_atom": {
+              "read": "expression_high_better_survival",
+              "values": {
+                "survival_association_class": "expression_high_better_survival",
+                "logrank_p": 0.016,
+                "n_patients": 620,
+                "n_events": 127,
+                "n_high_expr": 310,
+                "n_low_expr": 310
+              },
+              "cite": {
+                "card_id": "expression-clinical-association",
+                "fields": [
+                  "logrank_p",
+                  "n_events",
+                  "n_high_expr",
+                  "n_low_expr",
+                  "n_patients",
+                  "survival_association_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "differentiation_landscape",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
