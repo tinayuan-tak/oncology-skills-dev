@@ -1,0 +1,28 @@
+{
+  "$comment": "PER-SKILL PINS (source) for surfaceome-cohort-ranking (AUX, non-fan-out RANKING scan; hand-rolled main). VARIANT = gateless-descriptive-ranking: NO scalar nomination verdict → skill_report.call NULL; role:descriptive + polarity:not_scored. Emitter patched (skills PR) to add build_skill_report + run_health/provenance backfill. The emit carries n_ranked (count) + optional target_context (single row); the ranked table lives in the derived parquet, NOT the emit. Stable per-target enums cohort_rank_class + rna_protein_concordance are pinned when present (target-mode only). Append-only within contract major version.",
+  "skill": "surfaceome-cohort-ranking",
+  "role_variant": "gateless_descriptive_ranking",
+  "$defs": {
+    "cohort_rank_class_enum": {"type": "string", "enum": ["top_1_percent", "top_5", "top_25", "below_25_percent", "data_unavailable"]},
+    "rna_protein_concordance_enum": {"type": "string", "enum": ["agreement", "disagreement", "rna_only", "no_protein"]}
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "surfaceome-cohort-ranking"},
+      "headline": {
+        "type": "object",
+        "properties": {
+          "cohort_rank_class": {"oneOf": [{"$ref": "#/$defs/cohort_rank_class_enum"}, {"type": "null"}]},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"type": "null"},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

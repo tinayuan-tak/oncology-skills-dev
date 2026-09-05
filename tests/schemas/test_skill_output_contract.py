@@ -25,6 +25,11 @@ REPO = Path(__file__).resolve().parents[2]
 SCHEMAS = REPO / "schemas"
 SHARED = [SCHEMAS / "skill_report.schema.json", SCHEMAS / "skill_decision.schema.json"]
 GENERATED = sorted((SCHEMAS / "skills").glob("*.decision.schema.json"))
+# Hand-authored bespoke per-skill emit schemas for AUX skills whose output is NOT the fan-out
+# skill_decision envelope (no run_health / headline.skill_report). These have NO pin and are NOT
+# produced by the generator, so they are exempt from the in-sync ratchet — but they must still be
+# valid, self-contained Draft 2020-12 schemas. Glob-based, so each new bespoke schema is auto-covered.
+BESPOKE = sorted((SCHEMAS / "skills").glob("*.emit.schema.json"))
 GEN_SCRIPT = REPO / "validators" / "gen_skill_output_schemas.py"
 
 
@@ -46,14 +51,14 @@ def _external_refs(node, out: list):
     return out
 
 
-@pytest.mark.parametrize("path", SHARED + GENERATED, ids=lambda p: p.name)
+@pytest.mark.parametrize("path", SHARED + GENERATED + BESPOKE, ids=lambda p: p.name)
 def test_schema_valid_json_and_draft(path: Path):
     assert path.exists(), f"missing schema {path}"
     doc = _load(path)
     assert doc.get("$schema", "").endswith("2020-12/schema"), f"{path.name}: expected Draft 2020-12"
 
 
-@pytest.mark.parametrize("path", SHARED + GENERATED, ids=lambda p: p.name)
+@pytest.mark.parametrize("path", SHARED + GENERATED + BESPOKE, ids=lambda p: p.name)
 def test_schema_meta_valid(path: Path):
     jsonschema = pytest.importorskip("jsonschema")
     jsonschema.Draft202012Validator.check_schema(_load(path))  # raises SchemaError if invalid
@@ -64,8 +69,8 @@ def test_shared_sources_present():
         assert p.exists(), f"shared contract source missing: {p}"
 
 
-@pytest.mark.skipif(not GENERATED, reason="no generated per-skill schemas yet")
-@pytest.mark.parametrize("path", GENERATED, ids=lambda p: p.name)
+@pytest.mark.skipif(not (GENERATED or BESPOKE), reason="no per-skill schemas yet")
+@pytest.mark.parametrize("path", GENERATED + BESPOKE, ids=lambda p: p.name)
 def test_generated_is_self_contained(path: Path):
     """No cross-file/network $ref — a naive validator must work with no registry (house style)."""
     ext = _external_refs(_load(path), [])
