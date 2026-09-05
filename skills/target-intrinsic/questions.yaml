@@ -1,0 +1,79 @@
+# Canonical question + axis registry for the target-intrinsic dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for target-intrinsic's consumer-facing questions and
+# the unified axis_id vocabulary {MODALITY_ROUTING, TRACTABILITY_PRECEDENT} — the SAME two axis keys the
+# target-intrinsic narrator lens uses (narrator_lenses.py TARGET_INTRINSIC.axis_labels: MODALITY_ROUTING
+# "modality routing" / TRACTABILITY_PRECEDENT "tractability precedent"), so the literature axis->question
+# crosswalk resolves. These are also the two sub_groups of question_hierarchy.yaml and the two atoms of
+# the target_intrinsic claim_vector / emitted question_table (Q1 MODALITY_ROUTING, Q2 TRACTABILITY_PRECEDENT).
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1/Q2 the target_intrinsic_question_table
+# builder emits) — the emitted question_table itself is NOT modified (byte-stable).
+#
+# GATELESS / DESCRIPTIVE: target-intrinsic is an indication-INDEPENDENT dossier (run.py verdict_fn=None),
+# so there is NO nomination verdict — decision.headline.verdict is None and the graph's verdict.id is None
+# (verdict.call carries the deterministic descriptive dominant-signal phrase; null-safe by construction).
+# Rules DO fire on the loaded intracellular_intrinsic axis (so 10 cards carry role=verdict_bearing in the
+# graph), but no driving_rule_id is selected (there is no verdict_fn). Every question role is therefore
+# `display_only` — none bears a verdict; the two lens-axis questions carry the emitted descriptive signal
+# ("informs"), the rest are contextual dossier layers. There is NO subtype card in a standard run (every
+# capsule is tier:target — scope-invariant, never stratifies), so NO subtype:true question.
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id target_intrinsic_question_table emits (Q1/Q2). Present ONLY on the two
+#                   questions that have an emitted question_table row (the two lens axes); OMITTED on the
+#                   three context questions (they carry no emitted signal — they still anchor cards).
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis (MODALITY_ROUTING|TRACTABILITY_PRECEDENT); null = no axis
+#   role            display_only for all (descriptive skill — no verdict; none is a corroboration axis)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types + context_types)
+#                   + the card contracts (target-contracts/cards/<id>.card.yaml measurement_type). Every
+#                   standard-run card (20) joins >= 1 question — no orphans.
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => MODALITY_ROUTING->[modality_route, biology_context]   TRACTABILITY_PRECEDENT->[tractability_precedent]
+skill: target-intrinsic
+axis_vocabulary:
+  MODALITY_ROUTING: modality routing
+  TRACTABILITY_PRECEDENT: tractability precedent
+questions:
+- id: modality_route
+  legacy_id: Q1
+  seq: 1
+  text: Do the target's domains / family / structure imply a modality route (SM / degrader / biologic)?
+  axis_id: MODALITY_ROUTING
+  role: display_only
+  measurement_types: [domain_modality_relevance, surfaceome_family, structure_druggability,
+    protein_domains_class, shed_ectodomain_liability]
+- id: tractability_precedent
+  legacy_id: Q2
+  seq: 2
+  text: What is the target's development-level precedent + measured chemical matter?
+  axis_id: TRACTABILITY_PRECEDENT
+  role: display_only
+  measurement_types: [target_development_level, measured_potency_tractability]
+- id: biology_context
+  seq: 3
+  text: What is the target's identity, molecular function, pathway role, and interactome?
+  axis_id: MODALITY_ROUTING
+  role: display_only
+  measurement_types: [target_identity, gene_ontology_annotation, signaling_network_mechanism,
+    reactome_pathway_membership, ppi_interactome]
+- id: safety_genetics
+  seq: 4
+  text: Is the gene loss-of-function intolerant in humans (germline safety genetics)?
+  axis_id: null
+  role: display_only
+  measurement_types: [gnomad_lof_constraint, human_genetic_safety, dosage_sensitivity_safety,
+    clinvar_germline_pathogenicity_safety, mouse_ko_phenotype_safety, target_safety_prioritisation]
+- id: normal_context
+  seq: 5
+  text: What is the target's normal-tissue footprint and paralog redundancy?
+  axis_id: null
+  role: display_only
+  measurement_types: [normal_tissue_protein_breadth, paralog_buffering]
