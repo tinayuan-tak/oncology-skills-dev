@@ -18,6 +18,7 @@ emitted at decision.headline.evidence_graph (schemas/evidence_graph.schema.json)
           · blind_spots[].citation_ids ⊆ citations
         - verdict.driving_rule_id ⊆ rules · verdict.top_tension.source_card_ids ⊆ cards
         - narrative.cites.{question_ids,card_ids,rule_ids} ⊆ respective
+          · narrative.exec_bullets[].cites.{question_ids ⊆ questions, card_ids ⊆ cards, citation_ids ⊆ citations}
 
 Usage:
   python validators/validate_evidence_graph.py --self-check          # bundled example fixture
@@ -133,10 +134,16 @@ def referential_integrity_errors(graph: dict) -> list[str]:
     if isinstance(tension, dict):
         _chk(tension.get("source_card_ids"), card_ids, "verdict.top_tension.source_card_ids")
 
-    cites = (g.get("narrative") or {}).get("cites") or {}
+    narrative = g.get("narrative") or {}
+    cites = narrative.get("cites") or {}
     _chk(cites.get("question_ids"), q_ids, "narrative.cites.question_ids")
     _chk(cites.get("card_ids"), card_ids, "narrative.cites.card_ids")
     _chk(cites.get("rule_ids"), rule_ids, "narrative.cites.rule_ids")
+    for i, b in enumerate(narrative.get("exec_bullets") or []):
+        bc = (b or {}).get("cites") or {} if isinstance(b, dict) else {}
+        _chk(bc.get("question_ids"), q_ids, f"narrative.exec_bullets[{i}].cites.question_ids")
+        _chk(bc.get("card_ids"), card_ids, f"narrative.exec_bullets[{i}].cites.card_ids")
+        _chk(bc.get("citation_ids"), cite_ids, f"narrative.exec_bullets[{i}].cites.citation_ids")
     return errs
 
 

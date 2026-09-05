@@ -1455,5 +1455,21 @@
   ],
   "literature": {},
   "citations": [],
-  "narrative": {}
+  "narrative": {
+    "exec_bullets": [
+      {
+        "text": "Lineage-selective dependency \u2014 Bowel (Chronos -1.18, q=3.8e-16) and Pancreas (-1.83); omnibus p=7e-50; a selective therapeutic window, not pan-essential.",
+        "polarity": "supportive",
+        "cites": {
+          "question_ids": [
+            "selective_to_lineage"
+          ],
+          "card_ids": [
+            "dependency-lineage-selectivity"
+          ],
+          "citation_ids": []
+        }
+      }
+    ]
+  }
 }
