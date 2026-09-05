@@ -2117,6 +2117,101 @@ def build_target_coherence(sub_results: dict, target_rollup: "Optional[dict]" = 
     }
 
 
+def build_composed_evidence_graph(target_report: dict) -> dict:
+    """composed_evidence_graph.v1 — a THIN, additive, DISPLAY-ONLY index over `target_report`: the target
+    decision as a node/edge graph (the composed analog of the per-subskill
+    decision.headline.evidence_graph). PURE PROJECTION — the verdict + skill nodes read target_call +
+    skill_reports; edges are typed cross-lens relations that REFERENCE existing target_report rollups by a
+    `ref` path and RECOMPUTE NOTHING. It gates nothing and never moves the recommendation (target_call
+    owns it). This is the reconstruct-ability / consumer API for the composed decision, mirroring what the
+    per-subskill graph gave the sub-skill dashboard (docs/COMPOSED_EVIDENCE_GRAPH_ROLLUP.md §2). Fail-soft:
+    absent rollups → empty node/edge lists.
+    """
+    from _skills_common.report_render.vocab import SKILL_TOPICAL_LENS  # canonical short→lens map (one source)
+
+    tr = target_report or {}
+    tc = tr.get("target_call") or {}
+    skill_reports = tr.get("skill_reports") or {}
+
+    # deciding short(s) — the deciding_axis block has three basis-shapes (gate_fired / positive_signal /
+    # abstention); read defensively.
+    da = tc.get("deciding_axis") or {}
+    deciding_shorts: list = []
+    if isinstance(da.get("deciding_axis"), dict) and da["deciding_axis"].get("short"):
+        deciding_shorts = [da["deciding_axis"]["short"]]
+    elif isinstance(da.get("deciding_axes"), list):
+        deciding_shorts = [r.get("short") for r in da["deciding_axes"]
+                           if isinstance(r, dict) and r.get("short")]
+    deciding_set = set(deciding_shorts)
+
+    conf = tc.get("confidence") if isinstance(tc.get("confidence"), dict) else {}
+    verdict_node = {
+        "recommendation": tc.get("recommendation"),
+        "confidence": {"level": conf.get("level")},
+        "deciding_shorts": deciding_shorts,
+    }
+
+    # skill nodes — one per short in skill_reports (verdict-inert projection)
+    skills: list = []
+    for short in sorted(skill_reports):
+        rep = skill_reports.get(short)
+        if not isinstance(rep, dict):
+            continue
+        eg = rep.get("evidence_graph") if isinstance(rep.get("evidence_graph"), dict) else None
+        lit = (eg or {}).get("literature") or {}
+        c = rep.get("confidence") if isinstance(rep.get("confidence"), dict) else {}
+        skills.append({
+            "short": short,
+            "lens": SKILL_TOPICAL_LENS.get(short),
+            "role": rep.get("role"),
+            "call": rep.get("call"),
+            "polarity": rep.get("polarity"),
+            "confidence": c.get("level"),
+            "deciding": short in deciding_set,
+            "has_evidence_graph": eg is not None,
+            "literature_consistency": lit.get("overall_consistency"),
+        })
+
+    edges: list = []
+    # deciding_axis: verdict → the deciding skill(s)
+    for s in deciding_shorts:
+        edges.append({"type": "deciding_axis", "from": "verdict", "to": s,
+                      "ref": "target_report.target_call.deciding_axis"})
+    # dissent: an independent signal disagreed with the gate (the honest 'why not higher/lower')
+    for d in (tc.get("dissent") or []):
+        if isinstance(d, dict):
+            edges.append({"type": "dissent", "from": d.get("source"), "to": "verdict",
+                          "note": d.get("detail"), "resolved_to": d.get("resolved_to"),
+                          "ref": "target_report.target_call.dissent"})
+    # modality_fit: the limiting skill → each channel (worst-case fit per channel)
+    for channel, mf in ((tr.get("modality_fit") or {}).get("by_channel") or {}).items():
+        if isinstance(mf, dict):
+            edges.append({"type": "modality_fit", "from": mf.get("limiting_axis"), "to": channel,
+                          "signal": mf.get("fit"), "ref": "target_report.modality_fit.by_channel"})
+    # risk: verdict → each governance risk dimension (deterministic 6-dim)
+    risk = tr.get("risk_6dim") or {}
+    if isinstance(risk, dict):
+        for dim, rd in risk.items():
+            if isinstance(rd, dict) and rd.get("bin") is not None:
+                edges.append({"type": "risk", "from": "verdict", "to": dim, "bin": rd.get("bin"),
+                              "ref": "target_report.risk_6dim"})
+    # subtype convergence: the convergent molecular strata
+    sc = tr.get("subtype_convergence") if isinstance(tr.get("subtype_convergence"), dict) else {}
+    for st in (sc.get("convergent_subtypes") or []):
+        edges.append({"type": "subtype_convergence", "to": st,
+                      "ref": "target_report.subtype_convergence"})
+
+    return {
+        "schema": "composed_evidence_graph.v1",
+        "verdict": verdict_node,
+        "skills": skills,
+        "edges": edges,
+        "_note": ("Thin DISPLAY-ONLY index over target_report — the composed analog of the per-subskill "
+                  "evidence_graph. Edges reference existing rollups by `ref`; recomputes nothing; gates "
+                  "nothing; target_call owns the recommendation."),
+    }
+
+
 def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = None,
                         target_coherence: "Optional[dict]" = None, ordinal_matrix: "Optional[dict]" = None,
                         modality_fit_by_channel: "Optional[dict]" = None,
@@ -2141,7 +2236,7 @@ def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = 
     consolidation (full-nest of the spine keys, risk_6dim migration, per-skill facet relocation) collapses
     into — and the object the deterministic-risk / literature migrations require to exist."""
     tr = target_rollup or {}
-    return {
+    report = {
         "schema": "target_report.v1",
         # the per-skill skill_report[] SPINE + its role-grouped roll-up — target_report's FIRST consumer of
         # the unified per-skill signals (docs/UNIFIED_OUTPUT_CONTRACT.md). Verdict-inert; the rollup carries
@@ -2171,6 +2266,10 @@ def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = 
                   "existing target-level facets, which remain top-level until consumers migrate. "
                   "target_call owns the recommendation; nothing here is recomputed."),
     }
+    # additive DISPLAY-ONLY composed index over this report — the composed analog of the per-subskill
+    # decision.headline.evidence_graph (P6). Pure projection; recomputes nothing; verdict spine untouched.
+    report["evidence_graph"] = build_composed_evidence_graph(report)
+    return report
 
 
 __all__ = [
@@ -2178,6 +2277,7 @@ __all__ = [
     'build_target_coherence',
     'build_target_call',
     'build_target_report',
+    'build_composed_evidence_graph',
     '_ADDRESSABLE_POPULATION_LEGEND',
     '_BIOMARKER_INPUTS',
     '_BIOMARKER_QUANT',
