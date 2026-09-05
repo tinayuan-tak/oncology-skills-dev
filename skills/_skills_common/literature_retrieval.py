@@ -145,6 +145,18 @@ _LENS_QUERY_TERMS = {
                                    "focal amplification", "promoter methylation silencing",
                                    "CpG island methylator phenotype", "oncogene addiction dosage",
                                    "protein abundance copy number", "tumor purity confound"],
+    # target-archetype is the META cross-skill signature LANDSCAPE companion: it grounds the DOMINANT
+    # phenotype_mixture component + the top nearest_analogs ANALOGY ("does the literature support that target X
+    # is phenotype-P and most like reference-Y?"). Its 5 axis_labels (PHENOTYPE/ANALOG/PRECEDENT/NOVELTY/
+    # READINESS) are FRAMEWORK-internal jargon that alone would fill the default 5-cap and admit ZERO curated
+    # terms — so this lens gets a _LENS_MAX_TERMS bump (below) and these front-loaded PHENOTYPE + ANALOGY
+    # discriminators (target family/class, surface-antigen vs driver vs TSG phenotype, analogy/"most similar
+    # to" reasoning, drug-target archetype) carry the precision query. often INDICATION-INDEPENDENT →
+    # None-indication → _indication_phrase→"cancer" (like target-intrinsic).
+    "target-archetype":           ["drug target class", "oncogene tumor suppressor classification",
+                                   "cell surface antigen", "driver gene amplification mutation",
+                                   "oncogene addiction", "target druggability class",
+                                   "antibody-drug conjugate target", "molecular subtype classification"],
 }
 
 
@@ -168,7 +180,12 @@ _LENS_MAX_TERMS = {"combination-and-vulnerability": 9, "cis-feature-coherence": 
                    # default 5-cap admits only ONE curated term; 8 lets the first ~4 discriminators (PDX
                    # fidelity / tumor organoid model / PDX drug response / preclinical model genomic fidelity)
                    # through alongside the axis labels. Surgical: every other lens keeps the default cap.
-                   "translational-readiness": 8}
+                   "translational-readiness": 8,
+                   # target-archetype declares FIVE (framework-internal) axis_labels, so the default 5-cap
+                   # admits ZERO curated terms; 10 lets the first ~5 phenotype/analogy discriminators (drug
+                   # target class / oncogene-vs-TSG / cell surface antigen / driver amp-vs-mutation / oncogene
+                   # addiction) through alongside the axis labels. Surgical: every other lens keeps the default.
+                   "target-archetype": 10}
 
 
 def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:

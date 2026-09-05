@@ -452,10 +452,31 @@ def vocabulary_drift(atlas: "Atlas", subskill_claim_vectors: dict) -> dict:
 
 
 def companion_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT_K) -> dict:
-    """In-process fan-out results -> phenotype-landscape companion. The target-profile reduction hook."""
+    """In-process fan-out results -> phenotype-landscape companion. The target-profile reduction hook.
+
+    Attaches the VERDICT-INERT archetype confidence surface (archetype_confidence_caveat +
+    archetype_provenance) onto the companion, so the COMPOSED target-profile facet carries them exactly as the
+    standalone doc does (target-profile stores this whole dict into nomination.json.archetype_companion). Gates
+    only on the already-computed companion fields → the mixture/analog/novelty NUMBERS are unchanged (only new
+    caveat keys added). Best-effort: a fault degrades a caveat to None, never breaks the reduction facet."""
     feat = vector_from_sub_results(sub_results)
     rules = fired_rule_ids_from_sub_results(sub_results)
-    return atlas.companion(feat, k=k, query_rules=rules)
+    companion = atlas.companion(feat, k=k, query_rules=rules)
+    _attach_archetype_caveats(companion)
+    return companion
+
+
+def _attach_archetype_caveats(companion: dict, target=None, indication=None) -> dict:
+    """Attach the VERDICT-INERT confidence caveat + provenance quorum onto a companion (in place). Shared by
+    the composed reduction hook and the standalone run.py so both carry an identical surface. Best-effort."""
+    for _fld, _fn in (("archetype_confidence_caveat", archetype_confidence_caveat),
+                      ("archetype_provenance", archetype_provenance)):
+        try:
+            companion[_fld] = _fn(companion, target=target, indication=indication)
+        except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never break the reduction facet
+            companion.setdefault("_enrichment_errors", {})[_fld] = f"{type(exc).__name__}: {exc}"
+            companion[_fld] = None
+    return companion
 
 
 # =============================================================================================
@@ -510,10 +531,33 @@ def _axis_scores(feat: dict) -> dict:
     return {ax: (sum(vs) / len(vs)) for ax, vs in acc.items()}
 
 
+def _scorecard_confidence_caveat(score) -> Optional[dict]:
+    """The (c) sub-inflation (VERDICT-INERT): the D1 nomination_scorecard per-archetype weights are
+    ILLUSTRATIVE + SHOWN, NOT learned — so the score ORIENTS, it is NEVER a nomination-readiness verdict. Cite
+    the RETIRED outcome-trained D2/D3 approval-propensity score as the cautionary tale (a LEARNED score was
+    maturity/study-depth-confounded, not disease biology — corroborated by the study-attention-bias +
+    outcome-label-leakage literature). Fires whenever a real score exists; None when the atlas lacks axis_ref
+    (score None → byte-stable)."""
+    if score is None:
+        return None
+    return {"reason": "illustrative_not_learned_orients_not_nominates", "tier": "context",
+            "detail": ("The D1 readiness score is a GLASS-BOX orientation layer: a phenotype-mixture-blended "
+                       "weighted mean of z-scored axis positions using ILLUSTRATIVE, expert-set, SHOWN "
+                       "per-archetype weights (NOT learned). The NUMBER ORIENTS ('closest to nominatable except "
+                       "axis X'); it is NEVER a nomination-readiness verdict and never mints a recommendation. "
+                       "The cautionary tale is the RETIRED outcome-trained D2/D3 approval-propensity score: an "
+                       "ablation showed its signal was carried by advancement / study-depth (maturity-"
+                       "confounded — target attention is self-reinforcing and forecastable from study history, "
+                       "Stoeger 2018 PMID 30226837 / Edwards 2011 PMID 21307913; and outcome-trained target "
+                       "scores leak the 'already-known-target' label, Ferrero 2017 PMID 28851378), not disease "
+                       "biology, so it was removed. Do NOT read the score as a learned probability of success.")}
+
+
 def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
     """Glass-box, archetype-conditioned nomination-readiness score. VERDICT-INERT."""
     if not atlas.axis_ref:
-        return {"verdict": None, "score": None, "note": "atlas has no axis_ref (rebuild atlas)"}
+        return {"verdict": None, "score": None, "note": "atlas has no axis_ref (rebuild atlas)",
+                "scorecard_confidence_caveat": None}
     ascore = _axis_scores(feat)
     z = {}
     for ax in SCORECARD_AXES:
@@ -576,6 +620,10 @@ def nomination_scorecard(feat: dict, membership: dict, atlas: Atlas) -> dict:
         "value_of_information": voi,
         "weights_note": ("ILLUSTRATIVE expert-set weights, phenotype-mixture-blended per-archetype (SHOWN, "
                          "not learned). Interpretable D1 layer; safety is a liability axis (sign −1)."),
+        # VERDICT-INERT: the score ORIENTS, it is never a nomination-readiness verdict (illustrative-not-learned
+        # weights; cite the RETIRED maturity-confounded outcome-trained D2/D3 score). Nested here so BOTH the
+        # standalone doc + the composed target-profile facet (scorecard_from_sub_results → this) carry it.
+        "scorecard_confidence_caveat": _scorecard_confidence_caveat(round(score01, 3)),
         "disclaimer": ("DESCRIPTIVE, verdict-inert nomination-READINESS score. Glass-box: score = "
                        "phenotype-conditioned weighted mean of z-scored axis positions vs the frozen "
                        "corpus. NOT a gate, never mints a recommendation."),
@@ -590,3 +638,180 @@ def scorecard_from_sub_results(sub_results: dict, atlas: Atlas, k: int = DEFAULT
     if membership is None:
         membership = atlas.companion(feat, k=k, with_uncertainty=False).get("soft_membership")
     return nomination_scorecard(feat, membership, atlas)
+
+
+# =============================================================================================
+# ARCHETYPE CONFIDENCE SURFACE (VERDICT-INERT) — the phenotype-landscape analog of the fan-out skills'
+# *_confirmation_caveat surface (surface_confirmation_caveat / partner_confirmation_caveat /
+# translational_readiness_confidence_caveat). THE TRAP: the phenotype_mixture / nearest_analogs /
+# rule_precedent / nomination_scorecard OVER-CALLS a REAL, literature-supported phenotype assignment /
+# analogy / nomination-readiness. Five sub-inflations, all documented in SKILL.md + this arc's verified
+# literature review:
+#   (a) LABEL CIRCULARITY — the anchors + reference panel labels are curated + PARTLY CIRCULAR (clinical
+#       antigens; cards designed from the same biology), so a nearest_analogs "most like TROP2/CDH17" can be
+#       a shared-card-design artifact, not an independent biological analogy (the documented guilt-by-
+#       association multifunctionality / annotation-propagation / analog-bias failure — Gillis & Pavlidis
+#       2012 PMID 22479173; Schnoes 2013 PMID 23737737; Wallach & Heifets 2018 PMID 29698607). Signalled by
+#       an analog whose SHOWN label is DATA-DERIVED (label_is_derived — the curated panel label was "?"), so
+#       the analogy rests on a label produced by the SAME embedding.
+#   (b) MISSINGNESS-DISTORTED MIXTURE — an unmeasured axis mean-imputes to 0 and silently distorts the
+#       mixture (the documented EGFR amp-dominant-because-SNV-silently-0 failure); the axis-jackknife
+#       mixture_uncertainty.stability band + the missingness map are the honest discriminators.
+#   (c) ILLUSTRATIVE-NOT-LEARNED scorecard weights — see _scorecard_confidence_caveat.
+#   (d) NOVELTY MIS-CALL — the hull-residual inconsistent_flag is a heuristic; a CONVEX-HULL residual is NOT
+#       scale-invariant on its own (an extreme-but-canonical point beyond the anchor hull would false-flag),
+#       which is why inconsistent_flag keys off the SCALE-INVARIANT relative residual + multimodal/entropy
+#       (the standard OOD two-statistic resolution — Jackson & Mudholkar 1979; Qin 2003).
+#   (e) ANCHOR PROVISIONALITY / DEFERRED FUSION — anchors curated + partly circular; fusion_driver DEFERRED
+#       (a trial re-freeze bled RTK-ness into non-fusion RTKs). Surfaced in archetype_provenance.
+# target-archetype is CARDLESS + verdict-INERT, so these gate ONLY on the EXISTING companion + scorecard
+# fields (mixture_uncertainty.stability / missingness / soft_membership / novelty) — NO atlas re-freeze, NO
+# resolver, NEVER a verdict change (there is none). SET literals (reference-drift guard), not 2-string tuples.
+# =============================================================================================
+
+# The anchor labels whose drug-target phenotype is INDEPENDENTLY biologically established (a high-stability,
+# low-missingness mixture dominated by one of these is NOT an over-call — the MILDER false-demote guard):
+# snv_driver (KRAS=GoF-driver), tsg_loss (VHL=TSG), amp_driver (ERBB2=amp), expression_surface (EPCAM=surface),
+# dependency_essential (AURKA=dependency). The controls (control_absent / control_housekeeping),
+# immune_checkpoint, and the DEFERRED fusion_driver are deliberately NOT canonical drug-target guards here.
+_CANONICAL_ESTABLISHED_ANCHORS = {"snv_driver", "tsg_loss", "amp_driver", "expression_surface",
+                                  "dependency_essential"}
+
+# Calibrated (2026-09-05) against the standalone panel live reads — see the workstream concordance doc. The
+# guard requires a mixture that is BOTH robust (jackknife stability) AND adequately measured AND decisively
+# dominant; the sharp low-stability/missingness tier fires below the stability floor OR when too little of
+# the atlas signature is measured.
+_ARCH_STABILITY_FLOOR = 0.6        # mixture_uncertainty.stability in [0,1]; below = leans on a single axis
+_ARCH_MEASURED_FRAC_FLOOR = 0.5    # fraction of the atlas feature_order actually measured
+_ARCH_DOMINANT_MASS_FLOOR = 0.4    # dominant anchor membership mass for a "decisive" phenotype call
+
+
+def _archetype_positive_substrate(companion: dict) -> bool:
+    """Is there a phenotype mixture to confidence-qualify at all? True when a soft_membership exists (every
+    real companion has one). An empty / malformed companion → False → caveat None (byte-stable honest degrade)."""
+    return bool(isinstance(companion, dict) and (companion.get("soft_membership") or companion.get("phenotype_mixture")))
+
+
+def _archetype_mixture_facts(companion: dict) -> dict:
+    """Pull the fields the caveats + provenance gate on out of a companion, once."""
+    mix = companion.get("soft_membership") or companion.get("phenotype_mixture") or {}
+    dom = max(mix, key=mix.get) if mix else None
+    dom_mass = mix.get(dom) if dom else None
+    mu = companion.get("mixture_uncertainty") or {}
+    stability = mu.get("stability")
+    miss = companion.get("missingness") or {}
+    n_meas, n_tot = miss.get("n_features_measured"), miss.get("n_features_total")
+    frac_meas = (n_meas / n_tot) if (isinstance(n_meas, (int, float)) and n_tot) else None
+    unmeasured_axes = miss.get("unmeasured_axes") or []
+    analogs = companion.get("nearest_analogs") or []
+    top_analog = analogs[0] if analogs else None
+    return {"mix": mix, "dominant_anchor": dom, "dominant_mass": dom_mass, "stability": stability,
+            "frac_measured": frac_meas, "n_measured": n_meas, "n_total": n_tot,
+            "unmeasured_axes": unmeasured_axes, "top_analog": top_analog}
+
+
+def archetype_confidence_caveat(companion: dict, target=None, indication=None) -> Optional[dict]:
+    """CONSOLIDATED phenotype/analog-over-call vs validated-anchor confidence call (VERDICT-INERT). Precedence:
+    the MILDER canonical-anchor false-demote guard (iii) FIRST (a HIGH-stability, LOW-missingness, decisively
+    canonical-anchor-dominated mixture must NOT be flagged) > the SHARP low-stability / missingness-distorted
+    mixture tier (i) > the SHARP analog/label-circular tier (ii) > None (a robust, adequately-measured,
+    non-circular, non-canonical signature — no over-call concern). Gates on already-computed companion fields
+    (mixture_uncertainty.stability / missingness / soft_membership / nearest_analogs.label_is_derived); NEVER
+    moves a spine (there is none — cardless + verdict-INERT). target/indication are OPTIONAL echo (None in the
+    composed path); the guard is target-agnostic so composed == standalone."""
+    if not _archetype_positive_substrate(companion):
+        return None
+    f = _archetype_mixture_facts(companion)
+    dom, dom_mass, stab, frac = f["dominant_anchor"], f["dominant_mass"], f["stability"], f["frac_measured"]
+
+    # TIER (iii) MILDER — validated_canonical_anchor false-demote guard.
+    if (dom in _CANONICAL_ESTABLISHED_ANCHORS
+            and isinstance(stab, (int, float)) and stab >= _ARCH_STABILITY_FLOOR
+            and isinstance(frac, (int, float)) and frac >= _ARCH_MEASURED_FRAC_FLOOR
+            and isinstance(dom_mass, (int, float)) and dom_mass >= _ARCH_DOMINANT_MASS_FLOOR):
+        return {"reason": "validated_canonical_anchor", "tier": "milder", "false_demote_guarded": True,
+                "dominant_anchor": dom, "dominant_mass": round(dom_mass, 3), "stability": stab,
+                "detail": (f"The mixture is dominated ({dom_mass:.0%}) by the canonical '{dom}' anchor with HIGH "
+                           f"axis-jackknife stability ({stab}) and adequate coverage ({frac:.0%} of atlas features "
+                           "measured). This is a ROBUST, adequately-measured read on a phenotype that is "
+                           "INDEPENDENTLY biologically established (KRAS=GoF-driver / VHL=TSG / ERBB2=amp / "
+                           "EPCAM=surface / AURKA=dependency) — NOT an over-call, do NOT demote it. The mixture "
+                           "remains a soft distribution, not a hard label.")}
+
+    # TIER (i) SHARP — low mixture stability OR missingness-distorted (the EGFR amp-dominant-because-SNV-0 mode).
+    low_stability = isinstance(stab, (int, float)) and stab < _ARCH_STABILITY_FLOOR
+    high_missingness = isinstance(frac, (int, float)) and frac < _ARCH_MEASURED_FRAC_FLOOR
+    if low_stability or high_missingness:
+        bits = []
+        if low_stability:
+            bits.append(f"the mixture is UNSTABLE (axis-jackknife stability {stab} < {_ARCH_STABILITY_FLOOR}) — "
+                        "dropping a single measured axis materially moves the phenotype call, so the dominant "
+                        f"'{dom}' phenotype leans on one axis rather than a corroborated signature")
+        if high_missingness:
+            bits.append(f"only {f['frac_measured']:.0%} of the atlas signature is measured "
+                        f"(unmeasured axes: {', '.join(f['unmeasured_axes']) or 'n/a'}) — an unmeasured axis "
+                        "MEAN-IMPUTES to 0 and can silently distort the mixture (the documented EGFR "
+                        "amp-dominant-because-the-SNV-axis-was-silently-0 failure mode)")
+        return {"reason": "phenotype_mixture_low_stability_or_missingness_distorted", "tier": "sharp",
+                "false_demote_guarded": False, "dominant_anchor": dom,
+                "dominant_mass": round(dom_mass, 3) if isinstance(dom_mass, (int, float)) else None,
+                "stability": stab, "frac_measured": round(frac, 3) if isinstance(frac, (int, float)) else None,
+                "detail": ("The phenotype mixture is an OVER-CONFIDENT read its OWN stability/missingness does "
+                           "not support: " + "; ".join(bits) + ". Read the mixture_uncertainty per-anchor "
+                           "envelope + the missingness map, not the point mixture; acquiring the unmeasured "
+                           "axes is the honest resolution.")}
+
+    # TIER (ii) SHARP — the nearest-analog / precedent rests on a CIRCULAR (data-derived) reference label.
+    top = f["top_analog"]
+    if isinstance(top, dict) and top.get("label_is_derived"):
+        return {"reason": "analog_or_label_circular", "tier": "sharp", "false_demote_guarded": False,
+                "top_analog": top.get("target"), "top_analog_label": top.get("archetype_label"),
+                "detail": (f"The nearest analog ('{top.get('target')}', shown as "
+                           f"'{top.get('archetype_label')}') carries a DATA-DERIVED label (its curated panel "
+                           "label was '?', so the shown label is the anchored-mixture argmax from the SAME "
+                           "embedding). A 'most like X' analogy resting on a label produced by the same features "
+                           "used to compute similarity is at risk of LABEL CIRCULARITY (guilt-by-association "
+                           "multifunctionality / annotation-propagation / analog bias — Gillis & Pavlidis 2012 "
+                           "PMID 22479173; Schnoes 2013 PMID 23737737; Wallach & Heifets 2018 PMID 29698607), "
+                           "not an independent biological analogy. Treat the analog as a hypothesis; confirm "
+                           "the similarity from evidence INDEPENDENT of the embedding.")}
+
+    return None   # robust, adequately-measured, curated-label, non-canonical signature → no over-call concern
+
+
+def archetype_provenance(companion: dict, target=None, indication=None) -> Optional[dict]:
+    """QUORUM / PROVENANCE summary for the phenotype-landscape read (VERDICT-INERT): the measured/unmeasured
+    axis counts, the mixture stability scalar, the dominant anchor + its membership mass, the novelty flags,
+    and the anchor-set provenance (+ the fusion_driver-DEFERRED note) — so a sharp point mixture is never
+    mistaken for a robust, well-measured, non-circular signature. Companion-only (no scorecard dependency), so
+    the composed facet and the standalone doc carry an identical quorum. None only on an empty/malformed
+    companion (byte-stable)."""
+    if not _archetype_positive_substrate(companion):
+        return None
+    f = _archetype_mixture_facts(companion)
+    nov = companion.get("novelty") or {}
+    anchors = companion.get("anchors") or []
+    anchor_labels = sorted({a.get("label") for a in anchors if isinstance(a, dict) and a.get("label")})
+    top = f["top_analog"] if isinstance(f["top_analog"], dict) else {}
+    return {
+        "n_measured_axes": f["n_measured"],
+        "n_total_axes": f["n_total"],
+        "frac_measured": round(f["frac_measured"], 3) if isinstance(f["frac_measured"], (int, float)) else None,
+        "n_unmeasured_subskill_axes": len(f["unmeasured_axes"]),
+        "unmeasured_axes": list(f["unmeasured_axes"]),
+        "mixture_stability": f["stability"],
+        "dominant_anchor": f["dominant_anchor"],
+        "dominant_mass": round(f["dominant_mass"], 3) if isinstance(f["dominant_mass"], (int, float)) else None,
+        "top_analog": top.get("target"),
+        "top_analog_label_is_derived": bool(top.get("label_is_derived")),
+        "novelty_inconsistent_flag": nov.get("inconsistent_flag"),
+        "novelty_multimodal": nov.get("multimodal"),
+        "novelty_mixture_entropy": nov.get("mixture_entropy"),
+        "anchor_labels": anchor_labels,
+        "n_anchors": len(anchors),
+        "anchor_provenance_note": ("Anchors are CURATED canonical exemplars + reference panel labels are "
+                                   "provisional and PARTLY CIRCULAR (clinical antigens; cards designed from the "
+                                   "same biology). The fusion_driver anchor is DEFERRED — a trial re-freeze bled "
+                                   "RTK-ness into non-fusion RTKs (SKILL.md), so a fusion-driven target has no "
+                                   "dedicated anchor and blends into snv_driver / amp_driver."),
+    }

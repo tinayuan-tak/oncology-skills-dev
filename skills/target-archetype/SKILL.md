@@ -22,7 +22,7 @@ description: |
   missing evidence?" — the phenotype-landscape companion, not a call.
 
 metadata:
-  version: 0.5.0            # MUST equal SKILL_VERSION in scripts/run.py
+  version: 0.6.0            # MUST equal SKILL_VERSION in scripts/run.py
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -100,6 +100,40 @@ RETIRED: the former outcome-trained approval-propensity score (D2/D3, `nominatio
 removed. An ablation showed its signal was carried by advancement / study-depth features, not disease
 biology (the pure-biology residual did not beat a genetics baseline, and the approval label is
 maturity-confounded), so the honest product is the descriptive phenotype landscape above.
+
+## Narrator lens + literature lane + confidence surface (v0.6.0)
+This is the FIRST non-fan-out skill wired for the literature-and-claims arc. Because it uses a **bespoke
+`main()`** (not `run_wired_skill`), the two LLM lanes are wired surgically in `scripts/run.py`:
+
+- **`--synthesize`** — a DESCRIPTIVE, verdict-INERT narration through the new
+  `_skills_common/narrator_lenses.TARGET_ARCHETYPE` LensConfig (`mode=descriptive`; axis_labels
+  `PHENOTYPE / ANALOG / PRECEDENT / NOVELTY / READINESS`). `run.py` builds a **decision-shaped dict** from the
+  companion + `nomination_scorecard` (a `claim_vector` over those five axes; the phenotype-landscape numbers
+  ride in the evidence strings since this layer is cardless) and runs the generic `narrator_engine`. The
+  narration LEADS with mixture stability + missingness + label-circularity + the illustrative-weight caveat —
+  never an over-confident point label.
+- **`--literature`** — a verdict-INERT literature lane (`make_literature_fn(TARGET_ARCHETYPE, default_retrieve,
+  verify_citations)`) that grounds the **dominant phenotype component + the top nearest_analogs analogy**
+  ("does the literature support that target X is phenotype-P and most like reference-Y?") against Europe PMC,
+  PMID-verified. Attached as `decision['literature_synthesis']` BEFORE the narrator (which may cite it). Often
+  indication-independent → `None` indication → `_indication_phrase → "cancer"` (like target-intrinsic).
+
+**Confidence surface (VERDICT-INERT).** The TRAP: the `phenotype_mixture` / `nearest_analogs` / `rule_precedent`
+/ `nomination_scorecard` OVER-CALLS a real, literature-supported phenotype / analogy / readiness. Gated ONLY on
+the already-computed companion + scorecard fields (`mixture_uncertainty.stability`, `missingness`,
+`soft_membership`, `nearest_analogs.label_is_derived`, `novelty`) — **cardless + verdict-INERT → no atlas
+re-freeze, no resolver, no verdict to move**. Three fields (in `archetype_core.py`, carried by BOTH the
+standalone doc and the composed `companion_from_sub_results` facet):
+- **`archetype_confidence_caveat`** (3-tier): `validated_canonical_anchor` (MILDER false-demote guard — a
+  HIGH-stability, LOW-missingness, decisively canonical-anchor-dominated mixture is NOT an over-call) >
+  `phenotype_mixture_low_stability_or_missingness_distorted` (SHARP — jackknife stability below floor OR too
+  little of the atlas signature measured; the EGFR amp-because-SNV-silently-0 mode) >
+  `analog_or_label_circular` (SHARP — the nearest analog rests on a DATA-DERIVED, same-embedding label →
+  label-circularity risk).
+- **`scorecard_confidence_caveat`** — the D1 weights are ILLUSTRATIVE + SHOWN, not learned; the score ORIENTS,
+  it is NEVER a nomination verdict (cites the RETIRED, maturity-confounded outcome-trained D2/D3 score).
+- **`archetype_provenance`** — the QUORUM: measured/unmeasured axis counts, mixture stability, dominant anchor
+  + mass, novelty flags, anchor-set provenance + the fusion_driver-DEFERRED note.
 
 ## Governance (non-negotiable)
 DESCRIPTIVE, `verdict=None`, **out of `_SHORT_TO_GATE`**, never wired into a resolver `when.card_id` or the

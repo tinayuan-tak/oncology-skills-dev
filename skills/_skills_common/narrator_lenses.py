@@ -658,9 +658,74 @@ TRANSLATIONAL_READINESS = LensConfig(
     mode="descriptive",
 )
 
-# Registry for the dispatcher / fan-out lookup by skill name — ALL 14 hierarchy skills.
+TARGET_ARCHETYPE = LensConfig(
+    name="target-archetype",
+    thesis="the META cross-skill target-signature LANDSCAPE read — where the target sits as a SOFT PHENOTYPE "
+           "MIXTURE (a convex membership to curated canonical anchors: KRAS=GoF-driver, VHL=TSG, ERBB2=amp, "
+           "EPCAM=surface, AURKA=dependency, GAPDH=control — a DISTRIBUTION, never a hard label), which "
+           "reference targets it is most like (nearest ANALOGS), how its fired-rule fingerprint matches "
+           "precedent, whether its signature fits no canonical mix (NOVELTY = hull-residual), and a glass-box "
+           "D1 nomination-READINESS scorecard — WHILE distinguishing a HIGH-STABILITY, LOW-MISSINGNESS mixture "
+           "dominated by an independently-established canonical anchor from an OVER-CONFIDENT phenotype/analog/"
+           "readiness read that the mixture's OWN axis-jackknife STABILITY, its MISSINGNESS map, label "
+           "CIRCULARITY (the anchors/reference labels are curated + partly circular), or the ILLUSTRATIVE-not-"
+           "learned scorecard weights do NOT support.",
+    relevance_prompt="give the phenotype-landscape context read (descriptive signature map; NO classification "
+                     "and NO nomination call). Foreground whether the dominant phenotype / nearest analog / "
+                     "readiness read is a HIGH-STABILITY, LOW-MISSINGNESS, independently-established signal or "
+                     "an over-call driven by low jackknife stability, missingness-distortion, label "
+                     "circularity, or illustrative-not-learned scorecard weights.",
+    axis_labels={"PHENOTYPE": "dominant phenotype mixture", "ANALOG": "nearest reference analog",
+                 "PRECEDENT": "rule-fingerprint precedent", "NOVELTY": "hull-residual novelty",
+                 "READINESS": "D1 nomination-readiness scorecard"},
+    scope_exclusions=("any single-target nomination / classification verdict (this layer is descriptive + "
+                      "verdict-INERT, never a gate)",
+                      "the per-axis evidence calls themselves (owned by the 14 fan-out sub-skills — "
+                      "tumor-presence / functional-requirement / genomic-alteration / surface-modality-fit / …)",
+                      "assigning a HARD single-phenotype label (only the soft mixture is honest)"),
+    # NARRATOR RULE: this is a DESCRIPTIVE META signature MAP (cardless; gateless — no nomination/classification
+    # call). LEAD by separating a HIGH-STABILITY, LOW-MISSINGNESS, canonical-anchor-dominant mixture from a
+    # low-stability / missingness-distorted / label-circular / illustrative-weight OVER-CALL, then name the five
+    # inflation modes the raw mixture/analog/scorecard cannot self-distinguish.
+    polarity_note=(
+        "This is a DESCRIPTIVE cross-skill signature LANDSCAPE — the phenotype_mixture is a soft DISTRIBUTION "
+        "(convex membership to curated anchors), NEVER a hard label, and there is NO classification or "
+        "nomination verdict; do NOT imply the mixture / nearest_analog / scorecard classifies or nominates the "
+        "target. LEAD by stating whether the dominant-phenotype / nearest-analog / readiness read is a "
+        "HIGH-STABILITY, LOW-MISSINGNESS, independently-established signal or an OVER-CALL (read "
+        "archetype_confidence_caveat / archetype_provenance): a validated_canonical_anchor read — a HIGH mixture "
+        "stability + LOW missingness mixture dominated by a canonical anchor whose phenotype is independently "
+        "biologically established (KRAS=GoF-driver, VHL=TSG, ERBB2=amp, EPCAM=surface) — is NOT an over-call and "
+        "must NOT be demoted. Then name the five inflation modes: (a) LABEL CIRCULARITY — the anchors + reference "
+        "panel labels are curated + PARTLY CIRCULAR (clinical antigens; cards designed from the same biology), so "
+        "a nearest_analogs 'most like TROP2/CDH17' can be an artifact of shared card design, not an independent "
+        "biological analogy (read label_is_derived + the analog_or_label_circular reason); (b) MISSINGNESS-"
+        "DISTORTED MIXTURE — an UNMEASURED axis mean-imputes to 0 and silently distorts the mixture (the "
+        "documented EGFR amp-dominant-because-SNV-silently-0 failure), so a sharp mixture on FEW measured axes / "
+        "LOW mixture_uncertainty.stability is unreliable — the jackknife stability band + missingness map are the "
+        "honest discriminators; (c) ILLUSTRATIVE-NOT-LEARNED scorecard weights — the D1 nomination_scorecard "
+        "per-archetype weights are ILLUSTRATIVE + SHOWN, not learned, so a scorecard NUMBER ORIENTS, it is NEVER "
+        "a nomination-readiness verdict (the RETIRED outcome-trained D2/D3 approval-propensity score is the "
+        "cautionary tale — a learned score was maturity/study-depth-confounded, not disease biology); (d) NOVELTY "
+        "MIS-CALL — the hull-residual inconsistent_flag is a heuristic (scale-invariant-relative, but still) and "
+        "can mis-fire on an EXTREME-but-canonical blend; treat multimodal/mixture_entropy as the 'genuine "
+        "multi-phenotype blend vs truly weird' discriminator; (e) ANCHOR PROVISIONALITY / DEFERRED FUSION — the "
+        "anchors are curated + partly circular and the fusion_driver anchor is DEFERRED (a trial re-freeze bled "
+        "RTK-ness into non-fusion RTKs). The per-axis evidence calls are owned by the 14 fan-out sub-skills — "
+        "breadcrumb, do not adjudicate them here. NEVER invent an anchor, analog symbol, mixture weight, "
+        "scorecard number, or PMID."),
+    mode="descriptive",
+    # TOKENLESS descriptive lens (like COMBINATION_VULNERABILITY / TARGET_INTRINSIC): the companion emits NO
+    # collapsed verdict token (verdict=None, no resolved rung), so NO verdict_key — the collapsed-verdict prompt
+    # line resolves to None and the descriptive tool needs no verdict. The narration LEADS with the SIGNAL VECTOR
+    # (the phenotype/analog/precedent/novelty/readiness claim_vector this skill's bespoke run.py builds from
+    # companion + nomination_scorecard).
+)
+
+# Registry for the dispatcher / fan-out lookup by skill name — the 14 hierarchy skills + the META
+# target-archetype reduction-stage companion (NON-fan-out; cardless; verdict-INERT).
 LENSES = {L.name: L for L in (
     FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_PRESENCE, TUMOR_SELECTIVITY, GENOMIC_ALTERATION,
     SURFACE_MODALITY_FIT, TRACTABILITY_SM, IMMUNE_CONTEXT, DIFFERENTIATION_LANDSCAPE,
     MECHANISM_PHARMACOLOGY, CIS_FEATURE_COHERENCE, COMBINATION_VULNERABILITY, TARGET_INTRINSIC,
-    TRANSLATIONAL_READINESS)}
+    TRANSLATIONAL_READINESS, TARGET_ARCHETYPE)}
