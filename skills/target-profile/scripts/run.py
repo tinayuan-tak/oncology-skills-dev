@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """target-profile — composed target profile with Tier-3 LLM narrative synthesis.
 
-Fans out to the 14 question-answering sub-skills in SUB_SKILLS (tumor-presence,
+Fans out to the 15 question-answering sub-skills in SUB_SKILLS (tumor-presence,
 tumor-selectivity, functional-requirement, mechanism-and-pharmacology,
 genomic-alteration-profile, differentiation-landscape, tractability-small-molecule,
 surface-modality-fit, immune-context, on-target-safety-liability, target-intrinsic,
-cis-feature-coherence, combination-and-vulnerability, translational-readiness)
+cis-feature-coherence, combination-and-vulnerability, translational-readiness,
+literature-context)
 + an opt-in subtype_fit tier (--subtypes), collects their sub-verdicts + fired
 rules, then invokes Bedrock (via _skills_common.llm) with a forced structured
 tool_use to produce executive_summary + tension_analysis + recommendation. The
@@ -78,7 +79,7 @@ from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesi
 from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
 from tp_evidence_package import *    # noqa: F401,F403
 from tp_evidence_package import (
-    _catalogue_rows_from_sub_results, _emit_card_figures, _validation_summary_from_sub_results,
+    _emit_card_figures, _validation_summary_from_sub_results,
     _write_evidence_package,
 )
 from tp_figures import *             # noqa: F401,F403
@@ -822,7 +823,6 @@ def main() -> int:
     target_call = build_target_call(recommendation_gate, confidence_tier, deciding_axis, scorecard,
                                     overall_recommendation=llm_output.get("overall_recommendation"),
                                     target_rollup=target_rollup)
-    catalogue_rows = _catalogue_rows_from_sub_results(sub_results)
 
     # 5-field validation_summary — the shared evidence-package writer's contract, composed from
     # target-profile's card-read model (passed = card returned usable data; failed = absent/not-wired
@@ -932,12 +932,12 @@ def main() -> int:
     composite_rel = fig.composite_rel
     card_figures = fig.card_figures
 
-    # 3b/3c. target_profile.md + target_profile.html now render via the UNIFIED report_render engine
+    # 3b/3c. target_profile.md + target_profile.html render via the UNIFIED report_render engine
     # (spine-sourced), emitted just AFTER the nomination is assembled below (report_render reads the
-    # nomination's target_report.skill_reports spine). The legacy tp_render_md / tp_render_html are
-    # DEPRECATED — retained for the review tools (render_review / rerender) + their unit tests; hard
-    # retirement is a fast-follow. Figures above (emit_figures) still feed card_figures / --reports /
-    # the pending report_render figure-join. See `_emit_default_reports` just after the nomination write.
+    # nomination's target_report.skill_reports spine) — the SOLE md/html producer. The legacy
+    # tp_render_md / tp_render_html modules have been RETIRED (removed; render_review is self-contained).
+    # Figures above (emit_figures) still feed card_figures / --reports / the report_render figure-join.
+    # See `_emit_default_reports` just after the nomination write.
 
     # Governance / reproducibility. Build the governance block via the SHARED
     # _skills_common.build_governance so it can no longer drift from compose-dashboard's — same keys,

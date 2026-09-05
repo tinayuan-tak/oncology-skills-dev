@@ -3,7 +3,7 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out (in parallel, in-process) to the 14 wired
+  synthesis." Fans out (in parallel, in-process) to the 15 wired
   question-answering skills:
     - tumor-presence
     - tumor-selectivity
@@ -19,6 +19,7 @@ description: |
     - cis-feature-coherence             (locus→expression→dependency coherence; GATELESS, verdict-inert)
     - combination-and-vulnerability     (consolidated relational annex: SL + measured dual-KO + combo + resistance; GATELESS, verdict=None)
     - translational-readiness           (HCMI model availability + genotype-matched + PDXE in-vivo drug-response; GATELESS, verdict=None)
+    - literature-context                (cited-literature evidence: co-occurrence volume/recency + typed relation direction; GATELESS, verdict-inert)
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +

@@ -1,5 +1,8 @@
 """target-profile — deterministic derived facets (verdict-inert render inputs + the deciding-axis
-router): ordinal matrix, biomarker, subtype, fragility, heterogeneity, addressable-population."""
+router): ordinal matrix, biomarker, subtype, fragility, heterogeneity, addressable-population,
+competitor cross-ref, per-axis certainty, modality-fit-by-channel, actionability-mode, magnitude,
+and cross-gate shared-evidence, plus the composed target_report builder family (build_target_report /
+build_target_rollup / build_target_call / build_target_coherence / build_composed_evidence_graph)."""
 from __future__ import annotations
 
 import argparse

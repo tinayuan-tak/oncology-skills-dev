@@ -72,11 +72,6 @@ SUBSKILL_LABEL = dict(SUBSKILL_ORDER)
 # and it no longer couples this reviewer to the (retiring) presence_facet / selectivity_facet /
 # dependency_facet top-level keys. `dependency_facet` was retired 2026-09-03.
 QUESTION_TABLE_SHORTS = ("expression", "selectivity", "dependency")
-RISK_INPUT_AXES = {
-    "biological": ["expression", "selectivity", "dependency", "genomic_alteration"],
-    "druggability": ["tractability_sm", "surface_modality"], "safety": ["safety"],
-    "translational": [], "clinical": ["differentiation"], "commercial": ["differentiation"],
-}
 RISK_LEVEL_CLASS = {"LOW": "r-low", "LOW-MEDIUM": "r-low", "MEDIUM": "r-med",
                     "MEDIUM-HIGH": "r-high", "HIGH": "r-high"}
 # Descriptive (verdict=None) sub-skills that get a KEY-BIOLOGY facts table, with the fields to surface.

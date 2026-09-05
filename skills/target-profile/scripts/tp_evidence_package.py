@@ -25,24 +25,6 @@ from tp_common import SKILLS_DIR, SKILL_NAME, _CONTRACTS_REPO
 
 
 
-def _catalogue_rows_from_sub_results(sub_results: dict) -> list[dict]:
-    """Distill a manifest→consumers lineage table from the per-card provenance already in the run.
-    Envelope-only (no live catalog read → keeps the renderer a pure projection)."""
-    # Data source per card lives in summary['_data_source'] (the human-readable manifest/
-    # product label the provenance-trace section also reads) — NOT a top-level card['provenance']
-    # key, which card_outputs never carry, so this used to always return [] and the "Data
-    # catalogue" section was dead on every run.
-    by_source: dict[str, set] = {}
-    for short, r in sub_results.items():
-        for c in r.get("cards") or []:
-            if not isinstance(c, dict):
-                continue
-            src = (c.get("summary") or {}).get("_data_source")
-            if src:
-                by_source.setdefault(str(src), set()).add(short)
-    return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_source.items())]
-
-
 def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
     """Per-short verdict-INERT claim_vector (+ key_signals) carried into the machine envelope so a
     downstream reasoner (e.g. cross-evidence-hypothesis) consumes the SIGNAL decomposition + citable
@@ -579,7 +561,6 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
 
 
 __all__ = [
-    '_catalogue_rows_from_sub_results',
     '_deciding_short',
     '_emit_card_figures',
     '_framework_version',
