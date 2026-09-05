@@ -1,0 +1,58 @@
+# Canonical question + axis registry for the immune-context dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for the consumer-facing effector-context questions and
+# the SINGLE-axis vocabulary {IMMUNE} — the SAME axis letter the immune-context narrator lens uses
+# (narrator_lenses.py IMMUNE_CONTEXT.axis_labels: IMMUNE "CD8 / immune infiltration"), so the literature
+# axis->question crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. immune-context is GATELESS in spirit but mode=verdict —
+# its verdict is a DIRECT READ of immune_context_class (one immune-context rule fires); the other five
+# cards are verdict-inert display context. The registry is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id`) — the emitted question_table itself is NOT modified
+# (byte-stable spine).
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id the immune_context_question_table builder emits (Q1). Only the
+#                   infiltration question has an emitted row (the table is a single IMMUNE row); the
+#                   ICI-response + microenvironment display questions have NO emitted row, so they OMIT
+#                   legacy_id (no signal/confidence to join — honest empty).
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis — the single lens axis IMMUNE for every question
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->questions->measurement_types)
+#                   + the card contracts (target-contracts/cards/<id>.card.yaml measurement_type).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => IMMUNE -> [infiltration, ici_response, microenvironment]
+# (the single IMMUNE lens axis resolves to the three non-corroboration effector-context questions).
+#
+# NO subtype question: none of the six standard-run cards is tier:subtype (immune-context /
+# tcga-til-fraction-saltz are tier:indication; the myeloid/CAF/ICI display cards are tier:target), so no
+# measurement_type is shared by a subtype + non-subtype pair and there is nothing to disambiguate.
+skill: immune-context
+axis_vocabulary:
+  IMMUNE: CD8 / immune infiltration
+questions:
+- id: infiltration
+  legacy_id: Q1
+  seq: 1
+  text: Is the tumor immune-hot — is there a CD8 T-cell effector population to redirect (TCE effector arm)?
+  axis_id: IMMUNE
+  role: verdict_bearing
+  measurement_types: [immune_context, spatial_til_fraction]
+- id: ici_response
+  seq: 2
+  text: Does the target associate with checkpoint-blockade (ICI) response?
+  axis_id: IMMUNE
+  role: display_only
+  measurement_types: [ici_response_expression]
+- id: microenvironment
+  seq: 3
+  text: What is the surrounding TME composition (myeloid + CAF states)?
+  axis_id: IMMUNE
+  role: display_only
+  measurement_types: [sc_tumor_myeloid_state_expression, sc_tumor_caf_state_expression]
