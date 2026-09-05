@@ -176,6 +176,11 @@
       "additionalProperties": false,
       "description": "Bounded, typed promotion of the DECISIVE data points behind this card, projected from the evidence_capsule (top_k_strata / n_basis / categorical_anchors / sibling_caveats / conflict_pairs) plus per-measurement_type-pinned significance fields. ADDITIVE + DISPLAY-ONLY: the grounding substrate for the narrator + card-chain renderer. Full arrays remain only in decision.cards[].summary. All members optional/nullable (an honest projection: absent -> omitted). Feeds NO rule/resolver/gate.",
       "properties": {
+        "interpretation": {
+          "type": "array",
+          "description": "Typed reference-frame RULER(s) that place this card's decisive number(s) on a scale so a bare metric reads as a gauged statement (e.g. median_chronos -1.18 sits between the non-essential floor -0.04 and the pan-essential ceiling -1.50, past the -0.5 cut). A LIST because one card can carry >1 ruler (amp-expr needs a panel-value gauge AND a stratum-value gauge; the resolver may band on a different value than `effect.value` holds). Populated in Stage 2 from the per-measurement_type SALIENCE_SPEC `reference_frame` (which NAMES summary fields — never recomputes) + the card's resolver class/position field; DORMANT (unemitted) at Stage 1. ADDITIVE + DISPLAY-ONLY: feeds NO rule/resolver/gate. Vocabulary is a superset of claim_record.magnitude (level/value/scale/distance_to_cut) so display + factored record converge (Stage 3).",
+          "items": {"$ref": "#/$defs/gauged_value"}
+        },
         "effect": {
           "type": ["object", "null"],
           "additionalProperties": false,
@@ -291,6 +296,49 @@
           }
         }
       }
+    },
+    "gauged_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One typed reference-frame ruler for a single card metric (a member of key_evidence.interpretation[]). Names its OWN metric/value/scale (the gauged number is often NOT effect.value) and unifies the four reference kinds via frame.kind + anchors[].role. ORDINAL layers (level/position) are READ VERBATIM from a resolver *_class field, never recomputed from value-vs-anchors (the effect uses the stratum value while the band used the panel value -> recompute = stored contradiction). Graceful degradation: emit the layers present (a value+scale gauge still beats a bare number). Additive, DISPLAY-ONLY, nullable. 'No bare number': value non-null => scale non-null (enforced by the allOf below).",
+      "properties": {
+        "metric": {"type": ["string", "null"], "description": "The summary field this ruler gauges (e.g. median_chronos_panel, amp_expr_effect_size)."},
+        "value": {"type": ["number", "integer", "null"], "description": "The gauged number itself (sig_round'd). NOT necessarily effect.value."},
+        "scale": {"type": ["string", "null"], "description": "The unit/scale the value lives on (chronos, log2fc, percentile, neglog_m, loeuf, ...). Required whenever value is present (no bare numbers)."},
+        "direction": {"type": ["string", "null"], "description": "lower_is_stronger | higher_is_stronger | higher_is_worse | near_zero_is_independent | ... (orients the gauge; not a verdict input)."},
+        "level": {"type": ["string", "null"], "description": "Ordinal strength bin, byte-aligned with claim_record.magnitude.level, taken from the card's class/strength — NOT thresholded here."},
+        "position": {"type": ["string", "null"], "description": "Categorical band (e.g. between_controls, above_ceiling) READ VERBATIM from a resolver *_class field — never computed from value vs anchors."},
+        "position_source": {"type": ["string", "null"], "description": "The resolver summary field `position` was read from (e.g. dep_control_position_class), for provenance + the align-value-with-band check."},
+        "distance_to_cut": {"type": ["number", "integer", "null"], "description": "Signed offset from the decision cut (or a comparator baseline). PREFER surfacing the summary's own delta/distance field over computing value-anchor; compute only from two pinned sig_round'd numbers."},
+        "frame": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "The reference frame the value is placed on. kind selects which anchors are meaningful: percentile (min/max implicit) | floor_cut_ceiling (floor/cut/ceiling, uses `position`) | comparator_delta (comparator baseline, offset = distance_to_cut = the delta) | distance_to_cut (cut, signed offset).",
+          "properties": {
+            "kind": {"type": ["string", "null"], "enum": ["percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", null]},
+            "anchors": {
+              "type": "array",
+              "description": "The named reference points on the frame (a floor, a cut, a ceiling, a comparator baseline). role is the frame slot; value is sig_round'd.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "role": {"type": ["string", "null"], "description": "floor | cut | ceiling | comparator | min | max | ..."},
+                  "label": {"type": ["string", "null"], "description": "The summary field / human label this anchor came from (e.g. non_essential_floor)."},
+                  "value": {"type": ["number", "integer", "null"]}
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "No bare number: if value is a real number, scale must be a non-null string.",
+          "if": {"required": ["value"], "properties": {"value": {"type": ["number", "integer"]}}},
+          "then": {"required": ["scale"], "properties": {"scale": {"type": "string"}}}
+        }
+      ]
     },
     "rule": {
       "type": "object",

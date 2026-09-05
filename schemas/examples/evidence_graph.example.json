@@ -631,6 +631,26 @@
         "median_chronos_panel": -0.4574
       },
       "key_evidence": {
+        "interpretation": [
+          {
+            "metric": "median_chronos_panel",
+            "value": -0.4574,
+            "scale": "chronos",
+            "direction": "lower_is_stronger",
+            "level": null,
+            "position": "between_controls",
+            "position_source": "dep_control_position_class",
+            "distance_to_cut": null,
+            "frame": {
+              "kind": "floor_cut_ceiling",
+              "anchors": [
+                {"role": "floor", "label": "non_essential_floor", "value": -0.038},
+                {"role": "cut", "label": "dependency_chronos_cut", "value": -0.5},
+                {"role": "ceiling", "label": "pan_essential_ceiling", "value": -1.499}
+              ]
+            }
+          }
+        ],
         "effect": {
           "metric": "median_chronos",
           "value": -1.1771,
