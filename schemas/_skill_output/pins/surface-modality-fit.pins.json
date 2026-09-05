@@ -1,0 +1,77 @@
+{
+  "$comment": "PER-SKILL PINS (source) for surface-modality-fit. VARIANT = gating-scalar (multi-LAYER): the canonical skill_report.call is the composed adc-tce-modality-fit `fit_class` (8-value, capitalized ADC_preferred/TCE_preferred/...), NOT the resolver's `surface_modality_verdict` (17-value lowercase, the post safety/density/shed downgrade surfaced as the top tension). Both are contractual fields → both pinned. surface_modality_verdict_by_modality (ADC/TCE arms) typed-open. role:gating, no polarity const (dynamic; no killer override). Enums: fit_class from _FIT_CLASS_PHRASE (run.py); surface_modality_verdict from resolvers/surface_modality.resolver.yaml. Append-only within contract major version.",
+  "skill": "surface-modality-fit",
+  "role_variant": "gating_scalar_multilayer",
+  "$defs": {
+    "fit_class_enum": {
+      "type": "string",
+      "enum": [
+        "ADC_preferred",
+        "TCE_preferred",
+        "both_viable",
+        "neither_viable",
+        "modality_ambiguous",
+        "isoform_dependent_undefined",
+        "insufficient",
+        "data_unavailable"
+      ]
+    },
+    "surface_modality_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "adc_preferred",
+        "adc_preferred_tce_escape_risk",
+        "adc_preferred_tce_patient_variable",
+        "adc_preferred_tce_unsafe",
+        "both_viable",
+        "tce_preferred",
+        "tce_escape_risk",
+        "tce_patient_variable",
+        "tce_unsafe_normal_liability",
+        "pmhc_tce_supported",
+        "surface_viable_density_caveated",
+        "surface_annotation_only_unconfirmed",
+        "shed_dominant_opposed",
+        "neither_viable",
+        "modality_ambiguous",
+        "isoform_dependent_undefined",
+        "insufficient"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "surface-modality-fit"},
+      "headline": {
+        "type": "object",
+        "required": ["fit_class"],
+        "properties": {
+          "fit_class": {"$ref": "#/$defs/fit_class_enum"},
+          "surface_modality_verdict": {
+            "description": "The resolver output (post safety/density/shed downgrade); the sharpest reader signal, surfaced as top tension. Distinct vocabulary from fit_class.",
+            "oneOf": [
+              {"$ref": "#/$defs/surface_modality_verdict_enum"},
+              {"type": "null"}
+            ]
+          },
+          "surface_modality_verdict_by_modality": {
+            "description": "Per-arm (ADC / TCE) decomposition — typed-open bucket map.",
+            "type": ["object", "null"]
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/fit_class_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
