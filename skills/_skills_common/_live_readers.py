@@ -30,10 +30,11 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"))
+from _skills_common.paths import analysis_methods_root, target_contracts_root
+
+METHODS_REPO = analysis_methods_root()
 DATA_CATALOG_LIBS = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")) / "libs"
-_TARGET_CONTRACTS_ROOT = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+_TARGET_CONTRACTS_ROOT = target_contracts_root()
 
 
 def _load_internalizing_antigens() -> frozenset:

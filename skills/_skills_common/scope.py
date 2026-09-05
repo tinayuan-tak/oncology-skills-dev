@@ -31,12 +31,12 @@ from typing import Literal
 
 import yaml
 
+from _skills_common.paths import target_contracts_root
+
 
 # Canonical vocabulary paths (loaded once per session). Fallback allows tests
 # to override by monkeypatching these module-level constants.
-DEFAULT_CONTRACTS_REPO = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+DEFAULT_CONTRACTS_REPO = target_contracts_root()
 
 
 ScopeMode = Literal[

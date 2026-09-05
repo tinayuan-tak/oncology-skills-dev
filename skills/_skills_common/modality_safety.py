@@ -30,9 +30,9 @@ from pathlib import Path
 
 import yaml
 
-_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+from _skills_common.paths import target_contracts_root
+
+_CONTRACTS = target_contracts_root()
 
 # Action per (concern present) x (channel wt_engagement). Ordered worst->best for reduction.
 _ACTIONS = ("hold", "conditional", "supportive", "not_applicable", "no_concern")

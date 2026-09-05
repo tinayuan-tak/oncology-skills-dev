@@ -16,8 +16,9 @@ import re
 from pathlib import Path
 from typing import Callable, Optional
 
-_CT = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                          "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+from _skills_common.paths import target_contracts_root
+
+_CT = target_contracts_root()
 _TIERV = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0}
 _POW = ["low", "moderate", "high", "very high"]
 

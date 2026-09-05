@@ -32,6 +32,8 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
+from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT
+
 
 def build_governance(data_mode: str, release_pin: str, validation_summary: dict) -> dict:
     """The single source of the evidence-package `governance` block.
@@ -55,8 +57,7 @@ def _load_catalog_resolver():
     best-effort and must NEVER block evidence-package emission."""
     import os
     import sys
-    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
-                           "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
@@ -71,8 +72,7 @@ def _load_manifest_loader():
     (None) when unavailable — the content digest is best-effort and never blocks emission."""
     import os
     import sys
-    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
-                           "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
@@ -96,8 +96,7 @@ def _known_manifest_ids() -> "set | None":
     Result is byte-identical (same catalog); it just stops re-parsing it."""
     import os
     import sys
-    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
-                           "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:

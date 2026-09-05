@@ -30,12 +30,9 @@ from pathlib import Path
 
 import yaml
 
-_CONTRACTS_REPO = Path(
-    os.environ.get(
-        "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
-    )
-)
+from _skills_common.paths import target_contracts_root
+
+_CONTRACTS_REPO = target_contracts_root()
 
 
 def _root(contracts_repo: Path | None) -> Path:

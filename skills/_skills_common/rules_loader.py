@@ -30,6 +30,8 @@ from typing import Optional
 
 import yaml
 
+from _skills_common.paths import target_contracts_root
+
 # Prefer the libyaml C loader — ~10x faster parsing the per-axis rules files (the
 # intracellular-intrinsic axis is ~200 KB and sits on the compute critical path of every wired
 # skill run). Fall back to the pure-Python loader if libyaml is not built into the local PyYAML;
@@ -43,9 +45,7 @@ except AttributeError:  # pragma: no cover - depends on local libyaml build
 # Same TARGET_CONTRACTS constant compose-dashboard uses. We duplicate rather
 # than import so this module has no compose-dashboard dependency — that's the
 # point of the extraction.
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+TARGET_CONTRACTS = target_contracts_root()
 
 
 @functools.lru_cache(maxsize=None)

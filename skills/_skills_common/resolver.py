@@ -29,9 +29,10 @@ import functools
 from pathlib import Path
 from typing import Optional
 
+from _skills_common.paths import target_contracts_root
+
 # Resolver specs live in target-contracts (they are CONTRACTS, like interpretation-rules).
-_CONTRACTS_REPO = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+_CONTRACTS_REPO = target_contracts_root()
 _RESOLVERS_DIR = _CONTRACTS_REPO / "resolvers"
 
 
