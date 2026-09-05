@@ -1,0 +1,87 @@
+{
+  "$comment": "PER-SKILL PINS (source) for tumor-presence — the THIN, skill-specific constraints the generator merges onto the shared spine+envelope to produce schemas/skills/tumor-presence.decision.schema.json. VARIANT = descriptive/inert-scalar: pins role + polarity consts (a GATING skill's pins would pin role only, leaving polarity to the shared dynamic enum; a GATELESS skill would pin call:null and require no headline verdict field). `$defs` here is merged into the monolith's `$defs`. Everything outside `$defs` is an allOf constraint branch. Enum sourced from skills/tumor-presence/scripts/run.py (ladders + collapse + Phase-3 reconciliation tokens); append-only within contract major version.",
+  "skill": "tumor-presence",
+  "role_variant": "descriptive_inert_scalar",
+  "$defs": {
+    "presence_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "broadly_high_expression",
+        "strongly_upregulated_in_tumor",
+        "tumor_broadly_expressed",
+        "modestly_upregulated_in_tumor",
+        "tumor_moderately_expressed",
+        "lineage_restricted",
+        "broadly_moderate_expression",
+        "tumor_sparsely_expressed",
+        "protein_strongly_upregulated",
+        "protein_broadly_high",
+        "protein_lineage_restricted",
+        "protein_modestly_upregulated",
+        "broadly_tumor_elevated",
+        "multi_tumor_elevated",
+        "protein_broadly_moderate",
+        "single_tumor_elevated",
+        "not_tumor_elevated",
+        "sc_malignant_detected",
+        "sc_microenvironment_dominant",
+        "sc_broadly_low",
+        "present_rna_only_protein_absent",
+        "modestly_downregulated_in_tumor",
+        "strongly_downregulated_in_tumor",
+        "broadly_low_expression",
+        "protein_modestly_downregulated",
+        "protein_strongly_downregulated",
+        "protein_broadly_low",
+        "stromal_microenvironment_present",
+        "conflicted_protein_present_rna_absent",
+        "absent",
+        "not_informative",
+        "data_unavailable",
+        "insufficient"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "tumor-presence"},
+      "headline": {
+        "type": "object",
+        "required": ["presence_verdict", "presence_verdict_by_modality", "driving_rule_id"],
+        "properties": {
+          "presence_verdict": {"$ref": "#/$defs/presence_verdict_enum"},
+          "driving_rule_id": {"type": ["string", "null"]},
+          "presence_verdict_by_modality": {
+            "description": "One sub-verdict per (measurement, sample_context) bucket. Keys are `<measurement>/<sample_context>` (the 8 ALL_CONTEXTS buckets).",
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["measurement", "sample_context", "verdict", "evidence_state"],
+              "additionalProperties": true,
+              "properties": {
+                "measurement": {"type": "string", "enum": ["bulk_rna", "bulk_protein_ms", "sc_rna", "protein_ihc"]},
+                "sample_context": {"type": "string", "enum": ["cell_line", "tumor", "normal"]},
+                "verdict": {"type": "string"},
+                "driving_rule_id": {"type": ["string", "null"]},
+                "evidence_state": {"type": "string", "enum": ["measured", "comparator", "data_unavailable"]}
+              }
+            }
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/presence_verdict_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/skill_report.schema.json",
+  "title": "skill_report",
+  "version": "1.0.0",
+  "$comment": "CONTRACT SOURCE (canonical). The SHARED cross-skill unified output object emitted by every wired target-profile skill (assembled by _skills_common/skill_report.py::build_skill_report). This standalone file is the human-reviewable canonical definition + is meta-validated; the per-skill decision schemas do NOT $ref it across files — they EMBED it (via validators/gen_skill_output_schemas.py) into a self-contained monolith, matching house style and avoiding cross-file/network ref resolution. See docs/UNIFIED_OUTPUT_CONTRACT.md. Strict (additionalProperties:false) at the top level so any drift in the shared key set fails CI.",
+  "type": "object",
+  "required": [
+    "call",
+    "role",
+    "polarity",
+    "honest_phrase",
+    "confidence",
+    "top_tension",
+    "claim_chips",
+    "question_table",
+    "per_phase_metrics",
+    "figures",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "call": {
+      "description": "The verdict class (a skill-local enum, pinned per skill). null for a gateless (descriptive/inert) skill.",
+      "type": ["string", "null"]
+    },
+    "role": {
+      "description": "How the composer treats this skill. gating = verdict can move the nomination recommendation; descriptive = real read but no gate; inert = verdict-shaped string that is explicitly not a call.",
+      "type": "string",
+      "enum": ["gating", "descriptive", "inert"]
+    },
+    "polarity": {
+      "description": "One normalized direction on the canonical order-preserving scale (_skills_common/ordinal_view.py). descriptive/inert roles are not_scored. gating roles carry a DYNAMIC polarity (killer..supportive) — do NOT pin a polarity const on a gating skill.",
+      "type": "string",
+      "enum": ["killer", "opposing", "neutral", "supportive", "insufficient", "not_applicable", "not_scored"]
+    },
+    "honest_phrase": {
+      "description": "Reader-facing one-liner derived from the signal package; its polarity must agree with `call` (INV-7).",
+      "type": "string"
+    },
+    "confidence": {
+      "description": "Weakest-link confidence.",
+      "type": "object",
+      "required": ["level"],
+      "additionalProperties": true,
+      "properties": {
+        "level": {"type": "string"},
+        "basis": {"type": ["string", "null"]},
+        "coverage": {"type": ["object", "string", "null"]}
+      }
+    },
+    "top_tension": {
+      "description": "The load-bearing caveat, or null.",
+      "type": ["object", "null"],
+      "required": ["text"],
+      "additionalProperties": true,
+      "properties": {
+        "text": {"type": "string"},
+        "source": {"type": ["string", "null"]},
+        "severity": {"type": ["number", "null"]}
+      }
+    },
+    "claim_chips": {
+      "description": "The A/B/C/D signal spine: per-axis {signal, corroboration, conflict} decoupled, each with role-tagged cites tracing to cards.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "signal", "corroboration", "cites"],
+        "additionalProperties": true,
+        "properties": {
+          "key": {"type": "string"},
+          "label": {"type": "string"},
+          "signal": {"type": ["string", "null"]},
+          "corroboration": {"type": ["string", "null"]},
+          "conflict": {"type": ["string", "null"]},
+          "cites": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
+    "claim_scalars": {
+      "description": "Optional per-skill scalar claim fields that are not axis chips (e.g. tumor-presence homogeneity).",
+      "type": ["object", "null"]
+    },
+    "modality_scope": {
+      "description": "Per-modality (SM/degrader/ADC/TCE/antibody) signal record, or null for a modality-blind skill.",
+      "type": ["object", "null"]
+    },
+    "claim_chips_by_subtype": {
+      "description": "Within-pooled subtype sub-vector for target_report.subtype_convergence, or null.",
+      "type": ["object", "null"]
+    },
+    "evidence_graph": {
+      "description": "The claim-graph layer (build_evidence_graph). Attached onto the skill_report by the composer AND surfaced standalone; a named optional property so the composed skill_report validates against this strict spine (it is a render input the renderer reads off skill_report).",
+      "type": ["object", "null"]
+    },
+    "subgroup_signals": {
+      "description": "Per-subgroup signal bands (abundance/generality/…). Attached onto the skill_report by the composer; a named optional property (render input read off skill_report by report_render).",
+      "type": ["object", "null"]
+    },
+    "question_table": {
+      "description": "Reader Q&A rows.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "question": {"type": "string"}
+        }
+      }
+    },
+    "per_phase_metrics": {
+      "description": "Traceable numbers, each naming its sample_context + card_id (INV-3).",
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "figures": {
+      "description": "The skill's hero + card plots, made selectable.",
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "provenance": {
+      "description": "Audit: the driving rule, all fired rules, and the cards used vs missing.",
+      "type": "object",
+      "required": ["fired_rule_ids", "cards_used", "cards_missing"],
+      "additionalProperties": true,
+      "properties": {
+        "driving_rule_id": {"type": ["string", "null"]},
+        "fired_rule_ids": {"type": "array", "items": {"type": "string"}},
+        "cards_used": {"type": "array", "items": {"type": "string"}},
+        "cards_missing": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "_contract": {
+      "description": "Self-documenting contract-reference string stamped by build_skill_report.",
+      "type": "string"
+    }
+  }
+}
