@@ -3,11 +3,11 @@ DISAGREE with the signal package. Surgical: only disagreeing POSITIVES demote (s
 conflict / not-present); agreeing positives and raw negatives are byte-stable. The RAW ladder collapse
 (_verdict) is untouched, so its golden-spine / ladder-invariant / flip-matrix tests stay byte-stable.
 """
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import run as tp  # noqa: E402
+from _test_support import load_run_py
+
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_reconcile")
 
 
 def test_agreeing_positive_is_byte_stable():

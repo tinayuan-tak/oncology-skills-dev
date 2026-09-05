@@ -12,12 +12,11 @@ red-flagging an unmerged-contract state. The exhaustive frozen guarantee also li
 _skills_common/tests/test_resolver_golden_snapshots.py (whose table was generated from this same oracle)."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
 # The 14 rule_ids the ladder branches on (order matches the resolver rungs).
 # +4 E8-lig composite-ligandability rungs (2026-08-07): experimental/predicted (structurally_ligandable),
@@ -53,14 +52,7 @@ RULE_IDS = [
 # resolver==if-chain over all 20 rungs. Belt and braces.
 
 
-def _load():
-    spec = importlib.util.spec_from_file_location("tsm_run", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run")
 
 
 def _resolver_available() -> bool:

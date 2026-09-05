@@ -5,16 +5,12 @@ drift between the manifest and the card(s) the Python certainty extractor actual
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parent.parent.parent            # for _skills_common
-FR_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILLS))
-sys.path.insert(0, str(FR_SCRIPTS))
+from _skills_common.certainty_corroboration import corroboration_cards
+from _test_support import load_run_py
 
-from _skills_common.certainty_corroboration import corroboration_cards  # noqa: E402
-import run as fr  # noqa: E402
+fr = load_run_py(Path(__file__).resolve().parent.parent, "fr_run_cc")
 
 
 def test_fr_corroboration_source_matches_manifest():

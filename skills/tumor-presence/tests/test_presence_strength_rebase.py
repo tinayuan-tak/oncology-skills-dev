@@ -4,13 +4,12 @@ ALB-style false-strong — a single tumor-vs-adjacent contrast wins the ladder (
 `strongly_upregulated_in_tumor`) but the integrated signal package is weak — which previously ranked
 albumin at composite 1.0, ABOVE validated ERBB2. Verdict-INERT sidecar.
 """
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))                     # skills/
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))         # run.py
 from _skills_common.presence_claims import presence_strength_from_state
-import run as tp  # noqa: E402
+from _test_support import load_run_py
+
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_rebase")
 
 
 def _cv(a, b, c, d):

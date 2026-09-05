@@ -4,14 +4,13 @@ conformance (token-pattern only — the no-resolver invariant-C enum is an M3 it
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as pr  # noqa: E402
+from _test_support import load_run_py
+
+pr = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_shadow")
 
 
 def _fired(*rids):

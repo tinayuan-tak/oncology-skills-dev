@@ -5,25 +5,13 @@ lineage — WITHOUT S3/LLM. ADDITIVE + verdict-INERT: the pooled dependency_verd
 KRAS/COADREAD replay guard in test_functional_requirement_replay.py freezes the spine)."""
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
-
-def _run_mod():
-    spec = importlib.util.spec_from_file_location("_fr_run_scope", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-M = _run_mod()
+M = load_run_py(SKILL_DIR, "_fr_run_scope")
 
 
 def _cards(*, indication="COADREAD", enriched=None, per_lineage=None):

@@ -4,14 +4,13 @@ open-world/negative cases, fired-set cross-check, and schema conformance. Consum
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as sm  # noqa: E402
+from _test_support import load_run_py
+
+sm = load_run_py(Path(__file__).resolve().parent.parent, "smf_run_shadow")
 
 
 def _cards():

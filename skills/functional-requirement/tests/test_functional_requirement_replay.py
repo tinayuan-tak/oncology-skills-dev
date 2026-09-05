@@ -14,7 +14,6 @@ also the compose-dashboard engine-equivalence anchor), stable across the 2026-08
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import runpy
 import sys
@@ -22,6 +21,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
@@ -48,10 +49,7 @@ def _real(s) -> bool:
 
 
 def _positive_calls() -> set:
-    spec = importlib.util.spec_from_file_location("_fr_run_const", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return set(mod._DEPENDENCY_CALL_VERDICTS) - _NEGATIVE_CALLS
+    return set(load_run_py(SKILL_DIR, "_fr_run_const")._DEPENDENCY_CALL_VERDICTS) - _NEGATIVE_CALLS
 
 
 @pytest.fixture(scope="module")

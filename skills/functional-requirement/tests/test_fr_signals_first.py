@@ -4,21 +4,14 @@ strength_certainty sidecar emits a continuous composite. Verdict-INERT; determin
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-SKILLS_ROOT = Path(__file__).resolve().parents[2]
-RUN_PY = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-from _skills_common.signals_first import render_signal_vector, certainty_composite  # noqa: E402
+from _skills_common.signals_first import render_signal_vector, certainty_composite
+from _test_support import load_run_py
 
 
 def _fr():
-    spec = importlib.util.spec_from_file_location("fr_run", RUN_PY)
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
+    return load_run_py(Path(__file__).resolve().parents[1], "fr_run")
 
 
 def _decision():

@@ -15,20 +15,16 @@ clinically-precedented-without-data-confirmation spare.
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
 
 @pytest.fixture(scope="module")
 def rp():
-    spec = importlib.util.spec_from_file_location("_tp_run_caveat", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return load_run_py(Path(__file__).resolve().parent.parent, "_tp_run_caveat")
 
 
 # ── minimal headline builders (only the fields the three functions read) ──────────────────────

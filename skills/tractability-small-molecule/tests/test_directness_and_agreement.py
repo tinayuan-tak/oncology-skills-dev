@@ -9,20 +9,11 @@ the run.py functions — no S3, no resolver.
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tsm_run_da", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run_da")
 
 _ALL_CARD_IDS = ["prism-compound-activity", "prism-crispr-concordance", "dependency-predictability",
                  "structure-features-static", "known-drug-tractability", "degradation-feasibility",

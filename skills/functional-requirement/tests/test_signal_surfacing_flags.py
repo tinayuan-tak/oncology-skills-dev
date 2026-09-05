@@ -7,19 +7,11 @@ positive verdict) is byte-stable and the dependency_verdict spine is untouched.
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]        # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
+from _test_support import load_run_py
 
-# run.py is a script (not an importable package path) — load it by file location.
-_RUN = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
-_spec = importlib.util.spec_from_file_location("fr_run_under_test", _RUN)
-run = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(run)
+run = load_run_py(Path(__file__).resolve().parents[1], "fr_run_under_test")
 
 
 # ── measurement_caveat: decisive single-arm signal held at a coverage-gap verdict ────────────────────

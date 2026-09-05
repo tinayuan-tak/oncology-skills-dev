@@ -10,20 +10,11 @@ carrying the REAL emitted keys and asserts the two fields are surfaced (non-None
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tsm_run", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run")
 
 
 # _headline calls get_card_field on ALL 6 CARDS and get_card_field RAISES KeyError on a missing

@@ -2,20 +2,13 @@
 role=descriptive → polarity=not_scored, excluded from gate math; call = the reconciled presence_verdict.
 """
 from __future__ import annotations
-import importlib.util, sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-if str(SKILL_DIR.parent) not in sys.path:
-    sys.path.insert(0, str(SKILL_DIR.parent))
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run_sr", SKILL_DIR / "scripts" / "run.py")
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
-
-
-tp = _load()
+tp = load_run_py(SKILL_DIR, "tp_run_sr")
 
 
 def _cards():

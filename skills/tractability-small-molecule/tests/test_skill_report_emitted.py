@@ -6,26 +6,13 @@ _enrichment_errors, never a druggability-spine abort).
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tsm_run_sr", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tsm = _load()
+tsm = load_run_py(SKILL_DIR, "tsm_run_sr")
 
 
 def _cards():

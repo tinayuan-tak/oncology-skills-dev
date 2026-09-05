@@ -10,25 +10,16 @@ S3-free: pure over the resolver spec + the FR module. Skips gracefully if target
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
+from _test_support import load_run_py
+
 _RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-sys.path.insert(0, str(_RUN.resolve().parents[2]))   # skills/ → _skills_common
 _CONTRACTS = _RUN.resolve().parents[3] / "rnd-computational-biology-oncology-target-contracts"
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("fr_run_sidecar", _RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-rc = _load()
+rc = load_run_py(_RUN.parent.parent, "fr_run_sidecar")
 
 
 def _dependency_resolver_verdicts():

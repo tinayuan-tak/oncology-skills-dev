@@ -25,7 +25,6 @@ cards resolve and 5 of 7 buckets are measured, giving the strongest possible dri
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import os
 import runpy
@@ -34,6 +33,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
@@ -61,10 +62,7 @@ def _real_summary(s) -> bool:
 def _rna_presence_positive() -> frozenset:
     """The measured-positive RNA presence verdict set — imported from run.py (single source of truth),
     NOT re-listed here, so a change to the skill's positive vocabulary is reflected automatically."""
-    spec = importlib.util.spec_from_file_location("_tp_run_const", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod._RNA_PRESENCE_POSITIVE
+    return load_run_py(SKILL_DIR, "_tp_run_const")._RNA_PRESENCE_POSITIVE
 
 
 @pytest.fixture(scope="module")

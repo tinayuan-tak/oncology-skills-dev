@@ -20,22 +20,13 @@ target-profile consumer reads as `verdict`) stays byte-stable. These tests pin:
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import yaml
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run")
 
 
 def _fr(rule_id, card_id):

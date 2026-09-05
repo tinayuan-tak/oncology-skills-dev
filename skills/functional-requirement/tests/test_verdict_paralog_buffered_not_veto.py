@@ -12,20 +12,11 @@ coverage gap, not a false negative. Sibling of test_verdict_underpowered_not_vet
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("fr_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-fr = _load()
+fr = load_run_py(Path(__file__).resolve().parent.parent, "fr_run")
 
 
 def test_strong_paralog_buffer_suppresses_non_dependent_veto():

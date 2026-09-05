@@ -1,10 +1,10 @@
 """surface_modality (strength, certainty) sidecar — CERTAINTY_MODEL 4th axis. Verdict-inert."""
 from __future__ import annotations
-import sys
 from pathlib import Path
-SM_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SM_SCRIPTS))
-import run as sm  # noqa: E402
+
+from _test_support import load_run_py
+
+sm = load_run_py(Path(__file__).resolve().parent.parent, "smf_run_strength")
 
 
 def _cards(density=None, confirm=None, n_lines=None):

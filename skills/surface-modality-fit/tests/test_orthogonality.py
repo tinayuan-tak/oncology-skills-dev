@@ -13,27 +13,20 @@ All pure (synthetic card dicts); no S3.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILL_SCRIPTS))
-import orthogonality as orth  # noqa: E402
+from _test_support import load_module, load_run_py
 
-import importlib.util  # noqa: E402
+SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+orth = load_module(SKILL_SCRIPTS / "orthogonality.py", "orthogonality")
 
 
 def _load_run():
-    """Load THIS skill's run.py under a UNIQUE module name. A bare `import run` binds
-    sys.modules['run'] to whichever skill's run.py loaded FIRST in the process — so when
-    surface-modality-fit's tests share a pytest session with another skill's (the
-    `import run` collision documented in skills-validate.yml), `import run as smf` would
-    return the WRONG skill's module. spec_from_file_location sidesteps the shared name."""
-    run_path = SKILL_SCRIPTS / "run.py"
-    spec = importlib.util.spec_from_file_location("smf_run_orth", run_path)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+    """Load THIS skill's run.py under a UNIQUE module name. load_run_py execs it WITHOUT registering it
+    in sys.modules, so the cross-skill `import run` collision (documented in skills-validate.yml), where a
+    bare `import run` would bind sys.modules['run'] to whichever skill's run.py loaded FIRST, cannot
+    occur."""
+    return load_run_py(SKILL_SCRIPTS.parent, "smf_run_orth")
 
 
 def _card(cid, **summary):

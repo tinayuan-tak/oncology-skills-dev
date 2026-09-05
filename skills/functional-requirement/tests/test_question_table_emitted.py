@@ -6,26 +6,13 @@ to None + records `_enrichment_errors` rather than aborting the dependency spine
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-
-def _load():
-    spec = importlib.util.spec_from_file_location("fr_run_qt", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-fr = _load()
+fr = load_run_py(SKILL_DIR, "fr_run_qt")
 
 
 def test_headline_emits_nonempty_question_table():

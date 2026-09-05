@@ -9,20 +9,11 @@ non-dependent-killer rule does not fire; _verdict must return a distinct
 Sibling of test_verdict_rnai_not_veto.py (both are 'X must not veto' guards)."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("fr_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-fr = _load()
+fr = load_run_py(Path(__file__).resolve().parent.parent, "fr_run")
 
 
 def test_underpowered_maps_to_insufficient_not_non_dependent():

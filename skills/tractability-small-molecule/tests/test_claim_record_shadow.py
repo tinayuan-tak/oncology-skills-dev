@@ -4,14 +4,13 @@ coverage-only certainty, fired-set cross-check, and schema conformance. Consumed
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as tr  # noqa: E402
+from _test_support import load_run_py
+
+tr = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run_shadow")
 
 
 def _fired(*rids):

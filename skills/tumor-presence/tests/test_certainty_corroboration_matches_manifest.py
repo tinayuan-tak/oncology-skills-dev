@@ -1,13 +1,12 @@
 """tumor-presence's declared certainty-corroboration source must EQUAL the target-contracts manifest
 (certainty_corroboration.yaml gate 'tumor_presence'). Mirrors the FR/selectivity/genomic/surface guards."""
 from __future__ import annotations
-import sys
 from pathlib import Path
-SKILLS = Path(__file__).resolve().parent.parent.parent
-TP_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILLS)); sys.path.insert(0, str(TP_SCRIPTS))
-from _skills_common.certainty_corroboration import corroboration_cards  # noqa: E402
-import run as tp  # noqa: E402
+
+from _skills_common.certainty_corroboration import corroboration_cards
+from _test_support import load_run_py
+
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_cc")
 
 
 def test_presence_corroboration_source_matches_manifest():

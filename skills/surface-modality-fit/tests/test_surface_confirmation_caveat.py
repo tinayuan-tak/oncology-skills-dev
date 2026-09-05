@@ -19,23 +19,11 @@ All pure (no S3).
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILL_SCRIPTS))
+from _test_support import load_run_py
 
-
-def _load_run():
-    run_path = SKILL_SCRIPTS / "run.py"
-    spec = importlib.util.spec_from_file_location("smf_run_confcaveat", run_path)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-_M = _load_run()
+_M = load_run_py(Path(__file__).resolve().parent.parent, "smf_run_confcaveat")
 
 
 # ── (1) the SHARP over-call tier — LGR5/GPCR-family pattern ───────────────────────────────────────

@@ -5,20 +5,11 @@ _degrader_snapshot projects the DEGRADER channel of the fired rules into a degra
 additive to (verdict-inert w.r.t.) the SM druggability_snapshot. Pure-helper tests (no I/O)."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tsm_run", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run")
 
 
 def _fired(rule_id, degrader_signal, dominant=False):

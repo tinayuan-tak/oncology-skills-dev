@@ -1,10 +1,10 @@
 """tumor-presence (strength, certainty) sidecar — CERTAINTY_MODEL 5th axis (first no-resolver). Verdict-inert."""
 from __future__ import annotations
-import sys
 from pathlib import Path
-TP_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(TP_SCRIPTS))
-import run as tp  # noqa: E402
+
+from _test_support import load_run_py
+
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_strength")
 
 
 def _cards(rna_bm=None, n_tumor=None, n_cell=None, sc=None, protein=False):

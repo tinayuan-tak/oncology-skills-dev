@@ -12,22 +12,13 @@ row is a synthetic fired-set standing in for a real backtest exemplar (the rule_
 is what actually drives the ladder — see CARD_CONTEXT / _EXPRESSION_RANK)."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run_matrix", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_matrix")
 
 
 def _fr(rule_id, card_id):

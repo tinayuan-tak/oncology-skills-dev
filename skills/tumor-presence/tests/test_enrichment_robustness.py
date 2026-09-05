@@ -18,29 +18,14 @@ All three helpers are verdict-INERT, so these guards never touch the collapsed s
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _skills_common.presence_claims import presence_key_signals
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
 
-# Import the SAME _skills_common module object run.py uses (run.py inserts SKILLS_ROOT itself, but the
-# test imports before loading run.py, so mirror it here).
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-from _skills_common.presence_claims import presence_key_signals  # noqa: E402
-
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run_enrich", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load()
+tp = load_run_py(SKILL_DIR, "tp_run_enrich")
 
 
 # ── H1: null / zero q-values must not crash and must not be silently mis-handled ────────────────

@@ -6,22 +6,11 @@ low coverage; discordant → low corroboration; insufficient verdict → low. Ad
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-_RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-sys.path.insert(0, str(_RUN.resolve().parents[3]))  # skills/  → _skills_common
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("fr_run", _RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-rc = _load()
+rc = load_run_py(Path(__file__).resolve().parent.parent, "fr_run")
 
 
 def test_strength_maps_verdict_class():

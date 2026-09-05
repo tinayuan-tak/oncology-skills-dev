@@ -3,14 +3,11 @@ STRONGLY paralog-buffered target → degrader-preferred, SM caveated (mirrors th
 strong-paralog-buffering-degrader-preferred rule). Previously paralog-buffering reached no modality
 channel. Pure over synthetic cards."""
 from __future__ import annotations
-import sys
-import importlib.util as u
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-sys.path.insert(0, str(RUN.parents[2]))
-_spec = u.spec_from_file_location("run_fr_test", RUN)
-m = u.module_from_spec(_spec); sys.modules["run_fr_test"] = m; _spec.loader.exec_module(m)
+from _test_support import load_run_py
+
+m = load_run_py(Path(__file__).resolve().parent.parent, "run_fr_test")
 
 
 def _cards(cls):

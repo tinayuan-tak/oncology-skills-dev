@@ -15,16 +15,16 @@ Two tiers, mirroring the freeze/replay split:
 """
 from __future__ import annotations
 
-import importlib.util
 import os
 from pathlib import Path
 
 import pytest
 import yaml
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
 LEDGER = SKILL_DIR / "field_disposition.yaml"
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
 VALID_ROLES = {"signal", "context", "provenance", "display"}
 
 
@@ -34,10 +34,7 @@ def _load_ledger() -> dict:
 
 
 def _cards() -> list[str]:
-    spec = importlib.util.spec_from_file_location("_tp_run_cards", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return list(m.CARDS)
+    return list(load_run_py(SKILL_DIR, "_tp_run_cards").CARDS)
 
 
 def _contracts_root() -> Path | None:
