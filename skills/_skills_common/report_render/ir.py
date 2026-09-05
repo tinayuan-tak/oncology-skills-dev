@@ -295,8 +295,18 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
     # fail-soft — absent until the spine carries subgroup_signals, so this lands green before PR4.
     # both embedded blocks are evidence-depth (L2) — the report-level SIGNALS_SCATTER is TIER 0 (it leads
     # the Signals lens), but the PER-SKILL embedded scatter is drill-down detail, gated with the bands.
+    # When the carried evidence_graph is question-anchored (P2 carry + questions.yaml / hierarchy
+    # fallback), render the RICH embedded view (per-question fingerprint here; literature axes + per-card
+    # chains below) == the standalone dashboard; the fingerprint SUPERSEDES the lean sub-group
+    # scatter/bands. Otherwise fall back to the sub-group scatter/bands. Fail-soft; display-only.
+    eg = report.get("evidence_graph")
+    eg_rich = isinstance(eg, dict) and bool(eg.get("questions"))
     sg = report.get("subgroup_signals")
-    if isinstance(sg, dict) and sg and eff >= vocab.TIER[vocab.SUBGROUP_BANDS]:
+    if eg_rich and eff >= vocab.TIER[vocab.EVIDENCE_FINGERPRINT]:
+        fp = _evidence_fingerprint_block(eg)
+        if fp is not None:
+            blocks.append(fp)
+    elif isinstance(sg, dict) and sg and eff >= vocab.TIER[vocab.SUBGROUP_BANDS]:
         sc = _subgroup_scatter_block(sg)
         if sc is not None:
             blocks.append(sc)
@@ -315,6 +325,11 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
             blocks.append(Block(vocab.QUESTION_TABLE, {"rows": qt}))
         elif is_gating:
             blocks.append(_unmeasured("question_table"))
+    # RICH embedded view (cont.): the literature-axis panel (per-axis agreement + citations + blind spots)
+    if eg_rich and eff >= vocab.TIER[vocab.LITERATURE_AXES]:
+        la = _literature_axes_block(eg)
+        if la is not None:
+            blocks.append(la)
     if eff >= vocab.TIER[vocab.PHASE_METRICS] and report.get("per_phase_metrics"):
         blocks.append(Block(vocab.PHASE_METRICS, {"rows": report["per_phase_metrics"]}))
     if eff >= vocab.TIER[vocab.FIGURE]:
@@ -322,7 +337,11 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
         blocks.extend(_card_figure_blocks(card_figs, eff, spec.medium,
                                           report.get("polarity"), role))
 
-    # L3: provenance
+    # L3: RICH embedded view (cont.) — per-card dataset→data→rule→verdict chains, then provenance
+    if eg_rich and eff >= vocab.TIER[vocab.CARD_CHAIN]:
+        cc = _card_chain_block(eg)
+        if cc is not None:
+            blocks.append(cc)
     if eff >= vocab.TIER[vocab.PROVENANCE] and report.get("provenance"):
         blocks.append(Block(vocab.PROVENANCE, {"provenance": report["provenance"]}))
 
@@ -975,6 +994,101 @@ def _subgroup_bands_block(subgroup_signals: dict) -> Optional[Block]:
                      "n_agree": d.get("n_agree"), "power": d.get("power"),
                      "conflict": bool(d.get("conflict"))})
     return Block(vocab.SUBGROUP_BANDS, {"sub_groups": rows}) if rows else None
+
+
+# --------------------------------------------------------------------------------------------------
+# evidence-graph blocks (P3) — the RICH embedded sub-skill view, projected from the carried
+# skill_report.evidence_graph. Pure projections (no re-derivation); opacity/ordinal live in the backend.
+# --------------------------------------------------------------------------------------------------
+def _evidence_fingerprint_block(eg: dict) -> Optional[Block]:
+    """Per-question fingerprint == the standalone dashboard's heatmap: one row per question, one cell per
+    contributing card (colour = card signal polarity, opacity = confidence — the backend maps dots→opacity),
+    plus a literature dot (colour = agreement). Projection over eg.{questions,cards,literature}; None when
+    the graph carries no questions."""
+    qs = eg.get("questions") or []
+    if not qs:
+        return None
+    cards_by_id = {c.get("id"): c for c in (eg.get("cards") or [])}
+    axes_by_id = {a.get("axis_id"): a for a in ((eg.get("literature") or {}).get("axes") or [])}
+    rows = []
+    for q in qs:
+        cells = []
+        for cid in (q.get("card_ids") or []):
+            c = cards_by_id.get(cid) or {}
+            sig = c.get("signal") or {}
+            cells.append({"card_id": cid, "polarity": sig.get("polarity"),
+                          "liability": bool(sig.get("liability")),
+                          "dots": (c.get("confidence") or {}).get("dots"),
+                          "label": sig.get("label") or (c.get("class") or {}).get("value")})
+        lit = None
+        for ax_id in (q.get("literature_axis_ids") or []):
+            a = axes_by_id.get(ax_id)
+            if a:
+                lit = {"axis_id": ax_id, "read": a.get("read"), "agreement": a.get("agreement_vs_omics"),
+                       "confidence": a.get("confidence"), "cited": bool(a.get("citation_ids"))}
+                break
+        sg = q.get("signal") or {}
+        rows.append({"id": q.get("id"), "seq": q.get("seq"), "text": q.get("text"),
+                     "polarity": sg.get("polarity"), "tier": sg.get("tier"),
+                     "dots": (q.get("confidence") or {}).get("dots"), "cells": cells, "lit": lit})
+    return Block(vocab.EVIDENCE_FINGERPRINT, {"questions": rows})
+
+
+def _card_chain_block(eg: dict) -> Optional[Block]:
+    """Per-card dataset→data→rule→verdict chains, grouped by measurement layer (the card's
+    measurement_type). Projection over eg.cards[]; None when the graph carries no cards."""
+    cards = eg.get("cards") or []
+    if not cards:
+        return None
+    layers: dict = {}
+    order: list = []
+    for c in cards:
+        mt = c.get("measurement_type") or "other"
+        if mt not in layers:
+            layers[mt] = []
+            order.append(mt)
+        sig = c.get("signal") or {}
+        chain = c.get("chain") or {}
+        layers[mt].append({
+            "id": c.get("id"), "polarity": sig.get("polarity"), "liability": bool(sig.get("liability")),
+            "role": c.get("role"), "class_value": (c.get("class") or {}).get("value"),
+            "n": (c.get("confidence") or {}).get("n"), "dots": (c.get("confidence") or {}).get("dots"),
+            "dataset_ids": chain.get("dataset_ids") or [], "data": chain.get("data") or [],
+            "rule_id": chain.get("rule_id"), "is_driving": bool(chain.get("is_driving")),
+            "contributes": bool(chain.get("contributes_to_verdict"))})
+    return Block(vocab.CARD_CHAIN,
+                 {"layers": [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]})
+
+
+def _literature_axes_block(eg: dict) -> Optional[Block]:
+    """Per-axis literature panel (read / agreement / assertion / citations) + blind spots + overall
+    consistency, from eg.literature + eg.citations. None when the graph carries no literature."""
+    lit = eg.get("literature") or {}
+    axes = lit.get("axes") or []
+    blind_raw = lit.get("blind_spots") or []
+    if not axes and not blind_raw:
+        return None
+    cites_by_id = {c.get("id"): c for c in (eg.get("citations") or [])}
+
+    def _cites(ids):
+        out = []
+        for cid in (ids or []):
+            c = cites_by_id.get(cid)
+            if c:
+                out.append({"label": c.get("label"), "pmid": c.get("pmid"),
+                            "verified": bool(c.get("verified"))})
+        return out
+
+    axes_out = [{"axis_id": a.get("axis_id"), "read": a.get("read"),
+                 "agreement": a.get("agreement_vs_omics"), "confidence": a.get("confidence"),
+                 "assertion": a.get("assertion"), "question_ids": a.get("question_ids") or [],
+                 "citations": _cites(a.get("citation_ids"))} for a in axes]
+    blind = [{"text": b.get("text"), "why_omics_blind": b.get("why_omics_blind"),
+              "citations": _cites(b.get("citation_ids"))} for b in blind_raw]
+    return Block(vocab.LITERATURE_AXES, {
+        "axes": axes_out, "blind_spots": blind,
+        "overall_consistency": lit.get("overall_consistency"),
+        "key_divergence": lit.get("key_divergence")})
 
 
 def _cross_cutting_block(nomination: dict, skill_reports: dict) -> Optional[Block]:

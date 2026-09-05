@@ -70,7 +70,8 @@
                    "signals_overview", "risk_6dim", "synthesis", "coherence", "modality_matrix",
                    "literature_risk", "deciding_axis", "flip_conditions", "subtype", "biomarker",
                    "signals_scatter", "subgroup_bands", "cross_cutting_questions",
-                   "synthesis_banner", "synthesis_note"]
+                   "synthesis_banner", "synthesis_note",
+                   "evidence_fingerprint", "card_chain", "literature_axes"]
         }
       }
     }

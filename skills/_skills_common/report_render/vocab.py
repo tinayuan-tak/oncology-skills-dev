@@ -126,6 +126,12 @@ SUBGROUP_BANDS = "subgroup_bands"      # per-skill hierarchy sub-group signal/co
 CROSS_CUTTING_QUESTIONS = "cross_cutting_questions"  # questions one skill measures that inform another lens
 SYNTHESIS_BANNER = "synthesis_banner"  # persistent advisory exec-summary banner (report chrome, above tabs)
 SYNTHESIS_NOTE = "synthesis_note"      # a routed LLM argument/tension surfaced inside its topical lens
+# evidence-graph blocks (P3): the RICH embedded sub-skill view, rendered from the carried
+# `skill_report.evidence_graph` (== the standalone dashboard) — supersedes the lean bands/scatter when a
+# graph is present. See docs/COMPOSED_EVIDENCE_GRAPH_ROLLUP.md §4.
+EVIDENCE_FINGERPRINT = "evidence_fingerprint"  # per-question heatmap: cards × signal/confidence + a literature dot
+CARD_CHAIN = "card_chain"              # per-card dataset→data→rule→verdict chains, grouped by measurement layer
+LITERATURE_AXES = "literature_axes"    # per-axis literature agreement + assertion + citations + blind spots
 
 BLOCK_KINDS: frozenset = frozenset({
     REPORT_HEADER, SKILL_HEADER, CONFIDENCE, TENSION, CLAIM_CHIPS, QUESTION_TABLE,
@@ -133,6 +139,7 @@ BLOCK_KINDS: frozenset = frozenset({
     SYNTHESIS, COHERENCE, MODALITY_MATRIX, LITERATURE_RISK, DECIDING_AXIS,
     FLIP_CONDITIONS, SUBTYPE, BIOMARKER,
     SIGNALS_SCATTER, SUBGROUP_BANDS, CROSS_CUTTING_QUESTIONS, SYNTHESIS_BANNER, SYNTHESIS_NOTE,
+    EVIDENCE_FINGERPRINT, CARD_CHAIN, LITERATURE_AXES,
 })
 
 # min level int at which each block kind is shown.
@@ -163,6 +170,9 @@ TIER: dict[str, int] = {
     SYNTHESIS_NOTE: 1,         # routed LLM notes appear from summary depth up
     SUBGROUP_BANDS: 2,         # per-skill sub-group bands — evidence depth
     CROSS_CUTTING_QUESTIONS: 2,  # evidence depth
+    EVIDENCE_FINGERPRINT: 2,   # per-question fingerprint — leads the RICH embedded view (evidence depth)
+    LITERATURE_AXES: 2,        # per-axis literature panel — evidence depth
+    CARD_CHAIN: 3,             # per-card dataset→data→rule→verdict chains — deepest detail
 }
 
 # how many claim chips to show per skill at each level (None = all).
@@ -322,6 +332,7 @@ __all__ = [
     "LENS_DECISION", "LENS_SIGNALS", "LENS_MODALITY", "LENS_RISK", "LENS_BIOLOGY",
     "LENS_ORDER", "LENS_TITLE", "BLOCK_LENS", "SKILL_TOPICAL_LENS",
     "SIGNALS_SCATTER", "SUBGROUP_BANDS", "CROSS_CUTTING_QUESTIONS", "SYNTHESIS_BANNER", "SYNTHESIS_NOTE",
+    "EVIDENCE_FINGERPRINT", "CARD_CHAIN", "LITERATURE_AXES",
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
     "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",

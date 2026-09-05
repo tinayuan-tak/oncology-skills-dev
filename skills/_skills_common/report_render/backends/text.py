@@ -42,6 +42,9 @@ class TextBackend:
             vocab.SIGNALS_SCATTER: self._signals_scatter,
             vocab.SUBGROUP_BANDS: self._subgroup_bands,
             vocab.CROSS_CUTTING_QUESTIONS: self._cross_cutting,
+            vocab.EVIDENCE_FINGERPRINT: self._evidence_fingerprint,
+            vocab.CARD_CHAIN: self._card_chain,
+            vocab.LITERATURE_AXES: self._literature_axes,
         }
 
     def handled_kinds(self) -> set:
@@ -448,6 +451,49 @@ class TextBackend:
             return []
         table = [[r.get("question"), r.get("owner"), _humanize(r.get("informs"))] for r in rows]
         return self._h2("Cross-cutting questions") + self._table(["question", "measured by", "informs"], table)
+
+    # -- evidence-graph blocks (P3): degraded tables of the RICH embedded view -------------------
+    def _evidence_fingerprint(self, p: dict) -> list:
+        qs = p.get("questions") or []
+        if not qs:
+            return []
+        rows = []
+        for q in qs:
+            lit = q.get("lit") or {}
+            rows.append([q.get("text") or q.get("id"),
+                         f"{q.get('polarity') or '—'}/{q.get('tier') or '—'}",
+                         "●" * (q.get("dots") or 0) or "—", str(len(q.get("cells") or [])),
+                         _humanize(lit.get("agreement")) if lit else "—"])
+        return self._h2("Evidence fingerprint") + self._table(
+            ["question", "signal", "conf", "cards", "literature"], rows)
+
+    def _card_chain(self, p: dict) -> list:
+        layers = p.get("layers") or []
+        if not layers:
+            return []
+        rows = []
+        for lyr in layers:
+            for c in (lyr.get("cards") or []):
+                rule = ("→ " + c.get("rule_id")) if c.get("rule_id") else "display-only"
+                rows.append([lyr.get("layer"), c.get("id"), c.get("class_value"), rule])
+        return self._h2("Cards — dataset → data → rule → verdict") + self._table(
+            ["layer", "card", "class", "rule"], rows)
+
+    def _literature_axes(self, p: dict) -> list:
+        axes = p.get("axes") or []
+        blind = p.get("blind_spots") or []
+        if not axes and not blind:
+            return []
+        rows = [[a.get("axis_id"), a.get("read"), _humanize(a.get("agreement")),
+                 ", ".join(a.get("question_ids") or [])] for a in axes]
+        out = self._h2("Literature — per-axis agreement") + self._table(
+            ["axis", "read", "agreement", "questions"], rows)
+        for b in blind:
+            out.append(f"  blind spot: {b.get('text') or ''}")
+        oc = p.get("overall_consistency")
+        if oc:
+            out.append(f"  overall consistency: {oc}")
+        return out
 
 
 # ------------------------------------------------------------------------------------------------

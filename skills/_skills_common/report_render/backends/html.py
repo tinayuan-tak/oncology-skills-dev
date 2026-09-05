@@ -166,6 +166,40 @@ details.skill-collapse > summary::before { content:"▸ "; color:var(--muted); f
 details.skill-collapse[open] > summary::before { content:"▾ "; }
 details.skill-collapse > summary .stitle { display:inline-flex; }
 details.skill-collapse > summary .phrase { margin:3px 0 0; }
+.g-neu { color:var(--neutral); font-weight:700; } .g-kil { color:var(--killer); font-weight:700; }
+/* evidence-graph blocks (P3): fingerprint heatmap + dataset→data→rule→verdict chains + literature axes */
+.eg-inner { margin:6px 0 2px; }
+.hm { display:flex; flex-wrap:wrap; gap:10px 14px; }
+.hmg { display:flex; flex-direction:column; gap:4px; }
+.hmglab { font-size:10.5px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+.hmcells { display:flex; gap:3px; align-items:center; }
+.hmcell { width:15px; height:15px; border-radius:4px; border:1px solid var(--border); }
+.hmsep { width:1px; height:15px; background:var(--hair); margin:0 3px; }
+.litdot { width:15px; height:15px; border-radius:50%; border:1px solid var(--border); display:inline-flex;
+          align-items:center; justify-content:center; font-size:9px; color:#fff; font-weight:700; }
+.hmnote { color:var(--muted); font-size:11px; margin-top:8px; }
+.cardln { border:1px solid var(--border); border-radius:7px; background:var(--surface); margin:6px 0; padding:7px 10px; }
+.chead { font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;
+         gap:8px; margin-bottom:3px; } .chead b { color:var(--ink2); font-weight:600; }
+.ccchip { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--ink2);
+          background:var(--page); border:1px solid var(--border); border-radius:999px; padding:0 7px; white-space:nowrap; }
+.chainline { font-size:11.5px; line-height:1.7; color:var(--ink2); }
+.chainline .lab { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.04em; margin-right:2px; }
+.chainline .mono, .mono { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; }
+.chainline .sep { color:var(--muted); margin:0 4px; }
+.pill-drv { background:var(--t-good,rgba(12,163,12,.12)); color:var(--supportive); border:1px solid var(--border);
+            border-radius:4px; padding:0 5px; font-size:9.5px; font-weight:700; }
+.pill-none { color:var(--muted); font-size:11px; font-style:italic; }
+details.pklayer { border:1px solid var(--border); border-radius:8px; margin:6px 0; background:var(--surface); }
+details.pklayer > summary { cursor:pointer; list-style:none; padding:7px 11px; font-size:12px; font-weight:560;
+                           display:flex; justify-content:space-between; gap:8px; }
+details.pklayer > summary::-webkit-details-marker { display:none; }
+details.pklayer > summary::before { content:"▸ "; color:var(--muted); }
+details.pklayer[open] > summary::before { content:"▾ "; }
+.pklayer .lbody { padding:0 11px 8px; }
+.ccinline { color:var(--muted); font-size:11.5px; white-space:nowrap; }
+.cite-pill { display:inline-block; font-size:11px; color:var(--ink2); background:var(--page); border:1px solid var(--border);
+             border-radius:5px; padding:0 5px; margin:0 2px 2px 0; }
 """.strip()
 
 
@@ -202,6 +236,9 @@ class HtmlBackend:
             vocab.SIGNALS_SCATTER: self._signals_scatter,
             vocab.SUBGROUP_BANDS: self._subgroup_bands,
             vocab.CROSS_CUTTING_QUESTIONS: self._cross_cutting,
+            vocab.EVIDENCE_FINGERPRINT: self._evidence_fingerprint,
+            vocab.CARD_CHAIN: self._card_chain,
+            vocab.LITERATURE_AXES: self._literature_axes,
         }
 
     def handled_kinds(self) -> set:
@@ -753,6 +790,120 @@ class HtmlBackend:
                 for r in rows]
         return ["<h2>Cross-cutting questions <span class='so-foot'>— measured by one axis, informs "
                 "another</span></h2>", self._table(["question", "measured by", "informs"], body)]
+
+    # -- evidence-graph blocks (P3): the RICH embedded view == the standalone dashboard ----------
+    _EG_POL_COLOR = {"supportive": "var(--supportive)", "opposing": "var(--opposing)",
+                     "killer": "var(--killer)", "neutral": "var(--neutral)"}
+    _EG_POL_CLS = {"supportive": "g-sup", "opposing": "g-opp", "killer": "g-kil", "neutral": "g-neu"}
+    _EG_DOTS_OPACITY = {3: "1", 2: ".6", 1: ".38", 0: ".3"}
+
+    def _eg_color(self, polarity, liability=False) -> str:
+        if liability:
+            return "var(--killer)"
+        return self._EG_POL_COLOR.get(polarity, "var(--neutral)")
+
+    def _evidence_fingerprint(self, p: dict) -> list:
+        qs = p.get("questions") or []
+        if not qs:
+            return []
+        groups = []
+        for q in qs:
+            gcls = self._EG_POL_CLS.get(q.get("polarity"), "g-neu")
+            glyph = vocab.polarity_glyph(q.get("polarity"))
+            cells = []
+            for c in (q.get("cells") or []):
+                col = self._eg_color(c.get("polarity"), c.get("liability"))
+                op = self._EG_DOTS_OPACITY.get(c.get("dots") if isinstance(c.get("dots"), int) else -1, ".3")
+                tip = f"{c.get('card_id')} · {c.get('polarity')}" + (" · liability" if c.get("liability") else "")
+                cells.append(f"<span class='hmcell' title='{_esc(tip)}' "
+                             f"style='background:{col};opacity:{op}'></span>")
+            lit = q.get("lit")
+            if lit:
+                agr = lit.get("agreement") or lit.get("read")
+                lcol = {"agree": "var(--supportive)", "mixed": "var(--opposing)",
+                        "contradicts": "var(--killer)"}.get(agr, "var(--neutral)")
+                mark = "“" if lit.get("cited") else "·"
+                litdot = (f"<span class='hmsep'></span><span class='litdot' style='background:{lcol}' "
+                          f"title='literature · {_esc(str(lit.get('read')))} · {_esc(str(agr))}'>{mark}</span>")
+            else:
+                litdot = ("<span class='hmsep'></span><span class='litdot' style='opacity:.25' "
+                          "title='no literature for this question'>·</span>")
+            lbl = _esc(q.get("text") or q.get("id") or "")
+            groups.append(f"<div class='hmg'><div class='hmglab'><span class='{gcls}'>{_esc(glyph)}</span> {lbl}</div>"
+                          f"<div class='hmcells'>{''.join(cells)}{litdot}</div></div>")
+        note = ("<div class='hmnote'>▪ card — colour = signal (green supportive · amber opposing · red "
+                "liability/killer · grey neutral), opacity = confidence &nbsp;·&nbsp; ● literature "
+                "(colour = agreement · “ cited · · none)</div>")
+        return ["<h2>Evidence fingerprint <span class='so-foot'>— per question: one cell per contributing "
+                "card (colour = signal, opacity = confidence); literature dot colour = agreement</span></h2>"
+                f"<div class='eg-inner'><div class='hm'>{''.join(groups)}</div>{note}</div>"]
+
+    def _card_chain(self, p: dict) -> list:
+        layers = p.get("layers") or []
+        if not layers:
+            return []
+        out = ["<p class='section-label'>Cards — dataset → data → rule → verdict</p>"]
+        for lyr in layers:
+            cards = lyr.get("cards") or []
+            rows = []
+            for c in cards:
+                key = "killer" if c.get("liability") else c.get("polarity")
+                gl, gcls = vocab.polarity_glyph(key), self._EG_POL_CLS.get(key, "g-neu")
+                ds = " · ".join(c.get("dataset_ids") or []) or "—"
+                data = " · ".join(f"{_esc(d.get('field'))}={_esc(d.get('value'))}"
+                                  for d in (c.get("data") or [])) or "—"
+                if c.get("rule_id"):
+                    drv = "<span class='pill-drv'>DRIVING</span> " if c.get("is_driving") else ""
+                    rule = f"{drv}<span class='mono'>{_esc(c.get('rule_id'))}</span>"
+                else:
+                    rule = "<span class='pill-none'>display-only · no rule fired</span>"
+                nfrag = f" · n={_esc(c.get('n'))}" if c.get("n") is not None else ""
+                rows.append(
+                    f"<div class='cardln'><div class='chead'><span><b>{_esc(c.get('id'))}</b></span>"
+                    f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span> "
+                    f"{_esc(c.get('class_value'))}{nfrag}</span></div>"
+                    f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
+                    f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
+                    f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>")
+            out.append(f"<details class='pklayer'><summary><span>{_esc(lyr.get('layer'))}</span>"
+                       f"<span class='ccinline'>{len(cards)} card(s)</span></summary>"
+                       f"<div class='lbody'>{''.join(rows)}</div></details>")
+        return out
+
+    def _literature_axes(self, p: dict) -> list:
+        axes = p.get("axes") or []
+        blind = p.get("blind_spots") or []
+        if not axes and not blind:
+            return []
+
+        def _cite_pills(cites):
+            out = []
+            for c in (cites or []):
+                lbl = c.get("label") or "citation"
+                pmid = f" · PMID {c.get('pmid')}" if c.get("pmid") else ""
+                vf = " ✓" if c.get("verified") else ""
+                out.append(f"<span class='cite-pill'>{_esc(lbl)}{_esc(pmid)}{vf}</span>")
+            return "".join(out)
+
+        rows = []
+        for a in axes:
+            agr = a.get("agreement") or a.get("read")
+            acls = {"agree": "g-sup", "mixed": "g-opp", "contradicts": "g-kil"}.get(agr, "")
+            qs = ", ".join(a.get("question_ids") or [])
+            qtag = f" · →{_esc(qs)}" if qs else ""
+            rows.append(
+                f"<div class='cardln'><div class='chead'><span>axis {_esc(a.get('axis_id'))} — "
+                f"<b>{_esc(a.get('read'))}</b></span><span class='ccchip'><span class='{acls}'>{_esc(agr)}</span>"
+                f" · {_esc(a.get('confidence'))}{qtag}</span></div>"
+                f"{_esc(a.get('assertion') or '')} {_cite_pills(a.get('citations'))}</div>")
+        for b in blind:
+            why = f" <span class='so-foot'>{_esc(b.get('why_omics_blind'))}</span>" if b.get("why_omics_blind") else ""
+            rows.append(f"<div class='cardln'><div class='chead'><span>blind spot</span></div>"
+                        f"{_esc(b.get('text') or '')}{why} {_cite_pills(b.get('citations'))}</div>")
+        oc = p.get("overall_consistency")
+        head = ("<h2>Literature <span class='so-foot'>— per-axis agreement vs omics"
+                f"{(' · overall ' + _esc(oc)) if oc else ''}</span></h2>")
+        return [head + "".join(rows)]
 
 
 def _scatter_svg(points, y_ticks, x_ticks) -> str:
