@@ -24,7 +24,8 @@ applies_when:
   - "true"   # pan-target; graceful data_unavailable when the target is not in the CITE-seq surface panel
 
 required_inputs:
-  - product_id: sc-cite-surface-normal-immune-v1
+  - product_id: sc-cite-surface-normal-immune-v1        # Hao 2021 PBMC (peripheral immune)
+  - product_id: sc-cite-surface-normal-bonemarrow-v1    # NeurIPS 2021 BMMC (hematopoietic-progenitor compartment); reader unions both shards, class = PEAK across all cell types
 
 methods:
   - call: sc-surface-normal-safety
@@ -37,7 +38,7 @@ outputs:
     - max_surface_cell_type              # the normal immune cell type with the highest surface display
     - max_mean_clr                       # peak cross-donor mean CLR-ADT (display level)
     - n_celltypes_surface_displaying     # breadth: normal immune cell types with mean-CLR >= 1.0
-    - compartment_scope                  # 'immune_pbmc' (v1)
+    - compartment_scope                  # per-row: 'immune_pbmc' (Hao PBMC) or 'bone_marrow' (NeurIPS BMMC)
   summary_fields_vocabulary:
     sc_surface_normal_class: [high_surface_on_normal_immune, moderate_surface_on_normal_immune, low_surface_on_normal_immune, not_surface_detected_normal_immune, data_unavailable]
 
@@ -45,7 +46,7 @@ caveats:
   - "PROTEIN, single-cell sibling of sc-normal-celltype-expression (RNA) + normal-tissue-liability (bulk IHC). Report SIDE-BY-SIDE — surface protein decouples from both RNA and total protein; this is the surface-specific off-tumor floor."
   - "Class keys on PEAK cross-cell-type mean-CLR, NOT positive fraction: ADT ambient/spillover makes a per-cell CLR>0 count fire on ~every lineage (over-call); the mean-CLR level separates true display (CD8A ~4.4 on T) from spillover (~ -1 on B)."
   - "high_surface_on_normal_immune is a SAFETY caution (broad/high normal-immune surface display = on-target/off-tumor risk for a TCE/ADC), NOT a target killer; not_surface_detected_normal_immune is FAVORABLE (e.g. BCMA reads not-detected on normal immune)."
-  - "v1 = IMMUNE / peripheral (Hao 2021 PBMC). Solid-tissue (HuBMAP) safety-essential organs are the follow-on shard. A target ABSENT from the panel returns data_unavailable — not surface-profiled, never a safety pass."
+  - "v1 = peripheral immune (Hao 2021 PBMC) + bone marrow (NeurIPS 2021 BMMC), unioned; class = PEAK across all cell types (either compartment is an off-tumor floor). Solid-tissue (HuBMAP) safety-essential organs are the follow-on shard. A target ABSENT from every panel returns data_unavailable — not surface-profiled, never a safety pass."
 
 measurement: sc_protein
 sample_context: normal          # Hao 2021 PBMC — normal donor immune cells (surface ADT)
