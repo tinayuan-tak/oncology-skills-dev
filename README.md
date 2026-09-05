@@ -158,19 +158,19 @@ auditable `nomination.json` + a narrative-free `target_profile.md` with **no LLM
 The deterministic verdict spine is **byte-identical** to a full run (guarded by
 `skills/target-profile/tests/test_verdict_only.py`).
 
-**One composition engine (Phase D — complete, 2026-08-12).** Every skill now computes verdicts
+**One composition engine (Phase D — complete, 2026-08-12).** Every skill computes verdicts
 through the single resolver spine above. The focused skills and `target-profile` always did;
-`compose-dashboard` — the older iter-1 orchestrator — used to *re-implement* verdicts in
+the older iter-1 `compose-dashboard` orchestrator used to *re-implement* verdicts in
 `scripts/_synthesis.py` as a per-modality `fit_level` scorer, a **second** engine that never called
 `resolve_verdict_for_gate`. Phase D deleted that reconstruction (#375 pinned the cross-engine
-equivalence, #377 did the swap): `compose-dashboard`'s Phase-3 synthesis now calls the shared
-resolver and emits `primary_gate_verdict` + `additional_gate_verdicts`, with the per-modality
-`fit_level` demoted to an optional presentation lens. Because there is one engine, a newly added
-evidence facet can no longer drift between two verdict paths.
+equivalence, #377 did the swap) and routed it through the shared resolver; `compose-dashboard`
+itself was then **retired entirely** (#654, 2026-08-20), its engine (live readers, figure emitters,
+`envelope.assemble_evidence_package`) rehomed to `_skills_common`. Because there is one engine, a
+newly added evidence facet cannot drift between two verdict paths.
 
-Productization (Phase D / D1): standalone subskills can emit the same `evidence_package` envelope
-`compose-dashboard` produces, via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
-(`assemble_evidence_package`) — the AgenticBoost "subskills-first" path.
+Productization (Phase D / D1): standalone subskills emit the deterministic `evidence_package`
+envelope via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
+(`assemble_evidence_package`); for a composed run, `target-profile --emit evidence-package` produces it.
 
 ---
 
@@ -180,30 +180,32 @@ Productization (Phase D / D1): standalone subskills can emit the same `evidence_
 
 | Skill | Ver | Phase | Data mode | Status |
 |---|---|---|---|---|
-| [`tumor-presence`](skills/tumor-presence/) | 1.12.0 | A | `derived_read` | wired — 11 cards, 7 verdict-bearing + 4 display facets |
-| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.11.1 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
-| [`functional-requirement`](skills/functional-requirement/) | 1.4.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog + subtype panorama |
-| [`combination-and-vulnerability`](skills/combination-and-vulnerability/) | 0.1.0 | C | `derived_read` | partial — consolidated relational annex: SL (SynLethDB v3) + measured dual-KO + combo co-targets + resistance mediators; ranked-partner-table output, gateless (verdict=None) |
-| [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | — | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. SL cards now compose under `combination-and-vulnerability` |
-| [`combinatorial-dependency`](skills/combinatorial-dependency/) | 1.0.0 | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. Dual-KO card now composes under `combination-and-vulnerability` |
-| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.7.0 | A, E | `derived_read` | wired — SNV/indel + copy-number + fusion [LIVE, additive] |
-| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.6.1 | D | `derived_read` | wired — SIGNOR/CollecTRI/Reactome MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
-| [`differentiation-landscape`](skills/differentiation-landscape/) | 1.3.0 | E | `derived_read` | partial — co-mutation wired; clinical-precedent / patent placeholder |
-| [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.4.0 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
-| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.3.0 | F | `derived_read` | partial — surfaceome-family + topology + density readers live (+ CSPA surface-confirmation, shed-ectodomain, sc-homogeneity, therapeutic-window, pMHC, exon-window, mutation-/pathway-stratified, CD-antigen backbone as additive signal facets); structure-features (PDB/AlphaFold + ligandability) landed 2026-08-07, feeding the small-molecule ligandability leg (does not feed the biologics `fit_class` by design) |
-| [`immune-context`](skills/immune-context/) | 1.0.0 | F | `derived_read` | partial — CIBERSORT LM22 CD8 infiltration (per-indication); TCE effector-arm companion to surface-modality-fit; antigen-conditioned join is v2 |
-| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.8.0 | G | `derived_read` | partial — 6 human-genetics legs live (gnomAD LoF + Open Targets 26.06: gene-burden, ClinGen dosage, mouse-KO, ClinVar, target-priority) + GTEx breadth; two axes remain incomplete |
+| [`tumor-presence`](skills/tumor-presence/) | 1.20.0 | A | `derived_read` | wired — 11 cards, 7 verdict-bearing + 4 display facets |
+| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.23.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
+| [`functional-requirement`](skills/functional-requirement/) | 1.9.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog + subtype panorama |
+| [`combination-and-vulnerability`](skills/combination-and-vulnerability/) | 0.5.1 | C | `derived_read` | partial — consolidated relational annex: SL (SynLethDB v3) + measured dual-KO + combo co-targets + resistance mediators; ranked-partner-table output, gateless (verdict=None) |
+| [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | 1.1.0 | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. SL cards now compose under `combination-and-vulnerability` |
+| [`combinatorial-dependency`](skills/combinatorial-dependency/) | 1.1.0 | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. Dual-KO card now composes under `combination-and-vulnerability` |
+| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.16.0 | A, E | `derived_read` | wired — SNV/indel + copy-number + fusion [LIVE, additive] |
+| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.10.0 | D | `derived_read` | wired — SIGNOR/CollecTRI/Reactome MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
+| [`differentiation-landscape`](skills/differentiation-landscape/) | 1.10.0 | E | `derived_read` | partial — co-mutation + clinical-precedent (public-domain AACT) + competitor-landscape (OT 26.06) wired; only patent-landscape placeholder |
+| [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.9.1 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
+| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.9.0 | F | `derived_read` | partial — surfaceome-family + topology + density readers live (+ CSPA surface-confirmation, shed-ectodomain, sc-homogeneity, therapeutic-window, pMHC, exon-window, mutation-/pathway-stratified, CD-antigen backbone as additive signal facets); structure-features (PDB/AlphaFold + ligandability) landed 2026-08-07, feeding the small-molecule ligandability leg (does not feed the biologics `fit_class` by design) |
+| [`immune-context`](skills/immune-context/) | 1.6.1 | F | `derived_read` | partial — CIBERSORT LM22 CD8 infiltration (per-indication); TCE effector-arm companion to surface-modality-fit; antigen-conditioned join is v2 |
+| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.17.0 | G | `derived_read` | partial — 6 human-genetics legs live (gnomAD LoF + Open Targets 26.06: gene-burden, ClinGen dosage, mouse-KO, ClinVar, target-priority) + GTEx breadth; two axes remain incomplete |
 | [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/) | 1.1.0 | F | `batch_compute` | target-scan hook — per-indication whole-surfaceome ranking |
 | [`bispecific-pair-scan`](skills/bispecific-pair-scan/) | 1.0.0 | F | `batch_compute` | partial — logic-gated (AND/OR/NOT) antigen-pair tumor-vs-normal selectivity scan; background candidate-generation hook, not interactive |
-| [`target-intrinsic`](skills/target-intrinsic/) | 1.2.1 | A,C,F,G | `live_read` | wired — 18 live cards, indication-independent dossier |
+| [`target-intrinsic`](skills/target-intrinsic/) | 1.6.0 | A,C,F,G | `live_read` | wired — 18 live cards, indication-independent dossier |
 | [`combo-and-resistance`](skills/combo-and-resistance/) | 3.0.0 | I | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. Its combination + resistance cards now compose under `combination-and-vulnerability` |
-| [`translational-readiness`](skills/translational-readiness/) | 1.1.0 | J | `derived_read` | partial — target-model-availability card wired (HCMI patient-derived model coverage per indication; graduated 2026-08-14); PD-assay / imaging-tracer / internal-model legs remain unwired |
+| [`translational-readiness`](skills/translational-readiness/) | 1.5.0 | J | `derived_read` | partial — target-model-availability card wired (HCMI patient-derived model coverage per indication; graduated 2026-08-14); PD-assay / imaging-tracer / internal-model legs remain unwired |
+| [`cis-feature-coherence`](skills/cis-feature-coherence/) | 1.4.0 | A, C, E | `derived_read` | gateless (verdict-inert) — coherence owner for the locus → expression → dependency chain (cis-driven addiction vs. mere co-occurrence) |
+| [`literature-context`](skills/literature-context/) | 1.1.0 | — | `derived_read` | gateless (verdict-inert) — cited-literature evidence: co-occurrence volume/recency + typed relation direction, from two catalogued literature products (no LLM) |
 
 ### Composition & orchestration skills
 
 | Skill | Ver | Role |
 |---|---|---|
-| [`target-profile`](skills/target-profile/) | 1.1.0 | Fans out (in-process) to the 13 wired question skills, collects each sub-verdict, then runs Tier-3 structured LLM synthesis (Bedrock, tool-choice-forced) for `executive_summary` + `tension_analysis` + `recommendation`. Emits `target_profile.md` + `nomination.json` + provenance. Deterministic sub-verdicts and LLM narrative live in **distinct schema slots** — the audit spine is invariant even if narrative drifts. |
+| [`target-profile`](skills/target-profile/) | 1.2.0 | Fans out (in-process) to the 15 wired question-answering sub-skills, collects each sub-verdict, then runs Tier-3 structured LLM synthesis (Bedrock, tool-choice-forced) for `executive_summary` + `tension_analysis` + `recommendation`. Emits `target_profile.md` + `nomination.json` + provenance. Deterministic sub-verdicts and LLM narrative live in **distinct schema slots** — the audit spine is invariant even if narrative drifts. |
 | `compose-dashboard` | — | **RETIRED 2026-08-20 (#654).** The iter-1 `dashboard_spec`-driven orchestrator was deleted; its engine (live readers, figure emitters, `envelope.assemble_evidence_package`) rehomed to `_skills_common`, and `target-profile --emit evidence-package` now produces the deterministic `evidence_package.json`. |
 | [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). (Formerly auto-invoked by the retired `compose-dashboard`.) |
 | [`query-target-evidence`](skills/query-target-evidence/) | 2.0.0 | **Retrieval-only.** Reads a stored `evidence.json` from `core-artifacts/`, validates + checks staleness, returns. If an artifact is missing it names the batch job that produces it — it never triggers compute. |
@@ -214,6 +216,14 @@ Productization (Phase D / D1): standalone subskills can emit the same `evidence_
 |---|---|---|
 | [`catalog-query`](skills/catalog-query/) | 1.0.0 | **Read-only** explorer over the `data-catalog` YAML manifests — find which manifest covers a need, inspect one manifest (S3 URI, schema, sort key, license, lineage), trace `derived_from` / `cited_by`, audit coverage gaps. Never adds, edits, or pushes manifests. |
 | [`example-gallery`](skills/example-gallery/) | 1.0.0 | Standalone developer/demo generator — builds a static-HTML gallery of full example outputs (verdict + per-card summaries + tables + figures) from the focused subskills. Not composed into `target-profile`. |
+
+### Reasoning & meta skills (not composed into `target-profile`)
+
+| Skill | Ver | Role |
+|---|---|---|
+| [`target-archetype`](skills/target-archetype/) | 0.6.0 | Verdict-inert META / reduction-stage companion — consumes the other sub-skills' composed `claim_vector`s from a full profile and positions the (target, indication) pair as a soft phenotype mixture in a frozen low-dimensional target-signature embedding. |
+| [`cross-evidence-hypothesis`](skills/cross-evidence-hypothesis/) | 0.5.0 | Decision-facing synthesis layer that sits **above** `target-profile` — integrates a target-profile `evidence_package` with the indication-independent dossier to surface cross-evidence hypotheses. |
+| [`literature-risk-assessment`](skills/literature-risk-assessment/) | 0.1.0 | Retrieval-grounded 6-dimension literature RISK assessment (Biological / Druggability / Translational / Clinical / Safety / Commercial), each rated LOW/MEDIUM/HIGH/not_assessed with a cited justification. |
 
 > **Framework-health smoke harness:** `skills/_skills_common/framework_health_smoke.py` is a deterministic, offline "runs clean?" probe — it runs each wired subskill's real `run.py` on stubbed (non-live) cards and rolls the `run_health` blocks into `subskill_health.json`, which the `target-contracts` health probe reads. `python -m _skills_common.framework_health_smoke --check` fails if the committed file is stale (CI gate).
 
@@ -286,7 +296,7 @@ Two AWS profiles map to two Takeda accounts (deliberate data-sovereignty separat
 | Profile | AWS account | Used by | Purpose |
 |---------|---|---------|---------|
 | `cbg` | `557690623046` (`tec-rnd-cbg-dev`) | All data reads — derived products, catalog, core-artifacts under `s3://onc-compbio/…` | S3 data access |
-| `cmp-dev` | `888307857004` (`tec-rnd-cmp-dev`) | Bedrock SDK calls (LLM synthesis in `target-profile`, `compose-dashboard`) | Bedrock (Opus / Sonnet), region `us-east-1` |
+| `cmp-dev` | `888307857004` (`tec-rnd-cmp-dev`) | Bedrock SDK calls (LLM synthesis in `target-profile`) | Bedrock (Opus / Sonnet), region `us-east-1` |
 
 On a fresh SageMaker space:
 
@@ -424,9 +434,8 @@ checks them out adjacent under the workspace — using the `CROSS_REPO_TOKEN` re
 (a PAT or GitHub App token with `contents:read` on the siblings), falling back to the default
 `GITHUB_TOKEN` — so `pixi install --locked` resolves the `../` paths.
 
-**Blocking gate** — four suites must pass:
+**Blocking gate** — three suites must pass:
 
-- `skills/compose-dashboard/tests/` — the v2 orchestration spine
 - `skills/_skills_common/tests/` — the shared harness
 - `skills/target-profile/tests/` — the composed nomination skill
 - `skills/tests/` — the cross-skill invariant guards: Guard B (`CARDS ⊆ cards_used`),

@@ -7,7 +7,7 @@ guards already enforce in CI; the list makes the contract explicit for authors a
 - [ ] Runs in its **own worktree** off `v2-architecture`; landed via `land-pr` (auto-merge on green).
 - [ ] `.claude/branch-scope` declares exactly the paths touched (grab-bag prevention).
 - [ ] Registry entry in `~/.claude/wip-registry.md` for non-trivial work (`depends_on` set).
-- [ ] `pixi run pytest` green from a clean checkout (blocking suites: compose-dashboard, `_skills_common`,
+- [ ] `pixi run pytest` green from a clean checkout (blocking suites: `_skills_common`,
       target-profile, `skills/tests/`). Live-S3 tests self-skip credential-less — never assert on availability.
 
 ## Verdict-bearing changes (resolvers, rule consumers, gate maps, card-field reads)
