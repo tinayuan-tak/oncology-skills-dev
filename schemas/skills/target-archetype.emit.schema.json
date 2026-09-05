@@ -9,9 +9,9 @@
   "required": ["skill", "skill_version", "target", "verdict", "companion", "nomination_scorecard"],
   "$defs": {
     "anchor_label": {
-      "description": "Canonical archetype anchor labels (atlas.json anchors[].label). Curated per-target labels may also be control_absent or '?'; data-derived soft labels append a trailing '~'.",
+      "description": "Canonical archetype anchor labels (atlas.json anchors[].label): the 8 base labels, or '?' (unlabeled). A DATA-DERIVED soft label (assigned to an unlabeled analog by clustering) appends a trailing '~' (e.g. 'tsg_loss~') — archetype_core._analog_label. The optional '~' suffix is part of the contract.",
       "type": "string",
-      "enum": ["snv_driver", "tsg_loss", "amp_driver", "expression_surface", "dependency_essential", "immune_checkpoint", "control_housekeeping", "control_absent", "?"]
+      "pattern": "^(snv_driver|tsg_loss|amp_driver|expression_surface|dependency_essential|immune_checkpoint|control_housekeeping|control_absent)~?$|^\\?$"
     },
     "confidence_caveat": {
       "type": ["object", "null"],
