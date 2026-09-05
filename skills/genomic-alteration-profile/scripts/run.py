@@ -1101,6 +1101,19 @@ def main() -> int:
     if subtype_result is not None:
         invoked_lenses["subtypes"] = subtype_result["scope_subtypes"]
 
+    # CENTRAL evidence-capsule wiring (mirrors dispatcher.py: headline["evidence_capsules"] =
+    # emit_capsules(card_outputs, indication)). This skill hand-rolls main() (no run_wired_skill), so it
+    # never received the dispatcher's capsule seam — WITHOUT it every capsule's measurement_type is
+    # absent and the downstream evidence_graph card↔question join has nothing to key on (all cards
+    # collapse to a single "Other" layer). Built from emitted_cards (whole-cohort + any subtype panorama)
+    # so the subtype-tier disambiguation has both tiers. VERDICT-INERT, best-effort (never break the
+    # spine); attached before make_decision_json so it flows to the narrator + literature lanes too.
+    try:
+        from _skills_common.evidence_capsule import emit_capsules
+        headline["evidence_capsules"] = emit_capsules(emitted_cards, args.indication)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never break the spine
+        headline.setdefault("_enrichment_errors", {})["evidence_capsules"] = f"{type(exc).__name__}: {exc}"
+
     decision = make_decision_json(
         skill_name=SKILL_NAME,
         target=args.target, indication=args.indication,
@@ -1147,6 +1160,19 @@ def main() -> int:
                 "_synthesis_error": f"{type(e).__name__}: {e}",
                 "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
             }
+
+    # CENTRAL claim-graph projection (decision.headline.evidence_graph) — the additive, DISPLAY-ONLY
+    # projection the standalone evidence_graph_dashboard renders. This skill hand-rolls main() (no
+    # run_wired_skill), so it wires the graph itself, mirroring the dispatcher seam (dispatcher.py 8d) —
+    # AFTER the literature/llm_synthesis lanes above so their crosswalk + narrative anchoring are carried.
+    # Reads the canonical questions.yaml registry (DEP/SNV/CN/FUS/SPL). VERDICT-INERT, best-effort.
+    try:
+        from _skills_common.evidence_graph import build_evidence_graph, load_questions
+        _eg_skill_dir = Path(__file__).resolve().parent.parent
+        decision["headline"]["evidence_graph"] = build_evidence_graph(
+            decision, questions=load_questions(_eg_skill_dir))
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never break the spine
+        decision["headline"].setdefault("_enrichment_errors", {})["evidence_graph"] = f"{type(exc).__name__}: {exc}"
 
     # Canonical HEADLINE hero figure (figure_headline_hero.{svg,png,json}) — the one hero every skill
     # emits, rendered offline from decision['headline']['headline_block']. This skill hand-rolls main()

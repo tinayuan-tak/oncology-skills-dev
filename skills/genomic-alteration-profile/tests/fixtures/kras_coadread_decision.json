@@ -1,0 +1,1764 @@
+{
+  "skill": "genomic-alteration-profile",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "How is KRAS genomically altered in COADREAD \u2014 by SNV/indel (driver, biomarker-stratified dependency, or passenger), by copy-number (amplification/deletion), or a mix \u2014 and which class drives?",
+  "fired_rules": [
+    {
+      "rule_id": "mutant-strongly-dependent-supportive",
+      "card_id": "mutation-stratified-dependency",
+      "field": "mutation_stratification_class",
+      "value": "mutant_strongly_dependent",
+      "dominant": true,
+      "rationale_summary": "Mutant cells significantly + strongly more dependent than WT (BH-corrected q < \u03b1,"
+    },
+    {
+      "rule_id": "cn-amplified-moderately-dependent-supportive",
+      "card_id": "copy-number-stratified-dependency",
+      "field": "cn_stratification_class",
+      "value": "amplified_moderately_dependent",
+      "dominant": false,
+      "rationale_summary": "Significant amplified-vs-neutral stratification but smaller effect size (-0.2 to -0.5)."
+    },
+    {
+      "rule_id": "fusion-positive-moderately-dependent-supportive",
+      "card_id": "fusion-stratified-dependency",
+      "field": "fusion_stratification_class",
+      "value": "fusion_positive_moderately_dependent",
+      "dominant": false,
+      "rationale_summary": "Significant fusion-positive-vs-negative stratification but smaller effect size (-0.2 to -0.5)."
+    },
+    {
+      "rule_id": "snv-recurrence-top-driver-supportive",
+      "card_id": "mutation-hotspot-frequency",
+      "field": "pooled_driver_recurrence_class",
+      "value": "top_1pct",
+      "dominant": false,
+      "rationale_summary": "The target is among the MOST RECURRENTLY MUTATED genes in the indication's patients (top 1% by"
+    },
+    {
+      "rule_id": "amp-expr-moderately-dependent-supportive",
+      "card_id": "amp-expr-stratified-dependency",
+      "field": "amp_expr_stratification_class",
+      "value": "amplified_overexpressed_moderately_dependent",
+      "dominant": false,
+      "rationale_summary": "Significant amplified+overexpressed-vs-rest stratification but smaller effect size (-0.2 to -0.5)."
+    },
+    {
+      "rule_id": "mutant-indication-scoped-context",
+      "card_id": "mutation-stratified-dependency",
+      "field": "evidence_scope",
+      "value": "within_indication",
+      "dominant": false,
+      "rationale_summary": "Indication-scope GATE for the mutation biomarker verdict (scope-coherence Phase 1). The mutation"
+    },
+    {
+      "rule_id": "cn-broadly-neutral-neutral",
+      "card_id": "copy-number-distribution",
+      "field": "copy_number_class",
+      "value": "broadly_neutral",
+      "dominant": false,
+      "rationale_summary": "No recurrent CN events \u2014 the CN axis is NOT a driver for this target."
+    },
+    {
+      "rule_id": "mut-missense-dominant-supportive",
+      "card_id": "mutation-type-counts",
+      "field": "mutation_landscape_class",
+      "value": "missense_dominant",
+      "dominant": false,
+      "rationale_summary": "Missense-dominant variant profile (\u226570% missense among coding variants) is"
+    },
+    {
+      "rule_id": "alteration-role-gof-driver-supportive",
+      "card_id": "alteration-role",
+      "field": "alteration_role",
+      "value": "direct_driver_gof",
+      "dominant": false,
+      "rationale_summary": "Target is a direct ACTIVATING (gain-of-function) cancer driver in this indication (OncoKB"
+    },
+    {
+      "rule_id": "functional-gene-state-sporadic-biallelic-neutral",
+      "card_id": "functional-gene-state",
+      "field": "functional_state_class",
+      "value": "sporadic_biallelic_inactivation",
+      "dominant": false,
+      "rationale_summary": "Biallelic inactivation is PRESENT but SPORADIC (below the recurrence threshold). Some samples"
+    },
+    {
+      "rule_id": "mutation-drug-response-strongly-sensitive-supportive",
+      "card_id": "mutation-drug-response",
+      "field": "drug_response_stratification_class",
+      "value": "mutant_strongly_drug_sensitive",
+      "dominant": false,
+      "rationale_summary": "Cell lines carrying an alteration in the target are strongly MORE SENSITIVE to a drug that"
+    },
+    {
+      "rule_id": "predictability-biomarker-hypothesis-supportive",
+      "card_id": "dependency-predictability",
+      "field": "predictability_class",
+      "value": "own_omics_driven",
+      "dominant": false,
+      "rationale_summary": "Dependency is biomarker-anchored: a target-own omic feature (expression,"
+    },
+    {
+      "rule_id": "oncogene-role-safety-context",
+      "card_id": "alteration-role",
+      "field": "oncokb_gene_type",
+      "value": "ONCOGENE",
+      "dominant": false,
+      "rationale_summary": "Role-agreement GATE for the mutant-selective GoF safety downgrade. activating-driver-role-safety-"
+    },
+    {
+      "rule_id": "activating-driver-role-safety-context",
+      "card_id": "alteration-role",
+      "field": "functional_direction",
+      "value": "activating",
+      "dominant": false,
+      "rationale_summary": "Target is an ACTIVATING (GoF) driver. Mechanism-context signal for the safety gate: a GoF"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "mutation-type-counts",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "mutation-stratified-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "mutation-hotspot-frequency",
+      "input_manifest_ids": [
+        "gdc-pancohort-somatic",
+        "pooled-snv-recurrence-v1"
+      ]
+    },
+    {
+      "card_id": "copy-number-distribution",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "tcga-patient-cn-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "copy-number-stratified-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "amp-expr-stratified-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "fusion-stratified-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "fusion-rearrangement-landscape",
+      "input_manifest_ids": [
+        "tcga-fusion-consensus-v1",
+        "genie-sv-recurrence-v1"
+      ]
+    },
+    {
+      "card_id": "splice-exon-skip-landscape",
+      "input_manifest_ids": [
+        "depmap-somatic-splice-variants-v1"
+      ]
+    },
+    {
+      "card_id": "mutation-drug-response",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "prism-oncref-dmc-25q4"
+      ]
+    },
+    {
+      "card_id": "alteration-role",
+      "input_manifest_ids": [
+        "oncokb-gene-roles-public-snapshot-2026-07-01",
+        "intogen-v2024-09-20"
+      ]
+    },
+    {
+      "card_id": "functional-gene-state",
+      "input_manifest_ids": [
+        "tcga-mc3-public-v0-2-8",
+        "gdc-pancanatlas-cnv-2018",
+        "depmap-consortium-26q1",
+        "tcga-sesame-promoter-methylation-v1",
+        "depmap-consortium-ccle-2019"
+      ]
+    },
+    {
+      "card_id": "genomic-event-model-match",
+      "input_manifest_ids": [
+        "tcga-mc3-public-v0-2-8",
+        "gdc-pancanatlas-cnv-2018",
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "genomic-instability-state",
+      "input_manifest_ids": [
+        "gdc-pancanatlas-cnv-2018",
+        "gdc-pancanatlas-clinical-2018"
+      ]
+    },
+    {
+      "card_id": "mutational-signature-context",
+      "input_manifest_ids": [
+        "tcga-mc3-mutational-signatures-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "ddr-deficiency-context",
+      "input_manifest_ids": [
+        "pancanatlas-ddr-deficiency-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "oncogenic-pathway-alteration",
+      "input_manifest_ids": [
+        "oncogenic-pathway-alteration-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "variant-level-interpretation",
+      "input_manifest_ids": [
+        "civic-variant-interpretation-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "variant-effect-mave-mavedb",
+      "input_manifest_ids": [
+        "mavedb-variant-effect-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "target-clonality",
+      "input_manifest_ids": [
+        "pancan-mutation-clonality-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "cross-consortium-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "dependency-predictability",
+      "input_manifest_ids": [
+        "depmap-predictability"
+      ]
+    },
+    {
+      "card_id": "tumor-splice-dysregulation",
+      "input_manifest_ids": [
+        "tcga-spliceseq-psi-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "tumor-splice-expression",
+      "input_manifest_ids": [
+        "tcga-spliceseq-psi-per-gene-v1"
+      ]
+    }
+  ],
+  "headline": {
+    "evidence_capsules": {
+      "capsules": {
+        "alteration-role": {
+          "card_id": "alteration-role",
+          "measurement_type": "alteration_role",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": null,
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "intogen_max_pct_samples": 0.447,
+            "intogen_min_qvalue": 2.25e-51
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "amp-expr-stratified-dependency": {
+          "card_id": "amp-expr-stratified-dependency",
+          "measurement_type": "amp_expr_stratified_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "amplified_overexpressed_moderately_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "amp_expr_effect_size",
+              "value": 0.6218
+            },
+            {
+              "metric": "median_chronos_amp_expr",
+              "value": -1.6279
+            },
+            {
+              "metric": "median_chronos_comparator",
+              "value": -0.4166
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "amplification_threshold_relative_cn": 2.0,
+            "high_expression_log2tpm_threshold": 4.785555839538574,
+            "median_chronos_amp_expr": -1.6279293298721313
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "copy-number-distribution": {
+          "card_id": "copy-number-distribution",
+          "measurement_type": "copy_number_alteration",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "broadly_neutral",
+          "numeric_anchors": [
+            {
+              "metric": "cn_fraction_deep_deletion",
+              "value": 0.0032
+            },
+            {
+              "metric": "cn_fraction_focal_amplification",
+              "value": 0.1112
+            },
+            {
+              "metric": "cn_fraction_high_amplification",
+              "value": 0.0168
+            },
+            {
+              "metric": "cn_fraction_neutral",
+              "value": 0.3848
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "cn_fraction_deep_deletion": 0.0032,
+            "cn_fraction_focal_amplification": 0.1112,
+            "cn_fraction_high_amplification": 0.0168
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "copy-number-stratified-dependency": {
+          "card_id": "copy-number-stratified-dependency",
+          "measurement_type": "cn_stratified_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "amplified_moderately_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "cn_stratification_effect_size",
+              "value": 0.5999
+            },
+            {
+              "metric": "median_chronos_amplified",
+              "value": -1.6279
+            },
+            {
+              "metric": "median_chronos_neutral",
+              "value": -0.4104
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "amplification_threshold_relative_cn": 2.0,
+            "cn_stratification_effect_size": 0.5998575498575498,
+            "cn_stratification_mannwhitney_p": 8.731352996681872e-12
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "cross-consortium-dependency": {
+          "card_id": "cross-consortium-dependency",
+          "measurement_type": "cross_consortium_dependency",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "concordant_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "broad_frac_dependent",
+              "value": 0.4486
+            },
+            {
+              "metric": "broad_median_chronos",
+              "value": -0.4574
+            },
+            {
+              "metric": "sanger_frac_dependent",
+              "value": 0.4744
+            },
+            {
+              "metric": "sanger_median_chronos",
+              "value": -0.4779
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "broad_median_chronos": -0.4574,
+            "broad_n_lines": 1538,
+            "sanger_median_chronos": -0.4779
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "Broad Achilles (CRISPRGeneEffect) vs Sanger Project Score (ScreenGeneEffect), DepMap 26q1; verdict-inert cross-consortium corroboration"
+            },
+            {
+              "key": "cross_consortium_class",
+              "value": "concordant_dependent"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "ddr-deficiency-context": {
+          "card_id": "ddr-deficiency-context",
+          "measurement_type": "ddr_deficiency_context",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "hrd_low",
+          "numeric_anchors": [
+            {
+              "metric": "median_hrd_score",
+              "value": 11.291
+            },
+            {
+              "metric": "median_mutsig3",
+              "value": 0.007
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_hrd_score": 11.291,
+            "median_mutsig3": 0.007,
+            "n_samples": 457
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "pancanatlas-ddr (Knijnenburg 2018); verdict-inert cohort context"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "dependency-predictability": {
+          "card_id": "dependency-predictability",
+          "measurement_type": "dependency_predictability",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "own_omics_driven",
+          "numeric_anchors": [
+            {
+              "metric": "delta_r2",
+              "value": 0.0232
+            },
+            {
+              "metric": "pearson_r_rf",
+              "value": 0.6841
+            },
+            {
+              "metric": "pearson_r_squared_rf",
+              "value": 0.4679
+            },
+            {
+              "metric": "pearson_r_squared_rf_ci_hi",
+              "value": 0.5228
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "predictability_class",
+              "value": "own_omics_driven"
+            },
+            {
+              "field": "pred_dominant_feature_class",
+              "value": "own_mut_hotspot"
+            },
+            {
+              "field": "model_agreement",
+              "value": "concordant"
+            }
+          ],
+          "n_basis": {
+            "pearson_r_rf": 0.6840511560440063,
+            "pearson_r_squared_rf": 0.4679259955883026,
+            "pearson_r_squared_rf_ci_hi": 0.5228469371795654
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Biliary Tract",
+              "metric": "r2",
+              "value": 0.2563,
+              "n": null,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Soft Tissue",
+              "metric": "r2",
+              "value": 0.0001,
+              "n": null,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "functional-gene-state": {
+          "card_id": "functional-gene-state",
+          "measurement_type": "functional_gene_state",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "sporadic_biallelic_inactivation",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "fusion-rearrangement-landscape": {
+          "card_id": "fusion-rearrangement-landscape",
+          "measurement_type": "fusion_rearrangement",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "no_recurrent_fusion",
+          "numeric_anchors": [
+            {
+              "metric": "genie_sv_recurrence_percentile",
+              "value": 51.0267
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_samples_with_fusion": 0,
+            "n_sv_covered": 16714,
+            "n_sv_samples": 5
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "tcga-fusion-consensus-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "fusion-stratified-dependency": {
+          "card_id": "fusion-stratified-dependency",
+          "measurement_type": "fusion_stratified_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "fusion_positive_moderately_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "fusion_stratification_effect_size",
+              "value": 0.5423
+            },
+            {
+              "metric": "median_chronos_fusion_negative",
+              "value": -0.4576
+            },
+            {
+              "metric": "median_chronos_fusion_positive",
+              "value": -1.0034
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "delta_chronos_fusion_positive_vs_negative": -0.5457298159599304,
+            "fusion_stratification_effect_size": 0.542278534697556,
+            "fusion_stratification_mannwhitney_p": 0.0003758700125258325
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "genomic-event-model-match": {
+          "card_id": "genomic-event-model-match",
+          "measurement_type": "genomic_event_model_match",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "event_matched_dependent_in_lineage",
+          "numeric_anchors": [
+            {
+              "metric": "patient_event_fraction",
+              "value": 0.3693
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_event_matched": 340,
+            "n_event_matched_in_lineage": 61,
+            "n_matched_dependent": 217
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "release_pin",
+              "value": "26q1"
+            }
+          ],
+          "data_quality_flags": [
+            {
+              "field": "patient_functional_state_class",
+              "value": "sporadic_biallelic_inactivation",
+              "contradicts": "functional_direction/state='activating'",
+              "flag": "activating-direction card carries a loss-of-function state label \u2014 do NOT narrate as LoF"
+            }
+          ]
+        },
+        "genomic-instability-state": {
+          "card_id": "genomic-instability-state",
+          "measurement_type": "genomic_instability_state",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "highly_aneuploid",
+          "numeric_anchors": [
+            {
+              "metric": "median_fraction_genome_altered",
+              "value": 0.4035
+            },
+            {
+              "metric": "median_hrd_scar_score",
+              "value": 22.0
+            },
+            {
+              "metric": "median_ploidy",
+              "value": 2.23
+            },
+            {
+              "metric": "median_purity",
+              "value": 0.67
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_fraction_genome_altered": 0.4035396161970229,
+            "median_hrd_scar_score": 22.0,
+            "median_ploidy": 2.23
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "median_purity": 0.67
+          },
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "gdc-pancanatlas-cnv-2018"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "mutation-drug-response": {
+          "card_id": "mutation-drug-response",
+          "measurement_type": "mutation_drug_response",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "mutant_strongly_drug_sensitive",
+          "numeric_anchors": [
+            {
+              "metric": "drug_response_base_rate",
+              "value": 0.8124
+            },
+            {
+              "metric": "drug_response_effect_size",
+              "value": 0.5604
+            },
+            {
+              "metric": "drug_response_ppv",
+              "value": 0.9477
+            },
+            {
+              "metric": "drug_response_ppv_lift",
+              "value": 1.1665
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_log2auc_mutant": -1.17017917991103,
+            "median_log2auc_wildtype": -0.7096986826073906,
+            "n_mutant": 153
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "mutation-hotspot-frequency": {
+          "card_id": "mutation-hotspot-frequency",
+          "measurement_type": "mutation_hotspot_frequency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "top_1pct",
+          "numeric_anchors": [
+            {
+              "metric": "driver_recurrence_percentile",
+              "value": 99.9811
+            },
+            {
+              "metric": "genie_driver_recurrence_percentile",
+              "value": 99.4783
+            },
+            {
+              "metric": "pooled_driver_recurrence_percentile",
+              "value": 99.9703
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "pooled_driver_recurrence_class",
+              "value": "top_1pct"
+            },
+            {
+              "field": "driver_recurrence_class",
+              "value": "top_1pct"
+            },
+            {
+              "field": "genie_driver_recurrence_class",
+              "value": "top_1pct"
+            }
+          ],
+          "n_basis": {
+            "genie_mutation_frequency": 0.4350493350493351,
+            "n_covered_pooled": 29146,
+            "n_mutated_pooled": 12667
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "/home/sagemaker-user/data-products-cache/gdc_hotspots/coadread_mc3_hotspots.parquet"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "mutation-stratified-dependency": {
+          "card_id": "mutation-stratified-dependency",
+          "measurement_type": "mutation_stratified_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "mutant_strongly_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "hotspot_dependency_base_rate",
+              "value": 0.8182
+            },
+            {
+              "metric": "hotspot_dependency_ppv",
+              "value": 1.0
+            },
+            {
+              "metric": "hotspot_dependency_ppv_lift",
+              "value": 1.2222
+            },
+            {
+              "metric": "hotspot_dependency_sensitivity",
+              "value": 0.5972
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_chronos_damaging_wildtype": -1.1771361231803894,
+            "median_chronos_hotspot_mutant": -1.7287354469299316,
+            "median_chronos_hotspot_wildtype": -0.5864385962486267
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "mutation-type-counts": {
+          "card_id": "mutation-type-counts",
+          "measurement_type": "mutation_variant_class_spectrum",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "missense_dominant",
+          "numeric_anchors": [
+            {
+              "metric": "mut_fraction_inframe_indel",
+              "value": 0.0292
+            },
+            {
+              "metric": "mut_fraction_lof",
+              "value": 0.0159
+            },
+            {
+              "metric": "mut_fraction_missense",
+              "value": 0.9549
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "mutation_landscape_class",
+              "value": "missense_dominant"
+            },
+            {
+              "field": "mut_dominant_mutation_class",
+              "value": "missense"
+            }
+          ],
+          "n_basis": {
+            "mut_fraction_inframe_indel": 0.029177718832891247,
+            "mut_fraction_lof": 0.015915119363395226,
+            "mut_fraction_missense": 0.9549071618037135
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "mutational-signature-context": {
+          "card_id": "mutational-signature-context",
+          "measurement_type": "mutational_signature_context",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "mmr_deficiency",
+          "numeric_anchors": null,
+          "categorical_anchors": [
+            {
+              "field": "dominant_process",
+              "value": "mmr_deficiency"
+            },
+            {
+              "field": "enriched_processes",
+              "value": "none"
+            },
+            {
+              "field": "apobec_class",
+              "value": "rare"
+            },
+            {
+              "field": "mmr_deficiency_class",
+              "value": "intermediate"
+            },
+            {
+              "field": "hrd_class",
+              "value": "rare"
+            }
+          ],
+          "n_basis": {
+            "n_samples": 556
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "TCGA MC3 v0.2.8 \u2192 SigProfilerAssignment COSMIC v3.3 (pan-cancer, 33 TCGA studies via TCGA-CDR); verdict-inert cohort context"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "oncogenic-pathway-alteration": {
+          "card_id": "oncogenic-pathway-alteration",
+          "measurement_type": "oncogenic_pathway_alteration",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "frequently_altered",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_pathways_profiled": 10
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "Sanchez-Vega 2018 Cell (oncogenic-pathway alteration); verdict-inert cohort context"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "splice-exon-skip-landscape": {
+          "card_id": "splice-exon-skip-landscape",
+          "measurement_type": "splice_exon_skip",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "no_registered_event",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "target-clonality": {
+          "card_id": "target-clonality",
+          "measurement_type": "mutation_clonality",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "predominantly_clonal",
+          "numeric_anchors": [
+            {
+              "metric": "clonal_fraction",
+              "value": 0.9159
+            },
+            {
+              "metric": "median_ccf",
+              "value": 1.2255
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_ccf": 1.2255,
+            "n_mutant_samples": 226
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "tumor-splice-dysregulation": {
+          "card_id": "tumor-splice-dysregulation",
+          "measurement_type": "tumor_splice_dysregulation",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "tumor_shifted",
+          "numeric_anchors": [
+            {
+              "metric": "median_event_psi_std",
+              "value": 0.021
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_event_psi_std": 0.02098330716596074,
+            "n_normal_samples": 51,
+            "n_splice_events": 7
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "tcga-spliceseq"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "tumor-splice-expression": {
+          "card_id": "tumor-splice-expression",
+          "measurement_type": "tumor_splice_expression",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "tumor_shifted",
+          "numeric_anchors": [
+            {
+              "metric": "median_event_psi_std",
+              "value": 0.021
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_event_psi_std": 0.02098330716596074,
+            "n_normal_samples": 51,
+            "n_splice_events": 7
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "tcga-spliceseq"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "variant-effect-mave-mavedb": {
+          "card_id": "variant-effect-mave-mavedb",
+          "measurement_type": "variant_functional_effect_mave",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "mave_unmapped_target",
+          "numeric_anchors": [
+            {
+              "metric": "score_median",
+              "value": -0.3742
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_score_sets": 30,
+            "n_variants_assayed": 200525,
+            "n_variants_scored": 198041
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "variant-level-interpretation": {
+          "card_id": "variant-level-interpretation",
+          "measurement_type": "variant_level_interpretation",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "likely_oncogenic",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_interpreted_variants": 29
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "alteration-role",
+          "status": "full"
+        },
+        {
+          "card_id": "amp-expr-stratified-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "copy-number-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "copy-number-stratified-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "cross-consortium-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "ddr-deficiency-context",
+          "status": "full"
+        },
+        {
+          "card_id": "dependency-predictability",
+          "status": "full"
+        },
+        {
+          "card_id": "functional-gene-state",
+          "status": "full"
+        },
+        {
+          "card_id": "fusion-rearrangement-landscape",
+          "status": "full"
+        },
+        {
+          "card_id": "fusion-stratified-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "genomic-event-model-match",
+          "status": "full"
+        },
+        {
+          "card_id": "genomic-instability-state",
+          "status": "full"
+        },
+        {
+          "card_id": "mutation-drug-response",
+          "status": "full"
+        },
+        {
+          "card_id": "mutation-hotspot-frequency",
+          "status": "full"
+        },
+        {
+          "card_id": "mutation-stratified-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "mutation-type-counts",
+          "status": "full"
+        },
+        {
+          "card_id": "mutational-signature-context",
+          "status": "full"
+        },
+        {
+          "card_id": "oncogenic-pathway-alteration",
+          "status": "full"
+        },
+        {
+          "card_id": "splice-exon-skip-landscape",
+          "status": "full"
+        },
+        {
+          "card_id": "target-clonality",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-splice-dysregulation",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-splice-expression",
+          "status": "full"
+        },
+        {
+          "card_id": "variant-effect-mave-mavedb",
+          "status": "full"
+        },
+        {
+          "card_id": "variant-level-interpretation",
+          "status": "full"
+        }
+      ]
+    },
+    "question_table": [
+      {
+        "id": "SNV",
+        "question": "Recurrent SNV/indel driver, or biomarker-stratified dependency?",
+        "primary": "missense_dominant",
+        "support": "recurrence: top_1pct \u00b7 stratified dependency: mutant_strongly_dependent",
+        "signal": {
+          "tier": "weak",
+          "fill": 2,
+          "polarity": "supports",
+          "label": "missense_dominant"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "measured"
+        }
+      },
+      {
+        "id": "CN",
+        "question": "Copy-number driver \u2014 focal amplification or deletion?",
+        "primary": "broadly_neutral",
+        "support": "patient: recurrently_amplified \u00b7 stratified dependency: amplified_moderately_dependent \u00b7 amp expr dependency: amplified_overexpressed_moderately_dependent",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "broadly_neutral"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "measured"
+        }
+      },
+      {
+        "id": "Fusion",
+        "question": "Recurrent fusion / rearrangement driver?",
+        "primary": "no_recurrent_fusion",
+        "support": "stratified dependency: fusion_positive_moderately_dependent \u00b7 genie sv recurrence: mid",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "no_recurrent_fusion"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "measured"
+        }
+      },
+      {
+        "id": "Splice",
+        "question": "Recurrent exon-skipping driver (e.g. METex14)?",
+        "primary": "no_registered_event",
+        "support": "",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "no_registered_event"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "measured"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": "biomarker_stratified_dependency",
+        "phrase": "Biomarker-stratified genetic dependency",
+        "gate": "genomic_alteration",
+        "driving_rule_id": "mutant-strongly-dependent-supportive",
+        "polarity": "positive"
+      },
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 4,
+          "n_axes": 4,
+          "n_critical_measured": 4
+        }
+      },
+      "top_tension": {
+        "text": "No recurrent copy-number alteration \u2014 broadly_neutral [copy-number-distribution]",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "headline_text": "Biomarker-stratified genetic dependency \u2014 moderate confidence; tension: No recurrent copy-number alteration \u2014 broadly_neutral [copy-number-distribution].",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "biomarker_stratified_dependency",
+          "phrase": "Biomarker-stratified genetic dependency",
+          "gate": "genomic_alteration",
+          "polarity": "positive"
+        },
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 4,
+            "n_axes": 4,
+            "n_critical_measured": 4
+          }
+        },
+        "tension": {
+          "text": "No recurrent copy-number alteration \u2014 broadly_neutral [copy-number-distribution]"
+        },
+        "axes": [
+          {
+            "key": "SNV",
+            "label": "recurrent SNV/indel driver",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "CN",
+            "label": "copy-number driver",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "FUS",
+            "label": "fusion driver",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "DEP",
+            "label": "alteration confers dependency",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "SNV",
+          "card_id": "mutation-hotspot-frequency",
+          "fields": [
+            "driver_recurrence_class",
+            "driver_recurrence_percentile",
+            "n_samples_in_indication",
+            "n_samples_mutated",
+            "overall_mutation_frequency",
+            "pooled_driver_recurrence_percentile",
+            "pooled_mutation_frequency"
+          ]
+        },
+        {
+          "axis": "CN",
+          "card_id": "copy-number-distribution",
+          "fields": [
+            "cn_distribution_shape",
+            "cn_fraction_deep_deletion",
+            "cn_median_panel",
+            "cn_p95_panel",
+            "copy_number_class",
+            "patient_focal_cn_class"
+          ]
+        },
+        {
+          "axis": "FUS",
+          "card_id": "fusion-rearrangement-landscape",
+          "fields": [
+            "fusion_class",
+            "genie_sv_frequency",
+            "genie_sv_recurrence_percentile",
+            "n_samples_with_fusion"
+          ]
+        },
+        {
+          "axis": "DEP",
+          "card_id": "mutation-stratified-dependency",
+          "fields": [
+            "delta_chronos_hotspot_mut_vs_wt",
+            "evidence_scope",
+            "hotspot_mannwhitney_q",
+            "median_chronos_hotspot_mutant",
+            "median_chronos_hotspot_wildtype",
+            "mutation_stratification_class",
+            "n_hotspot_mutant",
+            "n_hotspot_wildtype"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "driving_rule_id": "mutant-strongly-dependent-supportive",
+    "genomic_alteration_profile": "biomarker_stratified_dependency",
+    "genomic_alteration_by_class": {
+      "snv_indel": {
+        "verdict": "missense_dominant",
+        "evidence_state": "measured",
+        "recurrence_class": "top_1pct",
+        "stratified_dependency_class": "mutant_strongly_dependent"
+      },
+      "copy_number": {
+        "verdict": "broadly_neutral",
+        "evidence_state": "measured",
+        "patient_class": "recurrently_amplified",
+        "stratified_dependency_class": "amplified_moderately_dependent",
+        "amp_expr_dependency_class": "amplified_overexpressed_moderately_dependent"
+      },
+      "fusion": {
+        "verdict": "no_recurrent_fusion",
+        "evidence_state": "measured",
+        "stratified_dependency_class": "fusion_positive_moderately_dependent",
+        "genie_sv_recurrence_class": "mid"
+      },
+      "splice": {
+        "verdict": "no_registered_event",
+        "evidence_state": "measured",
+        "event_id": null,
+        "driver_direction": null,
+        "n_depmap_carriers": null
+      }
+    },
+    "verdict": null,
+    "confidence": null,
+    "top_tension": null,
+    "subgroup_signals": {
+      "SNV": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 8,
+        "n_agree": 7,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "mutation-type-counts",
+            "tier": "moderate",
+            "n": null,
+            "label": "mut dominant mutation",
+            "conflict": false,
+            "value": "missense"
+          },
+          {
+            "card": "mutation-hotspot-frequency",
+            "tier": "strong",
+            "n": 559,
+            "label": "driver recurrence",
+            "conflict": false,
+            "value": "top_1pct"
+          },
+          {
+            "card": "alteration-role",
+            "tier": "strong",
+            "n": 0.447,
+            "label": "alteration role",
+            "conflict": false,
+            "value": "direct_driver_gof"
+          },
+          {
+            "card": "functional-gene-state",
+            "tier": "moderate",
+            "n": null,
+            "label": "functional state",
+            "conflict": false,
+            "value": "sporadic_biallelic_inactivation"
+          },
+          {
+            "card": "oncogenic-pathway-alteration",
+            "tier": "strong",
+            "n": 10,
+            "label": "oncogenic pathway",
+            "conflict": false,
+            "value": "frequently_altered"
+          },
+          {
+            "card": "variant-level-interpretation",
+            "tier": "strong",
+            "n": 29,
+            "label": "civic variant",
+            "conflict": false,
+            "value": "likely_oncogenic"
+          },
+          {
+            "card": "variant-effect-mave-mavedb",
+            "tier": "absent",
+            "n": 30,
+            "label": "mave evidence",
+            "conflict": false,
+            "value": "mave_unmapped_target"
+          },
+          {
+            "card": "target-clonality",
+            "tier": "strong",
+            "n": 226,
+            "label": "clonality",
+            "conflict": false,
+            "value": "predominantly_clonal"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "SNV",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "SNV: missense_dominant, recurrence top_1pct (43.5% freq)",
+            "evidence_atom": {
+              "read": "top_1pct",
+              "values": {
+                "driver_recurrence_class": "top_1pct",
+                "pooled_mutation_frequency": 0.4346050916077678,
+                "overall_mutation_frequency": 0.4203935599284436,
+                "pooled_driver_recurrence_percentile": 99.97026223303595,
+                "driver_recurrence_percentile": 99.98105137783553,
+                "n_samples_in_indication": 559,
+                "n_samples_mutated": 235
+              },
+              "cite": {
+                "card_id": "mutation-hotspot-frequency",
+                "fields": [
+                  "driver_recurrence_class",
+                  "driver_recurrence_percentile",
+                  "n_samples_in_indication",
+                  "n_samples_mutated",
+                  "overall_mutation_frequency",
+                  "pooled_driver_recurrence_percentile",
+                  "pooled_mutation_frequency"
+                ]
+              },
+              "entity": {
+                "measurement_type": "mutation_hotspot_recurrence",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      },
+      "DEP": {
+        "signal": "strong",
+        "confidence": "high",
+        "n_sources": 5,
+        "n_agree": 5,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "mutation-stratified-dependency",
+            "tier": "strong",
+            "n": 88,
+            "label": "mutation stratification",
+            "conflict": false,
+            "value": "mutant_strongly_dependent"
+          },
+          {
+            "card": "mutation-drug-response",
+            "tier": "strong",
+            "n": 23,
+            "label": "drug response stratification",
+            "conflict": false,
+            "value": "mutant_strongly_drug_sensitive"
+          },
+          {
+            "card": "genomic-event-model-match",
+            "tier": "moderate",
+            "n": 631,
+            "label": "patient functional state",
+            "conflict": false,
+            "value": "sporadic_biallelic_inactivation"
+          },
+          {
+            "card": "cross-consortium-dependency",
+            "tier": "strong",
+            "n": 1538,
+            "label": "cross consortium",
+            "conflict": false,
+            "value": "concordant_dependent"
+          },
+          {
+            "card": "dependency-predictability",
+            "tier": "moderate",
+            "n": 1538,
+            "label": "pred dominant feature",
+            "conflict": false,
+            "value": "own_mut_hotspot"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "DEP",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "biomarker-stratified dependency: strongest = mutant_strongly_dependent; CIViC therapy-resistance: 10 allele(s) annotated resistant to 21 therapies (top: Cetuximab, Panitumumab, Gefitinib) [variant-level-interpretation]",
+            "evidence_atom": {
+              "read": "mutant_strongly_dependent",
+              "values": {
+                "mutation_stratification_class": "mutant_strongly_dependent",
+                "delta_chronos_hotspot_mut_vs_wt": -1.142296850681305,
+                "median_chronos_hotspot_mutant": -1.7287354469299316,
+                "median_chronos_hotspot_wildtype": -0.5864385962486267,
+                "hotspot_mannwhitney_q": 1.2467439493977978e-10,
+                "n_hotspot_mutant": 43,
+                "n_hotspot_wildtype": 45,
+                "evidence_scope": "within_indication"
+              },
+              "cite": {
+                "card_id": "mutation-stratified-dependency",
+                "fields": [
+                  "delta_chronos_hotspot_mut_vs_wt",
+                  "evidence_scope",
+                  "hotspot_mannwhitney_q",
+                  "median_chronos_hotspot_mutant",
+                  "median_chronos_hotspot_wildtype",
+                  "mutation_stratification_class",
+                  "n_hotspot_mutant",
+                  "n_hotspot_wildtype"
+                ]
+              },
+              "entity": {
+                "measurement_type": "mutation_stratified_dependency",
+                "sample_context": "cell_line",
+                "stratum": "hotspot_mutant_vs_wt"
+              }
+            }
+          }
+        ]
+      },
+      "CN": {
+        "signal": "absent",
+        "confidence": "moderate",
+        "n_sources": 3,
+        "n_agree": 2,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "copy-number-distribution",
+            "tier": "absent",
+            "n": 1250,
+            "label": "copy number",
+            "conflict": false,
+            "value": "broadly_neutral"
+          },
+          {
+            "card": "copy-number-stratified-dependency",
+            "tier": "moderate",
+            "n": 669,
+            "label": "cn stratification",
+            "conflict": false,
+            "value": "amplified_moderately_dependent"
+          },
+          {
+            "card": "amp-expr-stratified-dependency",
+            "tier": "moderate",
+            "n": 607,
+            "label": "amp expr stratification",
+            "conflict": false,
+            "value": "amplified_overexpressed_moderately_dependent"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "CN",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "evidence": "CN: cell-line broadly_neutral, patient-focal focal_neutral",
+            "evidence_atom": {
+              "read": "broadly_neutral",
+              "values": {
+                "copy_number_class": "broadly_neutral",
+                "cn_distribution_shape": "bimodal_mixed",
+                "cn_median_panel": 1.056258499622345,
+                "cn_p95_panel": 2.2621068239212034,
+                "cn_fraction_deep_deletion": 0.0032,
+                "patient_focal_cn_class": "focal_neutral"
+              },
+              "cite": {
+                "card_id": "copy-number-distribution",
+                "fields": [
+                  "cn_distribution_shape",
+                  "cn_fraction_deep_deletion",
+                  "cn_median_panel",
+                  "cn_p95_panel",
+                  "copy_number_class",
+                  "patient_focal_cn_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "copy_number_alteration",
+                "sample_context": "cell_line"
+              }
+            }
+          }
+        ]
+      },
+      "FUS": {
+        "signal": "absent",
+        "confidence": "moderate",
+        "n_sources": 4,
+        "n_agree": 2,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "fusion-stratified-dependency",
+            "tier": "moderate",
+            "n": 1464,
+            "label": "fusion stratification",
+            "conflict": false,
+            "value": "fusion_positive_moderately_dependent"
+          },
+          {
+            "card": "fusion-rearrangement-landscape",
+            "tier": "absent",
+            "n": 0,
+            "label": "fusion",
+            "conflict": false,
+            "value": "no_recurrent_fusion"
+          },
+          {
+            "card": "splice-exon-skip-landscape",
+            "tier": "absent",
+            "n": null,
+            "label": "splice exon skip",
+            "conflict": false,
+            "value": "no_registered_event"
+          },
+          {
+            "card": "tumor-splice-dysregulation",
+            "tier": "moderate",
+            "n": 51,
+            "label": "splicing dysregulation",
+            "conflict": false,
+            "value": "tumor_shifted"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "FUS",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "evidence": "fusion: no_recurrent_fusion",
+            "evidence_atom": {
+              "read": "no_recurrent_fusion",
+              "values": {
+                "fusion_class": "no_recurrent_fusion",
+                "n_samples_with_fusion": 0,
+                "genie_sv_frequency": 0.0002991504128275697,
+                "genie_sv_recurrence_percentile": 51.02669404517454
+              },
+              "cite": {
+                "card_id": "fusion-rearrangement-landscape",
+                "fields": [
+                  "fusion_class",
+                  "genie_sv_frequency",
+                  "genie_sv_recurrence_percentile",
+                  "n_samples_with_fusion"
+                ]
+              },
+              "entity": {
+                "measurement_type": "fusion_rearrangement",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

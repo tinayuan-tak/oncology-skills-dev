@@ -1,0 +1,79 @@
+# Canonical question + axis registry for the genomic-alteration-profile dashboard (Phase-0 keystone of
+# the evidence_graph layer). Single source of truth for the alteration-class questions + the unified
+# axis_id vocabulary {SNV, CN, FUS, SPL, DEP} — the SAME axis letters the genomic narrator lens uses
+# (narrator_lenses.py GENOMIC_ALTERATION.axis_labels: SNV SNV/indel / CN copy-number / FUS fusion /
+# SPL splice exon-skip / DEP alteration-conferred dependency), so the literature axis->question
+# crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the per-alteration-class id genomic_question_table
+# emits — SNV / CN / Fusion / Splice, NOT Q1..Qn); the emitted question_table itself is NOT modified.
+#
+# Per-question fields (identical contract to skills/tumor-presence/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references)
+#   legacy_id       the id genomic_question_table emits (SNV|CN|Fusion|Splice); OMITTED for the DEP
+#                   question, which has no emitted class row (empty signal, still anchors its cards)
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis (SNV|CN|FUS|SPL|DEP)
+#   role            verdict_bearing | corroboration | display_only
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types +
+#                   context_types) + the card contracts (target-contracts/cards/<id>.card.yaml).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => SNV->[snv_indel_class]  CN->[copy_number_driver]  FUS->[fusion_driver]
+#      SPL->[splice_driver]    DEP->[alteration_conferred_dependency]
+#
+# NOTE (no subtype question): the by-subtype panorama cards (subgroup-stratified-mutation-frequency /
+# -copy-number / -fusion, tier=subtype) are --subtypes-gated and ABSENT from standard runs. A
+# subtype:true question would, in a standard run where their measurement_types are NOT ambiguous,
+# wrongly grab the whole-cohort SNV/CN/fusion cards into a phantom empty-signal row — so the registry
+# omits it (mirrors functional-requirement); in a --subtypes run those cards simply land un-anchored.
+skill: genomic-alteration-profile
+axis_vocabulary:
+  SNV: SNV/indel
+  CN: copy-number
+  FUS: fusion
+  SPL: splice exon-skip
+  DEP: alteration-conferred dependency
+questions:
+- id: snv_indel_class
+  legacy_id: SNV
+  seq: 1
+  text: Recurrent SNV/indel driver, or biomarker-stratified dependency?
+  axis_id: SNV
+  role: verdict_bearing
+  measurement_types: [mutation_variant_class_spectrum, mutation_hotspot_frequency, mutation_clonality,
+    variant_level_interpretation, variant_functional_effect_mave, functional_gene_state, alteration_role,
+    oncogenic_pathway_alteration, genomic_instability_state, mutational_signature_context,
+    ddr_deficiency_context, mutation_stratified_dependency, mutation_drug_response]
+- id: copy_number_driver
+  legacy_id: CN
+  seq: 2
+  text: Copy-number driver — focal amplification or deletion?
+  axis_id: CN
+  role: verdict_bearing
+  measurement_types: [copy_number_alteration, cn_stratified_dependency, amp_expr_stratified_dependency]
+- id: fusion_driver
+  legacy_id: Fusion
+  seq: 3
+  text: Recurrent fusion / rearrangement driver?
+  axis_id: FUS
+  role: verdict_bearing
+  measurement_types: [fusion_rearrangement, fusion_stratified_dependency]
+- id: splice_driver
+  legacy_id: Splice
+  seq: 4
+  text: Recurrent exon-skipping driver (e.g. METex14)?
+  axis_id: SPL
+  role: verdict_bearing
+  measurement_types: [splice_exon_skip, tumor_splice_dysregulation, tumor_splice_expression]
+- id: alteration_conferred_dependency
+  seq: 5
+  text: Is the alteration-conferred dependency corroborated (cross-consortium · predictability · model-matched)?
+  axis_id: DEP
+  role: verdict_bearing
+  measurement_types: [cross_consortium_dependency, dependency_predictability, genomic_event_model_match]
