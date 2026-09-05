@@ -69,7 +69,7 @@
         "seq": {"type": ["integer", "null"]},
         "text": {"type": ["string", "null"]},
         "axis_id": {"type": ["string", "null"]},
-        "role": {"type": ["string", "null"], "enum": ["verdict_bearing", "corroboration", "display_only", null]},
+        "role": {"type": ["string", "null"], "enum": ["verdict_bearing", "corroboration", "display_only", "context", "descriptive", null]},
         "signal": {
           "type": "object",
           "additionalProperties": false,
@@ -165,7 +165,129 @@
             "is_driving": {"type": "boolean"}
           }
         },
-        "key_fields": {"type": "object"}
+        "key_fields": {"type": "object"},
+        "key_evidence": {"$ref": "#/$defs/key_evidence"}
+      }
+    },
+    "key_evidence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Bounded, typed promotion of the DECISIVE data points behind this card, projected from the evidence_capsule (top_k_strata / n_basis / categorical_anchors / sibling_caveats / conflict_pairs) plus per-measurement_type-pinned significance fields. ADDITIVE + DISPLAY-ONLY: the grounding substrate for the narrator + card-chain renderer. Full arrays remain only in decision.cards[].summary. All members optional/nullable (an honest projection: absent -> omitted). Feeds NO rule/resolver/gate.",
+      "properties": {
+        "effect": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "The load-bearing effect for this card (e.g. the indication/strongest stratum's median_chronos, a log2FC, a correlation r, a LOEUF).",
+          "properties": {
+            "metric": {"type": ["string", "null"]},
+            "value": {"type": ["number", "integer", "null"]},
+            "direction": {"type": ["string", "null"], "description": "lower_is_stronger | higher_is_stronger | higher_is_worse | near_zero_is_independent | ... (display hint; not a verdict input)."}
+          }
+        },
+        "n": {"type": ["integer", "number", "null"], "description": "Panel/cohort/model basis for the effect."},
+        "significance": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "The significance statistic behind the effect (q_value / p_value / mannwhitney_q / LOEUF / pLI). The most-dropped decisive field pre-key_evidence.",
+          "properties": {
+            "stat": {"type": ["string", "null"]},
+            "value": {"type": ["number", "integer", "null"]}
+          }
+        },
+        "omnibus": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "A cross-stratum omnibus test (e.g. lineage_omnibus_p / subtype_omnibus_p). Explicitly pinned; does not rely on the anchor-hint heuristic.",
+          "properties": {
+            "stat": {"type": ["string", "null"]},
+            "value": {"type": ["number", "integer", "null"]}
+          }
+        },
+        "top_strata": {
+          "type": "array",
+          "description": "<=3 salient strata rows (indication + strongest + weakest), each carrying its effect value, n, and q where the row has it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": {"type": ["string", "null"]},
+              "role": {"type": ["string", "null"], "enum": ["indication", "strongest", "weakest", "subtype", null]},
+              "value": {"type": ["number", "integer", "null"]},
+              "n": {"type": ["integer", "number", "null"]},
+              "q": {"type": ["number", "integer", "null"]}
+            }
+          }
+        },
+        "categorical": {
+          "type": "array",
+          "description": "Decisive non-numeric labels the numeric selectors cannot carry (fit_class, highest_tissue, dep_control_position_class, ...).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {"type": ["string", "null"]},
+              "value": {}
+            }
+          }
+        },
+        "n_basis": {"type": ["object", "null"], "description": "The decisive count(s) behind a categorical/liability verdict (n_pathogenic_germline, n_lethal, ...)."},
+        "conflict": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "Sibling-card tier disagreement on this measurement_type (from the capsule's conflict_pairs).",
+          "properties": {
+            "this_class": {"type": ["string", "null"]},
+            "other": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "card": {"type": ["string", "null"]},
+                  "class": {"type": ["string", "null"]},
+                  "tier": {"type": ["string", "null"]}
+                }
+              }
+            }
+          }
+        },
+        "subtype_axis": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "Subtype/subgroup-stratified evidence (is the call subtype-restricted, and which subtype?). Null when the subtype axis is absent (--subtypes off) so standard-run graphs stay byte-stable.",
+          "properties": {
+            "driving_axis": {"type": ["string", "null"], "description": "e.g. MSI, CMS, sidedness."},
+            "restriction_class": {"type": ["string", "null"], "description": "e.g. pan_subtype_uniform (a decisive NEGATIVE) | subtype_stratifies_survival."},
+            "omnibus": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "stat": {"type": ["string", "null"]},
+                "value": {"type": ["number", "integer", "null"]}
+              }
+            },
+            "which_separate": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "highest": {"type": ["string", "null"]},
+                "lowest": {"type": ["string", "null"]}
+              }
+            },
+            "top_subtypes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": {"type": ["string", "null"]},
+                  "value": {"type": ["number", "integer", "null"]},
+                  "n": {"type": ["integer", "number", "null"]}
+                }
+              }
+            }
+          }
+        }
       }
     },
     "rule": {
