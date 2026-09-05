@@ -26,10 +26,26 @@ from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.sl_question_table import sl_question_table
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import SYNTHETIC_LETHAL_PARTNERS as _LENS
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.sl_crosswalks import (
+    validated_combination_precedent, validated_paralog_sl, norm_ind as _norm_ind,
+    VALIDATED_COMBINATION_PRECEDENT, VALIDATED_PARALOG_SL)
 
 
 SKILL_NAME = "synthetic-lethal-partners"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.1.0"  # 1.1.0 (2026-09-05, literature-and-claims arc, item #3): CREATE the
+                         # SYNTHETIC_LETHAL_PARTNERS narrator lens (was NONE) + wire synthesize_fn + BAKE the
+                         # --literature lane (a GENUINE 2nd channel — published SL literature vs the curated
+                         # SynLethDB edge, UNLIKE literature-context). Verdict-INERT cited-evidence confidence
+                         # surface — sl_partner_confidence_caveat (3-tier: computational_only_sl_edge /
+                         # curated_sl_edge_context_unconfirmed / validated_established_synthetic_lethal
+                         # false-demote guard) + sl_partner_provenance QUORUM. Caveats REUSE the shared
+                         # _skills_common/sl_crosswalks validated-SL corpus + gate on EXISTING headline fields
+                         # (NO new card-field read) → the resolver verdict + golden are UNTOUCHED
+                         # (sl_partner_verdict / driving_rule_id byte-stable). SET literals not 2-tuples.
 
 CARDS = ["synthetic-lethal-partners"]
 
@@ -95,7 +111,114 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     )
 
 
-def _headline(cards, fired, verdict_pair):
+# ── SL-PARTNER confidence surface (VERDICT-INERT) — the curated-SL analog of combination-and-vulnerability's
+#    partner_confirmation_caveat, reusing the SHARED _skills_common/sl_crosswalks validated-SL corpus. THE
+#    TRAP: a CURATED SynLethDB edge OVER-CALLS a CLINICALLY / FUNCTIONALLY VALIDATED, PORTABLE, DRUGGABLE
+#    synthetic lethality. Three sub-inflations: (a) COMPUTATIONAL-ONLY — a predicted SynLethDB edge (Guo 2016
+#    PMID 26516187; SynLethDB 2.0 Wang 2022 PMID 35562840) is the lowest evidence tier, no wet-lab confirmation;
+#    (b) CURATED ≠ FUNCTIONAL-IN-CONTEXT — SynLethDB aggregates SL edges ACROSS cell-line contexts, and SL is
+#    strongly context/genotype-dependent + frequently FAILS TO REPLICATE (O'Neil-Bailey-Hart 2017 PMID
+#    28649135; penetrance barrier Ryan-Bajrami-Lord 2018 PMID 30292351), so a curated edge may not hold in THIS
+#    indication; (c) KO ≠ INHIBITION — a curated SL from genetic KO removes the ENTIRE protein whereas a drug
+#    inhibits ONE activity partially (Weiss-Shokat 2007 PMID 18007642), so a scaffold / non-catalytic partner
+#    needs a DEGRADER (Farnaby 2019 PMID 31178587). This skill IS verdict-bearing (resolver + gate veto-
+#    suppressor), so the caveats are VERDICT-INERT annotation layers over the already-emitted sl_partner_*
+#    headline fields, NEVER read by the resolver: the honest discriminator is the SHARED, DISCLAIMED,
+#    NON-EXHAUSTIVE curated crosswalk of clinically/functionally-validated SLs, corroborated by the
+#    --literature lane + narrator. An absent (target, indication) degrades to the data-derived tier or None
+#    (never a verdict change — the resolver verdict + golden are untouched). SET literals (drift guard).
+
+_SL_PARTNER_PRESENT = {"has_experimental_sl_partner", "has_computational_sl_partner"}
+
+
+def _sl_positive_substrate(hl: dict) -> bool:
+    """Is there a CURATED SL partner to confidence-qualify? True when the verdict / class reports a partner,
+    or an experimental/curated partner count is present. False on no_curated_sl_partner / insufficient /
+    data_unavailable → the caveat is None (honest thin degrade; the resolver verdict is byte-stable)."""
+    if hl.get("sl_partner_verdict") in _SL_PARTNER_PRESENT or hl.get("sl_partner_class") in _SL_PARTNER_PRESENT:
+        return True
+    return bool(hl.get("n_experimental_partners") or hl.get("sl_partner_count"))
+
+
+def _sl_is_computational_only(hl: dict) -> bool:
+    """The curated SL rests ONLY on a computational/predicted SynLethDB edge — no experimental partner."""
+    comp = (hl.get("sl_partner_verdict") == "has_computational_sl_partner"
+            or hl.get("sl_partner_class") == "has_computational_sl_partner")
+    no_exp = not hl.get("has_experimental_partner") and not (hl.get("n_experimental_partners") or 0)
+    tier = str(hl.get("best_evidence_tier") or "").lower()
+    return bool(comp or (no_exp and tier in {"computational", "predicted", "text_mining", "text-mining"}))
+
+
+def _sl_partner_confidence_caveat(hl: dict, target=None, indication=None) -> dict | None:
+    """CONSOLIDATED curated-SL-vs-validated confidence call (VERDICT-INERT). Precedence: the MILDER
+    clinically/functionally-validated guard (iii) FIRST (BRCA↔PARP / WRN↔MSI / SMARCA4↔SMARCA2 must NOT be
+    flagged) > the SHARP computational-only tier (ii) > the SHARP curated-context-unconfirmed default (i) >
+    None (no curated partner → honest thin). Gates on already-emitted sl_partner_* fields + the SHARED
+    validated-SL crosswalks; NEVER moves the resolver spine (verdict-INERT)."""
+    if not _sl_positive_substrate(hl):
+        return None                                            # thin / no partner → resolver verdict byte-stable
+
+    # TIER (iii) MILDER — clinically/functionally-validated SL guard (false-demote): the (target, indication)
+    # combination crosswalk OR the (target)-keyed canonical paralog-SL crosswalk.
+    vc = validated_combination_precedent(target, indication)
+    if vc:
+        return {"reason": "validated_established_synthetic_lethal", "tier": "milder",
+                "false_demote_guarded": True, "detail": vc}
+    vp = validated_paralog_sl(target)
+    if vp:
+        return {"reason": "validated_established_synthetic_lethal", "tier": "milder",
+                "false_demote_guarded": True, "paralog_partner": vp[0], "detail": vp[1]}
+
+    # TIER (ii) SHARP — computational-only predicted edge (lowest evidence tier).
+    if _sl_is_computational_only(hl):
+        return {"reason": "computational_only_sl_edge", "tier": "sharp", "false_demote_guarded": False,
+                "detail": ("The curated SL rests ONLY on a COMPUTATIONAL / predicted SynLethDB edge (no "
+                           "experimental partner) — the LOWEST evidence tier (Guo 2016 PMID 26516187; SynLethDB "
+                           "2.0 Wang 2022 PMID 35562840), a network/ML-inferred edge with no wet-lab "
+                           "confirmation in any context. Treat as a hypothesis, not a validated SL; the "
+                           "druggability call is owned by tractability-small-molecule.")}
+
+    # TIER (i) SHARP — curated experimental edge, but context-aggregated + not in the validated crosswalk.
+    return {"reason": "curated_sl_edge_context_unconfirmed", "tier": "sharp", "false_demote_guarded": False,
+            "detail": ("The curated SynLethDB SL edge is EXPERIMENTALLY supported but is aggregated ACROSS "
+                       "cell-line contexts, so it may not hold in THIS indication: SL is strongly context/"
+                       "genotype-dependent and frequently FAILS TO REPLICATE across screens (O'Neil-Bailey-Hart "
+                       "2017 PMID 28649135; penetrance barrier Ryan-Bajrami-Lord 2018 PMID 30292351). It is also "
+                       "a curated edge — often genetic-KO-derived — and KO ≠ partial pharmacological inhibition "
+                       "(Weiss-Shokat 2007 PMID 18007642), so a scaffold / non-catalytic partner needs a "
+                       "DEGRADER not an inhibitor (Farnaby 2019 PMID 31178587). Treat as a combination "
+                       "HYPOTHESIS pending orthogonal / in-context confirmation; the single-target dependency "
+                       "MAGNITUDE is owned by functional-requirement and the druggability call by "
+                       "tractability-small-molecule.")}
+
+
+def _sl_partner_provenance(hl: dict, target=None, indication=None) -> dict | None:
+    """QUORUM / PROVENANCE summary for the curated SL annotation (VERDICT-INERT): the SL class + partner
+    count + experimental-partner count + best evidence tier + the validated-SL flags + the 'curated SynLethDB
+    edge ≠ validated portable druggable SL' note. None on the thin/empty path (byte-stable)."""
+    if not _sl_positive_substrate(hl):
+        return None
+    key = ((target or "").upper().strip(), _norm_ind(indication))
+    return {
+        "sl_partner_verdict": hl.get("sl_partner_verdict"),
+        "sl_partner_class": hl.get("sl_partner_class"),
+        "sl_partner_count": hl.get("sl_partner_count"),
+        "n_experimental_partners": hl.get("n_experimental_partners"),
+        "has_experimental_partner": bool(hl.get("has_experimental_partner")),
+        "best_evidence_tier": hl.get("best_evidence_tier"),
+        "computational_only": _sl_is_computational_only(hl),
+        "validated_combination_flag": key in VALIDATED_COMBINATION_PRECEDENT,
+        "validated_paralog_sl_flag": (target or "").upper().strip() in VALIDATED_PARALOG_SL,
+        "provenance_note": ("Curated SynLethDB synthetic-lethal annotation (experimental > computational tier). "
+                            "A curated SL edge is CONTEXT-AGGREGATED and is NOT a validated, portable, druggable "
+                            "SL: SL is context/genotype-dependent + often non-replicating (Ryan-Bajrami-Lord "
+                            "2018 PMID 30292351), and KO ≠ pharmacological inhibition (Weiss-Shokat 2007 PMID "
+                            "18007642). An SL partner is a combination OPPORTUNITY; this skill never nominates "
+                            "the target (it rides a dependency veto-suppressor)."),
+    }
+
+
+def _headline(cards, fired, verdict_pair, target=None, indication=None):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
         "sl_partner_verdict":       v,
@@ -106,6 +229,19 @@ def _headline(cards, fired, verdict_pair):
         "has_experimental_partner": get_card_field(cards, "synthetic-lethal-partners", "has_experimental_partner"),
         "best_evidence_tier":       get_card_field(cards, "synthetic-lethal-partners", "best_evidence_tier"),
     }
+    # CONSOLIDATED curated-SL confidence caveat + provenance quorum (VERDICT-INERT) — the curated-SL analog of
+    # combination-and-vulnerability's partner_confirmation surface, reusing the shared validated-SL crosswalks.
+    # Gate on the already-emitted sl_partner_* fields + the curated crosswalk; None on the thin / validated-
+    # guarded paths → the sl_partner spine + resolver verdict byte-stable. Best-effort: a fault degrades to
+    # None + _enrichment_errors, never aborts the veto-suppressor spine. target / indication are OPTIONAL
+    # (signature-introspected by the dispatcher) → they key the (target, indication) validated-SL guard.
+    for _fld, _fn in (("sl_partner_confidence_caveat", _sl_partner_confidence_caveat),
+                      ("sl_partner_provenance", _sl_partner_provenance)):
+        try:
+            hl[_fld] = _fn(hl, target=target, indication=indication)
+        except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+            hl.setdefault("_enrichment_errors", {})[_fld] = f"{type(exc).__name__}: {exc}"
+            hl[_fld] = None
     # The compact 2-row LEADING table (Partner · Support) — a verdict-INERT projection over the just-built
     # headline (mirrors tumor-presence / tumor-selectivity). Best-effort: a formatting/read fault must
     # NEVER discard the sl_partner spine already built in `hl` (this skill is a nomination-gate veto-
@@ -127,4 +263,15 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # NET-NEW capsule-driven narrator (generic engine + this skill's LensConfig). synthetic-lethal-partners
+        # had NO lens/narrator before the literature-and-claims arc; SYNTHETIC_LETHAL_PARTNERS (mode=verdict)
+        # LEADS with clinically/functionally-validated vs computational/curated-context-unconfirmed.
+        synthesize_fn=make_synthesize_fn(_LENS),
+        # OPTIONAL verdict-INERT LLM --literature lane: UNLIKE literature-context (whose card IS the literature),
+        # a curated SynLethDB edge is orthogonal to the published SL literature, so the lane is a GENUINE second
+        # channel. Europe-PMC-grounded + PMID-verified; attached as decision['literature_synthesis'] AFTER the
+        # deterministic verdict and fed to the --synthesize narrator. Query terms
+        # (_LENS_QUERY_TERMS["synthetic-lethal-partners"]) front-load the SL-validation / reproducibility /
+        # KO-vs-inhibition discriminators. This lane cannot touch the resolver verdict (attached after it).
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
     ))

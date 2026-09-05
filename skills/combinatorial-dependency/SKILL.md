@@ -25,7 +25,13 @@ description: |
   + driving_rule_id) is modality-independent.
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0    # 1.1.0 (2026-09-05, literature-and-claims arc): NEW COMBINATORIAL_DEPENDENCY narrator
+                    # lens + --synthesize; --literature lane (published paralog-SL literature — a genuine 2nd
+                    # channel vs the measured GI); verdict-INERT combinatorial_dependency_confidence_caveat
+                    # (validated_paralog_synthetic_lethal DATA-BLIND-TOLERANT guard / pan_essential_or_context_
+                    # restricted / measured_gi_functionally_unconfirmed) + combinatorial_druggability_caveat
+                    # (scaffold→degrader) + combinatorial_dependency_provenance. Reuses the shared
+                    # _skills_common/sl_crosswalks corpus; self-contained verdict byte-stable.
   owner: ryan.abo@takeda.com
   requires_preflight: false
 

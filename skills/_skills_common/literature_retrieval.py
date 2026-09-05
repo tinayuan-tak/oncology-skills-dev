@@ -109,6 +109,24 @@ _LENS_QUERY_TERMS = {
                                       "paralog buffering", "DepMap co-dependency screen",
                                       "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
                                       "context dependence reproducibility"],
+    # synthetic-lethal-partners is the STANDALONE curated-SynLethDB SL skill (single axis SL). The trap is a
+    # CURATED SL edge OVER-CALLING a validated, portable, druggable SL — so the precision query front-loads the
+    # SL-VALIDATION / reproducibility / evidence-tier / KO-vs-inhibition discriminators (the base gene query
+    # supplies recall). One axis label → per-lens cap bump below.
+    "synthetic-lethal-partners":  ["synthetic lethality validated", "synthetic lethal partner",
+                                   "synthetic lethality reproducibility context dependence",
+                                   "genetic knockout versus pharmacological inhibition",
+                                   "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
+                                   "computational prediction synthetic lethality"],
+    # combinatorial-dependency is the STANDALONE measured DepMap ParalogV2 paralog dual-KO skill (single axis
+    # CODEP). The trap is a MEASURED GI OVER-CALLING a portable druggable SL, WHILE single-context screens
+    # UNDER-call buffered paralogs — so the query front-loads the paralog-buffering / dual-KO / validation /
+    # KO-vs-inhibition discriminators. One axis label → per-lens cap bump below.
+    "combinatorial-dependency":   ["paralog synthetic lethality", "paralog buffering essentiality",
+                                   "paralog dual knockout CRISPR screen",
+                                   "SMARCA4 SMARCA2 synthetic lethal", "ARID1A ARID1B synthetic lethal",
+                                   "genetic knockout versus pharmacological inhibition",
+                                   "synthetic lethality context dependence reproducibility"],
     # Front-loaded so the highest-value FIDELITY/ATTRIBUTION discriminators lead: a model-availability /
     # genotype-matched / PDX-responder read OVER-CALLS faithful, on-target, adequately-powered preclinical
     # validatability. The base gene∧disease query supplies model recall; the precision query needs the
@@ -185,7 +203,12 @@ _LENS_MAX_TERMS = {"combination-and-vulnerability": 9, "cis-feature-coherence": 
                    # admits ZERO curated terms; 10 lets the first ~5 phenotype/analogy discriminators (drug
                    # target class / oncogene-vs-TSG / cell surface antigen / driver amp-vs-mutation / oncogene
                    # addiction) through alongside the axis labels. Surgical: every other lens keeps the default.
-                   "target-archetype": 10}
+                   "target-archetype": 10,
+                   # synthetic-lethal-partners + combinatorial-dependency each declare only ONE axis_label
+                   # (SL / CODEP), so the default 5-cap would admit 4 curated terms; 7 lets ~6 of the
+                   # SL-validation / reproducibility / paralog-buffering / KO-vs-inhibition discriminators
+                   # through alongside the single axis label. Surgical: every other lens keeps the default cap.
+                   "synthetic-lethal-partners": 7, "combinatorial-dependency": 7}
 
 
 def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:

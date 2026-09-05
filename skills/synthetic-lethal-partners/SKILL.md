@@ -26,6 +26,15 @@ description: |
   the biomarker-stratified suppressor rides genomic_alteration.
 
   Biology-first output; modality-independent primary verdict.
+
+  v1.1.0 (2026-09-05, literature-and-claims arc; run.py SKILL_VERSION): NEW SYNTHETIC_LETHAL_PARTNERS narrator
+  lens + --synthesize; a --literature lane (published SL literature — a GENUINE 2nd channel, UNLIKE the
+  literature-native literature-context skill, since a curated SynLethDB edge is orthogonal to the primary
+  literature); and a verdict-INERT sl_partner_confidence_caveat (3-tier: computational_only_sl_edge /
+  curated_sl_edge_context_unconfirmed / validated_established_synthetic_lethal false-demote guard) +
+  sl_partner_provenance QUORUM. The caveats REUSE the shared _skills_common/sl_crosswalks validated-SL corpus
+  and gate on the already-emitted sl_partner_* headline fields (NO new card-field read), so the resolver
+  verdict + golden snapshots are UNTOUCHED (verdict-INERT).
 composition:
   data_mode: derived_read
   phase: [C]                        # Gate-C (dependency) — SL-partner annotation is a Gate-C veto-suppressor
