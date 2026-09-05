@@ -1,0 +1,45 @@
+{
+  "$comment": "PER-SKILL PINS (source) for differentiation-landscape. VARIANT = gating-scalar: role:gating + the differentiation_verdict/call enum (co-mutation / mutual-exclusivity landscape class), no polarity const, no bucket map. Enum = resolvers/differentiation.resolver.yaml verdict set (matches _DIFFERENTIATION_VERDICT_PHRASE; no run.py mints). Append-only within contract major version.",
+  "skill": "differentiation-landscape",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "differentiation_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "both_patterns_present",
+        "strong_cooccurring",
+        "strong_mutually_exclusive",
+        "has_cooccurring_driver",
+        "modest_cooccurring",
+        "modest_mutually_exclusive",
+        "ns",
+        "data_unavailable",
+        "insufficient"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "differentiation-landscape"},
+      "headline": {
+        "type": "object",
+        "required": ["differentiation_verdict"],
+        "properties": {
+          "differentiation_verdict": {"$ref": "#/$defs/differentiation_verdict_enum"},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/differentiation_verdict_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
