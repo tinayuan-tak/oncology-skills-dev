@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .presence_question_table import _sig, _conf, _row  # shared Signal/Confidence vocab (single source)
+from _skills_common.question_table_core import sig as _sig, conf as _conf, row as _row  # shared Signal/Confidence vocab
 
 _PRISM = {"clinically_active": "strong", "clinical_precedent_only": "strong",
           "tool_compound_only": "moderate", "weakly_active": "weak",

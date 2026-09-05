@@ -30,3 +30,23 @@ def row(qid, question, primary, support, signal, confidence):
     """One question-table row in the shared shape."""
     return {"id": qid, "question": question, "primary": primary, "support": support,
             "signal": signal, "confidence": confidence}
+
+
+# The supports/opposes signal meter (tier -> (ordinal fill, polarity)). Single source for the
+# presence ladder + the gating skills that mirror its Signal vocabulary (genomic, tractability-sm,
+# safety, surface-modality, sl); the cv-driven DESCRIPTIVE tables use their own `informs` meter.
+_SIG_META = {
+    "strong":     (5, "supports"),
+    "moderate":   (3, "supports"),
+    "weak":       (2, "supports"),
+    "uniform":    (0, "neutral"),     # present but no between-stratum variation (Q4)
+    "absent":     (1, "opposes"),     # measured floor
+    "negative":   (1, "opposes"),     # measured against (e.g. microenvironment-dominant)
+    "unmeasured": (0, "none"),
+}
+
+
+def sig(tier: str, label: str) -> dict:
+    """A signal cell on the supports/opposes meter: tier + its ordinal fill + polarity + label."""
+    fill, pol = _SIG_META.get(tier, (0, "none"))
+    return {"tier": tier, "fill": fill, "polarity": pol, "label": label}

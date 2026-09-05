@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .presence_question_table import _sig, _conf, _row  # shared Signal/Confidence vocab (single source)
+from _skills_common.question_table_core import sig as _sig, conf as _conf, row as _row  # shared Signal/Confidence vocab
 
 _PARTNER = {"has_experimental_sl_partner": "strong", "has_computational_sl_partner": "moderate",
             "no_curated_sl_partner": "absent", "data_unavailable": "unmeasured"}

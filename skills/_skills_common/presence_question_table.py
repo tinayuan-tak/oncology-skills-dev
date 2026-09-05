@@ -23,25 +23,9 @@ Confidence reuses the corroboration vocabulary (high>moderate>low, unmeasured). 
 from __future__ import annotations
 from typing import Optional
 
-from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, row as _row
+from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, row as _row, sig as _sig, _SIG_META
 
 # Signal tier → (meter fill 0-5, polarity). Polarity: supports / opposes / neutral / none.
-_SIG_META = {
-    "strong":     (5, "supports"),
-    "moderate":   (3, "supports"),
-    "weak":       (2, "supports"),
-    "uniform":    (0, "neutral"),     # present but no between-stratum variation (Q4)
-    "absent":     (1, "opposes"),     # measured floor
-    "negative":   (1, "opposes"),     # measured against (e.g. microenvironment-dominant)
-    "unmeasured": (0, "none"),
-}
-
-
-def _sig(tier: str, label: str) -> dict:
-    fill, pol = _SIG_META.get(tier, (0, "none"))
-    return {"tier": tier, "fill": fill, "polarity": pol, "label": label}
-
-
 # ── per-question builders ────────────────────────────────────────────────────────────────────────
 def _q1_abundance(h, c, cv):
     a = cv.get("A", {})

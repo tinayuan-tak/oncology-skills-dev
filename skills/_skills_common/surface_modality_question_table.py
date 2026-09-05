@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .presence_question_table import _sig, _conf, _row  # shared Signal/Confidence vocab (single source)
+from _skills_common.question_table_core import sig as _sig, conf as _conf, row as _row  # shared Signal/Confidence vocab
 
 # Explicit per-field value → Signal tier maps (from each card's summary_fields_vocabulary).
 _TOPOLOGY = {"single_pass_type_1": "strong", "single_pass_type_2": "moderate",
