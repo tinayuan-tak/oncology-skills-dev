@@ -1,0 +1,1297 @@
+{
+  "skill": "literature-context",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "What does the literature say about KRAS in COADREAD \u2014 co-occurrence volume/recency, the top cited statements (Open Targets europePMC), and typed relation direction (PubTator3 associate/cause/inhibit/\u2026) \u2014 with citations?",
+  "generated_at": "2026-09-05T22:33:16+00:00",
+  "headline": {
+    "cited_evidence_status": "ok",
+    "literature_scope": "indication",
+    "paper_disease_mentions": 12691,
+    "recent_mentions": 4919,
+    "n_diseases": 7,
+    "earliest_year": 1983,
+    "latest_year": 2026,
+    "top_cited": [
+      {
+        "pmid": "37937641",
+        "pmc": "PMC10721270",
+        "year": 2023,
+        "cooccur": 755.0,
+        "section": "abstract",
+        "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC.",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "40240366",
+        "pmc": "PMC12003847",
+        "year": 2025,
+        "cooccur": 713.0,
+        "section": "abstract",
+        "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment of a broad population of CRC patients with KRAS variant across different mutant types.",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "32731506",
+        "pmc": "PMC7465151",
+        "year": 2020,
+        "cooccur": 681.0,
+        "section": "abstract",
+        "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, when compared to the KRAS WT CRC cells.",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "39523457",
+        "pmc": "PMC11556274",
+        "year": 2024,
+        "cooccur": 543.0,
+        "section": "abstract",
+        "sentence": "Although the association between the gut microbiota and CRC has been extensively documented, it is unclear whether KRAS mutations can regulate the gut microbiota.",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "36005485",
+        "pmc": "PMC9410344",
+        "year": 2022,
+        "cooccur": 542.0,
+        "section": "abstract",
+        "sentence": "Heteronemin and the combination showed the downregulation of the phosphorylated and total PI3K protein in HT-29 cells (KRAS WT CRC).",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "34003553",
+        "pmc": "PMC8486573",
+        "year": 2021,
+        "cooccur": 419.0,
+        "section": "abstract",
+        "sentence": "Collectively, we conclude that oncogenic KRAS mutations enhance the expression of AATs via the hippo effector YAP1, leading to mTOR activation and CRC cell proliferation.",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "38572984",
+        "pmc": "PMC11064510",
+        "year": 2024,
+        "cooccur": 412.0,
+        "section": "abstract",
+        "sentence": "At last, we developed a predictive random forest (RF) machine learning model to predict the KRAS mutation status in CRC patients, based on the gut microbiota associated with KRAS mutation.",
+        "disease_id": "MONDO_0024331"
+      },
+      {
+        "pmid": "41584349",
+        "pmc": "PMC12827889",
+        "year": 2026,
+        "cooccur": 400.0,
+        "section": "abstract",
+        "sentence": "Kirsten rat sarcoma viral oncogene homolog (KRAS) mutation is associated with the poor prognosis of colorectal cancer (CRC) patients, but the therapeutic strategies targeting KRAS are limited, and novel intervention strategies are urgently needed.",
+        "disease_id": "MONDO_0024331"
+      }
+    ],
+    "relation_types": [
+      "associate",
+      "stimulate",
+      "inhibit"
+    ],
+    "total_relation_publications": 5106,
+    "claim_vector": {
+      "VOLUME": {
+        "signal": "strong",
+        "corroboration": "high",
+        "evidence": "paper_disease_mentions=12691 across 7 diseases",
+        "conflict": null,
+        "informs": "literature_context",
+        "evidence_atom": {
+          "read": 12691,
+          "values": {
+            "paper_disease_mentions": 12691,
+            "recent_mentions": 4919,
+            "total_relation_publications": 5106,
+            "relation_types": [
+              "associate",
+              "stimulate",
+              "inhibit"
+            ],
+            "n_diseases": 7,
+            "earliest_year": 1983,
+            "latest_year": 2026,
+            "literature_scope": "indication",
+            "cited_evidence_status": "ok",
+            "top_cited": [
+              {
+                "pmid": "37937641",
+                "pmc": "PMC10721270",
+                "year": 2023,
+                "cooccur": 755.0,
+                "section": "abstract",
+                "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "40240366",
+                "pmc": "PMC12003847",
+                "year": 2025,
+                "cooccur": 713.0,
+                "section": "abstract",
+                "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment of a broad population of CRC patients with KRAS variant across different mutant types.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "32731506",
+                "pmc": "PMC7465151",
+                "year": 2020,
+                "cooccur": 681.0,
+                "section": "abstract",
+                "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, when compared to the KRAS WT CRC cells.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "39523457",
+                "pmc": "PMC11556274",
+                "year": 2024,
+                "cooccur": 543.0,
+                "section": "abstract",
+                "sentence": "Although the association between the gut microbiota and CRC has been extensively documented, it is unclear whether KRAS mutations can regulate the gut microbiota.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "36005485",
+                "pmc": "PMC9410344",
+                "year": 2022,
+                "cooccur": 542.0,
+                "section": "abstract",
+                "sentence": "Heteronemin and the combination showed the downregulation of the phosphorylated and total PI3K protein in HT-29 cells (KRAS WT CRC).",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "34003553",
+                "pmc": "PMC8486573",
+                "year": 2021,
+                "cooccur": 419.0,
+                "section": "abstract",
+                "sentence": "Collectively, we conclude that oncogenic KRAS mutations enhance the expression of AATs via the hippo effector YAP1, leading to mTOR activation and CRC cell proliferation.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "38572984",
+                "pmc": "PMC11064510",
+                "year": 2024,
+                "cooccur": 412.0,
+                "section": "abstract",
+                "sentence": "At last, we developed a predictive random forest (RF) machine learning model to predict the KRAS mutation status in CRC patients, based on the gut microbiota associated with KRAS mutation.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "41584349",
+                "pmc": "PMC12827889",
+                "year": 2026,
+                "cooccur": 400.0,
+                "section": "abstract",
+                "sentence": "Kirsten rat sarcoma viral oncogene homolog (KRAS) mutation is associated with the poor prognosis of colorectal cancer (CRC) patients, but the therapeutic strategies targeting KRAS are limited, and novel intervention strategies are urgently needed.",
+                "disease_id": "MONDO_0024331"
+              }
+            ]
+          },
+          "cite": {
+            "card_id": "cited-literature-evidence",
+            "fields": [
+              "cited_evidence_status",
+              "earliest_year",
+              "latest_year",
+              "literature_scope",
+              "n_diseases",
+              "paper_disease_mentions",
+              "recent_mentions",
+              "total_relation_publications"
+            ]
+          },
+          "entity": "gene_indication"
+        }
+      },
+      "RECENCY": {
+        "signal": "strong",
+        "corroboration": "high",
+        "evidence": "recent_mentions=4919 (latest 2026)",
+        "conflict": null,
+        "informs": "literature_context",
+        "evidence_atom": {
+          "read": 4919,
+          "values": {
+            "paper_disease_mentions": 12691,
+            "recent_mentions": 4919,
+            "total_relation_publications": 5106,
+            "relation_types": [
+              "associate",
+              "stimulate",
+              "inhibit"
+            ],
+            "n_diseases": 7,
+            "earliest_year": 1983,
+            "latest_year": 2026,
+            "literature_scope": "indication",
+            "cited_evidence_status": "ok",
+            "top_cited": [
+              {
+                "pmid": "37937641",
+                "pmc": "PMC10721270",
+                "year": 2023,
+                "cooccur": 755.0,
+                "section": "abstract",
+                "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "40240366",
+                "pmc": "PMC12003847",
+                "year": 2025,
+                "cooccur": 713.0,
+                "section": "abstract",
+                "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment of a broad population of CRC patients with KRAS variant across different mutant types.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "32731506",
+                "pmc": "PMC7465151",
+                "year": 2020,
+                "cooccur": 681.0,
+                "section": "abstract",
+                "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, when compared to the KRAS WT CRC cells.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "39523457",
+                "pmc": "PMC11556274",
+                "year": 2024,
+                "cooccur": 543.0,
+                "section": "abstract",
+                "sentence": "Although the association between the gut microbiota and CRC has been extensively documented, it is unclear whether KRAS mutations can regulate the gut microbiota.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "36005485",
+                "pmc": "PMC9410344",
+                "year": 2022,
+                "cooccur": 542.0,
+                "section": "abstract",
+                "sentence": "Heteronemin and the combination showed the downregulation of the phosphorylated and total PI3K protein in HT-29 cells (KRAS WT CRC).",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "34003553",
+                "pmc": "PMC8486573",
+                "year": 2021,
+                "cooccur": 419.0,
+                "section": "abstract",
+                "sentence": "Collectively, we conclude that oncogenic KRAS mutations enhance the expression of AATs via the hippo effector YAP1, leading to mTOR activation and CRC cell proliferation.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "38572984",
+                "pmc": "PMC11064510",
+                "year": 2024,
+                "cooccur": 412.0,
+                "section": "abstract",
+                "sentence": "At last, we developed a predictive random forest (RF) machine learning model to predict the KRAS mutation status in CRC patients, based on the gut microbiota associated with KRAS mutation.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "41584349",
+                "pmc": "PMC12827889",
+                "year": 2026,
+                "cooccur": 400.0,
+                "section": "abstract",
+                "sentence": "Kirsten rat sarcoma viral oncogene homolog (KRAS) mutation is associated with the poor prognosis of colorectal cancer (CRC) patients, but the therapeutic strategies targeting KRAS are limited, and novel intervention strategies are urgently needed.",
+                "disease_id": "MONDO_0024331"
+              }
+            ]
+          },
+          "cite": {
+            "card_id": "cited-literature-evidence",
+            "fields": [
+              "cited_evidence_status",
+              "earliest_year",
+              "latest_year",
+              "literature_scope",
+              "n_diseases",
+              "paper_disease_mentions",
+              "recent_mentions",
+              "total_relation_publications"
+            ]
+          },
+          "entity": "gene_indication"
+        }
+      },
+      "RELATION": {
+        "signal": "strong",
+        "corroboration": "high",
+        "evidence": "total_relation_publications=5106 \u2014 associate, stimulate, inhibit",
+        "conflict": null,
+        "informs": "literature_context",
+        "evidence_atom": {
+          "read": 5106,
+          "values": {
+            "paper_disease_mentions": 12691,
+            "recent_mentions": 4919,
+            "total_relation_publications": 5106,
+            "relation_types": [
+              "associate",
+              "stimulate",
+              "inhibit"
+            ],
+            "n_diseases": 7,
+            "earliest_year": 1983,
+            "latest_year": 2026,
+            "literature_scope": "indication",
+            "cited_evidence_status": "ok",
+            "top_cited": [
+              {
+                "pmid": "37937641",
+                "pmc": "PMC10721270",
+                "year": 2023,
+                "cooccur": 755.0,
+                "section": "abstract",
+                "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "40240366",
+                "pmc": "PMC12003847",
+                "year": 2025,
+                "cooccur": 713.0,
+                "section": "abstract",
+                "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment of a broad population of CRC patients with KRAS variant across different mutant types.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "32731506",
+                "pmc": "PMC7465151",
+                "year": 2020,
+                "cooccur": 681.0,
+                "section": "abstract",
+                "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, when compared to the KRAS WT CRC cells.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "39523457",
+                "pmc": "PMC11556274",
+                "year": 2024,
+                "cooccur": 543.0,
+                "section": "abstract",
+                "sentence": "Although the association between the gut microbiota and CRC has been extensively documented, it is unclear whether KRAS mutations can regulate the gut microbiota.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "36005485",
+                "pmc": "PMC9410344",
+                "year": 2022,
+                "cooccur": 542.0,
+                "section": "abstract",
+                "sentence": "Heteronemin and the combination showed the downregulation of the phosphorylated and total PI3K protein in HT-29 cells (KRAS WT CRC).",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "34003553",
+                "pmc": "PMC8486573",
+                "year": 2021,
+                "cooccur": 419.0,
+                "section": "abstract",
+                "sentence": "Collectively, we conclude that oncogenic KRAS mutations enhance the expression of AATs via the hippo effector YAP1, leading to mTOR activation and CRC cell proliferation.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "38572984",
+                "pmc": "PMC11064510",
+                "year": 2024,
+                "cooccur": 412.0,
+                "section": "abstract",
+                "sentence": "At last, we developed a predictive random forest (RF) machine learning model to predict the KRAS mutation status in CRC patients, based on the gut microbiota associated with KRAS mutation.",
+                "disease_id": "MONDO_0024331"
+              },
+              {
+                "pmid": "41584349",
+                "pmc": "PMC12827889",
+                "year": 2026,
+                "cooccur": 400.0,
+                "section": "abstract",
+                "sentence": "Kirsten rat sarcoma viral oncogene homolog (KRAS) mutation is associated with the poor prognosis of colorectal cancer (CRC) patients, but the therapeutic strategies targeting KRAS are limited, and novel intervention strategies are urgently needed.",
+                "disease_id": "MONDO_0024331"
+              }
+            ]
+          },
+          "cite": {
+            "card_id": "cited-literature-evidence",
+            "fields": [
+              "cited_evidence_status",
+              "earliest_year",
+              "latest_year",
+              "literature_scope",
+              "n_diseases",
+              "paper_disease_mentions",
+              "recent_mentions",
+              "total_relation_publications"
+            ]
+          },
+          "entity": "gene_indication"
+        }
+      },
+      "_disclaimer": "Verdict-INERT, CONTEXT-tier projection of the cited-literature-evidence card into orthogonal claims (VOLUME / RECENCY / RELATION), each signal \u00d7 corroboration. GATED by cited_evidence_status: `no_evidence` \u2192 a MEASURED `absent` (searched, nothing found); `insufficient` \u2192 capped at weak; `data_unavailable` \u2192 `unmeasured` (a coverage gap, never evidence against). Count cutoffs are display-only tiers. literature-context is gateless and context-tier \u2014 this NEVER feeds a nomination gate (RISK_ASSESSMENT_INTEGRATION.md \u00a74); literature informs confidence, not the call."
+    },
+    "key_signals": {
+      "headline": "Cited literature present (co-occurrence + typed relations).",
+      "supports": [
+        "VOLUME: strong (paper_disease_mentions=12691 across 7 diseases)",
+        "RECENCY: strong (recent_mentions=4919 (latest 2026))",
+        "RELATION: strong (total_relation_publications=5106 \u2014 associate, stimulate, inhibit)"
+      ],
+      "caveat": "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call."
+    },
+    "cited_evidence_confidence_caveat": {
+      "reason": "validated_established_relationship",
+      "tier": "milder",
+      "false_demote_guarded": true,
+      "detail": "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call."
+    },
+    "stale_literature_note": null,
+    "cited_evidence_provenance": {
+      "cited_evidence_status": "ok",
+      "literature_scope": "indication",
+      "paper_disease_mentions": 12691,
+      "recent_mentions": 4919,
+      "n_diseases": 7,
+      "earliest_year": 1983,
+      "latest_year": 2026,
+      "n_relation_types": 3,
+      "relation_types": [
+        "associate",
+        "stimulate",
+        "inhibit"
+      ],
+      "total_relation_publications": 5106,
+      "relation_direction_conflict": true,
+      "relation_single_paper": false,
+      "n_top_cited": 8,
+      "top_cited_pmids": [
+        "37937641",
+        "40240366",
+        "32731506",
+        "39523457",
+        "36005485",
+        "34003553",
+        "38572984",
+        "41584349"
+      ],
+      "pleiotropic_flag": false,
+      "stale_flag": false,
+      "validated_established_relationship_flag": true,
+      "provenance_note": "Cited-literature CONTEXT (Open Targets europePMC co-occurrence + PubTator3 BioREx typed relations). CO-OCCURRENCE \u2260 CAUSATION (volume tracks citation/attention/study bias \u2014 Stoeger 2018 PMID 30226837), and the typed relation DIRECTION is AUTOMATED single-sentence extraction (BioREx ~79.6% F1 \u2014 Lai 2023 PMID 37673376), NOT a validated in-vivo mechanism. Descriptive + context-tier \u2014 never a nomination gate (RISK_ASSESSMENT_INTEGRATION.md \u00a74)."
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "How much is written about this gene \u00d7 indication (co-occurrence volume)?",
+        "primary": "paper_disease_mentions=12691 across 7 diseases",
+        "support": "",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "corroboration: high"
+        }
+      },
+      {
+        "id": "Q2",
+        "question": "Is the cited literature recent / currently active?",
+        "primary": "recent_mentions=4919 (latest 2026)",
+        "support": "",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "corroboration: high"
+        }
+      },
+      {
+        "id": "Q3",
+        "question": "What typed mechanistic relations are reported (PubTator3 associate/cause/inhibit/\u2026)?",
+        "primary": "total_relation_publications=5106 \u2014 associate, stimulate, inhibit",
+        "support": "",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "corroboration: high"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": null,
+        "phrase": "Cited literature present (co-occurrence + typed relations).",
+        "gate": "literature_context",
+        "driving_rule_id": null,
+        "polarity": "neutral"
+      },
+      "confidence": {
+        "level": "strong",
+        "basis": "weakest-link corroboration = high",
+        "coverage": {
+          "n_measured": 3,
+          "n_axes": 3,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": {
+        "text": "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call.",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "headline_text": "Cited literature present (co-occurrence + typed relations) \u2014 strong confidence; tension: Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call..",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": null,
+          "phrase": "Cited literature present (co-occurrence + typed relations).",
+          "gate": "literature_context",
+          "polarity": "neutral"
+        },
+        "confidence": {
+          "level": "strong",
+          "coverage": {
+            "n_measured": 3,
+            "n_axes": 3,
+            "n_critical_measured": 1
+          }
+        },
+        "tension": {
+          "text": "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call."
+        },
+        "axes": [
+          {
+            "key": "VOLUME",
+            "label": "co-occurrence volume",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "RECENCY",
+            "label": "recent activity",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "RELATION",
+            "label": "typed relations",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "VOLUME",
+          "card_id": "cited-literature-evidence",
+          "fields": [
+            "cited_evidence_status",
+            "earliest_year",
+            "latest_year",
+            "literature_scope",
+            "n_diseases",
+            "paper_disease_mentions",
+            "recent_mentions",
+            "total_relation_publications"
+          ]
+        },
+        {
+          "axis": "RECENCY",
+          "card_id": "cited-literature-evidence",
+          "fields": [
+            "cited_evidence_status",
+            "earliest_year",
+            "latest_year",
+            "literature_scope",
+            "n_diseases",
+            "paper_disease_mentions",
+            "recent_mentions",
+            "total_relation_publications"
+          ]
+        },
+        {
+          "axis": "RELATION",
+          "card_id": "cited-literature-evidence",
+          "fields": [
+            "cited_evidence_status",
+            "earliest_year",
+            "latest_year",
+            "literature_scope",
+            "n_diseases",
+            "paper_disease_mentions",
+            "recent_mentions",
+            "total_relation_publications"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "skill_report": {
+      "call": null,
+      "role": "descriptive",
+      "polarity": "not_scored",
+      "honest_phrase": "Cited literature present (co-occurrence + typed relations).",
+      "confidence": {
+        "level": "strong",
+        "basis": "weakest-link corroboration = high",
+        "coverage": {
+          "n_measured": 3,
+          "n_axes": 3,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": {
+        "text": "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call.",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "claim_chips": [
+        {
+          "key": "VOLUME",
+          "label": "literature_context",
+          "signal": "strong",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "paper_disease_mentions=12691 across 7 diseases",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "cited-literature-evidence",
+              "fields": [
+                "cited_evidence_status",
+                "earliest_year",
+                "latest_year",
+                "literature_scope",
+                "n_diseases",
+                "paper_disease_mentions",
+                "recent_mentions",
+                "total_relation_publications"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "cited-literature-evidence",
+            "fields": [
+              "cited_evidence_status",
+              "earliest_year",
+              "latest_year",
+              "literature_scope",
+              "n_diseases",
+              "paper_disease_mentions",
+              "recent_mentions",
+              "total_relation_publications"
+            ]
+          }
+        },
+        {
+          "key": "RECENCY",
+          "label": "literature_context",
+          "signal": "strong",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "recent_mentions=4919 (latest 2026)",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "cited-literature-evidence",
+              "fields": [
+                "cited_evidence_status",
+                "earliest_year",
+                "latest_year",
+                "literature_scope",
+                "n_diseases",
+                "paper_disease_mentions",
+                "recent_mentions",
+                "total_relation_publications"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "cited-literature-evidence",
+            "fields": [
+              "cited_evidence_status",
+              "earliest_year",
+              "latest_year",
+              "literature_scope",
+              "n_diseases",
+              "paper_disease_mentions",
+              "recent_mentions",
+              "total_relation_publications"
+            ]
+          }
+        },
+        {
+          "key": "RELATION",
+          "label": "literature_context",
+          "signal": "strong",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "total_relation_publications=5106 \u2014 associate, stimulate, inhibit",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "cited-literature-evidence",
+              "fields": [
+                "cited_evidence_status",
+                "earliest_year",
+                "latest_year",
+                "literature_scope",
+                "n_diseases",
+                "paper_disease_mentions",
+                "recent_mentions",
+                "total_relation_publications"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "cited-literature-evidence",
+            "fields": [
+              "cited_evidence_status",
+              "earliest_year",
+              "latest_year",
+              "literature_scope",
+              "n_diseases",
+              "paper_disease_mentions",
+              "recent_mentions",
+              "total_relation_publications"
+            ]
+          }
+        }
+      ],
+      "claim_scalars": {},
+      "modality_scope": null,
+      "claim_chips_by_subtype": null,
+      "subgroup_signals": null,
+      "question_table": [
+        {
+          "id": "Q1",
+          "question": "How much is written about this gene \u00d7 indication (co-occurrence volume)?",
+          "primary": "paper_disease_mentions=12691 across 7 diseases",
+          "support": "",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          }
+        },
+        {
+          "id": "Q2",
+          "question": "Is the cited literature recent / currently active?",
+          "primary": "recent_mentions=4919 (latest 2026)",
+          "support": "",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          }
+        },
+        {
+          "id": "Q3",
+          "question": "What typed mechanistic relations are reported (PubTator3 associate/cause/inhibit/\u2026)?",
+          "primary": "total_relation_publications=5106 \u2014 associate, stimulate, inhibit",
+          "support": "",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          }
+        }
+      ],
+      "per_phase_metrics": [],
+      "figures": [],
+      "provenance": {
+        "driving_rule_id": null,
+        "fired_rule_ids": [],
+        "cards_used": [
+          "cited-literature-evidence"
+        ],
+        "cards_missing": []
+      },
+      "_contract": "docs/UNIFIED_OUTPUT_CONTRACT.md"
+    },
+    "evidence_capsules": {
+      "capsules": {
+        "cited-literature-evidence": {
+          "card_id": "cited-literature-evidence",
+          "measurement_type": "cited_literature_evidence",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": null,
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_diseases": 7,
+            "total_relation_publications": 5106
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null,
+          "cited_statements": [
+            {
+              "pmid": "37937641",
+              "year": 2023,
+              "section": "abstract",
+              "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC."
+            },
+            {
+              "pmid": "40240366",
+              "year": 2025,
+              "section": "abstract",
+              "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment\u2026"
+            },
+            {
+              "pmid": "32731506",
+              "year": 2020,
+              "section": "abstract",
+              "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, wh\u2026"
+            }
+          ]
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "cited-literature-evidence",
+          "status": "full"
+        }
+      ]
+    },
+    "cards_available": 1,
+    "cards_missing": [],
+    "evidence_graph": {
+      "schema_version": "1.0",
+      "skill": "literature-context",
+      "target": "KRAS",
+      "indication": "COADREAD",
+      "verdict": {
+        "id": null,
+        "call": "Cited literature present (co-occurrence + typed relations).",
+        "polarity": "neutral",
+        "driving_rule_id": null,
+        "confidence": {
+          "level": "strong",
+          "coverage": {
+            "n_measured": 3,
+            "n_axes": 3,
+            "n_critical_measured": 1
+          }
+        },
+        "top_tension": {
+          "text": "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot SNVs): an early, defining step of the adenoma\u2192carcinoma sequence (Fearon & Vogelstein 1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis 2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib\u00b1cetuximab in CRC Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate direction is EXPECTED here, NOT a citation-bias over-call.",
+          "severity": 1,
+          "source_card_ids": []
+        }
+      },
+      "questions": [],
+      "cards": [
+        {
+          "id": "cited-literature-evidence",
+          "measurement_type": "cited_literature_evidence",
+          "tier": "indication",
+          "role": "display_only",
+          "question_ids": [],
+          "axis_id": null,
+          "signal": {
+            "tier": null,
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "evidence_state": "measured",
+            "eco_id": "ECO:0000006",
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "opentargets-europepmc-evidence-per-target-v1",
+            "pubtator3-gene-disease-relations-per-gene-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "opentargets-europepmc-evidence-per-target-v1",
+              "pubtator3-gene-disease-relations-per-gene-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "n": 7,
+            "n_basis": {
+              "n_diseases": 7,
+              "total_relation_publications": 5106
+            }
+          }
+        }
+      ],
+      "rules": [],
+      "datasets": [
+        {
+          "id": "opentargets-europepmc-evidence-per-target-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "pubtator3-gene-disease-relations-per-gene-v1",
+          "s3_uri": null,
+          "license": null
+        }
+      ],
+      "literature": {},
+      "citations": [],
+      "narrative": {}
+    }
+  },
+  "cards": [
+    {
+      "card_id": "cited-literature-evidence",
+      "summary": {
+        "target": "KRAS",
+        "indication": "COADREAD",
+        "method_version": "0.1.0",
+        "source": "cited-literature-evidence",
+        "verdict": null,
+        "verdict_inert": true,
+        "cited_evidence_status": "ok",
+        "literature_scope": "indication",
+        "paper_disease_mentions": 12691,
+        "recent_mentions": 4919,
+        "n_diseases": 7,
+        "earliest_year": 1983,
+        "latest_year": 2026,
+        "top_cited": [
+          {
+            "pmid": "37937641",
+            "pmc": "PMC10721270",
+            "year": 2023,
+            "cooccur": 755.0,
+            "section": "abstract",
+            "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC.",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "40240366",
+            "pmc": "PMC12003847",
+            "year": 2025,
+            "cooccur": 713.0,
+            "section": "abstract",
+            "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment of a broad population of CRC patients with KRAS variant across different mutant types.",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "32731506",
+            "pmc": "PMC7465151",
+            "year": 2020,
+            "cooccur": 681.0,
+            "section": "abstract",
+            "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, when compared to the KRAS WT CRC cells.",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "39523457",
+            "pmc": "PMC11556274",
+            "year": 2024,
+            "cooccur": 543.0,
+            "section": "abstract",
+            "sentence": "Although the association between the gut microbiota and CRC has been extensively documented, it is unclear whether KRAS mutations can regulate the gut microbiota.",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "36005485",
+            "pmc": "PMC9410344",
+            "year": 2022,
+            "cooccur": 542.0,
+            "section": "abstract",
+            "sentence": "Heteronemin and the combination showed the downregulation of the phosphorylated and total PI3K protein in HT-29 cells (KRAS WT CRC).",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "34003553",
+            "pmc": "PMC8486573",
+            "year": 2021,
+            "cooccur": 419.0,
+            "section": "abstract",
+            "sentence": "Collectively, we conclude that oncogenic KRAS mutations enhance the expression of AATs via the hippo effector YAP1, leading to mTOR activation and CRC cell proliferation.",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "38572984",
+            "pmc": "PMC11064510",
+            "year": 2024,
+            "cooccur": 412.0,
+            "section": "abstract",
+            "sentence": "At last, we developed a predictive random forest (RF) machine learning model to predict the KRAS mutation status in CRC patients, based on the gut microbiota associated with KRAS mutation.",
+            "disease_id": "MONDO_0024331"
+          },
+          {
+            "pmid": "41584349",
+            "pmc": "PMC12827889",
+            "year": 2026,
+            "cooccur": 400.0,
+            "section": "abstract",
+            "sentence": "Kirsten rat sarcoma viral oncogene homolog (KRAS) mutation is associated with the poor prognosis of colorectal cancer (CRC) patients, but the therapeutic strategies targeting KRAS are limited, and novel intervention strategies are urgently needed.",
+            "disease_id": "MONDO_0024331"
+          }
+        ],
+        "relation_types": [
+          "associate",
+          "stimulate",
+          "inhibit"
+        ],
+        "total_relation_publications": 5106,
+        "literature_evidence": {
+          "indication_scope": "indication",
+          "paper_disease_mentions": 12691,
+          "recent_mentions": 4919,
+          "n_diseases": 7,
+          "earliest_year": 1983,
+          "latest_year": 2026,
+          "top_cited": [
+            {
+              "pmid": "37937641",
+              "pmc": "PMC10721270",
+              "year": 2023,
+              "cooccur": 755.0,
+              "section": "abstract",
+              "sentence": "Emerging evidence shows that KRAS-mutant colorectal cancer (CRC) depends on glutamine (Gln) for survival and progression, indicating that targeting Gln metabolism may be a promising therapeutic strategy for KRAS-mutant CRC.",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "40240366",
+              "pmc": "PMC12003847",
+              "year": 2025,
+              "cooccur": 713.0,
+              "section": "abstract",
+              "sentence": "Collectively, this study not only reveals the crucial roles of JOSD2/KRAS positive feedback circuit in KRAS-mutant CRC, but also provides a rationale to target JOSD2 as the promising pan-KRAS-mutation-targeting strategy for the treatment of a broad population of CRC patients with KRAS variant across different mutant types.",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "32731506",
+              "pmc": "PMC7465151",
+              "year": 2020,
+              "cooccur": 681.0,
+              "section": "abstract",
+              "sentence": "Additionally, our data demonstrate that this further overexpression of PRMT5 in the KRAS mutant CRC cells affects an even greater degree of growth inhibition, apoptosis, and cell cycle arrest, following treatment with PRMT5 inhibitor, when compared to the KRAS WT CRC cells.",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "39523457",
+              "pmc": "PMC11556274",
+              "year": 2024,
+              "cooccur": 543.0,
+              "section": "abstract",
+              "sentence": "Although the association between the gut microbiota and CRC has been extensively documented, it is unclear whether KRAS mutations can regulate the gut microbiota.",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "36005485",
+              "pmc": "PMC9410344",
+              "year": 2022,
+              "cooccur": 542.0,
+              "section": "abstract",
+              "sentence": "Heteronemin and the combination showed the downregulation of the phosphorylated and total PI3K protein in HT-29 cells (KRAS WT CRC).",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "34003553",
+              "pmc": "PMC8486573",
+              "year": 2021,
+              "cooccur": 419.0,
+              "section": "abstract",
+              "sentence": "Collectively, we conclude that oncogenic KRAS mutations enhance the expression of AATs via the hippo effector YAP1, leading to mTOR activation and CRC cell proliferation.",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "38572984",
+              "pmc": "PMC11064510",
+              "year": 2024,
+              "cooccur": 412.0,
+              "section": "abstract",
+              "sentence": "At last, we developed a predictive random forest (RF) machine learning model to predict the KRAS mutation status in CRC patients, based on the gut microbiota associated with KRAS mutation.",
+              "disease_id": "MONDO_0024331"
+            },
+            {
+              "pmid": "41584349",
+              "pmc": "PMC12827889",
+              "year": 2026,
+              "cooccur": 400.0,
+              "section": "abstract",
+              "sentence": "Kirsten rat sarcoma viral oncogene homolog (KRAS) mutation is associated with the poor prognosis of colorectal cancer (CRC) patients, but the therapeutic strategies targeting KRAS are limited, and novel intervention strategies are urgently needed.",
+              "disease_id": "MONDO_0024331"
+            }
+          ],
+          "_metric_note": "paper_disease_mentions/recent_mentions are summed over disease subtypes (mentions, not distinct papers); see n_diseases"
+        },
+        "relation_direction": {
+          "indication_scope": "indication",
+          "mesh_id_source": "crosswalk_mesh_ids",
+          "total_publications": 5106,
+          "relations": [
+            {
+              "relation_type": "associate",
+              "n_publications": 5093,
+              "pmids": [
+                "42571850",
+                "42565571",
+                "42565556",
+                "42557320",
+                "42553430",
+                "42551351",
+                "42551038",
+                "42543992",
+                "42530261",
+                "42525957",
+                "42512364",
+                "42511582",
+                "42510971",
+                "42474245",
+                "42471825",
+                "42459680",
+                "42459132",
+                "42452977",
+                "42449700",
+                "42448954"
+              ]
+            },
+            {
+              "relation_type": "stimulate",
+              "n_publications": 10,
+              "pmids": [
+                "41178923",
+                "39226802",
+                "35894141",
+                "33187149",
+                "21734388",
+                "20199127",
+                "14673706",
+                "8779542",
+                "1849388",
+                "8194712"
+              ]
+            },
+            {
+              "relation_type": "inhibit",
+              "n_publications": 3,
+              "pmids": [
+                "39857025",
+                "33825830",
+                "21160823"
+              ]
+            }
+          ]
+        },
+        "sources": {
+          "europepmc_evidence": "opentargets-europepmc-evidence-per-target-v1",
+          "pubtator_relations": "pubtator3-gene-disease-relations-per-gene-v1"
+        },
+        "notes": [],
+        "status": "ok"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "opentargets-europepmc-evidence-per-target-v1",
+        "pubtator3-gene-disease-relations-per-gene-v1"
+      ]
+    }
+  ],
+  "fired_rules": [],
+  "provenance": {
+    "skills_repo_sha": "279f783",
+    "data_mode": "live",
+    "release_pin": "unpinned",
+    "resolved_release_digest": "6daa33dcb287009c",
+    "resolved_releases": {
+      "opentargets-europepmc-evidence-per-target": {
+        "used": [
+          "opentargets-europepmc-evidence-per-target-v1"
+        ],
+        "head": "opentargets-europepmc-evidence-per-target-v1",
+        "is_stale": false
+      },
+      "pubtator3-gene-disease-relations-per-gene": {
+        "used": [
+          "pubtator3-gene-disease-relations-per-gene-v1"
+        ],
+        "head": "pubtator3-gene-disease-relations-per-gene-v1",
+        "is_stale": false
+      }
+    },
+    "resolved_content_digest": "c91c860e07c7f4b1"
+  },
+  "run_health": {
+    "skill_name": "literature-context",
+    "skill_version": "1.1.0",
+    "status": "ok",
+    "n_cards_consumed": 1,
+    "n_cards_resolved": 1,
+    "n_cards_fired": 0,
+    "cards_fired": [],
+    "cards_missing": [],
+    "cards_skipped_a4": [],
+    "provenance_warnings": [],
+    "read_secs": 4.0074,
+    "compute_secs": 0.1209,
+    "total_secs": 4.1293
+  },
+  "consolidation": {
+    "discordant": false,
+    "masked_conflict": false,
+    "driving_role": "neutral",
+    "overruled_opposing_rules": [],
+    "roles_present": [],
+    "n_rules_fired": 0,
+    "n_cards_contributing": 0,
+    "single_card_passthrough": true
+  }
+}
