@@ -35,7 +35,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 # cards that FIRE a rule in the KRAS/COADREAD fixture (verdict-bearing at the CARD level) vs the pure
 # display-only facets. Descriptive skill: even the "verdict-bearing" cards only INFORM the neutral
@@ -253,41 +252,3 @@ def test_graph_without_registry_is_referentially_intact(decision):
     for c in g["cards"]:
         assert c["question_ids"] == []
         assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}
-
-
-# ── standalone dashboard render smoke test (evidence_graph_dashboard consumes the graph ONLY) ────────
-def test_dashboard_renders_questions_and_driving_pill(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html.lower()
-    # all 5 question slugs render (fingerprint label + question-table row)
-    for qid in ("network_read", "phospho_read", "pathway_read", "perturbation_read",
-                "predictability_read"):
-        assert qid in html
-    # the driving card carries a DRIVING pill
-    assert "DRIVING" in html and "signaling-network-mechanism" in html
-    # verdict header + deterministic Summary block + literature crosswalk populated
-    assert "Well-characterized signaling network" in html
-    assert "Summary" in html
-    assert "well-curated MAPK signaling hub" in html
-
-
-def test_dashboard_renders_with_null_inert_verdict(decision, questions):
-    """GATELESS guard: with the resolved token AND the headline_block stripped (a truly verdict-inert
-    run), the graph's verdict node id/call/polarity are all None — the deterministic Summary block and
-    the verdict header must STILL render without error."""
-    d = copy.deepcopy(decision)
-    d["headline"].pop("mechanism_verdict", None)
-    d["headline"].pop("headline_block", None)
-    g = build_evidence_graph(d, questions=questions)
-    assert g["verdict"]["id"] is None
-    assert g["verdict"]["call"] is None
-    assert g["verdict"]["polarity"] is None
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html.lower()
-    assert "Summary" in html          # deterministic Summary block renders
-    assert "Verdict" in html          # verdict header row renders
-    # questions still anchor their cards regardless of the null verdict
-    assert all(c["question_ids"] for c in g["cards"])

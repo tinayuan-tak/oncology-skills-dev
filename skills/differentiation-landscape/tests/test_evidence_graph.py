@@ -30,7 +30,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 # cards that FIRE a rule in the KRAS/COADREAD fixture (graph role verdict_bearing) vs the pure
 # display-only facets (fired no rule). Only the co-mutation card drives the differentiation token; the
@@ -257,21 +256,3 @@ def test_graph_without_registry_is_referentially_intact(decision):
     for c in g["cards"]:
         assert c["question_ids"] == []
         assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}
-
-
-# ── standalone dashboard render smoke test (evidence_graph_dashboard consumes the graph ONLY) ────────
-def test_dashboard_renders_questions_and_driving_pill(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html.lower()
-    # all 5 question slugs render (fingerprint label + question-table row)
-    for qid in ("comut_landscape", "subtype_survival", "prognostic_stratification",
-                "node_leverage", "clinical_precedent"):
-        assert qid in html
-    # the driving card carries a DRIVING pill
-    assert "DRIVING" in html and "co-mutation-and-mutual-exclusivity" in html
-    # verdict header (human phrase, not the raw token) + literature crosswalk populated
-    assert "Co-occurring + mutually-exclusive" in html
-    assert "APC/TP53" in html

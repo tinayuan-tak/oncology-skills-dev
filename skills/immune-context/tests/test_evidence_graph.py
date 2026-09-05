@@ -29,7 +29,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 # the ONE card that fires a rule in the KRAS/COADREAD fixture (verdict-bearing) vs the pure display-only
 # TME/immune context facets. immune-context's verdict is a direct read of immune_context_class, so only
@@ -226,22 +225,3 @@ def test_graph_without_registry_is_referentially_intact(decision):
     for c in g["cards"]:
         assert c["question_ids"] == []
         assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}
-
-
-# ── standalone dashboard render smoke test (evidence_graph_dashboard consumes the graph ONLY) ────────
-def test_dashboard_renders_summary_header_and_driving_pill(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html
-    # the deterministic Summary + verdict header render
-    assert "Summary" in html
-    assert "Immune-intermediate" in html
-    # all 3 question slugs render (fingerprint label + question-table row)
-    for qid in ("infiltration", "ici_response", "microenvironment"):
-        assert qid in html
-    # the driving card carries a DRIVING pill
-    assert "DRIVING" in html and "immune-context" in html
-    # literature crosswalk populated
-    assert "CD8 effector infiltrate" in html

@@ -33,7 +33,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 # In a standalone run the ONLY card that fires a rule is organoid-crispr-dependency (its BORROWED
 # functional-requirement dependency rule) — so it is the sole verdict_bearing CARD; the other three
@@ -246,25 +245,3 @@ def test_graph_without_registry_is_referentially_intact(decision):
     for c in g["cards"]:
         assert c["question_ids"] == []
         assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}
-
-
-# ── standalone dashboard render smoke test (evidence_graph_dashboard consumes the graph ONLY) ────────
-def test_dashboard_renders_summary_and_questions_with_null_verdict(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html
-    # the DETERMINISTIC Summary block renders even with a null verdict (descriptive skill)
-    assert '<div class="card summ"><h2>Summary</h2>' in html
-    # header verdict chip falls back to NEUTRAL (gateless — no polarity)
-    assert "NEUTRAL" in html
-    # the descriptive phrase renders as the verdict call
-    assert "validatable" in html.lower()
-    # all 4 question slugs render (fingerprint label + question-table row)
-    for qid in ("models_available", "genotype_matched_model_carries_alteration",
-                "organoid_ex_vivo_dependency", "pdx_in_vivo_response"):
-        assert qid in html
-    # the borrowed-rule card + literature crosswalk render
-    assert "organoid-crispr-dependency" in html
-    assert "HCMI patient-derived colorectal models are available" in html

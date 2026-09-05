@@ -28,7 +28,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 VERDICT_BEARING = {
     "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
@@ -198,16 +197,3 @@ def test_fail_soft_and_no_registry(decision, questions):
     assert g["questions"] == [] and len(g["cards"]) == 24
     for c in g["cards"]:
         assert c["question_ids"] == []
-
-
-# ── standalone dashboard render smoke test ─────────────────────────────────────────────────────────
-def test_dashboard_renders_questions_and_driving_pill(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    html = render_dashboard(build_evidence_graph(d, questions=questions))
-    assert "<!doctype html>" in html
-    for qid in ("snv_indel_class", "copy_number_driver", "fusion_driver", "splice_driver",
-                "alteration_conferred_dependency"):
-        assert qid in html
-    assert "DRIVING" in html and "mutation-stratified-dependency" in html
-    assert "recurrent CRC driver" in html   # literature crosswalk rendered

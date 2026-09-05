@@ -31,7 +31,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 # cards that fire a rule in the EPCAM/COADREAD fixture (verdict-bearing) vs the pure display-only facets
 VERDICT_BEARING = {
@@ -283,21 +282,3 @@ def test_graph_without_registry_is_referentially_intact(decision):
     for c in g["cards"]:
         assert c["question_ids"] == []
         assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}
-
-
-# ── standalone dashboard render smoke test (evidence_graph_dashboard consumes the graph ONLY) ────────
-def test_dashboard_renders_questions_and_driving_pill(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html
-    # all 8 question slugs render (fingerprint label + question-table row)
-    for qid in ("modality_fit_call", "topology_read", "density_read", "safety_read", "shed_read",
-                "pmhc_tce_route", "bispecific_pair", "tce_homogeneity"):
-        assert qid in html
-    # the driving (safety-downgrade) card carries a DRIVING pill
-    assert "DRIVING" in html and "sc-normal-celltype-expression" in html
-    # verdict header (fit_class phrase, ampersand HTML-escaped) + literature crosswalk populated
-    assert "ADC &amp; TCE viable" in html
-    assert "clinical ADC/TCE antigen" in html

@@ -39,7 +39,16 @@ def _extract_skill(data):
         return None
     hb = data.get("headline")
     if isinstance(hb, dict) and isinstance(hb.get("skill_report"), dict):
-        return hb["skill_report"], data.get("skill")
+        sr = hb["skill_report"]
+        # A standalone decision.json carries the DISPLAY-ONLY claim graph as a SIBLING of skill_report
+        # (headline.evidence_graph, attached by the dispatcher). Merge it onto the skill_report so the
+        # single-skill render path draws the RICH view (fingerprint + chains + literature) — the same
+        # blocks the composed embedded view renders (P3), from the same graph. This makes report_render
+        # the ONE renderer for the standalone sub-skill dashboard too (retires evidence_graph_dashboard).
+        eg = hb.get("evidence_graph")
+        if isinstance(eg, dict) and eg and "evidence_graph" not in sr:
+            sr = {**sr, "evidence_graph": eg}   # shallow copy — never mutate the caller's decision
+        return sr, data.get("skill")
     if "role" in data and "claim_chips" in data and "target_report" not in data:
         return data, data.get("_skill_name")
     return None

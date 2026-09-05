@@ -31,7 +31,6 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
-from _skills_common.evidence_graph_dashboard import render_dashboard  # noqa: E402
 
 # cards that fire a rule in the KRAS fixture (role=verdict_bearing) vs the pure display-only facets.
 # target-intrinsic is gateless — a fired rule NEVER selects a driving_rule_id (no verdict_fn), so none of
@@ -262,32 +261,3 @@ def test_graph_without_registry_is_referentially_intact(decision):
     for c in g["cards"]:
         assert c["question_ids"] == []
         assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}
-
-
-# ── standalone dashboard render smoke test — Summary + verdict header render despite verdict=None ───
-def test_dashboard_renders_summary_and_null_verdict_header(decision, questions):
-    d = copy.deepcopy(decision)
-    d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
-    html = render_dashboard(g)
-    assert "<!doctype html>" in html
-    # the deterministic Summary block AND the verdict header render even with verdict.id=None
-    assert "<h2>Summary</h2>" in html
-    assert "Verdict" in html
-    assert DESCRIPTIVE_PHRASE in html          # verdict.call (descriptive phrase) fills the null verdict
-    # all 5 question slugs render (fingerprint label + question-table row)
-    for qid in ("modality_route", "tractability_precedent", "biology_context",
-                "safety_genetics", "normal_context"):
-        assert qid in html
-    # literature crosswalk populated
-    assert "co-crystal confirmed" in html
-    assert "Ostrem 2013" in html
-
-
-def test_dashboard_renders_without_literature(decision, questions):
-    # no --synthesize / no literature lane: the Summary + verdict header must STILL render (fail-soft)
-    g = build_evidence_graph(decision, questions=questions)
-    html = render_dashboard(g)
-    assert "<h2>Summary</h2>" in html
-    assert "Verdict" in html
-    assert DESCRIPTIVE_PHRASE in html
