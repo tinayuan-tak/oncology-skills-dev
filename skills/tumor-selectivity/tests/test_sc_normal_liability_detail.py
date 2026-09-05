@@ -6,20 +6,11 @@ interpolates it into the tension text — including the case where a coarser win
 verdict LABEL but the sc-normal arm ALSO flagged a named critical organ (the masking fix)."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("ts_run_w1c", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-ts = _load()
+ts = load_run_py(Path(__file__).resolve().parent.parent, "ts_run_w1c")
 
 
 def _sc(cls, cell="kidney proximal tubule cell", tissue="kidney", n_atlas=3):

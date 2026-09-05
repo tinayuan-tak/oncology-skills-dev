@@ -5,14 +5,13 @@ Consumed-by-nothing / verdict-inert."""
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as sel  # noqa: E402
+from _test_support import load_run_py
+
+sel = load_run_py(Path(__file__).resolve().parent.parent, "sel_run_shadow")
 
 
 def _tvn(**kw):

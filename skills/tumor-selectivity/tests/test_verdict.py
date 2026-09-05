@@ -8,20 +8,14 @@ selectivity_class values (so the risk-table _biological() reshape consumes them)
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
+SKILL_DIR = Path(__file__).resolve().parent.parent
+RUN_PY = SKILL_DIR / "scripts" / "run.py"  # used below to locate target-profile/scripts/tp_fanout.py
 
-def _load():
-    spec = importlib.util.spec_from_file_location("ts_run", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-ts = _load()
+ts = load_run_py(SKILL_DIR, "ts_run")
 
 
 def _fire(rule_id):

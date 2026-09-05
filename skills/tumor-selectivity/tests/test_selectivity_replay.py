@@ -34,7 +34,6 @@ guards the snapshots themselves against reader drift. Mirror of tumor-presence's
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import runpy
 import sys
@@ -42,6 +41,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
@@ -57,15 +58,8 @@ if str(SKILLS_ROOT) not in sys.path:
 _COLLAPSED = {None, "", "insufficient", "data_unavailable"}
 
 
-def _run_const():
-    """Import run.py once for its single-source-of-truth constants (selective family + veto rules)."""
-    spec = importlib.util.spec_from_file_location("_ts_run_const", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_TS = _run_const()
+# run.py's single-source-of-truth constants (selective family + veto rules), loaded once.
+_TS = load_run_py(SKILL_DIR, "_ts_run_const")
 _AXIS_A_SELECTIVE = set(_TS._AXIS_A_SELECTIVE)
 _VETO_RULES = set(_TS._NORMAL_BREADTH_VETO_RULES)
 # Every selective outcome the headline may carry: the axis-A selective family + the veto downgrade.

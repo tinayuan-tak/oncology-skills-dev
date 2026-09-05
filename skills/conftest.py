@@ -23,10 +23,16 @@ _SKILLS_DIR = Path(__file__).resolve().parent
 
 
 def _ensure_skills_on_path() -> None:
-    """Put the skills/ dir on sys.path so `_skills_common` imports resolve. Done lazily (inside the
-    fixtures, not at conftest import) so merely collecting a test never depends on the import."""
+    """Put the skills/ dir on sys.path so `_skills_common` / `_test_support` imports resolve."""
     if str(_SKILLS_DIR) not in sys.path:
         sys.path.insert(0, str(_SKILLS_DIR))
+
+
+# Run it at conftest import — pytest imports this conftest BEFORE the test modules collected under
+# skills/, so every test can `from _test_support import ...` / `from _skills_common import ...` without
+# re-inserting sys.path in each file. skills/ exposes only underscore-prefixed importable names
+# (_skills_common, _test_support; the skill dirs have hyphens), so it shadows nothing.
+_ensure_skills_on_path()
 
 
 def _contracts_root() -> Path | None:

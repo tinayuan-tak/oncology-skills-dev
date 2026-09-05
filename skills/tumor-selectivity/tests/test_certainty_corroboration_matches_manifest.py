@@ -4,16 +4,12 @@ disjointness validator checks manifest-vs-resolvers, but only THIS catches drift
 and the card the Python certainty extractor actually reads."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parent.parent.parent            # for _skills_common
-SEL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILLS))
-sys.path.insert(0, str(SEL_SCRIPTS))
+from _skills_common.certainty_corroboration import corroboration_cards
+from _test_support import load_run_py
 
-from _skills_common.certainty_corroboration import corroboration_cards  # noqa: E402
-import run as sel  # noqa: E402
+sel = load_run_py(Path(__file__).resolve().parent.parent, "sel_run_cc")
 
 
 def test_selectivity_corroboration_source_matches_manifest():
