@@ -1,12 +1,11 @@
 """genomic-alteration (strength, certainty) sidecar — CERTAINTY_MODEL 3rd axis. Verdict-inert."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-GA_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(GA_SCRIPTS))
-import run as ga  # noqa: E402
+from _test_support import load_run_py
+
+ga = load_run_py(Path(__file__).resolve().parent.parent, "ga_run_sc")
 
 
 def _cards(civic=None, n_cell_lines=None, mut_n=None):

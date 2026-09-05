@@ -7,20 +7,11 @@ the experimental-partner rule, and must NOT emit it for computational-only / no-
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("sl_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-sl = _load()
+sl = load_run_py(Path(__file__).resolve().parent.parent, "sl_run")
 
 
 def test_experimental_partner_emits_gate_trigger_verdict():

@@ -10,20 +10,13 @@ Invariants of the substrate layer:
     with different finding nouns/kinds but the same block shape.
 """
 from __future__ import annotations
-import importlib.util
 from pathlib import Path
+
+from _test_support import load_module
 
 _MOD = Path(__file__).resolve().parent.parent / "scripts" / "ground_axis.py"
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("ground_axis", _MOD)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-ga = _load()
+ga = load_module(_MOD, "ground_axis")
 DET = {"verdict": "wt_human_genetics_mechanism_mismatch", "driving_rule_id": "r", "cards": {}}
 
 

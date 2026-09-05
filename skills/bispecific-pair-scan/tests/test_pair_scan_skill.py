@@ -5,24 +5,12 @@ Pins: (1) partner-set default = clinical seeds when --partners omitted; (2) rank
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS_DIR = RUN.resolve().parent.parent.parent
+from _test_support import load_run_py
 
-
-def _load():
-    if str(SKILLS_DIR) not in sys.path:
-        sys.path.insert(0, str(SKILLS_DIR))
-    spec = importlib.util.spec_from_file_location("bps_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-bps = _load()
+bps = load_run_py(Path(__file__).resolve().parent.parent, "bps_run")
 
 
 def test_clinical_seed_set_is_nonempty_and_has_known_antigens():

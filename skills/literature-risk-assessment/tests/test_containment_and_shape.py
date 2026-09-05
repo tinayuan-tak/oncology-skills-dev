@@ -6,20 +6,11 @@ only PMIDs present in the retrieved corpus may be cited. These tests pin that gu
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-_RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("lra_run", _RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-rc = _load()
+rc = load_run_py(Path(__file__).resolve().parent.parent, "lra_run")
 
 
 def test_containment_drops_pmids_not_in_corpus():

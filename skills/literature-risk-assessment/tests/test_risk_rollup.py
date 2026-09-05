@@ -6,20 +6,13 @@
   - engine-blind dims (clinical/commercial).
 """
 from __future__ import annotations
-import importlib.util
 from pathlib import Path
+
+from _test_support import load_module
 
 _MOD = Path(__file__).resolve().parent.parent / "scripts" / "risk_rollup.py"
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("risk_rollup", _MOD)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-rr = _load()
+rr = load_module(_MOD, "risk_rollup")
 
 
 def _pkg(safety, cards):

@@ -14,20 +14,13 @@ green only when the resolver's mutant-selective rung is present (target-contract
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
+
+from _test_support import load_run_py
 
 SAFETY_RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
 
-
-def _load(p, name):
-    spec = importlib.util.spec_from_file_location(name, p)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-_sf = _load(SAFETY_RUN, "sf_run_mutsel")
+_sf = load_run_py(SAFETY_RUN.parent.parent, "sf_run_mutsel")
 
 # safety _headline calls get_card_field on ALL of these card_ids, and get_card_field RAISES KeyError
 # on a missing card_id (a deliberate typo-guard). The P5 human-genetics cards were added to _headline

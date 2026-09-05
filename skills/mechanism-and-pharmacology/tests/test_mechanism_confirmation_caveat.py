@@ -14,26 +14,13 @@ fires True for a validated-drugged kinase (BRAF/EGFR) AND an undruggable pleiotr
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
-
-def _load_run_module():
-    """Import run.py as a module WITHOUT executing its __main__ block (name != '__main__')."""
-    spec = importlib.util.spec_from_file_location("mech_run_under_test", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUN = _load_run_module()
+RUN = load_run_py(SKILL_DIR, "mech_run_under_test")
 
 
 # ── mechanism_confirmation_caveat ────────────────────────────────────────────────────────────────────

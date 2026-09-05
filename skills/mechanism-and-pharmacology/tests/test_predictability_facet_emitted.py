@@ -10,20 +10,11 @@ supply every card the skill declares (me.CARDS); we populate the predictability 
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("me_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-me = _load()
+me = load_run_py(Path(__file__).resolve().parent.parent, "me_run")
 
 # summary uses the reader's emitted field names (compute_summary): predictability_class,
 # pred_dominant_feature_class, pred_top_features_rf (list of {feature, feature_class, importance}).

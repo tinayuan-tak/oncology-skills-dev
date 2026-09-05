@@ -3,14 +3,13 @@ Understanding supports; minimal coverage-only certainty. Consumed-by-nothing / v
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as me  # noqa: E402
+from _test_support import load_run_py
+
+me = load_run_py(Path(__file__).resolve().parent.parent, "me_run")
 
 
 def _fired(*rids):

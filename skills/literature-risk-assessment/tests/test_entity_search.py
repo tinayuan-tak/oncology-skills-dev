@@ -4,20 +4,13 @@ Guards the collision fix: gene-symbol retrieval must resolve to the GENE entity,
 same-string synonym or a non-PubMed identifier.
 """
 from __future__ import annotations
-import importlib.util
 from pathlib import Path
+
+from _test_support import load_module
 
 _MOD = Path(__file__).resolve().parent.parent / "scripts" / "entity_search.py"
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("entity_search", _MOD)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-es = _load()
+es = load_module(_MOD, "entity_search")
 
 # real shape of a PubTator /entity/autocomplete?concept=gene response for the ME3 collision case
 _ME3_AUTOCOMPLETE = [

@@ -7,22 +7,13 @@ rule cannot fire. Must be a no-op (byte-stable) when <2 classes fire.
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("gap_run_fdr", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-gap = _load()
+gap = load_run_py(Path(__file__).resolve().parent.parent, "gap_run_fdr")
 
 
 def _card(card_id, **summary):

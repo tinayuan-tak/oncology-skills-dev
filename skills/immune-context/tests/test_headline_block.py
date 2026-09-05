@@ -10,26 +10,13 @@ An immune-HOT indication is a CD8 effector context PRESENT for a TCE to redirect
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS_DIR = RUN.resolve().parent.parent.parent
+from _test_support import load_run_py
 
 _VALID_CONFIDENCE = {"strong", "moderate", "weak", "insufficient"}
 
-
-def _load():
-    if str(SKILLS_DIR) not in sys.path:
-        sys.path.insert(0, str(SKILLS_DIR))
-    spec = importlib.util.spec_from_file_location("ic_run_hl", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-ic = _load()
+ic = load_run_py(Path(__file__).resolve().parent.parent, "ic_run_hl")
 
 
 def _immune_hot_cards():

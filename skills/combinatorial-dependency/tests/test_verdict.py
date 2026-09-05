@@ -7,13 +7,12 @@ case as a KNOWN limitation the card's n_lines/p-value carry is designed to catch
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILL_SCRIPTS))
+from _test_support import load_run_py
 
-from run import _verdict  # noqa: E402
+_run = load_run_py(Path(__file__).resolve().parent.parent, "cmb_run")
+_verdict = _run._verdict
 
 
 def _fired(*rule_ids):

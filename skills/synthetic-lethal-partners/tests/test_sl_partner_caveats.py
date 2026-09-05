@@ -9,30 +9,19 @@ Covers the VERDICT-INERT enrichment over the curated-SynLethDB synthetic-lethal-
 Pure caveat tests use synthetic headline dicts (no card / no resolver / no LLM). SET literals, not 2-string
 tuples (reference-drift guard)."""
 from __future__ import annotations
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
+from _test_support import load_run_py
+from _skills_common.narrator_lenses import SYNTHETIC_LETHAL_PARTNERS, LENSES
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_DIR = SKILL_DIR.parent
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
-
-from _skills_common.narrator_lenses import SYNTHETIC_LETHAL_PARTNERS, LENSES  # noqa: E402
-
-
-def _run():
-    spec = importlib.util.spec_from_file_location("slp_run_caveats", SKILL_DIR / "scripts" / "run.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 @pytest.fixture(scope="module")
 def M():
-    return _run()
+    return load_run_py(SKILL_DIR, "slp_run_caveats")
 
 
 def _hl(verdict="has_experimental_sl_partner", cls="has_experimental_sl_partner", count=3,

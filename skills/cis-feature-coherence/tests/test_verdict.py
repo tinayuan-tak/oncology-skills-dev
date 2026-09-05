@@ -7,13 +7,12 @@ golden; the target-contracts side has its own resolver golden (test_cis_coherenc
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILL_SCRIPTS))
+from _test_support import load_run_py
 
-from run import _verdict  # noqa: E402
+_run = load_run_py(Path(__file__).resolve().parent.parent, "cis_run")
+_verdict = _run._verdict
 
 # leg tokens (fired by interpretation-rules/cis-coherence.rules.yaml)
 DOSAGE_COUPLED = "cis-dosage-coupled-supportive"

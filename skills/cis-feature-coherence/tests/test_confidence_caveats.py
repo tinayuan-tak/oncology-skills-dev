@@ -11,15 +11,14 @@ None of these read the resolver — they gate on already-emitted headline fields
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SKILL_SCRIPTS))
+from _test_support import load_run_py
 
-from run import (  # noqa: E402
-    _cis_coherence_confidence_caveat, _causal_attribution_caveat,
-    _context_generalization_caveat, _cis_coherence_provenance,
+_run = load_run_py(Path(__file__).resolve().parent.parent, "cis_run")
+_cis_coherence_confidence_caveat, _causal_attribution_caveat, _context_generalization_caveat, _cis_coherence_provenance = (
+    _run._cis_coherence_confidence_caveat, _run._causal_attribution_caveat,
+    _run._context_generalization_caveat, _run._cis_coherence_provenance,
 )
 
 

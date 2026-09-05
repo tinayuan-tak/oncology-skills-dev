@@ -9,27 +9,14 @@ and carry the two new fields — the facet dict is target-intrinsic's fan-out ca
 from __future__ import annotations
 
 import ast
-import importlib.util
 import inspect
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-
-def _load_run_module():
-    spec = importlib.util.spec_from_file_location("ti_run_under_test", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RUN = _load_run_module()
+RUN = load_run_py(SKILL_DIR, "ti_run_under_test")
 
 
 def _cards(**by_card):

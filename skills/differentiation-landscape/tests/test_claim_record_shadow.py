@@ -4,14 +4,13 @@ cross-check, and schema conformance. Consumed-by-nothing / verdict-inert."""
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as diff  # noqa: E402
+from _test_support import load_run_py
+
+diff = load_run_py(Path(__file__).resolve().parent.parent, "diff_run_claim_shadow")
 
 
 def _cards(n_pairs=80):

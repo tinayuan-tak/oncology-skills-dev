@@ -34,7 +34,6 @@ tumor-selectivity's replay.
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import runpy
 import sys
@@ -42,6 +41,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
@@ -52,15 +53,7 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 
-def _run_const():
-    """Import run.py once for its single-source-of-truth constant (the mechanism-mismatch verdict set)."""
-    spec = importlib.util.spec_from_file_location("_safety_run_const", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_SAFETY = _run_const()
+_SAFETY = load_run_py(SKILL_DIR, "_safety_run_const")
 _MISMATCH = set(_SAFETY._MECHANISM_MISMATCH_VERDICTS)   # the mutant-selective downgrade verdicts
 # A resolved safety verdict must never collapse to these for a target with real human-genetics data.
 _COLLAPSED = {None, "", "insufficient", "data_unavailable"}

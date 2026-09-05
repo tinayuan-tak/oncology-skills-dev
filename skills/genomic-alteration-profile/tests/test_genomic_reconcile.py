@@ -11,20 +11,11 @@ nomination spine (the composed gate reads the raw resolve_verdict_for_gate outpu
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("gap_run_rec", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-gap = _load()
+gap = load_run_py(Path(__file__).resolve().parent.parent, "gap_run_rec")
 UNCONFIRMED = "biomarker_dependency_unconfirmed"
 
 

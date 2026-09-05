@@ -4,24 +4,11 @@ Pins the class-rule → effector-verdict mapping + the honest insufficient when 
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS_DIR = RUN.resolve().parent.parent.parent
+from _test_support import load_run_py
 
-
-def _load():
-    if str(SKILLS_DIR) not in sys.path:
-        sys.path.insert(0, str(SKILLS_DIR))
-    spec = importlib.util.spec_from_file_location("ic_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-ic = _load()
+ic = load_run_py(Path(__file__).resolve().parent.parent, "ic_run")
 
 
 def _v(rule_id):

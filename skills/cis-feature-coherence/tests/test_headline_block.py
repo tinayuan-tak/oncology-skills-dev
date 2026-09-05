@@ -11,14 +11,12 @@ so — this skill being VERDICT-INERT / coherence-classifying — that verdict m
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SKILL_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-if str(SKILL_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SKILL_SCRIPTS))
+from _test_support import load_run_py
 
-from run import _headline, _cis_coherence_verdict_polarity  # noqa: E402
+_run = load_run_py(Path(__file__).resolve().parent.parent, "cis_run")
+_headline, _cis_coherence_verdict_polarity = _run._headline, _run._cis_coherence_verdict_polarity
 
 _VALID_CONFIDENCE = {"strong", "moderate", "weak", "insufficient"}
 _AXIS_KEYS = ["CIS_DOSAGE", "SILENCING", "EXPR_DEP", "CONJOINT"]

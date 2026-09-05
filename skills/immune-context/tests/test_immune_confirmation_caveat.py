@@ -20,24 +20,11 @@ Live panel these fixtures mirror (2026-09-04 baseline reads):
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS_DIR = RUN.resolve().parent.parent.parent
+from _test_support import load_run_py
 
-
-def _load():
-    if str(SKILLS_DIR) not in sys.path:
-        sys.path.insert(0, str(SKILLS_DIR))
-    spec = importlib.util.spec_from_file_location("ic_run_caveat", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-ic = _load()
+ic = load_run_py(Path(__file__).resolve().parent.parent, "ic_run_caveat")
 
 
 def _cards(immune_class, cd8, til_class=None, til_pct=None, til_n=None):

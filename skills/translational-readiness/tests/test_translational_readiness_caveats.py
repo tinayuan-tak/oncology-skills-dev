@@ -12,23 +12,13 @@ resolver / narrator is touched. Asserts the calibration behaviour the DETERMINIS
 MET/NSCLC PDX-attribution-confounded / BAP1/UVM honest-thin).
 """
 from __future__ import annotations
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-if str(SKILL_DIR.parent) not in sys.path:
-    sys.path.insert(0, str(SKILL_DIR.parent))
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tr_run_caveats", SKILL_DIR / "scripts" / "run.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-tr = _load()
+tr = load_run_py(SKILL_DIR, "tr_run_caveats")
 
 
 # ── synthetic headline builders (only the fields the caveats read) ──────────────────────────────────

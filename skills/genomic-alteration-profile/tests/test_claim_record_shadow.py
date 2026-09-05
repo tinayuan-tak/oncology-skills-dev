@@ -5,14 +5,13 @@ repo is checked out — full conformance to claim_record.schema.json. Consumed-b
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-import run as ga  # noqa: E402
+from _test_support import load_run_py
+
+ga = load_run_py(Path(__file__).resolve().parent.parent, "ga_run_claim")
 
 
 def _fired(*rule_ids):

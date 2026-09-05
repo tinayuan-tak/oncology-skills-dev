@@ -18,29 +18,16 @@ replay fixtures + the golden-oracle resolver are byte-identical.
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
-
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-
-def _load_run_module():
-    """Import run.py as a module (NOT __main__, so the dispatcher is not invoked) to reach its helpers."""
-    spec = importlib.util.spec_from_file_location("_diff_run_caveat_helpers", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 # ── the SHARP TMB/lineage-confound tier (the BRAF/COADREAD driver) ────────────────────────────────
 def test_tmb_confounded_driver_fires_sharp_on_cooccurring_component():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     cav = m._cooccurrence_confidence_caveat(hl, target="BRAF", indication="COADREAD")
@@ -53,7 +40,7 @@ def test_tmb_confounded_driver_fires_sharp_on_cooccurring_component():
 def test_tmb_confound_requires_a_cooccurring_component():
     """A curated-confounded target with ONLY a mutual-exclusivity component (no co-occurring driver) does
     NOT fire the confound tier — the confound is about the co-occurrence HUB, not the exclusivity."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "strong_mutually_exclusive", "has_cooccurring_driver": False,
           "has_mutually_exclusive_driver": True}
     cav = m._cooccurrence_confidence_caveat(hl, target="BRAF", indication="COADREAD")
@@ -62,7 +49,7 @@ def test_tmb_confound_requires_a_cooccurring_component():
 
 # ── the MILDER biologically-established FALSE-DEMOTE guard (KRAS/NRAS-class canonical MAPK exclusivity) ─
 def test_biologically_established_guard_spares_kras():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     cav = m._cooccurrence_confidence_caveat(hl, target="KRAS", indication="COADREAD")
@@ -73,7 +60,7 @@ def test_biologically_established_guard_spares_kras():
 def test_established_guard_outranks_data_cautions_even_on_modest_or_panel_absent():
     """The canonical-relationship guard must OUTRANK the low-effect / panel-ineligible data cautions — a
     KRAS/NRAS-class pair is never mislabelled significant-but-uninformative."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "modest_mutually_exclusive",
           "n_pairs_panel_intersect_eligible": 0, "n_pairs_per_source_only": 4000}
     cav = m._cooccurrence_confidence_caveat(hl, target="NRAS", indication="COADREAD")
@@ -83,7 +70,7 @@ def test_established_guard_outranks_data_cautions_even_on_modest_or_panel_absent
 def test_confound_outranks_established_on_the_driver():
     """When a target is in BOTH the confound set (co-occurrence hub) — precedence is confound (i) > guard
     (iii). (BRAF is only in the confound set here; this pins the ordering explicitly.)"""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     assert m._cooccurrence_confidence_caveat(hl, "BRAF", "COADREAD")["reason"] == "cooccurrence_tmb_or_lineage_confounded"
@@ -91,14 +78,14 @@ def test_confound_outranks_established_on_the_driver():
 
 # ── the SHARP significance≠actionability tier (near-universal / low-effect / panel-ineligible) ────────
 def test_near_universal_driver_fires_significance_ne_actionability():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "strong_mutually_exclusive", "has_mutually_exclusive_driver": True}
     cav = m._cooccurrence_confidence_caveat(hl, target="TP53", indication="COADREAD")
     assert cav and cav["reason"] == "significant_but_near_universal" and cav["tier"] == "sharp"
 
 
 def test_panel_absent_fires_low_effect_or_panel_ineligible():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "strong_cooccurring", "has_cooccurring_driver": True,
           "n_pairs_panel_intersect_eligible": 0, "n_pairs_per_source_only": 3961}
     cav = m._cooccurrence_confidence_caveat(hl, target="PCLO", indication="COADREAD")
@@ -106,7 +93,7 @@ def test_panel_absent_fires_low_effect_or_panel_ineligible():
 
 
 def test_modest_uncurated_fires_low_effect():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "modest_cooccurring",
           "n_pairs_panel_intersect_eligible": 50, "n_pairs_per_source_only": 10}
     cav = m._cooccurrence_confidence_caveat(hl, target="FOO", indication="COADREAD")
@@ -115,7 +102,7 @@ def test_modest_uncurated_fires_low_effect():
 
 # ── the None / byte-stable negative path ─────────────────────────────────────────────────────────
 def test_none_on_negative_and_honest_positive_paths():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     for cls in ("ns", "data_unavailable", "insufficient", None):
         assert m._cooccurrence_confidence_caveat({"cooccurrence_class": cls}, "X", "COADREAD") is None
     # a STRONG, panel-eligible, non-confounded, non-near-universal, uncurated pattern → no caveat
@@ -125,7 +112,7 @@ def test_none_on_negative_and_honest_positive_paths():
 
 
 def test_indication_alias_coad_read_map_to_coadread():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True}
     assert m._cooccurrence_confidence_caveat(hl, "BRAF", "COAD")["reason"] == "cooccurrence_tmb_or_lineage_confounded"
     assert m._cooccurrence_confidence_caveat(hl, "KRAS", "READ")["reason"] == "biologically_established_pattern"
@@ -133,7 +120,7 @@ def test_indication_alias_coad_read_map_to_coadread():
 
 # ── provenance quorum summary ────────────────────────────────────────────────────────────────────
 def test_provenance_none_on_negative_and_populated_on_positive():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     assert m._cooccurrence_provenance({"cooccurrence_class": "ns"}, "X", "COADREAD") is None
     hl = {
         "cooccurrence_class": "both_patterns_present", "cooccurrence_class_prefloor": "both_patterns_present",
@@ -158,7 +145,7 @@ def test_provenance_none_on_negative_and_populated_on_positive():
 
 def test_field_absent_safe():
     """Empty / partial headline must not raise (verdict-inert projection is best-effort)."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     assert m._cooccurrence_confidence_caveat({}, None, None) is None
     assert m._cooccurrence_provenance({}, None, None) is None
     assert m._clonality_caveat({}) is None
@@ -166,7 +153,7 @@ def test_field_absent_safe():
 
 # ── clonality caveat: cohort-level ≠ same-cell / clonal (the (c) sub-inflation, #1037) ─────────────
 def test_clonality_caveat_fires_on_cooccurring_path():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     for hl in (
         {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True},
         {"cooccurrence_class": "strong_cooccurring", "has_cooccurring_driver": True},
@@ -181,7 +168,7 @@ def test_clonality_caveat_fires_on_cooccurring_path():
 def test_clonality_caveat_none_on_exclusivity_only_and_negative_paths():
     """A pure mutual-exclusivity (no co-occurring component) and the ns/data_unavailable path → None
     (byte-stable). Clonality is a co-OCCURRENCE question; an exclusivity is an ABSENCE of co-mutation."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     assert m._clonality_caveat({"cooccurrence_class": "strong_mutually_exclusive",
                                 "has_cooccurring_driver": False, "has_mutually_exclusive_driver": True}) is None
     for cls in ("ns", "data_unavailable", "insufficient", None):
@@ -191,7 +178,7 @@ def test_clonality_caveat_none_on_exclusivity_only_and_negative_paths():
 def test_clonality_caveat_is_target_indication_independent():
     """Unlike the confound/established/near-universal tiers, the clonality caveat has NO curated crosswalk —
     it applies to EVERY pooled co-occurrence (incl. the KRAS false-demote-guarded pair)."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True}
     assert m._clonality_caveat(hl)["reason"] == "cohort_not_same_cell_clonal"
 
@@ -200,7 +187,7 @@ def test_clonality_caveat_is_target_indication_independent():
 #    gene-level, so the canonical signals do not vanish outside COADREAD. The TMB/lineage confound stays
 #    (target,indication)-specific and OUTRANKS the pan-cancer guard. ────────────────────────────────────────
 def test_mapk_exclusivity_guard_is_pan_cancer_gene_level():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     # KRAS/NRAS/BRAF are spared as biologically-established in ANY indication (not just COADREAD)
@@ -213,7 +200,7 @@ def test_mapk_exclusivity_guard_is_pan_cancer_gene_level():
 def test_braf_coadread_confound_outranks_the_pan_cancer_mapk_guard():
     """BRAF ∈ the pan-cancer MAPK gene-set, but BRAF/COADREAD is still the TMB-confounded co-occurrence hub —
     the (target,indication) confound OUTRANKS the gene-level established guard."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     assert m._cooccurrence_confidence_caveat(hl, "BRAF", "COADREAD")["reason"] == "cooccurrence_tmb_or_lineage_confounded"
@@ -222,7 +209,7 @@ def test_braf_coadread_confound_outranks_the_pan_cancer_mapk_guard():
 
 
 def test_tp53_near_universal_is_pan_cancer_gene_level():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True}
     for ind in ["BRCA", "LUAD", "LUSC", "OV", "HNSC", "COADREAD"]:
         cav = m._cooccurrence_confidence_caveat(hl, target="TP53", indication=ind)
@@ -230,7 +217,7 @@ def test_tp53_near_universal_is_pan_cancer_gene_level():
 
 
 def test_nsclc_rtk_driver_exclusivity_explicit_rows():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     for ind in ["LUAD", "LUSC", "NSCLC"]:
@@ -242,7 +229,7 @@ def test_nsclc_rtk_driver_exclusivity_explicit_rows():
 def test_idh1_gbm_lineage_confound_arm():
     """IDH1/GBM exercises the LINEAGE arm of the confound tier (IDH-mutant glioma is a distinct WHO-2021
     lineage) — the analog of the BRAF/COADREAD TMB arm."""
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_caveat_helpers")
     hl = {"cooccurrence_class": "both_patterns_present", "has_cooccurring_driver": True,
           "has_mutually_exclusive_driver": True}
     cav = m._cooccurrence_confidence_caveat(hl, "IDH1", "GBM")

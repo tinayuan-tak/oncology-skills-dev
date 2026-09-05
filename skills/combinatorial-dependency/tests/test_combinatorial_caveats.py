@@ -8,30 +8,19 @@ Covers the VERDICT-INERT enrichment over the measured DepMap ParalogV2 combinato
 
 Pure caveat tests use synthetic headline dicts (no card / no LLM). SET literals, not 2-string tuples."""
 from __future__ import annotations
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
+from _test_support import load_run_py
+from _skills_common.narrator_lenses import COMBINATORIAL_DEPENDENCY, LENSES
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_DIR = SKILL_DIR.parent
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
-
-from _skills_common.narrator_lenses import COMBINATORIAL_DEPENDENCY, LENSES  # noqa: E402
-
-
-def _run():
-    spec = importlib.util.spec_from_file_location("cmb_run_caveats", SKILL_DIR / "scripts" / "run.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 @pytest.fixture(scope="module")
 def M():
-    return _run()
+    return load_run_py(SKILL_DIR, "cmb_run_caveats")
 
 
 def _hl(verdict="constitutive_combinatorial_dependency", n_screened=6, n_interacting=1,

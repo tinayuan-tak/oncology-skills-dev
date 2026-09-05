@@ -3,15 +3,11 @@
 immune_cold = conditional (efficacy risk, NOT a veto — CIBERSORT is a relative, non-spatial screen).
 Pure over the verdict; no S3/LLM."""
 from __future__ import annotations
-import sys
-import importlib.util as u
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS = RUN.parents[2]
-sys.path.insert(0, str(SKILLS))
-_spec = u.spec_from_file_location("run_ic_test", RUN)
-m = u.module_from_spec(_spec); sys.modules["run_ic_test"] = m; _spec.loader.exec_module(m)
+from _test_support import load_run_py
+
+m = load_run_py(Path(__file__).resolve().parent.parent, "run_ic_test")
 
 
 def test_bite_tce_only_and_immune_cold_is_conditional_not_veto():

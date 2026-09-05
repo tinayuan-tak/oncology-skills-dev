@@ -9,20 +9,11 @@ must supply every card the skill declares (me.CARDS); we populate only the tahoe
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("me_run", RUN)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-me = _load()
+me = load_run_py(Path(__file__).resolve().parent.parent, "me_run")
 
 # summary uses the SOURCE field names (n_perturbing_drugs, strongest_mover_drug, ...); _headline maps
 # them to the tahoe_-prefixed output keys.

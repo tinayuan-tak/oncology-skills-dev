@@ -12,7 +12,6 @@ replay fixtures and CD19) is byte-identical.
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import runpy
 import sys
@@ -21,6 +20,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
@@ -31,17 +32,9 @@ if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
 
-def _load_run_module():
-    """Import run.py as a module (NOT __main__, so the dispatcher is not invoked) to reach its helpers."""
-    spec = importlib.util.spec_from_file_location("_diff_run_helpers", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
 # ── the helper contract (panel-absent detection) ────────────────────────────────────────────────
 def test_panel_absent_signal_fires_only_for_scanned_panel_absent_target():
-    m = _load_run_module()
+    m = load_run_py(SKILL_DIR, "_diff_run_helpers")
     # panel-ABSENT but scanned (PCLO/COADREAD regime): eligible=0, per-source>0 → caveat fires
     cav = m._panel_absent_signal({"n_pairs_panel_intersect_eligible": 0, "n_pairs_per_source_only": 3961})
     assert cav and "panel-intersect" in cav and "3961" in cav

@@ -1,9 +1,11 @@
 """combo-and-resistance skill — hermetic verdict tests (no S3)."""
 from __future__ import annotations
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from run import _verdict, _resistance_verdict, _headline  # noqa: E402
+
+from _test_support import load_run_py
+
+_run = load_run_py(Path(__file__).resolve().parent.parent, "combo_run")
+_verdict, _resistance_verdict, _headline = _run._verdict, _run._resistance_verdict, _run._headline
 
 
 def _f(*ids): return [{"rule_id": r, "card_id": "combo-crispr-screen"} for r in ids]
