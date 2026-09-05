@@ -1,0 +1,23 @@
+{
+  "$comment": "PER-SKILL PINS (source) for translational-readiness. VARIANT = gateless-descriptive: verdict_fn=None → skill_report.call is NULL (build_skill_report may even omit driving_rule_id); role:descriptive + polarity:not_scored const. PARTIAL skill — MULTI-VECTOR (model_availability_class, genotype_matched_class, organoid_dependency_class, pdx_drug_response_class) with NO single headline verdict field → schema-open. Append-only within contract major version.",
+  "skill": "translational-readiness",
+  "role_variant": "gateless_descriptive",
+  "pins": {
+    "properties": {
+      "skill": {"const": "translational-readiness"},
+      "headline": {
+        "type": "object",
+        "properties": {
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"type": "null"},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
