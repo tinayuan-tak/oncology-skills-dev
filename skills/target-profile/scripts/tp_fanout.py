@@ -22,6 +22,7 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from _skills_common import resolve_cards, fired_rules
+from _skills_common.evidence_graph import build_evidence_graph, load_questions
 from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.compose_core import subskill_composition
 from _skills_common.card_preprocessors import preprocess_cards_for_gate
@@ -84,6 +85,20 @@ def _load_sub_skill_facet_fn(skill_dir_name: str) -> Any:
         _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
         module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
     return getattr(module, "_synthesis_facet", None) if module is not None else None
+
+
+def _load_sub_skill_headline_fn(skill_dir_name: str) -> Any:
+    """Return a sub-skill's OPTIONAL `_headline(cards, fired, verdict_pair[, target, indication]) -> dict`,
+    or None. Same uniform module hook as `_load_sub_skill_facet_fn`. Used ONLY to reconstruct a headline
+    (with `evidence_capsules` + `subgroup_signals`) so `build_evidence_graph` can be called in composition
+    exactly as the standalone dispatcher calls it — the composed fan-out otherwise never builds a headline.
+    VERDICT-INERT + DISPLAY-ONLY: the headline is recomputed purely to project the evidence_graph and never
+    re-enters `fired`/`verdict`/`cards` or the resolver."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    return getattr(module, "_headline", None) if module is not None else None
 
 
 def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
@@ -1050,6 +1065,43 @@ def _run_sub_skills(target: str, indication: str,
         if (isinstance(synthesis_facet, dict) and synthesis_facet.get("presence_verdict") and verdict_pair):
             stored_verdict = (synthesis_facet["presence_verdict"],
                               verdict_pair[1] if len(verdict_pair) > 1 else None)
+        # OPTIONAL evidence_graph CARRY (P2, composed-evidence-graph rollup; docs/COMPOSED_EVIDENCE_GRAPH_ROLLUP.md §1).
+        # Best-effort + VERDICT-INERT + DISPLAY-ONLY. The fan-out never builds a headline, so reconstruct the
+        # sub-skill's headline (evidence_capsules + subgroup_signals) via its _headline hook and call
+        # build_evidence_graph EXACTLY as the standalone dispatcher does (dispatcher.py:669/908), then stash the
+        # graph on the skill_report so tp_facets._skill_reports_by_short carries it to
+        # target_report.skill_reports[<short>].evidence_graph. The embedded lens view then renders from the SAME
+        # graph as the standalone dashboard. Absence of a _headline hook / any failure → no graph attached;
+        # sub_verdicts / target_call / cards / fired are untouched (byte-stable). The reconstructed headline is
+        # NEVER stored or re-fed to the resolver — it exists only to project the display graph.
+        if isinstance(synthesis_facet, dict) and isinstance(synthesis_facet.get("skill_report"), dict):
+            try:
+                _hl_fn = _load_sub_skill_headline_fn(skill_dir)
+                _eg_headline = {}
+                if _hl_fn is not None:
+                    _hl_kwargs = {}
+                    try:
+                        _hp = inspect.signature(_hl_fn).parameters
+                        if "target" in _hp:
+                            _hl_kwargs["target"] = target
+                        if "indication" in _hp:
+                            _hl_kwargs["indication"] = indication
+                    except (ValueError, TypeError):
+                        _hl_kwargs = {}
+                    try:
+                        _eg_headline = _hl_fn(cards, fired, verdict_pair, **_hl_kwargs) or {}
+                    except Exception:  # noqa: BLE001 — headline recompute failed (e.g. missing cards on a
+                        _eg_headline = {}  # gateless skill) → still emit a partial graph (cards+fired+questions)
+                _eg_decision = {
+                    "skill": skill_dir, "target": target, "indication": indication,
+                    "headline": _eg_headline, "cards": cards, "fired_rules": fired,
+                    "literature_synthesis": synthesis_facet.get("literature_synthesis"),
+                    "llm_synthesis": llm_synthesis,   # present only under --synthesize-subskills; else narrative={}
+                }
+                synthesis_facet["skill_report"]["evidence_graph"] = build_evidence_graph(
+                    _eg_decision, questions=load_questions(SKILLS_DIR / skill_dir))
+            except Exception:  # noqa: BLE001 — a display projection must never break the fan-out
+                pass
         return short, {
             "skill_dir": skill_dir,
             "cards": cards,
