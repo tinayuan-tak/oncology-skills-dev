@@ -6,7 +6,7 @@ distribute across cancer cell lines vs. tumor samples, at RNA, whole-cell protei
 and single-cell resolution?" This is a Phase-A (presence) question — distinct from
 Phase-B selectivity vs. normals (`tumor-selectivity`).
 
-Reads 14 pre-computed cards across three measurement layers (bulk RNA, bulk protein
+Reads 17 pre-computed cards across three measurement layers (bulk RNA, bulk protein
 MS, single-cell RNA) and emits a collapsed one-word `presence_verdict` PLUS one
 sub-verdict per `(measurement, sample_context)` bucket, so a cell-line signal is never
 conflated with a tumor signal and cross-modal tension is legible. Does not recompute
@@ -14,7 +14,7 @@ any DGE; does not compare against GTEx population-normal (that is `tumor-selecti
 
 This file is a THIN configuration over the shared dispatcher (`_skills_common`). The
 live logic is four pieces:
-  1. CARDS + CARD_CONTEXT   — the 14 cards, each tagged with its (measurement,
+  1. CARDS + CARD_CONTEXT   — the 17 cards, each tagged with its (measurement,
                               sample_context) bucket.
   2. THREE ladders          — _EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK: ordered
                               (rule_id -> verdict) lists, one per measurement layer.
@@ -268,7 +268,7 @@ def _presence_headline_block(headline: dict) -> dict:
 SKILL_NAME = "tumor-presence"
 SKILL_VERSION = "1.20.0"   # 1.20.0 (2026-09-04): CONSOLIDATED presence_confirmation_caveat (folds the already-computed protein_confirmation_state / abundance_floor_flag / sc_expression_class + caf / cell_line_vs_tumor / HPA-IHC signals into ONE consumer-facing malignant-cell-PROTEIN-confirmed-vs-bulk-RNA/cell-line/stromal-annotated call; tiers malignant_compartment_unconfirmed [FAP/stromal driver] / rna_or_cellline_present_protein_unconfirmed [RNA-proxy] / protein_confirmed_malignant_present + clinically_precedented_antigen_present [false-demote guard, EPCAM/FOLR1 spared]) + presence_provenance quorum + compartment_note + TUMOR_PRESENCE thesis/polarity_note (was NONE) + refined --literature _LENS_QUERY_TERMS. VERDICT-INERT (reads only headline fields, feeds no rule → presence_verdict + presence_verdict_by_modality + goldens byte-stable).   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
-# The 14 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
+# The 17 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
 # the headline / synthesis facet but touches no ladder, so the presence spine is byte-stable).
 CARDS = [
@@ -281,7 +281,8 @@ CARDS = [
     "tumor-elevation-breadth",           # pan-cancer K-of-N tumor-elevation (target-grain)
     "tumor-scrna-celltype-expression",   # single-cell per-compartment tumor presence (sc_rna/tumor)
 
-    # ── DISPLAY-ONLY facets (6) — additive context, feed no ladder ────────────
+    # ── DISPLAY-ONLY facets (8 total: the 6 here + cellline-protein-abundance-procan
+    #    + hpa-pathology-cancer-ihc below) — additive context, feed no ladder ────────────
     "tumor-rna-distribution-by-subtype",     # per-molecular-subtype tumor RNA panorama
     "cellline-rna-distribution-by-subtype",  # cell-line RNA by DepMap driver subtype (COADREAD proof)
     "tumor-protein-distribution-by-subtype", # per-molecular-subtype tumor PROTEIN panorama (CPTAC MSI, COADREAD)

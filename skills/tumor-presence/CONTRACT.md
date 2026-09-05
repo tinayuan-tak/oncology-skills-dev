@@ -10,7 +10,7 @@ them live here. See [SKILL.md](SKILL.md) for the user-facing contract and flags,
 
 `tumor-presence` answers a Phase-A question: *is target X present in indication Y's
 tumor tissue, and how does it distribute across cancer cell lines vs. tumor samples, at
-RNA, whole-cell protein, and single-cell resolution?* It reads 14 pre-computed cards and
+RNA, whole-cell protein, and single-cell resolution?* It reads 17 pre-computed cards and
 emits:
 
 - a collapsed one-word `presence_verdict` (+ `driving_rule_id`), and
@@ -23,7 +23,7 @@ It reads pre-computed derived products; it does **not** recompute any DGE, and i
 
 ## The four moving parts in run.py
 
-1. **`CARDS` + `CARD_CONTEXT`** — the 14 cards consumed, each tagged with its
+1. **`CARDS` + `CARD_CONTEXT`** — the 17 cards consumed, each tagged with its
    `(measurement, sample_context)` bucket. `CARD_CONTEXT` mirrors the `measurement:` /
    `sample_context:` tags in `target-contracts/cards/*.card.yaml`; a drift test
    (`test_card_context_matches_target_contracts_specs`) asserts they agree.
@@ -39,17 +39,19 @@ It reads pre-computed derived products; it does **not** recompute any DGE, and i
 `run.py`'s entry point hands these to `run_wired_skill(...)`, which runs
 `resolve_cards -> fired_rules -> verdict_fn -> headline_fn -> write_package`.
 
-## Card roster (14)
+## Card roster (17)
 
 **Verdict-bearing (7)** — feed the presence ladders:
 `cellline-rna-distribution`, `tumor-rna-vs-adjacent`, `tumor-rna-distribution`,
 `tumor-protein-abundance-cptac`, `cellline-protein-abundance`, `tumor-elevation-breadth`,
 `tumor-scrna-celltype-expression`.
 
-**Display-only facets (5)** — additive context, feed no ladder (verdict byte-stable):
+**Display-only facets (8)** — additive context, feed no ladder (verdict byte-stable):
 `tumor-rna-distribution-by-subtype`, `cellline-rna-distribution-by-subtype`,
-`expression-purity-confound`, `cellline-rna-protein-concordance`,
-`rna-protein-concordance-tumor`.
+`tumor-protein-distribution-by-subtype` (CPTAC protein by-subtype), `expression-purity-confound`,
+`cellline-rna-protein-concordance`, `rna-protein-concordance-tumor`,
+`cellline-protein-abundance-procan` (2nd MS platform, ProCan DIA — v1.19),
+`hpa-pathology-cancer-ihc` (MS-independent antibody IHC protein-in-tumor, `protein_ihc/tumor` — v1.15).
 
 **Normal-tissue safety comparators (2)** — verdict-inert; they *frame* the presence read,
 but the safety verdict itself is owned by `on-target-safety-liability`:

@@ -27,6 +27,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import runpy
 import sys
 from pathlib import Path
@@ -109,6 +110,23 @@ def test_fixture_is_nonvacuous():
     assert len(real) >= 12, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary — refreeze against live "
         f"S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+
+
+def test_replay_conforms_to_data_product_schema(epcam_decision):
+    """LOAD-BEARING output-drift guard: the FRESH emit from the real run.py must validate against the
+    finalized data-product schema. Unlike the static golden, this runs run.py end-to-end, so a code
+    change that drops a required key, flips role/polarity, or emits an undeclared presence_verdict token
+    fails here. Uses the shared _skills_common helper (SKILLS_ROOT is already on sys.path above).
+    CI-liveness: absence of the schema FAILS in CI, SKIPS locally."""
+    from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
+
+    schema = load_schema("tumor-presence")
+    if schema is None:
+        reason = f"data-product schema not found at {schema_path('tumor-presence')}"
+        pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
+    errors = conformance_errors(schema, epcam_decision)
+    assert not errors, "FRESH replay emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
 
 
 def test_replay_verdict_resolves_positive(epcam_decision):
