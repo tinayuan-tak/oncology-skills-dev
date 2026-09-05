@@ -564,11 +564,50 @@ COMBINATION_VULNERABILITY = LensConfig(
 
 TARGET_INTRINSIC = LensConfig(
     name="target-intrinsic",
-    thesis="the indication-INDEPENDENT intrinsic target dossier — modality routing (surface vs intracellular), "
-           "annotation/characterization, interactome hubness, and tractability precedent.",
-    relevance_prompt="give the intrinsic target-biology context read (descriptive dossier; no nomination call).",
+    thesis="the indication-INDEPENDENT intrinsic target dossier — protein family/class, fold + pockets + "
+           "ligandability, surfaceome family, localization/biophysics, germline LoF constraint, and "
+           "tractability precedent — distinguishing an EXPERIMENTALLY-CONFIRMED actionable intrinsic "
+           "property (a co-crystallised druggable pocket with a bound ligand / an approved drug — BRAF, "
+           "EGFR, KRAS-G12C) from a PREDICTED or HOMOLOGY-ANNOTATED one (a computational / AlphaFold pocket "
+           "with no co-crystal, a family/surfaceome-class membership assigned by homology, or a "
+           "population-genetic / OT-composite META-SCORE) that OVER-CALLS confirmed function or "
+           "druggability — annotation depth / significance ≠ actionability.",
+    relevance_prompt="give the intrinsic target-biology context read (descriptive dossier; no nomination "
+                     "call). Foreground whether the actionability-relevant intrinsic signal is "
+                     "EXPERIMENTALLY confirmed vs computationally / homology annotated.",
     axis_labels={"MODALITY_ROUTING": "modality routing", "TRACTABILITY_PRECEDENT": "tractability precedent"},
-    scope_exclusions=("indication-conditioned nomination verdict",),
+    scope_exclusions=("indication-conditioned nomination verdict",
+                      "the SM druggability call (owned by tractability-small-molecule)",
+                      "the biologics surface-fit call (owned by surface-modality-fit)",
+                      "the on-target safety verdict (owned by on-target-safety-liability)"),
+    # NARRATOR RULE: this is a DESCRIPTIVE indication-INDEPENDENT dossier (gateless — no nomination call).
+    # LEAD by separating an EXPERIMENTALLY-confirmed intrinsic property from a PREDICTED / HOMOLOGY-annotated
+    # one, then name the inflation modes the raw dossier cannot self-distinguish.
+    polarity_note=(
+        "This is a DESCRIPTIVE indication-INDEPENDENT dossier — there is NO nomination verdict; do NOT imply "
+        "the dossier nominates the target. LEAD by stating whether the actionability-relevant intrinsic "
+        "signal is EXPERIMENTALLY CONFIRMED vs PREDICTED / HOMOLOGY-ANNOTATED (read "
+        "intrinsic_confirmation_caveat / intrinsic_provenance: reason "
+        "experimentally_confirmed_intrinsic_property — a co-crystallised druggable pocket with a bound "
+        "ligand or an approved drug, e.g. BRAF / EGFR / KRAS-G12C — is NOT an over-call and must NOT be "
+        "demoted, even if a structure lane reads a target thin/predicted). Then name the inflation modes: "
+        "(a) STRUCTURE / LIGANDABILITY — a PREDICTED (AlphaFold / computational) or InterPro-annotated "
+        "druggable pocket with NO experimental co-crystal / fragment hit (structural_ligandability_class "
+        "predicted_ligandable / annotation_ligandable) OVER-CALLS an experimentally-confirmed druggable "
+        "pocket, especially on an intrinsically-disordered / pocketless surface (MYC); (b) FAMILY / "
+        "HOMOLOGY — a family or surfaceome-class membership assigned by homology (EC-number / domain / HPA "
+        "class) does NOT prove function or druggability: a PSEUDOKINASE sits in the kinase family yet is "
+        "catalytically dead (TRIB1/TRIB2), and a bare 'plasma membrane' / SURFY prediction can tag a "
+        "cytoplasmic-face or junctional protein as surface without confirmed extracellular topology; "
+        "(c) META-SCORE / DOUBLE-COUNT — gnomAD LoF constraint and the Open Targets prioritisation "
+        "composite are meta-scores, and the OT composite DOUBLE-COUNTS the dedicated gnomad-lof-constraint "
+        "and mouse-ko-phenotype cards (orientation-only, not an independent vote); (d) SIGNIFICANCE / "
+        "COMPLETENESS ≠ ACTIONABILITY — a heavily-annotated, high-TDL (Tclin) target is better-STUDIED, not "
+        "necessarily a better target, and a genuinely actionable target can be MISSED / understudied "
+        "(Tdark = understudied, not adverse; KRAS was called 'undruggable' pre-2013). The SM-druggability "
+        "call is owned by tractability-small-molecule, the biologics surface-fit call by surface-modality-"
+        "fit, and the safety verdict by on-target-safety-liability — breadcrumb, do not adjudicate them "
+        "here. NEVER invent a PDB ID, pocket, ligand, PMID, or numeric ligandability score."),
     mode="descriptive",
 )
 

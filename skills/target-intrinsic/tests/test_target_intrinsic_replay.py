@@ -149,3 +149,17 @@ def test_replay_headline_block_descriptive_and_verdict_inert(egfr_decision):
     assert blk["confidence"]["level"] in ("strong", "moderate", "weak", "insufficient")
     assert [a["key"] for a in blk["hero"]["axes"]] == ["MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"]
     assert blk["headline_text"].endswith(".")
+
+
+def test_replay_intrinsic_confirmation_caveat_guards_egfr(egfr_decision):
+    """v1.6.0 verdict-INERT surface (offline CI guard): EGFR is a co-crystal-confirmed, approved-drug kinase
+    → the intrinsic_confirmation_caveat must resolve the MILDER experimentally_confirmed_intrinsic_property
+    GUARD (never demoted), and intrinsic_provenance must confirm the property + flag the OT double-count."""
+    h = egfr_decision.get("headline") or {}
+    cav = h.get("intrinsic_confirmation_caveat")
+    assert isinstance(cav, dict), "no intrinsic_confirmation_caveat on the EGFR replay"
+    assert cav["reason"] == "experimentally_confirmed_intrinsic_property", (
+        f"EGFR (approved-drug, co-crystal) must be GUARDED, not flagged inflated; got {cav['reason']!r}")
+    prov = h.get("intrinsic_provenance") or {}
+    assert prov.get("experimentally_confirmed_actionable_property") is True
+    assert prov.get("ot_composite_double_counts_dedicated_cards") is True

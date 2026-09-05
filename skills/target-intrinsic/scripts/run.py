@@ -29,6 +29,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import TARGET_INTRINSIC as _LENS
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common import get_card_field
 from _skills_common.target_intrinsic_question_table import target_intrinsic_question_table
 from _skills_common.target_intrinsic_claims import (
@@ -71,7 +73,7 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.5.1"   # 1.5.1 (2026-09-02): _TARGET_INTRINSIC_VALUE_TIERS aligned to live card vocab (dead keys removed; positive subgroup signals no longer flip to `absent`). Verdict-INERT (subgroup --figures only).   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.6.0"   # 1.6.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(TARGET_INTRINSIC); None-indication path via _indication_phrase->'cancer') + VERDICT-INERT experimental-vs-predicted INFLATION surfacing (intrinsic_confirmation_caveat = an AlphaFold/computational or homology-annotated actionable property [predicted_ligandable / annotation_ligandable pocket, predicted-surface, family-by-homology] over-calling a co-crystal-confirmed one, OR a meta-score / OT-composite double-count; experimentally_confirmed_intrinsic_property false-demote guard, pan-target gene-level BRAF/EGFR/KRAS-G12C; intrinsic_provenance quorum). Built on BOTH _headline AND the self-contained _synthesis_facet (fan-out carrier). TARGET_INTRINSIC thesis extend + ADD polarity_note. Gateless (verdict_fn=None) — dossier byte-stable.   # 1.5.1 (2026-09-02): _TARGET_INTRINSIC_VALUE_TIERS aligned to live card vocab (dead keys removed; positive subgroup signals no longer flip to `absent`). Verdict-INERT (subgroup --figures only).   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
@@ -137,10 +139,35 @@ _HEADLINE_SPEC = [
     ("mouse_ko_phenotype_class",      "mouse-ko-phenotype",               "ko_phenotype_class"),
     # target-safety-prioritisation is ORIENTATION-ONLY (safety dim overlaps constraint + mouse-KO)
     ("target_safety_prioritisation",  "target-safety-prioritisation",     "prioritisation_status"),
+    # OT composite bands — surfaced to make the DOUBLE-COUNT explicit: genetic_constraint_band mirrors the
+    # dedicated gnomad-lof-constraint card, mouse_ko_score_band mirrors mouse-ko-phenotype (same underlying
+    # facts). Orientation-only; intrinsic_provenance flags the double-count so they are not read as votes.
+    ("ot_genetic_constraint_band",    "target-safety-prioritisation",     "genetic_constraint_band"),
+    ("ot_mouse_ko_score_band",        "target-safety-prioritisation",     "mouse_ko_score_band"),
+    ("ot_has_safety_event_band",      "target-safety-prioritisation",     "has_safety_event_band"),
     # protein class / structure / biophysics
     ("surface_protein_family",        "surfaceome-family-classification", "family_class"),
     ("is_surface_protein",            "surfaceome-family-classification", "is_surface_protein"),
+    # surfaceome PROVENANCE — experimental HPA plasma-membrane vs SURFY prediction vs IUPHAR type; the
+    # predicted-surface-vs-experimental-localization discriminator (a bare SURFY/plasma-membrane call can
+    # tag a cytoplasmic-face / junctional protein as surface without confirmed extracellular topology).
+    ("surface_source_surfy_positive", "surfaceome-family-classification", "source_surfy_positive"),
+    ("surface_source_hpa_plasma_membrane", "surfaceome-family-classification", "source_hpa_plasma_membrane"),
+    ("surfaceome_confidence_score",   "surfaceome-family-classification", "surfaceome_confidence_score"),
     ("structure_pocket_call",         "structure-features-static",        "hotspot_pocket_adjacency_call"),
+    # STRUCTURE / LIGANDABILITY experimental-vs-predicted provenance — the core of the target-intrinsic
+    # trap (a computational / AlphaFold pocket over-calling a co-crystal-confirmed druggable pocket). These
+    # decision-grade fields already exist on the card (PDB-vs-AlphaFold tagged); surface them so the
+    # dossier — and intrinsic_confirmation_caveat — can separate experimental_ligandable from predicted.
+    ("structural_ligandability_class","structure-features-static",        "structural_ligandability_class"),
+    ("has_experimental_cocrystal",    "structure-features-static",        "has_experimental_cocrystal"),
+    ("has_druggable_pocket",          "structure-features-static",        "has_druggable_pocket"),
+    ("has_virtual_screen_hit",        "structure-features-static",        "has_virtual_screen_hit"),
+    ("pdb_coverage_class",            "structure-features-static",        "pdb_coverage_class"),
+    ("alphafold_confidence_class",    "structure-features-static",        "alphafold_confidence_class"),
+    ("structure_disordered_fraction", "structure-features-static",        "disordered_fraction"),
+    ("ligandability_disorder_class",  "structure-features-static",        "ligandability_disorder_class"),
+    ("n_ligandability_axes",          "structure-features-static",        "n_ligandability_axes"),
     # measured chemical matter (borrowed from tractability-small-molecule; intrinsic druggability)
     ("measured_bioactivity_class",    "measured-potency-tractability",    "measured_bioactivity_class"),
     ("chembl_n_potent_ligands",       "measured-potency-tractability",    "chembl_n_potent_ligands"),
@@ -190,6 +217,215 @@ _HEADLINE_SPEC = [
 ]
 
 
+# ── VERDICT-INERT experimental-vs-predicted / annotation INFLATION surfacing (2026-09-04) ────────
+# The target-intrinsic analog of tractability's directness_caveat / surface's surface_confirmation_caveat
+# / mechanism's mechanism_confirmation_caveat. A PREDICTION (AlphaFold / computational ligandability) or a
+# HOMOLOGY-annotated family/surface membership OVER-CALLS an EXPERIMENTALLY-CONFIRMED actionable intrinsic
+# property; and a population-genetic / OT-composite META-SCORE gets read as actionability (the OT composite
+# DOUBLE-COUNTS the dedicated gnomad-lof + mouse-ko cards). VERDICT-INERT — target-intrinsic is gateless
+# (verdict_fn=None); none of this feeds a resolver (there is none). Built on BOTH the standalone _headline
+# (all 20 cards resolved → the full structural over-call) AND the composed _synthesis_facet (its own 8-card
+# subset — structure/surfaceome/safety/gnomad cards are HOME'd elsewhere and ABSENT there, so those fields
+# degrade to None and the symbol-keyed guard + annotation tier still carry it), so the composed profile
+# carries the field rather than silently dropping it.
+
+# INDICATION-INDEPENDENT, gene-level, NON-EXHAUSTIVE curated crosswalk of targets with an approved /
+# clinically-validated directly-acting agent — the EXPERIMENTALLY-CONFIRMED actionable-property false-demote
+# GUARD (the BRAF / EGFR / KRAS-G12C + validated-surface-antigen set). Keyed on SYMBOL (presence),
+# data-blind-tolerant: it spares the guard EVEN IF a structure lane reads the target thin/predicted (the
+# #1042 validated_paralog_synthetic_lethal lesson; the post-land sweep requirement). Disclaimed: an ABSENT
+# target is NOT penalised — it gets the honest structural read (experimental_ligandable resolves the guard on
+# its own). SET literal (NOT a 2-tuple — a 2-string tuple is misread as a (rule_id, verdict) precedence pair
+# by the reference-drift guard).
+_VALIDATED_INTRINSIC_PROPERTY = {
+    # SM active-site / covalent / allosteric — approved directly-acting agents, co-crystal-confirmed pockets
+    "BRAF", "EGFR", "KRAS", "ERBB2", "ALK", "MET", "KIT", "ABL1", "BCR", "ROS1", "RET", "FGFR2",
+    "PIK3CA", "BTK", "JAK2", "CDK4", "CDK6", "IDH1", "IDH2", "FLT3",
+    # clinically-validated SURFACE antigens (biologics — ADC / TCE / CAR)
+    "MS4A1", "CD19", "TNFRSF17", "DLL3", "FOLR1", "TACSTD2", "CD22", "SDC1", "CEACAM5", "NECTIN4",
+}
+
+# structural_ligandability_class tokens that assert a druggable pocket from PREDICTION / HOMOLOGY (AlphaFold
+# / computational trusted-axis, or an InterPro-annotated binding site) with NO experimental co-crystal — the
+# SHARP over-call. `experimental_ligandable` (co-crystal present) is the guard; disordered_low /
+# no_ligandability_signal / insufficient_evidence / data_unavailable are honest negatives, not over-calls.
+_PREDICTED_LIGANDABILITY = {"predicted_ligandable", "annotation_ligandable"}
+
+
+def _g(cards, card_id, field):
+    """get_card_field that TOLERATES an absent card (returns None). The composed _synthesis_facet resolves
+    only target-intrinsic's 8 EXCLUSIVE cards, so structure-features-static / surfaceome-family-classification
+    / target-safety-prioritisation / gnomad-lof-constraint are absent there and get_card_field would raise —
+    None-degrade cleanly on both paths."""
+    try:
+        return get_card_field(cards, card_id, field)
+    except KeyError:
+        return None
+
+
+def _intrinsic_actionability_fields(cards) -> dict:
+    """Assemble the experimental-vs-predicted / meta-score fields the caveat + provenance read, tolerant of
+    the composed-facet card subset (structure/surfaceome/safety/gnomad absent → None)."""
+    return {
+        "structural_ligandability_class": _g(cards, "structure-features-static", "structural_ligandability_class"),
+        "has_experimental_cocrystal":     _g(cards, "structure-features-static", "has_experimental_cocrystal"),
+        "has_druggable_pocket":           _g(cards, "structure-features-static", "has_druggable_pocket"),
+        "has_virtual_screen_hit":         _g(cards, "structure-features-static", "has_virtual_screen_hit"),
+        "pdb_coverage_class":             _g(cards, "structure-features-static", "pdb_coverage_class"),
+        "alphafold_confidence_class":     _g(cards, "structure-features-static", "alphafold_confidence_class"),
+        "disordered_fraction":            _g(cards, "structure-features-static", "disordered_fraction"),
+        "ligandability_disorder_class":   _g(cards, "structure-features-static", "ligandability_disorder_class"),
+        "n_ligandability_axes":           _g(cards, "structure-features-static", "n_ligandability_axes"),
+        "is_surface_protein":             _g(cards, "surfaceome-family-classification", "is_surface_protein"),
+        "surface_protein_family":         _g(cards, "surfaceome-family-classification", "family_class"),
+        "source_surfy_positive":          _g(cards, "surfaceome-family-classification", "source_surfy_positive"),
+        "source_hpa_plasma_membrane":     _g(cards, "surfaceome-family-classification", "source_hpa_plasma_membrane"),
+        "surfaceome_confidence_score":    _g(cards, "surfaceome-family-classification", "surfaceome_confidence_score"),
+        "gnomad_constraint_class":        _g(cards, "gnomad-lof-constraint", "constraint_class"),
+        "ot_prioritisation_status":       _g(cards, "target-safety-prioritisation", "prioritisation_status"),
+        "ot_genetic_band":                _g(cards, "target-safety-prioritisation", "genetic_constraint_band"),
+        "ot_mouse_ko_band":               _g(cards, "target-safety-prioritisation", "mouse_ko_score_band"),
+        "go_annotation_class":            _g(cards, "gene-ontology-annotation", "annotation_class"),
+        "interactome_class":              _g(cards, "ppi-interactome", "interactome_class"),
+        "tdl_class":                      _g(cards, "target-development-level", "tdl_class"),
+        "measured_bioactivity_class":     _g(cards, "measured-potency-tractability", "measured_bioactivity_class"),
+        "chembl_n_potent_ligands":        _g(cards, "measured-potency-tractability", "chembl_n_potent_ligands"),
+    }
+
+
+def _ot_double_counts(f) -> bool:
+    """The OT prioritisation composite DOUBLE-COUNTS the dedicated cards when it is scored and carries a
+    genetic-constraint / mouse-KO band (those mirror gnomad-lof-constraint + mouse-ko-phenotype)."""
+    return bool(f.get("ot_prioritisation_status") == "scored"
+                and (f.get("ot_genetic_band") is not None or f.get("ot_mouse_ko_band") is not None))
+
+
+def _intrinsic_confirmation_caveat(target, f) -> dict | None:
+    """VERDICT-INERT: does the actionability-relevant intrinsic signal rest on EXPERIMENTAL confirmation, or
+    on a PREDICTION / HOMOLOGY annotation / META-SCORE that over-calls it? Precedence: experimentally-
+    confirmed GUARD (milder, false-demote) → predicted/homology SHARP over-call → annotation/score orientation
+    → None (nothing to adjudicate → byte-stable). Never read by any rule (there is none)."""
+    slc = f.get("structural_ligandability_class")
+    sym = (target or "").upper()
+    crosswalk = sym in _VALIDATED_INTRINSIC_PROPERTY
+    double_counted = _ot_double_counts(f)
+
+    # ── MILDER false-demote GUARD: experimentally-confirmed intrinsic property ──────────────────
+    if slc == "experimental_ligandable" or crosswalk:
+        basis = []
+        if slc == "experimental_ligandable":
+            basis.append("experimental co-crystal / strong PDB coverage "
+                         "(structural_ligandability_class=experimental_ligandable)")
+        if crosswalk:
+            basis.append(f"{sym} carries an approved / clinically-validated directly-acting agent "
+                         "(_VALIDATED_INTRINSIC_PROPERTY crosswalk)")
+        note = ("The actionability-relevant intrinsic property is EXPERIMENTALLY CONFIRMED (" + "; ".join(basis)
+                + ") — NOT a prediction / homology over-call, and explicitly NOT demoted (false-demote guard: "
+                "BRAF / EGFR / KRAS-G12C class). Note experimental structure ≠ proven DIRECT druggability / "
+                "indication-fit (owned by tractability-small-molecule); a solved fold + co-crystal is a "
+                "confirmed intrinsic property, not a nomination.")
+        if double_counted:
+            note += (" Orientation: the OT prioritisation composite double-counts the dedicated "
+                     "gnomad-lof-constraint + mouse-ko-phenotype cards — not an independent vote.")
+        return {"reason": "experimentally_confirmed_intrinsic_property", "basis": basis, "note": note}
+
+    # ── SHARP: predicted / homology-annotated, experimentally UNCONFIRMED (the DRIVER over-call) ──
+    predicted_pocket = slc in _PREDICTED_LIGANDABILITY
+    predicted_surface = (f.get("is_surface_protein") is True and f.get("source_hpa_plasma_membrane") is False)
+    if predicted_pocket or predicted_surface:
+        basis = []
+        if predicted_pocket:
+            afc = f.get("alphafold_confidence_class")
+            disc = f.get("ligandability_disorder_class")
+            basis.append(
+                f"a druggable-pocket call with NO experimental co-crystal (structural_ligandability_class="
+                f"{slc}; has_experimental_cocrystal={f.get('has_experimental_cocrystal')}"
+                + (f", AlphaFold confidence={afc}" if afc else "")
+                + (f", {disc}" if disc else "") + ") — a computational / InterPro-homology pocket, not an "
+                "experimentally-confirmed one")
+        if predicted_surface:
+            basis.append(
+                f"a PREDICTED surface/family membership (is_surface_protein=True, family="
+                f"{f.get('surface_protein_family')}) with NO experimental HPA plasma-membrane localization "
+                "(source_hpa_plasma_membrane=False) — a SURFY / IUPHAR homology call, not confirmed "
+                "extracellular topology")
+        note = ("The actionability-relevant intrinsic signal is PREDICTED / HOMOLOGY-ANNOTATED and "
+                "experimentally UNCONFIRMED: " + "; ".join(basis) + ". A family / surfaceome-class membership "
+                "assigned by homology (EC-number / domain / HPA class) does not prove function or "
+                "druggability — a pseudokinase sits in the kinase family yet is catalytically dead. Treat as "
+                "looks-actionable-but-EXPERIMENTALLY-UNCONFIRMED; confirm via co-crystal / fragment screen + "
+                "the literature lane (--literature). SM druggability is owned by tractability-small-molecule, "
+                "surface fit by surface-modality-fit.")
+        if double_counted:
+            note += (" Orientation: the OT prioritisation composite also double-counts the dedicated "
+                     "gnomad-lof + mouse-ko cards.")
+        return {"reason": "predicted_structure_or_homology_annotated_unconfirmed", "basis": basis, "note": note}
+
+    # ── META-SCORE / annotation-density only (no experimental OR predicted structural actionability) ──
+    signals = []
+    if double_counted:
+        signals.append("the OT prioritisation composite DOUBLE-COUNTS the dedicated gnomad-lof-constraint + "
+                       "mouse-ko-phenotype cards (its geneticConstraint / mouseKOScore dims are the same facts)")
+    if f.get("gnomad_constraint_class") in ("highly_constrained", "moderately_constrained"):
+        signals.append(f"gnomAD LoF constraint (constraint_class={f.get('gnomad_constraint_class')}) is a "
+                       "population-genetic META-SCORE — a safety-liability proxy, not a druggability signal")
+    if f.get("go_annotation_class") == "well_annotated" or f.get("interactome_class") == "hub":
+        signals.append("high annotation density (well-annotated GO / hub interactome) reflects study depth, "
+                       "not actionability")
+    if f.get("tdl_class") in ("Tclin", "Tchem"):
+        signals.append(f"a drug-development-precedent tier (TDL={f.get('tdl_class')}) is study depth, not "
+                       "intrinsic drug-worthiness")
+    if not signals:
+        return None
+    note = ("No experimentally-confirmed OR predicted structural actionability signal is resolved here; the "
+            "intrinsic read rests on META-SCORES / annotation density: " + "; ".join(signals) + ". "
+            "SIGNIFICANCE / annotation-completeness ≠ ACTIONABILITY — a well-annotated / high-scoring target is "
+            "better-STUDIED, not necessarily a better target, and a genuinely actionable property can be MISSED "
+            "or understudied (Tdark = understudied, not adverse; KRAS was called 'undruggable' pre-2013).")
+    return {"reason": "annotation_score_or_double_counted", "basis": signals, "note": note}
+
+
+def _intrinsic_provenance(target, f) -> dict:
+    """VERDICT-INERT quorum / provenance summary of the intrinsic dossier's actionability-relevant signals:
+    the structure experimental-vs-predicted provenance, the family/surface source provenance, the
+    constraint/score meta-layer (+ the OT double-count flag), the annotation-density + tractability-precedent
+    layer, and the load-bearing experimentally_confirmed_actionable_property boolean."""
+    sym = (target or "").upper()
+    return {
+        # STRUCTURE / LIGANDABILITY — experimental vs predicted
+        "structural_ligandability_class": f.get("structural_ligandability_class"),
+        "has_experimental_cocrystal":     f.get("has_experimental_cocrystal"),
+        "has_druggable_pocket":           f.get("has_druggable_pocket"),
+        "has_virtual_screen_hit":         f.get("has_virtual_screen_hit"),
+        "pdb_coverage_class":             f.get("pdb_coverage_class"),
+        "alphafold_confidence_class":     f.get("alphafold_confidence_class"),
+        "disordered_fraction":            f.get("disordered_fraction"),
+        "ligandability_disorder_class":   f.get("ligandability_disorder_class"),
+        "n_ligandability_axes":           f.get("n_ligandability_axes"),
+        # FAMILY / SURFACE — homology vs experimental localization
+        "surface_protein_family":         f.get("surface_protein_family"),
+        "is_surface_protein":             f.get("is_surface_protein"),
+        "source_surfy_positive":          f.get("source_surfy_positive"),
+        "source_hpa_plasma_membrane":     f.get("source_hpa_plasma_membrane"),
+        "surfaceome_confidence_score":    f.get("surfaceome_confidence_score"),
+        # CONSTRAINT / META-SCORE layer (+ the OT composite double-count)
+        "gnomad_constraint_class":        f.get("gnomad_constraint_class"),
+        "ot_prioritisation_status":       f.get("ot_prioritisation_status"),
+        "ot_composite_double_counts_dedicated_cards": _ot_double_counts(f),
+        # ANNOTATION DENSITY / TRACTABILITY PRECEDENT (significance ≠ actionability)
+        "go_annotation_class":            f.get("go_annotation_class"),
+        "interactome_class":              f.get("interactome_class"),
+        "tdl_class":                      f.get("tdl_class"),
+        "measured_bioactivity_class":     f.get("measured_bioactivity_class"),
+        "chembl_n_potent_ligands":        f.get("chembl_n_potent_ligands"),
+        # load-bearing: is the actionability-relevant property EXPERIMENTALLY confirmed?
+        "experimentally_confirmed_actionable_property": bool(
+            f.get("structural_ligandability_class") == "experimental_ligandable"
+            or sym in _VALIDATED_INTRINSIC_PROPERTY),
+        "validated_intrinsic_property_crosswalk_hit": sym in _VALIDATED_INTRINSIC_PROPERTY,
+    }
+
+
 # ── canonical HEADLINE block (verdict + confidence + top tension) — DESCRIPTIVE MODE ─────────────
 # target-intrinsic is GATELESS (verdict_fn=None), so there is no gate verdict to headline. The shared
 # headline_core builder supports a DESCRIPTIVE MODE (verdict_token=None + descriptive_phrase): the block
@@ -221,12 +457,25 @@ def _build_headline_block(headline: dict) -> dict:
                           descriptive_phrase=ks.get("headline"))
 
 
-def _headline(cards, fired, verdict_pair):
+def _headline(cards, fired, verdict_pair, target=None, indication=None):
     """Descriptive target dossier — one field per target-intrinsic sub-axis, built from the declarative
     _HEADLINE_SPEC table. No verdict spine (verdict_fn=None): target-intrinsic evidence informs
     confidence/context, never a nomination (indication-conditioned). A composed consumer reads these
-    as target-grain context."""
+    as target-grain context.
+
+    `target` is threaded in by the dispatcher (signature-introspected — 3-arg callers are byte-identical)
+    so the verdict-INERT `intrinsic_confirmation_caveat` can apply its experimentally-confirmed-property
+    false-demote GUARD by SYMBOL (BRAF / EGFR / KRAS-G12C), data-blind-tolerant. `indication` is accepted
+    for signature parity with the dispatcher/fan-out contract but UNUSED — the dossier is indication-
+    INDEPENDENT."""
     hl = {key: get_card_field(cards, cid, field) for key, cid, field in _HEADLINE_SPEC}
+    # ── VERDICT-INERT experimental-vs-predicted / annotation INFLATION surfacing (2026-09-04) ──
+    # Built from the FULL 20-card standalone roster here (structure-features-static resolved), so this is
+    # the SHARP structure-prediction over-call. The mechanism/tumor-presence/tractability analog; the
+    # target-intrinsic resolver does not exist (gateless) so this cannot move a verdict.
+    _f = _intrinsic_actionability_fields(cards)
+    hl["intrinsic_confirmation_caveat"] = _intrinsic_confirmation_caveat(target, _f)
+    hl["intrinsic_provenance"] = _intrinsic_provenance(target, _f)
     # verdict-INERT claim-vector projection (10th concrete) — the two target-intrinsic fields that carry
     # a defensible signal (MODALITY_ROUTING / TRACTABILITY_PRECEDENT), the most relevant to hypothesis +
     # modality fit. Both source cards are in the composer entry, so this populates in the COMPOSED profile.
@@ -271,18 +520,33 @@ def _headline(cards, fired, verdict_pair):
     return hl
 
 
-def _synthesis_facet(cards, fired, verdict_pair=None):
+def _synthesis_facet(cards, fired, verdict_pair=None, target=None, indication=None):
     """Compact, VERDICT-INERT target-intrinsic facet for the composed synthesis. SELF-CONTAINED — reads
-    ONLY the two claim-axis cards (domain-modality-relevance, target-development-level), both in this
-    skill's composer entry, and does NOT call _headline (whose _HEADLINE_SPEC reads 12 cards HOME'd under
-    other subskills, absent from this entry by design). Carries the descriptive claim_vector + its citable
-    atoms + the two class fields. target-intrinsic is gateless (verdict_fn=None) — this never moves a verdict."""
+    ONLY the target-intrinsic-EXCLUSIVE composer cards (domain-modality-relevance, target-development-level,
+    + measured-potency / GO / interactome the caveat reads), and does NOT call _headline (whose _HEADLINE_SPEC
+    reads cards HOME'd under other subskills, absent from this entry by design). Carries the descriptive
+    claim_vector + its citable atoms + the two class fields + the verdict-INERT intrinsic_confirmation_caveat
+    / intrinsic_provenance. target-intrinsic is gateless (verdict_fn=None) — this never moves a verdict.
+
+    `target` / `indication` are signature-introspected by tp_fanout (mirrors the dispatcher's headline_fn
+    call) and passed only when declared, so standalone (dispatcher) and composed (fan-out) compute the SAME
+    facet. `target` keys the caveat's experimentally-confirmed-property false-demote GUARD by SYMBOL; the
+    structural/surfaceome/safety cards are HOME'd elsewhere and absent from this 8-card subset, so the
+    structural fields None-degrade and the symbol-guard + annotation tier carry the field here. `indication`
+    is UNUSED (indication-INDEPENDENT dossier) — accepted for contract parity."""
     cv = target_intrinsic_claim_vector({}, cards)
     ks = target_intrinsic_key_signals({}, cards)
+    _f = _intrinsic_actionability_fields(cards)
     facet = {
         "modality_implication_class": get_card_field(cards, "domain-modality-relevance", "modality_implication_class"),
         "tdl_class": get_card_field(cards, "target-development-level", "tdl_class"),
         "claim_vector": cv, "key_signals": ks,
+        # VERDICT-INERT experimental-vs-predicted / annotation caveat + provenance — the facet dict is
+        # target-intrinsic's fan-out carrier (no _SYNTHESIS_FACET_KEYS tuple), so these MUST be attached here
+        # too or the composed profile silently drops them. Degrades gracefully on the 8-card subset (the
+        # SHARP structure over-call is fully surfaced in the standalone _headline dossier).
+        "intrinsic_confirmation_caveat": _intrinsic_confirmation_caveat(target, _f),
+        "intrinsic_provenance": _intrinsic_provenance(target, _f),
         "_facet_note": ("Deterministic target-intrinsic facet; claim_vector is a DESCRIPTIVE modality-routing "
                         "+ tractability-precedent projection (direction/meaning in the atoms). Gateless — no verdict."),
     }
@@ -344,6 +608,18 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
         synthesize_fn=make_synthesize_fn(_LENS),
+        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors FR #987 /
+        # tumor-selectivity #964 / genomic #982 / on-target-safety #1000 / tractability-SM #1006 /
+        # surface-modality-fit #1021 / mechanism #1030 / combination #1040 / cis-coherence #1043). Attaches
+        # decision['literature_synthesis'] AFTER the deterministic dossier is composed + feeds the
+        # --synthesize narrator; the target-intrinsic query terms (experimental co-crystal / fragment screen /
+        # AlphaFold predicted / pseudokinase / homology / localization / gnomAD constraint) live in
+        # literature_retrieval.py::_LENS_QUERY_TERMS. INDICATION-INDEPENDENT: retrieval is target-anchored
+        # (_indication_phrase(None) → "cancer"). Two-slot / spine-untouched: gateless, so structurally
+        # impossible for the lane to alter a verdict. This is the lane that adjudicates per target whether a
+        # predicted/homology-annotated actionable property is experimentally confirmed (the
+        # intrinsic_confirmation_caveat question) at read time.
+        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive mode).
         # Additive / display-only; the descriptive dossier is byte-stable without it.
         skill_figures_fn=_emit_skill_figures,

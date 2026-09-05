@@ -110,7 +110,21 @@ _LENS_QUERY_TERMS = {
                                       "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
                                       "context dependence reproducibility"],
     "translational-readiness":    ["patient-derived organoid", "patient-derived xenograft"],
-    "target-intrinsic":           ["protein structure", "gene expression atlas"],
+    # target-intrinsic is the indication-INDEPENDENT dossier; the trap is a PREDICTION / HOMOLOGY
+    # annotation OVER-CALLING an experimentally-confirmed actionable intrinsic property (an AlphaFold /
+    # computational druggable pocket over-calling a co-crystal-confirmed pocket; a family/surfaceome-class
+    # membership by homology over-calling function/druggability — a pseudokinase is catalytically dead; a
+    # population-genetic / OT-composite meta-score read as actionability). The precision query front-loads
+    # the EXPERIMENTAL-vs-PREDICTED structural discriminators. Only 2 axis_labels (modality routing /
+    # tractability precedent), so the default 5-term cap admits the first ~3 curated terms — ordered
+    # sharpest-first (co-crystal / fragment screen / AlphaFold) — no _LENS_MAX_TERMS bump needed.
+    "target-intrinsic":           ["experimental co-crystal structure",
+                                    "druggable pocket fragment screen",
+                                    "AlphaFold predicted structure",
+                                    "pseudokinase catalytically dead",
+                                    "protein family homology",
+                                    "subcellular localization proteomics",
+                                    "gnomAD loss-of-function constraint"],
     # Front-loaded so the highest-value cis-CAUSALITY discriminators lead: the base gene∧disease query
     # supplies cis/CN-expression recall; the precision query needs the amplicon driver-vs-passenger,
     # focal-amplitude, protein-dosage-buffering, CIMP-lineage, and purity-confound terms that separate a
