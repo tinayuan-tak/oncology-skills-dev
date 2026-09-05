@@ -14,8 +14,9 @@ Bedrock-free / render-free: parses the SUB_SKILLS literal via ast and reads PHAS
 from __future__ import annotations
 
 import ast
-import importlib.util
 from pathlib import Path
+
+from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]           # .../skills
 # SUB_SKILLS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
@@ -37,10 +38,7 @@ def _sub_skill_short_names() -> set[str]:
 
 def _phase_meta() -> dict:
     """Import composite_panel.PHASE_META without importing the whole skills package."""
-    spec = importlib.util.spec_from_file_location("_composite_panel_under_test", PANEL)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.PHASE_META
+    return load_module(PANEL, "_composite_panel_under_test").PHASE_META
 
 
 def test_phase_meta_sub_keys_are_reachable():

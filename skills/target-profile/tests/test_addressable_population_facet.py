@@ -7,14 +7,11 @@ Hermetic: synthetic sub_results carrying both `verdict` tuples and the frequency
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+from _test_support import load_run_py
 
-import run  # noqa: E402
+run = load_run_py(Path(__file__).resolve().parents[1], "tp_run_addrpop")
 
 
 def _sr(*, gen_verdict=None, dep_verdict=None, hf_summary=None):

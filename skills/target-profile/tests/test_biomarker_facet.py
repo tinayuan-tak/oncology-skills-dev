@@ -5,14 +5,11 @@ and the golden cases the plan names: KRAS-like → strong_selection_biomarker (m
 housekeeping-like → none. No S3/LLM (pure dict fixtures)."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+from _test_support import load_run_py
 
-import run  # noqa: E402
+run = load_run_py(Path(__file__).resolve().parents[1], "tp_run_biomarker")
 
 
 def _sr(**cards_by_short):

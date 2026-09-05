@@ -32,34 +32,22 @@ Mirror of the per-skill replays, lifted to the composed fan-out engine.
 from __future__ import annotations
 
 import copy
-import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
+from _test_support import load_run_py
+
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
-RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURES = SKILL_DIR / "tests" / "fixtures"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 if str(SKILLS_ROOT / "compose-dashboard" / "scripts") not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT / "compose-dashboard" / "scripts"))
 
-
-def _load_tp():
-    """Import target-profile run.py once (top-level only; no __main__ side effects)."""
-    spec = importlib.util.spec_from_file_location("_tp_run_fanout", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["_tp_run_fanout"] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_TP = _load_tp()
+_TP = load_run_py(SKILL_DIR, "_tp_run_fanout")
 
 
 def _real_summary(s) -> bool:

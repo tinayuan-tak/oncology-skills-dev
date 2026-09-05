@@ -14,22 +14,13 @@ Bedrock-free: synthetic dicts + a written temp YAML; no S3, no live contract dep
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import yaml
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_v2loader", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_v2loader")
 
 
 # A synthetic 2.0.0 three-list contract (the shape PR-B will write). Deliberately minimal but

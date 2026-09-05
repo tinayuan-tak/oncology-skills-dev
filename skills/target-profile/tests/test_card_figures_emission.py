@@ -9,20 +9,11 @@ count. Bedrock-free.
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run_cf", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_cf")
 # _emit_card_figures + _load_figure_registry moved to tp_evidence_package (2026-08-16 god-module
 # split); patch the registry loader there so _emit_card_figures resolves the fake in its own namespace.
 import tp_evidence_package  # noqa: E402

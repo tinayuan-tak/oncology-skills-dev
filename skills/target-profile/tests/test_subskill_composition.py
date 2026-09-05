@@ -16,26 +16,12 @@ _load_sub_skill_verdict_fn) and drives the real `_run_sub_skills` to prove:
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS = Path(__file__).resolve().parents[2]  # .../skills
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
+from _skills_common.compose_core import CompositionResult, GateVerdict
+from _test_support import load_run_py
 
-from _skills_common.compose_core import CompositionResult, GateVerdict  # noqa: E402
-
-
-def _load_run_module():
-    spec = importlib.util.spec_from_file_location("tp_run_composition", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load_run_module()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_composition")
 # The fan-out (_run_sub_skills + its resolve_cards/fired_rules/_load_sub_skill_verdict_fn boundary)
 # lives in tp_fanout after the 2026-08-16 god-module split; monkeypatch it there so the patch is
 # resolved in the same namespace _run_sub_skills looks the names up in (run.py only re-exports them).

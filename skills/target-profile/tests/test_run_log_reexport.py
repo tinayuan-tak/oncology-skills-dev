@@ -6,20 +6,11 @@ and downstream consumers use; this guards that the re-export is wired and produc
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run_log", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_log")
 
 
 def test_reexports_shared_run_log():

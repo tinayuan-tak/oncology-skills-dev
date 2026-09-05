@@ -2,23 +2,14 @@
 never silently gain or drop a dashboard/spine artifact. Pure logic (no S3/render)."""
 from __future__ import annotations
 
-import importlib.util
 import types
 from pathlib import Path
 
 import pytest
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run_emit", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-_load()                 # bootstraps scripts/ onto sys.path
+load_run_py(Path(__file__).resolve().parents[1], "tp_run_emit")  # bootstraps scripts/ onto sys.path
 import tp_emit          # noqa: E402
 
 

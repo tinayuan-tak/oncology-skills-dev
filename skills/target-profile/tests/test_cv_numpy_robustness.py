@@ -8,23 +8,14 @@ coerces to Python float (and drops bool/NaN).
 """
 from __future__ import annotations
 
-import importlib.util
 import math
 from pathlib import Path
 
 import pytest
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
 np = pytest.importorskip("numpy")
 
 

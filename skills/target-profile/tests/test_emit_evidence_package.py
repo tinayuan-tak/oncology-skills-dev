@@ -14,35 +14,21 @@ offline. Asserts:
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 from jsonschema import Draft202012Validator
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-SKILLS = Path(__file__).resolve().parents[2]  # .../skills
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
-from _skills_common.compose_core import subskill_composition  # noqa: E402
+from _skills_common.compose_core import subskill_composition
+from _test_support import load_run_py
 
 CONTRACTS = Path(os.environ.get(
     "TARGET_CONTRACTS_ROOT",
     "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
-
-def _load_run_module():
-    spec = importlib.util.spec_from_file_location("tp_run_emit", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load_run_module()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_emit")
 # _write_evidence_package (and its resolve_cards call) moved to tp_evidence_package in the
 # 2026-08-16 god-module split; patch resolve_cards there so it is intercepted in that namespace.
 import tp_evidence_package  # noqa: E402

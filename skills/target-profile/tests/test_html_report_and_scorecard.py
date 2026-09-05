@@ -10,20 +10,11 @@ tp_render_html 2026-09-03 — the default html render path is report_render, cov
 """
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("tp_run", RUN_PY)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-tp = _load()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
 
 
 def _fired(*sm):

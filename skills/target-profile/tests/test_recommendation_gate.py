@@ -11,22 +11,13 @@ veto — KRAS hits those yet is a correct `nominate` via small molecule.
 
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+from _test_support import load_run_py
 
-
-def _load_run_module():
-    spec = importlib.util.spec_from_file_location("tp_run", RUN_PY)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-tp = _load_run_module()
+tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
 
 
 def _sub(short, verdict, rule="some-rule"):
