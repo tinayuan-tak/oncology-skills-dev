@@ -96,6 +96,22 @@ def test_fixture_is_nonvacuous():
         f"S3 (freeze_fixture.py). Real cards: {sorted(real)}")
 
 
+def test_replay_conforms_to_data_product_schema(egfr_decision):
+    """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
+    data-product schema. Confirms the gateless-descriptive shape (skill_report.call null, role
+    descriptive) + the PANCANCER/indication envelope. CI-fail-not-skip."""
+    import os
+    from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
+
+    schema = load_schema("target-intrinsic")
+    if schema is None:
+        reason = f"data-product schema not found at {schema_path('target-intrinsic')}"
+        pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
+    errors = conformance_errors(schema, egfr_decision)
+    assert not errors, "FRESH replay emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
+
+
 def test_replay_identity_and_verdict_free(egfr_decision):
     """Identity resolves and the descriptive (verdict-free) contract holds on the replayed run."""
     assert egfr_decision["skill"] == "target-intrinsic"
