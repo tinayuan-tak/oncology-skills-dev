@@ -32,6 +32,7 @@ _DEFAULT_TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-co
 # The skills locked so far. GROW this list in the PR that lands each skill's data-product artifacts.
 LOCKED: set[str] = {
     "tumor-presence",
+    "tumor-selectivity",
 }
 
 
