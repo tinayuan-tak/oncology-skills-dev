@@ -1,18 +1,24 @@
-"""Completeness ratchet for the finalized data-product lock across the target-profile fan-out.
+"""Completeness ratchet for the finalized data-product lock.
 
 A skill is "locked" as a finalized data product when it has all three artifacts:
   1. skills/<skill>/DATA_PRODUCT.md
   2. skills/<skill>/tests/test_data_product_schema.py
-  3. target-contracts/schemas/skills/<skill>.decision.schema.json  (generated, self-contained)
+  3. target-contracts/schemas/skills/<skill>.*.schema.json  (its per-skill emitted-output schema)
 
-Locked-status is DERIVED FROM THE FILESYSTEM (not a hand-maintained list) — so each skill's lock lands in
-its own PR with no shared-file edit to serialize on, and a partial lock (some artifacts, not all) fails
-here. Mirrors test_marketplace_registry_sync.py's "on-disk == registered, HARD fail" philosophy:
+Locked-status is DERIVED FROM THE FILESYSTEM (not a hand-maintained list) — each skill's lock lands in its
+own PR with no shared-file edit to serialize on, and a partial lock (some artifacts, not all) fails here.
 
-  - The three artifact sets must be mutually consistent (a skill with any one artifact has all three) —
-    a partial lock (e.g. a DATA_PRODUCT.md with no schema) is a HARD failure.
-  - Locked ⊆ the canonical fan-out (SUB_SKILLS).
-  - When every fan-out skill is locked, require FULL coverage (a new fan-out skill must ship locked).
+Two skill populations are lockable:
+  - the target-profile FAN-OUT (SUB_SKILLS) — these MUST all be locked (full-coverage requirement below);
+  - AUXILIARY (non-fan-out) skills — standalone verdict skills, ranking scans, and bespoke reducers — lock
+    ADDITIVELY (allowed, never required). Their schema may be the standard `<skill>.decision.schema.json`
+    (envelope-emitting skills) or a bespoke `<skill>.<artifact>.schema.json` (e.g. companion / hypothesis /
+    risk_assessment) — hence the `<skill>.*.schema.json` glob.
+
+Invariants (mirror test_marketplace_registry_sync.py's "on-disk == registered, HARD fail"):
+  - No partial locks (doc ⇔ test ⇔ schema move together).
+  - Locked ⊆ the on-disk skill dirs (a DATA_PRODUCT.md for a non-existent skill fails).
+  - Every FAN-OUT skill stays locked; when the fan-out is fully locked, a new fan-out skill must ship locked.
 
 target-contracts is resolved via TARGET_CONTRACTS_ROOT; unresolvable → SKIP locally, FAIL in CI.
 """
@@ -38,6 +44,11 @@ def _sub_skills() -> set[str]:
     raise AssertionError("SUB_SKILLS literal not found in tp_fanout.py")
 
 
+def _all_skill_dirs() -> set[str]:
+    """Every on-disk skill dir (carries a SKILL.md)."""
+    return {d.name for d in SKILLS_DIR.iterdir() if (d / "SKILL.md").exists()}
+
+
 def _have_doc() -> set[str]:
     return {d.name for d in SKILLS_DIR.iterdir() if (d / "DATA_PRODUCT.md").exists()}
 
@@ -52,8 +63,19 @@ def _tc_schemas_dir() -> Path | None:
 
 
 def _have_schema() -> set[str]:
+    """Skills with SOME per-skill emitted-output schema — the standard <skill>.decision.schema.json OR a
+    bespoke <skill>.<artifact>.schema.json (companion/hypothesis/risk_assessment/...)."""
     d = _tc_schemas_dir()
-    return {p.name[: -len(".decision.schema.json")] for p in d.glob("*.decision.schema.json")} if d else set()
+    if not d:
+        return set()
+    have: set[str] = set()
+    known = _all_skill_dirs()
+    for p in d.glob("*.schema.json"):
+        stem = p.name[: -len(".schema.json")]          # e.g. "tumor-presence.decision" | "target-archetype.companion"
+        skill = stem.rsplit(".", 1)[0] if "." in stem else stem
+        if skill in known:
+            have.add(skill)
+    return have
 
 
 def test_no_partial_locks():
@@ -66,13 +88,15 @@ def test_no_partial_locks():
     assert not test_no_doc, f"skills with test_data_product_schema.py but no DATA_PRODUCT.md: {sorted(test_no_doc)}"
 
 
-def test_locked_subset_of_fanout():
-    unknown = _have_doc() - _sub_skills()
-    assert not unknown, f"DATA_PRODUCT.md present for non-fan-out skills: {sorted(unknown)}"
+def test_locked_subset_of_known_skills():
+    """A DATA_PRODUCT.md must belong to a real on-disk skill (fan-out OR auxiliary)."""
+    unknown = _have_doc() - _all_skill_dirs()
+    assert not unknown, f"DATA_PRODUCT.md present for non-existent skill dirs: {sorted(unknown)}"
 
 
-def test_skills_side_locked_have_generated_schema():
-    """Every skill with skills-side artifacts also has its generated decision schema in target-contracts."""
+def test_skills_side_locked_have_a_schema():
+    """Every skill with skills-side artifacts also has a per-skill schema in target-contracts (standard
+    decision schema or a bespoke output schema)."""
     schemas = _tc_schemas_dir()
     if schemas is None:
         reason = "target-contracts schemas/skills not resolvable (set TARGET_CONTRACTS_ROOT)"
@@ -81,15 +105,12 @@ def test_skills_side_locked_have_generated_schema():
         pytest.skip(reason)
     locked = _have_doc() & _have_test()
     missing = sorted(locked - _have_schema())
-    assert not missing, f"skills locked on the skills side but missing their generated schema: {missing}"
+    assert not missing, f"skills locked on the skills side but missing a per-skill schema: {missing}"
 
 
-def test_full_coverage_when_rollout_complete():
-    """Once every fan-out skill is locked, require FULL coverage; until then, informational."""
+def test_full_coverage_of_the_fanout():
+    """Every FAN-OUT skill must be locked; auxiliary locks are additive (never required)."""
     fanout = _sub_skills()
     locked = _have_doc() & _have_test()
     remaining = fanout - locked
-    if not remaining:
-        assert locked == fanout, "rollout complete but locked != fan-out — reconcile"
-    else:
-        assert locked <= fanout, f"locked must stay within the fan-out; remaining to lock: {sorted(remaining)}"
+    assert not remaining, f"fan-out skills not yet locked (must all be locked): {sorted(remaining)}"
