@@ -1,9 +1,11 @@
 """_skills_common.scope — typed Scope contract (Phase 5).
 
-Ships the Scope dataclass + resolve_bucket() helper that the target-profile
-skill (and future scope-aware skills) uses to route between the 5 invocation
-modes: target_only, indication, multi_indication, indication_subtype,
-multi_indication_subtype.
+The IDAS multi-indication machinery (the Scope dataclass / parse_cli_scope /
+resolve_bucket) is currently NOT consumed by production code — it is retained for
+potential multi-indication work. Only the DEFAULT_CONTRACTS_REPO constant is used
+today (by certainty_corroboration.py + functional-requirement/run.py). The machinery
+would route between the 5 invocation modes: target_only, indication, multi_indication,
+indication_subtype, multi_indication_subtype.
 
 Design lives in target-contracts docs/design/IDAS_SUBTYPE_PIPELINE.md.
 Locked decisions (from user checkpoints):

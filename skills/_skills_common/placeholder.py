@@ -1,9 +1,9 @@
 """placeholder — helper for skills that declare a phase but are not yet wired.
 
-Some phases in the target-evaluation taxonomy (mechanism, differentiation,
-combo/resistance, translational-readiness, on-target-safety-liability) have
-NO wired dispatchers in the current framework. Rather than hide the gap by
-omitting the skill from the catalog, we ship a lightweight placeholder that:
+emit_placeholder is the sanctioned structured response for a skill that declares a
+phase in the target-evaluation taxonomy but has NO wired dispatcher yet. Rather than
+hide the gap by omitting the skill from the catalog, we ship a lightweight placeholder
+that:
 
   1. Declares its intended composition (cards it would consume once wired)
      in SKILL.md front-matter with `status: not_wired`.
@@ -72,7 +72,7 @@ def emit_placeholder(
         "explanation": (
             f"This skill answers a Phase-{phase} question in the target-"
             f"evaluation framework, but the underlying evidence cards are "
-            f"not yet wired in the compose-dashboard dispatcher registry."
+            f"not yet wired in the shared _skills_common dispatcher registry."
         ),
         "required_cards": required_cards,
         "unwired_cards": unwired_cards,

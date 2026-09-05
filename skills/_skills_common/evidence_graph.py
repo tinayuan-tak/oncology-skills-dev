@@ -59,8 +59,8 @@ def _unwrap(v):
 # The single display polarity scale is the ordinal_view vocabulary {supportive, neutral, opposing,
 # killer} (+ off-scale not_applicable). `_canon_polarity` normalizes the legacy per-lane tokens that
 # reached the graph — card fired/liability strings, the question_table's supports/opposes, and the
-# headline verdict's positive/negative — onto it, so every consumer (evidence_graph_dashboard.py,
-# report_render, the composed embedded view) reads one vocabulary. Unknown tokens pass through
+# headline verdict's positive/negative — onto it, so every consumer (report_render — the sole
+# renderer — and the composed embedded view) reads one vocabulary. Unknown tokens pass through
 # UNCHANGED so a new vocabulary value can never silently acquire a wrong rank.
 _CANON_POLARITY = {
     "supports": "supportive", "supportive": "supportive", "positive": "supportive",

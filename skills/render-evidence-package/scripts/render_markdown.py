@@ -390,9 +390,11 @@ def _render_failed_cards_section(ep: dict) -> list[str]:
             f"genuine drop (e.g. a validation failure that never reached the availability path). "
             f"_Likely causes_: method not importable, or all input sources errored. "
             # 2026-08-10 fix: don't point at `validation_report.json` — that file is
-            # never written. The validation errors surface on the compose-dashboard CLI stderr, and
-            # a failed run's package is written with the `.invalid.json` suffix.
-            f"Validation errors are reported on the compose-dashboard CLI (stderr); a failed run's "
+            # never written. The validation errors surface on stderr of the current producer
+            # (target-profile --emit / render-evidence-package), and a failed run's package is
+            # written with the `.invalid.json` suffix.
+            f"Validation errors are reported on stderr of the producing path (target-profile --emit / "
+            f"render-evidence-package); a failed run's "
             f"package is written as `evidence_package.invalid.json`."
         )
         sections.append("")

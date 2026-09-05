@@ -1,7 +1,6 @@
 """HTML dashboard backend — a self-contained, single-file document (own CSS, light + dark).
 
-Deliberately NOT built on tp_render_html's skeleton (that file is under active redesign on a parallel
-branch — coupling would collide). It reuses only the stable single-vocabulary `ordinal_view` polarity
+Self-contained: it reuses only the stable single-vocabulary `ordinal_view` polarity
 scale via `vocab`. Like every backend it is dumb: one {block-kind → HTML fragment} handler set, no
 selection logic (the IR builder already tiered/scoped/medium-resolved every block).
 """

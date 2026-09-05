@@ -2,8 +2,9 @@
 
 Each skill's narration is expressed as data here (thesis, axis labels, scope guardrails, polarity, output
 mode) instead of a bespoke synthesis_*.py module. Reference set: functional-requirement (verdict) +
-on-target-safety-liability (verdict, polarity-inverted). The remaining 11 lenses are added here in the
-fan-out; the 6 legacy bespoke narrators migrate onto these configs.
+on-target-safety-liability (verdict, polarity-inverted). All 18 lenses now live in the LENSES registry
+below (the 14 hierarchy skills + target-archetype, literature-context, synthetic-lethal-partners, and
+combinatorial-dependency).
 """
 from __future__ import annotations
 from _skills_common.narrator_engine import LensConfig

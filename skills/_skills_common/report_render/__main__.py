@@ -4,9 +4,9 @@
     python -m _skills_common.report_render NOM.json --level L2 --scope gating --backend markdown
     python -m _skills_common.report_render NOM.json --preset reviewer-dossier --all-backends --out OUTDIR
 
-Standalone + additive — reads a nomination, writes/prints report artifacts. It does NOT touch the
-target-profile render path (that migration is a separate, gated step). With --out, files are written
-as report_<label>.<ext>; without --out, the (single) rendered backend prints to stdout.
+Standalone + additive — reads a nomination, writes/prints report artifacts. The target-profile render
+path now flows through this engine too (it renders target_profile.{md,html} here). With --out, files are
+written as report_<label>.<ext>; without --out, the (single) rendered backend prints to stdout.
 """
 from __future__ import annotations
 

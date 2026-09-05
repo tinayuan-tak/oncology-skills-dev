@@ -1,7 +1,8 @@
 ---
 name: render-evidence-package
 description: |
-  Iter-1 skill that consumes an evidence_package.json (the envelope written by compose-dashboard)
+  Iter-1 skill that consumes an evidence_package.json (the envelope written by target-profile
+  --emit evidence-package / run_wired_skill --emit-envelope)
   and produces Stage-1 static markdown at data-products/{target}/{indication}/{package_id}/renderings/dashboard.md.
 
   The Stage-1 renderer is intentionally minimal: executive summary, per-card panels (with figure
@@ -10,8 +11,8 @@ description: |
   iter-3+.
 
   Use this skill when: an evidence_package has been emitted (or re-emitted via lockfile) and a
-  human-readable rendering is required. The skill is invoked automatically by compose-dashboard when
-  the dashboard_spec's outputs.renderings includes "markdown".
+  human-readable rendering is required. Run standalone against an emitted evidence_package.json
+  (it was formerly auto-invoked by the retired compose-dashboard).
 
 compute_mode: cross_product_synthesis
 delegates_to: []                                 # pure read-and-render; no method invocations

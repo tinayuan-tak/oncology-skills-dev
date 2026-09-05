@@ -9,8 +9,7 @@ signal polarity, and the output tool (a relevance read, or a descriptive context
 
 Two-slot / VERDICT-INERT: the result is attached as decision['llm_synthesis'] AFTER the deterministic
 spine is composed; it never mints or moves a verdict. Every field is provenance-stamped by
-synthesize_structured. Migrating the 6 bespoke narrators onto this engine is a follow-on; new lenses
-adopt it directly.
+synthesize_structured. All narrators are now LensConfig entries in narrator_lenses.LENSES.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field

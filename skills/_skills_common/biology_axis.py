@@ -5,8 +5,8 @@ surface_intrinsic / extrinsic / mixed / unknown) in target-contracts:
   vocabularies/target_biology_axis_lookup.yaml   (target -> axis, ~20 curated)
   vocabularies/biology_axis.enum.yaml            (axis -> plausible_modalities)
 
-This axis already drives deterministic dashboard selection in compose-dashboard
-(_resolution.py). It was NOT reaching the LLM synthesis prompt — so the narration
+This axis drove deterministic dashboard selection in the now-retired compose-dashboard
+skill (_resolution.py). It was NOT reaching the LLM synthesis prompt — so the narration
 discussed surface modalities (ADC/TCE/CAR) for intracellular targets and vice
 versa, regardless of the target's biology. This module makes the axis available
 to the synthesis layer as an EMPHASIS STEER (never a verdict — SLOT-2 only).

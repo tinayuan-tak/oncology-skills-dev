@@ -527,7 +527,8 @@ def run_wired_skill(
                          "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.")
     ap.add_argument("--figures", action="store_true",
                     help="OPT-IN (default OFF ⇒ no figures): emit per-card SVG (+ interactive plotly) "
-                         "figures via the shared compose-dashboard figure-emitter registry into "
+                         "figures via the shared _skills_common figure-emitter registry (rehomed from "
+                         "the retired compose-dashboard) into "
                          "<out>/figures/cards/<card_id>/. PURELY ADDITIVE — decision.json is "
                          "byte-identical whether or not this flag is set. Best-effort per card: a card "
                          "with no registered emitter or a failed data load contributes no figure and "
@@ -553,7 +554,8 @@ def run_wired_skill(
     # latency + liveness for EACH subskill's own run — not just compose-dashboard's package.
     _t0 = time.perf_counter()
 
-    # 1. Resolve cards via compose-dashboard live-readers. --verdict-only reads ONLY the
+    # 1. Resolve cards via the _skills_common live-readers (rehomed from the retired compose-dashboard).
+    # --verdict-only reads ONLY the
     # verdict-relevant subset (verdict_cards) so enrichment reads are skipped; the verdict is
     # byte-identical because resolve_verdict_for_gate ignores fired rules no resolver rung references.
     # SAFETY: lean ONLY when verdict_cards is a non-empty SUBSET of cards; else read ALL (an

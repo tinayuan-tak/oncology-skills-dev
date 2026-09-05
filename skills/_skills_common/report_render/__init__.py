@@ -7,7 +7,7 @@ One pipeline:
 
 Three orthogonal dials on the spec — level (L0-L3), medium (text/figure/both), scope (all/gating/list)
 + lead — plus named presets. Selection logic lives ONLY in `ir.build_ir`; backends are dumb
-{block-kind → syntax} emitters (text/markdown/json today; html/pptx to follow). See
+{block-kind → syntax} emitters (text/markdown/json/html/pptx are all implemented). See
 docs/UNIFIED_OUTPUT_CONTRACT.md §241-275.
 
 Public API:

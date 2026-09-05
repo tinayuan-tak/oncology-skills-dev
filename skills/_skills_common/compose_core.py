@@ -1,6 +1,7 @@
 """_skills_common/compose_core.py — the shared composition spine.
 
-Stage 1 of the target-profile / compose-dashboard convergence. Both composition
+Originally Stage 1 of the target-profile / compose-dashboard convergence; compose-dashboard
+is now RETIRED, and this is the shared deterministic-composition core. Both composition
 frontends resolve their deterministic verdict spine — normalize card_outputs, fire
 interpretation rules, and resolve each gate via the SHARED declarative resolver — and
 Stage 1 routes that spine through the ONE code path here, returning a typed

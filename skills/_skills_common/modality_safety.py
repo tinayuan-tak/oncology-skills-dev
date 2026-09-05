@@ -19,9 +19,9 @@ protective_rules invert: an LoF-population-protective signal DE-RISKS a full kno
 `supportive` for engages_wt channels.
 
 PURE + DETERMINISTIC: a function of (fired rule_ids, two versioned contract files). No I/O beyond
-reading the contracts, no ML, no arithmetic on measured values. NOT yet wired into decision.json
-(the wire-in + retirement of the 6 role-proxy rungs is a separate reblessed change — it fans out
-into the safety golden suite).
+reading the contracts, no ML, no arithmetic on measured values. WIRED into the decision headline:
+on-target-safety-liability/run.py sets headline["safety_verdict_by_modality"] (lands in decision.json),
+consumed by target-profile's tp_gates.py + tp_evidence_package.py.
 """
 from __future__ import annotations
 import functools
