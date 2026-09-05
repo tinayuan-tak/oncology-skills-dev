@@ -126,6 +126,23 @@ VHL  = ("vhl_coadread",  "VHL",  "COADREAD", "human_genetics_safety_concern")
 # because a drug hits the WILD-TYPE (amplified) protein — the mutant-selective-sparing logic fails.
 ERBB2 = ("erbb2_brca", "ERBB2", "BRCA", "human_genetics_safety_concern")
 ALL = [BRAF, EGFR, TP53, VHL, ERBB2]
+
+
+@pytest.mark.parametrize("pair_id,target,indication,_exp", ALL,
+                         ids=[p[1].lower() + "_" + p[2].lower() for p in ALL])
+def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _exp):
+    """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
+    data-product schema (static golden trimmed → this is the conformance target). CI-fail-not-skip."""
+    import os
+    from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
+
+    schema = load_schema("on-target-safety-liability")
+    if schema is None:
+        reason = f"data-product schema not found at {schema_path('on-target-safety-liability')}"
+        pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
+    errors = conformance_errors(schema, _decision(pair_id, target, indication))
+    assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
 DOWNGRADE = [BRAF, EGFR]
 CONCERN = [TP53, VHL]
 
