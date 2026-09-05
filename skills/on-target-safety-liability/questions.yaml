@@ -1,0 +1,114 @@
+# Canonical question + axis registry for the on-target-safety-liability dashboard (Phase-0 keystone of
+# the evidence_graph layer). Single source of truth for the safety-liability questions + the unified
+# axis_id vocabulary {CONSTRAINT, BURDEN, DOSAGE, CLINVAR, MOUSE_KO, PAN_ESSENTIAL, NORMAL_TISSUE,
+# PHARMACOVIGILANCE}. The seven human-genetics + data-utilization axes are the question_hierarchy.yaml
+# sub_groups (the source of truth for card→question joins); PHARMACOVIGILANCE is the sole axis the
+# safety narrator lens emits (narrator_lenses.py ON_TARGET_SAFETY.axis_labels — sparse), registered here
+# so the literature axis→question crosswalk resolves the pharmacovigilance literature lane.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the per-leg id the safety_question_table builder
+# emits — Constraint / Burden / Dosage / Mouse-KO / ClinVar, NOT Q1..Qn); the emitted question_table
+# itself is NOT modified (byte-stable). The PAN_ESSENTIAL / NORMAL_TISSUE / PHARMACOVIGILANCE / mechanism
+# questions have NO emitted class row, so `legacy_id` is OMITTED — they carry an empty signal but still
+# anchor their cards (mirrors genomic-alteration-profile's DEP question).
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT the legacy id)
+#   legacy_id       the id safety_question_table emits (Constraint|Burden|Dosage|Mouse-KO|ClinVar);
+#                   OMITTED for the leading-table-less axes (PAN_ESSENTIAL / NORMAL_TISSUE / etc.)
+#   seq             1-based display order
+#   text            human question text (framed "is this leg SAFE/tolerant?" — matching the inverse-valence
+#                   hero: strong signal = LoF-tolerant / low liability; a strong LIABILITY reads as a floor)
+#   axis_id         unified claim/literature axis; null = no axis (the verdict-inert mechanism context)
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types +
+#                   context_types) + the card contracts (target-contracts/cards/<id>.card.yaml).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => PHARMACOVIGILANCE->[pharmacovigilance_context]  (the only axis the safety lens emits)
+#      the human-genetics/data-util axes own no literature lane (lens axis_labels is PHARMACOVIGILANCE-only)
+#      but are registered so their cards join a question.
+#
+# NOTE — LIABILITY polarity: this skill's signal is the STRENGTH of a safety LIABILITY. build_evidence_graph
+# flags any card whose capsule `class` contains "liability" as signal.liability=true (killer polarity) —
+# expected here (e.g. normal-tissue critical-organ liability). The scalar safety verdict may itself be a
+# liability HOLD; verdict.polarity encodes program DESIRABILITY (a HOLD is undesirable → opposing/red).
+#
+# NOTE (no subtype question): NO safety card is tier:subtype (every safety measurement is a property of the
+# human gene / target pharmacology, scope-invariant — never stratifies), so there is no ambiguous
+# measurement_type and no subtype:true question (mirrors functional-requirement / genomic-alteration-profile).
+skill: on-target-safety-liability
+axis_vocabulary:
+  CONSTRAINT: gnomAD LoF constraint
+  BURDEN: population gene-burden
+  DOSAGE: ClinGen dosage
+  CLINVAR: germline pathogenicity
+  MOUSE_KO: mouse-KO phenotype
+  PAN_ESSENTIAL: DepMap pan-essentiality
+  NORMAL_TISSUE: normal-tissue liability
+  PHARMACOVIGILANCE: on-target clinical pharmacovigilance
+questions:
+- id: constraint_read
+  legacy_id: Constraint
+  seq: 1
+  text: LoF-tolerant in gnomAD (not constrained)?
+  axis_id: CONSTRAINT
+  role: verdict_bearing
+  measurement_types: [gnomad_lof_constraint, shet_lof_selection]
+- id: burden_read
+  legacy_id: Burden
+  seq: 2
+  text: No population LoF rare-variant burden?
+  axis_id: BURDEN
+  role: verdict_bearing
+  measurement_types: [human_genetic_safety]
+- id: dosage_read
+  legacy_id: Dosage
+  seq: 3
+  text: Dosage-tolerant (not ClinGen haploinsufficient)?
+  axis_id: DOSAGE
+  role: verdict_bearing
+  measurement_types: [dosage_sensitivity_safety]
+- id: mouse_ko_read
+  legacy_id: Mouse-KO
+  seq: 4
+  text: Mouse knockout viable (not lethal)?
+  axis_id: MOUSE_KO
+  role: verdict_bearing
+  measurement_types: [mouse_ko_phenotype_safety]
+- id: clinvar_read
+  legacy_id: ClinVar
+  seq: 5
+  text: No germline pathogenic variants?
+  axis_id: CLINVAR
+  role: verdict_bearing
+  measurement_types: [clinvar_germline_pathogenicity_safety]
+- id: pan_essential_read
+  seq: 6
+  text: Not broadly pan-essential (no broad-tox liability)?
+  axis_id: PAN_ESSENTIAL
+  role: verdict_bearing
+  measurement_types: [crispr_lof_dependency]
+- id: normal_tissue_read
+  seq: 7
+  text: Restricted normal-tissue footprint (no critical-organ liability)?
+  axis_id: NORMAL_TISSUE
+  role: verdict_bearing
+  measurement_types: [normal_tissue_protein_breadth, normal_tissue_rna_breadth]
+- id: pharmacovigilance_context
+  seq: 8
+  text: Do drugs engaging the target carry black-box / withdrawal warnings (on-target pharmacovigilance)?
+  axis_id: PHARMACOVIGILANCE
+  role: display_only
+  measurement_types: [drug_warning_safety, onsides_adverse_event_safety]
+- id: mechanism_context
+  seq: 9
+  text: Mechanism & alteration context conditioning the WT-loss read (modality-conditional)?
+  axis_id: null
+  role: display_only
+  measurement_types: [alteration_role, functional_gene_state, copy_number_alteration,
+    target_safety_prioritisation]

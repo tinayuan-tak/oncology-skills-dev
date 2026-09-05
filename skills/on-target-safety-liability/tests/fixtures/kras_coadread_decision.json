@@ -1,0 +1,1260 @@
+{
+  "skill": "on-target-safety-liability",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "Is KRAS highly constrained against loss-of-function variants in the gnomAD population, and what does this imply for on-target safety of full-KO modalities (degrader, RNA therapeutic, full-inhibition SM) in COADREAD?",
+  "fired_rules": [
+    {
+      "rule_id": "strongly-selective-supportive",
+      "card_id": "pan-cancer-crispr-dependency-distribution",
+      "field": "dependency_class",
+      "value": "strongly_selective",
+      "dominant": true,
+      "rationale_summary": "DepMap's strongly_selective classification \u2014 dependency is highly variable across"
+    },
+    {
+      "rule_id": "cn-broadly-neutral-neutral",
+      "card_id": "copy-number-distribution",
+      "field": "copy_number_class",
+      "value": "broadly_neutral",
+      "dominant": false,
+      "rationale_summary": "No recurrent CN events \u2014 the CN axis is NOT a driver for this target."
+    },
+    {
+      "rule_id": "alteration-role-gof-driver-supportive",
+      "card_id": "alteration-role",
+      "field": "alteration_role",
+      "value": "direct_driver_gof",
+      "dominant": false,
+      "rationale_summary": "Target is a direct ACTIVATING (gain-of-function) cancer driver in this indication (OncoKB"
+    },
+    {
+      "rule_id": "functional-gene-state-sporadic-biallelic-neutral",
+      "card_id": "functional-gene-state",
+      "field": "functional_state_class",
+      "value": "sporadic_biallelic_inactivation",
+      "dominant": false,
+      "rationale_summary": "Biallelic inactivation is PRESENT but SPORADIC (below the recurrence threshold). Some samples"
+    },
+    {
+      "rule_id": "normal-liability-broadly-expressed-neutral",
+      "card_id": "normal-tissue-liability-gtex",
+      "field": "liability_class",
+      "value": "broadly_expressed_normal",
+      "dominant": false,
+      "rationale_summary": "The target is detectable across many/most normal tissues but without a single-critical-organ"
+    },
+    {
+      "rule_id": "highly-constrained-safety-warning",
+      "card_id": "gnomad-lof-constraint",
+      "field": "constraint_class",
+      "value": "highly_constrained",
+      "dominant": true,
+      "rationale_summary": "Target is highly LoF-constrained in gnomAD (pLI>=0.9, LOEUF<=0.35)."
+    },
+    {
+      "rule_id": "oncogene-role-safety-context",
+      "card_id": "alteration-role",
+      "field": "oncokb_gene_type",
+      "value": "ONCOGENE",
+      "dominant": false,
+      "rationale_summary": "Role-agreement GATE for the mutant-selective GoF safety downgrade. activating-driver-role-safety-"
+    },
+    {
+      "rule_id": "activating-driver-role-safety-context",
+      "card_id": "alteration-role",
+      "field": "functional_direction",
+      "value": "activating",
+      "dominant": false,
+      "rationale_summary": "Target is an ACTIVATING (GoF) driver. Mechanism-context signal for the safety gate: a GoF"
+    },
+    {
+      "rule_id": "gene-burden-lof-safety-warning",
+      "card_id": "gene-burden-safety",
+      "field": "burden_safety_class",
+      "value": "lof_risk_phenotype",
+      "dominant": true,
+      "rationale_summary": "Population rare-variant burden shows LoF variants INCREASE disease risk (directionOnTrait=risk"
+    },
+    {
+      "rule_id": "clingen-dominant-loss-safety-warning",
+      "card_id": "clingen-dosage",
+      "field": "dosage_sensitivity_class",
+      "value": "autosomal_dominant_loss",
+      "dominant": true,
+      "rationale_summary": "ClinGen shows single-copy loss is pathogenic (a high-confidence autosomal-dominant gene-disease"
+    },
+    {
+      "rule_id": "mouse-ko-developmental-only-neutral",
+      "card_id": "mouse-ko-phenotype",
+      "field": "ko_phenotype_class",
+      "value": "developmental_only",
+      "dominant": false,
+      "rationale_summary": "Mouse knockout is lethal ONLY at developmental stages (embryonic/prenatal/perinatal/neonatal/"
+    },
+    {
+      "rule_id": "clinvar-germline-pathogenic-safety-warning",
+      "card_id": "clinvar-pathogenicity-safety",
+      "field": "clinvar_pathogenic_class",
+      "value": "germline_pathogenic",
+      "dominant": false,
+      "rationale_summary": "ClinVar carries confident GERMLINE pathogenic variants \u2014 curated evidence that losing/altering"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "gnomad-lof-constraint",
+      "input_manifest_ids": [
+        "gnomad-constraint-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "shet-lof-intolerance",
+      "input_manifest_ids": [
+        "shet-selection-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "target-safety-prioritisation",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ]
+    },
+    {
+      "card_id": "normal-tissue-liability-gtex",
+      "input_manifest_ids": [
+        "gtex-tpm-recount3-long-v1"
+      ]
+    },
+    {
+      "card_id": "alteration-role",
+      "input_manifest_ids": [
+        "oncokb-gene-roles-public-snapshot-2026-07-01",
+        "intogen-v2024-09-20"
+      ]
+    },
+    {
+      "card_id": "clinvar-pathogenicity-safety",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ]
+    },
+    {
+      "card_id": "mouse-ko-phenotype",
+      "input_manifest_ids": [
+        "opentargets-26-06",
+        "impc-ko-phenotype-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "clingen-dosage",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ]
+    },
+    {
+      "card_id": "gene-burden-safety",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ]
+    },
+    {
+      "card_id": "copy-number-distribution",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "tcga-patient-cn-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "functional-gene-state",
+      "input_manifest_ids": [
+        "tcga-mc3-public-v0-2-8",
+        "gdc-pancanatlas-cnv-2018",
+        "depmap-consortium-26q1",
+        "tcga-sesame-promoter-methylation-v1",
+        "depmap-consortium-ccle-2019"
+      ]
+    },
+    {
+      "card_id": "pan-cancer-crispr-dependency-distribution",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "normal-tissue-liability",
+      "input_manifest_ids": [
+        "hpa-v25-1"
+      ]
+    },
+    {
+      "card_id": "drug-warning-safety",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ]
+    },
+    {
+      "card_id": "onsides-adverse-event-safety",
+      "input_manifest_ids": [
+        "onsides-adverse-event-per-gene-v1"
+      ]
+    }
+  ],
+  "headline": {
+    "evidence_capsules": {
+      "capsules": {
+        "alteration-role": {
+          "card_id": "alteration-role",
+          "measurement_type": "alteration_role",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": null,
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "intogen_max_pct_samples": 0.447,
+            "intogen_min_qvalue": 2.25e-51
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "clingen-dosage": {
+          "card_id": "clingen-dosage",
+          "measurement_type": "dosage_sensitivity_safety",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "autosomal_dominant_loss",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_autosomal_dominant": 2,
+            "n_autosomal_recessive": 0,
+            "n_high_confidence": 2
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "clinvar-pathogenicity-safety": {
+          "card_id": "clinvar-pathogenicity-safety",
+          "measurement_type": "clinvar_germline_pathogenicity_safety",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "germline_pathogenic",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_pathogenic_germline": 202,
+            "n_pathogenic_germline_confident": 166,
+            "n_pathogenic_somatic": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "copy-number-distribution": {
+          "card_id": "copy-number-distribution",
+          "measurement_type": "copy_number_alteration",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "broadly_neutral",
+          "numeric_anchors": [
+            {
+              "metric": "cn_fraction_deep_deletion",
+              "value": 0.0032
+            },
+            {
+              "metric": "cn_fraction_focal_amplification",
+              "value": 0.1112
+            },
+            {
+              "metric": "cn_fraction_high_amplification",
+              "value": 0.0168
+            },
+            {
+              "metric": "cn_fraction_neutral",
+              "value": 0.3848
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "cn_fraction_deep_deletion": 0.0032,
+            "cn_fraction_focal_amplification": 0.1112,
+            "cn_fraction_high_amplification": 0.0168
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "drug-warning-safety": {
+          "card_id": "drug-warning-safety",
+          "measurement_type": "drug_warning_safety",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "no_warning",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_targeted_drugs": 3,
+            "n_targeted_warned_drugs": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "functional-gene-state": {
+          "card_id": "functional-gene-state",
+          "measurement_type": "functional_gene_state",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "sporadic_biallelic_inactivation",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "gene-burden-safety": {
+          "card_id": "gene-burden-safety",
+          "measurement_type": "human_genetic_safety",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "lof_risk_phenotype",
+          "numeric_anchors": [
+            {
+              "metric": "min_pvalue",
+              "value": 0.0
+            },
+            {
+              "metric": "pvalue_cutoff",
+              "value": 0.0
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "min_pvalue": 5.74e-10,
+            "n_protect": 0,
+            "n_risk": 3
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "gnomad-lof-constraint": {
+          "card_id": "gnomad-lof-constraint",
+          "measurement_type": "gnomad_lof_constraint",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "highly_constrained",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "syn_z_score": 0.38608
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "mouse-ko-phenotype": {
+          "card_id": "mouse-ko-phenotype",
+          "measurement_type": "mouse_ko_phenotype_safety",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "developmental_only",
+          "numeric_anchors": null,
+          "categorical_anchors": [
+            {
+              "field": "ko_phenotype_class",
+              "value": "developmental_only"
+            },
+            {
+              "field": "impc_ko_phenotype_class",
+              "value": "no_phenotype"
+            },
+            {
+              "field": "evidence_tier",
+              "value": "inferred"
+            }
+          ],
+          "n_basis": {
+            "n_adult_lethal": 0,
+            "n_developmental_lethal": 5,
+            "n_lethal": 5
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "normal-tissue-liability": {
+          "card_id": "normal-tissue-liability",
+          "measurement_type": "normal_tissue_protein_breadth",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broad_normal_expression",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_essential_tissues_with_expression": 0,
+            "n_specific_tissues": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "normal-tissue-liability-gtex": {
+          "card_id": "normal-tissue-liability-gtex",
+          "measurement_type": "normal_tissue_rna_breadth",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broadly_expressed_normal",
+          "numeric_anchors": [
+            {
+              "metric": "highest_tissue_median",
+              "value": 4.6484
+            },
+            {
+              "metric": "tissue_breadth_fraction",
+              "value": 1.0
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "critical_organ_max": 4.6484,
+            "n_tissues_detectable": 31,
+            "n_tissues_high": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "onsides-adverse-event-safety": {
+          "card_id": "onsides-adverse-event-safety",
+          "measurement_type": "onsides_adverse_event_safety",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "labeled_ade_profile",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_boxed_warning_terms": 0,
+            "n_drugs_mapped": 10,
+            "n_high_confidence_terms": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "onsides-adverse-event-per-gene-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "pan-cancer-crispr-dependency-distribution": {
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "measurement_type": "crispr_lof_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "strongly_selective",
+          "numeric_anchors": [
+            {
+              "metric": "fraction_moderately_dependent",
+              "value": 0.2724
+            },
+            {
+              "metric": "fraction_non_essential",
+              "value": 0.5514
+            },
+            {
+              "metric": "fraction_strongly_dependent",
+              "value": 0.1762
+            },
+            {
+              "metric": "median_chronos_panel",
+              "value": -0.4574
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "dependency_class",
+              "value": "strongly_selective"
+            },
+            {
+              "field": "distribution_shape",
+              "value": "bimodal_selective"
+            },
+            {
+              "field": "dep_control_position_class",
+              "value": "between_controls"
+            }
+          ],
+          "n_basis": {
+            "dep_control_non_essential_floor": -0.038,
+            "dep_control_pan_essential_ceiling": -1.499,
+            "depmap_curated_common_essential": false
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Pancreas",
+              "metric": "median_chronos",
+              "value": -1.8284,
+              "n": 74,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Eye",
+              "metric": "median_chronos",
+              "value": -0.4585,
+              "n": 15,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "shet-lof-intolerance": {
+          "card_id": "shet-lof-intolerance",
+          "measurement_type": "shet_lof_selection",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "high_intolerance",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "target-safety-prioritisation": {
+          "card_id": "target-safety-prioritisation",
+          "measurement_type": "target_safety_prioritisation",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": null,
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "alteration-role",
+          "status": "full"
+        },
+        {
+          "card_id": "clingen-dosage",
+          "status": "full"
+        },
+        {
+          "card_id": "clinvar-pathogenicity-safety",
+          "status": "full"
+        },
+        {
+          "card_id": "copy-number-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "drug-warning-safety",
+          "status": "full"
+        },
+        {
+          "card_id": "functional-gene-state",
+          "status": "full"
+        },
+        {
+          "card_id": "gene-burden-safety",
+          "status": "full"
+        },
+        {
+          "card_id": "gnomad-lof-constraint",
+          "status": "full"
+        },
+        {
+          "card_id": "mouse-ko-phenotype",
+          "status": "full"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "status": "full"
+        },
+        {
+          "card_id": "normal-tissue-liability-gtex",
+          "status": "full"
+        },
+        {
+          "card_id": "onsides-adverse-event-safety",
+          "status": "full"
+        },
+        {
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "shet-lof-intolerance",
+          "status": "full"
+        },
+        {
+          "card_id": "target-safety-prioritisation",
+          "status": "full"
+        }
+      ]
+    },
+    "question_table": [
+      {
+        "id": "Constraint",
+        "question": "LoF-tolerant in gnomAD (not constrained)?",
+        "primary": "highly_constrained",
+        "support": "",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "highly_constrained"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      },
+      {
+        "id": "Burden",
+        "question": "No population LoF rare-variant burden?",
+        "primary": "lof_risk_phenotype",
+        "support": "",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "lof_risk_phenotype"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      },
+      {
+        "id": "Dosage",
+        "question": "Dosage-tolerant (not ClinGen haploinsufficient)?",
+        "primary": "autosomal_dominant_loss",
+        "support": "",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "autosomal_dominant_loss"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      },
+      {
+        "id": "Mouse-KO",
+        "question": "Mouse knockout viable (not lethal)?",
+        "primary": "developmental_only",
+        "support": "",
+        "signal": {
+          "tier": "weak",
+          "fill": 2,
+          "polarity": "supports",
+          "label": "developmental_only"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      },
+      {
+        "id": "ClinVar",
+        "question": "No germline pathogenic variants?",
+        "primary": "germline_pathogenic",
+        "support": "",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "germline_pathogenic"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "moderate"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": "highly_constrained_safety_concern",
+        "phrase": "Highly LoF-constrained \u2014 safety concern",
+        "gate": "safety",
+        "driving_rule_id": "highly-constrained-safety-warning",
+        "polarity": "negative"
+      },
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate; capped by an unresolved conflict",
+        "coverage": {
+          "n_measured": 7,
+          "n_axes": 7,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": {
+        "text": "activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL \u2014 an allele-selective small molecule may spare WT protein (see the per-modality safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded",
+        "source": "claim:CONSTRAINT",
+        "severity": 3
+      },
+      "headline_text": "Highly LoF-constrained \u2014 safety concern \u2014 moderate confidence; tension: activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL \u2014 an allele-selective small molecule may spare WT protein (see the per-modality safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded.",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "highly_constrained_safety_concern",
+          "phrase": "Highly LoF-constrained \u2014 safety concern",
+          "gate": "safety",
+          "polarity": "negative"
+        },
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 7,
+            "n_axes": 7,
+            "n_critical_measured": 1
+          }
+        },
+        "tension": {
+          "text": "activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL \u2014 an allele-selective small molecule may spare WT protein (see the per-modality safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded"
+        },
+        "axes": [
+          {
+            "key": "CONSTRAINT",
+            "label": "gnomAD LoF constraint",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": true
+          },
+          {
+            "key": "BURDEN",
+            "label": "population gene-burden",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "DOSAGE",
+            "label": "ClinGen dosage",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "CLINVAR",
+            "label": "germline pathogenicity",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "MOUSE_KO",
+            "label": "mouse-KO phenotype",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PAN_ESSENTIAL",
+            "label": "DepMap pan-essentiality",
+            "signal": "absent",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "NORMAL_TISSUE",
+            "label": "normal-tissue protein (HPA-IHC)",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "CONSTRAINT",
+          "card_id": "gnomad-lof-constraint",
+          "fields": [
+            "constraint_class",
+            "exp_lof_count",
+            "loeuf_score",
+            "mis_z_score",
+            "obs_lof_count",
+            "pli_score"
+          ]
+        },
+        {
+          "axis": "BURDEN",
+          "card_id": "gene-burden-safety",
+          "fields": [
+            "burden_safety_class",
+            "min_pvalue",
+            "top_disease"
+          ]
+        },
+        {
+          "axis": "DOSAGE",
+          "card_id": "clingen-dosage",
+          "fields": [
+            "dosage_sensitivity_class",
+            "germline_inheritance_mode",
+            "top_disease"
+          ]
+        },
+        {
+          "axis": "CLINVAR",
+          "card_id": "clinvar-pathogenicity-safety",
+          "fields": [
+            "clinvar_pathogenic_class",
+            "top_disease"
+          ]
+        },
+        {
+          "axis": "MOUSE_KO",
+          "card_id": "mouse-ko-phenotype",
+          "fields": [
+            "ko_phenotype_class",
+            "top_lethal_label"
+          ]
+        },
+        {
+          "axis": "PAN_ESSENTIAL",
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "fields": [
+            "dependency_class",
+            "distribution_shape",
+            "pan_essential_score"
+          ]
+        },
+        {
+          "axis": "NORMAL_TISSUE",
+          "card_id": "normal-tissue-liability",
+          "fields": [
+            "essential_tissue_flag",
+            "essential_tissues_flagged",
+            "normal_tissue_breadth_class"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "driving_rule_id": "highly-constrained-safety-warning",
+    "safety_verdict": "highly_constrained_safety_concern",
+    "subgroup_signals": {
+      "CONSTRAINT": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 2,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": true,
+        "sources": [
+          {
+            "card": "gnomad-lof-constraint",
+            "tier": "strong",
+            "n": null,
+            "label": "constraint",
+            "conflict": false,
+            "value": "highly_constrained"
+          },
+          {
+            "card": "shet-lof-intolerance",
+            "tier": "absent",
+            "n": null,
+            "label": "shet",
+            "conflict": false,
+            "value": "high_intolerance"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "CONSTRAINT",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": "activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL \u2014 an allele-selective small molecule may spare WT protein (see the per-modality safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded",
+            "evidence": "gnomAD: highly_constrained, pLI=1.00, LOEUF=0.23, obs/exp LoF=1/21.0",
+            "evidence_atom": {
+              "read": "highly_constrained",
+              "values": {
+                "constraint_class": "highly_constrained",
+                "pli_score": 0.99981,
+                "loeuf_score": 0.2264,
+                "mis_z_score": 3.2871,
+                "obs_lof_count": 1,
+                "exp_lof_count": 20.953
+              },
+              "cite": {
+                "card_id": "gnomad-lof-constraint",
+                "fields": [
+                  "constraint_class",
+                  "exp_lof_count",
+                  "loeuf_score",
+                  "mis_z_score",
+                  "obs_lof_count",
+                  "pli_score"
+                ]
+              },
+              "entity": {
+                "measurement_type": "gnomad_lof_constraint",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      },
+      "NORMAL_TISSUE": {
+        "signal": "moderate",
+        "confidence": "moderate",
+        "n_sources": 2,
+        "n_agree": 2,
+        "power": "moderate",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "normal-tissue-liability-gtex",
+            "tier": "strong",
+            "n": 31,
+            "label": "liability",
+            "conflict": false,
+            "value": "broadly_expressed_normal"
+          },
+          {
+            "card": "normal-tissue-liability",
+            "tier": "strong",
+            "n": 0,
+            "label": "normal tissue breadth",
+            "conflict": false,
+            "value": "broad_normal_expression"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "NORMAL_TISSUE",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "HPA-IHC: essential_tissue_flag=unknown, tissues=[], breadth=broad_normal_expression",
+            "evidence_atom": {
+              "read": "unknown",
+              "values": {
+                "essential_tissue_flag": "unknown",
+                "essential_tissues_flagged": [],
+                "normal_tissue_breadth_class": "broad_normal_expression"
+              },
+              "cite": {
+                "card_id": "normal-tissue-liability",
+                "fields": [
+                  "essential_tissue_flag",
+                  "essential_tissues_flagged",
+                  "normal_tissue_breadth_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "normal_tissue_protein_breadth",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      },
+      "CLINVAR": {
+        "signal": "strong",
+        "confidence": "high",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "clinvar-pathogenicity-safety",
+            "tier": "strong",
+            "n": 202,
+            "label": "clinvar pathogenic",
+            "conflict": false,
+            "value": "germline_pathogenic"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "CLINVAR",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "ClinVar: germline_pathogenic, disease=Linear nevus sebaceous syndrome, confident-germline-pathogenic-variants=166",
+            "evidence_atom": {
+              "read": "germline_pathogenic",
+              "values": {
+                "clinvar_pathogenic_class": "germline_pathogenic",
+                "top_disease": "Linear nevus sebaceous syndrome"
+              },
+              "cite": {
+                "card_id": "clinvar-pathogenicity-safety",
+                "fields": [
+                  "clinvar_pathogenic_class",
+                  "top_disease"
+                ]
+              },
+              "entity": {
+                "measurement_type": "clinvar_germline_pathogenicity_safety",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      },
+      "MOUSE_KO": {
+        "signal": "moderate",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "mouse-ko-phenotype",
+            "tier": "moderate",
+            "n": 0,
+            "label": "ko phenotype",
+            "conflict": false,
+            "value": "developmental_only"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "MOUSE_KO",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "mouse-KO: developmental_only, lethal=embryonic lethality during organogenesis, complete penetrance, organ-systems=['cardiovascular system phenotype', 'digestive/alimentary phenotype', 'endocrine/exocrine gland phenotype', 'hematopoietic system phenotype', 'immune system phenotype', 'liver/biliary system phenotype', 'nervous system phenotype', 'renal/urinary system phenotype', 'respiratory system phenotype']",
+            "evidence_atom": {
+              "read": "developmental_only",
+              "values": {
+                "ko_phenotype_class": "developmental_only",
+                "top_lethal_label": "embryonic lethality during organogenesis, complete penetrance"
+              },
+              "cite": {
+                "card_id": "mouse-ko-phenotype",
+                "fields": [
+                  "ko_phenotype_class",
+                  "top_lethal_label"
+                ]
+              },
+              "entity": {
+                "measurement_type": "mouse_ko_phenotype_safety",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      },
+      "DOSAGE": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "clingen-dosage",
+            "tier": "strong",
+            "n": 2,
+            "label": "dosage sensitivity",
+            "conflict": false,
+            "value": "autosomal_dominant_loss"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "DOSAGE",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "evidence": "ClinGen dosage: autosomal_dominant_loss, inheritance=dominant",
+            "evidence_atom": {
+              "read": "autosomal_dominant_loss",
+              "values": {
+                "dosage_sensitivity_class": "autosomal_dominant_loss",
+                "germline_inheritance_mode": "dominant",
+                "top_disease": "Noonan syndrome"
+              },
+              "cite": {
+                "card_id": "clingen-dosage",
+                "fields": [
+                  "dosage_sensitivity_class",
+                  "germline_inheritance_mode",
+                  "top_disease"
+                ]
+              },
+              "entity": {
+                "measurement_type": "dosage_sensitivity_safety",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      },
+      "BURDEN": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "gene-burden-safety",
+            "tier": "strong",
+            "n": 0,
+            "label": "burden safety",
+            "conflict": false,
+            "value": "lof_risk_phenotype"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "BURDEN",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "gene-burden: lof_risk_phenotype, min_p=5.74e-10, disease=Leukemia",
+            "evidence_atom": {
+              "read": "lof_risk_phenotype",
+              "values": {
+                "burden_safety_class": "lof_risk_phenotype",
+                "min_pvalue": 5.74e-10,
+                "top_disease": "Leukemia"
+              },
+              "cite": {
+                "card_id": "gene-burden-safety",
+                "fields": [
+                  "burden_safety_class",
+                  "min_pvalue",
+                  "top_disease"
+                ]
+              },
+              "entity": {
+                "measurement_type": "gene_burden_safety",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      },
+      "PAN_ESSENTIAL": {
+        "signal": "absent",
+        "confidence": "low",
+        "n_sources": 1,
+        "n_agree": 0,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "pan-cancer-crispr-dependency-distribution",
+            "tier": "weak",
+            "n": 1538,
+            "label": "dependency",
+            "conflict": false,
+            "value": "strongly_selective"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "PAN_ESSENTIAL",
+            "signal": "absent",
+            "corroboration": "high",
+            "evidence": "DepMap: strongly_selective, pan_essential_score=0.18",
+            "evidence_atom": {
+              "read": "strongly_selective",
+              "values": {
+                "dependency_class": "strongly_selective",
+                "pan_essential_score": 0.17620286085825748,
+                "distribution_shape": "bimodal_selective"
+              },
+              "cite": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "fields": [
+                  "dependency_class",
+                  "distribution_shape",
+                  "pan_essential_score"
+                ]
+              },
+              "entity": {
+                "measurement_type": "crispr_lof_dependency",
+                "grain": "target",
+                "valence": "liability"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
