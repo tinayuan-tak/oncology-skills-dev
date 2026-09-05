@@ -241,6 +241,26 @@ def main() -> int:
                          "Emits the deterministic nomination (nomination.json + a narrative-free "
                          "target_profile.md + provenance) with no Bedrock call and no figure/panel "
                          "render. The verdict spine is byte-identical to a full run.")
+    # --- rich embedded views: per-subskill narrative + literature carried into each embedded evidence_graph ---
+    ap.add_argument("--rich-embedded", action=argparse.BooleanOptionalAction, default=True,
+                    help="Run each sub-skill's LLM narrative AND literature lane in the fan-out and carry "
+                         "them into that sub-skill's embedded evidence_graph, so the composed dashboard's "
+                         "embedded sub-skill views match a standalone `--synthesize --literature` run "
+                         "(narrative + literature axes + verified citations). DEFAULT ON. Cost: up to 14x "
+                         "Bedrock narration + 14x (EuropePMC/PubTator retrieval + Bedrock literature-"
+                         "synthesis) — use --no-rich-embedded (or --verdict-only) for a fast, Bedrock-lean "
+                         "run (omics-rich embedded + one top-level narrative). AUTO-OFF whenever top-level "
+                         "synthesis is suppressed (--no-synthesis / --verdict-only / --emit). "
+                         "VERDICT-INERT + display-only: the deterministic spine stays byte-identical.")
+    ap.add_argument("--synthesize-subskills", action=argparse.BooleanOptionalAction, default=None,
+                    help="Override --rich-embedded for the per-subskill NARRATIVE only (embedded "
+                         "narrative). Default follows --rich-embedded.")
+    ap.add_argument("--subskill-literature", action=argparse.BooleanOptionalAction, default=None,
+                    help="Override --rich-embedded for the per-subskill LITERATURE lane only (embedded "
+                         "literature axes + citations). Default follows --rich-embedded.")
+    ap.add_argument("--subskill-literature-scope", choices=["all", "gating"], default="all",
+                    help="Which sub-skills run the per-subskill literature lane when enabled: 'all' "
+                         "(default) or 'gating' (the 8 gating axes only — cheaper).")
     ap.add_argument("--profile-timers", action="store_true",
                     help="Emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr "
                          "(instrumentation only; zero effect on artifacts). (Perf Stage 0.)")
@@ -462,13 +482,26 @@ def main() -> int:
         plot_data_root = resolve_figures_root(args.out)
         plot_data_root.mkdir(parents=True, exist_ok=True)
     _fanout_t0 = time.perf_counter() if args.profile_timers else 0.0
-    # Per-sub-skill LLM narration rides the SAME default-on substrate umbrella (run_hypothesis is the
-    # LLM tail gate — off under --no-substrate / --no-synthesis / --verdict-only / --emit), so a default
-    # run narrates each narrator sub-skill and an offline run stays byte-identical.
+    # RICH EMBEDDED VIEWS (default on): per-subskill narrative + literature carried into each embedded
+    # evidence_graph so the composed dashboard's embedded views == a standalone --synthesize --literature
+    # run. Auto-OFF whenever top-level synthesis is suppressed (offline/fast modes stay Bedrock-free +
+    # byte-stable). The granular --synthesize-subskills / --subskill-literature flags override the master.
+    _rich = bool(args.rich_embedded) and not args.no_synthesis
+    _narr = args.synthesize_subskills if args.synthesize_subskills is not None else _rich
+    _subskill_narrative = (bool(_narr) or run_hypothesis) and not args.no_synthesis
+    _lit = args.subskill_literature if args.subskill_literature is not None else _rich
+    _subskill_literature = bool(_lit) and not args.no_synthesis
+    if _subskill_literature or _subskill_narrative:
+        print(f"[target-profile] rich embedded views: narrative={_subskill_narrative} "
+              f"literature={_subskill_literature} (scope={args.subskill_literature_scope}); "
+              f"needs Bedrock+network, VERDICT-INERT. Use --no-rich-embedded for a fast run.",
+              file=sys.stderr)
     sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes,
                                   profile_timers=args.profile_timers,
                                   plot_data_root=plot_data_root,
-                                  synthesize_subskills=run_hypothesis,
+                                  synthesize_subskills=_subskill_narrative,
+                                  subskill_literature=_subskill_literature,
+                                  subskill_literature_scope=args.subskill_literature_scope,
                                   synthesis_model=getattr(args, "synthesis_model", None))
     if args.profile_timers:
         print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===",

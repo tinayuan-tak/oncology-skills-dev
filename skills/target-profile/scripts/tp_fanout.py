@@ -27,7 +27,17 @@ from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.compose_core import subskill_composition
 from _skills_common.card_preprocessors import preprocess_cards_for_gate
 from _skills_common.subgroup_derivation import subgroup_signals_for
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common import narrator_lenses as _narrator_lenses
+from _skills_common.narrator_engine import LensConfig as _LensConfig, make_synthesize_fn
 from tp_common import SKILLS_DIR
+
+# Central per-skill narrator/literature lens registry, auto-collected by `LensConfig.name` (== the skill
+# dir id). Lets the fan-out run a sub-skill's OWN --literature lane (make_literature_fn) centrally, WITHOUT
+# importing each skill's run.py or adding a per-skill hook. Future-proof: a new lens declared in
+# narrator_lenses is picked up automatically. Skills with no lens simply get no per-subskill literature.
+_SKILL_LENS = {v.name: v for v in vars(_narrator_lenses).values() if isinstance(v, _LensConfig)}
 
 
 
@@ -100,6 +110,32 @@ def _load_sub_skill_headline_fn(skill_dir_name: str) -> Any:
         _load_sub_skill_verdict_fn(skill_dir_name)   # populate the module cache
         module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
     return getattr(module, "_headline", None) if module is not None else None
+
+
+def _reconstruct_decision(skill_dir_name, cards, fired, verdict_pair, target, indication) -> dict:
+    """Reconstruct a DISPLAY-ONLY decision dict (`{skill, target, indication, headline, cards,
+    fired_rules}`) for a sub-skill inside the fan-out — the shape both the evidence_graph projection and
+    the optional per-subskill literature lane consume, exactly as the standalone dispatcher would.
+    VERDICT-INERT + best-effort: the reconstructed headline is never stored or re-fed to the resolver;
+    a missing `_headline` hook / any failure → an empty headline (a partial decision still projects)."""
+    headline: dict = {}
+    hl_fn = _load_sub_skill_headline_fn(skill_dir_name)
+    if hl_fn is not None:
+        kwargs = {}
+        try:
+            hp = inspect.signature(hl_fn).parameters
+            if "target" in hp:
+                kwargs["target"] = target
+            if "indication" in hp:
+                kwargs["indication"] = indication
+        except (ValueError, TypeError):
+            kwargs = {}
+        try:
+            headline = hl_fn(cards, fired, verdict_pair, **kwargs) or {}
+        except Exception:  # noqa: BLE001 — headline recompute failed (e.g. missing cards on a gateless skill)
+            headline = {}
+    return {"skill": skill_dir_name, "target": target, "indication": indication,
+            "headline": headline, "cards": cards, "fired_rules": fired}
 
 
 def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
@@ -935,6 +971,8 @@ def _run_sub_skills(target: str, indication: str,
                     profile_timers: bool = False,
                     plot_data_root: Optional[Path] = None,
                     synthesize_subskills: bool = False,
+                    subskill_literature: bool = False,
+                    subskill_literature_scope: str = "all",
                     synthesis_model: Optional[str] = None) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
@@ -1056,6 +1094,42 @@ def _run_sub_skills(target: str, indication: str,
             if _synth_fn is not None:
                 llm_synthesis = _synthesize_with_retry(
                     _synth_fn, cards, fired, verdict_pair, target, indication, synthesis_model)
+            else:
+                # central-lens narration fallback: a sub-skill WITHOUT a bespoke `_llm_synthesis` hook
+                # (only 6 declare one) still narrates through its OWN lens via make_synthesize_fn(<lens>) —
+                # the same narrator the standalone --synthesize run uses — so rich-embedded narrative is
+                # fleet-wide, not just the 6 hook-bearing skills. Best-effort + locked (Bedrock throttle).
+                _lens = _SKILL_LENS.get(skill_dir)
+                if _lens is not None:
+                    try:
+                        _n_decision = _reconstruct_decision(skill_dir, cards, fired, verdict_pair,
+                                                            target, indication)
+                        with _SYNTH_LOCK:
+                            llm_synthesis = make_synthesize_fn(_lens)(_n_decision, synthesis_model)
+                    except Exception:  # noqa: BLE001 — a display lane must never break the fan-out
+                        llm_synthesis = None
+        # OPTIONAL per-sub-skill LITERATURE lane (--subskill-literature / --rich-embedded). Runs the SAME
+        # make_literature_fn(<lens>) the standalone --literature run uses (EuropePMC/PubTator grounding +
+        # verify_citations), attaching decision['literature_synthesis'] so the carried evidence_graph gets
+        # its literature axes + citations (embedded lens view == standalone). Best-effort + VERDICT-INERT;
+        # serialized behind _SYNTH_LOCK (shared with narration) to avoid the concurrent-Bedrock throttle.
+        # Scope-gated: 'all' sub-skills, or 'gating' (the _SHORT_TO_GATE axes only). A skill with no lens
+        # is skipped (honest). Lands on synthesis_facet['literature_synthesis'], read by the carry below.
+        if (subskill_literature and isinstance(synthesis_facet, dict)
+                and (subskill_literature_scope != "gating" or _SHORT_TO_GATE.get(short))):
+            _lens = _SKILL_LENS.get(skill_dir)
+            if _lens is not None:
+                try:
+                    _lit_decision = _reconstruct_decision(skill_dir, cards, fired, verdict_pair,
+                                                          target, indication)
+                    _litfn = make_literature_fn(_lens, retrieve_fn=default_retrieve,
+                                                verify_fn=verify_citations)
+                    with _SYNTH_LOCK:
+                        _lit = _litfn(_lit_decision, synthesis_model)
+                    if isinstance(_lit, dict) and _lit:
+                        synthesis_facet["literature_synthesis"] = _lit
+                except Exception:  # noqa: BLE001 — a display lane must never break the fan-out
+                    pass
         # PHASE 3 (tumor-presence): the EMITTED presence word is reconciled with the signal package in
         # _headline (stromal-only / protein↔RNA conflict / not-present demote to caveated tokens). The
         # facet carries that reconciled word; reflect it in the STORED sub-result verdict so the composed
@@ -1097,28 +1171,12 @@ def _run_sub_skills(target: str, indication: str,
         # NEVER stored or re-fed to the resolver — it exists only to project the display graph.
         if isinstance(synthesis_facet, dict) and isinstance(synthesis_facet.get("skill_report"), dict):
             try:
-                _hl_fn = _load_sub_skill_headline_fn(skill_dir)
-                _eg_headline = {}
-                if _hl_fn is not None:
-                    _hl_kwargs = {}
-                    try:
-                        _hp = inspect.signature(_hl_fn).parameters
-                        if "target" in _hp:
-                            _hl_kwargs["target"] = target
-                        if "indication" in _hp:
-                            _hl_kwargs["indication"] = indication
-                    except (ValueError, TypeError):
-                        _hl_kwargs = {}
-                    try:
-                        _eg_headline = _hl_fn(cards, fired, verdict_pair, **_hl_kwargs) or {}
-                    except Exception:  # noqa: BLE001 — headline recompute failed (e.g. missing cards on a
-                        _eg_headline = {}  # gateless skill) → still emit a partial graph (cards+fired+questions)
-                _eg_decision = {
-                    "skill": skill_dir, "target": target, "indication": indication,
-                    "headline": _eg_headline, "cards": cards, "fired_rules": fired,
-                    "literature_synthesis": synthesis_facet.get("literature_synthesis"),
-                    "llm_synthesis": llm_synthesis,   # present only under --synthesize-subskills; else narrative={}
-                }
+                _eg_decision = _reconstruct_decision(skill_dir, cards, fired, verdict_pair,
+                                                     target, indication)
+                # literature_synthesis is populated by the --subskill-literature lane above (else None);
+                # llm_synthesis by --synthesize-subskills (else None → narrative={}).
+                _eg_decision["literature_synthesis"] = synthesis_facet.get("literature_synthesis")
+                _eg_decision["llm_synthesis"] = llm_synthesis
                 synthesis_facet["skill_report"]["evidence_graph"] = build_evidence_graph(
                     _eg_decision, questions=load_questions(SKILLS_DIR / skill_dir))
             except Exception:  # noqa: BLE001 — a display projection must never break the fan-out
