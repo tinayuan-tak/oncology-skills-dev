@@ -1,13 +1,10 @@
-"""evidence_graph layer — acceptance tests for translational-readiness's additive claim graph at
-decision.headline.evidence_graph, plus a standalone-dashboard render smoke test.
+"""evidence_graph layer — translational-readiness's bespoke DATA assertions for its additive claim graph.
 
 Ground truth is a committed KRAS·COADREAD decision.json fixture (a real translational-readiness run,
-trimmed to only the fields build_evidence_graph reads — verified to yield a byte-identical graph vs the
-full decision AND vs the graph the dispatcher attaches). The graph is BUILT from that fixture + the
-canonical questions.yaml registry, so these tests prove the projection reconstructs the dashboard with
-zero .card.yaml reads / zero free-text parsing, is referentially intact, byte-stable (purely additive),
-anchors every card to exactly one question (no orphans), and resolves the MODEL/GENOTYPE/ORGANOID/PDX
-literature axis→question crosswalk.
+trimmed to only the fields build_evidence_graph reads). The shared decision/questions/graph fixtures + the
+structural invariants (referential integrity, additivity, determinism, fail-soft, no-orphans) live in
+skills/conftest.py and skills/tests/test_evidence_graph_invariants.py; this file keeps ONLY what is
+specific to translational-readiness's graph.
 
 translational-readiness is GATELESS / DESCRIPTIVE (verdict_fn=None): the skill emits NO nomination
 verdict, so the graph's verdict node carries id=None (verdict.call is null) and polarity `neutral`, while
@@ -20,19 +17,6 @@ touches a spine (there is none).
 from __future__ import annotations
 
 import copy
-import json
-import sys
-from pathlib import Path
-
-import pytest
-
-SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-FIXTURE = SKILL_DIR / "tests" / "fixtures" / "kras_coadread_decision.json"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
 
 # In a standalone run the ONLY card that fires a rule is organoid-crispr-dependency (its BORROWED
 # functional-requirement dependency rule) — so it is the sole verdict_bearing CARD; the other three
@@ -64,49 +48,32 @@ _SYNTH_LIT = {
 }
 
 
-@pytest.fixture(scope="module")
-def decision():
-    if not FIXTURE.exists():
-        pytest.skip("no committed decision fixture")
-    return json.loads(FIXTURE.read_text())
-
-
-@pytest.fixture(scope="module")
-def questions():
-    return load_questions(SKILL_DIR)
-
-
-@pytest.fixture(scope="module")
-def graph(decision, questions):
-    return build_evidence_graph(decision, questions=questions)
-
-
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
-def test_questions_registry_loads_four(questions):
-    ids = [q["id"] for q in questions]
+def test_questions_registry_loads_four(eg_questions):
+    ids = [q["id"] for q in eg_questions]
     assert ids == ["models_available", "genotype_matched_model_carries_alteration",
                    "organoid_ex_vivo_dependency", "pdx_in_vivo_response"]
     # unified axis vocabulary shared with the translational-readiness narrator lens
-    axes = {q["axis_id"] for q in questions if q.get("axis_id")}
+    axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"MODEL", "GENOTYPE", "ORGANOID", "PDX"}
     # legacy_id join keys mirror the emitted translational_readiness_question_table (Q1..Q4)
-    assert [q["legacy_id"] for q in questions] == [f"Q{i}" for i in range(1, 5)]
+    assert [q["legacy_id"] for q in eg_questions] == [f"Q{i}" for i in range(1, 5)]
     # descriptive skill → every question is a non-corroboration `context` read (owns its axis)
-    assert {q["role"] for q in questions} == {"context"}
+    assert {q["role"] for q in eg_questions} == {"context"}
 
 
 # ── role partition (CARD roles, derived by the builder from fired rules) ─────────────────────────────
-def test_card_role_partition_one_verdict_bearing_three_display_only(graph):
-    vb = {c["id"] for c in graph["cards"] if c["role"] == "verdict_bearing"}
-    do = {c["id"] for c in graph["cards"] if c["role"] == "display_only"}
+def test_card_role_partition_one_verdict_bearing_three_display_only(eg_graph):
+    vb = {c["id"] for c in eg_graph["cards"] if c["role"] == "verdict_bearing"}
+    do = {c["id"] for c in eg_graph["cards"] if c["role"] == "display_only"}
     assert vb == VERDICT_BEARING
     assert do == DISPLAY_ONLY
-    assert len(vb) == 1 and len(do) == 3 and len(graph["cards"]) == 4
+    assert len(vb) == 1 and len(do) == 3 and len(eg_graph["cards"]) == 4
 
 
 # ── reconstruction: each question anchors exactly its one card; no orphans ──────────────────────────
-def test_reconstruct_questions_and_cards(graph):
-    qs = {q["id"]: q for q in graph["questions"]}
+def test_reconstruct_questions_and_cards(eg_graph):
+    qs = {q["id"]: q for q in eg_graph["questions"]}
     assert len(qs) == 4
     # the many-to-many card join (measurement_type membership) — here strictly 1:1 per leg
     assert set(qs["models_available"]["card_ids"]) == {"target-model-availability"}
@@ -116,9 +83,9 @@ def test_reconstruct_questions_and_cards(graph):
     # the descriptive question signal is `informs` (never supports/opposes) — canonical pass-through
     assert qs["models_available"]["signal"]["polarity"] == "informs"
     # every card joins at least one question (nothing collapses into the "Other" layer)
-    assert all(c["question_ids"] for c in graph["cards"])
+    assert all(c["question_ids"] for c in eg_graph["cards"])
     # each card's inverse edge names exactly its owning question
-    by_card = {c["id"]: c for c in graph["cards"]}
+    by_card = {c["id"]: c for c in eg_graph["cards"]}
     assert by_card["organoid-crispr-dependency"]["question_ids"] == ["organoid_ex_vivo_dependency"]
     assert by_card["target-pdx-drug-response"]["question_ids"] == ["pdx_in_vivo_response"]
     # the card axis_id is projected from its owning question's axis
@@ -126,10 +93,10 @@ def test_reconstruct_questions_and_cards(graph):
 
 
 # ── literature MODEL/GENOTYPE/ORGANOID/PDX axis crosswalk ────────────────────────────────────────────
-def test_literature_axis_crosswalk(decision, questions):
-    d = copy.deepcopy(decision)
+def test_literature_axis_crosswalk(eg_decision, eg_questions, eg_build):
+    d = copy.deepcopy(eg_decision)
     d["literature_synthesis"] = _SYNTH_LIT
-    g = build_evidence_graph(d, questions=questions)
+    g = eg_build(d, questions=eg_questions)
     axes = {ax["axis_id"]: ax for ax in g["literature"]["axes"]}
     assert set(axes) == {"MODEL", "GENOTYPE", "ORGANOID", "PDX"}
     assert axes["MODEL"]["question_ids"] == ["models_available"]
@@ -150,8 +117,8 @@ def test_literature_axis_crosswalk(decision, questions):
 
 
 # ── each card's dataset→data→rule→verdict chain (no .card.yaml, no prose) ───────────────────────────
-def test_card_chains(graph):
-    by_card = {c["id"]: c for c in graph["cards"]}
+def test_card_chains(eg_graph):
+    by_card = {c["id"]: c for c in eg_graph["cards"]}
     # the ONE card that fired a (borrowed) rule contributes but is NOT driving (no skill verdict / driver)
     org = by_card["organoid-crispr-dependency"]
     assert org["chain"]["rule_id"] == "organoid-broad-dependency-supportive"
@@ -166,82 +133,11 @@ def test_card_chains(graph):
     assert pdx["chain"]["is_driving"] is False
 
 
-def test_verdict_node_is_null_safe_descriptive(graph):
-    v = graph["verdict"]
+def test_verdict_node_is_null_safe_descriptive(eg_graph):
+    v = eg_graph["verdict"]
     # GATELESS skill: no verdict id / no driving rule; polarity defaults neutral (null-safe)
     assert v["id"] is None
     assert v["driving_rule_id"] is None
     assert v["polarity"] == "neutral"
     # the DISPLAY call still resolves to the deterministic descriptive phrase (Summary/header render)
     assert v["call"] and "validatable" in v["call"].lower()
-
-
-# ── referential integrity ────────────────────────────────────────────────────────────────────────
-def test_referential_integrity(graph):
-    q_ids = {q["id"] for q in graph["questions"]}
-    c_ids = {c["id"] for c in graph["cards"]}
-    r_ids = {r["id"] for r in graph["rules"]}
-    d_ids = {d["id"] for d in graph["datasets"]}
-    axis_ids = {q["axis_id"] for q in graph["questions"] if q.get("axis_id")}
-    for q in graph["questions"]:
-        assert set(q["card_ids"]) <= c_ids, q["id"]
-        assert set(q["rule_ids"]) <= r_ids, q["id"]
-        for er in q["evidence_refs"]:
-            assert er["card_id"] in c_ids
-    for c in graph["cards"]:
-        assert set(c["question_ids"]) <= q_ids, c["id"]
-        assert set(c["rule_ids"]) <= r_ids, c["id"]
-        assert set(c["dataset_ids"]) <= d_ids, c["id"]
-        if c["chain"]["rule_id"] is not None:
-            assert c["chain"]["rule_id"] in r_ids
-        if c.get("axis_id"):
-            assert c["axis_id"] in axis_ids
-    for r in graph["rules"]:
-        assert r["card_id"] in c_ids
-
-
-# ── byte-stability: the layer is purely additive ───────────────────────────────────────────────────
-def test_builder_does_not_mutate_decision(decision, questions):
-    before = copy.deepcopy(decision)
-    build_evidence_graph(decision, questions=questions)
-    assert decision == before
-
-
-def test_additive_only_no_preexisting_key_changes(decision, graph):
-    enriched = copy.deepcopy(decision)
-    enriched["headline"]["evidence_graph"] = graph
-    assert "evidence_graph" not in decision["headline"]  # trimmed fixture predates the layer
-    popped = enriched["headline"].pop("evidence_graph")
-    assert popped is graph
-    assert enriched == decision
-
-
-def test_build_is_deterministic(decision, questions):
-    # the trimmed fixture is a verified stand-in for the full decision (byte-identical graph); the
-    # projection is a pure function, so two builds are byte-identical.
-    a = json.dumps(build_evidence_graph(decision, questions=questions), default=str)
-    b = json.dumps(build_evidence_graph(decision, questions=questions), default=str)
-    assert a == b
-
-
-# ── fail-soft & no-registry ────────────────────────────────────────────────────────────────────────
-def test_fail_soft_without_optional_inputs(decision, questions):
-    stripped = copy.deepcopy(decision)
-    stripped.pop("literature_synthesis", None)
-    stripped.pop("llm_synthesis", None)
-    g = build_evidence_graph(stripped, questions=questions)
-    assert g["literature"] == {}
-    assert g["citations"] == []
-    assert g["narrative"] == {}
-    assert len(g["questions"]) == 4 and len(g["cards"]) == 4
-    for q in g["questions"]:
-        assert q["literature_axis_ids"] == []
-
-
-def test_graph_without_registry_is_referentially_intact(decision):
-    g = build_evidence_graph(decision, questions=[])
-    assert g["questions"] == []
-    assert len(g["cards"]) == 4
-    for c in g["cards"]:
-        assert c["question_ids"] == []
-        assert set(c["dataset_ids"]) <= {d["id"] for d in g["datasets"]}

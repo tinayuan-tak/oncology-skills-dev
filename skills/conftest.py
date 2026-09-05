@@ -10,12 +10,23 @@ fixture in its signature.
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import yaml
+
+_SKILLS_DIR = Path(__file__).resolve().parent
+
+
+def _ensure_skills_on_path() -> None:
+    """Put the skills/ dir on sys.path so `_skills_common` imports resolve. Done lazily (inside the
+    fixtures, not at conftest import) so merely collecting a test never depends on the import."""
+    if str(_SKILLS_DIR) not in sys.path:
+        sys.path.insert(0, str(_SKILLS_DIR))
 
 
 def _contracts_root() -> Path | None:
@@ -114,3 +125,52 @@ def hierarchy_connectivity():
         wellformed=_check_hierarchy_wellformed,
         connectivity=_check_hierarchy_connectivity,
     )
+
+
+# ── evidence_graph acceptance-test scaffolding ──────────────────────────────────────────────────────
+# Shared by every skills/<skill>/tests/test_evidence_graph.py. The fixtures locate the requesting
+# skill from the test module's path, so each per-skill file drops its byte-identical decision/questions/
+# graph fixtures. build_evidence_graph is a PURE function (no run.py import), so these are collision-free.
+# The structural invariants (referential integrity, additivity, determinism, fail-soft) were also
+# byte-identical across the 14 files and are consolidated in skills/tests/test_evidence_graph_invariants.py;
+# each per-skill file keeps only its bespoke DATA assertions.
+@pytest.fixture(scope="module")
+def eg_skill_dir(request) -> Path:
+    """skills/<skill>/ for the requesting test module (…/skills/<skill>/tests/test_evidence_graph.py)."""
+    return Path(request.path).resolve().parents[1]
+
+
+@pytest.fixture(scope="module")
+def eg_decision(eg_skill_dir) -> dict:
+    """The committed trimmed decision fixture for this skill — the single `*decision*.json` under
+    tests/fixtures/ (the target/indication varies per skill: KRAS·COADREAD, EPCAM·COADREAD, …).
+    Skip if absent."""
+    matches = sorted((eg_skill_dir / "tests" / "fixtures").glob("*decision*.json"))
+    if not matches:
+        pytest.skip("no committed decision fixture")
+    return json.loads(matches[0].read_text())
+
+
+@pytest.fixture(scope="module")
+def eg_questions(eg_skill_dir) -> list:
+    """The skill's canonical questions.yaml registry (via _skills_common.evidence_graph.load_questions)."""
+    _ensure_skills_on_path()
+    from _skills_common.evidence_graph import load_questions
+    return load_questions(eg_skill_dir)
+
+
+@pytest.fixture(scope="module")
+def eg_graph(eg_decision, eg_questions) -> dict:
+    """The additive evidence graph built from (fixture decision + questions registry)."""
+    _ensure_skills_on_path()
+    from _skills_common.evidence_graph import build_evidence_graph
+    return build_evidence_graph(eg_decision, questions=eg_questions)
+
+
+@pytest.fixture(scope="module")
+def eg_build():
+    """The build_evidence_graph callable itself, for the per-skill literature-crosswalk test that
+    rebuilds the graph from a decision carrying a synthetic literature_synthesis."""
+    _ensure_skills_on_path()
+    from _skills_common.evidence_graph import build_evidence_graph
+    return build_evidence_graph
