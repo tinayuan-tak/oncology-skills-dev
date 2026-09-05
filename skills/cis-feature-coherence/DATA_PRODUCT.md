@@ -1,0 +1,73 @@
+# cis-feature-coherence — finalized data product
+
+The **I/O contract**: data wired IN, package emitted OUT, what is locked. Coherence logic + history live
+in SKILL.md / run.py; this file is the data-product spec.
+
+| | |
+|---|---|
+| **Skill** | `cis-feature-coherence` · v1.4.0 |
+| **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
+| **Role** | `inert` — verdict-shaped but explicitly NOT a call (gateless; dedicated `cis_coherence` axis, not in the gating axes); `polarity: not_scored` |
+| **Verdict field** | `headline.cis_coherence_verdict` (a locus→expression→dependency coherence CLASS; `skill_report.call` carries this inert string, by contract not a nomination call) |
+| **Output shape** | `data_package` |
+| **Emitted schema** | `target-contracts/schemas/skills/cis-feature-coherence.decision.schema.json` (generated, self-contained) |
+| **Conformance target** | a FROZEN FULL emit `fixtures/cis_full_coadread_decision.json` (real KRAS·COADREAD run → `coherent_cis_driver`, role=inert) — no replay harness |
+
+---
+
+## 1. Inputs — wired data (9 cards)
+
+Every card traces card → method → data-catalog manifest → materialized S3 product. **All 9 products LIVE.**
+`run.py` has no `CARD_CONTEXT` map.
+
+**Verdict-driving (4 → `cis_coherence.resolver.yaml`):** `cis-feature-expression-coherence` (leg-1 CN→RNA
+dosage; `depmap-consortium-26q1`), `cellline-methylation-expression-coherence` (LoF epigenetic silencing;
+CCLE-2019 RRBS), `expression-dependency-correlation` (leg-2 RNA→dep), `amp-expr-stratified-dependency` (leg-2 conjoint).
+
+**Inert display (5):** `cis-feature-protein-coherence` (Gygi), `abundance-dependency` (Gygi/Olink),
+`patient-cis-coherence` (TCGA CN+meth+TPM crosswalk), `cellline-isoform-dominance` + `cellline-isoform-expression`
+(both → the SAME `depmap-isoform-expression-per-gene-v1`).
+
+---
+
+## 2. Coverage & capability ceilings (contractual)
+
+- **Patient methylation** (`tcga-sesame-promoter-methylation-v1`) covers 6 cohorts (LUAD/LUSC/HNSC/PAAD/STAD/ESCA)
+  — **no COADREAD** → the patient silencing leg returns `insufficient` there.
+- **Cell-line legs are `pan_no_indication`** (decoupled from indication by design).
+- Isoform product maps ~83% of DepMap ENST columns to GENCODE-v26 genes; crosswalk attrition ~88% CN / 95% meth / 98% MC3.
+
+---
+
+## 3. Emitted output
+
+`output_shape: data_package` → the standard `write_package` tree. `decision.json` top-level:
+`skill · target · indication · question · generated_at · headline · cards · fired_rules · provenance ·
+run_health` (+ optional synthesis). Contractual headline fields: `cis_coherence_verdict` (pinned 6-value
+enum), the `skill_report` spine (`role: inert`, `polarity: not_scored`, `call` = the inert
+`cis_coherence_verdict` string), `headline_block`, `claim_vector`, `key_signals`. All else schema-open.
+
+---
+
+## 4. Contract & versioning (what is locked)
+
+Pinned by the generated, self-contained `cis-feature-coherence.decision.schema.json` (inert-scalar pins:
+`role: inert` + `polarity: not_scored` const + the 6-value `cis_coherence_verdict`/`call` enum =
+`cis_coherence.resolver.yaml` = `_CIS_COHERENCE_VERDICT_PHRASE`; no run.py mints). CI: full-emit conformance
+(`tests/test_data_product_schema.py` against the frozen full golden, CI-fail-not-skip), cross-skill coverage
+ratchet, target-contracts schema meta-test. Change policy: new verdict token → pins enum + regenerate (minor);
+spine key → SHARED source (coordinate; major on rename); new facet → no schema change.
+
+## 5. Known gaps & notes (non-blocking)
+
+- **STALE-METADATA — deprecated legacy CN matrix (3 cards):** cards #1/#2/#6 use `OmicsCNGeneMC_WES.csv` as the
+  primary relative-CN term, which the `depmap-consortium-26q1` manifest marks LEGACY/deprecated (canonical
+  26Q1 CN is now WGS). Intentional (tied to the relative-CN focal-amp convention) but worth re-evaluating.
+- **Stale source:** CCLE-2019 RRBS methylation is 2018-era hg19, name-keyed (cross-build) to hg38/26q1 expression.
+- **Undeclared derived input:** `cellline-methylation-expression-coherence`'s reader uses derived
+  `ccle-rrbs-promoter-methylation-mean-per-gene-v1` as primary, but the card `required_inputs` names only the
+  source `depmap-consortium-ccle-2019` (lineage consistent; card understates wiring).
+- **Duplicate isoform cards:** `cellline-isoform-dominance` (#8) + `cellline-isoform-expression` (#9) resolve to
+  the identical product/method/entrypoint/vocabulary, differing only in `measurement_type` name — consolidation candidate.
+- **Protein product-id inconsistency:** #2 declares derived `depmap-gygi-protein-abundance-per-protein-v1`; #5
+  declares source `depmap-consortium-26q1-proteomics` (same Gygi data) — granularity-convention mismatch.
