@@ -406,7 +406,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 1538
+        "n": 1538,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "dependency_class",
@@ -470,7 +471,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 701
+        "n": 701,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "rnai_dependency_class",
@@ -534,7 +536,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 133
+        "n": 133,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "concordance_class",
@@ -592,7 +595,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 1538
+        "n": 1538,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "enrichment_class",
@@ -711,7 +715,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": null
+        "n": null,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "paralog_buffering_class",
@@ -753,7 +758,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": null
+        "n": null,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": null,
@@ -793,7 +799,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 21
+        "n": 21,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "crispr_prism_concordance_class",
@@ -847,7 +854,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 1538
+        "n": 1538,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": null,
@@ -909,7 +917,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": null
+        "n": null,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "predictability_class",
@@ -973,7 +982,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 1465
+        "n": 1465,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "correlation_class",
@@ -1027,7 +1037,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 117
+        "n": 117,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "abundance_dependency_class",
@@ -1083,7 +1094,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 669
+        "n": 669,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "correspondence_class",
@@ -1134,7 +1146,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 631
+        "n": 631,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": null,
@@ -1187,7 +1200,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": 114
+        "n": 114,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": "organoid_dependency_class",
@@ -1253,7 +1267,8 @@
         "level": "high",
         "dots": 3,
         "evidence_state": "measured",
-        "n": null
+        "n": null,
+        "eco_id": "ECO:0000006"
       },
       "class": {
         "field": null,

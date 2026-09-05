@@ -12,6 +12,7 @@ run() { local label="$1"; shift; local out
 # --- gates (transcribed in order from contracts-validate.yml) ---
 run "validate_cards"                     python validators/validate_cards.py cards/
 run "validate_evidence_graph"            python validators/validate_evidence_graph.py --self-check
+run "validate_questions"                 python validators/validate_questions.py
 run "validate_measurement_types"         python validators/validate_measurement_types.py
 run "validate_interpretation_rules"      python validators/validate_interpretation_rules.py --rules interpretation-rules/ --cards cards/
 run "validate_resolvers"                 python validators/validate_resolvers.py --resolvers resolvers/ --rules interpretation-rules/

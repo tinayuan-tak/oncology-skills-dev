@@ -65,6 +65,9 @@ jobs:
       - name: Validate evidence_graph (schema + referential integrity)
         run: python validators/validate_evidence_graph.py --self-check
 
+      - name: Validate skill question registries (questions.yaml schema; skips if skills repo absent)
+        run: python validators/validate_questions.py
+
       - name: Validate measurement types
         run: python validators/validate_measurement_types.py
 

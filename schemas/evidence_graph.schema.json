@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/evidence_graph.schema.json",
   "title": "Evidence Graph",
+  "$comment": "PROV / ECO / SEPIO crosswalk (advisory; NO ontology is imported and NO RDF is emitted — the bespoke JSON stays canonical). The `chain` edges map onto W3C PROV: a dataset node is a prov:Entity; a card's evidence is a prov:Activity that prov:used the dataset(s) and whose class value prov:wasGeneratedBy the method; a rule is a prov:Activity that prov:used the evidence, and the verdict prov:wasDerivedFrom the driving rule (verdict.driving_rule_id). ECO: the optional card.confidence.eco_id annotates evidence_state with an Evidence & Conclusion Ontology code (measured/comparator -> ECO:0000006 experimental evidence; inferred -> ECO:0000363 imported information used in automatic assertion; data_unavailable -> null). SEPIO framing: each verdict-bearing card is an evidence line (the card node) whose evidence items are its datasets + key_evidence and whose assertion is the fired rule; literature.axes are corroborating/contrasting evidence lines (agreement_vs_omics). These IDs are optional/nullable interoperability hooks only.",
   "description": "Schema for the additive, DISPLAY-ONLY claim graph emitted at decision.headline.evidence_graph by a subskill data package. It is a one-way relational projection over data already present in decision.json (verdict spine + cards + fired_rules + subgroup_signals/evidence_capsules + question_table + optional literature_synthesis/llm_synthesis) so downstream renderers read explicit, stably-keyed edges (question <-> card <-> rule <-> dataset <-> literature-axis <-> citation <-> narrative) instead of re-deriving joins. It introduces NO new science and feeds NO rule/resolver/gate. Datasets and citations are deduplicated into id-keyed arrays; every other node references them by id. Referential integrity is an invariant: every id referenced by an edge must resolve to a node in the same package. Fields are widely nullable because the graph is an honest projection: an unmeasured/unbound signal, an axis with no literature, or a question with no cards is emitted with null/empty edges, never dropped.",
   "type": "object",
   "required": ["schema_version", "skill", "verdict", "questions", "cards", "rules", "datasets", "literature", "citations", "narrative"],
@@ -133,6 +134,7 @@
             "level": {"type": ["string", "null"]},
             "dots": {"type": ["integer", "null"]},
             "evidence_state": {"type": ["string", "null"]},
+            "eco_id": {"type": ["string", "null"], "description": "OPTIONAL Evidence & Conclusion Ontology code annotating evidence_state (measured -> ECO:0000006 experimental evidence; comparator -> ECO:0000006; inferred -> ECO:0000363 imported/computational; else null). An advisory interoperability annotation only — no ontology is imported and no RDF is emitted (see the top-level $comment PROV/ECO/SEPIO crosswalk). Nullable; feeds no rule/gate."},
             "n": {"type": ["integer", "number", "null"]}
           }
         },
