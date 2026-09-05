@@ -1,0 +1,50 @@
+{
+  "$comment": "PER-SKILL PINS (source) for tumor-selectivity. VARIANT = gating-scalar: pins role:gating + the resolved selectivity_class/call enum, but does NOT pin a polarity const (a gating skill carries a DYNAMIC polarity killer..supportive — the normal-breadth/stromal vetoes emit canonical_polarity_override=killer). No per-modality bucket map (selectivity is a scalar gating call). Enum = the RESOLVED selectivity_class (resolver verdicts + the Python-applied veto/rescue mints), sourced from skills/tumor-selectivity/scripts/run.py (_SEL_* partition + _SELECTIVITY_VERDICT_PHRASE) and resolvers/selectivity.resolver.yaml; append-only within contract major version.",
+  "skill": "tumor-selectivity",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "selectivity_class_enum": {
+      "type": "string",
+      "enum": [
+        "strong_tumor_selective",
+        "modest_tumor_selective",
+        "field_effect_tumor_selective",
+        "selective_with_normal_liability",
+        "selective_but_broadly_normal",
+        "selective_but_stromal_confound",
+        "not_selective",
+        "discordant_across_comparators",
+        "not_informative",
+        "insufficient",
+        "data_unavailable"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "tumor-selectivity"},
+      "headline": {
+        "type": "object",
+        "required": ["selectivity_class"],
+        "properties": {
+          "selectivity_class": {
+            "description": "The RESOLVED (post-veto) selectivity verdict — the audit spine. The raw pre-veto axis-A class is carried separately as axis_a_selectivity_class.",
+            "$ref": "#/$defs/selectivity_class_enum"
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/selectivity_class_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
