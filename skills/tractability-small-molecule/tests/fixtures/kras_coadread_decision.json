@@ -1,0 +1,965 @@
+{
+ "skill": "tractability-small-molecule",
+ "target": "KRAS",
+ "indication": "COADREAD",
+ "question": "Does KRAS in COADREAD show small-molecule druggability evidence \u2014 is there a compound that hits it (chemical), does that agree with the genetic dependency, and is there a druggable pocket even absent a known compound (structural / forward ligandability)?",
+ "fired_rules": [
+  {
+   "rule_id": "predictability-biomarker-hypothesis-supportive",
+   "card_id": "dependency-predictability",
+   "field": "predictability_class",
+   "value": "own_omics_driven",
+   "dominant": false,
+   "rationale_summary": "Dependency is biomarker-anchored: a target-own omic feature (expression,"
+  },
+  {
+   "rule_id": "prism-clinical-precedent-only-weak-supportive-sm",
+   "card_id": "prism-compound-activity",
+   "field": "prism_activity_class",
+   "value": "clinical_precedent_only",
+   "dominant": false,
+   "rationale_summary": "T1.2 (2026-08-09): a phase_1+/approved compound is ANNOTATED as targeting this gene, but the"
+  },
+  {
+   "rule_id": "prism-no-lineage-signal-neutral",
+   "card_id": "prism-compound-activity",
+   "field": "prism_lineage_selectivity",
+   "value": "no_lineage_signal",
+   "dominant": false,
+   "rationale_summary": "Too few lineages show activity above the threshold to call selectivity, AND"
+  },
+  {
+   "rule_id": "e7-triangulated-target-engaged-supportive",
+   "card_id": "prism-crispr-concordance",
+   "field": "crispr_prism_concordance_class",
+   "value": "triangulated_target_engaged",
+   "dominant": true,
+   "rationale_summary": "Both CRISPR-KO Chronos AND RNAi-KD DEMETER2 dependency scores correlate"
+  },
+  {
+   "rule_id": "hotspot-in-druggable-pocket-sm-supportive-e8",
+   "card_id": "structure-features-static",
+   "field": "mutation_hotspot_in_druggable_pocket",
+   "value": true,
+   "dominant": true,
+   "rationale_summary": "A known TCGA mutation hotspot sits in a druggable pocket \u2192 small-molecule"
+  },
+  {
+   "rule_id": "structure-pocket-adjacent-sm-supportive",
+   "card_id": "structure-features-static",
+   "field": "hotspot_pocket_adjacency_call",
+   "value": "adjacent",
+   "dominant": false,
+   "rationale_summary": "A mutation hotspot sits ADJACENT to a resolved pocket (PDB or high-confidence"
+  },
+  {
+   "rule_id": "ligandability-experimental-sm-supportive",
+   "card_id": "structure-features-static",
+   "field": "structural_ligandability_class",
+   "value": "experimental_ligandable",
+   "dominant": true,
+   "rationale_summary": "A real experimental ligand-bound co-crystal exists (PLINDER) \u2014 the strongest possible"
+  },
+  {
+   "rule_id": "known-drug-approved-antineoplastic-sm-supportive",
+   "card_id": "known-drug-tractability",
+   "field": "approved_drug_engagement_class",
+   "value": "approved_direct",
+   "dominant": true,
+   "rationale_summary": "An APPROVED small-molecule drug is catalogued against this target in DGIdb AND the target"
+  },
+  {
+   "rule_id": "measured-potent-ligand-sm-supportive",
+   "card_id": "measured-potency-tractability",
+   "field": "measured_bioactivity_class",
+   "value": "potent_measured_ligand",
+   "dominant": true,
+   "rationale_summary": "A potent (<=1 uM) MEASURED small-molecule ligand SERIES exists (>=10 potent ligands in ChEMBL"
+  },
+  {
+   "rule_id": "measured-chembl-approved-sm-supportive",
+   "card_id": "measured-potency-tractability",
+   "field": "chembl_approved_engagement_class",
+   "value": "approved_direct",
+   "dominant": false,
+   "rationale_summary": "A drug that reached APPROVAL (ChEMBL max_clinical_phase >= 4) is catalogued against this target \u2014"
+  },
+  {
+   "rule_id": "degradation-ubiquitination-substrate-degrader-supportive",
+   "card_id": "degradation-feasibility",
+   "field": "degradability_feasibility_class",
+   "value": "ubiquitination_substrate",
+   "dominant": false,
+   "rationale_summary": "The target is a natural E3-ligase substrate (literature-curated in UbiBrowser) \u2014 it is"
+  }
+ ],
+ "cards": [
+  {
+   "card_id": "prism-compound-activity",
+   "input_manifest_ids": [
+    "depmap-prism-activity-v4"
+   ]
+  },
+  {
+   "card_id": "prism-crispr-concordance",
+   "input_manifest_ids": [
+    "depmap-prism-activity-v4"
+   ]
+  },
+  {
+   "card_id": "dependency-predictability",
+   "input_manifest_ids": [
+    "depmap-predictability"
+   ]
+  },
+  {
+   "card_id": "structure-features-static",
+   "input_manifest_ids": [
+    "structure-ligandability-per-protein-v1",
+    "pdb-alphafold-structure-features-per-uniprot-v1"
+   ]
+  },
+  {
+   "card_id": "known-drug-tractability",
+   "input_manifest_ids": [
+    "dgidb-drug-gene-per-gene-v1"
+   ]
+  },
+  {
+   "card_id": "measured-potency-tractability",
+   "input_manifest_ids": [
+    "chembl-bioactivity-per-protein-v1",
+    "bindingdb-affinity-per-protein-v1"
+   ]
+  },
+  {
+   "card_id": "degradation-feasibility",
+   "input_manifest_ids": [
+    "ubibrowser-e3-substrate-per-gene-v1",
+    "surfaceome-family-classification-per-uniprot-v1"
+   ]
+  },
+  {
+   "card_id": "gdsc-drug-activity",
+   "input_manifest_ids": [
+    "gdsc-drug-activity-per-gene-v1"
+   ]
+  }
+ ],
+ "headline": {
+  "evidence_capsules": {
+   "capsules": {
+    "degradation-feasibility": {
+     "card_id": "degradation-feasibility",
+     "measurement_type": "degradation_feasibility",
+     "tier": "target",
+     "evidence_state": "measured",
+     "class": "ubiquitination_substrate",
+     "numeric_anchors": null,
+     "categorical_anchors": null,
+     "n_basis": {
+      "n_e3_ligases_literature": 1,
+      "n_e3_predicted_confident": 28,
+      "surface_location_excluded": false
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": [
+      {
+       "key": "_data_source",
+       "value": "ubibrowser-v3-human + curated-precedent"
+      }
+     ],
+     "data_quality_flags": null
+    },
+    "dependency-predictability": {
+     "card_id": "dependency-predictability",
+     "measurement_type": "dependency_predictability",
+     "tier": null,
+     "evidence_state": "measured",
+     "class": "own_omics_driven",
+     "numeric_anchors": [
+      {
+       "metric": "delta_r2",
+       "value": 0.0232
+      },
+      {
+       "metric": "pearson_r_rf",
+       "value": 0.6841
+      },
+      {
+       "metric": "pearson_r_squared_rf",
+       "value": 0.4679
+      },
+      {
+       "metric": "pearson_r_squared_rf_ci_hi",
+       "value": 0.5228
+      }
+     ],
+     "categorical_anchors": [
+      {
+       "field": "predictability_class",
+       "value": "own_omics_driven"
+      },
+      {
+       "field": "pred_dominant_feature_class",
+       "value": "own_mut_hotspot"
+      },
+      {
+       "field": "model_agreement",
+       "value": "concordant"
+      }
+     ],
+     "n_basis": {
+      "pearson_r_rf": 0.6840511560440063,
+      "pearson_r_squared_rf": 0.4679259955883026,
+      "pearson_r_squared_rf_ci_hi": 0.5228469371795654
+     },
+     "_complete": true,
+     "top_k_strata": [
+      {
+       "stratum": "Biliary Tract",
+       "metric": "r2",
+       "value": 0.2563,
+       "n": null,
+       "role": "extreme_strongest"
+      },
+      {
+       "stratum": "Soft Tissue",
+       "metric": "r2",
+       "value": 0.0001,
+       "n": null,
+       "role": "extreme_weakest"
+      }
+     ],
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": null,
+     "data_quality_flags": null
+    },
+    "gdsc-drug-activity": {
+     "card_id": "gdsc-drug-activity",
+     "measurement_type": "prism_compound_activity",
+     "tier": "target",
+     "evidence_state": "measured",
+     "class": "no_compounds_found",
+     "numeric_anchors": null,
+     "categorical_anchors": null,
+     "n_basis": {
+      "n_cell_lines_tested": 0,
+      "n_drugs": 0
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": null,
+     "data_quality_flags": null
+    },
+    "known-drug-tractability": {
+     "card_id": "known-drug-tractability",
+     "measurement_type": "known_drug_tractability",
+     "tier": "target",
+     "evidence_state": "measured",
+     "class": "approved_direct",
+     "numeric_anchors": null,
+     "categorical_anchors": null,
+     "n_basis": {
+      "n_antineoplastic_interactions": 113,
+      "n_approved_drug_interactions": 95,
+      "n_direct_interactions": 43
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": [
+      {
+       "key": "_data_source",
+       "value": "dgidb-drug-gene-per-gene-v1"
+      }
+     ],
+     "data_quality_flags": null
+    },
+    "measured-potency-tractability": {
+     "card_id": "measured-potency-tractability",
+     "measurement_type": "measured_potency_tractability",
+     "tier": "target",
+     "evidence_state": "measured",
+     "class": "potent_measured_ligand",
+     "numeric_anchors": [
+      {
+       "metric": "chembl_best_pchembl",
+       "value": 10.7
+      }
+     ],
+     "categorical_anchors": [
+      {
+       "field": "measured_bioactivity_class",
+       "value": "potent_measured_ligand"
+      },
+      {
+       "field": "chembl_clinical_phase_class",
+       "value": "approved"
+      }
+     ],
+     "n_basis": {
+      "best_measured_potency_neglog_m": 12.699,
+      "bindingdb_n_potent_ligands": 18639,
+      "chembl_n_potent_ligands": 3010
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": [
+      {
+       "key": "_data_source",
+       "value": "chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1"
+      }
+     ],
+     "data_quality_flags": null
+    },
+    "prism-compound-activity": {
+     "card_id": "prism-compound-activity",
+     "measurement_type": "prism_compound_activity",
+     "tier": null,
+     "evidence_state": "measured",
+     "class": "clinical_precedent_only",
+     "numeric_anchors": [
+      {
+       "metric": "median_log2auc_across_compounds",
+       "value": -0.089
+      }
+     ],
+     "categorical_anchors": null,
+     "n_basis": {
+      "median_log2auc_across_compounds": -0.08903028815984726,
+      "n_compounds_targeting": 23
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": null,
+     "data_quality_flags": null
+    },
+    "prism-crispr-concordance": {
+     "card_id": "prism-crispr-concordance",
+     "measurement_type": "chemical_genetic_concordance",
+     "tier": null,
+     "evidence_state": "measured",
+     "class": "triangulated_target_engaged",
+     "numeric_anchors": [
+      {
+       "metric": "best_spearman_r_crispr",
+       "value": 0.3718
+      },
+      {
+       "metric": "best_spearman_r_rnai",
+       "value": 0.4383
+      }
+     ],
+     "categorical_anchors": null,
+     "n_basis": {
+      "best_spearman_r_crispr": 0.37176650762557983,
+      "best_spearman_r_rnai": 0.43833592534065247,
+      "n_compounds_evaluated": 21
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": null,
+     "provenance_keys": null,
+     "data_quality_flags": null
+    },
+    "structure-features-static": {
+     "card_id": "structure-features-static",
+     "measurement_type": "structure_druggability",
+     "tier": "target",
+     "evidence_state": "measured",
+     "class": "experimental_ligandable",
+     "numeric_anchors": [
+      {
+       "metric": "disordered_fraction",
+       "value": 0.0212
+      }
+     ],
+     "categorical_anchors": [
+      {
+       "field": "structural_ligandability_class",
+       "value": "experimental_ligandable"
+      },
+      {
+       "field": "hotspot_pocket_adjacency_call",
+       "value": "adjacent"
+      },
+      {
+       "field": "has_experimental_cocrystal",
+       "value": true
+      },
+      {
+       "field": "has_druggable_pocket",
+       "value": true
+      },
+      {
+       "field": "has_cryptic_site",
+       "value": false
+      },
+      {
+       "field": "pdb_coverage_class",
+       "value": "strong"
+      },
+      {
+       "field": "alphafold_confidence_class",
+       "value": "high"
+      }
+     ],
+     "n_basis": {
+      "alphafold_plddt_min_domain": 73.06,
+      "has_virtual_screen_hit": false,
+      "mutation_hotspot_in_druggable_pocket": true
+     },
+     "_complete": true,
+     "top_k_strata": null,
+     "conflict_pairs": null,
+     "sibling_caveats": {
+      "pdb_coverage_class": "strong"
+     },
+     "provenance_keys": [
+      {
+       "key": "_data_source",
+       "value": "pdb-alphafold-structure-features-per-uniprot-v1"
+      },
+      {
+       "key": "_ligandability_source",
+       "value": "structure-ligandability-per-protein-v1"
+      }
+     ],
+     "data_quality_flags": null
+    }
+   },
+   "manifest": [
+    {
+     "card_id": "degradation-feasibility",
+     "status": "full"
+    },
+    {
+     "card_id": "dependency-predictability",
+     "status": "full"
+    },
+    {
+     "card_id": "gdsc-drug-activity",
+     "status": "full"
+    },
+    {
+     "card_id": "known-drug-tractability",
+     "status": "full"
+    },
+    {
+     "card_id": "measured-potency-tractability",
+     "status": "full"
+    },
+    {
+     "card_id": "prism-compound-activity",
+     "status": "full"
+    },
+    {
+     "card_id": "prism-crispr-concordance",
+     "status": "full"
+    },
+    {
+     "card_id": "structure-features-static",
+     "status": "full"
+    }
+   ]
+  },
+  "question_table": [
+   {
+    "id": "Compound",
+    "question": "Is there an active small-molecule compound (PRISM)?",
+    "primary": "clinical_precedent_only",
+    "support": "",
+    "signal": {
+     "tier": "strong",
+     "fill": 5,
+     "polarity": "supports",
+     "label": "clinical_precedent_only"
+    },
+    "confidence": {
+     "tier": "moderate",
+     "dots": 2,
+     "label": "moderate"
+    }
+   },
+   {
+    "id": "Concordance",
+    "question": "Does compound-kill agree with the genetic dependency (chemical-genetic)?",
+    "primary": "triangulated_target_engaged",
+    "support": "",
+    "signal": {
+     "tier": "strong",
+     "fill": 5,
+     "polarity": "supports",
+     "label": "triangulated_target_engaged"
+    },
+    "confidence": {
+     "tier": "moderate",
+     "dots": 2,
+     "label": "moderate"
+    }
+   },
+   {
+    "id": "Structure",
+    "question": "Is there a ligandable pocket (PDB / AlphaFold)?",
+    "primary": "strong",
+    "support": "",
+    "signal": {
+     "tier": "strong",
+     "fill": 5,
+     "polarity": "supports",
+     "label": "strong"
+    },
+    "confidence": {
+     "tier": "moderate",
+     "dots": 2,
+     "label": "moderate"
+    }
+   },
+   {
+    "id": "Known-drug",
+    "question": "Known-drug / druggable-genome prior?",
+    "primary": "approved_drug_tractable",
+    "support": "",
+    "signal": {
+     "tier": "strong",
+     "fill": 5,
+     "polarity": "supports",
+     "label": "approved_drug_tractable"
+    },
+    "confidence": {
+     "tier": "moderate",
+     "dots": 2,
+     "label": "moderate"
+    }
+   }
+  ],
+  "headline_block": {
+   "verdict": {
+    "call": "well_covered",
+    "phrase": "Well-covered small-molecule target",
+    "gate": "tractability_sm",
+    "driving_rule_id": "e7-triangulated-target-engaged-supportive",
+    "polarity": "positive"
+   },
+   "confidence": {
+    "level": "moderate",
+    "basis": "weakest-link corroboration = moderate",
+    "coverage": {
+     "n_measured": 5,
+     "n_axes": 5,
+     "n_critical_measured": 2
+    }
+   },
+   "top_tension": null,
+   "headline_text": "Well-covered small-molecule target \u2014 moderate confidence.",
+   "hero": {
+    "kind": "headline_hero",
+    "verdict": {
+     "call": "well_covered",
+     "phrase": "Well-covered small-molecule target",
+     "gate": "tractability_sm",
+     "polarity": "positive"
+    },
+    "confidence": {
+     "level": "moderate",
+     "coverage": {
+      "n_measured": 5,
+      "n_axes": 5,
+      "n_critical_measured": 2
+     }
+    },
+    "tension": null,
+    "axes": [
+     {
+      "key": "POTENCY",
+      "label": "measured binding",
+      "signal": "strong",
+      "corroboration": "moderate",
+      "conflict": false
+     },
+     {
+      "key": "ACTIVITY",
+      "label": "functional compound",
+      "signal": "moderate",
+      "corroboration": "moderate",
+      "conflict": false
+     },
+     {
+      "key": "STRUCT",
+      "label": "ligandable pocket",
+      "signal": "strong",
+      "corroboration": "moderate",
+      "conflict": false
+     },
+     {
+      "key": "DRUG",
+      "label": "known-drug pharmacology",
+      "signal": "strong",
+      "corroboration": "moderate",
+      "conflict": false
+     },
+     {
+      "key": "DEGRADER",
+      "label": "degrader feasibility",
+      "signal": "moderate",
+      "corroboration": "moderate",
+      "conflict": false
+     }
+    ],
+    "modality_arms": {
+     "small_molecule": "viable",
+     "degrader": "viable"
+    }
+   },
+   "provenance": [
+    {
+     "axis": "POTENCY",
+     "card_id": "measured-potency-tractability",
+     "fields": [
+      "best_measured_potency_neglog_m",
+      "bindingdb_best_p_affinity",
+      "chembl_best_pchembl",
+      "chembl_max_clinical_phase",
+      "chembl_n_potent_ligands",
+      "measured_bioactivity_class"
+     ]
+    },
+    {
+     "axis": "ACTIVITY",
+     "card_id": "prism-compound-activity",
+     "fields": [
+      "highest_clinical_phase",
+      "median_log2auc_across_compounds",
+      "n_compounds_targeting",
+      "prism_activity_class"
+     ]
+    },
+    {
+     "axis": "STRUCT",
+     "card_id": "structure-features-static",
+     "fields": [
+      "alphafold_confidence_class",
+      "alphafold_plddt_mean",
+      "hotspot_pocket_adjacency_call",
+      "pdb_best_resolution_angstrom",
+      "pdb_coverage_class",
+      "structural_ligandability_class"
+     ]
+    },
+    {
+     "axis": "DRUG",
+     "card_id": "known-drug-tractability",
+     "fields": [
+      "druggability_tier",
+      "has_approved_drug",
+      "known_drug_tractability_class",
+      "n_antineoplastic_interactions",
+      "n_approved_drug_interactions"
+     ]
+    },
+    {
+     "axis": "DEGRADER",
+     "card_id": "degradation-feasibility",
+     "fields": [
+      "degradability_feasibility_class",
+      "degrader_precedent",
+      "e3_substrate_evidence",
+      "n_e3_ligases_literature"
+     ]
+    }
+   ],
+   "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+  },
+  "driving_rule_id": "e7-triangulated-target-engaged-supportive",
+  "druggability_snapshot": "well_covered",
+  "verdict": null,
+  "confidence": null,
+  "top_tension": null,
+  "subgroup_signals": {
+   "ACTIVITY": {
+    "signal": "moderate",
+    "confidence": "moderate",
+    "n_sources": 3,
+    "n_agree": 2,
+    "power": "moderate",
+    "conflict": false,
+    "sources": [
+     {
+      "card": "prism-compound-activity",
+      "tier": "moderate",
+      "n": -0.08903028815984726,
+      "label": "prism activity",
+      "conflict": false,
+      "value": "clinical_precedent_only"
+     },
+     {
+      "card": "prism-crispr-concordance",
+      "tier": "strong",
+      "n": 21,
+      "label": "crispr prism concordance",
+      "conflict": false,
+      "value": "triangulated_target_engaged"
+     },
+     {
+      "card": "gdsc-drug-activity",
+      "tier": "absent",
+      "n": 0,
+      "label": "gdsc activity",
+      "conflict": false,
+      "value": "no_compounds_found"
+     }
+    ],
+    "signal_source": "claim_vector",
+    "claims": [
+     {
+      "axis": "ACTIVITY",
+      "signal": "moderate",
+      "corroboration": "moderate",
+      "evidence": "prism-compound-activity: clinical_precedent_only",
+      "evidence_atom": {
+       "read": "clinical_precedent_only",
+       "values": {
+        "prism_activity_class": "clinical_precedent_only",
+        "n_compounds_targeting": 23,
+        "highest_clinical_phase": "phase_1_plus",
+        "median_log2auc_across_compounds": -0.08903028815984726
+       },
+       "cite": {
+        "card_id": "prism-compound-activity",
+        "fields": [
+         "highest_clinical_phase",
+         "median_log2auc_across_compounds",
+         "n_compounds_targeting",
+         "prism_activity_class"
+        ]
+       },
+       "entity": {
+        "measurement_type": "small_molecule_tractability",
+        "grain": "target"
+       }
+      }
+     }
+    ]
+   },
+   "STRUCT": {
+    "signal": "strong",
+    "confidence": "moderate",
+    "n_sources": 1,
+    "n_agree": 1,
+    "power": "low",
+    "conflict": false,
+    "sources": [
+     {
+      "card": "structure-features-static",
+      "tier": "strong",
+      "n": null,
+      "label": "pdb coverage",
+      "conflict": false,
+      "value": "strong"
+     }
+    ],
+    "signal_source": "claim_vector",
+    "claims": [
+     {
+      "axis": "STRUCT",
+      "signal": "strong",
+      "corroboration": "moderate",
+      "evidence": "structure-features-static: experimental_ligandable",
+      "evidence_atom": {
+       "read": "experimental_ligandable",
+       "values": {
+        "structural_ligandability_class": "experimental_ligandable",
+        "pdb_coverage_class": "strong",
+        "alphafold_confidence_class": "high",
+        "alphafold_plddt_mean": 91.524,
+        "pdb_best_resolution_angstrom": 0.95,
+        "hotspot_pocket_adjacency_call": "adjacent"
+       },
+       "cite": {
+        "card_id": "structure-features-static",
+        "fields": [
+         "alphafold_confidence_class",
+         "alphafold_plddt_mean",
+         "hotspot_pocket_adjacency_call",
+         "pdb_best_resolution_angstrom",
+         "pdb_coverage_class",
+         "structural_ligandability_class"
+        ]
+       },
+       "entity": {
+        "measurement_type": "small_molecule_tractability",
+        "grain": "target"
+       }
+      }
+     }
+    ]
+   },
+   "DRUG": {
+    "signal": "strong",
+    "confidence": "high",
+    "n_sources": 1,
+    "n_agree": 1,
+    "power": "high",
+    "conflict": false,
+    "sources": [
+     {
+      "card": "known-drug-tractability",
+      "tier": "strong",
+      "n": 113,
+      "label": "known drug tractability",
+      "conflict": false,
+      "value": "approved_drug_tractable"
+     }
+    ],
+    "signal_source": "claim_vector",
+    "claims": [
+     {
+      "axis": "DRUG",
+      "signal": "strong",
+      "corroboration": "moderate",
+      "evidence": "known-drug-tractability: approved_drug_tractable",
+      "evidence_atom": {
+       "read": "approved_drug_tractable",
+       "values": {
+        "known_drug_tractability_class": "approved_drug_tractable",
+        "druggability_tier": "clinically_actionable",
+        "has_approved_drug": true,
+        "n_antineoplastic_interactions": 113,
+        "n_approved_drug_interactions": 95
+       },
+       "cite": {
+        "card_id": "known-drug-tractability",
+        "fields": [
+         "druggability_tier",
+         "has_approved_drug",
+         "known_drug_tractability_class",
+         "n_antineoplastic_interactions",
+         "n_approved_drug_interactions"
+        ]
+       },
+       "entity": {
+        "measurement_type": "small_molecule_tractability",
+        "grain": "target"
+       }
+      }
+     }
+    ]
+   },
+   "POTENCY": {
+    "signal": "strong",
+    "confidence": "high",
+    "n_sources": 1,
+    "n_agree": 1,
+    "power": "high",
+    "conflict": false,
+    "sources": [
+     {
+      "card": "measured-potency-tractability",
+      "tier": "strong",
+      "n": 18639,
+      "label": "measured bioactivity",
+      "conflict": false,
+      "value": "potent_measured_ligand"
+     }
+    ],
+    "signal_source": "claim_vector",
+    "claims": [
+     {
+      "axis": "POTENCY",
+      "signal": "strong",
+      "corroboration": "moderate",
+      "evidence": "measured-potency-tractability: potent_measured_ligand",
+      "evidence_atom": {
+       "read": "potent_measured_ligand",
+       "values": {
+        "measured_bioactivity_class": "potent_measured_ligand",
+        "chembl_best_pchembl": 10.7,
+        "chembl_n_potent_ligands": 3010,
+        "best_measured_potency_neglog_m": 12.699,
+        "chembl_max_clinical_phase": 4.0,
+        "bindingdb_best_p_affinity": 12.699
+       },
+       "cite": {
+        "card_id": "measured-potency-tractability",
+        "fields": [
+         "best_measured_potency_neglog_m",
+         "bindingdb_best_p_affinity",
+         "chembl_best_pchembl",
+         "chembl_max_clinical_phase",
+         "chembl_n_potent_ligands",
+         "measured_bioactivity_class"
+        ]
+       },
+       "entity": {
+        "measurement_type": "small_molecule_tractability",
+        "grain": "target"
+       }
+      }
+     }
+    ]
+   },
+   "DEGRADER": {
+    "signal": "moderate",
+    "confidence": "moderate",
+    "n_sources": 1,
+    "n_agree": 1,
+    "power": "low",
+    "conflict": false,
+    "sources": [
+     {
+      "card": "degradation-feasibility",
+      "tier": "moderate",
+      "n": 1,
+      "label": "degradability feasibility",
+      "conflict": false,
+      "value": "ubiquitination_substrate"
+     }
+    ],
+    "signal_source": "claim_vector",
+    "claims": [
+     {
+      "axis": "DEGRADER",
+      "signal": "moderate",
+      "corroboration": "moderate",
+      "evidence": "degradation-feasibility: ubiquitination_substrate",
+      "evidence_atom": {
+       "read": "ubiquitination_substrate",
+       "values": {
+        "degradability_feasibility_class": "ubiquitination_substrate",
+        "e3_substrate_evidence": "literature",
+        "n_e3_ligases_literature": 1,
+        "degrader_precedent": false
+       },
+       "cite": {
+        "card_id": "degradation-feasibility",
+        "fields": [
+         "degradability_feasibility_class",
+         "degrader_precedent",
+         "e3_substrate_evidence",
+         "n_e3_ligases_literature"
+        ]
+       },
+       "entity": {
+        "measurement_type": "small_molecule_tractability",
+        "grain": "target"
+       }
+      }
+     }
+    ]
+   }
+  }
+ }
+}
