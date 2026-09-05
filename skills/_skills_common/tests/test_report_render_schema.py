@@ -1,18 +1,15 @@
 """report_render — schema validation: the spine + JSON report-view validate against their JSON Schemas,
 and the skill_report schema tolerates the additive slots the spine-repoint workstream introduces."""
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render._fixtures import make_nomination, make_null_heavy_nomination
 from _skills_common.report_render import PRESETS, build_ir, resolve_spec
 from _skills_common.report_render.backends.json_backend import JsonBackend
+
+SKILLS = Path(__file__).resolve().parents[2]  # skills/
 
 jsonschema = pytest.importorskip("jsonschema")
 

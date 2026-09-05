@@ -19,17 +19,16 @@ degradation in production:
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import re
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
+from _test_support import load_run_py
+
 SKILLS_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 # Honors the TARGET_CONTRACTS_ROOT env var CI sets (skills-validate.yml), else the adjacent
 # sibling checkout for local runs. (Was a hardcoded /home/sagemaker-user path — invisible until
@@ -111,11 +110,7 @@ def test_every_referenced_rule_id_exists():
 
 
 def _load_target_profile():
-    run_py = SKILLS_DIR / "target-profile" / "scripts" / "run.py"
-    spec = importlib.util.spec_from_file_location("tp_run_guard", run_py)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return load_run_py(SKILLS_DIR / "target-profile", "tp_run_guard")
 
 
 def test_risk_table_and_phase_metric_short_keys_exist_in_sub_skills():

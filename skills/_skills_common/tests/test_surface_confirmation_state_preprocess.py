@@ -14,25 +14,13 @@ All pure (no S3).
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
+from _test_support import load_module
+
 SKILLS_ROOT = Path(__file__).resolve().parents[2]
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
-
-def _load():
-    p = SKILLS_ROOT / "_skills_common" / "card_preprocessors.py"
-    spec = importlib.util.spec_from_file_location("card_preprocessors_scs", p)
-    m = importlib.util.module_from_spec(spec)
-    sys.modules["card_preprocessors_scs"] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-_M = _load()
+_M = load_module(SKILLS_ROOT / "_skills_common" / "card_preprocessors.py", "card_preprocessors_scs")
 
 
 def _cards(fit_class="both_viable", cspa=None, multimodal=None, endo="unmeasured",

@@ -12,30 +12,22 @@ Offline: `resolve_cards` (target-identity) is monkeypatched; no Bedrock, no S3.
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import re
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import yaml
 
+from _skills_common.compose_core import subskill_composition
+from _test_support import load_run_py
+
 SKILLS = Path(__file__).resolve().parents[1]          # .../skills
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 SKILL_MD = SKILLS / "cross-evidence-hypothesis" / "SKILL.md"
-TP_RUN = SKILLS / "target-profile" / "scripts" / "run.py"
-
-from _skills_common.compose_core import subskill_composition  # noqa: E402
 
 
 def _load_tp_run():
-    spec = importlib.util.spec_from_file_location("tp_run_contract", TP_RUN)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return load_run_py(SKILLS / "target-profile", "tp_run_contract")
 
 
 def _declared_reads_spine_fields() -> list:

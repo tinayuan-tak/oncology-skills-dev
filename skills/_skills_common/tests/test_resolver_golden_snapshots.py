@@ -32,13 +32,13 @@ regenerate_resolver_golden.py and commit the new JSON alongside the resolver edi
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
+
+from _test_support import load_module
 
 # Load the shared modules (resolver.py, coemission.py) RELATIVE TO THIS TEST FILE so the harness runs
 # correctly from any checkout/worktree (a new sibling module added on a branch is visible before merge).
@@ -49,20 +49,8 @@ CONTRACTS = Path(os.environ.get(
     "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 SNAPSHOT = Path(__file__).resolve().parent / "resolver_golden_snapshots.json"
 
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
-
-def _load(mod_name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(mod_name, path)
-    m = importlib.util.module_from_spec(spec)
-    sys.modules[mod_name] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-_resolver = _load("resolver_snap_ut", SKILLS / "_skills_common" / "resolver.py")
-_coemit = _load("coemission_snap_ut", SKILLS / "_skills_common" / "coemission.py")
+_resolver = load_module(SKILLS / "_skills_common" / "resolver.py", "resolver_snap_ut")
+_coemit = load_module(SKILLS / "_skills_common" / "coemission.py", "coemission_snap_ut")
 _GOLDEN = json.loads(SNAPSHOT.read_text())
 _RULE_INDEX = _coemit.load_rule_index(CONTRACTS)
 

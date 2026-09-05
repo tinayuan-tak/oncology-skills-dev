@@ -12,11 +12,14 @@ import json
 import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import hypothesis_core as hc  # noqa: E402
-import run as R  # noqa: E402
+
+R = load_run_py(SCRIPTS.parent, "ce_run_modality_safety")
 
 FIX = Path(__file__).resolve().parent / "fixtures"
 PKG = FIX / "evidence_package_new_blocks.json"

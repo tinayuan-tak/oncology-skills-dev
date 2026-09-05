@@ -9,22 +9,13 @@ as measurement. These tests pin the honesty invariants:
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
+
+from _test_support import load_module
 
 MOD = Path(__file__).resolve().parent.parent / "ordinal_view.py"
 
-
-def _load():
-    spec = importlib.util.spec_from_file_location("ordinal_view", MOD)
-    m = importlib.util.module_from_spec(spec)
-    sys.modules["ordinal_view"] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-ov = _load()
+ov = load_module(MOD, "ordinal_view")
 
 
 def test_order_preserving():

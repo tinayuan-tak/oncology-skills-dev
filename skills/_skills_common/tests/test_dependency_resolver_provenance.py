@@ -17,29 +17,17 @@ rule_ids to the exhaustive table would cause (they are a strict, low-precedence 
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
-import sys
 from pathlib import Path
+
+from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]   # the skills/ dir (this test is skills/_skills_common/tests/)
 CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
                                 "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
-
-def _load(mod_name, path):
-    spec = importlib.util.spec_from_file_location(mod_name, path)
-    m = importlib.util.module_from_spec(spec)
-    sys.modules[mod_name] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-_resolver = _load("resolver_prov_ut", SKILLS / "_skills_common" / "resolver.py")
+_resolver = load_module(SKILLS / "_skills_common" / "resolver.py", "resolver_prov_ut")
 _SPEC = _resolver.load_resolver("dependency", contracts_repo=CONTRACTS)
 
 _DATA_UNAVAILABLE_RULES = [

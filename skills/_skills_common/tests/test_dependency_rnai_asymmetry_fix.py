@@ -11,30 +11,18 @@ Evaluates the shipped dependency resolver via the shared interpreter (reads targ
 """
 from __future__ import annotations
 
-import importlib.util
 import os
-import sys
 from pathlib import Path
 
 import pytest
+
+from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]   # the skills/ dir (this test is skills/_skills_common/tests/)
 CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
                                 "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
-
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    m = importlib.util.module_from_spec(spec)
-    sys.modules[name] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-_r = _load("rnai_fix_rslv", SKILLS / "_skills_common" / "resolver.py")
+_r = load_module(SKILLS / "_skills_common" / "resolver.py", "rnai_fix_rslv")
 
 
 def _verdict(rule_ids):

@@ -41,21 +41,17 @@ This is a LIVE test — not a CI-required gate (CI has no S3 creds). Run it with
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — _live_readers lives in _skills_common
-
-from _skills_common._live_readers import (  # noqa: E402
+from _skills_common._live_readers import (
     CARD_DISPATCHERS,
     PANORAMA_DISPATCHERS,
     read_live_summary,
 )
-from conftest import skip_if_no_data  # noqa: E402 — shared live-S3 skip guard
+from conftest import skip_if_no_data  # shared live-S3 skip guard
 
 _CONTRACTS = Path(os.environ.get(
     "TARGET_CONTRACTS_ROOT",

@@ -12,31 +12,20 @@ target-contracts isn't checked out alongside (isolated CI), mirroring the other 
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
+
+# NOTE: imported as a normal package module (not via _test_support.load_module) because
+# measurement_types.py defines a @dataclass under `from __future__ import annotations`, whose field
+# introspection needs the module registered in sys.modules during exec — which load_module deliberately
+# does not do. conftest puts skills/ on sys.path, so the worktree's copy resolves.
+from _skills_common import measurement_types as mt
 
 yaml = pytest.importorskip("yaml")
 
 COMMON = Path(__file__).resolve().parent.parent
 SKILLS_DIR = COMMON.parent
-
-
-def _load_resolver():
-    # Register in sys.modules BEFORE exec so @dataclass introspection (which looks the module up in
-    # sys.modules) works under spec_from_file_location.
-    sys.path.insert(0, str(SKILLS_DIR))
-    spec = importlib.util.spec_from_file_location(
-        "mt_resolver_under_test", COMMON / "measurement_types.py")
-    m = importlib.util.module_from_spec(spec)
-    sys.modules["mt_resolver_under_test"] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-mt = _load_resolver()
 _REGISTRY_REACHABLE = mt.registered_types() is not None
 
 

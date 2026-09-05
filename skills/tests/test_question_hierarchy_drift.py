@@ -7,24 +7,17 @@ mirror diverges from the governed source — so the hierarchy is edited in ONE p
 silently drift. skipif target-contracts absent (the source lives there)."""
 from __future__ import annotations
 
-import importlib.util
 import os
 from pathlib import Path
 
 import pytest
 
+from _test_support import load_module
+
 SKILLS_DIR = Path(__file__).resolve().parents[1]
 TOOL = SKILLS_DIR / "tools" / "sync_question_hierarchies.py"
 
-
-def _load_tool():
-    spec = importlib.util.spec_from_file_location("_sync_qh", TOOL)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_sync = _load_tool()
+_sync = load_module(TOOL, "_sync_qh")
 
 
 @pytest.mark.skipif(not _sync.contracts_available(),

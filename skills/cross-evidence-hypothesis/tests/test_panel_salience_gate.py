@@ -4,14 +4,11 @@ truly-uninformative claims to one-line tiers, so the panel scales legibly as ato
 13 axes. Pure / offline."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(SCRIPTS.parent.parent))   # skills/ for _skills_common
+from _test_support import load_run_py
 
-import run as R  # noqa: E402
+R = load_run_py(Path(__file__).resolve().parent.parent, "ce_run_salience")
 
 
 def _cvs(**axes):

@@ -5,13 +5,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(SCRIPTS.parent.parent))   # skills/ for _skills_common
 
 import adversarial_survival as AS  # noqa: E402
 import hypothesis_core as hc  # noqa: E402
-import run as R  # noqa: E402
+
+R = load_run_py(SCRIPTS.parent, "ce_run_adversarial")
 
 FIX = Path(__file__).resolve().parent / "fixtures"
 PKG = FIX / "evidence_package_new_blocks.json"

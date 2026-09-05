@@ -11,17 +11,14 @@ not checked out (load_resolver returns None).
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
+from _skills_common.resolver import load_resolver
+from _test_support import load_run_py
 
-from _skills_common.resolver import load_resolver  # noqa: E402
+SKILLS_DIR = Path(__file__).resolve().parent.parent
 
 
 def _resolver_verdicts(gate: str):
@@ -37,13 +34,7 @@ def _resolver_verdicts(gate: str):
 
 
 def _load_skill_run(skill_name: str):
-    path = SKILLS_DIR / skill_name / "scripts" / "run.py"
-    mod_name = f"_guarda_{skill_name.replace('-', '_')}_run"
-    spec = importlib.util.spec_from_file_location(mod_name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[mod_name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    return load_run_py(SKILLS_DIR / skill_name, f"_guarda_{skill_name.replace('-', '_')}_run")
 
 
 _DEP = _resolver_verdicts("dependency")

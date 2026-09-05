@@ -28,11 +28,14 @@ from pathlib import Path
 
 import pytest
 
+from _test_support import load_run_py
+
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import drift_golden as dg  # noqa: E402
-import run as R  # noqa: E402
+
+R = load_run_py(SCRIPTS.parent, "ce_run_drift")
 
 GOLDEN = Path(__file__).resolve().parent / "fixtures" / "golden"
 CASES = sorted(p.name for p in GOLDEN.iterdir() if (p / "expected_spine.json").exists()) \

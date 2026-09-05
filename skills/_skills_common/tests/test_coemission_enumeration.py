@@ -7,27 +7,16 @@ live smoke against the real rules to catch a rules-file that becomes ungroupable
 """
 from __future__ import annotations
 
-import importlib.util
 import os
-import sys
 from pathlib import Path
 
 import pytest
 
+from _test_support import load_module
+
 SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
-
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    m = importlib.util.module_from_spec(spec)
-    sys.modules[name] = m
-    spec.loader.exec_module(m)
-    return m
-
-
-CO = _load("coemission_ut", SKILLS / "_skills_common" / "coemission.py")
+CO = load_module(SKILLS / "_skills_common" / "coemission.py", "coemission_ut")
 
 
 def _idx(**rules):

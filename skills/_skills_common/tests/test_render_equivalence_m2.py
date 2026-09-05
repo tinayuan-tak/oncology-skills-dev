@@ -14,15 +14,14 @@ Each skill's run.py is imported under a UNIQUE module name (spec_from_file_locat
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
+from _skills_common.claim_record import render_verdict
+from _test_support import load_run_py
+
 SKILLS = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS))
-from _skills_common.claim_record import render_verdict  # noqa: E402
 
 # axis short -> (skill dir, verdicts the resolver/inline logic can emit — incl. an open-world token
 # where the axis has one). Verdicts are the record's finding.state universe per axis.
@@ -70,10 +69,7 @@ _AXES = {
 
 
 def _load_claim_record(skill_dir: str):
-    run_py = SKILLS / skill_dir / "scripts" / "run.py"
-    spec = importlib.util.spec_from_file_location(f"_m2_{skill_dir.replace('-', '_')}", run_py)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    mod = load_run_py(SKILLS / skill_dir, f"_m2_{skill_dir.replace('-', '_')}")
     return getattr(mod, "_claim_record")
 
 

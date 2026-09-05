@@ -2,14 +2,12 @@
 only what is in its input). _render_capsule_data surfaces the on-indication stratum, cross-source
 conflicts, and data-quality flags the claim-vector atoms don't carry. Deterministic; no Bedrock."""
 from __future__ import annotations
-import sys
+
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+from _test_support import load_run_py
 
-import run as CE  # noqa: E402
+CE = load_run_py(Path(__file__).resolve().parent.parent, "ce_run_capsule")
 
 
 def _caps():

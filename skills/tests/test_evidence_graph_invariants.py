@@ -14,17 +14,14 @@ from __future__ import annotations
 
 import copy
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-SKILLS_DIR = Path(__file__).resolve().parents[1]
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
-
-from _skills_common.evidence_graph import (  # noqa: E402
+from _skills_common.evidence_graph import (
     build_evidence_graph, load_questions, assert_evidence_graph_valid)
+
+SKILLS_DIR = Path(__file__).resolve().parents[1]
 
 _SKILLS = sorted(
     p.parents[1].name  # …/skills/<skill>/tests/test_evidence_graph.py → <skill>

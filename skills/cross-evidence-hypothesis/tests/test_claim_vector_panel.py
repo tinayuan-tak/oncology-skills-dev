@@ -8,12 +8,14 @@ import json
 import sys
 from pathlib import Path
 
+from _test_support import load_run_py
+
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(SCRIPTS.parent.parent))   # skills/ (for _skills_common)
 
 import hypothesis_core as hc  # noqa: E402
-import run as R  # noqa: E402
+
+R = load_run_py(SCRIPTS.parent, "ce_run_claim_vector")
 
 _ATOM = {
     "read": "strongly_selective",
