@@ -298,7 +298,12 @@ def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
         if nf and _is_num(summary.get(nf)):
             n = summary[nf]
         elif isinstance(cap.get("n_basis"), dict):
-            n = next((v for v in cap["n_basis"].values() if _is_num(v)), None)
+            # only a COUNT-like n_basis entry (n_* / *_n / *count*) — n_basis also holds decisive
+            # medians/z-scores/effects, and grabbing the first numeric mis-read those as the sample
+            # size (e.g. syn_z_score 0.39, median_chronos -1.18 surfacing as "n").
+            n = next((v for k, v in cap["n_basis"].items()
+                      if _is_num(v) and (str(k).startswith("n_") or str(k).endswith("_n")
+                                         or "count" in str(k).lower())), None)
 
     # top_strata: reshape the capsule rows to the schema shape (label/role/value/n/q)
     top_strata = []

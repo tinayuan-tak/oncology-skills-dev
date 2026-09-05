@@ -73,6 +73,11 @@ SALIENCE_SPECS: dict = {
     "alteration_role": {
         "significance_field": "intogen_min_qvalue", "categorical": ["alteration_role"],
         "extra_scalars": ["intogen_max_pct_samples"]},
+    "mutation_stratified_dependency": {
+        "effect_field": "median_chronos_hotspot_mutant", "n_field": "n_hotspot_mutant",
+        "direction": "lower_is_stronger",
+        "categorical": ["mutation_stratification_class", "stratification_direction"],
+        "extra_scalars": ["median_chronos_hotspot_wildtype", "hotspot_dependency_base_rate"]},
 
     # tumor-selectivity (§3.5)
     "tumor_vs_normal_selectivity": {
