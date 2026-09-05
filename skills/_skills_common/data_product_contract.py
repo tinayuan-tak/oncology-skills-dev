@@ -1,12 +1,19 @@
 """Shared helpers for the finalized emitted-output data-product contract (see docs/UNIFIED_OUTPUT_CONTRACT.md
 and each skill's DATA_PRODUCT.md).
 
-Every wired skill's per-skill emitted-output schema is generated + self-contained in target-contracts
-(schemas/skills/<skill>.decision.schema.json). These helpers are the SINGLE place the per-skill tests
-(tests/test_data_product_schema.py) and replay tests (test_<skill>_replay.py) load + validate against
-that schema — imported as `_skills_common.data_product_contract` (works under any pytest import mode,
-unlike a sibling-test import). Pure helpers: they do NOT call pytest.skip/fail — the test decides that,
-so the CI-fail-not-skip policy stays in the test layer.
+Every wired skill's per-skill emitted-output schema is generated + self-contained in target-contracts.
+Two flavours, selected by `suffix`:
+  - `decision` (default) — the fan-out skill_decision envelope, GENERATED from pins:
+    schemas/skills/<skill>.decision.schema.json
+  - `emit` — HAND-AUTHORED bespoke contracts for AUX skills whose output is NOT the fan-out envelope
+    (no run_health / headline.skill_report — e.g. target-archetype, cross-evidence-hypothesis,
+    literature-risk-assessment): schemas/skills/<skill>.emit.schema.json
+
+These helpers are the SINGLE place the per-skill tests (tests/test_data_product_schema.py) and replay
+tests (test_<skill>_replay.py) load + validate against that schema — imported as
+`_skills_common.data_product_contract` (works under any pytest import mode, unlike a sibling-test import).
+Pure helpers: they do NOT call pytest.skip/fail — the test decides that, so the CI-fail-not-skip policy
+stays in the test layer.
 """
 from __future__ import annotations
 
@@ -17,14 +24,16 @@ from pathlib import Path
 _DEFAULT_TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
 
 
-def schema_path(skill: str) -> Path:
+def schema_path(skill: str, suffix: str = "decision") -> Path:
+    """Path to the per-skill schema. `suffix='decision'` (default) = the generated envelope schema;
+    `suffix='emit'` = a hand-authored bespoke aux-skill emit schema."""
     root = Path(os.environ.get("TARGET_CONTRACTS_ROOT", _DEFAULT_TC))
-    return root / "schemas" / "skills" / f"{skill}.decision.schema.json"
+    return root / "schemas" / "skills" / f"{skill}.{suffix}.schema.json"
 
 
-def load_schema(skill: str) -> dict | None:
-    """The generated self-contained per-skill schema, or None if unresolvable."""
-    p = schema_path(skill)
+def load_schema(skill: str, suffix: str = "decision") -> dict | None:
+    """The self-contained per-skill schema, or None if unresolvable."""
+    p = schema_path(skill, suffix)
     return json.loads(p.read_text()) if p.exists() else None
 
 
