@@ -189,6 +189,15 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .cdesc { font-size:11.5px; color:var(--muted); line-height:1.5; margin:1px 0 3px; }
 .cread { font-size:12px; color:var(--ink2); margin:2px 0 4px; } .cread b { font-weight:640; }
 .chainline.keyev .lab { background:var(--page); }
+.gauge { margin:3px 0 5px; }
+.gtrack { position:relative; height:16px; margin:9px 0 2px; }
+.gtrack .grail { position:absolute; top:7px; left:0; right:0; height:2px; background:var(--border); border-radius:2px; }
+.gtick { position:absolute; top:2px; width:1px; height:12px; background:var(--muted); transform:translateX(-50%); }
+.gtick.gcut { background:var(--ink2); height:14px; top:1px; }
+.gtick .gtlab { position:absolute; top:13px; left:50%; transform:translateX(-50%); font-size:8.5px; color:var(--muted); white-space:nowrap; }
+.gmark { position:absolute; top:3px; width:10px; height:10px; border-radius:50%; transform:translateX(-50%); border:1.5px solid var(--surface); box-shadow:0 0 0 1px currentColor; }
+.gmark.gcomp { width:8px; height:8px; top:4px; opacity:.55; }
+.gcap { font-size:11px; color:var(--ink2); }
 .pill-drv { background:var(--t-good,rgba(12,163,12,.12)); color:var(--supportive); border:1px solid var(--border);
             border-radius:4px; padding:0 5px; font-size:9.5px; font-weight:700; }
 .pill-none { color:var(--muted); font-size:11px; font-style:italic; }
@@ -861,6 +870,49 @@ class HtmlBackend:
                 "card (colour = signal, opacity = confidence); literature dot colour = agreement</span></h2>"
                 f"<div class='eg-inner'><div class='hm'>{''.join(groups)}</div>{note}</div>"]
 
+    def _gauge(self, c: dict) -> str:
+        """Visual reference-frame ruler for a card's interpretation[0] — a track with floor/cut/ceiling
+        (or comparator) ticks + a polarity-coloured value marker, captioned by the plain gauge words. On a
+        plain numeric axis (min→max of the points) so the marker placement can't invert; the words carry
+        the past/short-of-cut reading. '' when the card has no ruler."""
+        interp = c.get("interpretation") or []
+        gv = interp[0] if interp and isinstance(interp[0], dict) else None
+        words = c.get("gauge")
+        if not gv or gv.get("value") is None:
+            return ""
+        val = gv.get("value")
+        anchors = [a for a in ((gv.get("frame") or {}).get("anchors") or [])
+                   if isinstance(a, dict) and isinstance(a.get("value"), (int, float)) and not isinstance(a.get("value"), bool)]
+        pts = ([val] if isinstance(val, (int, float)) and not isinstance(val, bool) else []) + [a["value"] for a in anchors]
+        if len(pts) < 2:                                  # not enough to draw a track — words only
+            return f"<div class='gauge'><div class='gcap'>{_esc(words)}</div></div>" if words else ""
+        lo, hi = min(pts), max(pts)
+        span = (hi - lo) or 1.0
+
+        def _pos(x):
+            return max(0.0, min(100.0, (x - lo) / span * 100.0))
+
+        def _alab(a):
+            return str(a.get("label") or a.get("role") or "").replace("_", " ")
+
+        ticks = []
+        comp_mark = ""
+        for a in anchors:
+            if a.get("role") == "comparator":
+                comp_mark = (f"<span class='gmark gcomp' style='left:{_pos(a['value']):.1f}%;"
+                             f"color:var(--muted)' title='{_esc(_alab(a))} {_esc(a['value'])}'></span>")
+                continue
+            cls = "gtick gcut" if a.get("role") == "cut" else "gtick"
+            ticks.append(f"<span class='{cls}' style='left:{_pos(a['value']):.1f}%'>"
+                         f"<span class='gtlab'>{_esc(_alab(a))}</span></span>")
+        key = "killer" if c.get("liability") else c.get("polarity")
+        color = self._EG_POL_COLOR.get(key, "var(--neutral)")
+        mark = (f"<span class='gmark' style='left:{_pos(val):.1f}%;color:{color}' "
+                f"title='{_esc(gv.get('metric'))} {_esc(val)}'></span>")
+        cap = f"<div class='gcap'>{_esc(words)}</div>" if words else ""
+        return (f"<div class='gauge'><div class='gtrack'><span class='grail'></span>"
+                f"{''.join(ticks)}{comp_mark}{mark}</div>{cap}</div>")
+
     def _card_chain(self, p: dict) -> list:
         layers = p.get("layers") or []
         if not layers:
@@ -890,10 +942,11 @@ class HtmlBackend:
                 reads = c.get("reads")
                 reads_line = (f"<div class='cread'>Reads: <b class='{gcls}'>{_esc(reads)}</b></div>"
                               if reads else "")
+                gauge = self._gauge(c)                       # the reference-frame ruler (support layer)
                 rows.append(
                     f"<div class='cardln'><div class='chead'><span><b>{_esc(c.get('id'))}</b></span>"
                     f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
-                    f"{desc_line}{reads_line}{ke_line}"
+                    f"{desc_line}{reads_line}{gauge}{ke_line}"
                     f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
                     f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
                     f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>")

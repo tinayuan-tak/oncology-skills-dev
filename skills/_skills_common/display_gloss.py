@@ -73,6 +73,7 @@ def direction_phrase(direction) -> Optional[str]:
 METRIC_GLOSS: dict = {
     # ── effect metrics ──
     "median_chronos": ("median CRISPR gene-effect (CHRONOS)", "CHRONOS"),
+    "median_chronos_panel": ("panel median CRISPR gene-effect (CHRONOS)", "CHRONOS"),
     "median_chronos_hotspot_mutant": ("median CHRONOS in hotspot-mutant lines", "CHRONOS"),
     "rnai_median_dep_score": ("median RNAi dependency score", "dep score"),
     "fraction_agree": ("CRISPR/RNAi agreement fraction", "fraction"),
@@ -102,6 +103,7 @@ METRIC_GLOSS: dict = {
     "protein_bh_q_value": ("protein BH FDR q-value", "q"),
     "intogen_min_qvalue": ("IntOGen driver q-value", "q"),
     "gi_ttest_pvalue": ("dual-KO t-test p-value", "p"),
+    "hotspot_mannwhitney_q": ("hotspot mutant-vs-WT Mann-Whitney q-value", "q"),
     "lineage_omnibus_p": ("cross-lineage omnibus p-value", "p"),
     "pli_score": ("gnomAD pLI (LoF-intolerance probability)", "pLI"),
     "frac_models_significant": ("fraction of models with a significant shift", "fraction"),
@@ -201,6 +203,93 @@ def _fmt_num(v):
     return str(v)
 
 
+def _anchor_by_role(gv: dict) -> dict:
+    out = {}
+    for a in ((gv.get("frame") or {}).get("anchors") or []):
+        if isinstance(a, dict) and a.get("role"):
+            out[a["role"]] = a
+    return out
+
+
+def _past_or_short(x, cut, direction) -> Optional[str]:
+    """'past' when x is on the STRONGER/worse side of the cut (per direction), else 'short of'. None when
+    either value is missing/non-numeric."""
+    if not isinstance(x, (int, float)) or isinstance(x, bool) or not isinstance(cut, (int, float)) or isinstance(cut, bool):
+        return None
+    d = _norm_direction(direction)
+    if d in ("lower_is_stronger", "lower_is_worse"):
+        return "past" if x <= cut else "short of"
+    if d in ("higher_is_stronger", "higher_is_worse"):
+        return "past" if x >= cut else "short of"
+    return None
+
+
+def _anchor_label(a: dict) -> str:
+    return str(a.get("label") or a.get("role") or "").replace("_", " ")
+
+
+def gauge_string(gv: dict) -> str:
+    """A plain-language, PRE-GAUGED reading of one interpretation ruler (a gauged_value), e.g.
+    'median CHRONOS in hotspot-mutant lines -1.73 vs hotspot wildtype -0.59 (Δ-1.14, past the -0.5 cut)'
+    or 'between controls — median CRISPR gene-effect (CHRONOS) -0.46 between non essential floor -0.04 and
+    pan essential ceiling -1.50, short of the -0.5 cut'. The words backend for text/md/pptx + the narrator;
+    the HTML backend draws the visual ruler. '' when gv is empty."""
+    if not isinstance(gv, dict) or gv.get("value") is None:
+        return ""
+    label, _units = gloss(gv.get("metric"))
+    value = gv.get("value")
+    head = f"{label} {_fmt_num(value)}" if label else _fmt_num(value)
+    frame = gv.get("frame") or {}
+    kind = frame.get("kind")
+    anchors = _anchor_by_role(gv)
+    direction = gv.get("direction")
+    cut = anchors.get("cut") or {}
+
+    if kind == "comparator_delta":
+        seg = head
+        comp = anchors.get("comparator") or {}
+        if comp.get("value") is not None:
+            seg += f" vs {_anchor_label(comp)} {_fmt_num(comp['value'])}"
+        dtc = gv.get("distance_to_cut")
+        tail = []
+        if dtc is not None:
+            tail.append(f"Δ{_fmt_num(dtc)}")
+        ps = _past_or_short(dtc, cut.get("value"), direction)   # the cut is on the DELTA here
+        if ps and cut.get("value") is not None:
+            tail.append(f"{ps} the {_fmt_num(cut['value'])} cut")
+        if tail:
+            seg += f" ({', '.join(tail)})"
+        return seg
+
+    if kind == "floor_cut_ceiling":
+        seg = head
+        fc = []
+        for role in ("floor", "ceiling"):
+            a = anchors.get(role) or {}
+            if a.get("value") is not None:
+                fc.append(f"{_anchor_label(a)} {_fmt_num(a['value'])}")
+        if fc:
+            seg += " between " + " and ".join(fc)
+        ps = _past_or_short(value, cut.get("value"), direction)
+        if ps and cut.get("value") is not None:
+            seg += f", {ps} the {_fmt_num(cut['value'])} cut"
+        pos = gv.get("position")
+        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+
+    if kind == "distance_to_cut":
+        seg = head
+        ps = _past_or_short(value, cut.get("value"), direction)
+        if ps and cut.get("value") is not None:
+            seg += f", {ps} the {_fmt_num(cut['value'])} cut"
+        return seg
+
+    if kind == "percentile":
+        return f"{_fmt_num(value)}th percentile ({label})" if label else f"{_fmt_num(value)}th percentile"
+
+    # no / unknown frame → the glossed reading alone
+    return metric_reading(gv.get("metric"), value, direction)
+
+
 def metric_reading(field, value, direction=None, include_direction: bool = True) -> str:
     """A plain-language reading of one metric: '{label} = {value} ({units}; {direction_phrase})'.
     Omits the parenthetical parts that are absent, so a unitless flag still reads cleanly."""
@@ -268,5 +357,5 @@ def card_description(card_id: str, target: Optional[str] = None,
     return re.sub(r"\s{2,}", " ", q).strip() or None
 
 
-__all__ = ["direction_phrase", "gloss", "metric_reading", "humanize", "METRIC_GLOSS",
+__all__ = ["direction_phrase", "gloss", "metric_reading", "gauge_string", "humanize", "METRIC_GLOSS",
            "card_question", "card_description", "indication_label"]

@@ -93,6 +93,42 @@ def test_json_backend_carries_reads_and_glossed_key():
     assert "key_evidence_summary" in card and "CHRONOS" in card["key_evidence_summary"]
 
 
+def _graph_with_ruler() -> dict:
+    g = _graph_with_gauged_card()
+    g["cards"][0]["key_evidence"]["interpretation"] = [{
+        "metric": "median_chronos_panel", "value": -0.4574, "scale": "chronos",
+        "direction": "lower_is_stronger", "position": "between_controls",
+        "position_source": "dep_control_position_class",
+        "frame": {"kind": "floor_cut_ceiling", "anchors": [
+            {"role": "floor", "label": "non_essential_floor", "value": -0.038},
+            {"role": "ceiling", "label": "pan_essential_ceiling", "value": -1.499},
+            {"role": "cut", "label": "dependency_cut", "value": -0.5}]}}]
+    return g
+
+
+def test_html_draws_the_gauge_ruler():
+    h = be.render(_ir(_graph_with_ruler()), "html")
+    assert "class='gtrack'" in h and "gmark" in h                 # visual ruler track + value marker
+    assert "gtick gcut" in h                                      # the cut tick
+    assert "between controls —" in h                              # gauge words caption
+    assert "short of the -0.5 cut" in h
+
+
+def test_text_surfaces_the_gauge_words():
+    t = be.render(_ir(_graph_with_ruler()), "text")
+    assert "between non essential floor -0.038 and pan essential ceiling -1.499" in t
+    assert "short of the -0.5 cut" in t
+
+
+def test_json_carries_interpretation_and_gauge():
+    import json
+    obj = json.loads(be.render(_ir(_graph_with_ruler()), "json"))
+    card = [b for s in obj["sections"] for b in s["blocks"]
+            if b["kind"] == "card_chain"][0]["layers"][0]["cards"][0]
+    assert card["interpretation"] and card["interpretation"][0]["frame"]["kind"] == "floor_cut_ceiling"
+    assert "between controls —" in (card.get("gauge") or "")
+
+
 def test_description_interpolates_target_when_contracts_available():
     # fail-soft: only assert when the real card contract resolves (isolated CI may lack it)
     h = be.render(_ir(_graph_with_gauged_card()), "html")

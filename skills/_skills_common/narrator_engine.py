@@ -162,14 +162,22 @@ def _fmt_ke_num(v):
 
 
 def _ke_line(ke: dict) -> str:
-    """A compact one-line grounding string for a card's key_evidence (indication stratum effect + q,
-    omnibus, driving categorical, subtype restriction) — what a bullet should LEAD with."""
+    """A compact one-line grounding string for a card's key_evidence — what a bullet should LEAD with.
+    When the card carries a typed reference-frame ruler (interpretation[]), LEAD with the PRE-GAUGED
+    reading ('moderately dependent — median CHRONOS -1.73 vs wild-type -0.59 (Δ-1.14, past the -0.5 cut)')
+    so the bullet copies the framing; else fall back to the indication stratum effect + q."""
+    from _skills_common import display_gloss  # single-source gauge/gloss vocabulary
     parts = []
+    interp = ke.get("interpretation") or []
     strata = ke.get("top_strata") or []
     lead = next((s for s in strata if s.get("role") == "indication"), None) \
         or next((s for s in strata if s.get("role") == "strongest"), None)
     eff = ke.get("effect") or {}
-    if lead:
+    if interp:
+        gs = display_gloss.gauge_string(interp[0])
+        if gs:
+            parts.append(gs)
+    elif lead:
         seg = f"{lead.get('label')} {eff.get('metric') or 'effect'}={_fmt_ke_num(lead.get('value'))}"
         if lead.get("q") is not None:
             seg += f" (q={_fmt_ke_num(lead.get('q'))})"

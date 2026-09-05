@@ -91,3 +91,38 @@ def test_humanize():
     assert dg.humanize("HIGH_LIABILITY") == "High liability"
     assert dg.humanize("between_controls") == "Between controls"
     assert dg.humanize(None) == ""
+
+
+def test_gauge_string_comparator_delta():
+    gv = {"metric": "median_chronos_hotspot_mutant", "value": -1.729, "scale": "chronos",
+          "direction": "lower_is_stronger", "distance_to_cut": -1.142,
+          "frame": {"kind": "comparator_delta", "anchors": [
+              {"role": "comparator", "label": "hotspot_wildtype", "value": -0.5864},
+              {"role": "cut", "label": "strong_effect_delta", "value": -0.5}]}}
+    s = dg.gauge_string(gv)
+    assert "hotspot-mutant lines -1.729" in s
+    assert "vs hotspot wildtype -0.5864" in s
+    assert "Δ-1.142" in s and "past the -0.5 cut" in s
+
+
+def test_gauge_string_floor_cut_ceiling_oriented_and_positioned():
+    gv = {"metric": "median_chronos_panel", "value": -0.4574, "scale": "chronos",
+          "direction": "lower_is_stronger", "position": "between_controls",
+          "frame": {"kind": "floor_cut_ceiling", "anchors": [
+              {"role": "floor", "label": "non_essential_floor", "value": -0.038},
+              {"role": "ceiling", "label": "pan_essential_ceiling", "value": -1.499},
+              {"role": "cut", "label": "dependency_cut", "value": -0.5}]}}
+    s = dg.gauge_string(gv)
+    assert s.startswith("between controls — ")
+    assert "between non essential floor -0.038 and pan essential ceiling -1.499" in s
+    # -0.4574 is WEAKER than the -0.5 dependency cut (lower_is_stronger) -> "short of"
+    assert "short of the -0.5 cut" in s
+
+
+def test_gauge_string_empty_and_no_frame():
+    assert dg.gauge_string({}) == ""
+    assert dg.gauge_string({"value": None}) == ""
+    # no frame -> falls back to the glossed metric reading
+    s = dg.gauge_string({"metric": "median_chronos", "value": -1.2, "scale": "chronos",
+                         "direction": "lower_is_stronger", "frame": {"kind": None, "anchors": []}})
+    assert "median CRISPR gene-effect (CHRONOS)" in s and "-1.2" in s

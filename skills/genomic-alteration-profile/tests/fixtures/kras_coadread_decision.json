@@ -128,7 +128,16 @@
       "card_id": "mutation-stratified-dependency",
       "input_manifest_ids": [
         "depmap-consortium-26q1"
-      ]
+      ],
+      "summary": {
+        "median_chronos_hotspot_mutant": -1.7287354469299316,
+        "median_chronos_hotspot_wildtype": -0.5864385962486267,
+        "delta_chronos_hotspot_mut_vs_wt": -1.142296850681305,
+        "hotspot_mannwhitney_q": 1.2467439493977978e-10,
+        "n_hotspot_mutant": 43,
+        "mutation_stratification_class": "mutant_strongly_dependent",
+        "stratification_direction": "forward_mutant_dependent"
+      }
     },
     {
       "card_id": "mutation-hotspot-frequency",

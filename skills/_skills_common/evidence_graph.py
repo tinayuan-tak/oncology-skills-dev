@@ -188,7 +188,8 @@ def _narrative_cites(text: str, card_ids: set, rule_ids: set) -> tuple:
 
 
 # ── key_evidence promotion (the decisive-data-point substrate) ──────────────────────────────────────
-from _skills_common.evidence_salience import spec_for, sig_round, SUBTYPE_SPECS  # noqa: E402
+from _skills_common.evidence_salience import (  # noqa: E402
+    spec_for, sig_round, SUBTYPE_SPECS, build_interpretation)
 
 _KE_R = 4
 _KE_ROLE = {"INDICATION": "indication", "extreme_strongest": "strongest", "extreme_weakest": "weakest"}
@@ -332,7 +333,14 @@ def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
 
     subtype_axis = _build_subtype_axis(summary)
 
+    # typed reference-frame ruler(s) — the per-type SALIENCE_SPEC reference_frame projected onto the summary
+    # + capsule (cut single-sourced from the card thresholds:, resolved inside the salience layer so THIS
+    # builder does no card.yaml read). [] when the type has no reference_frame or the value is absent.
+    interpretation = build_interpretation(cap, summary, spec, cap.get("card_id"))
+
     ke = {}
+    if interpretation:
+        ke["interpretation"] = interpretation
     if effect:
         ke["effect"] = effect
     if _is_num(n):

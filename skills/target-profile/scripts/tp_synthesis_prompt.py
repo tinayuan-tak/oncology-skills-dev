@@ -528,7 +528,14 @@ def _ke_oneliner(ke: dict) -> str:
     lead = next((s for s in strata if s.get("role") == "indication"), None) \
         or next((s for s in strata if s.get("role") == "strongest"), None)
     eff = ke.get("effect") or {}
-    if lead:
+    interp = ke.get("interpretation") or []
+    if interp:
+        # LEAD with the pre-gauged reference-frame reading so the composed bullet copies the framing
+        from _skills_common import display_gloss
+        gs = display_gloss.gauge_string(interp[0])
+        if gs:
+            parts.append(gs)
+    elif lead:
         seg = f"{lead.get('label')} {eff.get('metric') or 'effect'}={_n(lead.get('value'))}"
         if lead.get("q") is not None:
             seg += f" (q={_n(lead.get('q'))})"

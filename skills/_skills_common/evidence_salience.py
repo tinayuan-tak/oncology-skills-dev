@@ -41,7 +41,17 @@ SALIENCE_SPECS: dict = {
     "crispr_lof_dependency": {
         "strata_array": "enriched_lineages", "effect_field": "median_chronos", "significance_field": "q_value",
         "omnibus_field": "lineage_omnibus_p", "n_field": "n_cell_lines_panel", "direction": "lower_is_stronger",
-        "categorical": ["dep_control_position_class"], "extra_scalars": ["selectivity_index"]},
+        "categorical": ["dep_control_position_class"], "extra_scalars": ["selectivity_index"],
+        # STAGE-2 PILOT ruler: floor_cut_ceiling. The gauged value is the PANEL median (median_chronos_panel)
+        # — the field dep_control_position_class was banded on — NOT the effect_field stratum value
+        # (median_chronos), so the read-verbatim position never contradicts a recomputed band.
+        "reference_frame": {
+            "kind": "floor_cut_ceiling", "value_field": "median_chronos_panel", "scale": "chronos",
+            "position_field": "dep_control_position_class",
+            "anchors": [{"role": "floor", "field": "dep_control_non_essential_floor", "label": "non_essential_floor"},
+                        {"role": "ceiling", "field": "dep_control_pan_essential_ceiling", "label": "pan_essential_ceiling"}],
+            "cut": {"card_id": "pan-cancer-crispr-dependency-distribution",
+                    "threshold": "moderately_dependent_threshold_chronos", "label": "dependency_cut"}}},
     "rnai_lof_dependency": {
         "effect_field": "rnai_median_dep_score", "direction": "lower_is_stronger",
         "categorical": ["rnai_dependency_class"]},
@@ -75,9 +85,19 @@ SALIENCE_SPECS: dict = {
         "extra_scalars": ["intogen_max_pct_samples"]},
     "mutation_stratified_dependency": {
         "effect_field": "median_chronos_hotspot_mutant", "n_field": "n_hotspot_mutant",
+        "significance_field": "hotspot_mannwhitney_q",   # coverage gap fill (q exists in summary_fields)
         "direction": "lower_is_stronger",
         "categorical": ["mutation_stratification_class", "stratification_direction"],
-        "extra_scalars": ["median_chronos_hotspot_wildtype", "hotspot_dependency_base_rate"]},
+        "extra_scalars": ["median_chronos_hotspot_wildtype", "hotspot_dependency_base_rate"],
+        # STAGE-2 PILOT ruler: comparator_delta — mutant median vs WT baseline, delta gauged against the
+        # strong-effect delta cut. value/comparator/distance all NAME summary fields (never recomputed).
+        "reference_frame": {
+            "kind": "comparator_delta", "value_field": "median_chronos_hotspot_mutant", "scale": "chronos",
+            "distance_field": "delta_chronos_hotspot_mut_vs_wt",
+            "anchors": [{"role": "comparator", "field": "median_chronos_hotspot_wildtype",
+                         "label": "hotspot_wildtype"}],
+            "cut": {"card_id": "mutation-stratified-dependency", "threshold": "strong_effect_delta",
+                    "label": "strong_effect_delta", "on": "distance"}}},
 
     # tumor-selectivity (§3.5)
     "tumor_vs_normal_selectivity": {
@@ -177,6 +197,104 @@ def spec_for(measurement_type):
     return SALIENCE_SPECS.get(measurement_type) if measurement_type else None
 
 
+# ── Stage-2 interpretation rulers (key_evidence.interpretation[]) ─────────────────────────────────────
+# build_interpretation projects a spec's `reference_frame` into a list of gauged_value rulers. It NAMES
+# summary fields (never recomputes), reads ordinal position VERBATIM from a resolver *_class field, and
+# single-sources the cut from the driving card's `thresholds:` block. This is the ONLY card.yaml read
+# behind interpretation and it lives HERE (the salience/authoring layer) — evidence_graph.build_evidence_
+# graph stays a pure projection that DELEGATES to this function, so the builder does zero card.yaml reads.
+def _inum(v):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def _read_num_field(field, summary, cap):
+    """A named NUMERIC field: summary first, then the capsule (numeric_anchors, then n_basis)."""
+    if not field:
+        return None
+    if isinstance(summary, dict) and _inum(summary.get(field)) is not None:
+        return summary[field]
+    cap = cap or {}
+    for a in (cap.get("numeric_anchors") or []):
+        if isinstance(a, dict) and a.get("metric") == field and _inum(a.get("value")) is not None:
+            return a["value"]
+    nb = cap.get("n_basis")
+    if isinstance(nb, dict) and _inum(nb.get(field)) is not None:
+        return nb[field]
+    return None
+
+
+def _read_str_field(field, summary, cap):
+    """A named STRING field (e.g. a resolver *_class): summary first, then capsule categorical_anchors."""
+    if not field:
+        return None
+    if isinstance(summary, dict) and isinstance(summary.get(field), str):
+        return summary[field]
+    for a in ((cap or {}).get("categorical_anchors") or []):
+        if isinstance(a, dict) and a.get("field") == field and isinstance(a.get("value"), str):
+            return a["value"]
+    return None
+
+
+@functools.lru_cache(maxsize=512)
+def contract_threshold(card_id, key, contracts_repo: str | None = None):
+    """A single numeric value from a card's `thresholds:` block (the single-sourced cut). Cached; fail-soft
+    → None (a missing cut just drops the cut anchor — never breaks the graph)."""
+    if not card_id or not key:
+        return None
+    try:
+        import yaml
+        from _skills_common.paths import target_contracts_root
+        base = Path(contracts_repo) if contracts_repo else target_contracts_root()
+        p = Path(base) / "cards" / f"{card_id}.card.yaml"
+        if not p.exists():
+            return None
+        spec = yaml.safe_load(p.read_text()) or {}
+        return _inum((spec.get("thresholds") or {}).get(key))
+    except Exception:  # noqa: BLE001 — display-only; never break the graph
+        return None
+
+
+def build_interpretation(cap: dict, summary: dict, spec: dict | None = None,
+                         card_id: str | None = None, contracts_repo: str | None = None) -> list:
+    """Project spec['reference_frame'] → key_evidence.interpretation[] (list of gauged_value). Deterministic
+    (sig_round every number; absent layer omitted, never null-filled); [] when no frame or no value present.
+    Enforces 'no bare number': a value is emitted only with a non-null scale."""
+    cap = cap or {}
+    summary = summary or {}
+    spec = spec or {}
+    rf = spec.get("reference_frame")
+    if not isinstance(rf, dict):
+        return []
+    value = _read_num_field(rf.get("value_field"), summary, cap)
+    scale = rf.get("scale")
+    if value is None or not scale:            # no bare frame without a value+scale
+        return []
+    gv = {"metric": rf.get("value_field"), "value": sig_round(value), "scale": scale,
+          "direction": spec.get("direction"), "frame": {"kind": rf.get("kind"), "anchors": []}}
+    pos = _read_str_field(rf.get("position_field"), summary, cap)   # READ VERBATIM (never recomputed)
+    if pos is not None:
+        gv["position"] = pos
+        gv["position_source"] = rf.get("position_field")
+    dist = _read_num_field(rf.get("distance_field"), summary, cap)  # PREFER the summary's own delta
+    if dist is not None:
+        gv["distance_to_cut"] = sig_round(dist)
+    anchors = []
+    for a in (rf.get("anchors") or []):
+        if not isinstance(a, dict):
+            continue
+        av = _read_num_field(a.get("field"), summary, cap)
+        if av is not None:
+            anchors.append({"role": a.get("role"), "label": a.get("label"), "value": sig_round(av)})
+    cut = rf.get("cut")
+    if isinstance(cut, dict):
+        cv = contract_threshold(cut.get("card_id") or card_id, cut.get("threshold"), contracts_repo)
+        if cv is not None:
+            anchors.append({"role": "cut", "label": cut.get("label") or cut.get("threshold"),
+                            "value": sig_round(cv)})
+    gv["frame"]["anchors"] = anchors
+    return [gv]
+
+
 # ── indication → acceptable stratum labels (the canonical INDICATION_TO_* crosswalk) ─────────────────
 # Resolves the INDICATION strata row by the framework's own vocabulary instead of the substring match
 # that silently drops it (COADREAD ⊄ lineage "Bowel"; LUAD ⊄ "Lung"). Reads the canonical
@@ -225,4 +343,5 @@ def indication_stratum_aliases(indication: str | None, contracts_repo: str | Non
     return frozenset(out)
 
 
-__all__ = ["SALIENCE_SPECS", "SUBTYPE_SPECS", "spec_for", "indication_stratum_aliases", "sig_round"]
+__all__ = ["SALIENCE_SPECS", "SUBTYPE_SPECS", "spec_for", "indication_stratum_aliases", "sig_round",
+           "build_interpretation", "contract_threshold"]
