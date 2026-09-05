@@ -722,10 +722,75 @@ TARGET_ARCHETYPE = LensConfig(
     # companion + nomination_scorecard).
 )
 
-# Registry for the dispatcher / fan-out lookup by skill name — the 14 hierarchy skills + the META
-# target-archetype reduction-stage companion (NON-fan-out; cardless; verdict-INERT).
+LITERATURE_CONTEXT = LensConfig(
+    name="literature-context",
+    thesis="what the PUBLISHED LITERATURE SAYS about the target in the indication — the co-occurrence VOLUME "
+           "(how much is written), the RECENCY, the top CITED STATEMENTS, and the typed relation DIRECTION "
+           "(PubTator3 BioREx associate/cause/inhibit/stimulate/…) — as a DESCRIPTIVE citation context, NOT a "
+           "validated/causal/mechanistic claim, WHILE distinguishing a CANONICAL, VALIDATED, DIRECTION-CORRECT "
+           "target–indication relationship (KRAS/CRC, ERBB2/breast, EGFR/lung, VHL/ccRCC — high volume AND a "
+           "consistent mechanistically-correct relation) from an OVER-CONFIDENT validated/causal/direction-correct "
+           "read that the raw co-occurrence VOLUME or the AUTOMATED relation direction does NOT support: a high "
+           "count is CITATION / ATTENTION / STUDY bias (well-studied genes accrue mentions; a pleiotropic gene "
+           "co-occurs across many diseases as a passenger — VOLUME ≠ VALIDATION), and a BioREx typed edge is "
+           "ML-extracted from often a SINGLE sentence (mis-typed / conflicting / context-free — DIRECTION ≠ "
+           "validated mechanism).",
+    relevance_prompt="give the cited-literature CONTEXT read (descriptive; NO nomination call and NO causal/"
+                     "mechanistic call). Foreground the top CITED STATEMENTS + whether a high co-occurrence "
+                     "volume / a typed relation direction reflects a canonical validated relationship or "
+                     "citation-bias / pleiotropy / automated-extraction over-call.",
+    axis_labels={"VOLUME": "co-occurrence volume", "RECENCY": "recent activity",
+                 "RELATION": "typed relation direction"},
+    scope_exclusions=("any nomination / prioritization verdict (this layer is CONTEXT-tier + verdict-INERT, "
+                      "NEVER a gate — RISK_ASSESSMENT_INTEGRATION.md §4)",
+                      "the mechanistic / causal MoA call (owned by mechanism-and-pharmacology)",
+                      "the 6-dimension literature RISK read (owned by literature-risk-assessment)",
+                      "the target–indication association's biological validity (co-occurrence describes what is "
+                      "WRITTEN, not what is TRUE)"),
+    # NARRATOR RULE: this is a DESCRIPTIVE cited-literature CONTEXT read (gateless — no nomination/causal call).
+    # LEAD with the top CITED STATEMENTS (the substance), then separate a canonical validated relationship from a
+    # volume-inflation / automated-relation / pleiotropy over-call, then name the inflation modes the raw
+    # volume/direction cannot self-distinguish. NEVER read a "this relationship is validated" claim off a bare count.
+    polarity_note=(
+        "This lens is DESCRIPTIVE + CONTEXT-tier — the co-occurrence VOLUME and the PubTator3 typed relation "
+        "DIRECTION describe what the literature HAS WRITTEN, they are NOT a validated / causal / mechanistic / "
+        "direction-correct claim, and there is NO nomination verdict; do NOT imply the volume or the relation "
+        "nominates or validates the target. LEAD by CITING the top CITED STATEMENTS (top_cited — pmid/year/"
+        "sentence: the actual substance), then state whether the read is a CANONICAL, VALIDATED, DIRECTION-CORRECT "
+        "relationship or an OVER-CALL (read cited_evidence_confidence_caveat / cited_evidence_provenance): a "
+        "validated_established_relationship read — a canonical target–indication pair with HIGH co-occurrence "
+        "volume AND a consistent, mechanistically-correct relation direction (KRAS/CRC activating driver, "
+        "ERBB2/breast amplification, EGFR/lung activating SNV, VHL/ccRCC LoF) — is NOT an over-call and must NOT "
+        "be demoted. Then name the inflation modes: (a) VOLUME ≠ VALIDATION — a high europePMC co-occurrence "
+        "count reflects CITATION / ATTENTION / STUDY bias (well-studied targets accrue mentions — Stoeger 2018 "
+        "PMID 30226837; Edwards 2011 PMID 21307913; guilt-by-association multifunctionality — Gillis & Pavlidis "
+        "2012 PMID 22479173), NOT a validated or causal target–indication relationship (a pair can co-occur "
+        "heavily as passengers / context) — the volume_without_validated_relation reason = HIGH volume but "
+        "thin / absent / ambiguous relation direction; (b) RELATION DIRECTION IS AUTOMATED + CONTEXT-FREE — "
+        "PubTator3 BioREx typed edges (associate / cause / inhibit / …) are ML-extracted, often from a SINGLE "
+        "sentence, so they can be MIS-TYPED, direction-ambiguous, CONFLICTING across papers, or context-free "
+        "(an in-vitro 'inhibit' edge is not a validated in-vivo mechanism) — the "
+        "relation_direction_automated_or_conflicting reason; (c) RECENCY / STALENESS — an old latest_year is a "
+        "stale literature that may pre-date modern understanding, and a burst of recent low-quality mentions is "
+        "not validation either (stale_literature note); (d) PLEIOTROPY / SCOPE — co-occurrence is a "
+        "target×disease ASSOCIATION, not target-centric causality; a high n_diseases = a promiscuous / "
+        "pleiotropic target mentioned across many diseases (the TP53 pattern — nonspecific). The mechanistic / "
+        "causal call is owned by mechanism-and-pharmacology and the RISK read by literature-risk-assessment — "
+        "breadcrumb, do not adjudicate them here. Attribute every claim to a specific pmid from top_cited; NEVER "
+        "invent a PMID, statement, relation type, or count."),
+    mode="descriptive",
+    # TOKENLESS descriptive lens (like COMBINATION_VULNERABILITY / TARGET_INTRINSIC / TRANSLATIONAL_READINESS /
+    # TARGET_ARCHETYPE): literature-context supplies verdict_fn=None and emits NO collapsed verdict token — so
+    # NO verdict_key; the collapsed-verdict prompt line resolves to None and the descriptive tool needs no
+    # verdict. The narration LEADS with the top CITED STATEMENTS + the VOLUME/RECENCY/RELATION claim_vector this
+    # skill's run.py builds from the cited-literature-evidence card.
+)
+
+# Registry for the dispatcher / fan-out lookup by skill name — the 14 hierarchy skills + the two NON-standard
+# reduction-stage / literature-native companions (target-archetype: cardless META; literature-context: the
+# literature-native cited-evidence peer). Both verdict-INERT.
 LENSES = {L.name: L for L in (
     FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_PRESENCE, TUMOR_SELECTIVITY, GENOMIC_ALTERATION,
     SURFACE_MODALITY_FIT, TRACTABILITY_SM, IMMUNE_CONTEXT, DIFFERENTIATION_LANDSCAPE,
     MECHANISM_PHARMACOLOGY, CIS_FEATURE_COHERENCE, COMBINATION_VULNERABILITY, TARGET_INTRINSIC,
-    TRANSLATIONAL_READINESS, TARGET_ARCHETYPE)}
+    TRANSLATIONAL_READINESS, TARGET_ARCHETYPE, LITERATURE_CONTEXT)}

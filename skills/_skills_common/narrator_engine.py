@@ -118,6 +118,13 @@ def _render_capsules(pkg: dict) -> str:
         lines.append(f"  · {cid}: " + "  ".join(parts))
         for dq in (c.get("data_quality_flags") or []):
             lines.append(f"      ⚠ DATA-QUALITY: {dq['flag']} [{dq.get('field')}={dq.get('value')}]")
+        # RAW cited statements (citation cards only — the pmid/year/sentence SUBSTANCE): the narrator LEADS
+        # with + attributes to these, rather than reporting the statements DATA_UNAVAILABLE.
+        for st in (c.get("cited_statements") or []):
+            _cite = "PMID:" + st["pmid"] if st.get("pmid") else "(no pmid)"
+            _yr = f" {st['year']}" if st.get("year") is not None else ""
+            _sec = f" [{st['section']}]" if st.get("section") else ""
+            lines.append(f"      ▸ CITED {_cite}{_yr}{_sec}: {st.get('sentence', '')}")
     return "\n".join(lines)
 
 

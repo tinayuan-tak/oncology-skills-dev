@@ -25,7 +25,7 @@ description: |
   statements, and in what direction — with citations?
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -72,6 +72,24 @@ emits `decision.json` with:
   - `relation_types`: PubTator BioREx typed-relation labels present, ordered by publication support
     (DIRECTION)
   - `total_relation_publications`: total PubTator publications supporting the typed relations
+- a DESCRIPTIVE narrator lens (`--synthesize`, v1.1.0) — `LITERATURE_CONTEXT` (mode `descriptive`) — that
+  LEADS with the top CITED STATEMENTS and separates a canonical validated relationship from a
+  volume-inflation / automated-relation / pleiotropy over-call (see below).
+- a VERDICT-INERT cited-evidence CONFIDENCE surface (v1.1.0):
+  - `cited_evidence_confidence_caveat` — 3 tiers over the co-occurrence VOLUME + typed RELATION:
+    `volume_without_validated_relation` (SHARP — high VOLUME but thin/absent/ambiguous relation; incl. the
+    high-`n_diseases` PLEIOTROPY inflation) / `relation_direction_automated_or_conflicting` (SHARP — the
+    typed relation rests on conflicting or single-/few-paper BioREx extraction) /
+    `validated_established_relationship` (MILDER false-demote guard — a canonical, VALIDATED,
+    direction-correct pair: KRAS/COADREAD, ERBB2/BRCA, EGFR/LUAD, VHL/KIRC — is NOT an over-call).
+  - `stale_literature_note` — an optional RECENCY flag (old `latest_year` or measured VOLUME with zero
+    recent mentions).
+  - `cited_evidence_provenance` — a QUORUM summary (volume/recency/disease-breadth, year span, typed-relation
+    breadth + publication support + direction-conflict flag, the card's OWN top-cited pmids, pleiotropy +
+    stale flags, the validated-relationship flag, and the "co-occurrence ≠ causation + BioREx is automated
+    single-sentence extraction" note).
+  These gate ONLY on the VOLUME/RECENCY/RELATION fields the headline already pulls (NO new card-field read),
+  are VERDICT-INERT (gateless), and the primary caveat is surfaced deterministically in `key_signals.caveat`.
 
 ## What this skill wires
 
@@ -88,8 +106,19 @@ emits `decision.json` with:
 
 - Does NOT produce a verdict, rule, sub-verdict, or nomination-gate input. Cited literature is
   CONTEXT/CONFIDENCE; the deterministic gate stays literature-blind (RISK_ASSESSMENT_INTEGRATION.md §4).
-- Does NOT retrieve live PubMed or invoke an LLM — it reads pinned, catalogued products (reproducible).
-  The live-PubMed 6-dimension RISK read is the sibling `literature-risk-assessment` skill.
+- Does NOT retrieve live PubMed for the deterministic read — it reads pinned, catalogued products
+  (reproducible). The live-PubMed 6-dimension RISK read is the sibling `literature-risk-assessment` skill.
+- Does NOT wire the LLM `--literature` lane (a DELIBERATE no-op decision, v1.1.0). Every other skill in the
+  literature-and-claims arc bakes a `make_literature_fn` lane that asks an LLM what the published literature
+  says, GROUNDED by a fresh Europe PMC retrieval (`default_retrieve` = Europe PMC → PubTator3 fallback). For
+  literature-context that lane is REDUNDANT and CIRCULAR: this skill's ONE card, `cited-literature-evidence`,
+  IS the Europe PMC + PubTator3 literature (it composes `opentargets-europepmc-evidence-per-target-v1` +
+  `pubtator3-gene-disease-relations-per-gene-v1`). A `--literature` lane would re-derive the SAME two sources
+  the card already composes deterministically — it cannot be an INDEPENDENT corroboration of itself, and it
+  would double-count the card's own PMIDs. The "literature grounding" the arc wants is ALREADY the
+  deterministic card, surfaced by the `LITERATURE_CONTEXT` narrator lens + the confidence caveats. So
+  `run.py` supplies `synthesize_fn` but NO `literature_fn`; under `--literature` the dispatcher honest-skips.
+  (`literature_retrieval._LENS_QUERY_TERMS` / `_LENS_MAX_TERMS` are intentionally NOT touched.)
 
 ## How Claude invokes this skill
 

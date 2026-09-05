@@ -157,6 +157,30 @@ def _provenance_keys(summary):
     return prov[:5]
 
 
+def _cited_statements(summary, k: int = 3):
+    """Surface a card's EXEMPLAR cited statements — the pmid/year/(truncated)sentence behind a literature
+    card — from a `top_cited` summary list of statement dicts. This is the ONE piece of RAW SUBSTANCE a
+    citation card carries that the numeric/categorical/provenance selectors above cannot express, so the
+    narrator can LEAD with (and attribute to) the card's OWN cited statements rather than reporting them
+    DATA_UNAVAILABLE. Data-shape gated: fires ONLY for a card whose summary has a non-empty `top_cited` list
+    (today only cited-literature-evidence), so every other card's capsule is byte-identical. None when absent."""
+    tc = summary.get("top_cited")
+    if not isinstance(tc, list) or not tc:
+        return None
+    out = []
+    for s in tc[:k]:
+        if not isinstance(s, dict):
+            continue
+        pmid = s.get("pmid") or s.get("PMID")
+        sent = s.get("sentence") or s.get("text") or ""
+        if isinstance(sent, str) and len(sent) > 240:
+            sent = sent[:237].rstrip() + "…"
+        row = {"pmid": str(pmid) if pmid is not None else None, "year": s.get("year"),
+               "section": s.get("section"), "sentence": sent or None}
+        out.append({kk: vv for kk, vv in row.items() if vv is not None})
+    return out or None
+
+
 def _data_quality_flags(cid, summary, cfg):
     flags = []
     # generic: activating-direction field vs an inactivation/LoF state label on the same card
@@ -251,6 +275,10 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
                 "sibling_caveats": (_sibling_caveats(summ, cfg) or None),
                 "provenance_keys": (_provenance_keys(summ) or None),
                 "data_quality_flags": (_data_quality_flags(cid, summ, cfg) or None),
+                # RAW SUBSTANCE of a citation card — the exemplar cited statements (pmid/year/sentence) so the
+                # narrator can LEAD with the card's OWN cited statements. Data-shape gated (only a card with a
+                # `top_cited` summary list): every other card's capsule stays byte-identical.
+                "cited_statements": _cited_statements(summ),
             })
         manifest.append({"card_id": cid, "status": "full" if full else "thin"})
         capsules[cid] = cap
