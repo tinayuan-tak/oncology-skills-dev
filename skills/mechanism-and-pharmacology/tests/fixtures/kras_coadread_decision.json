@@ -1,0 +1,792 @@
+{
+  "skill": "mechanism-and-pharmacology",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "For KRAS in COADREAD, what upstream regulators + downstream effectors are catalogued in SIGNOR, and which MoA classes are candidate hooks for SM / degrader / molecular-glue programs?",
+  "fired_rules": [
+    {
+      "rule_id": "predictability-biomarker-hypothesis-supportive",
+      "card_id": "dependency-predictability",
+      "field": "predictability_class",
+      "value": "own_omics_driven",
+      "dominant": false,
+      "rationale_summary": "Dependency is biomarker-anchored: a target-own omic feature (expression,"
+    },
+    {
+      "rule_id": "mechanism-well-characterized-supportive",
+      "card_id": "signaling-network-mechanism",
+      "field": "network_class",
+      "value": "well_characterized",
+      "dominant": false,
+      "rationale_summary": ">= 3 upstream regulators AND >= 3 downstream effectors in the composed"
+    },
+    {
+      "rule_id": "has-pd-marker-supportive",
+      "card_id": "signaling-network-mechanism",
+      "field": "has_pd_marker",
+      "value": true,
+      "dominant": false,
+      "rationale_summary": "At least one downstream effector identified. PD-marker candidates"
+    },
+    {
+      "rule_id": "phospho-not-phosphoprotein-neutral",
+      "card_id": "phospho-pathway-activity",
+      "field": "phospho_activity_class",
+      "value": "not_phosphoprotein",
+      "dominant": false,
+      "rationale_summary": "The target has NO phosphosites in the CPTAC panel \u2014 it is not a phosphoprotein (e.g. a GTPase"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "signaling-network-mechanism",
+      "input_manifest_ids": [
+        "signor-jul2026"
+      ]
+    },
+    {
+      "card_id": "tahoe-drug-perturbation",
+      "input_manifest_ids": [
+        "tahoe-drug-perturbation-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "phospho-pathway-activity",
+      "input_manifest_ids": [
+        "cptac-pdc-snapshot-2026-07-01"
+      ]
+    },
+    {
+      "card_id": "pathway-activity-context",
+      "input_manifest_ids": [
+        "progeny-pathway-activity-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "dependency-predictability",
+      "input_manifest_ids": [
+        "depmap-predictability"
+      ]
+    }
+  ],
+  "headline": {
+    "evidence_capsules": {
+      "capsules": {
+        "dependency-predictability": {
+          "card_id": "dependency-predictability",
+          "measurement_type": "dependency_predictability",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "own_omics_driven",
+          "numeric_anchors": [
+            {
+              "metric": "delta_r2",
+              "value": 0.0232
+            },
+            {
+              "metric": "pearson_r_rf",
+              "value": 0.6841
+            },
+            {
+              "metric": "pearson_r_squared_rf",
+              "value": 0.4679
+            },
+            {
+              "metric": "pearson_r_squared_rf_ci_hi",
+              "value": 0.5228
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "predictability_class",
+              "value": "own_omics_driven"
+            },
+            {
+              "field": "pred_dominant_feature_class",
+              "value": "own_mut_hotspot"
+            },
+            {
+              "field": "model_agreement",
+              "value": "concordant"
+            }
+          ],
+          "n_basis": {
+            "pearson_r_rf": 0.6840511560440063,
+            "pearson_r_squared_rf": 0.4679259955883026,
+            "pearson_r_squared_rf_ci_hi": 0.5228469371795654
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Biliary Tract",
+              "metric": "r2",
+              "value": 0.2563,
+              "n": null,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Soft Tissue",
+              "metric": "r2",
+              "value": 0.0001,
+              "n": null,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "pathway-activity-context": {
+          "card_id": "pathway-activity-context",
+          "measurement_type": "pathway_activity_context",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "relatively_high",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_pathways_profiled": 14
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "PROGENy (Schubert 2018, Apache-2.0); verdict-inert cohort pathway-activity context"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "phospho-pathway-activity": {
+          "card_id": "phospho-pathway-activity",
+          "measurement_type": "phospho_pathway_activity",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "not_phosphoprotein",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_phosphosites": 0,
+            "n_tumors": 198
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "signaling-network-mechanism": {
+          "card_id": "signaling-network-mechanism",
+          "measurement_type": "signaling_network_mechanism",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "well_characterized",
+          "numeric_anchors": [
+            {
+              "metric": "moa_ontology_unmapped_fraction",
+              "value": 0.0
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_downstream_effectors": 12,
+            "n_upstream_regulators": 71
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "mechanism-composed (composed card; no direct S3 product \u2014 see sources_wired)"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "tahoe-drug-perturbation": {
+          "card_id": "tahoe-drug-perturbation",
+          "measurement_type": "tahoe_drug_perturbation",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "weakly_perturbed",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_cancer_lines": 48,
+            "n_perturbing_drugs": 379,
+            "n_strong_movers": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "tahoe-drug-perturbation-per-gene-v1"
+            }
+          ],
+          "data_quality_flags": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "dependency-predictability",
+          "status": "full"
+        },
+        {
+          "card_id": "pathway-activity-context",
+          "status": "full"
+        },
+        {
+          "card_id": "phospho-pathway-activity",
+          "status": "full"
+        },
+        {
+          "card_id": "signaling-network-mechanism",
+          "status": "full"
+        },
+        {
+          "card_id": "tahoe-drug-perturbation",
+          "status": "full"
+        }
+      ]
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "Signaling-network topology + MoA hooks (upstream regulators / downstream effectors)?",
+        "primary": "signaling-network-mechanism: well_characterized",
+        "support": "",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "informs",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q2",
+        "question": "Phospho-activity \u2014 measured activation / signaling-state (beyond abundance)?",
+        "primary": "phospho-pathway-activity: not_phosphoprotein",
+        "support": "",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "informs",
+          "label": "absent"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q3",
+        "question": "Cohort-relative pathway activity context?",
+        "primary": "pathway-activity-context: relatively_high",
+        "support": "",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "informs",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q4",
+        "question": "Target engagement under drug perturbation (MoA, not dependency)?",
+        "primary": "tahoe-drug-perturbation: weakly_perturbed",
+        "support": "",
+        "signal": {
+          "tier": "weak",
+          "fill": 2,
+          "polarity": "informs",
+          "label": "weak"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q5",
+        "question": "Is the dependency own-omics / driver-predictable?",
+        "primary": "dependency-predictability: own_omics_driven",
+        "support": "",
+        "signal": {
+          "tier": "moderate",
+          "fill": 3,
+          "polarity": "informs",
+          "label": "moderate"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": "well_characterized",
+        "phrase": "Well-characterized signaling network",
+        "gate": "mechanism",
+        "driving_rule_id": "mechanism-well-characterized-supportive",
+        "polarity": "neutral"
+      },
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 5,
+          "n_axes": 5,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": null,
+      "headline_text": "Well-characterized signaling network \u2014 moderate confidence.",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "well_characterized",
+          "phrase": "Well-characterized signaling network",
+          "gate": "mechanism",
+          "polarity": "neutral"
+        },
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 5,
+            "n_axes": 5,
+            "n_critical_measured": 1
+          }
+        },
+        "tension": null,
+        "axes": [
+          {
+            "key": "NETWORK",
+            "label": "signaling-network topology",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PHOSPHO",
+            "label": "phospho-activity",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PATHWAY",
+            "label": "pathway activity context",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PERTURBATION",
+            "label": "drug-perturbation engagement",
+            "signal": "weak",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PREDICTABILITY",
+            "label": "dependency predictability",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "NETWORK",
+          "card_id": "signaling-network-mechanism",
+          "fields": [
+            "has_actionable_moa",
+            "moa_classes_present",
+            "moa_ontology_version",
+            "n_downstream_effectors",
+            "n_upstream_regulators",
+            "network_class"
+          ]
+        },
+        {
+          "axis": "PHOSPHO",
+          "card_id": "phospho-pathway-activity",
+          "fields": [
+            "n_phosphosites",
+            "phospho_activity_class"
+          ]
+        },
+        {
+          "axis": "PATHWAY",
+          "card_id": "pathway-activity-context",
+          "fields": [
+            "n_pathways_profiled",
+            "pathway_activity_class",
+            "relatively_high_pathways",
+            "target_pathway_membership"
+          ]
+        },
+        {
+          "axis": "PERTURBATION",
+          "card_id": "tahoe-drug-perturbation",
+          "fields": [
+            "n_perturbing_drugs",
+            "n_strong_movers",
+            "tahoe_perturbation_class"
+          ]
+        },
+        {
+          "axis": "PREDICTABILITY",
+          "card_id": "dependency-predictability",
+          "fields": [
+            "pred_dominant_feature_class",
+            "pred_top_features_rf",
+            "predictability_class"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "driving_rule_id": "mechanism-well-characterized-supportive",
+    "subgroup_signals": {
+      "NETWORK": {
+        "signal": "moderate",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "signaling-network-mechanism",
+            "tier": "strong",
+            "n": 12,
+            "label": "network",
+            "conflict": false,
+            "value": "well_characterized"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "NETWORK",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "signaling-network-mechanism: well_characterized",
+            "evidence_atom": {
+              "read": "well_characterized",
+              "values": {
+                "network_class": "well_characterized",
+                "n_upstream_regulators": 71,
+                "n_downstream_effectors": 12,
+                "has_actionable_moa": true,
+                "moa_classes_present": [
+                  "molecular_glue_disruptor",
+                  "upstream_gap_modulation",
+                  "upstream_gef_modulation",
+                  "upstream_kinase_modulation",
+                  "upstream_ppase_modulation",
+                  "upstream_stimulator",
+                  "upstream_transcriptional_activator",
+                  "upstream_transcriptional_repressor",
+                  "upstream_ubl_modulation"
+                ],
+                "moa_ontology_version": "1.0.0"
+              },
+              "cite": {
+                "card_id": "signaling-network-mechanism",
+                "fields": [
+                  "has_actionable_moa",
+                  "moa_classes_present",
+                  "moa_ontology_version",
+                  "n_downstream_effectors",
+                  "n_upstream_regulators",
+                  "network_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "signaling_network_mechanism",
+                "grain": "target"
+              }
+            }
+          }
+        ]
+      },
+      "PERTURBATION": {
+        "signal": "weak",
+        "confidence": "low",
+        "n_sources": 1,
+        "n_agree": 0,
+        "power": "moderate",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "tahoe-drug-perturbation",
+            "tier": "absent",
+            "n": 48,
+            "label": "tahoe perturbation",
+            "conflict": false,
+            "value": "weakly_perturbed"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "PERTURBATION",
+            "signal": "weak",
+            "corroboration": "moderate",
+            "evidence": "tahoe-drug-perturbation: weakly_perturbed",
+            "evidence_atom": {
+              "read": "weakly_perturbed",
+              "values": {
+                "tahoe_perturbation_class": "weakly_perturbed",
+                "n_perturbing_drugs": 379,
+                "n_strong_movers": 0
+              },
+              "cite": {
+                "card_id": "tahoe-drug-perturbation",
+                "fields": [
+                  "n_perturbing_drugs",
+                  "n_strong_movers",
+                  "tahoe_perturbation_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "tahoe_drug_perturbation",
+                "grain": "target"
+              }
+            }
+          }
+        ]
+      },
+      "PHOSPHO": {
+        "signal": "absent",
+        "confidence": "low",
+        "n_sources": 1,
+        "n_agree": 0,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "phospho-pathway-activity",
+            "tier": "absent",
+            "n": 198,
+            "label": "phospho activity",
+            "conflict": false,
+            "value": "not_phosphoprotein"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "PHOSPHO",
+            "signal": "absent",
+            "corroboration": "moderate",
+            "evidence": "phospho-pathway-activity: not_phosphoprotein",
+            "evidence_atom": {
+              "read": "not_phosphoprotein",
+              "values": {
+                "phospho_activity_class": "not_phosphoprotein",
+                "n_phosphosites": 0
+              },
+              "cite": {
+                "card_id": "phospho-pathway-activity",
+                "fields": [
+                  "n_phosphosites",
+                  "phospho_activity_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "phospho_pathway_activity",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      },
+      "PATHWAY": {
+        "signal": "moderate",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "pathway-activity-context",
+            "tier": "moderate",
+            "n": 14,
+            "label": "pathway activity",
+            "conflict": false,
+            "value": "relatively_high"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "PATHWAY",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "pathway-activity-context: relatively_high",
+            "evidence_atom": {
+              "read": "relatively_high",
+              "values": {
+                "pathway_activity_class": "relatively_high",
+                "relatively_high_pathways": [
+                  "MAPK"
+                ],
+                "target_pathway_membership": [],
+                "n_pathways_profiled": 14
+              },
+              "cite": {
+                "card_id": "pathway-activity-context",
+                "fields": [
+                  "n_pathways_profiled",
+                  "pathway_activity_class",
+                  "relatively_high_pathways",
+                  "target_pathway_membership"
+                ]
+              },
+              "entity": {
+                "measurement_type": "pathway_activity_context",
+                "grain": "target_indication"
+              }
+            }
+          }
+        ]
+      },
+      "PREDICTABILITY": {
+        "signal": "moderate",
+        "confidence": "low",
+        "n_sources": 1,
+        "n_agree": 0,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "dependency-predictability",
+            "tier": "absent",
+            "n": 1538,
+            "label": "pred dominant feature",
+            "conflict": false,
+            "value": "own_mut_hotspot"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "PREDICTABILITY",
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "dependency-predictability: own_omics_driven",
+            "evidence_atom": {
+              "read": "own_omics_driven",
+              "values": {
+                "predictability_class": "own_omics_driven",
+                "pred_dominant_feature_class": "own_mut_hotspot",
+                "pred_top_features_rf": [
+                  {
+                    "feature": "own_mut_hotspot",
+                    "feature_class": "own_mut_hotspot",
+                    "importance": 0.44054651260375977,
+                    "rf_importance": 0.44054651260375977
+                  },
+                  {
+                    "feature": "lineage_Pancreas",
+                    "feature_class": "lineage",
+                    "importance": 0.040919408202171326,
+                    "rf_importance": 0.040919408202171326
+                  },
+                  {
+                    "feature": "expr_NRN1",
+                    "feature_class": "cross_gene_expression",
+                    "importance": 0.031063875183463097,
+                    "rf_importance": 0.031063875183463097
+                  },
+                  {
+                    "feature": "expr_MST1R",
+                    "feature_class": "cross_gene_expression",
+                    "importance": 0.012820852920413017,
+                    "rf_importance": 0.012820852920413017
+                  },
+                  {
+                    "feature": "cn_PLET1",
+                    "feature_class": "cross_gene_copy_number",
+                    "importance": 0.008347991853952408,
+                    "rf_importance": 0.008347991853952408
+                  },
+                  {
+                    "feature": "expr_GSTA4",
+                    "feature_class": "cross_gene_expression",
+                    "importance": 0.00772290350869298,
+                    "rf_importance": 0.00772290350869298
+                  },
+                  {
+                    "feature": "cn_BHLHE41",
+                    "feature_class": "cross_gene_copy_number",
+                    "importance": 0.005689159967005253,
+                    "rf_importance": 0.005689159967005253
+                  },
+                  {
+                    "feature": "expr_CACNA2D4",
+                    "feature_class": "cross_gene_expression",
+                    "importance": 0.005645410157740116,
+                    "rf_importance": 0.005645410157740116
+                  },
+                  {
+                    "feature": "cn_RASSF8",
+                    "feature_class": "cross_gene_copy_number",
+                    "importance": 0.005480572581291199,
+                    "rf_importance": 0.005480572581291199
+                  },
+                  {
+                    "feature": "expr_ZNF71",
+                    "feature_class": "cross_gene_expression",
+                    "importance": 0.005286979489028454,
+                    "rf_importance": 0.005286979489028454
+                  }
+                ]
+              },
+              "cite": {
+                "card_id": "dependency-predictability",
+                "fields": [
+                  "pred_dominant_feature_class",
+                  "pred_top_features_rf",
+                  "predictability_class"
+                ]
+              },
+              "entity": {
+                "measurement_type": "dependency_predictability",
+                "grain": "target"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "mechanism_verdict": "well_characterized"
+  }
+}

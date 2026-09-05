@@ -1,0 +1,102 @@
+# Canonical question + axis registry for the mechanism-and-pharmacology dashboard (Phase-0 keystone of
+# the evidence_graph layer). Single source of truth for the 5 consumer-facing MoA-context questions and
+# the unified axis_id vocabulary {NETWORK, PHOSPHO, PATHWAY, PERTURBATION, PREDICTABILITY} — the SAME
+# axis keys the mechanism-and-pharmacology narrator lens uses (narrator_lenses.py
+# MECHANISM_PHARMACOLOGY.axis_labels: NETWORK signaling network / PHOSPHO phospho activity / PATHWAY
+# pathway activity / PERTURBATION drug-perturbation MoA / PREDICTABILITY dependency predictability), so
+# the literature axis->question crosswalk resolves. The five ids reuse the governed
+# question_hierarchy.yaml sub_group question ids (network_read/phospho_read/pathway_read/
+# perturbation_read/predictability_read) for traceability.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q5 the mechanism_question_table
+# builder emits) — the emitted question_table itself is NOT modified (byte-stable).
+#
+# GATELESS / DESCRIPTIVE skill (mode=descriptive): mechanism-and-pharmacology's top-level
+# decision["verdict"] is None and every verdict rung is NEUTRAL (network_class is ANNOTATION DENSITY —
+# curated edge count, curation depth, NOT target quality — capped at moderate). It DOES still resolve a
+# headline mechanism_verdict token (well_characterized / partial / sparse / has_pd_marker / …) via the
+# shared resolver keyed ONLY on the signaling-network-mechanism card's network_class, so the graph's
+# verdict node carries the resolved token + descriptive phrase (headline_block.verdict.phrase populates
+# verdict.call) rather than None — the verdict asserts in the acceptance tests are therefore NULL-
+# TOLERANT (the resolved-token path is pinned for this fixture; a dedicated test proves the deterministic
+# Summary block + verdict header still render when the token/headline_block are absent). Because the skill
+# is descriptive the editorial question `role` is `context` for every question (NOT verdict_bearing —
+# each row INFORMS the MoA / engagement picture, it never supports/opposes a nomination; the emitted
+# question_table polarity is `informs`). `context` is a non-corroboration role, so the literature
+# axis->question crosswalk resolves all FIVE lens axes. (NB: at the CARD level build_evidence_graph
+# derives role from fired rules, so the three cards that FIRE a rule — signaling-network-mechanism
+# [mechanism-well-characterized-supportive + has-pd-marker-supportive], phospho-pathway-activity
+# [phospho-not-phosphoprotein-neutral], dependency-predictability [predictability-biomarker-hypothesis-
+# supportive] — project as verdict_bearing CARDS, a fired-rule fact independent of the question role;
+# tahoe-drug-perturbation + pathway-activity-context fire no rule and project display_only.)
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1"). Reuses the
+#                   governed question_hierarchy.yaml sub_group question ids for traceability.
+#   legacy_id       the positional id mechanism_question_table emits (Q1..Q5)
+#   seq             1-based display order
+#   text            human question text (mirrors the emitted question_table row)
+#   axis_id         unified claim/literature axis (NETWORK|PHOSPHO|PATHWAY|PERTURBATION|PREDICTABILITY)
+#   role            context (descriptive) — non-corroboration, so it owns its axis in the crosswalk
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types) + the card
+#                   contracts (target-contracts/cards/<id>.card.yaml measurement_type) as emitted into
+#                   headline.evidence_capsules.capsules[<card>]. The 5 standard-run cards map 1:1 onto the
+#                   5 measurement_types, so every card joins exactly one question (nothing orphans into
+#                   the "Other" layer).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => NETWORK->[network_read]  PHOSPHO->[phospho_read]  PATHWAY->[pathway_read]
+#      PERTURBATION->[perturbation_read]  PREDICTABILITY->[predictability_read]
+#
+# NOTE (no subtype question): mechanism-and-pharmacology composes NO tier:subtype card in standard runs
+# (its capsule tiers are target / indication / None, none subtype-stratified), so — mirroring FR /
+# translational-readiness — the registry omits a subtype:true question. No measurement_type is carried by
+# both a subtype and a non-subtype card, so the subtype-tier disambiguation in build_evidence_graph is
+# inert here.
+skill: mechanism-and-pharmacology
+axis_vocabulary:
+  NETWORK: signaling network
+  PHOSPHO: phospho activity
+  PATHWAY: pathway activity
+  PERTURBATION: drug-perturbation MoA
+  PREDICTABILITY: dependency predictability
+questions:
+- id: network_read
+  legacy_id: Q1
+  seq: 1
+  text: Signaling-network topology + MoA hooks (upstream regulators / downstream effectors)?
+  axis_id: NETWORK
+  role: context
+  measurement_types: [signaling_network_mechanism]
+- id: phospho_read
+  legacy_id: Q2
+  seq: 2
+  text: Phospho-activity — measured activation / signaling-state (beyond abundance)?
+  axis_id: PHOSPHO
+  role: context
+  measurement_types: [phospho_pathway_activity]
+- id: pathway_read
+  legacy_id: Q3
+  seq: 3
+  text: Cohort-relative pathway activity context?
+  axis_id: PATHWAY
+  role: context
+  measurement_types: [pathway_activity_context]
+- id: perturbation_read
+  legacy_id: Q4
+  seq: 4
+  text: Target engagement under drug perturbation (MoA, not dependency)?
+  axis_id: PERTURBATION
+  role: context
+  measurement_types: [tahoe_drug_perturbation]
+- id: predictability_read
+  legacy_id: Q5
+  seq: 5
+  text: Is the dependency own-omics / driver-predictable?
+  axis_id: PREDICTABILITY
+  role: context
+  measurement_types: [dependency_predictability]
