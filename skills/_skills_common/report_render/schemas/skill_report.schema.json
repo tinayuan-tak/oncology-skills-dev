@@ -46,6 +46,8 @@
     },
     "question_table": {"type": "array"},
     "per_phase_metrics": {"type": "array"},
+    "subgroup_signals": {"type": ["object", "null"],
+                         "description": "hierarchy-derived per-sub-group {signal, confidence, n_sources, power, conflict, sources[]} (subgroup_derivation shape); feeds the composed report's embedded sub-skill view. Verdict-inert."},
     "figures": {
       "type": "array",
       "items": {

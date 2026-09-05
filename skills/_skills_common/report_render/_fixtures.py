@@ -8,7 +8,7 @@ from __future__ import annotations
 
 
 def _skill(*, call, role, polarity, honest_phrase="phrase", with_evidence=False,
-           confidence=None, tension=None):
+           confidence=None, tension=None, prov=None):
     r = {
         "call": call,
         "role": role,
@@ -56,6 +56,18 @@ def _skill(*, call, role, polarity, honest_phrase="phrase", with_evidence=False,
                            "fired_rule_ids": ["SAF-LOF-01", "SAF-DOSAGE-02"],
                            "cards_used": ["gnomad-constraint", "ot-burden"],
                            "cards_missing": ["clinvar-path"]}
+        # hierarchy sub-group signals (derive_subgroups shape) — feeds the embedded sub-skill view's
+        # sub-group bands + per-skill signal×confidence scatter (PR2 blocks; populated on the spine by PR4).
+        r["subgroup_signals"] = {
+            "primary": {"signal": "strong", "confidence": "high", "n_sources": 2, "n_agree": 2,
+                        "power": "high", "conflict": False,
+                        "sources": [{"card": "gnomad-constraint", "tier": "strong", "n": 807000,
+                                     "label": "constraint", "conflict": False, "value": "constrained"}]},
+            "corroboration": {"signal": "moderate", "confidence": "moderate", "n_sources": 2, "n_agree": 1,
+                              "power": "moderate", "conflict": True, "sources": []},
+        }
+    if prov is not None:
+        r["provenance"] = prov      # per-skill provenance override (distinct rule/card anchors)
     return r
 
 
@@ -76,6 +88,12 @@ def make_nomination() -> dict:
             "top_arguments": [{"claim": "Selective dependency in MSI-high lines "
                                         "[lineage-selective-supportive]"},
                               {"claim": "Full-KO safety risk from LoF constraint"}],
+            # the LLM's advisory recommendation MISMATCHES the deterministic target_call ("hold") — the
+            # banner must flag it (deterministic wins). for/against sentences carry anchors the renderer
+            # routes to their topical lens (SYNTHESIS_NOTE): a safety anchor → Risk, a dependency → Signals.
+            "overall_recommendation": "nominate",
+            "top_arguments_for": ["Selective MSI-high dependency [strongly-selective-supportive]"],
+            "top_arguments_against": ["Full-KO safety risk from LoF constraint [gnomad-lof-constrained-veto]"],
         },
         "risk_assessment": {"dimensions": {
             "safety": {"risk_level": "HIGH", "interpretation": "gnomAD LoF-constrained",
@@ -139,12 +157,19 @@ def make_nomination() -> dict:
                 # NOTE: emit order intentionally NOT role-first, so ordering logic is exercised.
                 "dependency": _skill(call="genetic_dependency", role="gating", polarity="supportive",
                                      honest_phrase="Selective dependency in MSI-high lines",
-                                     with_evidence=True),
+                                     with_evidence=True,
+                                     prov={"driving_rule_id": "strongly-selective-supportive",
+                                           "fired_rule_ids": ["strongly-selective-supportive"],
+                                           "cards_used": ["pan-cancer-crispr-dependency-distribution"],
+                                           "cards_missing": []}),
                 "safety": _skill(call="lof_constrained", role="gating", polarity="killer",
                                  honest_phrase="Highly LoF-constrained — full-KO risk",
                                  with_evidence=True,
                                  tension={"text": "constraint vs tumor selectivity",
-                                          "source": "safety", "severity": "high"}),
+                                          "source": "safety", "severity": "high"},
+                                 prov={"driving_rule_id": "gnomad-lof-constrained-veto",
+                                       "fired_rule_ids": ["gnomad-lof-constrained-veto"],
+                                       "cards_used": ["gnomad-lof-constraint"], "cards_missing": []}),
                 "target_intrinsic": _skill(call=None, role="descriptive", polarity="not_scored",
                                            honest_phrase="Deubiquitinase; druggable pocket present"),
             },

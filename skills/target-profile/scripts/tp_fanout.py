@@ -26,6 +26,7 @@ from _skills_common.evidence_graph import build_evidence_graph, load_questions
 from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.compose_core import subskill_composition
 from _skills_common.card_preprocessors import preprocess_cards_for_gate
+from _skills_common.subgroup_derivation import subgroup_signals_for
 from tp_common import SKILLS_DIR
 
 
@@ -1061,6 +1062,26 @@ def _run_sub_skills(target: str, indication: str,
         # dashboard + risk-rollup can't display a word that disagrees with presence_state. The internal
         # hooks above stay on the raw verdict_pair. Verdict-INERT (presence ∉ _SHORT_TO_GATE); no-op for
         # every other sub-skill (only presence's facet carries presence_verdict).
+        # EMBEDDED SUB-SKILL VIEW (subgroup_signals propagation): compute the hierarchy sub-group signals
+        # centrally (default heuristic reader; a facet-supplied claim_vector sharpens the overlay) and
+        # attach them to the skill_report on the spine, so the composed report can render each skill's
+        # embedded view (sub-group bands + signal×confidence scatter) — the same detail the standalone
+        # sub-skill report shows. Best-effort + VERDICT-INERT: any fault (or target-contracts absent) →
+        # {} → skipped; never touches verdict/fired/cards. Per-skill tuned reader specs are a follow-up
+        # (one-skill-per-branch); the default heuristic is the baseline. Mirrors the dispatcher, which
+        # attaches subgroup_signals to the standalone headline.
+        if isinstance(synthesis_facet, dict):
+            _sr = synthesis_facet.get("skill_report")
+            if isinstance(_sr, dict) and not _sr.get("subgroup_signals"):
+                try:
+                    _cv = synthesis_facet.get("claim_vector")
+                    _sg = subgroup_signals_for(SKILLS_DIR / skill_dir, cards,
+                                               claim_vector=_cv if isinstance(_cv, dict) else None)
+                    if _sg:
+                        _sr["subgroup_signals"] = _sg
+                except Exception:  # noqa: BLE001 — verdict-inert; never break the fan-out
+                    pass
+
         stored_verdict = verdict_pair
         if (isinstance(synthesis_facet, dict) and synthesis_facet.get("presence_verdict") and verdict_pair):
             stored_verdict = (synthesis_facet["presence_verdict"],

@@ -24,6 +24,9 @@ from .spec import ReportSpec, SCOPE_ALL, SCOPE_GATING
 class Block:
     kind: str
     payload: dict = field(default_factory=dict)
+    # faceted-view grouping (see vocab.BLOCK_LENS). None = report chrome / un-lensed (standalone path).
+    # A dataclass FIELD, not a payload key — so it never shadows `kind` under {kind, **payload}.
+    lens: Optional[str] = None
 
 
 @dataclass
@@ -33,6 +36,7 @@ class Section:
     role: str
     is_deciding: bool
     blocks: list  # list[Block]; blocks[0] is always the SKILL_HEADER
+    lens: Optional[str] = None    # faceted-view grouping; composed sections → vocab.LENS_SIGNALS
 
 
 @dataclass
@@ -45,16 +49,45 @@ class ReportIR:
     about: Optional[Block]        # ABOUT | None
     deciding_short: Optional[str]
     overview: list = field(default_factory=list)  # report-level blocks (signals_overview, risk_6dim)
+    banner: Optional[Block] = None                 # SYNTHESIS_BANNER | None — persistent chrome above tabs
 
     def present_kinds(self) -> set:
         """Every block kind actually present — the parity/coverage contract surface."""
         kinds = {self.header.kind}
         kinds.update(b.kind for b in self.overview)
+        if self.banner is not None:
+            kinds.add(self.banner.kind)
         if self.about is not None:
             kinds.add(self.about.kind)
         for sec in self.sections:
             kinds.update(b.kind for b in sec.blocks)
         return kinds
+
+    def lenses(self) -> list:
+        """Group the lens-annotated overview blocks + sections into the faceted view, in LENS_ORDER.
+
+        Returns `[(lens_id, title, items)]` where `items` is a list of `("block", Block)` |
+        `("section", Section)` — overview blocks first (their build_ir insertion order), then the
+        per-skill sections. Report chrome (header, about) and any block/section with lens=None are NOT
+        bucketed, so an all-None IR (the standalone `build_ir_for_skill` path) returns `[]` and the
+        backends fall back to the flat header→overview→sections layout (byte-stable for standalone)."""
+        buckets: dict = {}
+        for b in self.overview:
+            lg = getattr(b, "lens", None)
+            if lg:
+                buckets.setdefault(lg, []).append(("block", b))
+        for sec in self.sections:
+            lg = getattr(sec, "lens", None)
+            if lg:
+                buckets.setdefault(lg, []).append(("section", sec))
+        ordered = []
+        for lens_id in vocab.LENS_ORDER:
+            if buckets.get(lens_id):
+                ordered.append((lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), buckets[lens_id]))
+        for lens_id, items in buckets.items():   # any future lens not in LENS_ORDER, stably last
+            if lens_id not in vocab.LENS_ORDER:
+                ordered.append((lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), items))
+        return ordered
 
 
 # --------------------------------------------------------------------------------------------------
@@ -255,6 +288,21 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
         cb = _chips_block(report, eff)
         if cb is not None:
             blocks.append(cb)
+
+    # embedded sub-skill signals-first detail (the composed report's per-skill drill-down == the standalone
+    # sub-skill view, one code path): a signal×confidence scatter + hierarchy sub-group bands, both
+    # projections of the spine's `subgroup_signals` (populated by PR4). Tier-gated to L2 so L0/L1 stay lean;
+    # fail-soft — absent until the spine carries subgroup_signals, so this lands green before PR4.
+    # both embedded blocks are evidence-depth (L2) — the report-level SIGNALS_SCATTER is TIER 0 (it leads
+    # the Signals lens), but the PER-SKILL embedded scatter is drill-down detail, gated with the bands.
+    sg = report.get("subgroup_signals")
+    if isinstance(sg, dict) and sg and eff >= vocab.TIER[vocab.SUBGROUP_BANDS]:
+        sc = _subgroup_scatter_block(sg)
+        if sc is not None:
+            blocks.append(sc)
+        bb = _subgroup_bands_block(sg)
+        if bb is not None:
+            blocks.append(bb)
 
     # L2: question table (fail-soft coverage flag for a gating skill that measured none). per-phase
     # metrics + figures render WHEN PRESENT but no longer emit an 'unmeasured' placeholder when absent —
@@ -754,6 +802,208 @@ def _target_characterization(tr: dict) -> Optional[dict]:
                          "weight": round(float(v), 2)} for k, v in items]}
 
 
+# =================================================================================================
+# faceted-rollup builders (PR2): the signals-first spine one level up + the embedded sub-skill view.
+# =================================================================================================
+_TIER_ORDINAL = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0}      # subgroup signal tier → y
+_CONF_ORDINAL = {"high": 2, "moderate": 1, "medium": 1, "low": 0, "weak": 0}  # confidence level → x
+
+
+def _confidence_level(conf) -> Optional[str]:
+    """The confidence level string from a {level|tier} dict or a bare string."""
+    if isinstance(conf, dict):
+        return conf.get("level") or conf.get("tier")
+    return conf if isinstance(conf, str) else None
+
+
+def _confidence_ordinal(conf) -> Optional[int]:
+    lvl = _confidence_level(conf)
+    return _CONF_ORDINAL.get(str(lvl).lower()) if lvl else None
+
+
+def _unwrap(v):
+    """Unwrap a provenance-stamped {value, _source, …} scalar; pass a bare value through."""
+    return v.get("value") if isinstance(v, dict) and "value" in v else v
+
+
+def _rec_norm(v) -> str:
+    return str(_unwrap(v) or "").strip().lower().split()[0] if _unwrap(v) else ""
+
+
+def _synthesis_banner_block(nomination: dict, target_call: dict) -> Optional[Block]:
+    """The persistent advisory banner (report chrome, above the lens tabs): the LLM executive summary +
+    an explicit LLM-vs-deterministic recommendation MISMATCH flag (UNIFIED_OUTPUT_CONTRACT rule 2 — the
+    deterministic target_call is authoritative; a divergent LLM lean is surfaced, never allowed to win).
+    Advisory / verdict-inert; the executive summary's inline [rule-id] citations are lifted to a footnote."""
+    llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
+    if not isinstance(llm, dict):
+        return None
+    exec_summary = _llm_val(llm, "executive_summary")
+    if not exec_summary:
+        return None
+    exec_clean, cites = _strip_rule_citations(exec_summary)
+    llm_rec = _llm_val(llm, "overall_recommendation") or _llm_val(llm, "recommendation")
+    det_rec = _unwrap((target_call or {}).get("recommendation"))
+    mismatch = None
+    if _rec_norm(llm_rec) and _rec_norm(det_rec) and _rec_norm(llm_rec) != _rec_norm(det_rec):
+        mismatch = {"llm": str(_unwrap(llm_rec)), "deterministic": str(det_rec)}
+    return Block(vocab.SYNTHESIS_BANNER, {"executive_summary": exec_clean, "citations": cites,
+                                          "n_rules": len(cites), "mismatch": mismatch})
+
+
+def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
+    """Route each LLM argument / tension SENTENCE to its TOPICAL lens (a SYNTHESIS_NOTE block, pre-lensed)
+    by resolving its inline citation anchors → owning skill (via each skill_report's provenance) → lens
+    (vocab.SKILL_TOPICAL_LENS). Anchors resolve rule-ids first, then cards (a card can be shared; rule-ids
+    are skill-specific). Sentences that route to the Decision lens are DROPPED here — the Decision lens
+    already carries the full consolidated SYNTHESIS block, so per-lens notes are additive surfacing for the
+    NON-decision lenses only. No LLM tool-schema change; reuses the existing anchor tokens."""
+    llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
+    if not isinstance(llm, dict):
+        return []
+    rule_idx: dict = {}
+    card_idx: dict = {}
+    for short in sorted(skill_reports, key=vocab.skill_order_index):
+        rep = skill_reports.get(short)
+        prov = (rep.get("provenance") if isinstance(rep, dict) else None) or {}
+        for r in list(prov.get("fired_rule_ids") or []) + \
+                ([prov["driving_rule_id"]] if prov.get("driving_rule_id") else []):
+            rule_idx.setdefault(str(r), short)
+        for c in list(prov.get("cards_used") or []):
+            card_idx.setdefault(str(c), short)
+
+    def _lens_for(text) -> str:
+        _clean, toks = _strip_rule_citations(text)
+        for t in toks:
+            if t in rule_idx:
+                return vocab.SKILL_TOPICAL_LENS.get(rule_idx[t], vocab.LENS_DECISION)
+        for t in toks:
+            if t in card_idx:
+                return vocab.SKILL_TOPICAL_LENS.get(card_idx[t], vocab.LENS_DECISION)
+        return vocab.LENS_DECISION
+
+    sentences: list = []
+    for a in (_llm_val(llm, "top_arguments_for") or []):
+        if isinstance(a, str):
+            sentences.append(("for", a))
+    for a in (_llm_val(llm, "top_arguments_against") or []):
+        if isinstance(a, str):
+            sentences.append(("against", a))
+    tension = _llm_val(llm, "tension_analysis")
+    if isinstance(tension, str) and tension:
+        sentences.append(("tension", tension))
+
+    by_lens: dict = {}
+    for stance, text in sentences:
+        lens = _lens_for(text)
+        if lens == vocab.LENS_DECISION:
+            continue                       # covered by the consolidated SYNTHESIS block already
+        clean, _ = _strip_rule_citations(text)
+        by_lens.setdefault(lens, []).append({"stance": stance, "text": clean})
+    blocks = []
+    for lens in vocab.LENS_ORDER:
+        notes = by_lens.get(lens)
+        if notes:
+            b = Block(vocab.SYNTHESIS_NOTE, {"notes": notes})
+            b.lens = lens                  # pre-lensed; build_ir preserves an already-set lens
+            blocks.append(b)
+    return blocks
+
+
+def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
+    """Report-level signal × confidence scatter — one point per SCORED gating skill. Position is honest:
+    x = confidence (low/moderate/high), y = signal STRENGTH tier; DIRECTION (supports vs against vs killer)
+    is carried by colour + glyph (CVD-safe: position is strength, not direction). Leads the Signals lens,
+    complementing the diverging strip (which shows the full signed ordinal)."""
+    pts = []
+    for short, report, role in selected:
+        polarity = report.get("polarity")
+        if role != "gating" or polarity in (None, "not_scored"):
+            continue
+        rank = vocab.polarity_rank(polarity)
+        strength = "strong" if abs(rank or 0) >= 2 else "weak" if abs(rank or 0) == 1 else "absent"
+        pts.append({"short": short, "title": vocab.skill_title(short), "polarity": polarity,
+                    "signal_tier": strength, "signal_y": _TIER_ORDINAL[strength],
+                    "confidence_x": _confidence_ordinal(report.get("confidence")),
+                    "confidence": _confidence_level(report.get("confidence")),
+                    "honest_phrase": report.get("honest_phrase"),
+                    "is_deciding": short == deciding_short})
+    if not pts:
+        return None
+    return Block(vocab.SIGNALS_SCATTER, {
+        "scope": "skills", "points": pts, "deciding_short": deciding_short,
+        "y_ticks": ["absent", "weak", "strong"], "x_ticks": ["low", "moderate", "high"],
+        "y_label": "signal strength", "x_label": "confidence",
+    })
+
+
+def _subgroup_scatter_block(subgroup_signals: dict) -> Optional[Block]:
+    """Per-skill signal × confidence scatter over the hierarchy sub-groups (the embedded-view analog of the
+    report-level scatter). x = confidence, y = signal tier; a conflicted sub-group is flagged."""
+    if not isinstance(subgroup_signals, dict) or not subgroup_signals:
+        return None
+    pts = []
+    for sg_id, d in subgroup_signals.items():
+        if not isinstance(d, dict):
+            continue
+        tier = str(d.get("signal") or "absent")
+        pts.append({"name": str(sg_id).replace("_", " "), "signal_tier": tier,
+                    "signal_y": _TIER_ORDINAL.get(tier, 0),
+                    "confidence_x": _CONF_ORDINAL.get(str(d.get("confidence") or "").lower()),
+                    "confidence": d.get("confidence"), "conflict": bool(d.get("conflict")),
+                    "n_sources": d.get("n_sources")})
+    if not pts:
+        return None
+    return Block(vocab.SIGNALS_SCATTER, {
+        "scope": "subgroups", "points": pts,
+        "y_ticks": ["absent", "weak", "moderate", "strong"], "x_ticks": ["low", "moderate", "high"],
+        "y_label": "signal", "x_label": "confidence",
+    })
+
+
+def _subgroup_bands_block(subgroup_signals: dict) -> Optional[Block]:
+    """Per-skill hierarchy sub-group bands: one row per sub-group with its signal tier, confidence,
+    source count + agreement, power and conflict flag (a direct projection of derive_subgroups output)."""
+    if not isinstance(subgroup_signals, dict) or not subgroup_signals:
+        return None
+    rows = []
+    for sg_id, d in subgroup_signals.items():
+        if not isinstance(d, dict):
+            continue
+        rows.append({"name": str(sg_id).replace("_", " "), "signal": d.get("signal"),
+                     "confidence": d.get("confidence"), "n_sources": d.get("n_sources"),
+                     "n_agree": d.get("n_agree"), "power": d.get("power"),
+                     "conflict": bool(d.get("conflict"))})
+    return Block(vocab.SUBGROUP_BANDS, {"sub_groups": rows}) if rows else None
+
+
+def _cross_cutting_block(nomination: dict, skill_reports: dict) -> Optional[Block]:
+    """Cross-cutting questions: a skill's question-table rows whose signal is measured but which inform a
+    DIFFERENT lens than the skill's own (surfaced so a cross-lens question is not buried inside one skill).
+    Derived from spine data already present (question_table + the skill's topical lens); a thin, capped
+    list — not a dump. Fail-soft: returns None when nothing qualifies."""
+    rows = []
+    for short in sorted(skill_reports, key=vocab.skill_order_index):
+        rep = skill_reports.get(short)
+        if not isinstance(rep, dict):
+            continue
+        owner_lens = vocab.SKILL_TOPICAL_LENS.get(short)
+        for q in (rep.get("question_table") or []):
+            if not isinstance(q, dict):
+                continue
+            note = q.get("cross_lens") or q.get("informs_lens")
+            if not note:
+                continue                    # only questions explicitly flagged as cross-lens
+            rows.append({"question": q.get("question") or q.get("q") or q.get("label"),
+                         "owner": vocab.skill_title(short), "owner_lens": owner_lens,
+                         "informs": note})
+            if len(rows) >= 6:
+                break
+        if len(rows) >= 6:
+            break
+    return Block(vocab.CROSS_CUTTING_QUESTIONS, {"rows": rows}) if rows else None
+
+
 def build_ir(nomination: dict, spec: ReportSpec,
              target: Optional[str] = None, indication: Optional[str] = None) -> ReportIR:
     """Project a nomination + spec into the presentation IR. Pure, deterministic, fail-soft."""
@@ -821,7 +1071,9 @@ def build_ir(nomination: dict, spec: ReportSpec,
     # thesis primary (target_coherence) → reconcile a thesis-EXPECTED negative in the diverging strip
     # (e.g. dependency non-signal under a surface-antigen thesis). Reuses the header's `_thesis_obj`;
     # None on a run without a coherence thesis leaves the strip's raw polarities untouched.
+    _add(vocab.SIGNALS_SCATTER, _signals_scatter_block(selected, deciding_short))   # leads the Signals lens
     _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary))
+    _add(vocab.CROSS_CUTTING_QUESTIONS, _cross_cutting_block(nomination, skill_reports))
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
     _add(vocab.SYNTHESIS, _synthesis_block(nomination))
     _add(vocab.RISK_6DIM, _risk_6dim_block(tr.get("risk_6dim")))
@@ -831,9 +1083,28 @@ def build_ir(nomination: dict, spec: ReportSpec,
     _add(vocab.LITERATURE_RISK, _literature_risk_block(nomination, tr))
     _add(vocab.DECIDING_AXIS, _deciding_axis_block(target_call, nomination, deciding_short))
     _add(vocab.FLIP_CONDITIONS, _flip_conditions_block(nomination))
+
+    # routed LLM synthesis notes → their topical lens (pre-lensed SYNTHESIS_NOTE blocks); the consolidated
+    # SYNTHESIS block stays in the Decision lens (see _route_synthesis_to_lenses).
+    if spec.level_int >= vocab.TIER[vocab.SYNTHESIS_NOTE]:
+        overview.extend(_route_synthesis_to_lenses(nomination, skill_reports))
+
+    # stamp the faceted-view lens grouping (presentation only — never changes what was selected above).
+    # overview blocks → their BLOCK_LENS; the per-skill sections → the Signals lens. A block that already
+    # carries a lens (a pre-lensed SYNTHESIS_NOTE) is preserved. The composed report is thus a
+    # lens-annotated IR; the standalone build_ir_for_skill leaves everything lens=None.
+    for b in overview:
+        b.lens = b.lens or vocab.BLOCK_LENS.get(b.kind)
+    for sec in sections:
+        sec.lens = vocab.LENS_SIGNALS
+
+    # the persistent advisory synthesis banner is report chrome (above the tabs), not a lens block.
+    banner = (_synthesis_banner_block(nomination, target_call)
+              if spec.level_int >= vocab.TIER[vocab.SYNTHESIS_BANNER] else None)
+
     return ReportIR(target=target, indication=indication, spec=spec, header=header,
                     sections=sections, about=_about_block(spec), deciding_short=deciding_short,
-                    overview=overview)
+                    overview=overview, banner=banner)
 
 
 def _about_block(spec: ReportSpec) -> Optional[Block]:

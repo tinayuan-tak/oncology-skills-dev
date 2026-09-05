@@ -100,3 +100,13 @@ def test_modality_scope_is_first_class_on_the_spine():
     r = build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB, modality_scope=ms)
     assert r["modality_scope"] == ms
     assert build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB)["modality_scope"] is None
+
+
+def test_subgroup_signals_ride_the_spine():
+    # hierarchy sub-group signals ride the spine so the composed report can render the embedded sub-skill
+    # view (bands + per-skill scatter); None for a skill that emits no hierarchy signals.
+    sg = {"abundance": {"signal": "strong", "confidence": "high", "n_sources": 2, "n_agree": 2,
+                        "power": "high", "conflict": False, "sources": []}}
+    r = build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB, subgroup_signals=sg)
+    assert r["subgroup_signals"] == sg
+    assert build_skill_report(role=ROLE_GATING, verdict="x", headline_block=_HB)["subgroup_signals"] is None

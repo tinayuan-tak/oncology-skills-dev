@@ -110,6 +110,7 @@ figcaption { color:var(--ink2); font-size:13px; margin-top:5px; }
 .section-label { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:10px 0 2px; }
 .lede { color:var(--ink2); margin:0 0 12px; }
 .signal-strip { margin:6px 0; overflow-x:auto; }
+.scatter-wrap { margin:6px 0; overflow-x:auto; }
 .so-foot { color:var(--muted); font-size:13px; margin:10px 0 0; }
 .risk-tiles { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:8px 0 2px; }
 @media (max-width:760px) { .risk-tiles { grid-template-columns:repeat(3,1fr); } }
@@ -151,6 +152,20 @@ td.mx-off { color:var(--muted); }
 .cite-prov summary { cursor:pointer; }
 .cite-prov code { font-size:12px; background:var(--page); border:1px solid var(--border);
                   border-radius:4px; padding:0 5px; margin:2px 3px 0 0; display:inline-block; }
+/* advisory synthesis banner (persistent chrome, above the lens tabs) */
+.card.narr { border-style:dashed; }
+.mismatch { color:var(--serious); }
+ul.chips.notes li { margin:4px 0; }
+.g-sup { color:var(--supportive); font-weight:700; } .g-opp { color:var(--opposing); font-weight:700; }
+.g-warn { color:var(--warning); font-weight:700; }
+.conflict { color:var(--warning); font-weight:700; }
+/* collapsed per-skill sections under the Signals lens (the embedded sub-skill views) */
+details.skill-collapse > summary { cursor:pointer; list-style:none; }
+details.skill-collapse > summary::-webkit-details-marker { display:none; }
+details.skill-collapse > summary::before { content:"▸ "; color:var(--muted); font-weight:700; }
+details.skill-collapse[open] > summary::before { content:"▾ "; }
+details.skill-collapse > summary .stitle { display:inline-flex; }
+details.skill-collapse > summary .phrase { margin:3px 0 0; }
 """.strip()
 
 
@@ -182,6 +197,11 @@ class HtmlBackend:
             vocab.FLIP_CONDITIONS: self._flip_conditions,
             vocab.SUBTYPE: self._subtype,
             vocab.BIOMARKER: self._biomarker,
+            vocab.SYNTHESIS_BANNER: self._synthesis_banner,
+            vocab.SYNTHESIS_NOTE: self._synthesis_note,
+            vocab.SIGNALS_SCATTER: self._signals_scatter,
+            vocab.SUBGROUP_BANDS: self._subgroup_bands,
+            vocab.CROSS_CUTTING_QUESTIONS: self._cross_cutting,
         }
 
     def handled_kinds(self) -> set:
@@ -193,17 +213,48 @@ class HtmlBackend:
         parts = [
             "<!doctype html>", '<html lang="en"><head><meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{title}</title><style>{_CSS}</style></head><body><div class='wrap'>",
+            f"<title>{title}</title><style>{_CSS}\n{_lens_css()}</style></head><body><div class='wrap'>",
         ]
+        # the decision header + the advisory AI synthesis banner are persistent report chrome (above the
+        # lens tabs) — the recommendation + the cross-lens exec summary stay visible on every lens.
         parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
-        for b in ir.overview:
-            parts.append(self._wrap_card("".join(self._emit(b))))
-        for sec in ir.sections:
-            parts.append(self._emit_section(sec))
+        if getattr(ir, "banner", None) is not None:
+            parts.append(self._wrap_card("".join(self._emit(ir.banner)), extra="narr"))
+        lenses = ir.lenses()
+        if lenses:
+            parts.append(self._lens_tabs(lenses))          # faceted composed view: a tab per lens
+        else:
+            for b in ir.overview:                          # flat fallback (standalone / un-lensed IR)
+                parts.append(self._wrap_card("".join(self._emit(b))))
+            for sec in ir.sections:
+                parts.append(self._emit_section(sec))
         if ir.about is not None:
             parts.append("".join(self._emit(ir.about)))
         parts.append("</div></body></html>")
         return "\n".join(parts) + "\n"
+
+    def _lens_tabs(self, lenses) -> str:
+        """The faceted lens-switcher: co-equal, full-width panels the reader toggles. Pure-CSS
+        (radio-input + `:checked ~` sibling selectors — no JS, so it renders self-contained in a webview
+        / email / moved file). All panels are in the DOM (only visibility toggles), so every backend
+        surfaces the same content; the non-interactive backends linearize the same lenses as sections."""
+        radios, navs, panels = [], [], []
+        for i, (lid, title, items) in enumerate(lenses):
+            checked = " checked" if i == 0 else ""
+            radios.append(f"<input class='lens-radio' type='radio' name='lens' id='lp-{_esc(lid)}'{checked}>")
+            navs.append(f"<label for='lp-{_esc(lid)}'>{_esc(title)}</label>")
+            body = []
+            for kind, item in items:
+                if kind == "section":
+                    # per-skill sections (Signals lens) collapse into a scannable list of signal rows;
+                    # each expands into the full embedded sub-skill view.
+                    body.append(self._emit_section(item, collapsed=(lid == vocab.LENS_SIGNALS)))
+                else:
+                    body.append(self._wrap_card("".join(self._emit(item))))
+            panels.append(f"<section class='lens-panel ln-{_esc(lid)}'>{''.join(body)}</section>")
+        return ("<div class='lens-tabs'>" + "".join(radios)
+                + "<nav class='lens-nav' role='tablist'>" + "".join(navs) + "</nav>"
+                + "".join(panels) + "</div>")
 
     def _emit(self, block: Block) -> list:
         return self._handlers[block.kind](block.payload)
@@ -212,13 +263,18 @@ class HtmlBackend:
         cls = f"card {extra}".strip()
         return f"<section class='{cls}'>{inner}</section>"
 
-    def _emit_section(self, sec: Section) -> str:
-        pol = sec.blocks[0].payload.get("polarity") if sec.blocks else None
-        cls = f"card {_POL_CLASS.get(pol or '', '')}".strip()
+    def _emit_section(self, sec: Section, collapsed: bool = False) -> str:
+        blocks = sec.blocks or []
+        pol = blocks[0].payload.get("polarity") if blocks else None
+        pol_cls = _POL_CLASS.get(pol or "", "")
+        # collapsed (composed Signals lens): the skill header is the compact <summary> and the rest of the
+        # embedded sub-skill view is the collapsed body — so 15 full views default to a light, scannable
+        # list of signal rows (the deciding axis opens by default). blocks[0] is always the SKILL_HEADER.
+        body_blocks = blocks[1:] if (collapsed and blocks) else blocks
         # FIGURE grouping: show the PRIMARY figure per card inline; collapse the rest into one
         # "N more figures" <details> so a dependency card with 18 plots is not a data-dump.
         parts, extra = [], []
-        for b in sec.blocks:
+        for b in body_blocks:
             if b.kind == vocab.FIGURE and not b.payload.get("primary"):
                 extra.append(b)
                 continue
@@ -227,7 +283,14 @@ class HtmlBackend:
             figs = "".join("".join(self._emit(b)) for b in extra)
             parts.append(f"<details class='fig-more'><summary>{len(extra)} more figure(s)</summary>"
                          f"{figs}</details>")
-        return f"<section class='{cls}'>{''.join(parts)}</section>"
+        inner = "".join(parts)
+        if collapsed and blocks:
+            summary = "".join(self._emit(blocks[0]))
+            openattr = " open" if sec.is_deciding else ""
+            cls = f"card {pol_cls} skill-collapse".replace("  ", " ").strip()
+            return f"<details class='{cls}'{openattr}><summary>{summary}</summary>{inner}</details>"
+        cls = f"card {pol_cls}".strip()
+        return f"<section class='{cls}'>{inner}</section>"
 
     # -- handlers ------------------------------------------------------------------------------
     def _report_header(self, p: dict) -> list:
@@ -612,6 +675,159 @@ class HtmlBackend:
                 for h in hyps)
             out.append(f"<ul class='chips'>{li}</ul>")
         return out
+
+    # -- faceted-rollup blocks (PR2) -----------------------------------------------------------
+    def _synthesis_banner(self, p: dict) -> list:
+        out = ["<span class='tag'>AI-generated · advisory</span>"
+               "<span class='so-foot'> — does not set the call</span>"]
+        if p.get("executive_summary"):
+            out.append(f"<p>{_esc(p['executive_summary'])}</p>")
+        mm = p.get("mismatch")
+        if isinstance(mm, dict) and mm.get("deterministic"):
+            out.append(f"<p class='kv mismatch'>⚠ <b>LLM read:</b> {_esc(mm.get('llm'))} · "
+                       f"<b>deterministic call:</b> {_esc(mm['deterministic'])} — mismatch flagged "
+                       f"<span class='so-foot'>(the deterministic call stands)</span></p>")
+        cites = p.get("citations") or []
+        if cites:
+            codes = "".join(f"<code>{_esc(c)}</code>" for c in cites)
+            out.append(f"<details class='cite-prov'><summary>Grounded in {len(cites)} framework "
+                       f"rules</summary>{codes}</details>")
+        return out
+
+    def _synthesis_note(self, p: dict) -> list:
+        notes = p.get("notes") or []
+        if not notes:
+            return []
+        items = []
+        for n in notes:
+            stance = (n.get("stance") or "").strip()
+            ic = {"for": "▲", "against": "▽", "tension": "⚖"}.get(stance, "·")
+            cls = {"for": "g-sup", "against": "g-opp", "tension": "g-warn"}.get(stance, "")
+            items.append(f"<li><span class='{cls}'>{ic}</span> {_esc(n.get('text', ''))}</li>")
+        return ["<p class='section-label'>AI read <span class='so-foot'>· advisory</span></p>"
+                f"<ul class='chips notes'>{''.join(items)}</ul>"]
+
+    def _signals_scatter(self, p: dict) -> list:
+        pts = p.get("points") or []
+        if not pts:
+            return []
+        is_sg = p.get("scope") == "subgroups"
+        rpoints = []
+        for pt in pts:
+            if is_sg:
+                color, glyph = ("var(--blue)", "●")
+            else:
+                pol = pt.get("polarity")
+                color = {"supportive": "var(--supportive)", "opposing": "var(--opposing)",
+                         "killer": "var(--killer)", "neutral": "var(--neutral)"}.get(pol, "var(--neutral)")
+                glyph = vocab.polarity_glyph(pol)
+            rpoints.append({"x": pt.get("confidence_x"), "y": pt.get("signal_y"),
+                            "label": (pt.get("name") if is_sg else pt.get("title")) or "",
+                            "color": color, "glyph": glyph,
+                            "ring": bool(pt.get("conflict")), "deciding": bool(pt.get("is_deciding"))})
+        title = "Signals × confidence" + (" — sub-groups" if is_sg else "")
+        svg = _scatter_svg(rpoints, p.get("y_ticks") or [], p.get("x_ticks") or [])
+        head = (f"<p class='section-label'>{_esc(title)}</p>" if is_sg
+                else f"<h2>{_esc(title)} <span class='so-foot'>— each point is a gating subskill; "
+                     f"x = confidence, y = signal strength, colour = direction</span></h2>")
+        return [f"{head}<div class='scatter-wrap'>{svg}</div>"]
+
+    def _subgroup_bands(self, p: dict) -> list:
+        rows = p.get("sub_groups") or []
+        if not rows:
+            return []
+        body = []
+        for r in rows:
+            conf = _esc(_humanize(r.get("confidence")))
+            src = f"{r.get('n_agree', 0)}/{r.get('n_sources', 0)}"
+            warn = " <span class='conflict'>⚠</span>" if r.get("conflict") else ""
+            body.append([_esc(r.get("name")), _esc(r.get("signal")), conf, src + warn])
+        return ["<p class='section-label'>Sub-group bands</p>",
+                self._table(["sub-group", "signal", "confidence", "sources"], body)]
+
+    def _cross_cutting(self, p: dict) -> list:
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        body = [[_esc(r.get("question")), _esc(r.get("owner")), _esc(_humanize(r.get("informs")))]
+                for r in rows]
+        return ["<h2>Cross-cutting questions <span class='so-foot'>— measured by one axis, informs "
+                "another</span></h2>", self._table(["question", "measured by", "informs"], body)]
+
+
+def _scatter_svg(points, y_ticks, x_ticks) -> str:
+    """A compact grid scatter: x = confidence (x_ticks left→right), y = signal (y_ticks bottom→top).
+    Position encodes value; colour + glyph carry direction (CVD-safe). A point with unknown confidence
+    (x=None) is pinned at the left 'low' column. Overlapping points in a cell fan out horizontally."""
+    if not points or not y_ticks or not x_ticks:
+        return ""
+    ny, nx = len(y_ticks), len(x_ticks)
+    L, T, B, RGT = 96, 16, 42, 150
+    cellw, cellh = 150, 44
+    W, H = L + nx * cellw + RGT, T + ny * cellh + B
+    ink, muted, line = "#141c26", "#6b7783", "#d5dde4"
+    s = [f"<svg viewBox='0 0 {W} {H}' width='100%' role='img' aria-label='signal by confidence' "
+         f"style='font-family:-apple-system,Segoe UI,sans-serif'>"]
+    # gridlines + y tick labels (bottom→top)
+    for yi, yt in enumerate(y_ticks):
+        y = T + (ny - 1 - yi) * cellh + cellh / 2
+        s.append(f"<line x1='{L}' y1='{y:.1f}' x2='{L + nx * cellw}' y2='{y:.1f}' stroke='{line}' "
+                 f"stroke-width='1'/>")
+        s.append(f"<text x='{L - 8}' y='{y + 4:.1f}' text-anchor='end' font-size='11' fill='{muted}'>"
+                 f"{_esc(yt)}</text>")
+    # x tick labels
+    for xi, xt in enumerate(x_ticks):
+        x = L + (xi + 0.5) * cellw
+        s.append(f"<text x='{x:.1f}' y='{H - B + 26}' text-anchor='middle' font-size='11' fill='{muted}'>"
+                 f"{_esc(xt)}</text>")
+    s.append(f"<text x='{L + nx * cellw}' y='{H - B + 26}' text-anchor='end' font-size='10.5' "
+             f"fill='{muted}'>confidence →</text>")
+    # points, fanned out within a shared cell
+    from collections import defaultdict
+    cell = defaultdict(list)
+    for pt in points:
+        cell[(pt.get("x"), pt.get("y"))].append(pt)
+    for (xi, yi), pts in cell.items():
+        col = 0 if xi is None else xi
+        base_x = L + (col + 0.5) * cellw
+        y = T + (ny - 1 - (yi or 0)) * cellh + cellh / 2
+        k = len(pts)
+        for j, pt in enumerate(pts):
+            dx = (j - (k - 1) / 2) * 15
+            px = base_x + dx
+            ring = ("<circle cx='%.1f' cy='%.1f' r='9' fill='none' stroke='#b26a00' "
+                    "stroke-width='1.5'/>" % (px, y)) if pt.get("ring") else ""
+            dec = "  ◆" if pt.get("deciding") else ""
+            s.append(ring)
+            s.append(f"<circle cx='{px:.1f}' cy='{y:.1f}' r='6' fill='{pt['color']}' "
+                     f"stroke='#fff' stroke-width='1.5'/>")
+            s.append(f"<text x='{px + 9:.1f}' y='{y + 4:.1f}' font-size='11' fill='{ink}'>"
+                     f"{_esc(pt['label'])}{dec}</text>")
+    s.append("</svg>")
+    return "".join(s)
+
+
+def _lens_css() -> str:
+    """CSS for the faceted lens-switcher, generated for the known lenses (vocab.LENS_ORDER) so the
+    `:checked ~` visibility/active rules exist for whatever lens ids the builder emits. Kept out of the
+    static _CSS block so it tracks LENS_ORDER without hand-editing."""
+    active = ",\n".join(f"#lp-{l}:checked ~ .lens-nav label[for=lp-{l}]" for l in vocab.LENS_ORDER)
+    visible = ",\n".join(f"#lp-{l}:checked ~ .lens-panel.ln-{l}" for l in vocab.LENS_ORDER)
+    base = (
+        ".lens-tabs input.lens-radio{position:absolute;width:0;height:0;opacity:0;pointer-events:none;}"
+        ".lens-nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--border);"
+        "margin:22px 0 18px;}"
+        ".lens-nav label{padding:8px 16px;cursor:pointer;font-weight:640;font-size:14px;color:var(--muted);"
+        "border:1px solid transparent;border-bottom:none;border-radius:10px 10px 0 0;margin-bottom:-2px;}"
+        ".lens-nav label:hover{color:var(--ink2);}"
+        ".lens-panel{display:none;}"
+    )
+    if not vocab.LENS_ORDER:
+        return base
+    return (base
+            + f"{active}{{color:var(--ink);border-color:var(--border);"
+              f"border-bottom-color:var(--surface);background:var(--surface);}}"
+            + f"{visible}{{display:block;}}")
 
 
 def _signal_strip_svg(rows, deciding_short) -> str:

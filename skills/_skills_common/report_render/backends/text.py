@@ -37,6 +37,11 @@ class TextBackend:
             vocab.FLIP_CONDITIONS: self._flip_conditions,
             vocab.SUBTYPE: self._subtype,
             vocab.BIOMARKER: self._biomarker,
+            vocab.SYNTHESIS_BANNER: self._synthesis_banner,
+            vocab.SYNTHESIS_NOTE: self._synthesis_note,
+            vocab.SIGNALS_SCATTER: self._signals_scatter,
+            vocab.SUBGROUP_BANDS: self._subgroup_bands,
+            vocab.CROSS_CUTTING_QUESTIONS: self._cross_cutting,
         }
 
     def handled_kinds(self) -> set:
@@ -46,12 +51,27 @@ class TextBackend:
     def render(self, ir: ReportIR) -> str:
         lines: list = []
         lines += self._emit(ir.header)
-        for b in ir.overview:
+        if getattr(ir, "banner", None) is not None:      # persistent advisory banner (chrome, above tabs)
             lines.append("")
-            lines += self._emit(b)
-        for sec in ir.sections:
-            lines.append("")
-            lines += self._emit_section(sec)
+            lines += self._emit(ir.banner)
+        lenses = ir.lenses()
+        if lenses:
+            # faceted composed report: the interactive tabs linearize into sequential lens sections,
+            # in the canonical LENS_ORDER (Decision → Signals → Modality → Risk → Biology).
+            for _lens_id, title, items in lenses:
+                lines.append("")
+                lines += self._h1(title)
+                for kind, item in items:
+                    lines.append("")
+                    lines += self._emit_section(item) if kind == "section" else self._emit(item)
+        else:
+            # flat fallback (standalone single-skill / un-lensed IR) — byte-identical to the prior layout.
+            for b in ir.overview:
+                lines.append("")
+                lines += self._emit(b)
+            for sec in ir.sections:
+                lines.append("")
+                lines += self._emit_section(sec)
         if ir.about is not None:
             lines.append("")
             lines += self._emit(ir.about)
@@ -374,6 +394,60 @@ class TextBackend:
             iu, basis, es = _humanize(h.get("intended_use")), _humanize(h.get("basis")), h.get("evidence_strength")
             out.append(self._bullet(f"{iu}: {basis}" + (f" [{es}]" if es else "")))
         return out
+
+    # -- faceted-rollup blocks (PR2) -----------------------------------------------------------
+    def _synthesis_banner(self, p: dict) -> list:
+        out = [f"{self._b('AI synthesis')} (advisory — does not set the call)"]
+        if p.get("executive_summary"):
+            out.append(str(p["executive_summary"]))
+        mm = p.get("mismatch")
+        if isinstance(mm, dict) and mm.get("deterministic"):
+            out.append(f"⚠ LLM read: {mm.get('llm')} · deterministic call: {mm['deterministic']} "
+                       f"— mismatch flagged (the deterministic call stands).")
+        cites = p.get("citations") or []
+        if cites:
+            joined = ", ".join(cites)
+            out.append(f"_Grounded in {len(cites)} framework rules: {joined}._"
+                       if self.md else f"Grounded in {len(cites)} framework rules: {joined}")
+        return out
+
+    def _synthesis_note(self, p: dict) -> list:
+        notes = p.get("notes") or []
+        if not notes:
+            return []
+        out = [f"{self._b('AI read')} (advisory):"]
+        for n in notes:
+            stance = (n.get("stance") or "").strip()
+            tag = {"for": "+ ", "against": "− ", "tension": "⚖ "}.get(stance, "")
+            out.append(self._bullet(f"{tag}{n.get('text', '')}", indent=1))
+        return out
+
+    def _signals_scatter(self, p: dict) -> list:
+        pts = p.get("points") or []
+        if not pts:
+            return []
+        is_sg = p.get("scope") == "subgroups"
+        head = "sub-group" if is_sg else "skill"
+        rows = [[(pt.get("name") if is_sg else pt.get("title")),
+                 pt.get("signal_tier"), _humanize(pt.get("confidence"))] for pt in pts]
+        title = "Signals × confidence" + (" (sub-groups)" if is_sg else "")
+        return self._h2(title) + self._table([head, "signal", "confidence"], rows)
+
+    def _subgroup_bands(self, p: dict) -> list:
+        rows = p.get("sub_groups") or []
+        if not rows:
+            return []
+        table = [[r.get("name"), r.get("signal"), _humanize(r.get("confidence")),
+                  f"{r.get('n_agree', 0)}/{r.get('n_sources', 0)}"
+                  + (" ⚠" if r.get("conflict") else "")] for r in rows]
+        return self._h2("Sub-group bands") + self._table(["sub-group", "signal", "confidence", "sources"], table)
+
+    def _cross_cutting(self, p: dict) -> list:
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        table = [[r.get("question"), r.get("owner"), _humanize(r.get("informs"))] for r in rows]
+        return self._h2("Cross-cutting questions") + self._table(["question", "measured by", "informs"], table)
 
 
 # ------------------------------------------------------------------------------------------------

@@ -5,12 +5,13 @@
   "description": "The JSON backend's output — a spec-applied, tiered serialization of the report IR. The stable machine 'report view' + golden-snapshot surface.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "spec", "header", "overview", "sections", "about", "target", "indication", "deciding_short"],
+  "required": ["schema", "spec", "header", "overview", "sections", "about", "target", "indication", "deciding_short", "banner"],
   "properties": {
     "schema": {"const": "report_view.v1"},
     "target": {"type": ["string", "null"]},
     "indication": {"type": ["string", "null"]},
     "deciding_short": {"type": ["string", "null"]},
+    "banner": {"oneOf": [{"$ref": "#/definitions/block"}, {"type": "null"}]},
     "spec": {
       "type": "object",
       "additionalProperties": false,
@@ -37,7 +38,22 @@
           "title": {"type": "string"},
           "role": {"enum": ["gating", "descriptive", "inert"]},
           "is_deciding": {"type": "boolean"},
-          "blocks": {"type": "array", "items": {"$ref": "#/definitions/block"}}
+          "blocks": {"type": "array", "items": {"$ref": "#/definitions/block"}},
+          "lens": {"type": "string"}
+        }
+      }
+    },
+    "lenses": {
+      "type": "array",
+      "description": "Optional faceted-view grouping of overview blocks + sections (composed reports only). Presentation grouping — the same content re-bucketed along the target_report projection axes.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "items"],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "items": {"type": "array", "items": {"type": "object"}}
         }
       }
     }
@@ -52,7 +68,9 @@
           "enum": ["report_header", "skill_header", "confidence", "tension", "claim_chips",
                    "question_table", "phase_metrics", "figure", "provenance", "unmeasured", "about",
                    "signals_overview", "risk_6dim", "synthesis", "coherence", "modality_matrix",
-                   "literature_risk", "deciding_axis", "flip_conditions", "subtype", "biomarker"]
+                   "literature_risk", "deciding_axis", "flip_conditions", "subtype", "biomarker",
+                   "signals_scatter", "subgroup_bands", "cross_cutting_questions",
+                   "synthesis_banner", "synthesis_note"]
         }
       }
     }

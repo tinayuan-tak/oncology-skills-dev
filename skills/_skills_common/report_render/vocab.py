@@ -120,12 +120,19 @@ DECIDING_AXIS = "deciding_axis"        # what the call hinges on (router basis)
 FLIP_CONDITIONS = "flip_conditions"    # "what would change the call" — recommendation-flipping counterfactuals
 SUBTYPE = "subtype"                    # molecular-subtype stratification (MSI/MSS, CMS, …) convergence
 BIOMARKER = "biomarker"                # patient-selection biomarker: stratification class + preferred assay
+# faceted-rollup blocks (PR2): the signals-first spine, one level up + the embedded sub-skill view.
+SIGNALS_SCATTER = "signals_scatter"    # signal × confidence scatter — report-level (skills) OR per-skill (sub-groups)
+SUBGROUP_BANDS = "subgroup_bands"      # per-skill hierarchy sub-group signal/confidence bands (embedded view)
+CROSS_CUTTING_QUESTIONS = "cross_cutting_questions"  # questions one skill measures that inform another lens
+SYNTHESIS_BANNER = "synthesis_banner"  # persistent advisory exec-summary banner (report chrome, above tabs)
+SYNTHESIS_NOTE = "synthesis_note"      # a routed LLM argument/tension surfaced inside its topical lens
 
 BLOCK_KINDS: frozenset = frozenset({
     REPORT_HEADER, SKILL_HEADER, CONFIDENCE, TENSION, CLAIM_CHIPS, QUESTION_TABLE,
     PHASE_METRICS, FIGURE, PROVENANCE, UNMEASURED, ABOUT, SIGNALS_OVERVIEW, RISK_6DIM,
     SYNTHESIS, COHERENCE, MODALITY_MATRIX, LITERATURE_RISK, DECIDING_AXIS,
     FLIP_CONDITIONS, SUBTYPE, BIOMARKER,
+    SIGNALS_SCATTER, SUBGROUP_BANDS, CROSS_CUTTING_QUESTIONS, SYNTHESIS_BANNER, SYNTHESIS_NOTE,
 })
 
 # min level int at which each block kind is shown.
@@ -151,10 +158,74 @@ TIER: dict[str, int] = {
     FIGURE: 2,
     PROVENANCE: 3,
     UNMEASURED: 0,   # a fail-soft substitute; the builder decides when to emit it (not tier-gated)
+    SYNTHESIS_BANNER: 0,       # the persistent advisory banner leads the report chrome
+    SIGNALS_SCATTER: 0,        # the signal×confidence scatter leads the Signals lens
+    SYNTHESIS_NOTE: 1,         # routed LLM notes appear from summary depth up
+    SUBGROUP_BANDS: 2,         # per-skill sub-group bands — evidence depth
+    CROSS_CUTTING_QUESTIONS: 2,  # evidence depth
 }
 
 # how many claim chips to show per skill at each level (None = all).
 CHIP_LIMIT_BY_LEVEL: dict[int, Optional[int]] = {0: 0, 1: 3, 2: None, 3: None}
+
+
+# ---------------------------------------------------------------------------------------------------
+# Lenses — the FACETED presentation grouping of the COMPOSED report. Each lens is one of the
+# target_report projection axes (docs/UNIFIED_OUTPUT_CONTRACT.md "projections of the same skill_report[]
+# signals along orthogonal axes") made navigable: the reader toggles co-equal, full-width views.
+# The lens is a PRESENTATION grouping only — it re-buckets the SAME overview blocks + per-skill sections
+# the builder already produced; it never changes what content is selected (that stays level/scope/lead).
+# HTML renders lenses as a tab bar; text/markdown/pptx linearize them as sequential sections in
+# LENS_ORDER; json exposes a `lenses[]` grouping array. A block/section with lens=None is report chrome
+# (the REPORT_HEADER + ABOUT) or the standalone single-skill path — NOT bucketed into any lens, so an
+# un-annotated IR (build_ir_for_skill) groups to nothing and backends fall back to the flat layout.
+# ---------------------------------------------------------------------------------------------------
+LENS_DECISION = "decision"     # the nomination call: recommendation rationale, deciding axis, flips
+LENS_SIGNALS = "signals"       # the per-skill evidence landscape (signals overview + the skill sections)
+LENS_MODALITY = "modality"     # how would we drug it — the per-channel modality-fit readout
+LENS_RISK = "risk"             # what could kill it — the 6-dim risk rollup + literature-risk context
+LENS_BIOLOGY = "biology"       # what is the biology — coherence, biomarker, subtype stratification
+
+# canonical lens order — the single linearization the non-interactive backends emit sections in.
+LENS_ORDER: tuple = (LENS_DECISION, LENS_SIGNALS, LENS_MODALITY, LENS_RISK, LENS_BIOLOGY)
+LENS_TITLE: dict[str, str] = {
+    LENS_DECISION: "Decision", LENS_SIGNALS: "Signals", LENS_MODALITY: "Modality",
+    LENS_RISK: "Risk", LENS_BIOLOGY: "Biology",
+}
+
+# report-level (overview) block kind → lens. Per-skill SECTIONS are stamped LENS_SIGNALS by the builder
+# (not here — a section is not a block kind). REPORT_HEADER + ABOUT are intentionally ABSENT (chrome,
+# lens=None). A block kind absent from this map is un-lensed and renders in the flat fallback path.
+BLOCK_LENS: dict[str, str] = {
+    SIGNALS_OVERVIEW: LENS_SIGNALS,
+    SIGNALS_SCATTER: LENS_SIGNALS,            # the report-level 15-skill scatter
+    CROSS_CUTTING_QUESTIONS: LENS_SIGNALS,
+    SYNTHESIS: LENS_DECISION,
+    DECIDING_AXIS: LENS_DECISION,
+    FLIP_CONDITIONS: LENS_DECISION,
+    MODALITY_MATRIX: LENS_MODALITY,
+    RISK_6DIM: LENS_RISK,
+    LITERATURE_RISK: LENS_RISK,
+    COHERENCE: LENS_BIOLOGY,
+    BIOMARKER: LENS_BIOLOGY,
+    SUBTYPE: LENS_BIOLOGY,
+    # SYNTHESIS_BANNER is chrome (rendered above the tabs, ReportIR.banner) — intentionally absent.
+    # SYNTHESIS_NOTE is pre-lensed by the router (build_ir preserves an already-set lens) — absent here.
+    # SUBGROUP_BANDS is section-only (emitted inside a per-skill section) — absent here.
+}
+
+# skill short → the TOPICAL lens its LLM synthesis sentences route to (distinct from section placement:
+# all 15 per-skill sections live in the Signals lens; only NARRATED argument/tension sentences route
+# by topic). A sentence whose citation anchors resolve to a skill lands in that skill's topical lens;
+# an unresolved / cross-cutting sentence falls back to the Decision lens (see ir._route_synthesis_to_lenses).
+SKILL_TOPICAL_LENS: dict[str, str] = {
+    "expression": LENS_SIGNALS, "selectivity": LENS_SIGNALS, "dependency": LENS_SIGNALS,
+    "surface_modality": LENS_MODALITY, "tractability_sm": LENS_MODALITY, "immune_context": LENS_MODALITY,
+    "safety": LENS_RISK, "literature_context": LENS_RISK,
+    "mechanism": LENS_BIOLOGY, "genomic_alteration": LENS_BIOLOGY, "differentiation": LENS_BIOLOGY,
+    "cis_coherence": LENS_BIOLOGY, "target_intrinsic": LENS_BIOLOGY,
+    "combination_vulnerability": LENS_BIOLOGY, "translational_readiness": LENS_BIOLOGY,
+}
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -248,6 +319,9 @@ __all__ = [
     "SKILL_DISPLAY", "SKILL_ORDER", "GATING_SHORTS", "ROLE_RANK", "SKILL_NAME_TO_SHORT",
     "skill_title", "skill_order_index", "skill_short_for_name",
     "BLOCK_KINDS", "TIER", "CHIP_LIMIT_BY_LEVEL",
+    "LENS_DECISION", "LENS_SIGNALS", "LENS_MODALITY", "LENS_RISK", "LENS_BIOLOGY",
+    "LENS_ORDER", "LENS_TITLE", "BLOCK_LENS", "SKILL_TOPICAL_LENS",
+    "SIGNALS_SCATTER", "SUBGROUP_BANDS", "CROSS_CUTTING_QUESTIONS", "SYNTHESIS_BANNER", "SYNTHESIS_NOTE",
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
     "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",

@@ -24,7 +24,8 @@ def test_descriptive_skill_labeled_context_not_not_scored():
 
 def test_signal_strip_uses_plain_language_not_snake_case():
     html = render_report(make_nomination(), preset="full", backend="html")
-    strip = html[html.index("class='signal-strip'"):html.index("</svg>")]
+    _ss = html.index("class='signal-strip'")   # the diverging strip (a preceding scatter SVG may exist)
+    strip = html[_ss:html.index("</svg>", _ss)]
     assert "Highly LoF-constrained" in strip        # honest_phrase, not the call token
     assert "lof_constrained" not in strip           # raw snake_case call is gone from the strip
 

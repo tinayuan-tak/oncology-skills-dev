@@ -107,6 +107,7 @@ def build_skill_report(*, role: str,
                        axis_labels: Optional[dict] = None,
                        modality_scope: Optional[dict] = None,
                        claim_chips_by_subtype: Optional[list] = None,
+                       subgroup_signals: Optional[dict] = None,
                        canonical_polarity_override: Optional[str] = None) -> dict:
     """Assemble the canonical `skill_report`. Pure projection over already-computed objects; never moves
     a verdict. `verdict` is None for gateless skills. See docs/UNIFIED_OUTPUT_CONTRACT.md."""
@@ -138,6 +139,11 @@ def build_skill_report(*, role: str,
         # CONDITIONING axis whose rollup is a cross-axis convergence JOIN). None/[] when the skill emits
         # no subtype-grain panorama (the whole-cohort spine). VERDICT-INERT.
         "claim_chips_by_subtype": list(claim_chips_by_subtype) if claim_chips_by_subtype else None,
+        # hierarchy-derived per-sub-group {signal, confidence, sources, …} (subgroup_derivation shape).
+        # First-class on the spine so the composed report can render the EMBEDDED sub-skill view (its
+        # sub-group bands + per-skill signal×confidence scatter) — the same detail the standalone
+        # sub-skill report shows. None when the skill emits no hierarchy signals. VERDICT-INERT.
+        "subgroup_signals": subgroup_signals if isinstance(subgroup_signals, dict) else None,
         "question_table": list(question_table) if question_table else [],
         "per_phase_metrics": list(per_phase_metrics) if per_phase_metrics else [],
         # figures the skill already emits (hero + card plots), made FIRST-CLASS + selectable like text so

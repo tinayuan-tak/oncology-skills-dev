@@ -55,6 +55,7 @@ def test_signals_strip_orders_killers_first():
     # rule + the header's deciding mention first.
     import re
     html = render_report(make_nomination(), preset="full", backend="html")
-    strip = html[html.index("class='signal-strip'"):html.index("</svg>")]
+    _ss = html.index("class='signal-strip'")   # the diverging strip (a preceding scatter SVG may exist)
+    strip = html[_ss:html.index("</svg>", _ss)]
     titles = re.findall(r"font-size='12.5'[^>]*>([^<]+)<", strip)  # row title labels, in SVG order
     assert titles and titles.index("On-target safety") < titles.index("Functional dependency")
