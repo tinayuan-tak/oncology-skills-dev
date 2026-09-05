@@ -1,5 +1,5 @@
 {
-  "$comment": "PER-SKILL PINS (source) for surface-modality-fit. VARIANT = gating-scalar (multi-LAYER): the canonical skill_report.call is the composed adc-tce-modality-fit `fit_class` (8-value, capitalized ADC_preferred/TCE_preferred/...), NOT the resolver's `surface_modality_verdict` (17-value lowercase, the post safety/density/shed downgrade surfaced as the top tension). Both are contractual fields → both pinned. surface_modality_verdict_by_modality (ADC/TCE arms) typed-open. role:gating, no polarity const (dynamic; no killer override). Enums: fit_class from _FIT_CLASS_PHRASE (run.py); surface_modality_verdict from resolvers/surface_modality.resolver.yaml. Append-only within contract major version.",
+  "$comment": "PER-SKILL PINS (source) for surface-modality-fit. VARIANT = gating-scalar (multi-LAYER): the canonical skill_report.call is the composed adc-tce-modality-fit `fit_class` (7-value, capitalized ADC_preferred/TCE_preferred/...; `insufficient` is a surface_modality_verdict value, NOT a fit_class value), NOT the resolver's `surface_modality_verdict` (17-value lowercase, the post safety/density/shed downgrade surfaced as the top tension). Both are contractual fields → both pinned. surface_modality_verdict_by_modality (ADC/TCE arms) typed-open. role:gating, no polarity const (dynamic; no killer override). Enums: fit_class from _FIT_CLASS_PHRASE (run.py); surface_modality_verdict from resolvers/surface_modality.resolver.yaml. Append-only within contract major version.",
   "skill": "surface-modality-fit",
   "role_variant": "gating_scalar_multilayer",
   "$defs": {
@@ -12,7 +12,6 @@
         "neither_viable",
         "modality_ambiguous",
         "isoform_dependent_undefined",
-        "insufficient",
         "data_unavailable"
       ]
     },

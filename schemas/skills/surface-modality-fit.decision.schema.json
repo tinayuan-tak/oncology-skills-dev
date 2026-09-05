@@ -503,7 +503,6 @@
         "neither_viable",
         "modality_ambiguous",
         "isoform_dependent_undefined",
-        "insufficient",
         "data_unavailable"
       ]
     },
