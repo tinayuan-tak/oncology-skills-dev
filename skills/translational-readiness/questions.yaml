@@ -1,0 +1,77 @@
+# Canonical question + axis registry for the translational-readiness dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for the 4 consumer-facing preclinical-readiness questions
+# and the unified axis_id vocabulary {MODEL, GENOTYPE, ORGANOID, PDX} — the SAME axis letters the
+# translational-readiness narrator lens uses (narrator_lenses.py TRANSLATIONAL_READINESS.axis_labels:
+# MODEL patient-derived model availability / GENOTYPE genotype-matched model / ORGANOID organoid ex-vivo
+# dependency / PDX PDX in-vivo drug response), so the literature axis->question crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q4 the
+# translational_readiness_question_table builder emits) — the emitted question_table itself is NOT
+# modified (byte-stable).
+#
+# GATELESS / DESCRIPTIVE skill (verdict_fn=None): translational-readiness emits NO nomination verdict —
+# model availability + genotype-match + organoid/PDX reproduction are translational CONTEXT that inform
+# confidence, not a gate. So the graph's verdict node carries id=None (verdict.call is null; the display
+# `call` is the descriptive phrase) and every question polarity is `informs`, never supports/opposes.
+# Accordingly the editorial question `role` here is `context` (NOT verdict_bearing — there is no verdict
+# to bear); `context` is a non-corroboration role, so the literature axis->question crosswalk still
+# resolves all four lens axes. (NB the organoid-crispr-dependency card carries its own BORROWED
+# functional-requirement dependency rule, so in a standalone run that ONE card projects as a
+# `verdict_bearing` CARD in the graph — a fired-rule fact — even though the SKILL bears no verdict.)
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id translational_readiness_question_table emits (Q1..Q4)
+#   seq             1-based display order
+#   text            human question text (mirrors the emitted question_table row)
+#   axis_id         unified claim/literature axis (MODEL|GENOTYPE|ORGANOID|PDX)
+#   role            context (descriptive) — non-corroboration, so it owns its axis in the crosswalk
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from the card contracts (target-contracts/cards/<id>.card.yaml
+#                   measurement_type) as emitted into headline.evidence_capsules.capsules[<card>].
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => MODEL->[models_available]  GENOTYPE->[genotype_matched_model_carries_alteration]
+#      ORGANOID->[organoid_ex_vivo_dependency]  PDX->[pdx_in_vivo_response]
+#
+# NOTE (no subtype question): translational-readiness composes no tier:subtype card, so there is no
+# measurement_type shared by a subtype + non-subtype pair to disambiguate — the registry mirrors the 4
+# emitted question_table rows exactly and omits a subtype question.
+skill: translational-readiness
+axis_vocabulary:
+  MODEL: patient-derived model availability
+  GENOTYPE: genotype-matched model
+  ORGANOID: organoid ex-vivo dependency
+  PDX: PDX in-vivo drug response
+questions:
+- id: models_available
+  legacy_id: Q1
+  seq: 1
+  text: Are patient-derived (HCMI) models available to preclinically validate the nomination?
+  axis_id: MODEL
+  role: context
+  measurement_types: [model_availability]
+- id: genotype_matched_model_carries_alteration
+  legacy_id: Q2
+  seq: 2
+  text: Does an available patient-derived model carry a functional alteration in THIS target?
+  axis_id: GENOTYPE
+  role: context
+  measurement_types: [genotype_matched_model]
+- id: organoid_ex_vivo_dependency
+  legacy_id: Q3
+  seq: 3
+  text: Does the target's dependency reproduce EX VIVO in patient-derived organoid (3D CRISPR) models?
+  axis_id: ORGANOID
+  role: context
+  measurement_types: [crispr_lof_dependency]
+- id: pdx_in_vivo_response
+  legacy_id: Q4
+  seq: 4
+  text: Does the target's tractability reproduce IN VIVO in PDX population trials?
+  axis_id: PDX
+  role: context
+  measurement_types: [pdx_drug_response]
