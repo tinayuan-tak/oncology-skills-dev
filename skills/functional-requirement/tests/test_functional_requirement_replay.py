@@ -90,6 +90,22 @@ def test_fixture_is_nonvacuous():
         f"Real: {sorted(real)}")
 
 
+def test_replay_conforms_to_data_product_schema(kras_decision):
+    """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
+    data-product schema (the static golden is trimmed, so this — not it — is the conformance target).
+    Catches a dropped required key / flipped role / an undeclared dependency_verdict token. CI-fail-not-skip."""
+    import os
+    from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
+
+    schema = load_schema("functional-requirement")
+    if schema is None:
+        reason = f"data-product schema not found at {schema_path('functional-requirement')}"
+        pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
+    errors = conformance_errors(schema, kras_decision)
+    assert not errors, "FRESH replay emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
+
+
 def test_replay_verdict_is_a_positive_dependency_call(kras_decision):
     """THE VERDICT-PATH DRIFT GUARD: rules fire over the REAL frozen summaries. KRAS is a bona fide
     COADREAD dependency, so dependency_verdict must be a POSITIVE dependency call with a real driving
