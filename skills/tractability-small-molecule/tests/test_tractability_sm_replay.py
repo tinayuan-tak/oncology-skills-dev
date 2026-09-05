@@ -114,6 +114,22 @@ ALL = [EGFR, BRAF, FOXA1]
 
 
 @pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() for p in ALL])
+def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _exp):
+    """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
+    data-product schema (static golden trimmed → this is the conformance target). CI-fail-not-skip."""
+    import os
+    from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
+
+    schema = load_schema("tractability-small-molecule")
+    if schema is None:
+        reason = f"data-product schema not found at {schema_path('tractability-small-molecule')}"
+        pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
+    errors = conformance_errors(schema, _decision(pair_id, target, indication))
+    assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
+
+
+@pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() for p in ALL])
 def test_fixture_is_nonvacuous(pair_id, target, indication, _exp):
     """Guard against a stale/broken freeze reading green: each curated target resolves most of the 7-card
     roster. Require >=5 to carry a real summary."""
