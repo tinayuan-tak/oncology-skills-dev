@@ -276,6 +276,13 @@ class TextBackend:
 
     def _synthesis(self, p: dict) -> list:
         out = self._h2("Synthesis (AI-generated)")
+        _GLYPH = {"supportive": "△", "opposing": "▽", "killer": "▲", "neutral": "◆", "not_applicable": "·"}
+        bullets = p.get("exec_bullets") or []
+        for b in bullets:
+            g = _GLYPH.get(b.get("polarity"), "•")
+            out.append(self._bullet(f"{g} {b.get('text')}"))
+        if bullets and (p.get("executive_summary") or p.get("tension_analysis") or p.get("arguments")):
+            out.append(self._b("Full narrative") + ":" if not self.md else f"_{self._b('Full narrative')}_:")
         if p.get("executive_summary"):
             out.append(str(p["executive_summary"]))
         if p.get("tension_analysis"):

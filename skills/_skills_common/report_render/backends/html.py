@@ -521,14 +521,35 @@ class HtmlBackend:
 
     def _synthesis(self, p: dict) -> list:
         out = ["<span class='tag'>AI-generated</span><h2>Synthesis</h2>"]
+        _GLYPH = {"supportive": "△", "opposing": "▽", "killer": "▲", "neutral": "◆", "not_applicable": "·"}
+        _CLS = {"supportive": "g-sup", "opposing": "g-opp", "killer": "g-kill", "neutral": "g-neu"}
+        bullets = p.get("exec_bullets") or []
+        if bullets:
+            lis = []
+            for b in bullets:
+                pol = b.get("polarity")
+                anchors = (b.get("cites") or {})
+                ids = (anchors.get("card_ids") or []) + (anchors.get("citation_ids") or [])
+                anc = (f" <span class='ke-anchor'>[{_esc(', '.join(ids[:3]))}]</span>") if ids else ""
+                lis.append(f"<li><span class='{_CLS.get(pol,'g-neu')}'>{_GLYPH.get(pol,'•')}</span> "
+                           f"{_esc(b.get('text'))}{anc}</li>")
+            out.append("<ul class='exec-bullets'>" + "".join(lis) + "</ul>")
+        verbose_frag = []
         if p.get("executive_summary"):
-            out.append(f"<p>{_esc(p['executive_summary'])}</p>")
+            verbose_frag.append(f"<p>{_esc(p['executive_summary'])}</p>")
         if p.get("tension_analysis"):
-            out.append(f"<p class='kv'><b>Tensions:</b> {_esc(p['tension_analysis'])}</p>")
+            verbose_frag.append(f"<p class='kv'><b>Tensions:</b> {_esc(p['tension_analysis'])}</p>")
         args = p.get("arguments") or []
         if args:
-            out.append("<ul class='chips'>"
-                       + "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args) + "</ul>")
+            verbose_frag.append("<ul class='chips'>"
+                                + "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args) + "</ul>")
+        if verbose_frag:
+            # bullets lead; the verbose prose is demoted behind an expander (Stage-2 secondary read).
+            if bullets:
+                out.append("<details class='full-narrative'><summary>Full narrative</summary>"
+                           + "".join(verbose_frag) + "</details>")
+            else:
+                out.extend(verbose_frag)
         cites = p.get("citations") or []
         if cites:
             # rule-ids lifted out of the prose → a collapsed grounding affordance (hover/expand), so the

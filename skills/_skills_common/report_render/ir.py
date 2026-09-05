@@ -342,6 +342,13 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
         cc = _card_chain_block(eg)
         if cc is not None:
             blocks.append(cc)
+    # Stage-2 narrative: the single-lens grounded exec_bullets (from the graph's projected narrative —
+    # an opt-in --synthesize trailer; absent → no block). Leads with the crisp bullets; rationale prose
+    # is the demoted verbose read. Advisory / verdict-inert.
+    if isinstance(eg, dict) and eff >= vocab.TIER[vocab.SYNTHESIS]:
+        nb = _skill_synthesis_block(eg.get("narrative") or {})
+        if nb is not None:
+            blocks.append(nb)
     if eff >= vocab.TIER[vocab.PROVENANCE] and report.get("provenance"):
         blocks.append(Block(vocab.PROVENANCE, {"provenance": report["provenance"]}))
 
@@ -530,7 +537,16 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
     exec_summary = _llm_val(llm, "executive_summary")
     tension = _llm_val(llm, "tension_analysis")
     args = _llm_val(llm, "top_arguments") or _llm_val(llm, "arguments")
-    if not (exec_summary or tension or args):
+    # Stage-2 PRIMARY: the crisp grounded executive bullets (single-lens narrator + composed). Lead with
+    # them; the verbose prose (executive_summary / rationale / context_read) is demoted to a secondary read.
+    raw_bullets = _llm_val(llm, "exec_bullets") or []
+    exec_bullets = []
+    for b in raw_bullets:
+        if isinstance(b, dict) and b.get("text"):
+            txt, _ = _strip_rule_citations(b.get("text"))
+            exec_bullets.append({"text": txt, "polarity": b.get("polarity"), "cites": b.get("cites") or {}})
+    verbose = exec_summary or _llm_val(llm, "rationale") or _llm_val(llm, "context_read")
+    if not (exec_bullets or exec_summary or tension or args or verbose):
         return None
     exec_clean, c1 = _strip_rule_citations(exec_summary)
     tens_clean, c2 = _strip_rule_citations(tension)
@@ -552,8 +568,24 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
         if r not in seen:
             seen.add(r)
             citations.append(r)
-    return Block(vocab.SYNTHESIS, {"executive_summary": exec_clean, "tension_analysis": tens_clean,
-                                   "arguments": args_out, "citations": citations})
+    return Block(vocab.SYNTHESIS, {"exec_bullets": exec_bullets, "executive_summary": exec_clean,
+                                   "tension_analysis": tens_clean, "arguments": args_out,
+                                   "citations": citations})
+
+
+def _skill_synthesis_block(narrative: dict) -> Optional[Block]:
+    """Build a SYNTHESIS block from a single-skill graph `narrative` (evidence_graph.narrative) — the
+    Stage-2 exec_bullets lead + the demoted verbose prose (rationale). None when the narrative is empty
+    (no --synthesize). Reuses the SYNTHESIS backends (same as the composed report)."""
+    if not isinstance(narrative, dict):
+        return None
+    bullets = [b for b in (narrative.get("exec_bullets") or []) if isinstance(b, dict) and b.get("text")]
+    verbose = narrative.get("rationale") or narrative.get("relevance")
+    if not (bullets or verbose):
+        return None
+    verbose_clean, cites = _strip_rule_citations(verbose) if verbose else (None, [])
+    return Block(vocab.SYNTHESIS, {"exec_bullets": bullets, "executive_summary": verbose_clean,
+                                   "tension_analysis": None, "arguments": None, "citations": cites})
 
 
 def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:

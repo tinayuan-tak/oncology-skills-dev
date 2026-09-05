@@ -504,8 +504,9 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     # ── literature + citations (Phase 3) ──
     literature, citation_nodes = _build_literature(decision, questions, q_by_id)
 
-    # ── narrative (Phase 4) ──
-    narrative = _build_narrative(decision, card_nodes, rule_nodes, q_nodes)
+    # ── narrative (Phase 4) ── (exec_bullets anchor citations, so pass the built citation ids)
+    narrative = _build_narrative(decision, card_nodes, rule_nodes, q_nodes,
+                                 citation_ids={c["id"] for c in citation_nodes})
 
     # ── verdict node ──
     conf = hb.get("confidence") or {}
@@ -612,26 +613,49 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
     return literature, citation_nodes
 
 
-def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes: list) -> dict:
-    """Project decision.llm_synthesis into an anchored narrative. Fail-soft: absent/error stub → {}."""
+def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes: list,
+                     citation_ids: Optional[set] = None) -> dict:
+    """Project decision.llm_synthesis into an anchored narrative. Fail-soft: absent/error stub → {}.
+    Stage 2: leads with `exec_bullets` (each anchored to real card/question/citation ids — invented ids
+    are filtered so referential integrity always holds); `rationale` carries the demoted verbose prose."""
     syn = decision.get("llm_synthesis")
     if not isinstance(syn, dict) or any(k in syn for k in ("_synthesis_error", "_synthesis_skipped")):
         return {}
     card_ids = {c["id"] for c in card_nodes}
     rule_ids = {r["id"] for r in rule_nodes if r["id"]}
+    q_ids = {q["id"] for q in q_nodes}
+    citation_ids = citation_ids or set()
     # focused llm_synthesis stamps each field as {value,_source:"llm_synthesized",...}; unwrap so the
     # graph carries plain scalars (mirrors _build_literature, which already unwraps its axes).
     text = " ".join(str(_unwrap(syn.get(k)) or "") for k in ("rationale", "key_caveat", "context_read",
                                                              "key_signals_summary"))
     cited_cards, cited_rules = _narrative_cites(text, card_ids, rule_ids)
     cited_qids = [q["id"] for q in q_nodes if set(q["card_ids"]) & set(cited_cards)]
-    return {
+    # exec_bullets (PRIMARY): unwrap + anchor each bullet's cites to REAL ids (drop any invented id so the
+    # referential invariant holds); canonicalize polarity onto the display vocabulary.
+    exec_bullets = []
+    for b in (_unwrap(syn.get("exec_bullets")) or []):
+        if not isinstance(b, dict):
+            continue
+        bc = b.get("cites") or {}
+        exec_bullets.append({
+            "text": _unwrap(b.get("text")),
+            "polarity": _canon_polarity(_unwrap(b.get("polarity"))),
+            "cites": {
+                "card_ids": [i for i in (bc.get("card_ids") or []) if i in card_ids],
+                "question_ids": [i for i in (bc.get("question_ids") or []) if i in q_ids],
+                "citation_ids": [i for i in (bc.get("citation_ids") or []) if i in citation_ids],
+            }})
+    out = {
         "relevance": _unwrap(syn.get("relevance")) or _unwrap(syn.get("context_read")),
         "rationale": _unwrap(syn.get("rationale")) or _unwrap(syn.get("key_signals_summary")),
         "confidence_qualifier": _unwrap(syn.get("confidence_qualifier")),
         "key_caveat": _unwrap(syn.get("key_caveat")),
         "cites": {"question_ids": cited_qids, "card_ids": cited_cards, "rule_ids": cited_rules},
     }
+    if exec_bullets:
+        out["exec_bullets"] = exec_bullets
+    return out
 
 
 # ── governance: referential integrity + schema validation + fail-soft attach seam ──────────────────
@@ -694,10 +718,17 @@ def _referential_integrity_errors(graph: dict) -> list:
     tension = verdict.get("top_tension") or {}
     if isinstance(tension, dict):
         _chk(tension.get("source_card_ids"), card_ids, "verdict.top_tension.source_card_ids")
-    cites = (g.get("narrative") or {}).get("cites") or {}
+    narrative = g.get("narrative") or {}
+    cite_node_ids = {c.get("id") for c in (g.get("citations") or []) if isinstance(c, dict)}
+    cites = narrative.get("cites") or {}
     _chk(cites.get("question_ids"), q_ids, "narrative.cites.question_ids")
     _chk(cites.get("card_ids"), card_ids, "narrative.cites.card_ids")
     _chk(cites.get("rule_ids"), rule_ids, "narrative.cites.rule_ids")
+    for i, b in enumerate(narrative.get("exec_bullets") or []):
+        bc = (b or {}).get("cites") or {} if isinstance(b, dict) else {}
+        _chk(bc.get("question_ids"), q_ids, f"narrative.exec_bullets[{i}].cites.question_ids")
+        _chk(bc.get("card_ids"), card_ids, f"narrative.exec_bullets[{i}].cites.card_ids")
+        _chk(bc.get("citation_ids"), cite_node_ids, f"narrative.exec_bullets[{i}].cites.citation_ids")
     return errs
 
 

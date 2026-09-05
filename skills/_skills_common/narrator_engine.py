@@ -39,27 +39,53 @@ class LensConfig:
 
 _CONF_ENUM = ("well_supported", "supported_with_caveats", "weakly_supported", "insufficient_evidence")
 
+# Stage-2 PRIMARY output: a short list of crisp, grounded, anchored executive bullets. Shared by the
+# verdict + descriptive tool schemas. Each bullet reasons ACROSS signals and carries the salient omics +
+# literature datum (from key_evidence + the literature lane), anchored to real package ids.
+_EXEC_BULLETS_SCHEMA = {
+    "type": "array", "minItems": 1, "maxItems": 6,
+    "description": ("PRIMARY: <=6 crisp executive bullets, each reasoning ACROSS the signals and carrying "
+                    "the SALIENT data point(s) — the indication/strongest stratum effect WITH its q/p, the "
+                    "omnibus, the driving categorical, and a corroborating/contrasting citation where the "
+                    "literature lane has one. Ground every number in key_evidence; cite the exact "
+                    "card_id/question_id/citation_id it comes from; <=~40 words each; scientific voice."),
+    "items": {
+        "type": "object", "additionalProperties": False,
+        "required": ["text", "polarity", "cites"],
+        "properties": {
+            "text": {"type": "string", "description": "the bullet, carrying its grounded number(s); <=~40 words."},
+            "polarity": {"type": "string", "enum": ["supportive", "opposing", "neutral", "killer", "not_applicable"],
+                         "description": "the bullet's direction for THIS lens (respect the polarity note; a liability is opposing/killer, never supportive)."},
+            "cites": {"type": "object", "additionalProperties": False,
+                      "description": "real ids from the package this bullet is grounded in (>=1 total).",
+                      "properties": {
+                          "card_ids": {"type": "array", "items": {"type": "string"}},
+                          "question_ids": {"type": "array", "items": {"type": "string"}},
+                          "citation_ids": {"type": "array", "items": {"type": "string"}}}}}}}
+
 
 def _tool(lens: LensConfig) -> tuple:
     if lens.mode == "descriptive":
         name = f"emit_{lens.name.replace('-', '_')}_context"
         schema = {"type": "object", "additionalProperties": False,
-                  "required": ["context_read", "key_signals_summary", "confidence_qualifier", "key_caveat"],
-                  "description": f"Descriptive {lens.name} context read (this lens is gateless — no relevance verdict).",
+                  "required": ["exec_bullets", "context_read", "key_signals_summary", "confidence_qualifier", "key_caveat"],
+                  "description": f"Descriptive {lens.name} context read (this lens is gateless — no relevance verdict). LEAD with exec_bullets; context_read is the demoted verbose prose.",
                   "properties": {
-                      "context_read": {"type": "string", "description": "2-4 sentences integrating the signals + capsule data into the lens's context contribution; no nomination call."},
+                      "exec_bullets": _EXEC_BULLETS_SCHEMA,
+                      "context_read": {"type": "string", "description": "SECONDARY verbose prose: 2-4 sentences integrating the signals + capsule data into the lens's context contribution; no nomination call."},
                       "key_signals_summary": {"type": "string", "description": "the 1-2 strongest, best-corroborated signals, cited to card_id/field."},
                       "confidence_qualifier": {"type": "string", "enum": list(_CONF_ENUM)},
                       "key_caveat": {"type": "string"}}}
         return name, schema
     name = f"emit_{lens.name.replace('-', '_')}_synthesis"
     schema = {"type": "object", "additionalProperties": False,
-              "required": ["relevance", "rationale", "confidence_qualifier", "key_caveat"],
-              "description": f"Single-lens {lens.name} read. {lens.relevance_prompt} SINGLE-LENS — informs confidence, never mints/flips a nomination.",
+              "required": ["exec_bullets", "relevance", "rationale", "confidence_qualifier", "key_caveat"],
+              "description": f"Single-lens {lens.name} read. {lens.relevance_prompt} SINGLE-LENS — informs confidence, never mints/flips a nomination. LEAD with exec_bullets; rationale is the demoted verbose prose.",
               "properties": {
+                  "exec_bullets": _EXEC_BULLETS_SCHEMA,
                   "relevance": {"type": "string", "enum": list(lens.relevance_enum),
                                 "description": lens.relevance_prompt},
-                  "rationale": {"type": "string", "description": "2-4 sentences reasoning ACROSS the signals + capsule data; cite card_id/field/value; state DATA_UNAVAILABLE gaps."},
+                  "rationale": {"type": "string", "description": "SECONDARY verbose prose: 2-4 sentences reasoning ACROSS the signals + capsule data; cite card_id/field/value; state DATA_UNAVAILABLE gaps."},
                   "confidence_qualifier": {"type": "string", "enum": list(_CONF_ENUM)},
                   "key_caveat": {"type": "string", "description": "the single most important caveat, or 'none'."}}}
     return name, schema
@@ -127,6 +153,74 @@ def _render_capsules(pkg: dict) -> str:
     return "\n".join(lines)
 
 
+def _fmt_ke_num(v):
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return str(v)
+    if isinstance(v, float) and v != 0 and abs(v) < 1e-3:
+        return f"{v:.2e}"
+    return f"{v:.4g}" if isinstance(v, float) else str(v)
+
+
+def _ke_line(ke: dict) -> str:
+    """A compact one-line grounding string for a card's key_evidence (indication stratum effect + q,
+    omnibus, driving categorical, subtype restriction) — what a bullet should LEAD with."""
+    parts = []
+    strata = ke.get("top_strata") or []
+    lead = next((s for s in strata if s.get("role") == "indication"), None) \
+        or next((s for s in strata if s.get("role") == "strongest"), None)
+    eff = ke.get("effect") or {}
+    if lead:
+        seg = f"{lead.get('label')} {eff.get('metric') or 'effect'}={_fmt_ke_num(lead.get('value'))}"
+        if lead.get("q") is not None:
+            seg += f" (q={_fmt_ke_num(lead.get('q'))})"
+        if lead.get("n") is not None:
+            seg += f", n={lead.get('n')}"
+        parts.append(seg)
+    elif eff.get("value") is not None:
+        seg = f"{eff.get('metric')}={_fmt_ke_num(eff.get('value'))}"
+        sig = ke.get("significance") or {}
+        if sig.get("value") is not None:
+            seg += f" ({sig.get('stat')}={_fmt_ke_num(sig.get('value'))})"
+        parts.append(seg)
+    om = ke.get("omnibus") or {}
+    if om.get("value") is not None:
+        parts.append(f"omnibus {om.get('stat')}={_fmt_ke_num(om.get('value'))}")
+    for cat in (ke.get("categorical") or [])[:2]:
+        if cat.get("value") is not None:
+            parts.append(str(cat.get("value")))
+    sub = ke.get("subtype_axis") or {}
+    if sub.get("restriction_class"):
+        parts.append(f"subtype:{sub.get('restriction_class')}"
+                     + (f"({sub.get('driving_axis')})" if sub.get("driving_axis") else ""))
+    return " · ".join(str(p) for p in parts if p)
+
+
+def _render_key_evidence(decision: dict, pkg: dict) -> str:
+    """Render the per-card KEY EVIDENCE (Stage-1 promotion) — the decisive, indication-resolved data points
+    the narrator must LEAD its bullets with. Built from the same _build_key_evidence the graph emits, over
+    the capsule + the card summary (for the pinned omnibus/significance scalars). Empty when none."""
+    try:
+        from _skills_common.evidence_graph import _build_key_evidence
+    except Exception:  # noqa: BLE001
+        return ""
+    caps = pkg.get("capsules", {}) or {}
+    summ = {c.get("card_id"): (c.get("summary") or {}) for c in (decision.get("cards") or []) if isinstance(c, dict)}
+    lines = []
+    for cid in sorted(caps):
+        cap = caps[cid]
+        if cap.get("evidence_state") == "data_unavailable":
+            continue
+        ke = _build_key_evidence(cap, summ.get(cid, {}))
+        s = _ke_line(ke) if ke else ""
+        if s:
+            lines.append(f"  · {cid}: {s}")
+    if not lines:
+        return ""
+    return ("KEY EVIDENCE (the decisive, indication-resolved data points behind the classes — LEAD each "
+            "bullet with these, carrying the effect WITH its q/p + the omnibus, cited to the card_id):\n"
+            + "\n".join(lines))
+
+
 def _render_literature(decision: dict) -> str:
     """Compact render of the OPTIONAL verdict-inert literature lane (decision['literature_synthesis'],
     attached upstream by the --literature dispatcher seam). Empty string when absent or errored, so the
@@ -174,19 +268,27 @@ def build_capsule_prompt(decision: dict, lens: LensConfig) -> str:
     _collapsed = ((h.get(lens.verdict_key) if lens.verdict_key else None)
                   or h.get("verdict") or h.get(lens.name.replace("-", "_") + "_verdict")
                   or h.get("driving_rule_id"))
+    _ke_block = _render_key_evidence(decision, pkg)
+    _lit_block = _render_literature(decision)
     lines = [
         f"TARGET: {target}    INDICATION: {indication}    LENS: {lens.name}",
         "",
         render_narrator_signals(h, axis_labels=lens.axis_labels),
+        *(["", _ke_block] if _ke_block else []),
         "",
         _render_capsules(pkg),
-        *(["", _render_literature(decision)] if _render_literature(decision) else []),
+        *(["", _lit_block] if _lit_block else []),
         "",
         f"COLLAPSED VERDICT (compressed label, fixed upstream — narrate, do not change): {_collapsed}",
         "",
-        f"TASK: using the tool, {lens.relevance_prompt} Reason ACROSS the signals + capsule data; cite "
-        f"card_id/field/value; state DATA_UNAVAILABLE gaps plainly; flag any data_quality_flags rather than "
-        f"narrating them as biology. Obey the SCOPE guardrails.",
+        f"TASK: using the tool, {lens.relevance_prompt} FIRST write `exec_bullets`: <=6 crisp bullets, each "
+        f"reasoning ACROSS the signals and LEADING with a KEY EVIDENCE datum (the indication/strongest stratum "
+        f"effect WITH its q/p, the omnibus, the driving categorical), and — where the published-literature "
+        f"lane has one — weaving a corroborating/contrasting citation (use agreement_vs_omics). Anchor every bullet: put the "
+        f"exact card_id/question_id/citation_id it is grounded in into `cites` (>=1). Set each bullet's polarity "
+        f"(a liability is opposing/killer, never supportive). THEN the secondary verbose prose. Cite "
+        f"card_id/field/value; state DATA_UNAVAILABLE gaps; flag data_quality_flags rather than narrating them "
+        f"as biology. Obey the SCOPE guardrails.",
     ]
     return "\n".join(lines)
 

@@ -130,16 +130,37 @@ def _build_synthesis_tool() -> dict:
         ),
         "type": "object",
         "required": [
-            "executive_summary", "tension_analysis",
+            "exec_bullets", "executive_summary", "tension_analysis",
             "top_arguments_for", "top_arguments_against",
             "overall_recommendation", "confidence",
         ],
         "properties": {
+            "exec_bullets": {
+                "type": "array", "minItems": 1, "maxItems": 6,
+                "description": (
+                    "PRIMARY: <=6 crisp executive bullets reasoning ACROSS the sub-skills — each carrying "
+                    "the SALIENT grounded datum from a sub-skill's KEY EVIDENCE (the indication/strongest "
+                    "stratum effect WITH its q/p, the omnibus, the driving categorical) and weaving a "
+                    "corroborating/contrasting literature citation where present. Connect >=2 signals per "
+                    "bullet (corroboration, tension, or modality implication). Anchor each to real "
+                    "card_id/rule_id tokens from the Per-verdict narrative block; <=~40 words; scientific voice."),
+                "items": {
+                    "type": "object", "additionalProperties": False,
+                    "required": ["text", "polarity", "cites"],
+                    "properties": {
+                        "text": {"type": "string"},
+                        "polarity": {"type": "string",
+                                     "enum": ["supportive", "opposing", "neutral", "killer", "not_applicable"]},
+                        "cites": {"type": "object", "additionalProperties": False,
+                                  "properties": {
+                                      "card_ids": {"type": "array", "items": {"type": "string"}},
+                                      "question_ids": {"type": "array", "items": {"type": "string"}},
+                                      "citation_ids": {"type": "array", "items": {"type": "string"}}}}}}},
             "executive_summary": {
                 "type": "string",
                 "description": (
-                    "3-5 sentence synthesis of what the (up to 10) sub-verdicts "
-                    "collectively imply for this (target, indication). CITE the "
+                    "SECONDARY verbose prose (demoted below exec_bullets): 3-5 sentence synthesis of what "
+                    "the (up to 10) sub-verdicts collectively imply for this (target, indication). CITE the "
                     "load-bearing driver(s) inline in square brackets — [rule_id] "
                     "and/or [card_id] — using ONLY anchors from the Per-verdict "
                     "narrative block."
@@ -490,6 +511,62 @@ def _render_risk_6dim_block(risk_6dim: Optional[dict]) -> Optional[str]:
             + "\n".join(rows))
 
 
+def _ke_oneliner(ke: dict) -> str:
+    """Compact one-line render of a card's key_evidence (indication stratum effect + q, omnibus, driving
+    categorical, subtype restriction) — the grounded datum a composed exec_bullet should LEAD with."""
+    if not isinstance(ke, dict) or not ke:
+        return ""
+
+    def _n(v):
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return str(v)
+        if isinstance(v, float) and v != 0 and abs(v) < 1e-3:
+            return f"{v:.2e}"
+        return f"{v:.4g}" if isinstance(v, float) else str(v)
+
+    parts, strata = [], (ke.get("top_strata") or [])
+    lead = next((s for s in strata if s.get("role") == "indication"), None) \
+        or next((s for s in strata if s.get("role") == "strongest"), None)
+    eff = ke.get("effect") or {}
+    if lead:
+        seg = f"{lead.get('label')} {eff.get('metric') or 'effect'}={_n(lead.get('value'))}"
+        if lead.get("q") is not None:
+            seg += f" (q={_n(lead.get('q'))})"
+        parts.append(seg)
+    elif eff.get("value") is not None:
+        parts.append(f"{eff.get('metric')}={_n(eff.get('value'))}")
+    om = ke.get("omnibus") or {}
+    if om.get("value") is not None:
+        parts.append(f"omnibus {om.get('stat')}={_n(om.get('value'))}")
+    for cat in (ke.get("categorical") or [])[:1]:
+        if cat.get("value") is not None:
+            parts.append(str(cat.get("value")))
+    sub = ke.get("subtype_axis") or {}
+    if sub.get("restriction_class"):
+        parts.append(f"subtype:{sub.get('restriction_class')}")
+    return " · ".join(str(p) for p in parts if p)
+
+
+def _render_subskill_key_evidence(sub_results: dict) -> str:
+    """Per-sub-skill KEY EVIDENCE (from each carried evidence_graph, driving card first) — the decisive,
+    indication-resolved data points the composed exec_bullets must ground in. Empty when no graphs carried."""
+    lines = []
+    for short, r in (sub_results or {}).items():
+        eg = ((((r or {}).get("synthesis_facet") or {}).get("skill_report") or {}).get("evidence_graph"))
+        if not isinstance(eg, dict):
+            continue
+        cards = [c for c in (eg.get("cards") or []) if isinstance(c, dict) and c.get("key_evidence")]
+        cards.sort(key=lambda c: not (c.get("chain") or {}).get("is_driving"))  # driving first
+        for c in cards[:2]:
+            s = _ke_oneliner(c.get("key_evidence"))
+            if s:
+                lines.append(f"  · {short}/{c.get('id')}: {s}")
+    if not lines:
+        return ""
+    return ("### KEY EVIDENCE (per sub-skill — the decisive grounded data points behind the sub-verdicts; "
+            "LEAD each exec_bullet with these, carrying the effect WITH its q/p + the omnibus)\n" + "\n".join(lines))
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -550,6 +627,10 @@ def _build_user_prompt(
             lines.append(f"- **{short}** ({r['skill_dir']}): "
                          f"`{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
+    _ke_block = _render_subskill_key_evidence(sub_results)
+    if _ke_block:
+        lines.append(_ke_block)
+        lines.append("")
     _risk_block = _render_risk_6dim_block(risk_6dim)
     if _risk_block:
         lines.append(_risk_block)
