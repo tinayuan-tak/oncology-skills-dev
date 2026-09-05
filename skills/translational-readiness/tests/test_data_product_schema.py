@@ -5,7 +5,7 @@ Pins the emitted shape against the SELF-CONTAINED generated schema
 `_skills_common.data_product_contract`.
 
 Gateless multi-vector (verdict_fn=None → skill_report.call is null). No replay harness, so the
-load-bearing conformance target is a FROZEN FULL emit `fixtures/translational_full_coadread_decision.json`
+load-bearing conformance target is a FROZEN FULL emit `fixtures/translational_full_emit.json`
 (a real KRAS·COADREAD run). CI-liveness: schema unresolvable → SKIP locally, FAIL in CI.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import pytest
 SKILL = "translational-readiness"
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
-FULL_GOLDEN = SKILL_DIR / "tests" / "fixtures" / "translational_full_coadread_decision.json"
+FULL_GOLDEN = SKILL_DIR / "tests" / "fixtures" / "translational_full_emit.json"
 
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
