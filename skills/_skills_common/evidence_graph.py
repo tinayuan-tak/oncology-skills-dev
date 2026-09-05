@@ -504,9 +504,12 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     # ── literature + citations (Phase 3) ──
     literature, citation_nodes = _build_literature(decision, questions, q_by_id)
 
-    # ── narrative (Phase 4) ── (exec_bullets anchor citations, so pass the built citation ids)
+    # ── narrative (Phase 4) ── pass the citation NODES (id + pmid, for PMID:-ref normalization) + the
+    # registry legacy_id→slug map (so a bullet's positional `Q3` ref resolves to its semantic question id).
     narrative = _build_narrative(decision, card_nodes, rule_nodes, q_nodes,
-                                 citation_ids={c["id"] for c in citation_nodes})
+                                 citation_nodes=citation_nodes,
+                                 legacy_to_qid={q.get("legacy_id"): q["id"] for q in questions
+                                                if q.get("legacy_id") and q.get("id")})
 
     # ── verdict node ──
     conf = hb.get("confidence") or {}
@@ -614,25 +617,52 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
 
 
 def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes: list,
-                     citation_ids: Optional[set] = None) -> dict:
+                     citation_nodes: Optional[list] = None, legacy_to_qid: Optional[dict] = None) -> dict:
     """Project decision.llm_synthesis into an anchored narrative. Fail-soft: absent/error stub → {}.
-    Stage 2: leads with `exec_bullets` (each anchored to real card/question/citation ids — invented ids
-    are filtered so referential integrity always holds); `rationale` carries the demoted verbose prose."""
+    Stage 2: leads with `exec_bullets`, each anchored to real card/question/citation ids. The narrator
+    cites in the VOCABULARY the prompt showed it — a citation as `PMID:40855221`, a question by its
+    positional `Q3` — so we NORMALIZE those to the graph node ids (a citation node's `pmid`; the
+    registry `legacy_id`→slug map) before filtering. Refs that still don't resolve are dropped, so
+    referential integrity always holds; `rationale` carries the demoted verbose prose."""
     syn = decision.get("llm_synthesis")
     if not isinstance(syn, dict) or any(k in syn for k in ("_synthesis_error", "_synthesis_skipped")):
         return {}
     card_ids = {c["id"] for c in card_nodes}
     rule_ids = {r["id"] for r in rule_nodes if r["id"]}
     q_ids = {q["id"] for q in q_nodes}
-    citation_ids = citation_ids or set()
+    legacy_to_qid = legacy_to_qid or {}
+    cite_ids = {c["id"] for c in (citation_nodes or []) if c.get("id")}
+    # pmid → citation node id (the narrator emits `PMID:40855221`; the node id is minted from author-year
+    # or `pmid<n>`), so map by the node's pmid field, normalizing the `PMID:`/`pmid:` prefix + any colon.
+    pmid_to_cid = {str(c.get("pmid")): c["id"] for c in (citation_nodes or []) if c.get("pmid") and c.get("id")}
+
+    def _norm_pmid(ref):
+        return re.sub(r"(?i)^pmid[:\s]*", "", str(ref)).strip()
+
+    def _resolve_qid(ref):
+        return ref if ref in q_ids else legacy_to_qid.get(ref)
+
+    def _resolve_cid(ref):
+        if ref in cite_ids:
+            return ref
+        return pmid_to_cid.get(_norm_pmid(ref))
+
     # focused llm_synthesis stamps each field as {value,_source:"llm_synthesized",...}; unwrap so the
     # graph carries plain scalars (mirrors _build_literature, which already unwraps its axes).
     text = " ".join(str(_unwrap(syn.get(k)) or "") for k in ("rationale", "key_caveat", "context_read",
                                                              "key_signals_summary"))
     cited_cards, cited_rules = _narrative_cites(text, card_ids, rule_ids)
     cited_qids = [q["id"] for q in q_nodes if set(q["card_ids"]) & set(cited_cards)]
-    # exec_bullets (PRIMARY): unwrap + anchor each bullet's cites to REAL ids (drop any invented id so the
-    # referential invariant holds); canonicalize polarity onto the display vocabulary.
+
+    def _dedup(seq):
+        out = []
+        for x in seq:
+            if x and x not in out:
+                out.append(x)
+        return out
+
+    # exec_bullets (PRIMARY): unwrap + anchor each bullet's cites to REAL ids (normalize pmid/legacy refs,
+    # then drop any still-unresolved id so the referential invariant holds); canonicalize polarity.
     exec_bullets = []
     for b in (_unwrap(syn.get("exec_bullets")) or []):
         if not isinstance(b, dict):
@@ -642,9 +672,9 @@ def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes
             "text": _unwrap(b.get("text")),
             "polarity": _canon_polarity(_unwrap(b.get("polarity"))),
             "cites": {
-                "card_ids": [i for i in (bc.get("card_ids") or []) if i in card_ids],
-                "question_ids": [i for i in (bc.get("question_ids") or []) if i in q_ids],
-                "citation_ids": [i for i in (bc.get("citation_ids") or []) if i in citation_ids],
+                "card_ids": _dedup(i for i in (bc.get("card_ids") or []) if i in card_ids),
+                "question_ids": _dedup(_resolve_qid(i) for i in (bc.get("question_ids") or [])),
+                "citation_ids": _dedup(_resolve_cid(i) for i in (bc.get("citation_ids") or [])),
             }})
     out = {
         "relevance": _unwrap(syn.get("relevance")) or _unwrap(syn.get("context_read")),
