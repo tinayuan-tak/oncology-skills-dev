@@ -50,3 +50,34 @@ def sig(tier: str, label: str) -> dict:
     """A signal cell on the supports/opposes meter: tier + its ordinal fill + polarity + label."""
     fill, pol = _SIG_META.get(tier, (0, "none"))
     return {"tier": tier, "fill": fill, "polarity": pol, "label": label}
+
+
+# The DESCRIPTIVE `informs` meter (never supports/opposes the nomination) + the cv-driven table builder
+# it powers — the shared body of the descriptive skills' question tables (immune-context, mechanism,
+# translational-readiness, target-intrinsic, cis-feature-coherence, combination-and-vulnerability,
+# literature-context; differentiation appends a bespoke row). Each skill supplies only its _QUESTIONS.
+_SIG_META_INFORMS = {"strong": (5, "informs"), "moderate": (3, "informs"), "weak": (2, "informs"),
+                     "absent": (1, "informs"), "unmeasured": (0, "none")}
+
+
+def _sig_informs(tier: str, label: str) -> dict:
+    fill, pol = _SIG_META_INFORMS.get(tier, (0, "none"))
+    return {"tier": tier, "fill": fill, "polarity": pol, "label": label}
+
+
+def cv_axis_row(qid: str, question: str, cv: dict, key: str) -> dict:
+    """One row driven by a claim_vector axis atom (signal × corroboration × evidence), informs polarity."""
+    atom = (cv or {}).get(key) or {}
+    tier = atom.get("signal", "unmeasured")
+    corr = atom.get("corroboration", "unmeasured")
+    primary = atom.get("evidence") or "data_unavailable"
+    return row(qid, question, primary, "", _sig_informs(tier, str(tier)), conf(corr, f"corroboration: {corr}"))
+
+
+def build_cv_question_table(headline: dict, questions) -> list:
+    """Per-question rows from headline.claim_vector for a DESCRIPTIVE skill: one `cv_axis_row` per
+    (qid, question, cv_key) in `questions`. Verdict-inert; tolerant of an absent/partial claim_vector
+    (an absent axis -> an unmeasured row, never omitted, so the hero always shows the full ladder +
+    names the gap)."""
+    cv = (headline or {}).get("claim_vector") or {}
+    return [cv_axis_row(qid, q, cv, key) for qid, q, key in questions]
