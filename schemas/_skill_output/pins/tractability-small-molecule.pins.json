@@ -1,0 +1,57 @@
+{
+  "$comment": "PER-SKILL PINS (source) for tractability-small-molecule. VARIANT = gating-scalar: role:gating + the druggability_snapshot/call enum (the SM inhibition tractability call), no polarity const (dynamic). The parallel degrader_snapshot arm and the druggability_verdict_by_modality map (SM/degrader channels) are left typed-open. Enum = resolvers/tractability_small_molecule.resolver.yaml verdict set (matches _DRUGGABILITY_VERDICT_PHRASE; no run.py mints). Append-only within contract major version.",
+  "skill": "tractability-small-molecule",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "druggability_snapshot_enum": {
+      "type": "string",
+      "enum": [
+        "well_covered",
+        "chemically_confirmed_genetic",
+        "chemically_active",
+        "measured_potent_ligand",
+        "clinical_precedent_only",
+        "tool_compound_only",
+        "weakly_active",
+        "structurally_ligandable",
+        "structurally_intractable",
+        "chemically_unhit",
+        "discordant",
+        "annotation_only_indirect",
+        "insufficient"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "tractability-small-molecule"},
+      "headline": {
+        "type": "object",
+        "required": ["druggability_snapshot"],
+        "properties": {
+          "druggability_snapshot": {"$ref": "#/$defs/druggability_snapshot_enum"},
+          "degrader_snapshot": {
+            "description": "Parallel degrader-arm call — typed-open (its own vocabulary; not the primary SM verdict).",
+            "type": ["string", "null"]
+          },
+          "druggability_verdict_by_modality": {
+            "description": "Per-arm (small_molecule / degrader) decomposition — typed-open bucket map.",
+            "type": ["object", "null"]
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/druggability_snapshot_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
