@@ -1,0 +1,105 @@
+# Canonical question + axis registry for the tumor-selectivity dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for the 8 consumer-facing selectivity questions and the
+# unified axis_id vocabulary {WIN, DIST, INT, SAFE} — the SAME axis letters the tumor-selectivity narrator
+# lens uses (narrator_lenses.py TUMOR_SELECTIVITY.axis_labels: WIN therapeutic-window / DIST normal-tissue
+# distribution / INT tumor-intrinsic / SAFE safety) AND the claim_vector (selectivity_claims.py: WIN
+# tumor-vs-normal window / DIST distributional separation / INT tumor-cell-intrinsic / SAFE normal-tissue
+# window), so the literature axis->question crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, veto, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q8 the selectivity_question_table
+# builder emits) — the emitted question_table itself is NOT modified (byte-stable).
+#
+# Per-question fields (identical contract to skills/tumor-presence/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id selectivity_question_table emits (Q1..Q8)
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis (WIN|DIST|INT|SAFE); null = no axis (e.g. the relative
+#                   all-gene rank, the absolute-density modality facet, the in-situ spatial bystander row)
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from the claim_vector source cards (selectivity_claims.py) +
+#                   question_hierarchy.yaml + the card contracts (target-contracts/cards/<id>.card.yaml
+#                   measurement_type). A card can join more than one question (many-to-many).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => WIN->[overexpressed_vs_origin]  DIST->[per_sample_separation]
+#      INT->[malignant_intrinsic]      SAFE->[window_vs_worst_normal]
+#   (comparator_robust carries axis WIN but role=corroboration, so it is NOT a literature target.)
+#
+# NOTE (no subtype question): the by-subtype panorama card (tumor-vs-normal-percentile-crossing-by-subtype,
+# measurement_type=tumor_vs_normal_percentile_crossing, tier=subtype) is --subtypes-gated and ABSENT from
+# standard runs. A subtype:true question claiming tumor_vs_normal_percentile_crossing would, in a standard
+# (no-subtypes) run where that mt is NOT ambiguous, wrongly grab the whole-cohort percentile-crossing card
+# into a phantom empty-signal row (mirrors functional-requirement / genomic-alteration). So the registry
+# mirrors the 8 emitted rows exactly and omits a subtype question; in the rare --subtypes run the subtype
+# card simply lands in the cards layer un-anchored rather than polluting the whole-cohort DIST question.
+skill: tumor-selectivity
+axis_vocabulary:
+  WIN: therapeutic window
+  DIST: normal-tissue distribution
+  INT: tumor-intrinsic
+  SAFE: safety
+questions:
+- id: overexpressed_vs_origin
+  legacy_id: Q1
+  seq: 1
+  text: Over-expressed vs tissue-of-origin?
+  axis_id: WIN
+  role: verdict_bearing
+  measurement_types: [tumor_vs_normal_selectivity, tumor_protein_abundance,
+    tumor_vs_normal_protein_abundance]
+- id: comparator_robust
+  legacy_id: Q2
+  seq: 2
+  text: Robust across independent comparators?
+  axis_id: WIN
+  role: corroboration
+  measurement_types: []
+- id: per_sample_separation
+  legacy_id: Q3
+  seq: 3
+  text: Per-sample separation from normal?
+  axis_id: DIST
+  role: verdict_bearing
+  measurement_types: [tumor_vs_normal_percentile_crossing]
+- id: absolute_allgene_rank
+  legacy_id: Q4
+  seq: 4
+  text: Absolute — rank vs all genes (in-indication)?
+  axis_id: null
+  role: display_only
+  measurement_types: []
+- id: window_vs_worst_normal
+  legacy_id: Q5
+  seq: 5
+  text: Window vs the WORST critical normal? (the gate)
+  axis_id: SAFE
+  role: verdict_bearing
+  measurement_types: [sc_normal_celltype_expression, modality_window,
+    normal_tissue_protein_abundance]
+- id: malignant_intrinsic
+  legacy_id: Q6
+  seq: 6
+  text: Malignant-cell-intrinsic (not stroma)?
+  axis_id: INT
+  role: verdict_bearing
+  measurement_types: [sc_tumor_celltype_expression, expression_purity_confound,
+    spatial_region_rna]
+- id: absolute_surface_density
+  legacy_id: Q7
+  seq: 7
+  text: Absolute surface density vs modality floors?
+  axis_id: null
+  role: display_only
+  measurement_types: [surface_density]
+- id: spatial_bystander_risk
+  legacy_id: Q8
+  seq: 8
+  text: Spatial bystander risk to adjacent normal?
+  axis_id: null
+  role: display_only
+  measurement_types: [spatial_colocalization, spatial_surface_protein]
