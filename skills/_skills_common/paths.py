@@ -28,3 +28,8 @@ def target_contracts_root() -> Path:
 def analysis_methods_root() -> Path:
     """Filesystem root of the analysis-methods sibling repo (env ANALYSIS_METHODS_ROOT, else default)."""
     return Path(os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT))
+
+
+# Canonical home for the target-contracts root as a module-level Path constant. scope.py historically
+# exported this name and still re-exports it from here for back-compat; new code should import it here.
+DEFAULT_CONTRACTS_REPO = target_contracts_root()
