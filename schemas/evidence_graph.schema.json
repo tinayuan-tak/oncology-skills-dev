@@ -28,8 +28,9 @@
       "additionalProperties": false,
       "properties": {
         "tier": {"type": ["string", "null"]},
-        "polarity": {"type": ["string", "null"]},
-        "label": {"type": ["string", "null"]}
+        "polarity": {"type": ["string", "null"], "description": "Canonical display polarity (ordinal_view vocabulary): supportive | neutral | opposing | killer | not_applicable. Nullable when unbound. Not a verdict input."},
+        "label": {"type": ["string", "null"]},
+        "liability": {"type": "boolean", "description": "True when this card carries a safety/normal-tissue liability class (polarity is then killer). Orthogonal flag so a renderer can label a liability distinctly from a generic killer without re-deriving it from the class string. Absent on question signals."}
       }
     },
     "verdict": {
