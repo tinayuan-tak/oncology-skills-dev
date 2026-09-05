@@ -1,0 +1,1862 @@
+{
+  "cards": [
+    {
+      "card_id": "surface-topology-and-ptm",
+      "input_manifest_ids": [
+        "topology-predictions-tmbed-v1"
+      ]
+    },
+    {
+      "card_id": "surfaceome-family-classification",
+      "input_manifest_ids": [
+        "surfaceome-family-classification-per-uniprot-v1"
+      ]
+    },
+    {
+      "card_id": "structure-features-static",
+      "input_manifest_ids": [
+        "structure-ligandability-per-protein-v1",
+        "pdb-alphafold-structure-features-per-uniprot-v1"
+      ]
+    },
+    {
+      "card_id": "surface-abundance-density",
+      "input_manifest_ids": [
+        "cptac-protein-tumor-vs-normal-per-cohort-v1"
+      ]
+    },
+    {
+      "card_id": "adc-tce-modality-fit",
+      "input_manifest_ids": []
+    },
+    {
+      "card_id": "normal-tissue-liability",
+      "input_manifest_ids": [
+        "hpa-v25-1"
+      ]
+    },
+    {
+      "card_id": "sc-normal-celltype-expression",
+      "input_manifest_ids": [
+        "sc-normal-celltype-expression-colon-v1",
+        "sc-normal-celltype-expression-lung-v1",
+        "sc-normal-celltype-expression-stomach-v1",
+        "sc-normal-celltype-expression-skin-v1",
+        "sc-normal-celltype-expression-small-intestine-v1",
+        "sc-normal-celltype-expression-heart-v1",
+        "sc-normal-celltype-expression-liver-v1",
+        "sc-normal-celltype-expression-kidney-v1",
+        "sc-normal-celltype-expression-bone-marrow-v1",
+        "sc-normal-celltype-expression-brain-v1",
+        "sc-normal-celltype-expression-esophagus-v1",
+        "sc-normal-celltype-expression-pancreas-v1",
+        "sc-normal-celltype-expression-ovary-v1",
+        "sc-normal-celltype-expression-prostate-gland-v1",
+        "sc-normal-celltype-expression-adrenal-gland-v1",
+        "sc-normal-celltype-expression-bladder-organ-v1",
+        "sc-normal-celltype-expression-large-intestine-v1",
+        "sc-normal-celltype-expression-spleen-v1",
+        "sc-normal-celltype-expression-uterus-v1"
+      ]
+    },
+    {
+      "card_id": "sc-surface-normal-safety",
+      "input_manifest_ids": [
+        "sc-cite-surface-normal-immune-v1",
+        "sc-cite-surface-normal-bonemarrow-v1"
+      ]
+    },
+    {
+      "card_id": "sc-surface-rna-protein-concordance",
+      "input_manifest_ids": [
+        "sc-cite-rna-protein-concordance-v1"
+      ]
+    },
+    {
+      "card_id": "copy-number-distribution",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "tcga-patient-cn-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "rna-protein-concordance-tumor",
+      "input_manifest_ids": [
+        "cptac-rna-protein-matched-per-sample-v1"
+      ]
+    },
+    {
+      "card_id": "protein-surface-evidence",
+      "input_manifest_ids": [
+        "cspa-surface-confirmation-per-uniprot-v1",
+        "hpa-subcellular-location-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "shed-ectodomain-liability",
+      "input_manifest_ids": [
+        "hpa-v25-1",
+        "depmap-consortium-26q1-proteomics"
+      ]
+    },
+    {
+      "card_id": "tumor-scrna-celltype-expression",
+      "input_manifest_ids": [
+        "sc-pseudobulk-tumor-crc-coadread-v1",
+        "sc-pseudobulk-tumor-luca-nsclc-v1",
+        "sc-pseudobulk-donor-celltype-lusc-v1",
+        "sc-pseudobulk-tumor-3ca-pancreas-v1",
+        "sc-pseudobulk-tumor-3ca-hnsc-v1",
+        "sc-pseudobulk-tumor-3ca-kidney-v1",
+        "sc-pseudobulk-tumor-3ca-ovarian-v1",
+        "sc-pseudobulk-tumor-stad-golim-v1",
+        "sc-pseudobulk-tumor-brca-wu-v1"
+      ]
+    },
+    {
+      "card_id": "modality-therapeutic-window",
+      "input_manifest_ids": [
+        "tcga-gtex-tpm-tissue-quantiles-v1"
+      ]
+    },
+    {
+      "card_id": "pmhc-presentation",
+      "input_manifest_ids": [
+        "hla-ligand-atlas-presentation-per-protein-v1"
+      ]
+    },
+    {
+      "card_id": "modality-exon-window",
+      "input_manifest_ids": [
+        "tcga-gtex-exon-tpm-quantiles-v1"
+      ]
+    },
+    {
+      "card_id": "mutation-stratified-surface",
+      "input_manifest_ids": [
+        "mutation-stratified-surface-window-v1"
+      ]
+    },
+    {
+      "card_id": "pathway-stratified-surface",
+      "input_manifest_ids": [
+        "pathway-stratified-surface-window-v1"
+      ]
+    },
+    {
+      "card_id": "cd-antigen-backbone",
+      "input_manifest_ids": [
+        "hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08"
+      ]
+    },
+    {
+      "card_id": "surface-colocalization-avidity",
+      "input_manifest_ids": [
+        "sc-samecell-coexpr-crc-coadread-v1",
+        "sc-samecell-coexpr-luca-nsclc-v1",
+        "sc-samecell-coexpr-lusc-v1",
+        "sc-samecell-coexpr-3ca-pancreas-v1",
+        "sc-samecell-coexpr-3ca-hnsc-v1",
+        "sc-samecell-coexpr-3ca-kidney-v1",
+        "sc-samecell-coexpr-3ca-ovarian-v1",
+        "sc-samecell-coexpr-stad-golim-v1",
+        "sc-samecell-coexpr-brca-wu-v1",
+        "sc-samecell-coexpr-normal-v1"
+      ]
+    },
+    {
+      "card_id": "surfaceome-cohort-ranking",
+      "input_manifest_ids": [
+        "surfaceome-cohort-ranking-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "surface-bulk-pair-selectivity",
+      "input_manifest_ids": [
+        "bispecific-bulk-pair-selectivity-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "pmhc-epitope-evidence-iedb",
+      "input_manifest_ids": [
+        "iedb-epitope-mhc-per-protein-v1"
+      ]
+    }
+  ],
+  "fired_rules": [
+    {
+      "card_id": "surface-topology-and-ptm",
+      "dominant": true,
+      "field": "topology_class",
+      "rationale_summary": "Single-pass type-I topology (N-term signal peptide + 1 TM + ECD-outside)",
+      "rule_id": "single-pass-type1-adc-supportive",
+      "value": "single_pass_type_1"
+    },
+    {
+      "card_id": "surface-topology-and-ptm",
+      "dominant": false,
+      "field": "ecd_engineerability_class",
+      "rationale_summary": "Large extracellular domain (>= 200 AA, extracellular-facing) \u2014 ample epitope area for",
+      "rule_id": "ecd-large-biologics-supportive",
+      "value": "large_ecd"
+    },
+    {
+      "card_id": "surfaceome-family-classification",
+      "dominant": true,
+      "field": "family_class",
+      "rationale_summary": "CD markers are canonical TCE targets \u2014 CD3, CD19, CD20, CD22, CD33,",
+      "rule_id": "cd-molecule-tce-supportive",
+      "value": "cd_molecule"
+    },
+    {
+      "card_id": "surfaceome-cohort-ranking",
+      "dominant": false,
+      "field": "cohort_rank_class",
+      "rationale_summary": "Target is not in the top quartile of surface proteins in this",
+      "rule_id": "below-25-percent-cohort-rank-neutral",
+      "value": "below_25_percent"
+    },
+    {
+      "card_id": "adc-tce-modality-fit",
+      "dominant": true,
+      "field": "fit_class",
+      "rationale_summary": "Both ADC and TCE viable per biology-agnostic assessment \u2014 governance-",
+      "rule_id": "both-viable-supportive",
+      "value": "both_viable"
+    },
+    {
+      "card_id": "surface-abundance-density",
+      "dominant": false,
+      "field": "surface_density_class",
+      "rationale_summary": "Very low ESTIMATED surface density (grade-D CPTAC\u00d7HPA estimate, well below the ~1,000 copies/cell",
+      "rule_id": "surface-density-very-low-killer",
+      "value": "very_low"
+    },
+    {
+      "card_id": "surface-abundance-density",
+      "dominant": false,
+      "field": "density_floor_verdict",
+      "rationale_summary": "MEASURED (grade A/B, bead-calibrated) absolute surface density sits below the ~1,000",
+      "rule_id": "surface-density-below-tce-floor-measured-downgrade",
+      "value": "below_tce_floor"
+    },
+    {
+      "card_id": "surface-abundance-density",
+      "dominant": false,
+      "field": "hpa_ihc_intensity_class",
+      "rationale_summary": "HPA IHC scores this target as HIGH intensity in the indication's",
+      "rule_id": "ihc-high-supportive",
+      "value": "high"
+    },
+    {
+      "card_id": "normal-tissue-liability",
+      "dominant": false,
+      "field": "normal_tissue_breadth_class",
+      "rationale_summary": "Protein detected broadly across normal tissues (HPA IHC 'Detected in all/many').",
+      "rule_id": "normal-tissue-broad-opposing",
+      "value": "broad_normal_expression"
+    },
+    {
+      "card_id": "copy-number-distribution",
+      "dominant": false,
+      "field": "copy_number_class",
+      "rationale_summary": "Copy-number-neutral across the panel \u2014 no dosage argument either way for surface antigen",
+      "rule_id": "cn-neutral-surface-neutral",
+      "value": "broadly_neutral"
+    },
+    {
+      "card_id": "protein-surface-evidence",
+      "dominant": false,
+      "field": "surface_confirmation_class",
+      "rationale_summary": "Protein-level surface residency is CONFIRMED \u2014 CSPA (Cell Surface Protein Atlas, mass-spec",
+      "rule_id": "protein-surface-confirmed-supportive",
+      "value": "confirmed_high"
+    },
+    {
+      "card_id": "surface-colocalization-avidity",
+      "dominant": false,
+      "field": "window_verdict",
+      "rationale_summary": "The best tumor AND-gate partner FAILS the normal selectivity gate: a well-powered normal cell",
+      "rule_id": "selectivity-window-normal-liability-opposing",
+      "value": "no_window"
+    },
+    {
+      "card_id": "surface-bulk-pair-selectivity",
+      "dominant": false,
+      "field": "best_and_call_class",
+      "rationale_summary": "The best AND-gate pair is selective vs ESSENTIAL normal but fires broadly in NON-essential normal",
+      "rule_id": "bulk-pair-and-broad-tissue-liability-opposing",
+      "value": "selective_but_broad_tissue_liability"
+    },
+    {
+      "card_id": "tumor-scrna-celltype-expression",
+      "dominant": false,
+      "field": "tce_antigen_escape_class",
+      "rationale_summary": "High within-tumour coverage AND consistent across donors (single-cell Census; the coverage x",
+      "rule_id": "sc-antigen-escape-low-tce-supportive",
+      "value": "escape_risk_low"
+    },
+    {
+      "card_id": "modality-therapeutic-window",
+      "dominant": false,
+      "field": "window_class",
+      "rationale_summary": "An essential normal organ exceeds the strict (1.0-TPM) tier threshold \u2014 even if the tumor window",
+      "rule_id": "modality-window-essential-liability-tce-opposing",
+      "value": "essential_tissue_liability"
+    },
+    {
+      "card_id": "modality-exon-window",
+      "dominant": false,
+      "field": "exon_window_class",
+      "rationale_summary": "The tumor-DOMINANT exon's own essential-normal expression clears the strict (1.0-TPM) tier \u2014",
+      "rule_id": "exon-window-essential-liability-tce-opposing",
+      "value": "essential_exon_liability"
+    },
+    {
+      "card_id": "pmhc-epitope-evidence-iedb",
+      "dominant": true,
+      "field": "epitope_evidence_class",
+      "rationale_summary": ">=1 positive IEDB epitope AND a positive T-cell-recognition assay \u2014 the peptide is experimentally",
+      "rule_id": "pmhc-iedb-tcell-validated-tce-supportive",
+      "value": "tcell_validated"
+    },
+    {
+      "card_id": "sc-normal-celltype-expression",
+      "dominant": true,
+      "field": "sc_normal_expression_class",
+      "rationale_summary": "The strict-modality no-buffer safety killer (cell-type-resolved RNA layer, mirrors",
+      "rule_id": "sc-normal-high-liability-bite-killer",
+      "value": "HIGH_LIABILITY"
+    },
+    {
+      "card_id": "sc-normal-celltype-expression",
+      "dominant": false,
+      "field": "sc_normal_expression_class",
+      "rationale_summary": "High normal-cell-type RNA expression is an on-target-off-tumor liability for ADC +",
+      "rule_id": "sc-normal-high-liability-adc-antibody-opposing",
+      "value": "HIGH_LIABILITY"
+    },
+    {
+      "card_id": "cd-antigen-backbone",
+      "dominant": false,
+      "field": "cd_antigen_backbone_class",
+      "rationale_summary": "Target is a canonical CD antigen (on the HGNC CD-molecule roster) but not in the curated",
+      "rule_id": "cd-antigen-backbone-supportive",
+      "value": "cd_antigen"
+    }
+  ],
+  "headline": {
+    "driving_rule_id": "sc-normal-high-liability-bite-killer",
+    "evidence_capsules": {
+      "capsules": {
+        "adc-tce-modality-fit": {
+          "_complete": true,
+          "card_id": "adc-tce-modality-fit",
+          "categorical_anchors": null,
+          "class": "both_viable",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "adc_tce_modality_fit",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "adc-tce-modality-fit (composed card; no direct S3 product)"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "cd-antigen-backbone": {
+          "_complete": true,
+          "card_id": "cd-antigen-backbone",
+          "categorical_anchors": null,
+          "class": "cd_antigen",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "cd_antigen_backbone",
+          "n_basis": {
+            "on_cd_roster": true
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08"
+            }
+          ],
+          "sibling_caveats": {
+            "established_io_precedent": false
+          },
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "copy-number-distribution": {
+          "_complete": true,
+          "card_id": "copy-number-distribution",
+          "categorical_anchors": null,
+          "class": "broadly_neutral",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "copy_number_alteration",
+          "n_basis": {
+            "cn_fraction_deep_deletion": 0.004,
+            "cn_fraction_focal_amplification": 0.0272,
+            "cn_fraction_high_amplification": 0.0
+          },
+          "numeric_anchors": [
+            {
+              "metric": "cn_fraction_deep_deletion",
+              "value": 0.004
+            },
+            {
+              "metric": "cn_fraction_focal_amplification",
+              "value": 0.0272
+            },
+            {
+              "metric": "cn_fraction_high_amplification",
+              "value": 0.0
+            },
+            {
+              "metric": "cn_fraction_neutral",
+              "value": 0.4968
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "modality-exon-window": {
+          "_complete": true,
+          "card_id": "modality-exon-window",
+          "categorical_anchors": null,
+          "class": "essential_exon_liability",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "exon_window",
+          "n_basis": {
+            "best_exon_max_essential_tpm": 284.01,
+            "best_exon_tumor_tpm": 1816.2,
+            "best_exon_window_ratio": 6.38
+          },
+          "numeric_anchors": [
+            {
+              "metric": "median_exon_tumor_log2tpm",
+              "value": 10.33
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": {
+            "exon_heterogeneity_log2": 0.49
+          },
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "modality-therapeutic-window": {
+          "_complete": true,
+          "card_id": "modality-therapeutic-window",
+          "categorical_anchors": [
+            {
+              "field": "window_class",
+              "value": "essential_tissue_liability"
+            },
+            {
+              "field": "therapeutic_window_class",
+              "value": "narrow_window"
+            },
+            {
+              "field": "full_normal_window_class",
+              "value": "narrow_full_normal_window"
+            },
+            {
+              "field": "modality",
+              "value": "bite_tce"
+            }
+          ],
+          "class": "essential_tissue_liability",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "modality_window",
+          "n_basis": {
+            "max_essential_normal_tpm": 168.71,
+            "max_full_normal_tpm": 208.66,
+            "n_gtex_tissues": 31
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "mutation-stratified-surface": {
+          "_complete": true,
+          "card_id": "mutation-stratified-surface",
+          "categorical_anchors": null,
+          "class": "not_in_product",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "mutation_stratified_surface",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "mutation-stratified-surface-window-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "normal-tissue-liability": {
+          "_complete": true,
+          "card_id": "normal-tissue-liability",
+          "categorical_anchors": null,
+          "class": "broad_normal_expression",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "normal_tissue_protein_breadth",
+          "n_basis": {
+            "n_essential_tissues_with_expression": 0,
+            "n_specific_tissues": 1
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "pathway-stratified-surface": {
+          "_complete": true,
+          "card_id": "pathway-stratified-surface",
+          "categorical_anchors": null,
+          "class": "not_in_product",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "pathway_stratified_surface",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "pathway-stratified-surface-window-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "pmhc-epitope-evidence-iedb": {
+          "_complete": true,
+          "card_id": "pmhc-epitope-evidence-iedb",
+          "categorical_anchors": null,
+          "class": "tcell_validated",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "pmhc_epitope_evidence",
+          "n_basis": {
+            "n_epitopes": 122,
+            "n_hla_alleles": 27,
+            "n_mhc_class_i_epitopes": 32
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "iedb-epitope-mhc-per-protein-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "pmhc-presentation": {
+          "_complete": true,
+          "card_id": "pmhc-presentation",
+          "categorical_anchors": [
+            {
+              "field": "pmhc_presentation_class",
+              "value": "intermediate_presentation"
+            },
+            {
+              "field": "hla_class",
+              "value": "HLA-I+II"
+            }
+          ],
+          "class": "intermediate_presentation",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "pmhc_presentation",
+          "n_basis": {
+            "n_normal_tissues_presented": 13,
+            "n_presented_peptides": 32,
+            "n_strong_binder_peptides": 21
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "hla-ligand-atlas-presentation-per-protein-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "protein-surface-evidence": {
+          "_complete": true,
+          "card_id": "protein-surface-evidence",
+          "categorical_anchors": [
+            {
+              "field": "surface_confirmation_class",
+              "value": "confirmed_high"
+            },
+            {
+              "field": "surface_multimodal_support",
+              "value": "corroborated_surface"
+            },
+            {
+              "field": "hpa_if_surface_class",
+              "value": "plasma_membrane_main"
+            },
+            {
+              "field": "measured_in_cspa",
+              "value": true
+            },
+            {
+              "field": "hpa_if_plasma_membrane",
+              "value": true
+            },
+            {
+              "field": "evidence_tier",
+              "value": "measured"
+            }
+          ],
+          "class": "confirmed_high",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "surface_confirmation",
+          "n_basis": {
+            "measured_in_cspa": true,
+            "n_celllines_detected": 4
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "cspa-surface-confirmation-per-uniprot-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "rna-protein-concordance-tumor": {
+          "_complete": true,
+          "card_id": "rna-protein-concordance-tumor",
+          "categorical_anchors": null,
+          "class": null,
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "rna_protein_concordance",
+          "n_basis": {
+            "n_paired_tumors": 96,
+            "rna_protein_r": 0.4564,
+            "rna_protein_r_ci95_high": 0.5771
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": {
+            "rna_proxy_class_boundary_fragile": true
+          },
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "sc-normal-celltype-expression": {
+          "_complete": true,
+          "card_id": "sc-normal-celltype-expression",
+          "categorical_anchors": [
+            {
+              "field": "sc_normal_safety_essential_class",
+              "value": "critical_organ_liability"
+            },
+            {
+              "field": "sc_normal_expression_class",
+              "value": "HIGH_LIABILITY"
+            },
+            {
+              "field": "sc_normal_abundance_class",
+              "value": "high_abundance"
+            }
+          ],
+          "class": "critical_organ_liability",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "sc_normal_celltype_expression",
+          "n_basis": {
+            "expressing_donor_fraction_max": 1.0,
+            "max_detection_fraction": 1.0,
+            "n_cell_types_above_20pct": 143
+          },
+          "numeric_anchors": [
+            {
+              "metric": "expressing_donor_fraction_max",
+              "value": 1.0
+            },
+            {
+              "metric": "max_detection_fraction",
+              "value": 1.0
+            },
+            {
+              "metric": "sc_normal_ceiling_detection_fraction",
+              "value": 1.0
+            },
+            {
+              "metric": "sc_normal_essential_donor_fraction",
+              "value": 1.0
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "sc-surface-normal-safety": {
+          "_complete": true,
+          "card_id": "sc-surface-normal-safety",
+          "evidence_state": "data_unavailable",
+          "measurement_type": "sc_normal_surface_protein"
+        },
+        "sc-surface-rna-protein-concordance": {
+          "_complete": true,
+          "card_id": "sc-surface-rna-protein-concordance",
+          "categorical_anchors": null,
+          "class": null,
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "rna_protein_concordance",
+          "n_basis": {
+            "n_cell_types": 0
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "shed-ectodomain-liability": {
+          "_complete": true,
+          "card_id": "shed-ectodomain-liability",
+          "categorical_anchors": [
+            {
+              "field": "shed_liability_class",
+              "value": "not_shed_membrane_retained"
+            },
+            {
+              "field": "shed_evidence_tier",
+              "value": "none"
+            },
+            {
+              "field": "measured_shed_class",
+              "value": "not_on_secreted_panel"
+            }
+          ],
+          "class": "not_shed_membrane_retained",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "shed_ectodomain_liability",
+          "n_basis": {
+            "media_panel_high_npx": 1.358
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": {
+            "measured_shed_class": "not_on_secreted_panel",
+            "shed_evidence_tier": "none",
+            "shed_liability_class": "not_shed_membrane_retained"
+          },
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "structure-features-static": {
+          "_complete": true,
+          "card_id": "structure-features-static",
+          "categorical_anchors": [
+            {
+              "field": "structural_ligandability_class",
+              "value": "experimental_ligandable"
+            },
+            {
+              "field": "hotspot_pocket_adjacency_call",
+              "value": "no_hotspots_annotated"
+            },
+            {
+              "field": "has_experimental_cocrystal",
+              "value": true
+            },
+            {
+              "field": "has_druggable_pocket",
+              "value": true
+            },
+            {
+              "field": "has_cryptic_site",
+              "value": false
+            },
+            {
+              "field": "pdb_coverage_class",
+              "value": "partial"
+            },
+            {
+              "field": "alphafold_confidence_class",
+              "value": "moderate"
+            }
+          ],
+          "class": "experimental_ligandable",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "structure_druggability",
+          "n_basis": {
+            "alphafold_plddt_min_domain": 55.75,
+            "has_virtual_screen_hit": false,
+            "mutation_hotspot_in_druggable_pocket": false
+          },
+          "numeric_anchors": [
+            {
+              "metric": "disordered_fraction",
+              "value": 0.035
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "pdb-alphafold-structure-features-per-uniprot-v1"
+            },
+            {
+              "key": "_ligandability_source",
+              "value": "structure-ligandability-per-protein-v1"
+            }
+          ],
+          "sibling_caveats": {
+            "pdb_coverage_class": "partial"
+          },
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "surface-abundance-density": {
+          "_complete": true,
+          "card_id": "surface-abundance-density",
+          "categorical_anchors": [
+            {
+              "field": "surface_density_class",
+              "value": "very_low"
+            },
+            {
+              "field": "density_floor_verdict",
+              "value": "below_tce_floor"
+            },
+            {
+              "field": "hpa_ihc_intensity_class",
+              "value": "high"
+            },
+            {
+              "field": "is_tce_viable",
+              "value": false
+            },
+            {
+              "field": "is_adc_high_payload_viable",
+              "value": false
+            },
+            {
+              "field": "absolute_density_class",
+              "value": "very_low"
+            }
+          ],
+          "class": "very_low",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "surface_density",
+          "n_basis": {
+            "absolute_n_cell_line": 6,
+            "absolute_n_measurements": 19,
+            "absolute_n_patient": 13
+          },
+          "numeric_anchors": [
+            {
+              "metric": "absolute_abundance_proxy_percentile",
+              "value": 79.7
+            },
+            {
+              "metric": "absolute_copies_per_cell",
+              "value": 35.0
+            },
+            {
+              "metric": "estimated_copies_per_cell_lower",
+              "value": 26147.7
+            },
+            {
+              "metric": "estimated_copies_per_cell_median",
+              "value": 313772.6
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_density_source",
+              "value": "governed_ladder"
+            },
+            {
+              "key": "absolute_abundance_proxy_source",
+              "value": "procan-cellline-protein-abundance-per-protein-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "surface-bulk-pair-selectivity": {
+          "_complete": true,
+          "card_id": "surface-bulk-pair-selectivity",
+          "categorical_anchors": null,
+          "class": "selective_but_broad_tissue_liability",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "antigen_pair_selectivity",
+          "n_basis": {
+            "best_not_selectivity": 1.01,
+            "n_partners_scanned": 51
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "bispecific-bulk-pair-selectivity-per-indication-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "surface-colocalization-avidity": {
+          "_complete": true,
+          "card_id": "surface-colocalization-avidity",
+          "categorical_anchors": null,
+          "class": "same_cell_independent",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "antigen_pair_coexpression",
+          "n_basis": {
+            "best_both_fraction_median": 0.3757,
+            "n_coordinated_partners": 0,
+            "n_partners_tested": 5
+          },
+          "numeric_anchors": [
+            {
+              "metric": "best_both_fraction_median",
+              "value": 0.3757
+            },
+            {
+              "metric": "best_enrichment_median",
+              "value": 1.09
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "indication",
+          "top_k_strata": null
+        },
+        "surface-topology-and-ptm": {
+          "_complete": true,
+          "card_id": "surface-topology-and-ptm",
+          "categorical_anchors": [
+            {
+              "field": "topology_class",
+              "value": "single_pass_type_1"
+            },
+            {
+              "field": "ecd_engineerability_class",
+              "value": "large_ecd"
+            },
+            {
+              "field": "ecd_orientation",
+              "value": "outside"
+            },
+            {
+              "field": "signal_peptide_present",
+              "value": true
+            }
+          ],
+          "class": "single_pass_type_1",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "surface_topology",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "surfaceome-cohort-ranking": {
+          "_complete": true,
+          "card_id": "surfaceome-cohort-ranking",
+          "categorical_anchors": null,
+          "class": "below_25_percent",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": null,
+          "n_basis": null,
+          "numeric_anchors": [
+            {
+              "metric": "max_abs_log2fc",
+              "value": 2.086
+            },
+            {
+              "metric": "tissue_percentile_protein",
+              "value": 38.3436
+            },
+            {
+              "metric": "tissue_percentile_rna",
+              "value": 54.6065
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "surfaceome-cohort-ranking-per-indication-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "surfaceome-family-classification": {
+          "_complete": true,
+          "card_id": "surfaceome-family-classification",
+          "categorical_anchors": null,
+          "class": "cd_molecule",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "surfaceome_family",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "surfaceome-family-classification-per-uniprot-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "tumor-scrna-celltype-expression": {
+          "_complete": true,
+          "card_id": "tumor-scrna-celltype-expression",
+          "categorical_anchors": [
+            {
+              "field": "sc_expression_class",
+              "value": "malignant_broadly_detected"
+            },
+            {
+              "field": "tce_antigen_escape_class",
+              "value": "escape_risk_low"
+            },
+            {
+              "field": "within_tumor_coverage_class",
+              "value": "high"
+            },
+            {
+              "field": "inter_donor_consistency_class",
+              "value": "consistent"
+            },
+            {
+              "field": "caf_vs_malignant_class",
+              "value": "caf_low"
+            },
+            {
+              "field": "tce_homogeneity_class",
+              "value": "homogeneous"
+            }
+          ],
+          "class": "malignant_broadly_detected",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "sc_tumor_celltype_expression",
+          "n_basis": {
+            "caf_detection_fraction": 0.07692,
+            "fraction_donors_broadly_detecting": 0.952909,
+            "malignant_detection_donor_iqr": 0.17676
+          },
+          "numeric_anchors": [
+            {
+              "metric": "caf_detection_fraction",
+              "value": 0.0769
+            },
+            {
+              "metric": "fraction_donors_broadly_detecting",
+              "value": 0.9529
+            },
+            {
+              "metric": "malignant_detection_fraction",
+              "value": 0.8948
+            },
+            {
+              "metric": "top_microenvironment_detection_fraction",
+              "value": 0.0769
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "product_id",
+              "value": "sc-pseudobulk-tumor-crc-coadread-v1"
+            }
+          ],
+          "sibling_caveats": {
+            "entity_purity": "entity_specific",
+            "inter_donor_consistency_class": "consistent",
+            "stromal_confound_class": "malignant_intrinsic",
+            "tce_antigen_escape_class": "escape_risk_low",
+            "within_tumor_coverage_class": "high"
+          },
+          "tier": "indication",
+          "top_k_strata": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "adc-tce-modality-fit",
+          "status": "full"
+        },
+        {
+          "card_id": "cd-antigen-backbone",
+          "status": "full"
+        },
+        {
+          "card_id": "copy-number-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "modality-exon-window",
+          "status": "full"
+        },
+        {
+          "card_id": "modality-therapeutic-window",
+          "status": "full"
+        },
+        {
+          "card_id": "mutation-stratified-surface",
+          "status": "full"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "status": "full"
+        },
+        {
+          "card_id": "pathway-stratified-surface",
+          "status": "full"
+        },
+        {
+          "card_id": "pmhc-epitope-evidence-iedb",
+          "status": "full"
+        },
+        {
+          "card_id": "pmhc-presentation",
+          "status": "full"
+        },
+        {
+          "card_id": "protein-surface-evidence",
+          "status": "full"
+        },
+        {
+          "card_id": "rna-protein-concordance-tumor",
+          "status": "full"
+        },
+        {
+          "card_id": "sc-normal-celltype-expression",
+          "status": "full"
+        },
+        {
+          "card_id": "sc-surface-normal-safety",
+          "reason": "data_unavailable",
+          "status": "absent"
+        },
+        {
+          "card_id": "sc-surface-rna-protein-concordance",
+          "status": "full"
+        },
+        {
+          "card_id": "shed-ectodomain-liability",
+          "status": "full"
+        },
+        {
+          "card_id": "structure-features-static",
+          "status": "full"
+        },
+        {
+          "card_id": "surface-abundance-density",
+          "status": "full"
+        },
+        {
+          "card_id": "surface-bulk-pair-selectivity",
+          "status": "full"
+        },
+        {
+          "card_id": "surface-colocalization-avidity",
+          "status": "full"
+        },
+        {
+          "card_id": "surface-topology-and-ptm",
+          "status": "full"
+        },
+        {
+          "card_id": "surfaceome-cohort-ranking",
+          "status": "full"
+        },
+        {
+          "card_id": "surfaceome-family-classification",
+          "status": "full"
+        },
+        {
+          "card_id": "tumor-scrna-celltype-expression",
+          "status": "full"
+        }
+      ]
+    },
+    "fit_class": "both_viable",
+    "headline_block": {
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict.",
+      "confidence": {
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_axes": 5,
+          "n_critical_measured": 2,
+          "n_measured": 5
+        },
+        "level": "moderate"
+      },
+      "headline_text": "ADC & TCE viable \u2014 moderate confidence; tension: surface verdict downgraded to adc_preferred_tce_unsafe: a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe (ADC still preferred) (base fit_class=both_viable).",
+      "hero": {
+        "axes": [
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "FIT",
+            "label": "ADC/TCE modality fit",
+            "signal": "strong"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "TOPOLOGY",
+            "label": "surface topology / ECD",
+            "signal": "strong"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "DENSITY",
+            "label": "antigen abundance",
+            "signal": "absent"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "SAFETY",
+            "label": "normal-tissue window",
+            "signal": "negative"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "SHED",
+            "label": "ectodomain shedding",
+            "signal": "strong"
+          }
+        ],
+        "confidence": {
+          "coverage": {
+            "n_axes": 5,
+            "n_critical_measured": 2,
+            "n_measured": 5
+          },
+          "level": "moderate"
+        },
+        "kind": "headline_hero",
+        "modality_arms": {
+          "adc": "viable",
+          "antibody": "viable",
+          "bite_tce": "unsafe"
+        },
+        "tension": {
+          "text": "surface verdict downgraded to adc_preferred_tce_unsafe: a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe (ADC still preferred) (base fit_class=both_viable)"
+        },
+        "verdict": {
+          "call": "both_viable",
+          "gate": "surface_modality",
+          "phrase": "ADC & TCE viable",
+          "polarity": "positive"
+        }
+      },
+      "provenance": [
+        {
+          "axis": "FIT",
+          "card_id": "adc-tce-modality-fit",
+          "fields": [
+            "endocytosis_confidence",
+            "fit_class",
+            "fit_rationale",
+            "is_adc_topology_favorable",
+            "is_tce_topology_favorable",
+            "surface_family_class"
+          ]
+        },
+        {
+          "axis": "TOPOLOGY",
+          "card_id": "surface-topology-and-ptm",
+          "fields": [
+            "ecd_engineerability_class",
+            "ecd_orientation",
+            "extracellular_residue_count",
+            "signal_peptide_present",
+            "tm_pass_count",
+            "topology_class"
+          ]
+        },
+        {
+          "axis": "DENSITY",
+          "card_id": "surface-abundance-density",
+          "fields": [
+            "density_evidence_level",
+            "estimated_copies_per_cell_lower",
+            "estimated_copies_per_cell_median",
+            "estimated_copies_per_cell_upper",
+            "hpa_ihc_intensity_class",
+            "is_adc_high_payload_viable",
+            "is_tce_viable",
+            "surface_density_class"
+          ]
+        },
+        {
+          "axis": "SAFETY",
+          "card_id": "normal-tissue-liability",
+          "fields": [
+            "essential_tissue_flag",
+            "essential_tissues_flagged",
+            "hpa_tissue_specificity",
+            "n_essential_tissues_with_expression",
+            "n_specific_tissues",
+            "normal_tissue_breadth_class"
+          ]
+        },
+        {
+          "axis": "SHED",
+          "card_id": "shed-ectodomain-liability",
+          "fields": [
+            "measured_shed_class",
+            "shed_evidence_tier",
+            "shed_liability_class"
+          ]
+        }
+      ],
+      "top_tension": {
+        "severity": 3,
+        "source": "surface_modality_downgrade",
+        "text": "surface verdict downgraded to adc_preferred_tce_unsafe: a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe (ADC still preferred) (base fit_class=both_viable)"
+      },
+      "verdict": {
+        "call": "both_viable",
+        "driving_rule_id": "sc-normal-high-liability-bite-killer",
+        "gate": "surface_modality",
+        "phrase": "ADC & TCE viable",
+        "polarity": "positive"
+      }
+    },
+    "question_table": [
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "moderate",
+          "tier": "moderate"
+        },
+        "id": "Surface",
+        "primary": "single_pass_type_1",
+        "question": "Is it a cell-surface protein (membrane topology)?",
+        "signal": {
+          "fill": 5,
+          "label": "single_pass_type_1",
+          "polarity": "supports",
+          "tier": "strong"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "moderate",
+          "tier": "moderate"
+        },
+        "id": "Density",
+        "primary": "very_low",
+        "question": "Absolute surface density \u2014 above the ADC/TCE abundance floor?",
+        "signal": {
+          "fill": 1,
+          "label": "very_low",
+          "polarity": "opposes",
+          "tier": "absent"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "moderate",
+          "tier": "moderate"
+        },
+        "id": "ADC",
+        "primary": "not_shed_membrane_retained",
+        "question": "ADC-favorable \u2014 ectodomain membrane-retained (not shed)?",
+        "signal": {
+          "fill": 5,
+          "label": "not_shed_membrane_retained",
+          "polarity": "supports",
+          "tier": "strong"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "moderate",
+          "tier": "moderate"
+        },
+        "id": "TCE",
+        "primary": "homogeneous",
+        "question": "TCE-favorable \u2014 homogeneous across tumor cells?",
+        "signal": {
+          "fill": 5,
+          "label": "homogeneous",
+          "polarity": "supports",
+          "tier": "strong"
+        },
+        "support": ""
+      }
+    ],
+    "subgroup_signals": {
+      "DENSITY": {
+        "claims": [
+          {
+            "axis": "DENSITY",
+            "corroboration": "moderate",
+            "evidence": "surface-abundance-density: very_low",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "surface-abundance-density",
+                "fields": [
+                  "density_evidence_level",
+                  "estimated_copies_per_cell_lower",
+                  "estimated_copies_per_cell_median",
+                  "estimated_copies_per_cell_upper",
+                  "hpa_ihc_intensity_class",
+                  "is_adc_high_payload_viable",
+                  "is_tce_viable",
+                  "surface_density_class"
+                ]
+              },
+              "entity": {
+                "grain": "target_indication",
+                "measurement_type": "surface_modality_fit"
+              },
+              "read": "very_low",
+              "values": {
+                "density_evidence_level": "A-",
+                "estimated_copies_per_cell_lower": 26147.7,
+                "estimated_copies_per_cell_median": 313772.6,
+                "estimated_copies_per_cell_upper": 3765271.7,
+                "hpa_ihc_intensity_class": "high",
+                "is_adc_high_payload_viable": false,
+                "is_tce_viable": false,
+                "surface_density_class": "very_low"
+              }
+            },
+            "signal": "absent"
+          }
+        ],
+        "confidence": "moderate",
+        "conflict": false,
+        "n_agree": 3,
+        "n_sources": 5,
+        "power": "very high",
+        "signal": "absent",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "surface-abundance-density",
+            "conflict": false,
+            "label": "surface density",
+            "n": null,
+            "tier": "absent",
+            "value": "very_low"
+          },
+          {
+            "card": "sc-surface-rna-protein-concordance",
+            "conflict": false,
+            "label": "rna as biomarker",
+            "n": 0,
+            "tier": "absent",
+            "value": "data_unavailable"
+          },
+          {
+            "card": "rna-protein-concordance-tumor",
+            "conflict": false,
+            "label": "rna as biomarker",
+            "n": 96,
+            "tier": "moderate",
+            "value": "partial_proxy"
+          },
+          {
+            "card": "protein-surface-evidence",
+            "conflict": false,
+            "label": "surface confirmation",
+            "n": 4,
+            "tier": "strong",
+            "value": "confirmed_high"
+          },
+          {
+            "card": "tumor-scrna-celltype-expression",
+            "conflict": false,
+            "label": "sc expression",
+            "n": 509583,
+            "tier": "strong",
+            "value": "malignant_broadly_detected"
+          }
+        ]
+      },
+      "FIT": {
+        "claims": [
+          {
+            "axis": "FIT",
+            "corroboration": "moderate",
+            "evidence": "adc-tce-modality-fit: both_viable",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "adc-tce-modality-fit",
+                "fields": [
+                  "endocytosis_confidence",
+                  "fit_class",
+                  "fit_rationale",
+                  "is_adc_topology_favorable",
+                  "is_tce_topology_favorable",
+                  "surface_family_class"
+                ]
+              },
+              "entity": {
+                "grain": "target_indication",
+                "measurement_type": "surface_modality_fit"
+              },
+              "read": "both_viable",
+              "values": {
+                "endocytosis_confidence": "unmeasured",
+                "fit_class": "both_viable",
+                "fit_rationale": "tm_count=1, ec_length=244, endo_motif_hc=unmeasured, n_ubiq=unmeasured",
+                "is_adc_topology_favorable": true,
+                "is_tce_topology_favorable": true,
+                "surface_family_class": "cd_molecule"
+              }
+            },
+            "signal": "strong"
+          }
+        ],
+        "confidence": "low",
+        "conflict": false,
+        "n_agree": 2,
+        "n_sources": 9,
+        "power": "high",
+        "signal": "strong",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "surfaceome-family-classification",
+            "conflict": false,
+            "label": "family",
+            "n": null,
+            "tier": "absent",
+            "value": "cd_molecule"
+          },
+          {
+            "card": "adc-tce-modality-fit",
+            "conflict": false,
+            "label": "fit",
+            "n": null,
+            "tier": "strong",
+            "value": "both_viable"
+          },
+          {
+            "card": "modality-therapeutic-window",
+            "conflict": false,
+            "label": "window",
+            "n": 31,
+            "tier": "absent",
+            "value": "essential_tissue_liability"
+          },
+          {
+            "card": "pmhc-presentation",
+            "conflict": false,
+            "label": "pmhc presentation",
+            "n": 13,
+            "tier": "absent",
+            "value": "intermediate_presentation"
+          },
+          {
+            "card": "modality-exon-window",
+            "conflict": false,
+            "label": "exon window",
+            "n": 21,
+            "tier": "absent",
+            "value": "essential_exon_liability"
+          },
+          {
+            "card": "cd-antigen-backbone",
+            "conflict": false,
+            "label": "cd antigen backbone",
+            "n": null,
+            "tier": "absent",
+            "value": "cd_antigen"
+          },
+          {
+            "card": "surface-colocalization-avidity",
+            "conflict": false,
+            "label": "samecell avidity",
+            "n": 5,
+            "tier": "absent",
+            "value": "same_cell_independent"
+          },
+          {
+            "card": "surface-bulk-pair-selectivity",
+            "conflict": false,
+            "label": "best and call",
+            "n": 51,
+            "tier": "absent",
+            "value": "selective_but_broad_tissue_liability"
+          },
+          {
+            "card": "pmhc-epitope-evidence-iedb",
+            "conflict": false,
+            "label": "epitope evidence",
+            "n": 122,
+            "tier": "strong",
+            "value": "tcell_validated"
+          }
+        ]
+      },
+      "SAFETY": {
+        "claims": [
+          {
+            "axis": "SAFETY",
+            "corroboration": "moderate",
+            "evidence": "normal-tissue-liability: broad_normal_expression",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "normal-tissue-liability",
+                "fields": [
+                  "essential_tissue_flag",
+                  "essential_tissues_flagged",
+                  "hpa_tissue_specificity",
+                  "n_essential_tissues_with_expression",
+                  "n_specific_tissues",
+                  "normal_tissue_breadth_class"
+                ]
+              },
+              "entity": {
+                "grain": "target",
+                "measurement_type": "normal_tissue_surface_liability",
+                "valence": "liability"
+              },
+              "read": "broad_normal_expression",
+              "values": {
+                "essential_tissue_flag": "unknown",
+                "essential_tissues_flagged": [],
+                "hpa_tissue_specificity": "Tissue enhanced",
+                "n_essential_tissues_with_expression": 0,
+                "n_specific_tissues": 1,
+                "normal_tissue_breadth_class": "broad_normal_expression"
+              }
+            },
+            "signal": "negative"
+          }
+        ],
+        "confidence": "low",
+        "conflict": false,
+        "n_agree": 0,
+        "n_sources": 3,
+        "power": "high",
+        "signal": "absent",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "normal-tissue-liability",
+            "conflict": false,
+            "label": "normal tissue breadth",
+            "n": 0,
+            "tier": "absent",
+            "value": "broad_normal_expression"
+          },
+          {
+            "card": "sc-normal-celltype-expression",
+            "conflict": false,
+            "label": "sc normal expression",
+            "n": 143,
+            "tier": "absent",
+            "value": "HIGH_LIABILITY"
+          },
+          {
+            "card": "sc-surface-normal-safety",
+            "conflict": false,
+            "label": "sc surface normal",
+            "n": 0,
+            "tier": "absent",
+            "value": "data_unavailable"
+          }
+        ]
+      },
+      "SHED": {
+        "claims": [
+          {
+            "axis": "SHED",
+            "corroboration": "moderate",
+            "evidence": "shed-ectodomain-liability: not_shed_membrane_retained",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "shed-ectodomain-liability",
+                "fields": [
+                  "measured_shed_class",
+                  "shed_evidence_tier",
+                  "shed_liability_class"
+                ]
+              },
+              "entity": {
+                "grain": "target",
+                "measurement_type": "ectodomain_shedding_liability",
+                "valence": "liability"
+              },
+              "read": "not_shed_membrane_retained",
+              "values": {
+                "measured_shed_class": "not_on_secreted_panel",
+                "shed_evidence_tier": "none",
+                "shed_liability_class": "not_shed_membrane_retained"
+              }
+            },
+            "signal": "strong"
+          }
+        ],
+        "confidence": "low",
+        "conflict": false,
+        "n_agree": 0,
+        "n_sources": 1,
+        "power": "low",
+        "signal": "strong",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "shed-ectodomain-liability",
+            "conflict": false,
+            "label": "shed liability",
+            "n": null,
+            "tier": "absent",
+            "value": "not_shed_membrane_retained"
+          }
+        ]
+      },
+      "TOPOLOGY": {
+        "claims": [
+          {
+            "axis": "TOPOLOGY",
+            "corroboration": "moderate",
+            "evidence": "surface-topology-and-ptm: large_ecd",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "surface-topology-and-ptm",
+                "fields": [
+                  "ecd_engineerability_class",
+                  "ecd_orientation",
+                  "extracellular_residue_count",
+                  "signal_peptide_present",
+                  "tm_pass_count",
+                  "topology_class"
+                ]
+              },
+              "entity": {
+                "grain": "target",
+                "measurement_type": "surface_protein_biophysics"
+              },
+              "read": "large_ecd",
+              "values": {
+                "ecd_engineerability_class": "large_ecd",
+                "ecd_orientation": "outside",
+                "extracellular_residue_count": 244,
+                "signal_peptide_present": true,
+                "tm_pass_count": 1,
+                "topology_class": "single_pass_type_1"
+              }
+            },
+            "signal": "strong"
+          }
+        ],
+        "confidence": "moderate",
+        "conflict": false,
+        "n_agree": 1,
+        "n_sources": 2,
+        "power": "low",
+        "signal": "strong",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "surface-topology-and-ptm",
+            "conflict": false,
+            "label": "topology",
+            "n": null,
+            "tier": "weak",
+            "value": "single_pass_type_1"
+          },
+          {
+            "card": "structure-features-static",
+            "conflict": false,
+            "label": "pdb coverage",
+            "n": null,
+            "tier": "moderate",
+            "value": "partial"
+          }
+        ]
+      }
+    },
+    "surface_modality_verdict": "adc_preferred_tce_unsafe"
+  },
+  "indication": "COADREAD",
+  "question": "For EPCAM in COADREAD, does the surface biology (topology, surfaceome family, structure pockets, abundance) support a biologics modality \u2014 is it ADC-favorable, TCE-favorable, both, or neither?",
+  "skill": "surface-modality-fit",
+  "target": "EPCAM"
+}

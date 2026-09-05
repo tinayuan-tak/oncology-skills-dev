@@ -1,0 +1,110 @@
+# Canonical question + axis registry for the surface-modality-fit dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for the consumer-facing biologics-modality questions and
+# the unified axis_id vocabulary {FIT, TOPOLOGY, DENSITY, SAFETY, SHED} — the SAME axis letters the
+# SURFACE_MODALITY_FIT narrator lens uses (narrator_lenses.py SURFACE_MODALITY_FIT.axis_labels: FIT
+# modality-fit / TOPOLOGY topology-accessibility / DENSITY surface-density / SAFETY normal-tissue-safety /
+# SHED shedding), so the literature axis->question crosswalk resolves against the SAME vocabulary the
+# --literature lane emits (literature_synthesis.axes[].axis_key).
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional row id the
+# surface_modality_question_table builder emits: Surface / Density / ADC / TCE) — the emitted
+# question_table itself is NOT modified (byte-stable). The surface skill's fit_class /
+# surface_modality_verdict / driving_rule_id spine is computed by the resolver upstream and is unaffected.
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Surface")
+#   legacy_id       the positional id surface_modality_question_table emits (Surface|Density|ADC|TCE), used
+#                   only to pull that row's signal/confidence/prose onto the question node. Questions with
+#                   no emitted counterpart carry no legacy_id (signal/confidence then come up empty — the
+#                   card evidence_refs + verdict header still populate them).
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis (FIT|TOPOLOGY|DENSITY|SAFETY|SHED); null = no axis
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types) + the card
+#                   contracts (target-contracts/cards/<id>.card.yaml measurement_type).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => FIT->[modality_fit_call, pmhc_tce_route, bispecific_pair]  TOPOLOGY->[topology_read]
+#      DENSITY->[density_read]  SAFETY->[safety_read]             SHED->[shed_read]
+#
+# NOTE (no subtype question): surface-modality-fit standard runs carry NO tier:subtype card (topology /
+# family / structure are tier:target scope-invariant; the density/window/escape cards are tier:indication;
+# none stratify by subtype). So there is no ambiguous measurement_type to disambiguate and no subtype:true
+# question — the registry mirrors the whole-cohort surface ladder exactly (mirrors the FR / tumor-presence
+# rationale for omitting a phantom subtype row).
+#
+# NOTE (one un-anchored card): surfaceome-cohort-ranking is a standard-run card that declares NO
+# measurement_type in its contract (target-contracts/cards/surfaceome-cohort-ranking.card.yaml has no
+# measurement_type: field), so its capsule.measurement_type is null and it cannot join any question via the
+# measurement_type membership key. It lands in the cards layer un-anchored rather than being force-joined by
+# a null-key hack (the FR "un-anchored rather than mis-anchored" precedent). Fixing that is a card-contract
+# change in target-contracts, out of scope for this display-only PR.
+skill: surface-modality-fit
+axis_vocabulary:
+  FIT: modality-fit
+  TOPOLOGY: topology-accessibility
+  DENSITY: surface-density
+  SAFETY: normal-tissue-safety
+  SHED: shedding
+questions:
+- id: modality_fit_call
+  seq: 1
+  text: Does the surface biology support a biologics modality (ADC / TCE / both / neither)?
+  axis_id: FIT
+  role: verdict_bearing
+  measurement_types: [adc_tce_modality_fit, surfaceome_family, cd_antigen_backbone,
+    modality_window, exon_window, copy_number_alteration, mutation_stratified_surface,
+    pathway_stratified_surface]
+- id: topology_read
+  legacy_id: Surface
+  seq: 2
+  text: Is it a cell-surface protein at all (membrane topology / accessible ECD)?
+  axis_id: TOPOLOGY
+  role: verdict_bearing
+  measurement_types: [surface_topology, structure_druggability]
+- id: density_read
+  legacy_id: Density
+  seq: 3
+  text: Is the antigen abundant enough (surface density above the ADC/TCE floor, confirmed protein)?
+  axis_id: DENSITY
+  role: verdict_bearing
+  measurement_types: [surface_density, surface_confirmation, rna_protein_concordance,
+    sc_tumor_celltype_expression]
+- id: safety_read
+  seq: 4
+  text: Is the normal-tissue window clean (on-target off-tumor safety for the TCE arm)?
+  axis_id: SAFETY
+  role: verdict_bearing
+  measurement_types: [normal_tissue_protein_breadth, sc_normal_celltype_expression,
+    sc_normal_surface_protein]
+- id: shed_read
+  legacy_id: ADC
+  seq: 5
+  text: Is the ectodomain membrane-retained (not shed as a soluble-antigen sink)?
+  axis_id: SHED
+  role: verdict_bearing
+  measurement_types: [shed_ectodomain_liability]
+- id: pmhc_tce_route
+  seq: 6
+  text: Is there a peptide-MHC (pMHC-TCE) route for an intracellular / poorly-surface target?
+  axis_id: FIT
+  role: verdict_bearing
+  measurement_types: [pmhc_epitope_evidence, pmhc_presentation]
+- id: bispecific_pair
+  seq: 7
+  text: Is there a same-cell antigen-pair (bispecific AND-gate) with a tumor-vs-normal selectivity window?
+  axis_id: FIT
+  role: display_only
+  measurement_types: [antigen_pair_coexpression, antigen_pair_selectivity]
+- id: tce_homogeneity
+  legacy_id: TCE
+  seq: 8
+  text: Is the antigen homogeneous across tumor cells (TCE antigen-escape risk)?
+  axis_id: DENSITY
+  role: corroboration
+  measurement_types: [sc_tumor_celltype_expression]
