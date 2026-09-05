@@ -1044,6 +1044,12 @@ def main() -> int:
                          "corroboration/contradiction lane. NEVER alters the verdict spine.")
     ap.add_argument("--literature-model", default=None,
                     help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
+    # Data-provenance posture (mirrors the shared dispatcher's run_wired_skill argparse) so this
+    # hand-rolled main() emits the same run-level provenance block as dispatcher skills.
+    ap.add_argument("--data-mode", default="live",
+                    help="Data-provenance posture carried into the emitted provenance block.")
+    ap.add_argument("--release-pin", default=None,
+                    help="Optional catalog release pin carried into the emitted provenance block.")
     args = ap.parse_args()
 
     cards = resolve_cards(CARDS, args.target, args.indication)
@@ -1114,13 +1120,38 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never break the spine
         headline.setdefault("_enrichment_errors", {})["evidence_capsules"] = f"{type(exc).__name__}: {exc}"
 
+    # Run-level provenance + run_health — this skill hand-rolls main() (no run_wired_skill), so it must
+    # build the reproducibility block + health record the shared dispatcher injects, or the emitted
+    # decision.json is missing the envelope-required top-level `provenance` + `run_health` keys (the
+    # finalized data-product contract requires both). Best-effort provenance (never raises).
+    from _skills_common.envelope import build_subskill_provenance
+    from _skills_common.gitmeta import skills_repo_sha
+    _identity = next((c for c in emitted_cards if c.get("card_id") == "target-identity-summary"), None)
+    _resolver_pin = (_identity.get("summary") or {}).get("resolver_release_pin") if _identity else None
+    provenance = build_subskill_provenance(
+        emitted_cards, args.data_mode, args.release_pin, skills_repo_sha(),
+        resolver_release_pin=_resolver_pin,
+    )
     decision = make_decision_json(
         skill_name=SKILL_NAME,
         target=args.target, indication=args.indication,
         question=QUESTION.format(target=args.target, indication=args.indication),
         card_outputs=emitted_cards, fired=fired,
-        headline=headline, modality_lenses=lenses,
+        headline=headline, modality_lenses=lenses, provenance=provenance,
     )
+    # Per-subskill RUN-HEALTH record (observability; sibling key, never touches the verdict spine).
+    _cards_missing = sorted(c["card_id"] for c in emitted_cards if c.get("_missing"))
+    _cards_fired_ids = sorted({f.get("card_id") for f in fired if f.get("card_id")})
+    decision["run_health"] = {
+        "skill_name": SKILL_NAME,
+        "skill_version": SKILL_VERSION,
+        "status": "degraded" if _cards_missing else "ok",
+        "n_cards_consumed": len(emitted_cards),
+        "n_cards_resolved": sum(1 for c in emitted_cards if not c.get("_missing")),
+        "n_cards_fired": len(_cards_fired_ids),
+        "cards_fired": _cards_fired_ids,
+        "cards_missing": _cards_missing,
+    }
 
     # FACTORED-RECORD SHADOW (M1) — additive, verdict-INERT: emit the factored claim record beside
     # the legacy verdict spine, consumed by NOTHING. best-effort so a builder fault never breaks the

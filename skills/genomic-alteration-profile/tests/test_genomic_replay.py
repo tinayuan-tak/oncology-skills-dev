@@ -125,6 +125,24 @@ BRAF = ("braf_coadread", "BRAF", "COADREAD")
 
 
 @pytest.mark.parametrize("pair_id,target,indication", [KRAS, BRAF], ids=["kras", "braf"])
+def test_replay_conforms_to_data_product_schema(pair_id, target, indication):
+    """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
+    data-product schema. This skill hand-rolls main(); the emitter now builds run_health + provenance,
+    so the fresh emit is a full envelope. Catches a dropped required key / an undeclared
+    genomic_alteration_profile token. Static golden is trimmed → this is the conformance target."""
+    import os
+    from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
+
+    schema = load_schema("genomic-alteration-profile")
+    if schema is None:
+        reason = f"data-product schema not found at {schema_path('genomic-alteration-profile')}"
+        pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
+    errors = conformance_errors(schema, _decision(pair_id, target, indication))
+    assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
+
+
+@pytest.mark.parametrize("pair_id,target,indication", [KRAS, BRAF], ids=["kras", "braf"])
 def test_fixture_is_nonvacuous(pair_id, target, indication):
     """Guard against a stale/broken freeze reading green: both curated drivers resolve the bulk of the
     18-card roster (a few cards — fusion landscape/stratified — legitimately return data_unavailable for
