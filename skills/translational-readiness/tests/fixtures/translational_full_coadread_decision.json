@@ -1,0 +1,1336 @@
+{
+  "skill": "translational-readiness",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "How translationally ready is KRAS in COADREAD \u2014 are there patient-derived (HCMI organoid / next-generation cancer) models available to preclinically validate a nomination (and do those models carry the target's alteration), does the target's dependency reproduce EX VIVO in patient-derived organoid models, and does its drug-response reproduce IN VIVO in PDX population trials? (PD-assay, imaging-tracer, and internal-model legs remain un-wired.)",
+  "generated_at": "2026-09-05T21:12:32+00:00",
+  "headline": {
+    "model_availability_class": "deep_model_coverage",
+    "n_patient_derived_models": 209,
+    "primary_site_breakdown": "Colon|Adenomas and Adenocarcinomas=153; Rectum|Adenomas and Adenocarcinomas=48; Rectosigmoid junction|Adenomas and Adenocarcinomas=8",
+    "model_source": "HCMI-CMDC-DR45",
+    "genotype_matched_class": "matched_deep",
+    "n_models_with_alteration": 51,
+    "pdx_drug_response_class": "data_unavailable",
+    "pdx_responder_fraction": null,
+    "pdx_most_active_treatment": null,
+    "organoid_dependency_class": "broad_organoid_dependency",
+    "organoid_frac_dependent": 0.7456,
+    "organoid_lineage": "Bowel",
+    "organoid_lineage_frac_dependent": 0.9545,
+    "organoid_lineage_class": "pan_organoid_essential",
+    "organoid_lineage_n_screened": 22,
+    "organoid_lineage_small_cohort": false,
+    "claim_vector": {
+      "MODEL": {
+        "signal": "strong",
+        "corroboration": "high",
+        "evidence": "deep_model_coverage (n=209 HCMI models)",
+        "conflict": null,
+        "informs": "translational_validation",
+        "evidence_atom": {
+          "read": "deep_model_coverage",
+          "values": {
+            "model_availability_class": "deep_model_coverage",
+            "n_patient_derived_models": 209
+          },
+          "cite": {
+            "card_id": "target-model-availability",
+            "fields": [
+              "model_availability_class",
+              "n_patient_derived_models"
+            ]
+          },
+          "entity": "indication"
+        }
+      },
+      "GENOTYPE": {
+        "signal": "strong",
+        "corroboration": "high",
+        "evidence": "matched_deep (51 models carry a functional alteration)",
+        "conflict": null,
+        "informs": "translational_validation",
+        "evidence_atom": {
+          "read": "matched_deep",
+          "values": {
+            "genotype_matched_class": "matched_deep",
+            "n_models_with_alteration": 51
+          },
+          "cite": {
+            "card_id": "target-genotype-matched-model",
+            "fields": [
+              "genotype_matched_class",
+              "n_models_with_alteration"
+            ]
+          },
+          "entity": "gene_indication"
+        }
+      },
+      "ORGANOID": {
+        "signal": "strong",
+        "corroboration": "moderate",
+        "evidence": "broad_organoid_dependency (frac_dependent=0.9545, lineage Bowel)",
+        "conflict": null,
+        "informs": "translational_validation",
+        "evidence_atom": {
+          "read": "broad_organoid_dependency",
+          "values": {
+            "organoid_dependency_class": "broad_organoid_dependency",
+            "organoid_frac_dependent": 0.7456,
+            "organoid_lineage": "Bowel",
+            "organoid_lineage_frac_dependent": 0.9545,
+            "organoid_lineage_class": "pan_organoid_essential",
+            "organoid_lineage_n_screened": 22
+          },
+          "cite": {
+            "card_id": "organoid-crispr-dependency",
+            "fields": [
+              "organoid_dependency_class",
+              "organoid_frac_dependent",
+              "organoid_lineage",
+              "organoid_lineage_class",
+              "organoid_lineage_frac_dependent",
+              "organoid_lineage_n_screened"
+            ]
+          },
+          "entity": "gene"
+        }
+      },
+      "PDX": {
+        "signal": "unmeasured",
+        "corroboration": "unmeasured",
+        "evidence": "data_unavailable",
+        "conflict": null,
+        "informs": "translational_validation",
+        "evidence_atom": {
+          "read": "data_unavailable",
+          "values": {
+            "pdx_drug_response_class": "data_unavailable"
+          },
+          "cite": {
+            "card_id": "target-pdx-drug-response",
+            "fields": [
+              "pdx_drug_response_class"
+            ]
+          },
+          "entity": "target"
+        }
+      },
+      "_disclaimer": "Verdict-INERT projection of the four public translational-readiness legs into orthogonal claims (MODEL / GENOTYPE / ORGANOID / PDX), each signal \u00d7 corroboration. All four are POSITIVE readiness legs: a strong signal = the nomination is preclinically validatable. `absent` = a MEASURED negative (no matched model / no PDX response / not organoid-dependent); `unmeasured` = a coverage gap (`data_unavailable` / un-mapped lane \u2014 never evidence against readiness). Claims are NOT averaged; translational-readiness is gateless \u2014 this never feeds a verdict. The PD-assay, imaging-tracer, and INTERNAL Takeda model legs remain un-wired (not in data-catalog)."
+    },
+    "key_signals": {
+      "headline": "Preclinically validatable (patient-derived models + reproduction signal present).",
+      "supports": [
+        "MODEL: strong (deep_model_coverage (n=209 HCMI models))",
+        "GENOTYPE: strong (matched_deep (51 models carry a functional alteration))",
+        "ORGANOID: strong (broad_organoid_dependency (frac_dependent=0.9545, lineage Bowel))"
+      ],
+      "caveat": "Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific."
+    },
+    "translational_readiness_confidence_caveat": {
+      "reason": "validated_preclinical_model",
+      "tier": "milder",
+      "false_demote_guarded": true,
+      "detail": "Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific."
+    },
+    "model_fidelity_caveat": {
+      "reason": "availability_or_genotype_match_not_fidelity_or_dependence",
+      "tier": "context",
+      "detail": "The readiness legs are PUBLIC patient-derived MODELS (HCMI availability + WXS genotype-match), an ex-vivo ORGANOID CRISPR dependency, and an in-vivo PDXE drug-response \u2014 none of which is fidelity- or on-target-validated in-package. Patient-derived models drift (passage/CNA drift + selection of pre-existing clones, mouse-specific evolution that does NOT mirror human tumour evolution \u2014 Ben-David 2017 PMID 28991255; PDX mouse-stroma replacement + no human adaptive immune TME \u2014 Byrne 2017 PMID 28104906; submerged tumour organoids lack the immune/stromal TME \u2014 Neal 2018 PMID 30550791) and a genotype-matched model may be driven by a co-occurring driver or carry the alteration as a passenger (Vogelstein 2013 PMID 23539594; a matched LoF genotype implies a synthetic-lethal dependence on a DIFFERENT gene, not on-target \u2014 Lord & Ashworth 2017 PMID 28302823). Model availability/genotype-match is a CANDIDATE validation system, not a demonstrated faithful, on-target one."
+    },
+    "coverage_generalization_caveat": {
+      "reason": "public_model_only_status_partial",
+      "tier": "context",
+      "detail": "This is a PUBLIC-model-only readiness read (HCMI availability + HCMI genotype-match + DepMap organoid CRISPR + Novartis PDXE) and the skill is status:partial \u2014 the PD-assay, imaging-tracer, and INTERNAL Takeda PDX/organoid/GEMM model legs are un-wired. So a 'ready' read is a COVERAGE-BOUNDED readiness over 4 public legs, and a data_unavailable public read is a COVERAGE gap (models may exist in the literature or internally), NOT a proven absence of a validatable model."
+    },
+    "translational_readiness_provenance": {
+      "legs_populated": [
+        "MODEL",
+        "GENOTYPE",
+        "ORGANOID"
+      ],
+      "n_legs_populated": 3,
+      "model_availability_class": "deep_model_coverage",
+      "n_patient_derived_models": 209,
+      "genotype_matched_class": "matched_deep",
+      "n_models_with_alteration": 51,
+      "organoid_dependency_class": "broad_organoid_dependency",
+      "organoid_lineage": "Bowel",
+      "organoid_lineage_class": "pan_organoid_essential",
+      "organoid_lineage_n_screened": 22,
+      "organoid_lineage_small_cohort": false,
+      "pdx_drug_response_class": "data_unavailable",
+      "pdx_responder_fraction": null,
+      "pdx_most_active_treatment": null,
+      "pdx_treatment_is_combination": false,
+      "validated_preclinical_model_flag": true,
+      "public_model_only": true,
+      "status_partial": true
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "Are patient-derived (HCMI) models available to preclinically validate the nomination?",
+        "primary": "deep_model_coverage (n=209 HCMI models)",
+        "support": "",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "corroboration: high"
+        }
+      },
+      {
+        "id": "Q2",
+        "question": "Does an available patient-derived model carry a functional alteration in THIS target?",
+        "primary": "matched_deep (51 models carry a functional alteration)",
+        "support": "",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "corroboration: high"
+        }
+      },
+      {
+        "id": "Q3",
+        "question": "Does the target's dependency reproduce EX VIVO in patient-derived organoid (3D CRISPR) models?",
+        "primary": "broad_organoid_dependency (frac_dependent=0.9545, lineage Bowel)",
+        "support": "",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "informs",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "moderate",
+          "dots": 2,
+          "label": "corroboration: moderate"
+        }
+      },
+      {
+        "id": "Q4",
+        "question": "Does the target's tractability reproduce IN VIVO in PDX population trials?",
+        "primary": "data_unavailable",
+        "support": "",
+        "signal": {
+          "tier": "unmeasured",
+          "fill": 0,
+          "polarity": "none",
+          "label": "unmeasured"
+        },
+        "confidence": {
+          "tier": "unmeasured",
+          "dots": 0,
+          "label": "corroboration: unmeasured"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": null,
+        "phrase": "Preclinically validatable (patient-derived models + reproduction signal present).",
+        "gate": "translational_readiness",
+        "driving_rule_id": null,
+        "polarity": "neutral"
+      },
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 3,
+          "n_axes": 4,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": {
+        "text": "Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific.",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "headline_text": "Preclinically validatable (patient-derived models + reproduction signal present) \u2014 moderate confidence; tension: Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific..",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": null,
+          "phrase": "Preclinically validatable (patient-derived models + reproduction signal present).",
+          "gate": "translational_readiness",
+          "polarity": "neutral"
+        },
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 3,
+            "n_axes": 4,
+            "n_critical_measured": 1
+          }
+        },
+        "tension": {
+          "text": "Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific."
+        },
+        "axes": [
+          {
+            "key": "MODEL",
+            "label": "HCMI models",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "GENOTYPE",
+            "label": "genotype-matched",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "ORGANOID",
+            "label": "organoid (ex-vivo)",
+            "signal": "strong",
+            "corroboration": "moderate",
+            "conflict": false
+          },
+          {
+            "key": "PDX",
+            "label": "PDX (in-vivo)",
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "MODEL",
+          "card_id": "target-model-availability",
+          "fields": [
+            "model_availability_class",
+            "n_patient_derived_models"
+          ]
+        },
+        {
+          "axis": "GENOTYPE",
+          "card_id": "target-genotype-matched-model",
+          "fields": [
+            "genotype_matched_class",
+            "n_models_with_alteration"
+          ]
+        },
+        {
+          "axis": "ORGANOID",
+          "card_id": "organoid-crispr-dependency",
+          "fields": [
+            "organoid_dependency_class",
+            "organoid_frac_dependent",
+            "organoid_lineage",
+            "organoid_lineage_class",
+            "organoid_lineage_frac_dependent",
+            "organoid_lineage_n_screened"
+          ]
+        },
+        {
+          "axis": "PDX",
+          "card_id": "target-pdx-drug-response",
+          "fields": [
+            "pdx_drug_response_class"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "skill_report": {
+      "call": null,
+      "role": "descriptive",
+      "polarity": "not_scored",
+      "honest_phrase": "Preclinically validatable (patient-derived models + reproduction signal present).",
+      "confidence": {
+        "level": "moderate",
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_measured": 3,
+          "n_axes": 4,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": {
+        "text": "Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific.",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "claim_chips": [
+        {
+          "key": "MODEL",
+          "label": "translational_validation",
+          "signal": "strong",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "deep_model_coverage (n=209 HCMI models)",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "target-model-availability",
+              "fields": [
+                "model_availability_class",
+                "n_patient_derived_models"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "target-model-availability",
+            "fields": [
+              "model_availability_class",
+              "n_patient_derived_models"
+            ]
+          }
+        },
+        {
+          "key": "GENOTYPE",
+          "label": "translational_validation",
+          "signal": "strong",
+          "corroboration": "high",
+          "conflict": null,
+          "evidence": "matched_deep (51 models carry a functional alteration)",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "target-genotype-matched-model",
+              "fields": [
+                "genotype_matched_class",
+                "n_models_with_alteration"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "target-genotype-matched-model",
+            "fields": [
+              "genotype_matched_class",
+              "n_models_with_alteration"
+            ]
+          }
+        },
+        {
+          "key": "ORGANOID",
+          "label": "translational_validation",
+          "signal": "strong",
+          "corroboration": "moderate",
+          "conflict": null,
+          "evidence": "broad_organoid_dependency (frac_dependent=0.9545, lineage Bowel)",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "organoid-crispr-dependency",
+              "fields": [
+                "organoid_dependency_class",
+                "organoid_frac_dependent",
+                "organoid_lineage",
+                "organoid_lineage_class",
+                "organoid_lineage_frac_dependent",
+                "organoid_lineage_n_screened"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "organoid-crispr-dependency",
+            "fields": [
+              "organoid_dependency_class",
+              "organoid_frac_dependent",
+              "organoid_lineage",
+              "organoid_lineage_class",
+              "organoid_lineage_frac_dependent",
+              "organoid_lineage_n_screened"
+            ]
+          }
+        },
+        {
+          "key": "PDX",
+          "label": "translational_validation",
+          "signal": "unmeasured",
+          "corroboration": "unmeasured",
+          "conflict": null,
+          "evidence": "data_unavailable",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "target-pdx-drug-response",
+              "fields": [
+                "pdx_drug_response_class"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "target-pdx-drug-response",
+            "fields": [
+              "pdx_drug_response_class"
+            ]
+          }
+        }
+      ],
+      "claim_scalars": {},
+      "modality_scope": null,
+      "claim_chips_by_subtype": null,
+      "subgroup_signals": null,
+      "question_table": [
+        {
+          "id": "Q1",
+          "question": "Are patient-derived (HCMI) models available to preclinically validate the nomination?",
+          "primary": "deep_model_coverage (n=209 HCMI models)",
+          "support": "",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          }
+        },
+        {
+          "id": "Q2",
+          "question": "Does an available patient-derived model carry a functional alteration in THIS target?",
+          "primary": "matched_deep (51 models carry a functional alteration)",
+          "support": "",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          }
+        },
+        {
+          "id": "Q3",
+          "question": "Does the target's dependency reproduce EX VIVO in patient-derived organoid (3D CRISPR) models?",
+          "primary": "broad_organoid_dependency (frac_dependent=0.9545, lineage Bowel)",
+          "support": "",
+          "signal": {
+            "tier": "strong",
+            "fill": 5,
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "tier": "moderate",
+            "dots": 2,
+            "label": "corroboration: moderate"
+          }
+        },
+        {
+          "id": "Q4",
+          "question": "Does the target's tractability reproduce IN VIVO in PDX population trials?",
+          "primary": "data_unavailable",
+          "support": "",
+          "signal": {
+            "tier": "unmeasured",
+            "fill": 0,
+            "polarity": "none",
+            "label": "unmeasured"
+          },
+          "confidence": {
+            "tier": "unmeasured",
+            "dots": 0,
+            "label": "corroboration: unmeasured"
+          }
+        }
+      ],
+      "per_phase_metrics": [],
+      "figures": [],
+      "provenance": {
+        "driving_rule_id": null,
+        "fired_rule_ids": [
+          "organoid-broad-dependency-supportive"
+        ],
+        "cards_used": [
+          "target-model-availability",
+          "target-genotype-matched-model",
+          "organoid-crispr-dependency"
+        ],
+        "cards_missing": [
+          "target-pdx-drug-response"
+        ]
+      },
+      "_contract": "docs/UNIFIED_OUTPUT_CONTRACT.md"
+    },
+    "evidence_capsules": {
+      "capsules": {
+        "organoid-crispr-dependency": {
+          "card_id": "organoid-crispr-dependency",
+          "measurement_type": "crispr_lof_dependency",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broad_organoid_dependency",
+          "numeric_anchors": [
+            {
+              "metric": "frac_dependent",
+              "value": 0.7456
+            },
+            {
+              "metric": "median_gene_effect",
+              "value": -0.8699
+            },
+            {
+              "metric": "organoid_dependency_percentile",
+              "value": 94.44
+            },
+            {
+              "metric": "organoid_lineage_frac_dependent",
+              "value": 0.9545
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "mean_gene_effect": -1.0045,
+            "median_gene_effect": -0.8699,
+            "min_gene_effect": -2.8035
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Bowel",
+              "metric": "frac_dependent",
+              "value": 0.9545,
+              "n": 22,
+              "role": "INDICATION"
+            },
+            {
+              "stratum": "Prostate",
+              "metric": "frac_dependent",
+              "value": 0.1111,
+              "n": 9,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null,
+          "cited_statements": null
+        },
+        "target-genotype-matched-model": {
+          "card_id": "target-genotype-matched-model",
+          "measurement_type": "genotype_matched_model",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "matched_deep",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_models_in_indication": 209,
+            "n_models_with_alteration": 51,
+            "n_models_with_recurrent_hotspot": 47
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null,
+          "cited_statements": null
+        },
+        "target-model-availability": {
+          "card_id": "target-model-availability",
+          "measurement_type": "model_availability",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "deep_model_coverage",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_patient_derived_models": 209
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null,
+          "cited_statements": null
+        },
+        "target-pdx-drug-response": {
+          "card_id": "target-pdx-drug-response",
+          "measurement_type": "pdx_drug_response",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "organoid-crispr-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "target-genotype-matched-model",
+          "status": "full"
+        },
+        {
+          "card_id": "target-model-availability",
+          "status": "full"
+        },
+        {
+          "card_id": "target-pdx-drug-response",
+          "status": "absent",
+          "reason": "data_unavailable"
+        }
+      ]
+    },
+    "cards_available": 3,
+    "cards_missing": [
+      "target-pdx-drug-response"
+    ],
+    "_partial_status_note": "translational-readiness is status: partial \u2014 four public translational legs are wired: HCMI model-availability (target-model-availability; INDICATION-level, target-independent), HCMI genotype-matched-model coverage (target-genotype-matched-model; does an available model carry THIS target's alteration?), organoid ex-vivo dependency reproduction (organoid-crispr-dependency; does the target's dependency hold in patient-derived 3D CRISPR models?), and PDXE in-vivo drug-response (target-pdx-drug-response; does the target's tractability reproduce in PDX population trials?). The PD-assay, imaging-tracer, and INTERNAL Takeda models (PDX/organoid/GEMM) catalogs are not yet in data-catalog. All four legs are VERDICT-INERT translational context; they inform confidence, not a nomination gate.",
+    "evidence_graph": {
+      "schema_version": "1.0",
+      "skill": "translational-readiness",
+      "target": "KRAS",
+      "indication": "COADREAD",
+      "verdict": {
+        "id": null,
+        "call": "Preclinically validatable (patient-derived models + reproduction signal present).",
+        "polarity": "neutral",
+        "driving_rule_id": null,
+        "confidence": {
+          "level": "moderate",
+          "coverage": {
+            "n_measured": 3,
+            "n_axes": 4,
+            "n_critical_measured": 1
+          }
+        },
+        "top_tension": {
+          "text": "Validated KRAS-G12C colorectal preclinical models: G12C-inhibitor (adagrasib) on-target activity in KRAS-mutant PDX incl. colorectal (Hallin 2020 PMID 31658955), the CRC-specific G12Ci+cetuximab (EGFR) combination biology validated in CRC organoids + PDX (Amodio 2020 PMID 32430388), and GI/CRC organoids predict clinical response (Vlachogiannis 2018 PMID 29472484). NOT an over-call \u2014 but NB G12C is a MINORITY allele in CRC; the validated on-target precedent is allele-specific.",
+          "severity": 1,
+          "source_card_ids": []
+        }
+      },
+      "questions": [
+        {
+          "id": "models_available",
+          "seq": 1,
+          "text": "Are patient-derived (HCMI) models available to preclinically validate the nomination?",
+          "axis_id": "MODEL",
+          "role": "context",
+          "signal": {
+            "tier": "strong",
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          },
+          "card_ids": [
+            "target-model-availability"
+          ],
+          "rule_ids": [],
+          "literature_axis_ids": [],
+          "evidence_refs": [
+            {
+              "card_id": "target-model-availability",
+              "field": null,
+              "value": "deep_model_coverage",
+              "label": "target-model-availability deep_model_coverage"
+            }
+          ],
+          "prose": {
+            "primary": "deep_model_coverage (n=209 HCMI models)",
+            "support": ""
+          }
+        },
+        {
+          "id": "genotype_matched_model_carries_alteration",
+          "seq": 2,
+          "text": "Does an available patient-derived model carry a functional alteration in THIS target?",
+          "axis_id": "GENOTYPE",
+          "role": "context",
+          "signal": {
+            "tier": "strong",
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "label": "corroboration: high"
+          },
+          "card_ids": [
+            "target-genotype-matched-model"
+          ],
+          "rule_ids": [],
+          "literature_axis_ids": [],
+          "evidence_refs": [
+            {
+              "card_id": "target-genotype-matched-model",
+              "field": null,
+              "value": "matched_deep",
+              "label": "target-genotype-matched-model matched_deep"
+            }
+          ],
+          "prose": {
+            "primary": "matched_deep (51 models carry a functional alteration)",
+            "support": ""
+          }
+        },
+        {
+          "id": "organoid_ex_vivo_dependency",
+          "seq": 3,
+          "text": "Does the target's dependency reproduce EX VIVO in patient-derived organoid (3D CRISPR) models?",
+          "axis_id": "ORGANOID",
+          "role": "context",
+          "signal": {
+            "tier": "strong",
+            "polarity": "informs",
+            "label": "strong"
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "label": "corroboration: moderate"
+          },
+          "card_ids": [
+            "organoid-crispr-dependency"
+          ],
+          "rule_ids": [
+            "organoid-broad-dependency-supportive"
+          ],
+          "literature_axis_ids": [],
+          "evidence_refs": [
+            {
+              "card_id": "organoid-crispr-dependency",
+              "field": "organoid_dependency_class",
+              "value": "broad_organoid_dependency",
+              "label": "organoid-crispr-dependency broad_organoid_dependency"
+            }
+          ],
+          "prose": {
+            "primary": "broad_organoid_dependency (frac_dependent=0.9545, lineage Bowel)",
+            "support": ""
+          }
+        },
+        {
+          "id": "pdx_in_vivo_response",
+          "seq": 4,
+          "text": "Does the target's tractability reproduce IN VIVO in PDX population trials?",
+          "axis_id": "PDX",
+          "role": "context",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "not_applicable",
+            "label": "unmeasured"
+          },
+          "confidence": {
+            "level": "unmeasured",
+            "dots": 0,
+            "label": "corroboration: unmeasured"
+          },
+          "card_ids": [
+            "target-pdx-drug-response"
+          ],
+          "rule_ids": [],
+          "literature_axis_ids": [],
+          "evidence_refs": [],
+          "prose": {
+            "primary": "data_unavailable",
+            "support": ""
+          }
+        }
+      ],
+      "cards": [
+        {
+          "id": "target-model-availability",
+          "measurement_type": "model_availability",
+          "tier": "indication",
+          "role": "display_only",
+          "question_ids": [
+            "models_available"
+          ],
+          "axis_id": "MODEL",
+          "signal": {
+            "tier": null,
+            "polarity": "neutral",
+            "label": "deep_model_coverage",
+            "liability": false
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "evidence_state": "measured",
+            "eco_id": "ECO:0000006",
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": "deep_model_coverage"
+          },
+          "dataset_ids": [
+            "hcmi-model-availability-per-indication-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "hcmi-model-availability-per-indication-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "n": 209,
+            "n_basis": {
+              "n_patient_derived_models": 209
+            }
+          }
+        },
+        {
+          "id": "target-genotype-matched-model",
+          "measurement_type": "genotype_matched_model",
+          "tier": "indication",
+          "role": "display_only",
+          "question_ids": [
+            "genotype_matched_model_carries_alteration"
+          ],
+          "axis_id": "GENOTYPE",
+          "signal": {
+            "tier": null,
+            "polarity": "neutral",
+            "label": "matched_deep",
+            "liability": false
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "evidence_state": "measured",
+            "eco_id": "ECO:0000006",
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": "matched_deep"
+          },
+          "dataset_ids": [
+            "hcmi-genotype-matched-model-per-gene-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "hcmi-genotype-matched-model-per-gene-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "n": 209,
+            "n_basis": {
+              "n_models_in_indication": 209,
+              "n_models_with_alteration": 51,
+              "n_models_with_recurrent_hotspot": 47
+            }
+          }
+        },
+        {
+          "id": "target-pdx-drug-response",
+          "measurement_type": "pdx_drug_response",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "pdx_in_vivo_response"
+          ],
+          "axis_id": "PDX",
+          "signal": {
+            "tier": null,
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "pdxe-drug-response-per-gene-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "pdxe-drug-response-per-gene-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": null
+        },
+        {
+          "id": "organoid-crispr-dependency",
+          "measurement_type": "crispr_lof_dependency",
+          "tier": "target",
+          "role": "verdict_bearing",
+          "question_ids": [
+            "organoid_ex_vivo_dependency"
+          ],
+          "axis_id": "ORGANOID",
+          "signal": {
+            "tier": null,
+            "polarity": "supportive",
+            "label": "broad_organoid_dependency",
+            "liability": false
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "evidence_state": "measured",
+            "eco_id": "ECO:0000006",
+            "n": null
+          },
+          "class": {
+            "field": "organoid_dependency_class",
+            "value": "broad_organoid_dependency"
+          },
+          "dataset_ids": [
+            "organoid-crispr-dependency-26q1-v1",
+            "organoid-crispr-dependency-by-lineage-26q1-v1"
+          ],
+          "rule_ids": [
+            "organoid-broad-dependency-supportive"
+          ],
+          "chain": {
+            "dataset_ids": [
+              "organoid-crispr-dependency-26q1-v1",
+              "organoid-crispr-dependency-by-lineage-26q1-v1"
+            ],
+            "data": [
+              {
+                "field": "frac_dependent",
+                "value": 0.7456
+              },
+              {
+                "field": "median_gene_effect",
+                "value": -0.8699
+              },
+              {
+                "field": "organoid_dependency_percentile",
+                "value": 94.44
+              },
+              {
+                "field": "organoid_lineage_frac_dependent",
+                "value": 0.9545
+              }
+            ],
+            "rule_id": "organoid-broad-dependency-supportive",
+            "contributes_to_verdict": true,
+            "is_driving": false
+          },
+          "key_fields": {
+            "frac_dependent": 0.7456,
+            "median_gene_effect": -0.8699,
+            "organoid_dependency_percentile": 94.44,
+            "organoid_lineage_frac_dependent": 0.9545
+          },
+          "key_evidence": {
+            "effect": {
+              "metric": "frac_dependent",
+              "value": 0.9545,
+              "direction": "lower_is_stronger"
+            },
+            "n": 22,
+            "top_strata": [
+              {
+                "label": "Bowel",
+                "role": "indication",
+                "value": 0.9545,
+                "n": 22
+              },
+              {
+                "label": "Prostate",
+                "role": "weakest",
+                "value": 0.1111,
+                "n": 9
+              }
+            ],
+            "n_basis": {
+              "mean_gene_effect": -1.0045,
+              "median_gene_effect": -0.8699,
+              "min_gene_effect": -2.8035
+            }
+          }
+        }
+      ],
+      "rules": [
+        {
+          "id": "organoid-broad-dependency-supportive",
+          "card_id": "organoid-crispr-dependency",
+          "field": "organoid_dependency_class",
+          "value": "broad_organoid_dependency",
+          "dominant": false,
+          "is_driving": false,
+          "rationale": "Dependency in 50-90% of organoid models \u2014 a broad, reproducible organoid dependency short"
+        }
+      ],
+      "datasets": [
+        {
+          "id": "hcmi-genotype-matched-model-per-gene-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "hcmi-model-availability-per-indication-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "organoid-crispr-dependency-26q1-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "organoid-crispr-dependency-by-lineage-26q1-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "pdxe-drug-response-per-gene-v1",
+          "s3_uri": null,
+          "license": null
+        }
+      ],
+      "literature": {},
+      "citations": [],
+      "narrative": {}
+    }
+  },
+  "cards": [
+    {
+      "card_id": "target-model-availability",
+      "summary": {
+        "model_availability_class": "deep_model_coverage",
+        "n_patient_derived_models": 209,
+        "primary_site_breakdown": "Colon|Adenomas and Adenocarcinomas=153; Rectum|Adenomas and Adenocarcinomas=48; Rectosigmoid junction|Adenomas and Adenocarcinomas=8",
+        "source": "HCMI-CMDC-DR45"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "hcmi-model-availability-per-indication-v1"
+      ]
+    },
+    {
+      "card_id": "target-genotype-matched-model",
+      "summary": {
+        "genotype_matched_class": "matched_deep",
+        "n_models_with_alteration": 51,
+        "n_models_with_recurrent_hotspot": 47,
+        "n_models_in_indication": 209,
+        "variant_classes_present": "In_Frame_Ins; Missense_Mutation",
+        "hgvsp_examples": "p.A11_G12dup; p.A146T; p.G12D; p.G12S; p.G13D",
+        "source": "HCMI-CMDC-DR45"
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "hcmi-genotype-matched-model-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "target-pdx-drug-response",
+      "summary": {
+        "pdx_drug_response_class": "data_unavailable",
+        "n_treatments": null,
+        "n_models_tested": null,
+        "n_response_records": null,
+        "median_best_avg_response": null,
+        "min_best_avg_response": null,
+        "responder_fraction": null,
+        "most_active_treatment": null,
+        "most_active_treatment_median_best_avg_response": null,
+        "treatment_types": null,
+        "source": "PDXE-Gao-2015",
+        "_data_note": "KRAS is not a PDXE 'Treatment target' token in pdxe-drug-response-per-gene-v1 (no treatment in the Gao 2015 PDX trials names this gene as a target)."
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "pdxe-drug-response-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "organoid-crispr-dependency",
+      "summary": {
+        "target": "KRAS",
+        "method_version": "0.2.0",
+        "organoid_dependency_class": "broad_organoid_dependency",
+        "frac_dependent": 0.7456,
+        "frac_strongly_dependent": 0.4474,
+        "median_gene_effect": -0.8699,
+        "min_gene_effect": -2.8035,
+        "n_models_screened": 114,
+        "organoid_dependency_percentile": 94.44,
+        "organoid_dependency_context": "DepMap 26Q1 organoid CRISPR panel (organoid-crispr-dependency-26q1-v1; n=114/114 organoid models screened; GI-dominated cohort). Chronos gene-effect < -0.5 = dependent.",
+        "per_lineage_stats": [
+          {
+            "lineage": "Bowel",
+            "n_models_screened": 22,
+            "frac_dependent": 0.9545,
+            "n_strongly_dependent": 13,
+            "median_gene_effect": -1.2742
+          },
+          {
+            "lineage": "Pancreas",
+            "n_models_screened": 23,
+            "frac_dependent": 0.8261,
+            "n_strongly_dependent": 17,
+            "median_gene_effect": -1.401
+          },
+          {
+            "lineage": "Esophagus/Stomach",
+            "n_models_screened": 28,
+            "frac_dependent": 0.75,
+            "n_strongly_dependent": 10,
+            "median_gene_effect": -0.8555
+          },
+          {
+            "lineage": "Breast",
+            "n_models_screened": 16,
+            "frac_dependent": 0.625,
+            "n_strongly_dependent": 4,
+            "median_gene_effect": -0.5458
+          },
+          {
+            "lineage": "Prostate",
+            "n_models_screened": 9,
+            "frac_dependent": 0.1111,
+            "n_strongly_dependent": 0,
+            "median_gene_effect": -0.3682
+          }
+        ],
+        "n_lineages_evaluated": 5,
+        "organoid_lineage": "Bowel",
+        "organoid_lineage_frac_dependent": 0.9545,
+        "organoid_lineage_class": "pan_organoid_essential",
+        "organoid_lineage_n_screened": 22,
+        "entrez_gene_id": "3845",
+        "n_models_total": 114,
+        "n_dependent": 85,
+        "n_strongly_dependent": 51,
+        "mean_gene_effect": -1.0045
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "organoid-crispr-dependency-26q1-v1",
+        "organoid-crispr-dependency-by-lineage-26q1-v1"
+      ]
+    }
+  ],
+  "fired_rules": [
+    {
+      "rule_id": "organoid-broad-dependency-supportive",
+      "card_id": "organoid-crispr-dependency",
+      "field": "organoid_dependency_class",
+      "value": "broad_organoid_dependency",
+      "dominant": false,
+      "rationale_summary": "Dependency in 50-90% of organoid models \u2014 a broad, reproducible organoid dependency short"
+    }
+  ],
+  "provenance": {
+    "skills_repo_sha": "d60cc63",
+    "data_mode": "live",
+    "release_pin": "unpinned",
+    "resolved_release_digest": "714281f239bdc5f0",
+    "resolved_releases": {
+      "hcmi-genotype-matched-model-per-gene": {
+        "used": [
+          "hcmi-genotype-matched-model-per-gene-v1"
+        ],
+        "head": "hcmi-genotype-matched-model-per-gene-v1",
+        "is_stale": false
+      },
+      "hcmi-model-availability-per-indication": {
+        "used": [
+          "hcmi-model-availability-per-indication-v1"
+        ],
+        "head": "hcmi-model-availability-per-indication-v1",
+        "is_stale": false
+      },
+      "organoid-crispr-dependency": {
+        "used": [
+          "organoid-crispr-dependency-26q1-v1"
+        ],
+        "head": "organoid-crispr-dependency-26q1-v1",
+        "is_stale": false
+      },
+      "organoid-crispr-dependency-by-lineage": {
+        "used": [
+          "organoid-crispr-dependency-by-lineage-26q1-v1"
+        ],
+        "head": "organoid-crispr-dependency-by-lineage-26q1-v1",
+        "is_stale": false
+      },
+      "pdxe-drug-response-per-gene": {
+        "used": [
+          "pdxe-drug-response-per-gene-v1"
+        ],
+        "head": "pdxe-drug-response-per-gene-v1",
+        "is_stale": false
+      }
+    },
+    "resolved_content_digest": "86bd1c0a25d199e9"
+  },
+  "run_health": {
+    "skill_name": "translational-readiness",
+    "skill_version": "1.5.0",
+    "status": "degraded",
+    "n_cards_consumed": 4,
+    "n_cards_resolved": 3,
+    "n_cards_fired": 1,
+    "cards_fired": [
+      "organoid-crispr-dependency"
+    ],
+    "cards_missing": [
+      "target-pdx-drug-response"
+    ],
+    "cards_skipped_a4": [],
+    "provenance_warnings": [],
+    "read_secs": 1.6596,
+    "compute_secs": 0.4026,
+    "total_secs": 2.0713
+  },
+  "consolidation": {
+    "discordant": false,
+    "masked_conflict": false,
+    "driving_role": "neutral",
+    "overruled_opposing_rules": [],
+    "roles_present": [
+      "positive"
+    ],
+    "n_rules_fired": 1,
+    "n_cards_contributing": 1,
+    "single_card_passthrough": true
+  }
+}
