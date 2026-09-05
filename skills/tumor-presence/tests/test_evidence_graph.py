@@ -83,7 +83,7 @@ def test_reconstruct_questions_signal_confidence_and_cards(graph):
     # signal + confidence readable off the graph (no prose parsing)
     assert qs["expressed_at_all"]["signal"]["tier"] == "strong"
     assert qs["expressed_at_all"]["confidence"]["level"] == "moderate"
-    assert qs["elevated_vs_normal"]["signal"]["polarity"] == "opposes"
+    assert qs["elevated_vs_normal"]["signal"]["polarity"] == "opposing"   # canonical (was legacy "opposes")
     assert qs["subtypes_differ"]["signal"]["tier"] == "uniform"
     assert qs["malignant_intrinsic"]["confidence"]["level"] == "high"
     # each question's card list (the many-to-many join) matches the curated dashboard exactly
@@ -140,7 +140,30 @@ def test_driving_card_chain(graph):
 def test_verdict_node_matches_spine(graph, decision):
     assert graph["verdict"]["id"] == decision["headline"]["presence_verdict"] == "tumor_broadly_expressed"
     assert graph["verdict"]["driving_rule_id"] == "tumor-expression-broadly-high-supportive"
-    assert graph["verdict"]["polarity"] == "positive"
+    assert graph["verdict"]["polarity"] == "supportive"   # canonical (was legacy "positive")
+
+
+# ── P1: one canonical polarity vocabulary + orthogonal liability flag (docs/COMPOSED_EVIDENCE_GRAPH_ROLLUP.md §6)
+_CANONICAL_POLARITIES = {"supportive", "neutral", "opposing", "killer", "not_applicable", None}
+
+
+def test_card_polarity_is_canonical_and_liability_flagged(graph):
+    cards = {c["id"]: c for c in graph["cards"]}
+    # a fired/verdict-bearing card → supportive; the driving card is fired
+    assert cards["tumor-rna-distribution"]["signal"]["polarity"] == "supportive"
+    assert cards["tumor-rna-distribution"]["signal"]["liability"] is False
+    # the normal single-cell liability card → killer polarity + the orthogonal flag set
+    sc = cards["sc-normal-celltype-expression"]
+    assert sc["signal"]["polarity"] == "killer"
+    assert sc["signal"]["liability"] is True
+    # a display-only, non-liability card → neutral
+    assert cards["hpa-pathology-cancer-ihc"]["signal"]["polarity"] == "neutral"
+    # NO card carries a legacy token — the whole graph speaks one vocabulary
+    for c in graph["cards"]:
+        assert c["signal"]["polarity"] in _CANONICAL_POLARITIES
+        assert c["signal"]["polarity"] not in {"supports", "opposes", "positive", "negative"}
+    for q in graph["questions"]:
+        assert q["signal"]["polarity"] in _CANONICAL_POLARITIES
 
 
 # ── §7.2 referential integrity ─────────────────────────────────────────────────────────────────────

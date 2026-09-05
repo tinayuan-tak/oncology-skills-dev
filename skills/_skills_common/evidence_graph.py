@@ -55,13 +55,32 @@ def _unwrap(v):
     return v
 
 
-# ── signal / confidence projection (reuse existing display vocab; no new scoring) ───────────────────
-_POLARITY = {"supports": "supports", "opposes": "opposes", "neutral": "neutral", "none": "none"}
+# ── signal / confidence projection (ONE canonical polarity vocabulary; no new scoring) ──────────────
+# The single display polarity scale is the ordinal_view vocabulary {supportive, neutral, opposing,
+# killer} (+ off-scale not_applicable). `_canon_polarity` normalizes the legacy per-lane tokens that
+# reached the graph — card fired/liability strings, the question_table's supports/opposes, and the
+# headline verdict's positive/negative — onto it, so every consumer (evidence_graph_dashboard.py,
+# report_render, the composed embedded view) reads one vocabulary. Unknown tokens pass through
+# UNCHANGED so a new vocabulary value can never silently acquire a wrong rank.
+_CANON_POLARITY = {
+    "supports": "supportive", "supportive": "supportive", "positive": "supportive",
+    "opposes": "opposing", "opposing": "opposing", "negative": "opposing",
+    "neutral": "neutral",
+    "killer": "killer",
+    "none": "not_applicable", "not_applicable": "not_applicable", "na": "not_applicable",
+}
+
+
+def _canon_polarity(p):
+    """Map a legacy polarity token to the canonical ordinal_view vocabulary; None→None, unknown→as-is."""
+    if p is None:
+        return None
+    return _CANON_POLARITY.get(str(p).lower(), p)
 
 
 def _question_signal(row: dict) -> dict:
     s = row.get("signal") or {}
-    return {"tier": s.get("tier"), "polarity": _POLARITY.get(s.get("polarity"), s.get("polarity")),
+    return {"tier": s.get("tier"), "polarity": _canon_polarity(s.get("polarity")),
             "label": s.get("label")}
 
 
@@ -71,16 +90,20 @@ def _question_confidence(row: dict) -> dict:
 
 
 def _card_signal(cap: dict, sg_tier: Optional[str], fired: bool, is_liability: bool) -> dict:
-    """A coarse per-card signal for the heatmap. `tier` (strength) reuses the card's subgroup-source
-    tier when the framework bound it to a sub-group (else None — honest gap); `polarity` is the coarse
-    3-way (fired→supports / liability class→opposing / else neutral); `label` = the card's class."""
+    """A coarse per-card signal for the heatmap, on the canonical polarity vocabulary. `tier`
+    (strength) reuses the card's subgroup-source tier when the framework bound it to a sub-group
+    (else None — honest gap); `polarity` is the coarse read (liability class → killer / fired →
+    supportive / else neutral) and `liability` carries the orthogonal boolean so a renderer can label
+    a liability distinctly from a generic killer without re-deriving it from the class string;
+    `label` = the card's class."""
     if is_liability:
-        polarity = "opposing"
+        polarity = "killer"
     elif fired:
-        polarity = "supports"
+        polarity = "supportive"
     else:
         polarity = "neutral"
-    return {"tier": sg_tier, "polarity": polarity, "label": cap.get("class")}
+    return {"tier": sg_tier, "polarity": polarity, "label": cap.get("class"),
+            "liability": bool(is_liability)}
 
 
 _CONF_DOTS = {"high": 3, "moderate": 2, "low": 1, "standard": 2, "unknown": 0, "unmeasured": 0}
@@ -323,7 +346,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     verdict_node = {
         "id": verdict_call,
         "call": hb_verdict.get("phrase") or hb.get("headline_text") or verdict_call,
-        "polarity": hb_verdict.get("polarity"),
+        "polarity": _canon_polarity(hb_verdict.get("polarity")),
         "driving_rule_id": driving_rule_id,
         "confidence": {"level": conf.get("level"), "coverage": conf.get("coverage")},
         "top_tension": ({"text": tension.get("text"), "severity": tension.get("severity"),

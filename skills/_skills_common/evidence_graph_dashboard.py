@@ -27,9 +27,14 @@ from pathlib import Path
 from typing import Optional
 
 # ── display vocab (graph-native → presentation) ─────────────────────────────────────────────────
-_GLYPH = {"supports": "△", "opposing": "▽", "opposes": "▽", "neutral": "•", "none": "·"}
-_POL_COLOR = {"supports": "var(--supportive)", "opposing": "var(--opposing)",
-              "opposes": "var(--opposing)", "neutral": "var(--neutral)", "none": "var(--neutral)"}
+# Keyed on the canonical polarity vocabulary emitted by evidence_graph._canon_polarity
+# {supportive, neutral, opposing, killer, not_applicable}; legacy tokens (supports/opposes/none) are
+# retained as aliases so a graph built before the canonicalization still renders (zero regression).
+_GLYPH = {"supportive": "△", "opposing": "▽", "killer": "⛔", "neutral": "•", "not_applicable": "·",
+          "supports": "△", "opposes": "▽", "none": "·"}
+_POL_COLOR = {"supportive": "var(--supportive)", "opposing": "var(--opposing)",
+              "killer": "var(--killer)", "neutral": "var(--neutral)", "not_applicable": "var(--neutral)",
+              "supports": "var(--supportive)", "opposes": "var(--opposing)", "none": "var(--neutral)"}
 _CONF_OPACITY = {"high": 1.0, "moderate": 0.55, "low": 0.32}
 _TIER_WIDTH = {"strong": 90, "moderate": 60, "weak": 30, "absent": 16, "uniform": 45,
                "high": 90, "low": 30}
@@ -51,6 +56,11 @@ def _esc(x) -> str:
 
 
 def _is_liability(card: dict) -> bool:
+    # prefer the builder's explicit signal.liability flag; fall back to the class string for graphs
+    # built before the flag existed.
+    sig = card.get("signal") or {}
+    if "liability" in sig:
+        return bool(sig.get("liability"))
     return "LIABILITY" in str((card.get("class") or {}).get("value") or "").upper()
 
 
@@ -283,8 +293,8 @@ def _summary_html(g: dict) -> str:
         if cov.get("n_critical_measured") is not None:
             cov_txt += f" ({_esc(cov.get('n_critical_measured'))} critical)"
     qs = g.get("questions") or []
-    sup = [q for q in qs if (q.get("signal") or {}).get("polarity") == "supports"]
-    opp = [q for q in qs if (q.get("signal") or {}).get("polarity") in ("opposes", "opposing")]
+    sup = [q for q in qs if (q.get("signal") or {}).get("polarity") in ("supportive", "supports")]
+    opp = [q for q in qs if (q.get("signal") or {}).get("polarity") in ("opposing", "opposes", "killer")]
     parts = [f'<b>{call}</b> — {_esc(pol)} call']
     if v.get("driving_rule_id"):
         parts.append(f' (driving rule <code>{_esc(v.get("driving_rule_id"))}</code>)')
@@ -353,8 +363,9 @@ def _question_table_html(g: dict) -> str:
         color = _POL_COLOR.get(pol, "var(--neutral)")
         width = _TIER_WIDTH.get(sig.get("tier"), 50)
         glyph = _GLYPH.get(pol, "•")
-        gcls = {"supports": "g-sup", "opposing": "g-opp", "opposes": "g-opp",
-                "neutral": "g-neu", "none": "g-neu"}.get(pol, "g-neu")
+        gcls = {"supportive": "g-sup", "opposing": "g-opp", "killer": "g-kil", "neutral": "g-neu",
+                "not_applicable": "g-neu", "supports": "g-sup", "opposes": "g-opp",
+                "none": "g-neu"}.get(pol, "g-neu")
         # key line: evidence_refs labels (graph-native), else the prose primary
         refs = q.get("evidence_refs") or []
         if refs:
@@ -413,7 +424,8 @@ def _card_chain_html(c: dict) -> str:
     cls = c.get("class") or {}
     conf = c.get("confidence") or {}
     glyph = _card_glyph(c)
-    gcls = "g-kil" if _is_liability(c) else {"supports": "g-sup", "opposing": "g-opp",
+    gcls = "g-kil" if _is_liability(c) else {"supportive": "g-sup", "opposing": "g-opp",
+                                             "killer": "g-kil", "supports": "g-sup",
                                              "opposes": "g-opp"}.get((c.get("signal") or {}).get("polarity"), "g-neu")
     n = conf.get("n")
     n_txt = f' · n={_esc(n)}' if n not in (None, "") else ""
