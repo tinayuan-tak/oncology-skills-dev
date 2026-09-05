@@ -1,0 +1,852 @@
+{
+  "cards": [
+    {
+      "card_id": "cis-feature-expression-coherence",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "cis-feature-protein-coherence",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "depmap-gygi-protein-abundance-per-protein-v1"
+      ]
+    },
+    {
+      "card_id": "cellline-methylation-expression-coherence",
+      "input_manifest_ids": [
+        "depmap-consortium-ccle-2019",
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "expression-dependency-correlation",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "abundance-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1-proteomics",
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "amp-expr-stratified-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "patient-cis-coherence",
+      "input_manifest_ids": [
+        "tcga-sample-id-crosswalk-v1",
+        "tcga-sesame-promoter-methylation-v1",
+        "tcga-patient-cn-per-sample-v1"
+      ]
+    },
+    {
+      "card_id": "cellline-isoform-dominance",
+      "input_manifest_ids": [
+        "depmap-isoform-expression-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "cellline-isoform-expression",
+      "input_manifest_ids": [
+        "depmap-isoform-expression-per-gene-v1"
+      ]
+    }
+  ],
+  "fired_rules": [
+    {
+      "card_id": "cis-feature-expression-coherence",
+      "dominant": false,
+      "field": "cis_dosage_class",
+      "rationale_summary": "The target's own relative copy-number predicts its own expression across the panel",
+      "rule_id": "cis-dosage-coupled-supportive",
+      "value": "cn_dosage_coupled_strong"
+    },
+    {
+      "card_id": "expression-dependency-correlation",
+      "dominant": false,
+      "field": "correlation_class",
+      "rationale_summary": "Expression does NOT track dependency (weak/absent/anomalous correlation). Leg-2 negative:",
+      "rule_id": "cis-expr-dependency-absent-neutral",
+      "value": "weak_negative"
+    },
+    {
+      "card_id": "amp-expr-stratified-dependency",
+      "dominant": false,
+      "field": "amp_expr_stratification_class",
+      "rationale_summary": "The amplified+overexpressed subset is significantly more dependent than the rest \u2014 a leg-2",
+      "rule_id": "cis-conjoint-dependent-supportive",
+      "value": "amplified_overexpressed_moderately_dependent"
+    }
+  ],
+  "headline": {
+    "cis_coherence_verdict": "coherent_cis_driver",
+    "driving_rule_id": "cis-dosage-coupled-supportive",
+    "evidence_capsules": {
+      "capsules": {
+        "abundance-dependency": {
+          "_complete": true,
+          "card_id": "abundance-dependency",
+          "categorical_anchors": null,
+          "class": "weak_protein_dependency_link",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "abundance_dependency_correlation",
+          "n_basis": {
+            "n_dependent_models": 117,
+            "n_paired_models": 264,
+            "n_protein_detected_models": 312
+          },
+          "numeric_anchors": [
+            {
+              "metric": "protein_dependency_pearson_r",
+              "value": -0.3515
+            },
+            {
+              "metric": "protein_dependency_spearman_r",
+              "value": -0.3347
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "release_pin",
+              "value": "26q1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "amp-expr-stratified-dependency": {
+          "_complete": true,
+          "card_id": "amp-expr-stratified-dependency",
+          "categorical_anchors": null,
+          "class": "amplified_overexpressed_moderately_dependent",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "amp_expr_stratified_dependency",
+          "n_basis": {
+            "amplification_threshold_relative_cn": 2.0,
+            "high_expression_log2tpm_threshold": 4.785555839538574,
+            "median_chronos_amp_expr": -1.6279293298721313
+          },
+          "numeric_anchors": [
+            {
+              "metric": "amp_expr_effect_size",
+              "value": 0.6218
+            },
+            {
+              "metric": "median_chronos_amp_expr",
+              "value": -1.6279
+            },
+            {
+              "metric": "median_chronos_comparator",
+              "value": -0.4166
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "cellline-isoform-dominance": {
+          "_complete": true,
+          "card_id": "cellline-isoform-dominance",
+          "categorical_anchors": null,
+          "class": "single_isoform_dominant",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "cell_line_isoform_dominance",
+          "n_basis": {
+            "n_expressed_isoforms": 2,
+            "n_models": 2696
+          },
+          "numeric_anchors": [
+            {
+              "metric": "dominant_isoform_fraction",
+              "value": 0.9754
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "depmap-consortium-26q1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "cellline-isoform-expression": {
+          "_complete": true,
+          "card_id": "cellline-isoform-expression",
+          "categorical_anchors": null,
+          "class": "single_isoform_dominant",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "cellline_isoform_expression",
+          "n_basis": {
+            "n_expressed_isoforms": 2,
+            "n_models": 2696
+          },
+          "numeric_anchors": [
+            {
+              "metric": "dominant_isoform_fraction",
+              "value": 0.9754
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "depmap-consortium-26q1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "cellline-methylation-expression-coherence": {
+          "_complete": true,
+          "card_id": "cellline-methylation-expression-coherence",
+          "categorical_anchors": null,
+          "class": "methylation_invariant_panel",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "methylation_silencing_coupling",
+          "n_basis": {
+            "hypermethylation_threshold": 0.5,
+            "mean_log2tpm_unmethylated": 4.5213948715023875,
+            "median_log2tpm": 4.435651779174805
+          },
+          "numeric_anchors": [
+            {
+              "metric": "median_log2tpm",
+              "value": 4.4357
+            },
+            {
+              "metric": "median_methylation",
+              "value": 0.0034
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "cis-feature-expression-coherence": {
+          "_complete": true,
+          "card_id": "cis-feature-expression-coherence",
+          "categorical_anchors": null,
+          "class": "cn_dosage_coupled_strong",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "cis_dosage_coupling",
+          "n_basis": {
+            "amplification_threshold_relative_cn": 1.5,
+            "cn_expr_pearson_p": 8.144910153926763e-69,
+            "cn_expr_pearson_r": 0.5261117280803981
+          },
+          "numeric_anchors": [
+            {
+              "metric": "cn_expr_pearson_r",
+              "value": 0.5261
+            },
+            {
+              "metric": "cn_expr_spearman_r",
+              "value": 0.4352
+            },
+            {
+              "metric": "median_log2tpm",
+              "value": 4.4529
+            },
+            {
+              "metric": "median_relative_cn",
+              "value": 1.0553
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "cis-feature-protein-coherence": {
+          "_complete": true,
+          "card_id": "cis-feature-protein-coherence",
+          "categorical_anchors": null,
+          "class": "prot_dosage_coupled_moderate",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "cis_protein_dosage_coupling",
+          "n_basis": {
+            "amplification_threshold_relative_cn": 1.5,
+            "cn_prot_pearson_p": 7.578535974333629e-20,
+            "cn_prot_pearson_r": 0.5350959405783017
+          },
+          "numeric_anchors": [
+            {
+              "metric": "cn_prot_pearson_r",
+              "value": 0.5351
+            },
+            {
+              "metric": "cn_prot_spearman_r",
+              "value": 0.3737
+            },
+            {
+              "metric": "median_log2abundance",
+              "value": -0.0418
+            },
+            {
+              "metric": "median_relative_cn",
+              "value": 1.0866
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "expression-dependency-correlation": {
+          "_complete": true,
+          "card_id": "expression-dependency-correlation",
+          "categorical_anchors": null,
+          "class": "weak_negative",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "expression_dependency_correlation",
+          "n_basis": {
+            "mean_chronos": -0.6736536415825182,
+            "mean_tpm_logp1": 4.52901367433242,
+            "n_cell_lines_evaluated": 1465
+          },
+          "numeric_anchors": [
+            {
+              "metric": "pearson_r",
+              "value": -0.1734
+            },
+            {
+              "metric": "spearman_r",
+              "value": -0.1933
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        },
+        "patient-cis-coherence": {
+          "_complete": true,
+          "card_id": "patient-cis-coherence",
+          "categorical_anchors": null,
+          "class": "cn_dosage_coupled_moderate",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "patient_cis_coherence",
+          "n_basis": {
+            "cn_expr_spearman_p": 2.161315013108194e-12,
+            "cn_expr_spearman_r": 0.28379527263314736,
+            "delta_log2tpm_amplified_vs_neutral": 0.3206469574240045
+          },
+          "numeric_anchors": [
+            {
+              "metric": "cn_expr_spearman_r",
+              "value": 0.2838
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": null,
+          "top_k_strata": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "abundance-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "amp-expr-stratified-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-isoform-dominance",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-isoform-expression",
+          "status": "full"
+        },
+        {
+          "card_id": "cellline-methylation-expression-coherence",
+          "status": "full"
+        },
+        {
+          "card_id": "cis-feature-expression-coherence",
+          "status": "full"
+        },
+        {
+          "card_id": "cis-feature-protein-coherence",
+          "status": "full"
+        },
+        {
+          "card_id": "expression-dependency-correlation",
+          "status": "full"
+        },
+        {
+          "card_id": "patient-cis-coherence",
+          "status": "full"
+        }
+      ]
+    },
+    "headline_block": {
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict.",
+      "confidence": {
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_axes": 4,
+          "n_critical_measured": 1,
+          "n_measured": 3
+        },
+        "level": "moderate"
+      },
+      "headline_text": "Coherent cis-driven addiction (CN \u2192 expression \u2192 dependency) \u2014 moderate confidence.",
+      "hero": {
+        "axes": [
+          {
+            "conflict": false,
+            "corroboration": "high",
+            "key": "CIS_DOSAGE",
+            "label": "CN\u2192expression cis-dosage",
+            "signal": "strong"
+          },
+          {
+            "conflict": false,
+            "corroboration": "unmeasured",
+            "key": "SILENCING",
+            "label": "methylation\u2192low-expression",
+            "signal": "unmeasured"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "EXPR_DEP",
+            "label": "expression\u2192dependency",
+            "signal": "weak"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "CONJOINT",
+            "label": "amp\u2229overexpr addiction",
+            "signal": "moderate"
+          }
+        ],
+        "confidence": {
+          "coverage": {
+            "n_axes": 4,
+            "n_critical_measured": 1,
+            "n_measured": 3
+          },
+          "level": "moderate"
+        },
+        "kind": "headline_hero",
+        "tension": null,
+        "verdict": {
+          "call": "coherent_cis_driver",
+          "gate": "cis_coherence",
+          "phrase": "Coherent cis-driven addiction (CN \u2192 expression \u2192 dependency)",
+          "polarity": "positive"
+        }
+      },
+      "provenance": [
+        {
+          "axis": "CIS_DOSAGE",
+          "card_id": "cis-feature-expression-coherence",
+          "fields": [
+            "cis_dosage_class",
+            "cn_expr_slope_log2tpm_per_cn",
+            "cn_expr_spearman_p",
+            "cn_expr_spearman_r",
+            "delta_log2tpm_amplified_vs_neutral",
+            "evidence_scope",
+            "n_amplified",
+            "n_cell_lines_evaluated",
+            "relative_cn_iqr"
+          ]
+        },
+        {
+          "axis": "SILENCING",
+          "card_id": "cellline-methylation-expression-coherence",
+          "fields": [
+            "methylation_silencing_class",
+            "n_hypermethylated"
+          ]
+        },
+        {
+          "axis": "EXPR_DEP",
+          "card_id": "expression-dependency-correlation",
+          "fields": [
+            "correlation_class",
+            "delta_chronos_top_vs_bottom_quartile",
+            "n_cell_lines_evaluated",
+            "pearson_p",
+            "pearson_r",
+            "spearman_r"
+          ]
+        },
+        {
+          "axis": "CONJOINT",
+          "card_id": "amp-expr-stratified-dependency",
+          "fields": [
+            "amp_expr_effect_size",
+            "amp_expr_mannwhitney_q",
+            "amp_expr_stratification_class",
+            "delta_chronos_amp_expr_vs_rest",
+            "evidence_scope",
+            "n_amplified_overexpressed",
+            "n_comparator"
+          ]
+        }
+      ],
+      "top_tension": null,
+      "verdict": {
+        "call": "coherent_cis_driver",
+        "driving_rule_id": "cis-dosage-coupled-supportive",
+        "gate": "cis_coherence",
+        "phrase": "Coherent cis-driven addiction (CN \u2192 expression \u2192 dependency)",
+        "polarity": "positive"
+      }
+    },
+    "question_table": [
+      {
+        "confidence": {
+          "dots": 3,
+          "label": "corroboration: high",
+          "tier": "high"
+        },
+        "id": "Q1",
+        "primary": "cis-feature-expression-coherence: cn_dosage_coupled_strong",
+        "question": "Does copy-number drive expression (cis-dosage coupling)?",
+        "signal": {
+          "fill": 5,
+          "label": "strong",
+          "polarity": "informs",
+          "tier": "strong"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 0,
+          "label": "corroboration: unmeasured",
+          "tier": "unmeasured"
+        },
+        "id": "Q2",
+        "primary": "cellline-methylation-expression-coherence: methylation_invariant_panel",
+        "question": "Does promoter methylation silence expression?",
+        "signal": {
+          "fill": 0,
+          "label": "unmeasured",
+          "polarity": "none",
+          "tier": "unmeasured"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "corroboration: moderate",
+          "tier": "moderate"
+        },
+        "id": "Q3",
+        "primary": "expression-dependency-correlation: weak_negative",
+        "question": "Does expression track dependency (expression\u2192dependency coherence)?",
+        "signal": {
+          "fill": 2,
+          "label": "weak",
+          "polarity": "informs",
+          "tier": "weak"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "corroboration: moderate",
+          "tier": "moderate"
+        },
+        "id": "Q4",
+        "primary": "amp-expr-stratified-dependency: amplified_overexpressed_moderately_dependent",
+        "question": "Is there amplification\u2229over-expression addiction (conjoint)?",
+        "signal": {
+          "fill": 3,
+          "label": "moderate",
+          "polarity": "informs",
+          "tier": "moderate"
+        },
+        "support": ""
+      }
+    ],
+    "subgroup_signals": {
+      "CIS_DOSAGE": {
+        "claims": [
+          {
+            "axis": "CIS_DOSAGE",
+            "corroboration": "high",
+            "evidence": "cis-feature-expression-coherence: cn_dosage_coupled_strong",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "cis-feature-expression-coherence",
+                "fields": [
+                  "cis_dosage_class",
+                  "cn_expr_slope_log2tpm_per_cn",
+                  "cn_expr_spearman_p",
+                  "cn_expr_spearman_r",
+                  "delta_log2tpm_amplified_vs_neutral",
+                  "evidence_scope",
+                  "n_amplified",
+                  "n_cell_lines_evaluated",
+                  "relative_cn_iqr"
+                ]
+              },
+              "entity": {
+                "grain": "target_indication",
+                "measurement_type": "cis_feature_expression_coherence",
+                "sample_context": "cell_line"
+              },
+              "read": "cn_dosage_coupled_strong",
+              "values": {
+                "cis_dosage_class": "cn_dosage_coupled_strong",
+                "cn_expr_slope_log2tpm_per_cn": 0.16704552977537365,
+                "cn_expr_spearman_p": 3.1414837687556025e-45,
+                "cn_expr_spearman_r": 0.4352198465770557,
+                "delta_log2tpm_amplified_vs_neutral": 1.1687763445427137,
+                "evidence_scope": "pan_no_indication",
+                "n_amplified": 129,
+                "n_cell_lines_evaluated": 951,
+                "relative_cn_iqr": 0.2763306200504303
+              }
+            },
+            "signal": "strong"
+          }
+        ],
+        "confidence": "high",
+        "conflict": false,
+        "n_agree": 3,
+        "n_sources": 3,
+        "power": "high",
+        "signal": "strong",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "cis-feature-expression-coherence",
+            "conflict": false,
+            "label": "cis dosage",
+            "n": 951,
+            "tier": "strong",
+            "value": "cn_dosage_coupled_strong"
+          },
+          {
+            "card": "cis-feature-protein-coherence",
+            "conflict": false,
+            "label": "cis protein dosage",
+            "n": 249,
+            "tier": "moderate",
+            "value": "prot_dosage_coupled_moderate"
+          },
+          {
+            "card": "amp-expr-stratified-dependency",
+            "conflict": false,
+            "label": "amp expr stratification",
+            "n": 607,
+            "tier": "moderate",
+            "value": "amplified_overexpressed_moderately_dependent"
+          }
+        ]
+      },
+      "CONJOINT": {
+        "claims": [
+          {
+            "axis": "CONJOINT",
+            "corroboration": "moderate",
+            "evidence": "amp-expr-stratified-dependency: amplified_overexpressed_moderately_dependent",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "amp-expr-stratified-dependency",
+                "fields": [
+                  "amp_expr_effect_size",
+                  "amp_expr_mannwhitney_q",
+                  "amp_expr_stratification_class",
+                  "delta_chronos_amp_expr_vs_rest",
+                  "evidence_scope",
+                  "n_amplified_overexpressed",
+                  "n_comparator"
+                ]
+              },
+              "entity": {
+                "grain": "target_indication",
+                "measurement_type": "amp_expr_stratified_dependency",
+                "sample_context": "cell_line"
+              },
+              "read": "amplified_overexpressed_moderately_dependent",
+              "values": {
+                "amp_expr_effect_size": 0.6217948717948718,
+                "amp_expr_mannwhitney_q": 4.00899149930044e-11,
+                "amp_expr_stratification_class": "amplified_overexpressed_moderately_dependent",
+                "delta_chronos_amp_expr_vs_rest": -1.2112930715084076,
+                "evidence_scope": "pan_lineage_evidence_only",
+                "n_amplified_overexpressed": 39,
+                "n_comparator": 568
+              }
+            },
+            "signal": "moderate"
+          }
+        ],
+        "confidence": "high",
+        "conflict": false,
+        "n_agree": 1,
+        "n_sources": 1,
+        "power": "high",
+        "signal": "moderate",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "patient-cis-coherence",
+            "conflict": false,
+            "label": "patient cis dosage",
+            "n": 590,
+            "tier": "moderate",
+            "value": "cn_dosage_coupled_moderate"
+          }
+        ]
+      },
+      "EXPR_DEP": {
+        "claims": [
+          {
+            "axis": "EXPR_DEP",
+            "corroboration": "moderate",
+            "evidence": "expression-dependency-correlation: weak_negative",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "expression-dependency-correlation",
+                "fields": [
+                  "correlation_class",
+                  "delta_chronos_top_vs_bottom_quartile",
+                  "n_cell_lines_evaluated",
+                  "pearson_p",
+                  "pearson_r",
+                  "spearman_r"
+                ]
+              },
+              "entity": {
+                "grain": "target_indication",
+                "measurement_type": "expression_dependency_correlation",
+                "sample_context": "cell_line"
+              },
+              "read": "weak_negative",
+              "values": {
+                "correlation_class": "weak_negative",
+                "delta_chronos_top_vs_bottom_quartile": -0.1565275490283966,
+                "n_cell_lines_evaluated": 1465,
+                "pearson_p": 2.346814502735703e-11,
+                "pearson_r": -0.17341745898317357,
+                "spearman_r": -0.19330941709839392
+              }
+            },
+            "signal": "weak"
+          }
+        ],
+        "confidence": "low",
+        "conflict": false,
+        "n_agree": 0,
+        "n_sources": 2,
+        "power": "high",
+        "signal": "weak",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "expression-dependency-correlation",
+            "conflict": false,
+            "label": "correlation",
+            "n": 1465,
+            "tier": "weak",
+            "value": "weak_negative"
+          },
+          {
+            "card": "abundance-dependency",
+            "conflict": false,
+            "label": "abundance dependency",
+            "n": 117,
+            "tier": "absent",
+            "value": "weak_protein_dependency_link"
+          }
+        ]
+      },
+      "SILENCING": {
+        "claims": [
+          {
+            "axis": "SILENCING",
+            "corroboration": "unmeasured",
+            "evidence": "cellline-methylation-expression-coherence: methylation_invariant_panel",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "cellline-methylation-expression-coherence",
+                "fields": [
+                  "methylation_silencing_class",
+                  "n_hypermethylated"
+                ]
+              },
+              "entity": {
+                "grain": "target_indication",
+                "measurement_type": "methylation_expression_coherence",
+                "sample_context": "cell_line"
+              },
+              "read": "methylation_invariant_panel",
+              "values": {
+                "methylation_silencing_class": "methylation_invariant_panel",
+                "n_hypermethylated": 0
+              }
+            },
+            "signal": "unmeasured"
+          }
+        ],
+        "confidence": "low",
+        "conflict": false,
+        "n_agree": 0,
+        "n_sources": 1,
+        "power": "high",
+        "signal": "unmeasured",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "cellline-methylation-expression-coherence",
+            "conflict": false,
+            "label": "methylation silencing",
+            "n": 820,
+            "tier": "absent",
+            "value": "methylation_invariant_panel"
+          }
+        ]
+      }
+    }
+  },
+  "indication": "COADREAD",
+  "question": "Does KRAS's own locus feature (copy-number) explain its own expression AND its own dependency in COADREAD \u2014 a coherent cis-driven addiction, or co-occurring axes?",
+  "skill": "cis-feature-coherence",
+  "target": "KRAS"
+}

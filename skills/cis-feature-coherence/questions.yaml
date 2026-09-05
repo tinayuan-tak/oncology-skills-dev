@@ -1,0 +1,81 @@
+# Canonical question + axis registry for the cis-feature-coherence dashboard (evidence_graph layer).
+# Single source of truth for the 4 consumer-facing coherence-leg questions and the unified axis_id
+# vocabulary {CIS_DOSAGE, SILENCING, EXPR_DEP, CONJOINT} — the SAME axis keys the cis-feature-coherence
+# narrator lens uses (narrator_lenses.py CIS_FEATURE_COHERENCE.axis_labels: CIS_DOSAGE cis copy-number
+# dosage / SILENCING methylation silencing / EXPR_DEP expression↔dependency / CONJOINT amp∩overexpr
+# addiction), so the literature axis->question crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q4 the cis_coherence_question_table
+# builder emits) — the emitted question_table itself is NOT modified (byte-stable).
+#
+# GATELESS / DESCRIPTIVE skill: cis-feature-coherence is mode=descriptive and verdict-INERT at composition
+# (top-level decision["verdict"] is None). It DOES still resolve a headline cis_coherence_verdict token
+# (a 2×2 cross-tab of leg-1 cis-dosage/silencing × leg-2 dependency) via the shared resolver, and the
+# four coherence LEGS below feed that deterministic cross-tab — so each axis-owning question is
+# verdict_bearing (informs the resolved coherence class), never a nomination gate.
+#
+# Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1"). Reuses the
+#                   governed question_hierarchy.yaml sub_group question ids for traceability.
+#   legacy_id       the positional id cis_coherence_question_table emits (Q1..Q4)
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis (CIS_DOSAGE|SILENCING|EXPR_DEP|CONJOINT); null = no axis
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types +
+#                   context_types) + the card contracts (target-contracts/cards/<id>.card.yaml
+#                   measurement_type). The verdict-inert PROTEIN sibling legs (cis_protein_dosage_coupling
+#                   under CIS_DOSAGE, abundance_dependency_correlation under EXPR_DEP), the molecular-FORM
+#                   context cards (cell_line_isoform_dominance / cellline_isoform_expression under
+#                   CIS_DOSAGE, per question_hierarchy context_types), and the cross-grain patient
+#                   corroboration facet (patient_cis_coherence under CONJOINT) all anchor to the leg they
+#                   corroborate so every standard-run card joins >=1 question (nothing orphans into "Other").
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => CIS_DOSAGE->[cis_dosage_read]  SILENCING->[silencing_read]
+#      EXPR_DEP->[expr_dep_read]      CONJOINT->[conjoint_read]
+#
+# NOTE (no subtype question): cis-feature-coherence has NO tier:subtype card in standard runs (its cards
+# are DepMap cell-line + TCGA patient grains, none subtype-stratified), so — mirroring FR — the registry
+# omits a subtype:true question. No measurement_type is carried by both a subtype and a non-subtype card,
+# so the subtype-tier disambiguation in build_evidence_graph is inert here.
+skill: cis-feature-coherence
+axis_vocabulary:
+  CIS_DOSAGE: cis copy-number dosage
+  SILENCING: methylation silencing
+  EXPR_DEP: expression↔dependency
+  CONJOINT: amp∩overexpr addiction
+questions:
+- id: cis_dosage_read
+  legacy_id: Q1
+  seq: 1
+  text: Does copy-number drive expression (cis-dosage coupling)?
+  axis_id: CIS_DOSAGE
+  role: verdict_bearing
+  measurement_types: [cis_dosage_coupling, cis_protein_dosage_coupling,
+    cell_line_isoform_dominance, cellline_isoform_expression]
+- id: silencing_read
+  legacy_id: Q2
+  seq: 2
+  text: Does promoter methylation silence expression?
+  axis_id: SILENCING
+  role: verdict_bearing
+  measurement_types: [methylation_silencing_coupling]
+- id: expr_dep_read
+  legacy_id: Q3
+  seq: 3
+  text: Does expression track dependency (expression→dependency coherence)?
+  axis_id: EXPR_DEP
+  role: verdict_bearing
+  measurement_types: [expression_dependency_correlation, abundance_dependency_correlation]
+- id: conjoint_read
+  legacy_id: Q4
+  seq: 4
+  text: Is there amplification∩over-expression addiction (conjoint)?
+  axis_id: CONJOINT
+  role: verdict_bearing
+  measurement_types: [amp_expr_stratified_dependency, patient_cis_coherence]
