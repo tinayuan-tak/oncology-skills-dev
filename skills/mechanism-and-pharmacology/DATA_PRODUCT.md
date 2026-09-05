@@ -1,0 +1,82 @@
+# mechanism-and-pharmacology — finalized data product
+
+The **I/O contract**: data wired IN, package emitted OUT, what is locked. MoA/network logic + history live
+in SKILL.md / run.py; this file is the data-product spec.
+
+| | |
+|---|---|
+| **Skill** | `mechanism-and-pharmacology` |
+| **Skill code version** | 1.10.0 |
+| **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
+| **Role** | `gating` (verdict = a signaling-network **characterization** class; polarity dynamic) |
+| **Verdict field** | `headline.mechanism_verdict` (resolves on `network_class` + `has_pd_marker`) |
+| **Output shape** | `data_package` |
+| **Emitted schema** | `target-contracts/schemas/skills/mechanism-and-pharmacology.decision.schema.json` (generated, self-contained) |
+| **Conformance target** | the FRESH replay emit (`test_mechanism_replay.py`; EGFR `well_characterized`, CEACAM5 `partial`); static `kras_coadread_decision.json` golden is **trimmed** → not a full-decision target |
+
+---
+
+## 1. Inputs — wired data (5 cards)
+
+Every card traces card → method → data-catalog manifest → materialized S3 product. **All 5 products (+ all
+composed lanes) are LIVE.** `run.py` has no `CARD_CONTEXT` map (mechanism is indication-agnostic / context-free).
+
+| card_id | method / read path | catalog manifest(s) | role |
+|---|---|---|---|
+| `signaling-network-mechanism` | `mechanism_composed::read_target_summary` (SIGNOR lane reads the derived parquet first, TSV fallback) | `signor-jul2026` (src) + **`signor-mechanism-network-per-gene-v1`** (derived, primary read) + composed lanes `collectri-tf-regulon-per-gene-v1`, `reactome-pathway-per-uniprot-v1`, `kinome-atlas-long-edges-v1`, `depmap-coessentiality-26q1-v1` | **verdict-driving** (the only resolver card; `network_class` + `has_pd_marker`) |
+| `tahoe-drug-perturbation` | `tahoe_drug_perturbation` | `tahoe-drug-perturbation-per-gene-v1` (~5.3 GB) | display-only |
+| `phospho-pathway-activity` | `phospho_pathway_activity` (reads derived per-site) | `cptac-pdc-snapshot-2026-07-01` (src, declared) → reads `cptac-phospho-per-site-per-cohort-v1` (derived) | display-only |
+| `pathway-activity-context` | `progeny_pathway_activity` (PROGENy) | `progeny-pathway-activity-per-indication-v1` | display-only |
+| `dependency-predictability` | `depmap_predictability` (`depmap-predictability` alias → `-26q1-v3`) | `depmap-predictability-26q1-v3` | display-only |
+
+**MoA composition (what feeds `network_class`):** SIGNOR (Jul2026) + CollecTRI curated-edge union **only**.
+Reactome is layered as pathway **context** (not counted in the edge total, despite SKILL.md prose).
+Kinome-atlas predictions + DepMap co-essentiality are carried **alongside** (`kinome_atlas_predictions` /
+`coessentiality_context`), **never merged** into `network_class`/`has_actionable_moa`. MoA ontology = 21-class.
+
+---
+
+## 2. Coverage & capability ceilings (contractual)
+
+- **SIGNOR** quarterly release `signor-jul2026` (Oct2026 will supersede); derived per-gene = 33,083 human
+  rows → ~44,996 dual-emitted edges (~4.2% unmapped). **CollecTRI** = `collectri-tf-regulon-per-gene-v1`.
+- **Phospho** ceiling = CPTAC 10-cohort set (`applies_when`). **PROGENy** = 33 indications × 14 pathways.
+- **Predictability** = 26q1-v3, 9,240 genes, RF+XGB — **SHAP NOT computed** (`shap_computed: false`;
+  RF-impurity / XGB-gain fallback).
+
+---
+
+## 3. Emitted output
+
+`output_shape: data_package` → the standard `write_package` tree. `decision.json` top-level:
+`skill · target · indication · question · generated_at · headline · cards · fired_rules · provenance ·
+run_health` (+ optional synthesis). Contractual headline fields: `mechanism_verdict` (pinned enum),
+`driving_rule_id`, `network_class`, `has_actionable_moa`, the `skill_report` spine (`role: gating`,
+dynamic `polarity`, `call` = `mechanism_verdict`), `headline_block`, `claim_vector`, `key_signals`. All else
+schema-open (kinome/co-essentiality/phospho/PROGENy/tahoe facets + the confirmation/prediction-lane caveats).
+
+---
+
+## 4. Contract & versioning (what is locked)
+
+Pinned by the generated, self-contained `mechanism-and-pharmacology.decision.schema.json` (gating-scalar
+pins: `role: gating` + the 6-value `mechanism_verdict`/`call` enum
+`well_characterized/partial/sparse/has_pd_marker/insufficient/data_unavailable` = the mechanism resolver
+set; no run.py mints; no polarity const; no bucket map).
+
+CI: fresh-replay conformance (`test_mechanism_replay.py`), schema-well-formedness + static-golden-if-full
+(`tests/test_data_product_schema.py`, CI-fail-not-skip), cross-skill coverage ratchet, target-contracts
+schema meta-test. Change policy: new verdict token → pins enum + regenerate (minor); spine key → SHARED
+source (coordinate; major on rename); new facet → no schema change.
+
+## 5. Known gaps & notes (non-blocking)
+
+- **`signaling-network-mechanism.card.yaml` provenance is STALE:** its `required_inputs` lists only
+  `signor-jul2026` (source) and its caveat asserts "no derived per-gene manifest exists," but
+  `signor-mechanism-network-per-gene-v1` IS built + materialized and is the **primary read path**. Fix the
+  card's `required_inputs` + caveat (a target-contracts `cards/` change). (The composed
+  `mechanism-composed-*` product is genuinely on-read — that part of the caveat is correct.)
+- **`phospho-pathway-activity` declares the CPTAC source** as `required_inputs` but reads the derived
+  `cptac-phospho-per-site-per-cohort-v1` — a provenance-declaration gap (both materialized; not broken).
+- **SKILL.md prose says "SIGNOR + CollecTRI + Reactome"** for `network_class`, but Reactome is pathway
+  context only (not in the edge total) — doc reconciliation.
