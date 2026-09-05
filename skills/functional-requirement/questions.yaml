@@ -1,0 +1,91 @@
+# Canonical question + axis registry for the functional-requirement dashboard (Phase-0 keystone of the
+# evidence_graph layer). Single source of truth for the 7 consumer-facing dependency questions and the
+# unified axis_id vocabulary {DEP, SEL, COND, CHEM} — the SAME axis letters the FR narrator lens uses
+# (narrator_lenses.py FUNCTIONAL_REQUIREMENT.axis_labels: DEP genetic-dependency / SEL context-selectivity
+# / COND conditional-SL / CHEM chemical-genetic), so the literature axis->question crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
+# nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q7 the dependency_question_table
+# builder emits) — the emitted question_table itself is NOT modified (byte-stable).
+#
+# Per-question fields (identical contract to skills/tumor-presence/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id dependency_question_table emits (Q1..Q7)
+#   seq             1-based display order
+#   text            human question text
+#   axis_id         unified claim/literature axis (DEP|SEL|COND|CHEM); null = no axis
+#   role            verdict_bearing | corroboration | display_only  (editorial question role)
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types) + the card
+#                   contracts (target-contracts/cards/<id>.card.yaml measurement_type).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => DEP->[lethal_at_all, selective_or_pan_essential]  SEL->[selective_to_lineage]
+#      COND->[conditional_sl_rescue]                      CHEM->[chemically_confirmable]
+#
+# NOTE (no subtype question): the by-subtype panorama card (subgroup-stratified-dependency,
+# measurement_type=crispr_lof_dependency, tier=subtype) is --subtypes-gated and ABSENT from standard
+# runs. A subtype:true question claiming crispr_lof_dependency would, in a standard (no-subtypes) run
+# where that mt is NOT ambiguous, wrongly grab the whole-cohort CRISPR cards (pan-cancer-crispr /
+# lineage-selectivity / organoid) into a phantom empty-signal row. So the registry mirrors the 7 emitted
+# rows exactly and omits a subtype question; in the rare --subtypes run the subtype card simply lands in
+# the cards layer un-anchored rather than polluting a whole-cohort question.
+skill: functional-requirement
+axis_vocabulary:
+  DEP: genetic-dependency
+  SEL: context-selectivity
+  COND: conditional-SL
+  CHEM: chemical-genetic
+questions:
+- id: lethal_at_all
+  legacy_id: Q1
+  seq: 1
+  text: Is loss-of-function lethal at all?
+  axis_id: DEP
+  role: verdict_bearing
+  measurement_types: [crispr_lof_dependency, rnai_lof_dependency]
+- id: selective_or_pan_essential
+  legacy_id: Q2
+  seq: 2
+  text: Selective, or pan-essential? (therapeutic window)
+  axis_id: DEP
+  role: verdict_bearing
+  measurement_types: [crispr_lof_dependency]
+- id: selective_to_lineage
+  legacy_id: Q3
+  seq: 3
+  text: Selective to this indication's lineage?
+  axis_id: SEL
+  role: verdict_bearing
+  measurement_types: [crispr_lof_dependency, expression_dependency_correlation,
+    abundance_dependency_correlation, patient_model_correspondence, genomic_event_model_match]
+- id: crispr_rnai_agree
+  legacy_id: Q4
+  seq: 4
+  text: Do CRISPR and RNAi agree?
+  axis_id: DEP
+  role: corroboration
+  measurement_types: [crispr_rnai_concordance]
+- id: conditional_sl_rescue
+  legacy_id: Q5
+  seq: 5
+  text: Conditional / synthetic-lethal rescue?
+  axis_id: COND
+  role: verdict_bearing
+  measurement_types: [partner_conditional_dependency, paralog_buffering]
+- id: chemically_confirmable
+  legacy_id: Q6
+  seq: 6
+  text: Is the dependency chemically confirmable?
+  axis_id: CHEM
+  role: verdict_bearing
+  measurement_types: [chemical_genetic_concordance]
+- id: corroborated_predictable
+  legacy_id: Q7
+  seq: 7
+  text: How corroborated / predictable is the call?
+  axis_id: DEP
+  role: corroboration
+  measurement_types: [cross_consortium_dependency, dependency_predictability, coessential_module]

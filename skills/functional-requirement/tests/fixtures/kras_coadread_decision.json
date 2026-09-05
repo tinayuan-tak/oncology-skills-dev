@@ -1,0 +1,1423 @@
+{
+  "skill": "functional-requirement",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "question": "Is KRAS a genetic dependency in COADREAD, and how does the call hold up across CRISPR, RNAi, concordance, lineage-selectivity, and paralog-buffering views?",
+  "fired_rules": [
+    {
+      "rule_id": "strongly-selective-supportive",
+      "card_id": "pan-cancer-crispr-dependency-distribution",
+      "field": "dependency_class",
+      "value": "strongly_selective",
+      "dominant": true,
+      "rationale_summary": "DepMap's strongly_selective classification \u2014 dependency is highly variable across"
+    },
+    {
+      "rule_id": "rnai-strongly-selective-supportive",
+      "card_id": "pan-cancer-rnai-dependency-distribution",
+      "field": "rnai_dependency_class",
+      "value": "strongly_selective",
+      "dominant": false,
+      "rationale_summary": "RNAi shows selective dependency \u2014 orthogonal LOF confirmation if CRISPR also"
+    },
+    {
+      "rule_id": "concordant-non-dependent-neutral",
+      "card_id": "crispr-rnai-dependency-concordance",
+      "field": "concordance_class",
+      "value": "moderately_concordant_non_dependent",
+      "dominant": false,
+      "rationale_summary": "Concordance class is descriptive of which side of the partition dominates the"
+    },
+    {
+      "rule_id": "lineage-selective-supportive",
+      "card_id": "dependency-lineage-selectivity",
+      "field": "enrichment_class",
+      "value": "lineage_selective",
+      "dominant": true,
+      "rationale_summary": "\u22651 lineage is significantly more dependent on the target than the rest of the"
+    },
+    {
+      "rule_id": "recommended-models-well-modeled-supportive",
+      "card_id": "recommended-models",
+      "field": "correspondence_class",
+      "value": "well_modeled_in_lineage",
+      "dominant": false,
+      "rationale_summary": "DepMap has cell-line model(s) that express the target within the patient tumor range AND"
+    },
+    {
+      "rule_id": "expression-correlation-weak-neutral",
+      "card_id": "expression-dependency-correlation",
+      "field": "correlation_class",
+      "value": "weak_negative",
+      "dominant": false,
+      "rationale_summary": "Weak negative correlation (-0.2 < r \u2264 -0.1). Directionally consistent but not"
+    },
+    {
+      "rule_id": "abundance-dependency-weak-neutral",
+      "card_id": "abundance-dependency",
+      "field": "abundance_dependency_class",
+      "value": "weak_protein_dependency_link",
+      "dominant": false,
+      "rationale_summary": "Weak/moderate protein-abundance\u2192dependency link (directional but not conclusive, or"
+    },
+    {
+      "rule_id": "predictability-biomarker-hypothesis-supportive",
+      "card_id": "dependency-predictability",
+      "field": "predictability_class",
+      "value": "own_omics_driven",
+      "dominant": false,
+      "rationale_summary": "Dependency is biomarker-anchored: a target-own omic feature (expression,"
+    },
+    {
+      "rule_id": "e7-triangulated-target-engaged-supportive",
+      "card_id": "prism-crispr-concordance",
+      "field": "crispr_prism_concordance_class",
+      "value": "triangulated_target_engaged",
+      "dominant": true,
+      "rationale_summary": "Both CRISPR-KO Chronos AND RNAi-KD DEMETER2 dependency scores correlate"
+    },
+    {
+      "rule_id": "strong-paralog-buffering-degrader-preferred",
+      "card_id": "paralog-buffering",
+      "field": "paralog_buffering_class",
+      "value": "strong",
+      "dominant": true,
+      "rationale_summary": "Target has a strongly-buffering paralog (dep_delta > 0.5). Small-"
+    },
+    {
+      "rule_id": "organoid-broad-dependency-supportive",
+      "card_id": "organoid-crispr-dependency",
+      "field": "organoid_dependency_class",
+      "value": "broad_organoid_dependency",
+      "dominant": false,
+      "rationale_summary": "Dependency in 50-90% of organoid models \u2014 a broad, reproducible organoid dependency short"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "pan-cancer-crispr-dependency-distribution",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "pan-cancer-rnai-dependency-distribution",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1-rnai"
+      ]
+    },
+    {
+      "card_id": "crispr-rnai-dependency-concordance",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1",
+        "depmap-consortium-26q1-rnai"
+      ]
+    },
+    {
+      "card_id": "dependency-lineage-selectivity",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "paralog-buffering",
+      "input_manifest_ids": [
+        "depmap-paralog-buffering-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "partner-conditional-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "prism-crispr-concordance",
+      "input_manifest_ids": [
+        "depmap-prism-activity-v4"
+      ]
+    },
+    {
+      "card_id": "cross-consortium-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "dependency-predictability",
+      "input_manifest_ids": [
+        "depmap-predictability"
+      ]
+    },
+    {
+      "card_id": "expression-dependency-correlation",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "abundance-dependency",
+      "input_manifest_ids": [
+        "depmap-consortium-26q1-proteomics",
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "recommended-models",
+      "input_manifest_ids": [
+        "tcga-tumor-tpm-recount3-long-v1",
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "genomic-event-model-match",
+      "input_manifest_ids": [
+        "tcga-mc3-public-v0-2-8",
+        "gdc-pancanatlas-cnv-2018",
+        "depmap-consortium-26q1"
+      ]
+    },
+    {
+      "card_id": "organoid-crispr-dependency",
+      "input_manifest_ids": [
+        "organoid-crispr-dependency-26q1-v1",
+        "organoid-crispr-dependency-by-lineage-26q1-v1"
+      ]
+    },
+    {
+      "card_id": "coessential-module",
+      "input_manifest_ids": [
+        "depmap-coessentiality-26q1-v1"
+      ]
+    }
+  ],
+  "headline": {
+    "evidence_capsules": {
+      "capsules": {
+        "abundance-dependency": {
+          "card_id": "abundance-dependency",
+          "measurement_type": "abundance_dependency_correlation",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "weak_protein_dependency_link",
+          "numeric_anchors": [
+            {
+              "metric": "protein_dependency_pearson_r",
+              "value": -0.3515
+            },
+            {
+              "metric": "protein_dependency_spearman_r",
+              "value": -0.3347
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_dependent_models": 117,
+            "n_paired_models": 264,
+            "n_protein_detected_models": 312
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "release_pin",
+              "value": "26q1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "coessential-module": {
+          "card_id": "coessential-module",
+          "measurement_type": "coessential_module",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "in_coherent_module",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_anti_correlated": 1,
+            "n_cell_lines": 1538,
+            "n_coessential": 24
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "depmap-coessentiality-26q1-v1"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "crispr-rnai-dependency-concordance": {
+          "card_id": "crispr-rnai-dependency-concordance",
+          "measurement_type": "crispr_rnai_concordance",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "moderately_concordant_non_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "fraction_agree",
+              "value": 0.7464
+            },
+            {
+              "metric": "fraction_dependent_in_both",
+              "value": 0.2392
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "fraction_agree": 0.7464028776978417,
+            "fraction_dependent_in_both": 0.2392086330935252,
+            "n_agree_dependent": 133
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "cross-consortium-dependency": {
+          "card_id": "cross-consortium-dependency",
+          "measurement_type": "cross_consortium_dependency",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "concordant_dependent",
+          "numeric_anchors": [
+            {
+              "metric": "broad_frac_dependent",
+              "value": 0.4486
+            },
+            {
+              "metric": "broad_median_chronos",
+              "value": -0.4574
+            },
+            {
+              "metric": "sanger_frac_dependent",
+              "value": 0.4744
+            },
+            {
+              "metric": "sanger_median_chronos",
+              "value": -0.4779
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "broad_median_chronos": -0.4574,
+            "broad_n_lines": 1538,
+            "sanger_median_chronos": -0.4779
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "Broad Achilles (CRISPRGeneEffect) vs Sanger Project Score (ScreenGeneEffect), DepMap 26q1; verdict-inert cross-consortium corroboration"
+            },
+            {
+              "key": "cross_consortium_class",
+              "value": "concordant_dependent"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "dependency-lineage-selectivity": {
+          "card_id": "dependency-lineage-selectivity",
+          "measurement_type": "crispr_lof_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "lineage_selective",
+          "numeric_anchors": [
+            {
+              "metric": "lineage_variance_explained",
+              "value": 0.1858
+            },
+            {
+              "metric": "median_chronos_panel",
+              "value": -0.4574
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "median_chronos_panel": -0.45738519728183746,
+            "n_cell_lines_panel": 1538,
+            "n_enriched_lineages": 3
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Pancreas",
+              "metric": "median_chronos",
+              "value": -1.8284,
+              "n": 74,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Kidney",
+              "metric": "median_chronos",
+              "value": -0.332,
+              "n": 35,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": [
+            {
+              "measurement_type": "crispr_lof_dependency",
+              "other_sources": [
+                {
+                  "card": "organoid-crispr-dependency",
+                  "class": "broad_organoid_dependency",
+                  "tier": "absent"
+                },
+                {
+                  "card": "pan-cancer-crispr-dependency-distribution",
+                  "class": "strongly_selective",
+                  "tier": "strong"
+                }
+              ],
+              "this_class": "lineage_selective",
+              "this_tier": "absent",
+              "conflict": true
+            }
+          ],
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "dependency-predictability": {
+          "card_id": "dependency-predictability",
+          "measurement_type": "dependency_predictability",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "own_omics_driven",
+          "numeric_anchors": [
+            {
+              "metric": "delta_r2",
+              "value": 0.0232
+            },
+            {
+              "metric": "pearson_r_rf",
+              "value": 0.6841
+            },
+            {
+              "metric": "pearson_r_squared_rf",
+              "value": 0.4679
+            },
+            {
+              "metric": "pearson_r_squared_rf_ci_hi",
+              "value": 0.5228
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "predictability_class",
+              "value": "own_omics_driven"
+            },
+            {
+              "field": "pred_dominant_feature_class",
+              "value": "own_mut_hotspot"
+            },
+            {
+              "field": "model_agreement",
+              "value": "concordant"
+            }
+          ],
+          "n_basis": {
+            "pearson_r_rf": 0.6840511560440063,
+            "pearson_r_squared_rf": 0.4679259955883026,
+            "pearson_r_squared_rf_ci_hi": 0.5228469371795654
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Biliary Tract",
+              "metric": "r2",
+              "value": 0.2563,
+              "n": null,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Soft Tissue",
+              "metric": "r2",
+              "value": 0.0001,
+              "n": null,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "expression-dependency-correlation": {
+          "card_id": "expression-dependency-correlation",
+          "measurement_type": "expression_dependency_correlation",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "weak_negative",
+          "numeric_anchors": [
+            {
+              "metric": "pearson_r",
+              "value": -0.1734
+            },
+            {
+              "metric": "spearman_r",
+              "value": -0.1933
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "mean_chronos": -0.6736536415825182,
+            "mean_tpm_logp1": 4.52901367433242,
+            "n_cell_lines_evaluated": 1465
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "genomic-event-model-match": {
+          "card_id": "genomic-event-model-match",
+          "measurement_type": "genomic_event_model_match",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "event_matched_dependent_in_lineage",
+          "numeric_anchors": [
+            {
+              "metric": "patient_event_fraction",
+              "value": 0.3693
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_event_matched": 340,
+            "n_event_matched_in_lineage": 61,
+            "n_matched_dependent": 217
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "release_pin",
+              "value": "26q1"
+            }
+          ],
+          "data_quality_flags": [
+            {
+              "field": "patient_functional_state_class",
+              "value": "sporadic_biallelic_inactivation",
+              "contradicts": "functional_direction/state='activating'",
+              "flag": "activating-direction card carries a loss-of-function state label \u2014 do NOT narrate as LoF"
+            }
+          ]
+        },
+        "organoid-crispr-dependency": {
+          "card_id": "organoid-crispr-dependency",
+          "measurement_type": "crispr_lof_dependency",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "broad_organoid_dependency",
+          "numeric_anchors": [
+            {
+              "metric": "frac_dependent",
+              "value": 0.7456
+            },
+            {
+              "metric": "median_gene_effect",
+              "value": -0.8699
+            },
+            {
+              "metric": "organoid_dependency_percentile",
+              "value": 94.44
+            },
+            {
+              "metric": "organoid_lineage_frac_dependent",
+              "value": 0.9545
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "mean_gene_effect": -1.0045,
+            "median_gene_effect": -0.8699,
+            "min_gene_effect": -2.8035
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Bowel",
+              "metric": "frac_dependent",
+              "value": 0.9545,
+              "n": 22,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Prostate",
+              "metric": "frac_dependent",
+              "value": 0.1111,
+              "n": 9,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": [
+            {
+              "measurement_type": "crispr_lof_dependency",
+              "other_sources": [
+                {
+                  "card": "dependency-lineage-selectivity",
+                  "class": "lineage_selective",
+                  "tier": "absent"
+                },
+                {
+                  "card": "pan-cancer-crispr-dependency-distribution",
+                  "class": "strongly_selective",
+                  "tier": "strong"
+                }
+              ],
+              "this_class": "broad_organoid_dependency",
+              "this_tier": "absent",
+              "conflict": true
+            }
+          ],
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "pan-cancer-crispr-dependency-distribution": {
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "measurement_type": "crispr_lof_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "strongly_selective",
+          "numeric_anchors": [
+            {
+              "metric": "fraction_moderately_dependent",
+              "value": 0.2724
+            },
+            {
+              "metric": "fraction_non_essential",
+              "value": 0.5514
+            },
+            {
+              "metric": "fraction_strongly_dependent",
+              "value": 0.1762
+            },
+            {
+              "metric": "median_chronos_panel",
+              "value": -0.4574
+            }
+          ],
+          "categorical_anchors": [
+            {
+              "field": "dependency_class",
+              "value": "strongly_selective"
+            },
+            {
+              "field": "distribution_shape",
+              "value": "bimodal_selective"
+            },
+            {
+              "field": "dep_control_position_class",
+              "value": "between_controls"
+            }
+          ],
+          "n_basis": {
+            "dep_control_non_essential_floor": -0.038,
+            "dep_control_pan_essential_ceiling": -1.499,
+            "depmap_curated_common_essential": false
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Pancreas",
+              "metric": "median_chronos",
+              "value": -1.8284,
+              "n": 74,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Eye",
+              "metric": "median_chronos",
+              "value": -0.4585,
+              "n": 15,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": [
+            {
+              "measurement_type": "crispr_lof_dependency",
+              "other_sources": [
+                {
+                  "card": "dependency-lineage-selectivity",
+                  "class": "lineage_selective",
+                  "tier": "absent"
+                },
+                {
+                  "card": "organoid-crispr-dependency",
+                  "class": "broad_organoid_dependency",
+                  "tier": "absent"
+                }
+              ],
+              "this_class": "strongly_selective",
+              "this_tier": "strong",
+              "conflict": true
+            }
+          ],
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "pan-cancer-rnai-dependency-distribution": {
+          "card_id": "pan-cancer-rnai-dependency-distribution",
+          "measurement_type": "rnai_lof_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "strongly_selective",
+          "numeric_anchors": [
+            {
+              "metric": "rnai_fraction_moderately_dependent",
+              "value": 0.1412
+            },
+            {
+              "metric": "rnai_fraction_non_dependent",
+              "value": 0.7033
+            },
+            {
+              "metric": "rnai_fraction_strongly_dependent",
+              "value": 0.1555
+            },
+            {
+              "metric": "rnai_median_dep_score",
+              "value": -0.1218
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "rnai_fraction_moderately_dependent": 0.14122681883024252,
+            "rnai_fraction_non_dependent": 0.703281027104137,
+            "rnai_fraction_strongly_dependent": 0.15549215406562053
+          },
+          "_complete": true,
+          "top_k_strata": [
+            {
+              "stratum": "Pancreas",
+              "metric": "median_dep_score",
+              "value": -0.7907,
+              "n": 32,
+              "role": "extreme_strongest"
+            },
+            {
+              "stratum": "Lymphoid",
+              "metric": "median_dep_score",
+              "value": -0.1111,
+              "n": 36,
+              "role": "extreme_weakest"
+            }
+          ],
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "paralog-buffering": {
+          "card_id": "paralog-buffering",
+          "measurement_type": "paralog_buffering",
+          "tier": "target",
+          "evidence_state": "measured",
+          "class": "strong",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_paralogs_annotated": 12,
+            "n_paralogs_functionally_buffering": 12
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": {
+            "n_paralogs_functionally_buffering": 12,
+            "paralog_buffering_class": "strong"
+          },
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "depmap-paralog-buffering-per-gene-v1"
+            },
+            {
+              "key": "_data_source_upstream",
+              "value": "depmap-consortium-26q1-paralogs"
+            }
+          ],
+          "data_quality_flags": null
+        },
+        "partner-conditional-dependency": {
+          "card_id": "partner-conditional-dependency",
+          "measurement_type": "partner_conditional_dependency",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "no_partner_mapped",
+          "numeric_anchors": null,
+          "categorical_anchors": null,
+          "n_basis": null,
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "prism-crispr-concordance": {
+          "card_id": "prism-crispr-concordance",
+          "measurement_type": "chemical_genetic_concordance",
+          "tier": null,
+          "evidence_state": "measured",
+          "class": "triangulated_target_engaged",
+          "numeric_anchors": [
+            {
+              "metric": "best_spearman_r_crispr",
+              "value": 0.3718
+            },
+            {
+              "metric": "best_spearman_r_rnai",
+              "value": 0.4383
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "best_spearman_r_crispr": 0.37176650762557983,
+            "best_spearman_r_rnai": 0.43833592534065247,
+            "n_compounds_evaluated": 21
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null
+        },
+        "recommended-models": {
+          "card_id": "recommended-models",
+          "measurement_type": "patient_model_correspondence",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "well_modeled_in_lineage",
+          "numeric_anchors": [
+            {
+              "metric": "patient_median_log2tpm",
+              "value": 3.9716
+            }
+          ],
+          "categorical_anchors": null,
+          "n_basis": {
+            "n_lineage_models": 131,
+            "n_models_considered": 2446,
+            "n_patient_samples": 669
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": [
+            {
+              "key": "release_pin",
+              "value": "26q1"
+            }
+          ],
+          "data_quality_flags": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "abundance-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "coessential-module",
+          "status": "full"
+        },
+        {
+          "card_id": "crispr-rnai-dependency-concordance",
+          "status": "full"
+        },
+        {
+          "card_id": "cross-consortium-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "dependency-lineage-selectivity",
+          "status": "full"
+        },
+        {
+          "card_id": "dependency-predictability",
+          "status": "full"
+        },
+        {
+          "card_id": "expression-dependency-correlation",
+          "status": "full"
+        },
+        {
+          "card_id": "genomic-event-model-match",
+          "status": "full"
+        },
+        {
+          "card_id": "organoid-crispr-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "pan-cancer-rnai-dependency-distribution",
+          "status": "full"
+        },
+        {
+          "card_id": "paralog-buffering",
+          "status": "full"
+        },
+        {
+          "card_id": "partner-conditional-dependency",
+          "status": "full"
+        },
+        {
+          "card_id": "prism-crispr-concordance",
+          "status": "full"
+        },
+        {
+          "card_id": "recommended-models",
+          "status": "full"
+        }
+      ]
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "Is loss-of-function lethal at all?",
+        "primary": "CRISPR strongly_selective; RNAi strongly_selective",
+        "support": "RNAi strongly_selective \u00b7 concordance moderately_concordant_non_dependent",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "CRISPR\u00d7RNAi + cross-consortium: high"
+        }
+      },
+      {
+        "id": "Q2",
+        "question": "Selective, or pan-essential? (therapeutic window)",
+        "primary": "control position: between_controls \u00b7 selectivity index 0.85",
+        "support": "DepMap 26q1 pan-panel median Chronos vs curated dependency controls (dependency_controls v1.0.0; pan_essential_ceiling=-1.499; non_essential_floor=-0.038). INVERTED: at/below the ceiling = pan-essential tox liability; between = selective dependency window; at/above the floor = non-dependent.",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "selective window"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q3",
+        "question": "Selective to this indication's lineage?",
+        "primary": "Bowel: selective_in_indication (q=3.8e-16)",
+        "support": "26 lineages evaluated (target-grain enrichment)",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q4",
+        "question": "Do CRISPR and RNAi agree?",
+        "primary": "moderately_concordant_non_dependent (75% agree)",
+        "support": "556 lines in both assays",
+        "signal": {
+          "tier": "absent",
+          "fill": 1,
+          "polarity": "opposes",
+          "label": "absent"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q5",
+        "question": "Conditional / synthetic-lethal rescue?",
+        "primary": "no curated partner in partner_map.yaml (a GAP, not evidence against SL)",
+        "support": "paralog buffer: strong (strongest NRAS)",
+        "signal": {
+          "tier": "unmeasured",
+          "fill": 0,
+          "polarity": "none",
+          "label": "unmeasured"
+        },
+        "confidence": {
+          "tier": "unmeasured",
+          "dots": 0,
+          "label": "unmeasured"
+        }
+      },
+      {
+        "id": "Q6",
+        "question": "Is the dependency chemically confirmable?",
+        "primary": "PRISM\u00d7CRISPR: triangulated_target_engaged",
+        "support": "21 PRISM compounds",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "high"
+        }
+      },
+      {
+        "id": "Q7",
+        "question": "How corroborated / predictable is the call?",
+        "primary": "cross-consortium (Broad\u2194Sanger): concordant_dependent",
+        "support": "omics-predictability: own_omics_driven \u00b7 dominant feature: own_mut_hotspot \u00b7 co-essential module: in_coherent_module (top TCF7L2)",
+        "signal": {
+          "tier": "strong",
+          "fill": 5,
+          "polarity": "supports",
+          "label": "strong"
+        },
+        "confidence": {
+          "tier": "high",
+          "dots": 3,
+          "label": "dependency confidence: high"
+        }
+      }
+    ],
+    "headline_block": {
+      "verdict": {
+        "call": "lineage_selective",
+        "phrase": "Lineage-selective dependency",
+        "gate": "dependency",
+        "driving_rule_id": "lineage-selective-supportive",
+        "polarity": "positive"
+      },
+      "confidence": {
+        "level": "strong",
+        "basis": "certainty_model_sidecar",
+        "coverage": {
+          "n_measured": 3,
+          "n_axes": 4,
+          "n_critical_measured": 1
+        }
+      },
+      "top_tension": {
+        "text": "Strong paralog buffering (NRAS) \u2014 the single-gene dependency may be redundancy-masked; combined paralog loss or an upstream pan-family node may be required [paralog-buffering]",
+        "source": "key_signals.caveat",
+        "severity": 1
+      },
+      "headline_text": "Lineage-selective dependency \u2014 strong confidence; tension: Strong paralog buffering (NRAS) \u2014 the single-gene dependency may be redundancy-masked; combined paralog loss or an upstream pan-family node may be required [paralog-buffering].",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "lineage_selective",
+          "phrase": "Lineage-selective dependency",
+          "gate": "dependency",
+          "polarity": "positive"
+        },
+        "confidence": {
+          "level": "strong",
+          "coverage": {
+            "n_measured": 3,
+            "n_axes": 4,
+            "n_critical_measured": 1
+          }
+        },
+        "tension": {
+          "text": "Strong paralog buffering (NRAS) \u2014 the single-gene dependency may be redundancy-masked; combined paralog loss or an upstream pan-family node may be required [paralog-buffering]"
+        },
+        "axes": [
+          {
+            "key": "DEP",
+            "label": "genetic dependency",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "SEL",
+            "label": "context-selectivity",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          },
+          {
+            "key": "COND",
+            "label": "conditional / synthetic-lethal",
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "conflict": false
+          },
+          {
+            "key": "CHEM",
+            "label": "chemical-genetic confirmation",
+            "signal": "strong",
+            "corroboration": "high",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "DEP",
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "fields": [
+            "bimodality_coefficient",
+            "dep_control_position_class",
+            "distribution_shape",
+            "fraction_strongly_dependent",
+            "median_chronos_panel",
+            "n_cell_lines_evaluated",
+            "p5_chronos_panel",
+            "selectivity_index"
+          ]
+        },
+        {
+          "axis": "SEL",
+          "card_id": "dependency-lineage-selectivity",
+          "fields": [
+            "enrichment_class",
+            "lineage_omnibus_effect_size_class",
+            "lineage_omnibus_kruskal_h",
+            "lineage_variance_explained",
+            "n_enriched_lineages",
+            "n_lineages_evaluated"
+          ]
+        },
+        {
+          "axis": "COND",
+          "card_id": "partner-conditional-dependency",
+          "fields": [
+            "partner_stratification_class"
+          ]
+        },
+        {
+          "axis": "CHEM",
+          "card_id": "prism-crispr-concordance",
+          "fields": [
+            "best_spearman_r_crispr",
+            "best_spearman_r_rnai",
+            "crispr_prism_concordance_class",
+            "n_compounds_evaluated",
+            "n_dual_responders"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "driving_rule_id": "lineage-selective-supportive",
+    "dependency_verdict": "lineage_selective",
+    "presence_verdict": null,
+    "verdict": null,
+    "confidence": null,
+    "top_tension": null,
+    "subgroup_signals": {
+      "DEP": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 6,
+        "n_agree": 5,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "pan-cancer-crispr-dependency-distribution",
+            "tier": "strong",
+            "n": 1538,
+            "label": "dependency",
+            "conflict": false,
+            "value": "strongly_selective"
+          },
+          {
+            "card": "pan-cancer-rnai-dependency-distribution",
+            "tier": "strong",
+            "n": 701,
+            "label": "rnai dependency",
+            "conflict": false,
+            "value": "strongly_selective"
+          },
+          {
+            "card": "crispr-rnai-dependency-concordance",
+            "tier": "weak",
+            "n": 133,
+            "label": "concordance",
+            "conflict": false,
+            "value": "moderately_concordant_non_dependent"
+          },
+          {
+            "card": "dependency-lineage-selectivity",
+            "tier": "strong",
+            "n": 1538,
+            "label": "enrichment",
+            "conflict": false,
+            "value": "lineage_selective"
+          },
+          {
+            "card": "cross-consortium-dependency",
+            "tier": "strong",
+            "n": 1538,
+            "label": "cross consortium",
+            "conflict": false,
+            "value": "concordant_dependent"
+          },
+          {
+            "card": "organoid-crispr-dependency",
+            "tier": "strong",
+            "n": 114,
+            "label": "organoid dependency",
+            "conflict": false,
+            "value": "broad_organoid_dependency"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "DEP",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "CRISPR strongly_selective; RNAi strongly_selective",
+            "evidence_atom": {
+              "read": "strongly_selective",
+              "values": {
+                "bimodality_coefficient": 0.7018767725114089,
+                "distribution_shape": "bimodal_selective",
+                "fraction_strongly_dependent": 0.17620286085825748,
+                "median_chronos_panel": -0.45738519728183746,
+                "p5_chronos_panel": -2.1052489161491392,
+                "n_cell_lines_evaluated": 1538,
+                "selectivity_index": 0.8547269867208117,
+                "dep_control_position_class": "between_controls"
+              },
+              "cite": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "fields": [
+                  "bimodality_coefficient",
+                  "dep_control_position_class",
+                  "distribution_shape",
+                  "fraction_strongly_dependent",
+                  "median_chronos_panel",
+                  "n_cell_lines_evaluated",
+                  "p5_chronos_panel",
+                  "selectivity_index"
+                ]
+              },
+              "entity": {
+                "measurement_type": "crispr_lof_dependency",
+                "sample_context": "cell_line",
+                "stratum": "pan_cancer"
+              }
+            }
+          }
+        ]
+      },
+      "COND": {
+        "signal": "unmeasured",
+        "confidence": "low",
+        "n_sources": 1,
+        "n_agree": 0,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "partner-conditional-dependency",
+            "tier": "absent",
+            "n": null,
+            "label": "partner stratification",
+            "conflict": false,
+            "value": "no_partner_mapped"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "COND",
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "no curated partner in partner_map.yaml (a GAP, not evidence against SL)",
+            "evidence_atom": {
+              "read": "no_partner_mapped",
+              "values": {
+                "partner_stratification_class": "no_partner_mapped"
+              },
+              "cite": {
+                "card_id": "partner-conditional-dependency",
+                "fields": [
+                  "partner_stratification_class"
+                ]
+              },
+              "entity": {
+                "sample_context": "cell_line",
+                "stratum": "partner_deficient"
+              }
+            }
+          }
+        ]
+      },
+      "CHEM": {
+        "signal": "strong",
+        "confidence": "moderate",
+        "n_sources": 1,
+        "n_agree": 1,
+        "power": "moderate",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "prism-crispr-concordance",
+            "tier": "strong",
+            "n": 21,
+            "label": "crispr prism concordance",
+            "conflict": false,
+            "value": "triangulated_target_engaged"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "CHEM",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "PRISM\u00d7CRISPR: triangulated_target_engaged",
+            "evidence_atom": {
+              "read": "triangulated_target_engaged",
+              "values": {
+                "crispr_prism_concordance_class": "triangulated_target_engaged",
+                "n_compounds_evaluated": 21,
+                "n_dual_responders": 20,
+                "best_spearman_r_crispr": 0.37176650762557983,
+                "best_spearman_r_rnai": 0.43833592534065247
+              },
+              "cite": {
+                "card_id": "prism-crispr-concordance",
+                "fields": [
+                  "best_spearman_r_crispr",
+                  "best_spearman_r_rnai",
+                  "crispr_prism_concordance_class",
+                  "n_compounds_evaluated",
+                  "n_dual_responders"
+                ]
+              },
+              "entity": {
+                "sample_context": "cell_line",
+                "stratum": "pan_cancer"
+              }
+            }
+          }
+        ]
+      },
+      "SEL": {
+        "signal": "strong",
+        "confidence": "low",
+        "n_sources": 4,
+        "n_agree": 1,
+        "power": "high",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "expression-dependency-correlation",
+            "tier": "weak",
+            "n": 1465,
+            "label": "correlation",
+            "conflict": false,
+            "value": "weak_negative"
+          },
+          {
+            "card": "abundance-dependency",
+            "tier": "weak",
+            "n": 117,
+            "label": "abundance dependency",
+            "conflict": false,
+            "value": "weak_protein_dependency_link"
+          },
+          {
+            "card": "recommended-models",
+            "tier": "strong",
+            "n": 669,
+            "label": "correspondence",
+            "conflict": false,
+            "value": "well_modeled_in_lineage"
+          },
+          {
+            "card": "genomic-event-model-match",
+            "tier": "absent",
+            "n": 631,
+            "label": "patient functional state",
+            "conflict": false,
+            "value": "sporadic_biallelic_inactivation"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "SEL",
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "lineage enrichment: lineage_selective (target-grain \u2014 selective to SOME lineage, not necessarily the queried indication)",
+            "evidence_atom": {
+              "read": "lineage_selective",
+              "values": {
+                "enrichment_class": "lineage_selective",
+                "lineage_variance_explained": 0.18578744921163515,
+                "lineage_omnibus_kruskal_h": 304.6101110635109,
+                "lineage_omnibus_effect_size_class": "large",
+                "n_enriched_lineages": 3,
+                "n_lineages_evaluated": 26
+              },
+              "cite": {
+                "card_id": "dependency-lineage-selectivity",
+                "fields": [
+                  "enrichment_class",
+                  "lineage_omnibus_effect_size_class",
+                  "lineage_omnibus_kruskal_h",
+                  "lineage_variance_explained",
+                  "n_enriched_lineages",
+                  "n_lineages_evaluated"
+                ]
+              },
+              "entity": {
+                "measurement_type": "crispr_lof_dependency",
+                "sample_context": "cell_line",
+                "grain": "target_lineage"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
