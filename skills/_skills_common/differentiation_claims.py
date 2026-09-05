@@ -14,7 +14,8 @@ descriptive; this never feeds a resolver).
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, corr as _corr
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              corr as _corr, signal_from_class as _sig)
 
 # co-occurrence: a significant pattern (either direction) is a signal; direction carried in the atom.
 _COMUT_SIGNAL = {"strong_cooccurring": "strong", "strong_mutually_exclusive": "strong",
@@ -36,13 +37,6 @@ _INFORMS = {
     "PROGNOSIS": "PRECOG meta prognostic — cross-cohort prognostic corroboration",
     "NODE": "pathway-node leverage — is the target a dominant network node vs a dominated one",
 }
-
-
-def _sig(card, field, smap):
-    def fn(h, c):
-        cls = (c.get(card) or {}).get(field)
-        return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
-    return fn
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)

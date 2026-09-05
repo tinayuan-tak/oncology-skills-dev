@@ -21,7 +21,8 @@ resolver and stays byte-stable with or without this projection.
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, corr as _corr
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              corr as _corr, signal_from_class as _sig)
 
 # ── enum → substrate-strength tier maps (grounded in the target-contracts summary vocabularies) ──────
 _FIT_SIGNAL = {
@@ -54,13 +55,6 @@ _INFORMS = {
     "SAFETY": "normal-tissue window — restricted normal expression is favourable; broad is a LIABILITY",
     "SHED": "ectodomain shedding — membrane-retained is favourable; clinically-shed is a LIABILITY (sink / decoy)",
 }
-
-
-def _sig(card, field, smap):
-    def fn(h, c):
-        cls = (c.get(card) or {}).get(field)
-        return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
-    return fn
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)

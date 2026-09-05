@@ -24,7 +24,8 @@ Verdict-INERT: reads the already-computed _headline (+ source cards) and never f
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              corr as _plain_corr)
 
 _CIS_DOSAGE_SIGNAL = {
     "cn_dosage_coupled_strong": "strong", "cn_dosage_coupled_moderate": "moderate",
@@ -76,12 +77,6 @@ def _sig(card, field, smap, neg_conflict=None):
         tier = smap.get(cls, "unmeasured")
         conflict = neg_conflict if (tier == "negative" and neg_conflict) else None
         return tier, f"{card}: {cls or 'data_unavailable'}", conflict
-    return fn
-
-
-def _plain_corr(card, field, smap):
-    def fn(h, c):
-        return "moderate" if smap.get((c.get(card) or {}).get(field), "unmeasured") != "unmeasured" else "unmeasured"
     return fn
 
 

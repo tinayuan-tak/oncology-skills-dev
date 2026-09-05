@@ -22,7 +22,8 @@ has_pd_marker); this projection reads the already-computed cards and never feeds
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, corr as _corr
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              corr as _corr, signal_from_class as _sig)
 
 # network_class = ANNOTATION DENSITY, not biological strength → CAPPED at moderate (never strong).
 _NETWORK_SIGNAL = {
@@ -67,13 +68,6 @@ _E_PHOS = {"measurement_type": "phospho_pathway_activity", "grain": "target_indi
 _E_PATH = {"measurement_type": "pathway_activity_context", "grain": "target_indication"}
 _E_TAHOE = {"measurement_type": "tahoe_drug_perturbation", "grain": "target"}
 _E_PRED = {"measurement_type": "dependency_predictability", "grain": "target"}
-
-
-def _sig(card, field, smap):
-    def fn(h, c):
-        cls = (c.get(card) or {}).get(field)
-        return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
-    return fn
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)

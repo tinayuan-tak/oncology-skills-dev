@@ -15,7 +15,8 @@ Verdict-INERT: never feeds the druggability resolver; frozen by the skill's repl
 """
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals
+from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              corr as _corr_present, signal_from_class as _sig)
 
 _POTENCY_SIGNAL = {"potent_measured_ligand": "strong", "weak_measured_ligand": "moderate",
                    "no_measured_activity": "absent", "data_unavailable": "unmeasured"}
@@ -39,19 +40,6 @@ _INFORMS = {
     "DRUG": "known-drug pharmacology — approved-drug / druggable-genome tractability",
     "DEGRADER": "degrader feasibility — E3-substrate evidence + degrader precedent (PROTAC lens)",
 }
-
-
-def _sig(card, field, smap):
-    def fn(h, c):
-        cls = (c.get(card) or {}).get(field)
-        return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
-    return fn
-
-
-def _corr_present(card, field, smap):
-    def fn(h, c):
-        return "moderate" if smap.get((c.get(card) or {}).get(field), "unmeasured") != "unmeasured" else "unmeasured"
-    return fn
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)

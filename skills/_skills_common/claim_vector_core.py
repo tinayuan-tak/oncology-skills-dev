@@ -89,6 +89,16 @@ def corr(card, field, smap):
     return fn
 
 
+def signal_from_class(card, field, smap):
+    """Single-source signal factory (the most-copied claims-module leaf helper): returns a
+    signal_fn(headline, cards_by_id) that reads `field` off `card`'s summary, maps the class through
+    `smap` (default 'unmeasured'), and yields (tier, "<card>: <class-or-data_unavailable>", None)."""
+    def fn(h, c):
+        cls = (c.get(card) or {}).get(field)
+        return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
+    return fn
+
+
 # ── the shared evidence-atom builder ───────────────────────────────────────────────────────────────
 def build_atom(*, card_id, values, read, entity, exclude_fields=()):
     """The SINGLE canonical CITABLE evidence atom — one shared shape for every axis's atom_fn,
