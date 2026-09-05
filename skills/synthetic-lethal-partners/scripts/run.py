@@ -26,6 +26,8 @@ from _skills_common import get_card_field
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.sl_question_table import sl_question_table
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import SYNTHETIC_LETHAL_PARTNERS as _LENS
 from _skills_common.literature_synthesis import make_literature_fn
@@ -218,6 +220,50 @@ def _sl_partner_provenance(hl: dict, target=None, indication=None) -> dict | Non
     }
 
 
+# ── Canonical HEADLINE block (verdict + confidence + top-tension) for the DESCRIPTIVE spine ──────────
+# synthetic-lethal-partners has no claim_vector machinery (single-card veto-suppressor), so it declares
+# a thin HeadlineSpec + a verdict→phrase/certainty map: the phrase is the verdict label, and confidence
+# rides the CERTAINTY sidecar (derive_confidence honours it) so the block carries a MEANINGFUL confidence
+# rather than the coverage-based "insufficient" a null claim_vector would yield. VERDICT-INERT projection.
+_SL_HEADLINE_SPEC = HeadlineSpec(
+    gate="synthetic_lethal_partners",
+    axis_labels={"PARTNER": "curated SL partner", "SUPPORT": "experimental support"},
+    axis_keys=("PARTNER", "SUPPORT"),
+    critical_axes=("PARTNER",),
+    verdict_label=lambda v: {
+        "has_experimental_sl_partner": "Experimentally-supported curated SL partner",
+        "has_computational_sl_partner": "Computational-only curated SL partner",
+        "no_curated_sl_partner": "No curated SL partner",
+        "insufficient": "Insufficient evidence for an SL-partner call",
+        "data_unavailable": "SL-partner data unavailable",
+    }.get(v, str(v).replace("_", " ").strip().capitalize()),
+)
+# Weakest-link certainty by verdict (experimental curation > computational; a curated corpus queried with
+# no hit is a real-but-weak negative; the collapsed calls are honestly insufficient).
+_SL_CERTAINTY_BY_VERDICT = {
+    "has_experimental_sl_partner": "moderate",
+    "has_computational_sl_partner": "weak",
+    "no_curated_sl_partner": "weak",
+    "insufficient": "insufficient",
+    "data_unavailable": "insufficient",
+}
+
+
+def _build_headline_block(hl: dict) -> dict:
+    """Descriptive headline (verdict + certainty-sidecar confidence + top-tension). The sl_partner
+    confidence caveat, when present, is the top tension. Never moves the resolver verdict."""
+    v = hl.get("sl_partner_verdict")
+    caveat = hl.get("sl_partner_confidence_caveat")
+    hb = build_headline(
+        hl, hl.get("claim_vector"), hl.get("key_signals"),
+        spec=_SL_HEADLINE_SPEC, verdict_token=v,
+        certainty={"level": _SL_CERTAINTY_BY_VERDICT.get(v, "insufficient")},
+    )
+    if isinstance(caveat, dict) and caveat.get("detail") and not hb.get("top_tension"):
+        hb["top_tension"] = {"text": caveat["detail"], "source": "sl_partner_confidence_caveat"}
+    return hb
+
+
 def _headline(cards, fired, verdict_pair, target=None, indication=None):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
@@ -251,6 +297,31 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         hl["question_table"] = None
+    # Canonical headline block (verdict + confidence + top tension) — the descriptive projection the
+    # unified spine reads honest_phrase + confidence off. Best-effort + verdict-INERT.
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
+    # Unified skill_report envelope (data-product lock): verdict-INERT normalizer — role DESCRIPTIVE
+    # (gateless veto-suppressor; ∉ target-profile _SHORT_TO_GATE → polarity not_scored), call = the
+    # sl_partner_verdict. Best-effort: a fault degrades (never aborts the veto-suppressor spine).
+    try:
+        _used = [c["card_id"] for c in (cards or []) if not c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=hl.get("sl_partner_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=[c["card_id"] for c in (cards or []) if c.get("_missing")],
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert normalizer; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 
