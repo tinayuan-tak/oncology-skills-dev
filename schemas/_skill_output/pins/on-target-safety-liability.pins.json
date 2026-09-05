@@ -1,0 +1,48 @@
+{
+  "$comment": "PER-SKILL PINS (source) for on-target-safety-liability. VARIANT = gating-scalar: role:gating + the scalar safety_verdict/call enum (the HONEST raw WT-loss concern), no polarity const (dynamic; safety concerns are nomination HOLDs, not a cross-target killer veto). The modality-conditional GoF layer is safety_verdict_by_modality (per-channel small_molecule/degrader/ADC/TCE) — typed-open. Enum = resolvers/safety.resolver.yaml (matches _SAFETY_VERDICT_PHRASE; no run.py mints; the mutant-selective downgrade token was retired 2026-08-24). Append-only within contract major version.",
+  "skill": "on-target-safety-liability",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "safety_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "highly_constrained_safety_concern",
+        "human_genetics_safety_concern",
+        "pan_essential_broad_tox_concern",
+        "normal_tissue_protein_safety_concern",
+        "moderately_constrained_safety",
+        "tolerant_reduced_safety_risk",
+        "data_unavailable",
+        "insufficient"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "on-target-safety-liability"},
+      "headline": {
+        "type": "object",
+        "required": ["safety_verdict"],
+        "properties": {
+          "safety_verdict": {"$ref": "#/$defs/safety_verdict_enum"},
+          "safety_verdict_by_modality": {
+            "description": "The modality-conditional (small_molecule/degrader/ADC/TCE) safety layer — where an allele-selective agent may spare the WT gene. Typed-open per-channel map.",
+            "type": ["object", "null"]
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/safety_verdict_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
