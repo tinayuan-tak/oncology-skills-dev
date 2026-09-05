@@ -186,6 +186,9 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .chainline .lab { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.04em; margin-right:2px; }
 .chainline .mono, .mono { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; }
 .chainline .sep { color:var(--muted); margin:0 4px; }
+.cdesc { font-size:11.5px; color:var(--muted); line-height:1.5; margin:1px 0 3px; }
+.cread { font-size:12px; color:var(--ink2); margin:2px 0 4px; } .cread b { font-weight:640; }
+.chainline.keyev .lab { background:var(--page); }
 .pill-drv { background:var(--t-good,rgba(12,163,12,.12)); color:var(--supportive); border:1px solid var(--border);
             border-radius:4px; padding:0 5px; font-size:9.5px; font-weight:700; }
 .pill-none { color:var(--muted); font-size:11px; font-style:italic; }
@@ -881,13 +884,19 @@ class HtmlBackend:
                 ke = c.get("key_evidence_summary")
                 ke_line = (f"<div class='chainline keyev'><span class='lab'>key</span> "
                            f"<span class='mono'>{_esc(ke)}</span></div>") if ke else ""
+                # class-led plain-language order: description → Reads: <class> → key gauge → chain drill
+                desc = c.get("description")
+                desc_line = f"<div class='cdesc'>{_esc(desc)}</div>" if desc else ""
+                reads = c.get("reads")
+                reads_line = (f"<div class='cread'>Reads: <b class='{gcls}'>{_esc(reads)}</b></div>"
+                              if reads else "")
                 rows.append(
                     f"<div class='cardln'><div class='chead'><span><b>{_esc(c.get('id'))}</b></span>"
-                    f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span> "
-                    f"{_esc(c.get('class_value'))}{nfrag}</span></div>"
+                    f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
+                    f"{desc_line}{reads_line}{ke_line}"
                     f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
                     f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
-                    f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div>{ke_line}</div>")
+                    f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>")
             out.append(f"<details class='pklayer'><summary><span>{_esc(lyr.get('layer'))}</span>"
                        f"<span class='ccinline'>{len(cards)} card(s)</span></summary>"
                        f"<div class='lbody'>{''.join(rows)}</div></details>")

@@ -482,7 +482,8 @@ class TextBackend:
         for lyr in layers:
             for c in (lyr.get("cards") or []):
                 rule = ("→ " + c.get("rule_id")) if c.get("rule_id") else "display-only"
-                rows.append([lyr.get("layer"), c.get("id"), c.get("class_value"), rule,
+                # class-led plain reading: humanized class ("Reads:") + glossed key-evidence
+                rows.append([lyr.get("layer"), c.get("id"), c.get("reads") or c.get("class_value"), rule,
                              c.get("key_evidence_summary") or ""])
         return self._h2("Cards — dataset → data → rule → verdict") + self._table(
             ["layer", "card", "class", "rule", "key evidence"], rows)

@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from . import vocab
+from .. import display_gloss as _dg  # plain-language readings (metric gloss + direction + card description)
 from .spec import ReportSpec, SCOPE_ALL, SCOPE_GATING
 
 
@@ -1088,18 +1089,20 @@ def _format_key_evidence(ke: Optional[dict]) -> Optional[str]:
     ind = next((s for s in strata if s.get("role") == "indication"), None)
     lead = ind or next((s for s in strata if s.get("role") == "strongest"), None)
     eff = ke.get("effect") or {}
+    direction = eff.get("direction")
     if lead:
-        seg = f"{lead.get('label')} {eff.get('metric') or 'effect'}={_fmt_num(lead.get('value'))}"
+        # the stratum row carries its own value; gloss the effect metric + direction (plain reading)
+        seg = f"{lead.get('label')}: {_dg.metric_reading(eff.get('metric') or 'effect', lead.get('value'), direction)}"
         if lead.get("q") is not None:
-            seg += f" (q={_fmt_num(lead.get('q'))})"
+            seg += f", q={_fmt_num(lead.get('q'))}"
         if lead.get("n") is not None:
             seg += f", n={lead.get('n')}"
         parts.append(seg)
     elif eff.get("value") is not None:
-        seg = f"{eff.get('metric')}={_fmt_num(eff.get('value'))}"
+        seg = _dg.metric_reading(eff.get("metric") or "effect", eff.get("value"), direction)
         sig = ke.get("significance") or {}
         if sig.get("value") is not None:
-            seg += f" ({sig.get('stat')}={_fmt_num(sig.get('value'))})"
+            seg += f", {_dg.gloss(sig.get('stat'))[0] or sig.get('stat')}={_fmt_num(sig.get('value'))}"
         parts.append(seg)
     strong = next((s for s in strata if s.get("role") == "strongest"), None)
     if ind and strong and strong is not lead:
@@ -1107,10 +1110,10 @@ def _format_key_evidence(ke: Optional[dict]) -> Optional[str]:
                      + (f" (q={_fmt_num(strong.get('q'))})" if strong.get("q") is not None else ""))
     omni = ke.get("omnibus") or {}
     if omni.get("value") is not None:
-        parts.append(f"omnibus {omni.get('stat')}={_fmt_num(omni.get('value'))}")
+        parts.append(f"{_dg.gloss(omni.get('stat'))[0] or omni.get('stat')}={_fmt_num(omni.get('value'))}")
     for cat in (ke.get("categorical") or [])[:2]:
         if cat.get("value") is not None:
-            parts.append(str(cat.get("value")))
+            parts.append(_dg.humanize(cat.get("value")))
     sub = ke.get("subtype_axis") or {}
     if sub.get("restriction_class"):
         seg = f"subtype: {sub.get('restriction_class')}"
@@ -1127,6 +1130,9 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
     cards = eg.get("cards") or []
     if not cards:
         return None
+    # target/indication for the plain-language card description (question: with {target.symbol}/
+    # {indication.label} filled). The join lives HERE (report_render), never the pure graph builder.
+    target, indication = eg.get("target"), eg.get("indication")
     layers: dict = {}
     order: list = []
     for c in cards:
@@ -1137,9 +1143,12 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
         sig = c.get("signal") or {}
         chain = c.get("chain") or {}
         ke = c.get("key_evidence")
+        class_value = (c.get("class") or {}).get("value")
         layers[mt].append({
             "id": c.get("id"), "polarity": sig.get("polarity"), "liability": bool(sig.get("liability")),
-            "role": c.get("role"), "class_value": (c.get("class") or {}).get("value"),
+            "role": c.get("role"), "class_value": class_value,
+            "description": _dg.card_description(c.get("id"), target, indication),  # plain "what is this card"
+            "reads": _dg.humanize(class_value) or None,                            # class-led "Reads: <class>"
             "n": (c.get("confidence") or {}).get("n"), "dots": (c.get("confidence") or {}).get("dots"),
             "dataset_ids": chain.get("dataset_ids") or [], "data": chain.get("data") or [],
             "rule_id": chain.get("rule_id"), "is_driving": bool(chain.get("is_driving")),
