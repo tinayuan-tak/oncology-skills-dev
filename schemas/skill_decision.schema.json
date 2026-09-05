@@ -95,13 +95,13 @@
           "type": "object",
           "additionalProperties": {
             "type": "object",
-            "required": ["used", "is_stale"],
+            "required": ["used"],
             "additionalProperties": true,
             "properties": {
               "used": {"type": "array", "items": {"type": "string"}},
               "head": {"type": ["string", "null"]},
               "is_stale": {
-                "description": "Wiring staleness audit. Required (mandatory audit field); null/stale_indeterminate is permitted for logical product-id families.",
+                "description": "Wiring staleness audit (optional — resolved_release_governance omits it for families whose catalog head is indeterminate, e.g. some source-releases); null/stale_indeterminate permitted for logical product-id families. When present, downstream freshness checks read it.",
                 "type": ["boolean", "null"]
               }
             }
