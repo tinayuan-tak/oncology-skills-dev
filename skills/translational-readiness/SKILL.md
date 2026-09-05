@@ -21,7 +21,7 @@ description: |
   remain un-wired (those catalogs are not in data-catalog).
 
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

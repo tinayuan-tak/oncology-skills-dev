@@ -611,8 +611,56 @@ TARGET_INTRINSIC = LensConfig(
     mode="descriptive",
 )
 
-# Registry for the dispatcher / fan-out lookup by skill name — ALL 13 hierarchy skills.
+TRANSLATIONAL_READINESS = LensConfig(
+    name="translational-readiness",
+    thesis="how translationally READY the target is — whether PUBLIC patient-derived models can preclinically "
+           "validate it: are HCMI patient-derived models AVAILABLE in the indication, does an available model "
+           "carry THIS target's ALTERATION (genotype-matched), does the dependency reproduce EX-VIVO in "
+           "patient-derived 3D CRISPR ORGANOIDS, and does tractability reproduce IN-VIVO in Novartis PDXE PDX "
+           "population drug-response trials — distinguishing a FAITHFUL, on-target, adequately-powered "
+           "preclinical-validation precedent (a canonical faithfulness-validated PDX/organoid model — ERBB2/HER2 "
+           "PDX, EGFR-mutant, BRAF) from a merely AVAILABLE / genotype-matched / small-cohort or "
+           "attribution-confounded PDX-responder read that OVER-CALLS actual translational validatability.",
+    relevance_prompt="give the translational-readiness context read (descriptive preclinical-validatability "
+                     "dossier; no nomination call). Foreground whether the readiness rests on a FAITHFUL, "
+                     "on-target, adequately-powered model precedent vs an availability-only / genotype-only / "
+                     "small-cohort / attribution-confounded over-call.",
+    axis_labels={"MODEL": "patient-derived model availability", "GENOTYPE": "genotype-matched model",
+                 "ORGANOID": "organoid ex-vivo dependency", "PDX": "PDX in-vivo drug response"},
+    scope_exclusions=("single-target nomination verdict",
+                      "the dependency MAGNITUDE / in-vitro cell-line dependency (owned by functional-requirement)",
+                      "the small-molecule chemical-genetic tractability call (owned by tractability-small-molecule)"),
+    # NARRATOR RULE: this is a DESCRIPTIVE preclinical-validatability dossier (gateless — no nomination call).
+    # LEAD by separating a FAITHFUL, on-target, adequately-powered model precedent from an availability-only /
+    # genotype-only / small-cohort / attribution-confounded over-call, then name the five inflation modes, with
+    # the dependency-magnitude + tractability hand-offs as breadcrumbs + the public-only/status:partial coverage note.
+    polarity_note=(
+        "This is a DESCRIPTIVE preclinical-validatability dossier — there is NO nomination verdict; do NOT imply "
+        "model availability nominates the target. LEAD by stating whether the readiness rests on a FAITHFUL, "
+        "on-target, adequately-powered preclinical-validation precedent (read translational_readiness_confidence_"
+        "caveat / translational_readiness_provenance: a validated_preclinical_model — a canonical faithfulness-"
+        "validated PDX/organoid precedent such as ERBB2/HER2 PDX, EGFR-mutant, BRAF — is NOT an over-call and must "
+        "not be demoted) or on a merely AVAILABILITY-ONLY / genotype-only / small-cohort / attribution-confounded "
+        "read. Then name the five inflation modes model availability cannot self-distinguish: (a) MODEL AVAILABILITY "
+        "≠ MODEL FIDELITY — an HCMI model EXISTING does not mean it faithfully recapitulates the target biology "
+        "(passage/CNA drift, clonal selection, loss of tumor heterogeneity, TME/immune absence in organoids); (b) "
+        "GENOTYPE-MATCHED ≠ TARGET-DEPENDENT — a model carrying the alteration is not proof the target is a "
+        "validatable dependency in it (co-occurring drivers; the alteration may be a passenger); (c) SMALL-COHORT "
+        "PDX/ORGANOID — a PDXE responder fraction or an organoid dependency read on a tiny cohort is underpowered "
+        "(lean on organoid_lineage_small_cohort); (d) PDX DRUG-RESPONSE ATTRIBUTION — a PDXE objective response to "
+        "a drug 'naming' the target can be OFF-TARGET or COMBINATION-confounded (response ≠ on-target-for-THIS-"
+        "target); (e) PUBLIC-ONLY / status:partial — the dossier is PUBLIC-model-only and the PD-assay, imaging-"
+        "tracer, and INTERNAL Takeda PDX/organoid/GEMM legs are un-wired, so a 'ready' read on 4 public legs is a "
+        "COVERAGE-bounded readiness, not a complete one (coverage_generalization_caveat). The single-target "
+        "dependency MAGNITUDE is owned by functional-requirement and the small-molecule tractability call by "
+        "tractability-small-molecule — breadcrumb, do not adjudicate them here. NEVER invent model IDs, responder "
+        "fractions, PMIDs, or NCTs."),
+    mode="descriptive",
+)
+
+# Registry for the dispatcher / fan-out lookup by skill name — ALL 14 hierarchy skills.
 LENSES = {L.name: L for L in (
     FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_PRESENCE, TUMOR_SELECTIVITY, GENOMIC_ALTERATION,
     SURFACE_MODALITY_FIT, TRACTABILITY_SM, IMMUNE_CONTEXT, DIFFERENTIATION_LANDSCAPE,
-    MECHANISM_PHARMACOLOGY, CIS_FEATURE_COHERENCE, COMBINATION_VULNERABILITY, TARGET_INTRINSIC)}
+    MECHANISM_PHARMACOLOGY, CIS_FEATURE_COHERENCE, COMBINATION_VULNERABILITY, TARGET_INTRINSIC,
+    TRANSLATIONAL_READINESS)}

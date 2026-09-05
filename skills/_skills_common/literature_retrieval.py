@@ -109,7 +109,17 @@ _LENS_QUERY_TERMS = {
                                       "paralog buffering", "DepMap co-dependency screen",
                                       "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
                                       "context dependence reproducibility"],
-    "translational-readiness":    ["patient-derived organoid", "patient-derived xenograft"],
+    # Front-loaded so the highest-value FIDELITY/ATTRIBUTION discriminators lead: a model-availability /
+    # genotype-matched / PDX-responder read OVER-CALLS faithful, on-target, adequately-powered preclinical
+    # validatability. The base gene∧disease query supplies model recall; the precision query needs the
+    # PDX/organoid FIDELITY + DRIFT + PDXE-attribution + co-clinical + cancer-model-fidelity discriminators
+    # that separate a validated preclinical model precedent from an availability-only / small-cohort /
+    # off-target-PDX over-call. The lens declares FOUR axis_labels (MODEL/GENOTYPE/ORGANOID/PDX), which alone
+    # would leave only ~1 curated term under the default 5-cap — so it gets a per-lens cap bump (below).
+    "translational-readiness":    ["patient-derived xenograft fidelity", "tumor organoid model",
+                                   "PDX drug response", "preclinical model genomic fidelity",
+                                   "patient-derived model drift", "co-clinical trial",
+                                   "cancer model fidelity"],
     # target-intrinsic is the indication-INDEPENDENT dossier; the trap is a PREDICTION / HOMOLOGY
     # annotation OVER-CALLING an experimentally-confirmed actionable intrinsic property (an AlphaFold /
     # computational druggable pocket over-calling a co-crystal-confirmed pocket; a family/surfaceome-class
@@ -153,7 +163,12 @@ def _indication_phrase(indication: Optional[str]) -> str:
 # (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT), so a cap of 5 admits only ONE curated term; 9 lets the first ~5
 # discriminators (amplicon driver-vs-passenger / focal amplification / CpG island methylator phenotype /
 # oncogene addiction dosage / protein abundance copy number) through.
-_LENS_MAX_TERMS = {"combination-and-vulnerability": 9, "cis-feature-coherence": 9}
+_LENS_MAX_TERMS = {"combination-and-vulnerability": 9, "cis-feature-coherence": 9,
+                   # translational-readiness declares FOUR axis_labels (MODEL/GENOTYPE/ORGANOID/PDX), so the
+                   # default 5-cap admits only ONE curated term; 8 lets the first ~4 discriminators (PDX
+                   # fidelity / tumor organoid model / PDX drug response / preclinical model genomic fidelity)
+                   # through alongside the axis labels. Surgical: every other lens keeps the default cap.
+                   "translational-readiness": 8}
 
 
 def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:
