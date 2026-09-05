@@ -23,7 +23,8 @@ SKILLS_DIR = Path(__file__).resolve().parents[1]
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402
+from _skills_common.evidence_graph import (  # noqa: E402
+    build_evidence_graph, load_questions, assert_evidence_graph_valid)
 
 _SKILLS = sorted(
     p.parents[1].name  # …/skills/<skill>/tests/test_evidence_graph.py → <skill>
@@ -47,28 +48,16 @@ def test_at_least_the_known_skills_are_discovered():
 
 @pytest.mark.parametrize("skill", _SKILLS)
 def test_referential_integrity(skill):
+    """Schema + cross-array referential integrity via the single shared assert_evidence_graph_valid helper
+    (schema check self-gates on the Stage-1 contracts schema; referential integrity always enforced).
+    The axis_id membership check below is graph-local (not expressed in the contracts schema)."""
     d, q = _load(skill)
     g = build_evidence_graph(d, questions=q)
-    q_ids = {x["id"] for x in g["questions"]}
-    c_ids = {x["id"] for x in g["cards"]}
-    r_ids = {x["id"] for x in g["rules"]}
-    d_ids = {x["id"] for x in g["datasets"]}
+    assert_evidence_graph_valid(g)
     axis_ids = {x["axis_id"] for x in g["questions"] if x.get("axis_id")}
-    for qq in g["questions"]:
-        assert set(qq["card_ids"]) <= c_ids, (skill, qq["id"])
-        assert set(qq["rule_ids"]) <= r_ids, (skill, qq["id"])
-        for er in qq["evidence_refs"]:
-            assert er["card_id"] in c_ids, (skill, qq["id"])
     for c in g["cards"]:
-        assert set(c["question_ids"]) <= q_ids, (skill, c["id"])
-        assert set(c["rule_ids"]) <= r_ids, (skill, c["id"])
-        assert set(c["dataset_ids"]) <= d_ids, (skill, c["id"])
-        if c["chain"]["rule_id"] is not None:
-            assert c["chain"]["rule_id"] in r_ids, (skill, c["id"])
         if c.get("axis_id"):
             assert c["axis_id"] in axis_ids, (skill, c["id"])
-    for r in g["rules"]:
-        assert r["card_id"] in c_ids, (skill, r["id"])
 
 
 @pytest.mark.parametrize("skill", _SKILLS)

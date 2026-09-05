@@ -22,7 +22,7 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from _skills_common import resolve_cards, fired_rules
-from _skills_common.evidence_graph import build_evidence_graph, load_questions
+from _skills_common.evidence_graph import build_evidence_graph, load_questions, attach_evidence_graph
 from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.compose_core import subskill_composition
 from _skills_common.card_preprocessors import preprocess_cards_for_gate
@@ -1177,8 +1177,13 @@ def _run_sub_skills(target: str, indication: str,
                 # llm_synthesis by --synthesize-subskills (else None → narrative={}).
                 _eg_decision["literature_synthesis"] = synthesis_facet.get("literature_synthesis")
                 _eg_decision["llm_synthesis"] = llm_synthesis
-                synthesis_facet["skill_report"]["evidence_graph"] = build_evidence_graph(
-                    _eg_decision, questions=load_questions(SKILLS_DIR / skill_dir))
+                # Call the SHARED seam (identical to the dispatcher + genomic main): builds the graph incl.
+                # per-card key_evidence + self-checks referential integrity onto the reconstructed headline,
+                # then stash it on the skill_report for the embedded lens view.
+                attach_evidence_graph(_eg_decision, SKILLS_DIR / skill_dir)
+                _eg_graph = (_eg_decision.get("headline") or {}).get("evidence_graph")
+                if _eg_graph is not None:
+                    synthesis_facet["skill_report"]["evidence_graph"] = _eg_graph
             except Exception:  # noqa: BLE001 — a display projection must never break the fan-out
                 pass
         return short, {

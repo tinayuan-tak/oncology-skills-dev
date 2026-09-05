@@ -904,13 +904,12 @@ def run_wired_skill(
     # is the ONLY new key. ADDITIVE + byte-stable + verdict-INERT + best-effort — one edit wires the
     # whole fleet; a skill without a questions.yaml still gets a referentially-intact graph.
     if isinstance(headline, dict):
-        try:
-            from _skills_common.evidence_graph import build_evidence_graph, load_questions
-            _eg_skill_dir = Path(__file__).resolve().parent.parent / skill_name
-            headline["evidence_graph"] = build_evidence_graph(
-                decision, questions=load_questions(_eg_skill_dir))
-        except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
-            pass
+        from _skills_common.evidence_graph import attach_evidence_graph
+        _eg_skill_dir = Path(__file__).resolve().parent.parent / skill_name
+        # SINGLE shared seam (also called from genomic's hand-rolled main + tp_fanout): builds + attaches
+        # the graph incl. per-card key_evidence, self-checks referential integrity, and is fail-soft
+        # (logs to headline['_enrichment_errors'], never raises). Byte-stable in the happy path.
+        attach_evidence_graph(decision, _eg_skill_dir)
 
     # Stamp total wall-clock (read + compute + optional synthesis + figures) BEFORE write_package
     # serializes the decision — write time itself is not a data-access signal.

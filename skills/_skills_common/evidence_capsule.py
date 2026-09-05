@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from _skills_common.subgroup_derivation import (
     _card_capsule_contract, _card_meta, default_classify, _TIERV)
+from _skills_common.evidence_salience import spec_for, indication_stratum_aliases, sig_round
 
 _R = 4                               # float precision (hash-stability)
 _STRATUM_LABELS = ("oncotree_code", "lineage", "stratum_id", "stratum", "subgroup", "cohort", "subtype")
@@ -70,31 +71,70 @@ def _first_stratum_array(summary):
     return None, None, None
 
 
-def _top_k_strata(summary, indication, cfg):
-    key = cfg.get("strata_array") if cfg else None
-    if key and isinstance(summary.get(key), list):
-        lab = cfg.get("strata_label"); met = cfg.get("strata_metric")
+# significance keys a stratum row may carry, in preference order (the per-mt spec's field wins). Pinned
+# because a strata row's q/p is the most-dropped decisive field (Stage-0 F1); _ANCHOR_HINTS never saw it.
+_ROW_SIG_KEYS = ("q_value", "bh_q_value", "q", "gi_ttest_pvalue", "p_value", "pvalue", "p", "fdr")
+
+
+def _row_significance(row, sig_field):
+    """The significance value on a stratum row: the spec-named field first, then common q/p keys.
+    Rounded to SIGNIFICANT figures (not decimals) so a tiny q like 3.8e-16 survives (round(_,4)==0.0)."""
+    if sig_field and isinstance(row.get(sig_field), (int, float)) and not isinstance(row.get(sig_field), bool):
+        return sig_round(row.get(sig_field))
+    for k in _ROW_SIG_KEYS:
+        if isinstance(row.get(k), (int, float)) and not isinstance(row.get(k), bool):
+            return sig_round(row.get(k))
+    return None
+
+
+def _top_k_strata(summary, indication, cfg, spec=None, label_aliases=frozenset()):
+    """Indication + strongest + weakest strata rows, each carrying its effect, n, and q. The array is
+    pinned by the per-measurement_type salience spec (the significance-bearing one, e.g. enriched_lineages
+    which carries q_value — NOT per_lineage_stats which doesn't), with the first-list-of-dicts heuristic as
+    fallback. The INDICATION row is resolved via the crosswalk aliases (label_aliases) — a superset of the
+    substring match that COADREAD⊄Bowel silently dropped."""
+    spec = spec or {}
+    key = (cfg.get("strata_array") if cfg else None) or spec.get("strata_array")
+    if key and isinstance(summary.get(key), list) and summary.get(key):
+        lab = (cfg or {}).get("strata_label") or spec.get("label_field")
+        met = (cfg or {}).get("strata_metric") or spec.get("effect_field")
         arr = summary[key]
         sample = arr[0] if arr and isinstance(arr[0], dict) else {}
-        lab = lab or next((L for L in _STRATUM_LABELS if L in sample), None)
-        met = met or next((M for M in _STRATUM_METRICS if isinstance(sample.get(M), (int, float))), None)
+        lab = lab if lab in sample else next((L for L in _STRATUM_LABELS if L in sample), None)
+        met = met if isinstance(sample.get(met), (int, float)) else next(
+            (M for M in _STRATUM_METRICS if isinstance(sample.get(M), (int, float))), None)
     else:
         key, lab, met = _first_stratum_array(summary)
     if not (key and lab and met):
         return []
+    sig_field = (cfg or {}).get("significance_field") or spec.get("significance_field")
     ind = (indication or "").upper()
-    keyed = [(str(r.get(lab)), _num(r.get(met)), r.get("n") or r.get("n_in_lineage") or r.get("n_models_screened"))
+    keyed = [(str(r.get(lab)), _num(r.get(met)),
+              r.get("n") or r.get("n_in_lineage") or r.get("n_models_screened") or r.get("subgroup_n"),
+              _row_significance(r, sig_field))
              for r in summary[key] if isinstance(r, dict) and isinstance(r.get(met), (int, float))]
     if not keyed:
         return []
-    lower_is_stronger = met in ("median_chronos", "median_dep_score", "median_gene_effect")
+    # Orient strongest/weakest. Apply the spec's `direction` ONLY when the array's metric IS the spec's
+    # effect_field — otherwise (a sibling card that fell back to a DIFFERENT metric, e.g. crispr_lof_
+    # dependency's spec is median_chronos=lower_is_stronger but organoid falls back to frac_dependent=
+    # higher_is_stronger) the spec polarity would invert the ranking. Fall back to the metric-name heuristic.
+    if met == spec.get("effect_field") and spec.get("direction") in ("lower_is_stronger", "higher_is_stronger"):
+        lower_is_stronger = spec["direction"] == "lower_is_stronger"
+    else:
+        lower_is_stronger = met in ("median_chronos", "median_dep_score", "median_gene_effect")
     strongest = (min if lower_is_stronger else max)(keyed, key=lambda k: k[1])
     weakest = (max if lower_is_stronger else min)(keyed, key=lambda k: k[1])
-    ind_row = next((k for k in keyed if k[0].upper() == ind or ind in k[0].upper()), None)
+    ind_row = next((k for k in keyed if k[0].upper() in label_aliases
+                    or k[0].upper() == ind or (ind and ind in k[0].upper())), None)
     rows, seen = [], set()
     for role, k in (("INDICATION", ind_row), ("extreme_strongest", strongest), ("extreme_weakest", weakest)):
         if k and k[0] not in seen:
-            seen.add(k[0]); rows.append({"stratum": k[0], "metric": met, "value": k[1], "n": k[2], "role": role})
+            seen.add(k[0])
+            row = {"stratum": k[0], "metric": met, "value": k[1], "n": k[2], "role": role}
+            if k[3] is not None:
+                row["q"] = k[3]
+            rows.append(row)
     return rows
 
 
@@ -230,6 +270,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
     anchor_fields, caveat_fields, categorical_fields, dq_checks). `verdict_card_ids` (set) get FULL capsules;
     others get THIN (signal + one anchor). Deterministic + hash-stable."""
     config = config or {}
+    _aliases = indication_stratum_aliases(indication)   # crosswalk-resolved indication stratum labels (F2)
     cards_sorted = sorted((c for c in cards if isinstance(c, dict)), key=lambda c: c.get("card_id") or "")
     conflicts = _conflict_pairs(cards_sorted, classify)
     capsules, manifest = {}, []
@@ -270,7 +311,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
         }
         if full:
             cap.update({
-                "top_k_strata": (_top_k_strata(summ, indication, cfg) or None),
+                "top_k_strata": (_top_k_strata(summ, indication, cfg, spec_for(mt), _aliases) or None),
                 "conflict_pairs": conflicts.get(cid) or None,
                 "sibling_caveats": (_sibling_caveats(summ, cfg) or None),
                 "provenance_keys": (_provenance_keys(summ) or None),

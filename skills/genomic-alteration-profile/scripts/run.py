@@ -1197,13 +1197,11 @@ def main() -> int:
     # run_wired_skill), so it wires the graph itself, mirroring the dispatcher seam (dispatcher.py 8d) —
     # AFTER the literature/llm_synthesis lanes above so their crosswalk + narrative anchoring are carried.
     # Reads the canonical questions.yaml registry (DEP/SNV/CN/FUS/SPL). VERDICT-INERT, best-effort.
-    try:
-        from _skills_common.evidence_graph import build_evidence_graph, load_questions
-        _eg_skill_dir = Path(__file__).resolve().parent.parent
-        decision["headline"]["evidence_graph"] = build_evidence_graph(
-            decision, questions=load_questions(_eg_skill_dir))
-    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never break the spine
-        decision["headline"].setdefault("_enrichment_errors", {})["evidence_graph"] = f"{type(exc).__name__}: {exc}"
+    from _skills_common.evidence_graph import attach_evidence_graph
+    _eg_skill_dir = Path(__file__).resolve().parent.parent
+    # Shared seam (identical to the dispatcher + tp_fanout): builds the graph incl. per-card key_evidence,
+    # self-checks referential integrity, fail-soft (logs to headline['_enrichment_errors'], never raises).
+    attach_evidence_graph(decision, _eg_skill_dir)
 
     # Canonical HEADLINE hero figure (figure_headline_hero.{svg,png,json}) — the one hero every skill
     # emits, rendered offline from decision['headline']['headline_block']. This skill hand-rolls main()

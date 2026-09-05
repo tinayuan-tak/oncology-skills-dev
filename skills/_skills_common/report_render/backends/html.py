@@ -857,13 +857,16 @@ class HtmlBackend:
                 else:
                     rule = "<span class='pill-none'>display-only · no rule fired</span>"
                 nfrag = f" · n={_esc(c.get('n'))}" if c.get("n") is not None else ""
+                ke = c.get("key_evidence_summary")
+                ke_line = (f"<div class='chainline keyev'><span class='lab'>key</span> "
+                           f"<span class='mono'>{_esc(ke)}</span></div>") if ke else ""
                 rows.append(
                     f"<div class='cardln'><div class='chead'><span><b>{_esc(c.get('id'))}</b></span>"
                     f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span> "
                     f"{_esc(c.get('class_value'))}{nfrag}</span></div>"
                     f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
                     f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
-                    f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>")
+                    f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div>{ke_line}</div>")
             out.append(f"<details class='pklayer'><summary><span>{_esc(lyr.get('layer'))}</span>"
                        f"<span class='ccinline'>{len(cards)} card(s)</span></summary>"
                        f"<div class='lbody'>{''.join(rows)}</div></details>")

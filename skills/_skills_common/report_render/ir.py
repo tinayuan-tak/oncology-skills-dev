@@ -1034,9 +1034,64 @@ def _evidence_fingerprint_block(eg: dict) -> Optional[Block]:
     return Block(vocab.EVIDENCE_FINGERPRINT, {"questions": rows})
 
 
+def _fmt_num(v):
+    """Compact display of a scalar (sig-figs for tiny p/q, else short decimal)."""
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return str(v)
+    if isinstance(v, float) and v != 0 and abs(v) < 1e-3:
+        return f"{v:.2e}"
+    if isinstance(v, float):
+        return f"{v:.4g}"
+    return str(v)
+
+
+def _format_key_evidence(ke: Optional[dict]) -> Optional[str]:
+    """A compact one-line grounding string from a card's key_evidence — the decisive datum the narrator
+    and the card-chain drill should LEAD with (indication stratum effect + q, omnibus, driving categorical,
+    subtype restriction). None when the card carries no key_evidence."""
+    if not isinstance(ke, dict) or not ke:
+        return None
+    parts: list = []
+    strata = ke.get("top_strata") or []
+    ind = next((s for s in strata if s.get("role") == "indication"), None)
+    lead = ind or next((s for s in strata if s.get("role") == "strongest"), None)
+    eff = ke.get("effect") or {}
+    if lead:
+        seg = f"{lead.get('label')} {eff.get('metric') or 'effect'}={_fmt_num(lead.get('value'))}"
+        if lead.get("q") is not None:
+            seg += f" (q={_fmt_num(lead.get('q'))})"
+        if lead.get("n") is not None:
+            seg += f", n={lead.get('n')}"
+        parts.append(seg)
+    elif eff.get("value") is not None:
+        seg = f"{eff.get('metric')}={_fmt_num(eff.get('value'))}"
+        sig = ke.get("significance") or {}
+        if sig.get("value") is not None:
+            seg += f" ({sig.get('stat')}={_fmt_num(sig.get('value'))})"
+        parts.append(seg)
+    strong = next((s for s in strata if s.get("role") == "strongest"), None)
+    if ind and strong and strong is not lead:
+        parts.append(f"strongest {strong.get('label')} {_fmt_num(strong.get('value'))}"
+                     + (f" (q={_fmt_num(strong.get('q'))})" if strong.get("q") is not None else ""))
+    omni = ke.get("omnibus") or {}
+    if omni.get("value") is not None:
+        parts.append(f"omnibus {omni.get('stat')}={_fmt_num(omni.get('value'))}")
+    for cat in (ke.get("categorical") or [])[:2]:
+        if cat.get("value") is not None:
+            parts.append(str(cat.get("value")))
+    sub = ke.get("subtype_axis") or {}
+    if sub.get("restriction_class"):
+        seg = f"subtype: {sub.get('restriction_class')}"
+        if sub.get("driving_axis"):
+            seg += f" ({sub.get('driving_axis')})"
+        parts.append(seg)
+    return " · ".join(p for p in parts if p) or None
+
+
 def _card_chain_block(eg: dict) -> Optional[Block]:
     """Per-card dataset→data→rule→verdict chains, grouped by measurement layer (the card's
-    measurement_type). Projection over eg.cards[]; None when the graph carries no cards."""
+    measurement_type). Projection over eg.cards[]; None when the graph carries no cards. Each card also
+    carries its promoted `key_evidence` + a compact `key_evidence_summary` (the decisive grounded datum)."""
     cards = eg.get("cards") or []
     if not cards:
         return None
@@ -1049,13 +1104,15 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
             order.append(mt)
         sig = c.get("signal") or {}
         chain = c.get("chain") or {}
+        ke = c.get("key_evidence")
         layers[mt].append({
             "id": c.get("id"), "polarity": sig.get("polarity"), "liability": bool(sig.get("liability")),
             "role": c.get("role"), "class_value": (c.get("class") or {}).get("value"),
             "n": (c.get("confidence") or {}).get("n"), "dots": (c.get("confidence") or {}).get("dots"),
             "dataset_ids": chain.get("dataset_ids") or [], "data": chain.get("data") or [],
             "rule_id": chain.get("rule_id"), "is_driving": bool(chain.get("is_driving")),
-            "contributes": bool(chain.get("contributes_to_verdict"))})
+            "contributes": bool(chain.get("contributes_to_verdict")),
+            "key_evidence": ke, "key_evidence_summary": _format_key_evidence(ke)})
     return Block(vocab.CARD_CHAIN,
                  {"layers": [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]})
 

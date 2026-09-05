@@ -23,6 +23,7 @@ referentially-intact graph with best-effort (null) question anchoring.
 """
 from __future__ import annotations
 
+import functools
 import re
 from pathlib import Path
 from typing import Optional
@@ -107,12 +108,16 @@ def _card_signal(cap: dict, sg_tier: Optional[str], fired: bool, is_liability: b
 
 
 _CONF_DOTS = {"high": 3, "moderate": 2, "low": 1, "standard": 2, "unknown": 0, "unmeasured": 0}
+# Optional Evidence & Conclusion Ontology annotation for evidence_state (advisory; no ontology import,
+# no RDF — see the schema's PROV/ECO/SEPIO $comment). Nullable; unknown states → None.
+_ECO_BY_STATE = {"measured": "ECO:0000006", "comparator": "ECO:0000006", "inferred": "ECO:0000363"}
 
 
 def _card_confidence(cap: dict, n: Optional[float]) -> dict:
     es = cap.get("evidence_state")
     level = "high" if es == "measured" else ("low" if es in ("comparator", "inferred") else "moderate")
-    return {"level": level, "dots": _CONF_DOTS.get(level, 0), "evidence_state": es, "n": n}
+    return {"level": level, "dots": _CONF_DOTS.get(level, 0), "evidence_state": es,
+            "eco_id": _ECO_BY_STATE.get(es), "n": n}
 
 
 # ── card ↔ question join (measurement_type membership, with subtype-tier disambiguation) ────────────
@@ -180,6 +185,168 @@ def _narrative_cites(text: str, card_ids: set, rule_ids: set) -> tuple:
         if tok in rule_ids and tok not in found_rules:
             found_rules.append(tok)
     return found_cards, found_rules
+
+
+# ── key_evidence promotion (the decisive-data-point substrate) ──────────────────────────────────────
+from _skills_common.evidence_salience import spec_for, sig_round, SUBTYPE_SPECS  # noqa: E402
+
+_KE_R = 4
+_KE_ROLE = {"INDICATION": "indication", "extreme_strongest": "strongest", "extreme_weakest": "weakest"}
+
+
+def _kenum(v):
+    return round(v, _KE_R) if isinstance(v, float) else v
+
+
+def _is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _build_subtype_axis(summary: dict) -> Optional[dict]:
+    """Project the subtype-stratified evidence (§3.16, F8) into key_evidence.subtype_axis. Null when the
+    card carries no subtype axis (--subtypes off) so standard-run graphs stay byte-stable. Fail-soft."""
+    s = summary or {}
+    # (a) multi-axis omnibus (presence): subtype_omnibus_by_axis, one row per molecular axis
+    axes = s.get("subtype_omnibus_by_axis")
+    if isinstance(axes, list) and axes and all(isinstance(a, dict) for a in axes):
+        sp = SUBTYPE_SPECS["subtype_omnibus_by_axis"]
+        driving = s.get(sp["driving_axis_field"])
+        drow = next((a for a in axes if a.get(sp["axis_field"]) == driving), None) or axes[0]
+        out = {"driving_axis": driving or drow.get(sp["axis_field"]),
+               "restriction_class": s.get(sp["restriction_class_field"])}
+        if _is_num(drow.get(sp["omnibus_field"])):
+            out["omnibus"] = {"stat": sp["omnibus_field"], "value": sig_round(drow[sp["omnibus_field"]])}
+        which = drow.get(sp["which_separate_field"])
+        if isinstance(which, dict):
+            out["which_separate"] = {"highest": which.get("highest"), "lowest": which.get("lowest")}
+        subs = s.get(sp["subgroup_array"])
+        if isinstance(subs, list):
+            top = [{"label": r.get(sp["subgroup_label_field"]), "value": _kenum(r.get(sp["subgroup_effect_field"])),
+                    "n": r.get(sp["subgroup_n_field"])}
+                   for r in subs if isinstance(r, dict) and _is_num(r.get(sp["subgroup_effect_field"]))][:3]
+            if top:
+                out["top_subtypes"] = top
+        return out
+    # (b) per_subgroup_metrics dependency split (median_chronos per subtype)
+    subs = s.get("per_subgroup_metrics")
+    if isinstance(subs, list) and subs and any(isinstance(r, dict) and _is_num(r.get("median_chronos")) for r in subs):
+        sp = SUBTYPE_SPECS["per_subgroup_metrics"]
+        rows = sorted((r for r in subs if isinstance(r, dict) and _is_num(r.get("median_chronos"))),
+                      key=lambda r: r.get("median_chronos"))
+        top = [{"label": r.get("stratum"), "value": _kenum(r.get("median_chronos")), "n": r.get("subgroup_n")}
+               for r in rows][:3]
+        return {"driving_axis": None, "restriction_class": s.get(sp["restriction_class_field"]),
+                "top_subtypes": top} if top else None
+    # (c) per_axis_association survival
+    paa = s.get("per_axis_association")
+    if isinstance(paa, list) and paa and all(isinstance(a, dict) for a in paa):
+        driving = next((a for a in paa if str(a.get("subtype_survival_association_class") or "").startswith("subtype_stratifies")), None)
+        row = driving or paa[0]
+        out = {"driving_axis": row.get("axis"),
+               "restriction_class": s.get("subtype_survival_association_class")}
+        if _is_num(row.get("logrank_p")):
+            out["omnibus"] = {"stat": "logrank_p", "value": sig_round(row["logrank_p"])}
+        return out
+    return None
+
+
+def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
+    """Promote the DECISIVE data points behind a card into a bounded, typed object, from the capsule's
+    already-computed shapes (top_k_strata w/ q, n_basis, categorical_anchors, conflict_pairs) + the
+    per-measurement_type salience spec's pinned significance/omnibus scalars read from the card summary.
+    ADDITIVE + DISPLAY-ONLY: feeds no rule/gate. None when nothing salient is available."""
+    cap = cap or {}
+    summary = summary or {}
+    spec = spec_for(cap.get("measurement_type")) or {}
+    direction = spec.get("direction")
+    tks = cap.get("top_k_strata") or []
+    ind_row = next((r for r in tks if r.get("role") == "INDICATION"), None)
+    strong_row = next((r for r in tks if r.get("role") == "extreme_strongest"), None)
+    eff_row = ind_row or strong_row
+
+    # effect: indication/strongest stratum > scalar effect_field > first numeric anchor
+    effect = None
+    n = None
+    if eff_row is not None:
+        effect = {"metric": eff_row.get("metric"), "value": eff_row.get("value"), "direction": direction}
+        n = eff_row.get("n")
+    elif spec.get("effect_field") and _is_num(summary.get(spec["effect_field"])):
+        effect = {"metric": spec["effect_field"], "value": _kenum(summary[spec["effect_field"]]), "direction": direction}
+    else:
+        na = cap.get("numeric_anchors") or []
+        if na:
+            effect = {"metric": na[0].get("metric"), "value": na[0].get("value"), "direction": direction}
+
+    # significance: the effect stratum's q > a scalar significance_field
+    significance = None
+    if eff_row is not None and eff_row.get("q") is not None:
+        significance = {"stat": spec.get("significance_field") or "q_value", "value": eff_row.get("q")}
+    elif spec.get("significance_field") and _is_num(summary.get(spec["significance_field"])):
+        significance = {"stat": spec["significance_field"], "value": sig_round(summary[spec["significance_field"]])}
+
+    # omnibus: an explicitly-pinned cross-stratum test (fails the anchor-hint heuristic)
+    omnibus = None
+    of = spec.get("omnibus_field")
+    if of and _is_num(summary.get(of)):
+        omnibus = {"stat": of, "value": sig_round(summary[of])}
+
+    # n fallback: pinned n_field > first NUMERIC n_basis value (skip booleans like
+    # depmap_curated_common_essential / is_tce_viable that also live in n_basis)
+    if not _is_num(n):
+        n = None
+        nf = spec.get("n_field")
+        if nf and _is_num(summary.get(nf)):
+            n = summary[nf]
+        elif isinstance(cap.get("n_basis"), dict):
+            n = next((v for v in cap["n_basis"].values() if _is_num(v)), None)
+
+    # top_strata: reshape the capsule rows to the schema shape (label/role/value/n/q)
+    top_strata = []
+    for r in tks:
+        row = {"label": r.get("stratum"), "role": _KE_ROLE.get(r.get("role"), r.get("role")),
+               "value": r.get("value"), "n": r.get("n")}
+        if r.get("q") is not None:
+            row["q"] = r.get("q")
+        top_strata.append(row)
+
+    # categorical: the spec's decisive labels present in summary, else the capsule's categorical_anchors
+    categorical = [{"field": f, "value": summary[f]} for f in (spec.get("categorical") or [])
+                   if f in summary and summary.get(f) is not None]
+    if not categorical:
+        categorical = [{"field": a.get("field"), "value": a.get("value")}
+                       for a in (cap.get("categorical_anchors") or [])]
+
+    # conflict: the first sibling-disagreement pair
+    conflict = None
+    cps = cap.get("conflict_pairs") or []
+    if cps and isinstance(cps[0], dict):
+        cp = cps[0]
+        conflict = {"this_class": cp.get("this_class"),
+                    "other": [{"card": o.get("card"), "class": o.get("class"), "tier": o.get("tier")}
+                              for o in (cp.get("other_sources") or [])]}
+
+    subtype_axis = _build_subtype_axis(summary)
+
+    ke = {}
+    if effect:
+        ke["effect"] = effect
+    if _is_num(n):
+        ke["n"] = n
+    if significance:
+        ke["significance"] = significance
+    if omnibus:
+        ke["omnibus"] = omnibus
+    if top_strata:
+        ke["top_strata"] = top_strata
+    if categorical:
+        ke["categorical"] = categorical
+    if isinstance(cap.get("n_basis"), dict) and cap.get("n_basis"):
+        ke["n_basis"] = cap["n_basis"]
+    if conflict:
+        ke["conflict"] = conflict
+    if subtype_axis:
+        ke["subtype_axis"] = subtype_axis
+    return ke or None
 
 
 # ── the builder ──────────────────────────────────────────────────────────────────────────────────
@@ -265,6 +432,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
             "is_driving": cid == driving_card_id,
         }
         key_fields = {a.get("metric"): a.get("value") for a in numeric if a.get("metric")}
+        key_evidence = _build_key_evidence(cap, c.get("summary") or {})
         card_nodes.append({
             "id": cid,
             "measurement_type": cap.get("measurement_type"),
@@ -279,6 +447,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
             "rule_ids": rule_ids,
             "chain": chain,
             "key_fields": key_fields,
+            "key_evidence": key_evidence,
         })
 
     # ── questions[] (both edge directions; literature axis crosswalk fed later) ──
@@ -465,4 +634,137 @@ def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes
     }
 
 
-__all__ = ["build_evidence_graph", "load_questions", "SCHEMA_VERSION"]
+# ── governance: referential integrity + schema validation + fail-soft attach seam ──────────────────
+def _referential_integrity_errors(graph: dict) -> list:
+    """Every id referenced by an EDGE must resolve to a node in the SAME package (the invariant JSON
+    Schema cannot express). MIRRORS target-contracts validators/validate_evidence_graph.py
+    referential_integrity_errors — keep the two in lockstep. Pure; no I/O."""
+    errs: list = []
+    g = graph or {}
+    card_ids = {c.get("id") for c in (g.get("cards") or []) if isinstance(c, dict)}
+    rule_ids = {r.get("id") for r in (g.get("rules") or []) if isinstance(r, dict)}
+    q_ids = {q.get("id") for q in (g.get("questions") or []) if isinstance(q, dict)}
+    ds_ids = {d.get("id") for d in (g.get("datasets") or []) if isinstance(d, dict)}
+    cite_ids = {c.get("id") for c in (g.get("citations") or []) if isinstance(c, dict)}
+    axis_ids = {a.get("axis_id") for a in ((g.get("literature") or {}).get("axes") or []) if isinstance(a, dict)}
+
+    def _chk(ids, universe, where):
+        for i in (ids or []):
+            if i is not None and i not in universe:
+                errs.append(f"REFERENTIAL [{where}]: id '{i}' does not resolve to a node")
+
+    for q in (g.get("questions") or []):
+        if not isinstance(q, dict):
+            continue
+        _chk(q.get("card_ids"), card_ids, f"question[{q.get('id')}].card_ids")
+        _chk(q.get("rule_ids"), rule_ids, f"question[{q.get('id')}].rule_ids")
+        _chk(q.get("literature_axis_ids"), axis_ids, f"question[{q.get('id')}].literature_axis_ids")
+        for ref in (q.get("evidence_refs") or []):
+            if isinstance(ref, dict):
+                _chk([ref.get("card_id")], card_ids, f"question[{q.get('id')}].evidence_refs.card_id")
+    for c in (g.get("cards") or []):
+        if not isinstance(c, dict):
+            continue
+        cid = c.get("id")
+        _chk(c.get("question_ids"), q_ids, f"card[{cid}].question_ids")
+        _chk(c.get("dataset_ids"), ds_ids, f"card[{cid}].dataset_ids")
+        _chk(c.get("rule_ids"), rule_ids, f"card[{cid}].rule_ids")
+        chain = c.get("chain") or {}
+        _chk(chain.get("dataset_ids"), ds_ids, f"card[{cid}].chain.dataset_ids")
+        if chain.get("rule_id") is not None:
+            _chk([chain.get("rule_id")], rule_ids, f"card[{cid}].chain.rule_id")
+        conflict = (c.get("key_evidence") or {}).get("conflict") or {}
+        for o in (conflict.get("other") or []):
+            if isinstance(o, dict) and o.get("card") is not None:
+                _chk([o.get("card")], card_ids, f"card[{cid}].key_evidence.conflict.other.card")
+    for r in (g.get("rules") or []):
+        if isinstance(r, dict) and r.get("card_id") is not None:
+            _chk([r.get("card_id")], card_ids, f"rule[{r.get('id')}].card_id")
+    lit = g.get("literature") or {}
+    for ax in (lit.get("axes") or []):
+        if isinstance(ax, dict):
+            _chk(ax.get("question_ids"), q_ids, f"literature.axes[{ax.get('axis_id')}].question_ids")
+            _chk(ax.get("citation_ids"), cite_ids, f"literature.axes[{ax.get('axis_id')}].citation_ids")
+    for bs in (lit.get("blind_spots") or []):
+        if isinstance(bs, dict):
+            _chk(bs.get("citation_ids"), cite_ids, "literature.blind_spots.citation_ids")
+    verdict = g.get("verdict") or {}
+    if verdict.get("driving_rule_id") is not None:
+        _chk([verdict.get("driving_rule_id")], rule_ids, "verdict.driving_rule_id")
+    tension = verdict.get("top_tension") or {}
+    if isinstance(tension, dict):
+        _chk(tension.get("source_card_ids"), card_ids, "verdict.top_tension.source_card_ids")
+    cites = (g.get("narrative") or {}).get("cites") or {}
+    _chk(cites.get("question_ids"), q_ids, "narrative.cites.question_ids")
+    _chk(cites.get("card_ids"), card_ids, "narrative.cites.card_ids")
+    _chk(cites.get("rule_ids"), rule_ids, "narrative.cites.rule_ids")
+    return errs
+
+
+@functools.lru_cache(maxsize=None)
+def _load_schema(contracts_repo: Optional[str] = None):
+    """Load evidence_graph.schema.json from target-contracts (best-effort; None if unavailable)."""
+    try:
+        import json
+        if contracts_repo:
+            base = Path(contracts_repo)
+        else:
+            from _skills_common.scope import DEFAULT_CONTRACTS_REPO
+            base = Path(DEFAULT_CONTRACTS_REPO)
+        p = base / "schemas" / "evidence_graph.schema.json"
+        return json.loads(p.read_text()) if p.exists() else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def assert_evidence_graph_valid(graph: dict, schema: Optional[dict] = None,
+                                contracts_repo: Optional[str] = None) -> bool:
+    """Raise AssertionError unless `graph` is schema-valid AND referentially intact. The single shared
+    check the per-skill evidence_graph tests call (replacing 14 copy-pasted referential-integrity bodies).
+    Schema validation is best-effort — skipped (referential-only) when jsonschema or the contracts schema
+    is unavailable (isolated CI), so the referential invariant is always enforced."""
+    errs = _referential_integrity_errors(graph)
+    try:
+        from jsonschema import Draft202012Validator
+        sch = schema if schema is not None else _load_schema(contracts_repo)
+        # Lockstep guard: only schema-validate against a schema that DECLARES key_evidence (the Stage-1
+        # contracts schema). Against the pre-Stage-1 trunk schema (additionalProperties:false, no
+        # key_evidence) we'd otherwise false-reject the additive field during the cross-repo landing
+        # window — so fall back to referential-only until the schema catches up.
+        if sch is not None and "key_evidence" in ((sch.get("$defs", {}).get("card", {})
+                                                   .get("properties", {})) or {}):
+            for e in Draft202012Validator(sch).iter_errors(graph):
+                path = ".".join(str(p) for p in e.absolute_path) or "<root>"
+                errs.append(f"STRUCTURAL [{path}]: {e.message}")
+    except Exception:  # noqa: BLE001 — jsonschema/schema absent → referential-only
+        pass
+    assert not errs, "evidence_graph invalid:\n  " + "\n  ".join(errs)
+    return True
+
+
+def attach_evidence_graph(decision: dict, skill_dir) -> dict:
+    """Build decision.headline.evidence_graph and attach it by reference. The SINGLE seam called from the
+    dispatcher, the hand-rolled genomic-alteration-profile main, and target-profile's tp_fanout
+    decision-reconstruction — so all three paths get an identical, governed graph. Fail-soft: on any fault
+    (or a referential-integrity error) it logs to headline['_enrichment_errors'] and NEVER raises, leaving
+    the verdict spine untouched. Byte-stable in the happy path (no error key added)."""
+    try:
+        h = decision.get("headline")
+        if not isinstance(h, dict):
+            return decision
+        graph = build_evidence_graph(decision, questions=load_questions(skill_dir))
+        errs = _referential_integrity_errors(graph)
+        if errs:
+            # _enrichment_errors is the codebase's stage-keyed DICT convention (headline_block, etc.)
+            h.setdefault("_enrichment_errors", {})["evidence_graph"] = errs[:10]
+        h["evidence_graph"] = graph
+    except Exception as e:  # noqa: BLE001 — verdict-inert projection; never break the spine
+        try:
+            decision["headline"].setdefault("_enrichment_errors", {})["evidence_graph"] = f"{type(e).__name__}: {e}"
+        except Exception:
+            pass
+    return decision
+
+
+__all__ = ["build_evidence_graph", "attach_evidence_graph", "assert_evidence_graph_valid",
+           "load_questions", "SCHEMA_VERSION"]
