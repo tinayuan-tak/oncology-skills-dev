@@ -104,3 +104,58 @@ def test_gating_constants_are_internally_complete():
     for ax in tp_gates._GATING_AXES:
         assert ax in tp_gates._RECOGNIZED_GATING_VERDICTS, f"{ax} missing from _RECOGNIZED_GATING_VERDICTS"
         assert ax in tp_gates._GATING_AXIS_FAILCLOSED_ACTION, f"{ax} missing from _GATING_AXIS_FAILCLOSED_ACTION"
+
+
+def test_subtype_fit_emitter_tokens_are_recognized_and_declared_in_vocab():
+    """Close the ONE seam the other coupling guards miss: the subtype_fit EMITTER.
+
+    subtype_fit is a GATING axis with NO resolver — its verdict is emitted in-code by
+    tp_fanout._subtype_verdict, so target-contracts' validate_verdict_tokens skips it, and the tests
+    above only scan the vocab↔tp_gates coupling. Nothing cross-checks the *emitter's* actual tokens.
+    An emitter-only rename (e.g. subtype_specific_non_dependence → a new spelling) that misses
+    _RECOGNIZED_GATING_VERDICTS would make the recommendation gate read the live token as UNRECOGNIZED
+    and fail-close to `hold` — silently disabling the subtype-specific-non-dependence HOLD for a target
+    with a measured subtype dependency gap. This guards the emitter against exactly that drift.
+
+    Drive the emitter with synthetic fired-sets so the tokens are its ACTUAL output (ground truth),
+    then assert every emitted token is (1) in _RECOGNIZED_GATING_VERDICTS[subtype_fit] and (2) declared
+    somewhere in the gate vocab (gates / kill_capable_verdicts / positive_signals / veto_suppressors)."""
+    import tp_fanout  # noqa: E402  (SCRIPTS already on sys.path)
+
+    hold = tp_fanout._subtype_verdict(
+        [{"tier": "subtype", "signals": {"subtype_fit_genomic": "opposing"}, "rule_id": "r-neg"}])
+    positive = tp_fanout._subtype_verdict(
+        [{"tier": "subtype", "signals": {"subtype_fit_genomic": "supportive"}, "rule_id": "r-pos"}])
+    assert hold and positive, "emitter did not produce both subtype_fit tokens — stale test fixture"
+    emitted = {hold[0], positive[0]}
+    short = tp_fanout.SUBTYPE_SHORT  # "subtype_fit"
+
+    # (1) emitter ↔ recognized set (pure skills; no vocab needed)
+    recognized = tp_gates._RECOGNIZED_GATING_VERDICTS.get(short, frozenset())
+    assert emitted <= recognized, (
+        f"tp_fanout._subtype_verdict emits {sorted(emitted - recognized)} NOT in "
+        f"_RECOGNIZED_GATING_VERDICTS[{short!r}] — the recommendation gate will fail-close (hold) on it. "
+        f"Update tp_gates.py to match the emitter.")
+
+    # (2) emitter ↔ gate vocab: every emitted token must be declared for this axis somewhere.
+    v = _vocab()
+    declared: set[str] = set()
+    for g in (v.get("gates") or []):
+        if g.get("sub_skill") == short and g.get("verdict"):
+            declared.add(g["verdict"])
+    for e in ((v.get("kill_capable_verdicts") or {}).get(short) or []):
+        if isinstance(e, dict) and e.get("verdict"):
+            declared.add(e["verdict"])
+    for block in ("positive_signals", "positive_signals_modality_scoped"):
+        for e in (v.get(block) or []):
+            if isinstance(e, dict) and e.get("sub_skill") == short and e.get("verdict"):
+                declared.add(e["verdict"])
+    for s in (v.get("veto_suppressors") or []):
+        for wp in (s.get("when_present") or []):
+            if isinstance(wp, dict) and wp.get("sub_skill") == short and wp.get("verdict"):
+                declared.add(wp["verdict"])
+    missing = emitted - declared
+    assert not missing, (
+        f"tp_fanout._subtype_verdict emits {sorted(missing)} that the gate vocab never declares for "
+        f"{short!r} (gates/kill_capable_verdicts/positive_signals/veto_suppressors) — an emitted token no "
+        f"gate rule references. Add it to nomination_verdict_gate.yaml or fix the emitter.")
