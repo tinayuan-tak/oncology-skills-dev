@@ -68,7 +68,17 @@ SALIENCE_SPECS: dict = {
     # on-target-safety-liability (§3.2) — the liability anchor (scalar-effect, count-driven)
     "gnomad_lof_constraint": {
         "effect_field": "loeuf_score", "significance_field": "pli_score", "direction": "lower_is_stronger",
-        "categorical": ["constraint_class"], "extra_scalars": ["mis_z_score"]},
+        "categorical": ["constraint_class"], "extra_scalars": ["mis_z_score"],
+        # STAGE-2 ruler: distance_to_cut on LOEUF (LOWER = more LoF-constrained). value + position READ
+        # VERBATIM (constraint_class), cut single-sourced from the card's high_loeuf threshold (0.45,
+        # gnomAD v4-recommended) — no contracts round-trip needed (the named threshold already exists).
+        # First SAFETY-axis reference_frame; the scalar loeuf now reads gauged ("LOEUF 0.32, past the 0.45
+        # constraint cut") instead of bare. DISPLAY-ONLY / verdict-INERT.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "loeuf_score", "scale": "loeuf",
+            "position_field": "constraint_class",
+            "cut": {"card_id": "gnomad-lof-constraint", "threshold": "high_loeuf",
+                    "label": "loeuf_constraint_cut"}}},
     "normal_tissue_rna_breadth": {
         "effect_field": "highest_tissue_median", "n_field": "n_tissues_detectable", "direction": "higher_is_worse",
         "categorical": ["liability_class", "highest_tissue", "critical_organ_argmax"],

@@ -103,6 +103,43 @@ def test_tumor_vs_adjacent_distance_to_cut_ruler():
         assert "past the 0.5 cut" in words                            # 1.732 >= 0.5 → past (higher_is_stronger)
 
 
+# ── safety gnomad LOEUF distance_to_cut (first SAFETY-axis reference_frame; LOWER = more constrained) ──
+def _gnomad_summary():
+    # constrained-gene shape: LOEUF below the 0.45 cut, highly_constrained band
+    return {"loeuf_score": 0.32, "pli_score": 0.99, "constraint_class": "highly_constrained",
+            "mis_z_score": 3.1}
+
+
+def test_gnomad_loeuf_distance_to_cut_ruler():
+    from _skills_common import display_gloss as dg
+    from _skills_common.evidence_salience import contract_threshold
+
+    interp = build_interpretation({}, _gnomad_summary(), SALIENCE_SPECS["gnomad_lof_constraint"],
+                                  card_id="gnomad-lof-constraint")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "loeuf_score" and gv["value"] == 0.32 and gv["scale"] == "loeuf"
+    assert gv["direction"] == "lower_is_stronger"
+    assert gv["position"] == "highly_constrained"                     # constraint_class READ VERBATIM
+    assert gv["position_source"] == "constraint_class"
+    assert gv["frame"]["kind"] == "distance_to_cut"
+    # cut single-sources from the card's high_loeuf threshold (already a NAMED threshold — no lockstep)
+    cut = contract_threshold("gnomad-lof-constraint", "high_loeuf")
+    if cut is not None:
+        assert cut == 0.45
+        roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
+        assert roles.get("cut") == 0.45
+    words = dg.gauge_string(gv)
+    assert words and "0.45" in words                                  # the constraint cut is surfaced
+
+
+def test_build_key_evidence_promotes_gnomad_loeuf_interpretation():
+    ke = _build_key_evidence({"measurement_type": "gnomad_lof_constraint",
+                              "card_id": "gnomad-lof-constraint"}, _gnomad_summary())
+    assert ke and ke.get("interpretation")
+    assert ke["interpretation"][0]["metric"] == "loeuf_score"
+
+
 # ── invariants ───────────────────────────────────────────────────────────────────────────────────────
 def test_no_bare_number_scale_present_whenever_value_is():
     summaries = {"crispr_lof_dependency": _crispr_summary(),
