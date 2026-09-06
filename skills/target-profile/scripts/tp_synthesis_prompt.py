@@ -574,6 +574,144 @@ def _render_subskill_key_evidence(sub_results: dict) -> str:
             "LEAD each exec_bullet with these, carrying the effect WITH its q/p + the omnibus)\n" + "\n".join(lines))
 
 
+def _render_presence_facet_block(pf: dict) -> list[str]:
+    """Render the presence_facet block of the target-profile synthesis prompt (extracted
+    from _build_user_prompt to match the sibling _render_*_block helpers; byte-identical)."""
+    lines: list[str] = []
+    lines.append("")
+    lines.append("### Presence cross-modal reconciliation facet (deterministic; a FACET, not a gate)")
+    lines.append("Per-(measurement, sample_context) presence sub-verdicts — the decomposition "
+                 "BEHIND the one-word presence verdict. Read the DISAGREEMENTS across rows: an "
+                 "RNA-high / protein-absent split, or a tumor-present / normal-tissue-present "
+                 "split, is the decision-relevant tension (modality choice; therapeutic window).")
+    pvm = pf.get("presence_verdict_by_modality") or {}
+    if pvm:
+        lines.append("| measurement / context | sub-verdict | evidence |")
+        lines.append("|---|---|---|")
+        for key, b in pvm.items():
+            if not isinstance(b, dict):
+                continue
+            lines.append(f"| {key} | `{b.get('verdict')}` | {b.get('evidence_state')} |")
+    # TYPED presence_state — the honest structured read; prefer it over parsing the collapsed word
+    # (which can read `strongly_upregulated_in_tumor` for a contamination artifact or
+    # `tumor_broadly_expressed` for a stromal-only signal). present/abundance/elevation/malignant + a
+    # named protein↔RNA conflict.
+    ps = pf.get("presence_state") or {}
+    if isinstance(ps, dict) and ps.get("present"):
+        lines.append(
+            f"- TYPED presence_state (read THIS, not the one word): present=`{ps.get('present')}` "
+            f"abundance=`{ps.get('abundance_level')}` elevated_vs_normal=`{ps.get('elevated_vs_normal')}` "
+            f"malignant_intrinsic=`{ps.get('malignant_intrinsic')}` breadth=`{ps.get('breadth')}`"
+            + ("  ⚠ protein↔RNA CONFLICT" if ps.get("conflict") else ""))
+    lines.append(f"- collapsed presence verdict (compressed label): `{pf.get('presence_verdict')}` "
+                 f"(headline lens: {pf.get('headline_lens')})")
+    if pf.get("cell_line_vs_tumor_discordant"):
+        lines.append(f"- ⚠ cell-line-vs-tumor DISCORDANT: {pf.get('presence_interpretation_note')}")
+    # RNA-as-protein-proxy quality (both arms, side-by-side) — qualifies an RNA-only presence claim.
+    lines.append(f"- RNA→protein proxy quality: `{pf.get('bulk_rna_proxy_quality')}` "
+                 f"(source: {pf.get('bulk_rna_proxy_quality_source')}; cell-line arm "
+                 f"{pf.get('rna_as_biomarker')} r={pf.get('rna_protein_r')}, tumor arm "
+                 f"{pf.get('rna_as_biomarker_tumor')} r={pf.get('rna_protein_r_tumor')}). "
+                 f"A poor/partial proxy means RNA presence needs protein confirmation before a "
+                 f"biologics read.")
+    # NORMAL-TISSUE comparators — window FRAMING (safety verdict owned by on-target-safety-liability).
+    lines.append(f"- normal-tissue comparators (WINDOW framing, NOT the safety verdict): "
+                 f"HPA-IHC breadth `{pf.get('normal_tissue_ihc_breadth_class')}` "
+                 f"(essential-tissue flag: {pf.get('normal_tissue_ihc_essential_flag')}); "
+                 f"scRNA-normal `{pf.get('sc_normal_expression_class')}` "
+                 f"(max in {pf.get('sc_normal_max_det_cell_type')} @ "
+                 f"{pf.get('sc_normal_max_det_fraction')}).")
+    # Hierarchy-derived sub-group + per-question signal decomposition (the narrator-input contract's
+    # structural signals, read from the SAME facet keys the single-lens presence narrator uses). Flows
+    # STRUCTURALLY off presence_facet — no fields hand-picked here. VERDICT-INERT. Empty → skipped.
+    _sig_summary = render_signal_summary(pf)
+    if _sig_summary:
+        lines.append("")
+        lines.append("Presence signal decomposition (deterministic; hierarchy-derived sub-group "
+                     "signals + per-question read behind the collapsed presence verdict — read it to "
+                     "see WHICH sub-group/question carries or contradicts the presence call):")
+        lines.append(_sig_summary)
+    lines.append("  NOTE: presence is VERDICT-INERT to the nomination gate — this facet does NOT "
+                 "move the recommendation. Its role is to surface cross-modal tension the "
+                 "one-word presence verdict hides, and to frame tumor presence AGAINST the "
+                 "normal-tissue window (the therapeutic-window verdict is owned by "
+                 "on-target-safety-liability / tumor-selectivity, weighed via their sub-verdicts).")
+    return lines
+
+
+def _render_biomarker_facet_block(bf: dict) -> list[str]:
+    """Render the biomarker_facet block of the target-profile synthesis prompt (extracted
+    from _build_user_prompt to match the sibling _render_*_block helpers; byte-identical)."""
+    lines: list[str] = []
+    lines.append("")
+    lines.append("### Biomarker convergence facet (deterministic; a FACET, not a gate)")
+    lines.append(f"- facet verdict: `{bf.get('verdict')}`  |  preferred assay: "
+                 f"`{bf.get('preferred_assay')}`")
+    corr = {k: v for k, v in (bf.get("corroboration_role") or {}).items() if v is not None}
+    strat = {k: v for k, v in (bf.get("stratification_role") or {}).items() if v is not None}
+    lines.append(f"- corroboration (→ confidence in biology verdicts): "
+                 f"{corr if corr else 'none reachable'}")
+    lines.append(f"- stratification (→ patient selection): {strat if strat else 'none reachable'}")
+    # surface the QUANTITATIVE strengths behind the classes (from the `quantitative` block)
+    # so the narration reports HOW STRONG each biomarker signal is, not just its bucket. Each stat
+    # is glossed in plain language for a non-computational reader (publication-register discipline).
+    quant = {k: v for k, v in (bf.get("quantitative") or {}).items() if v}
+    if quant:
+        lines.append(f"- quantitative strength (raw statistics behind the classes above): {quant}")
+        lines.append("  METRIC GLOSS (interpret in plain language; report with scale + direction): "
+                     "hotspot_mannwhitney_q = FDR-adjusted p that mutant vs WT Chronos differ (lower "
+                     "= more separated); hotspot_effect_size = rank-biserial (0-1, higher = cleaner "
+                     "mutant-vs-WT dependency split); delta_chronos_* = mutant-minus-WT median "
+                     "Chronos (more negative = mutant lines more dependent); pearson_r/spearman = "
+                     "expression↔dependency correlation (negative = higher expression, more "
+                     "dependent); fraction_agree = CRISPR/RNAi concordance rate; rna_protein_r = "
+                     "how well RNA proxies protein (higher = RNA is an adequate assay); logrank_p = "
+                     "expression↔survival separation. These quantify the STRATIFICATION / "
+                     "CORROBORATION strength; they predict DEPENDENCY, not proven drug response.")
+    lines.append("  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
+                 "patient-selection population (stratification); it must NEVER by itself justify "
+                 "a `nominate` — the deterministic gate owns the recommendation.")
+    return lines
+
+
+def _render_subtype_facet_block(sf: dict) -> list[str]:
+    """Render the subtype_facet block of the target-profile synthesis prompt (extracted
+    from _build_user_prompt to match the sibling _render_*_block helpers; byte-identical)."""
+    lines: list[str] = []
+    lines.append("")
+    lines.append("### Subtype convergence facet (deterministic; a FACET, not a gate)")
+    lines.append(f"- facet verdict: `{sf.get('verdict')}`  |  axes available: "
+                 f"{sf.get('axes_available') or 'none'}  |  subtypes evaluated: "
+                 f"{sf.get('n_subtypes_evaluated')}")
+    conv = sf.get("convergent_subtypes") or []
+    if conv:
+        lines.append(f"- CONVERGENT subtypes (>=2 measured axes → cross-axis patient-selection "
+                     f"strata): {conv}")
+        for st in conv:
+            b = (sf.get("per_subtype") or {}).get(st, {})
+            lines.append(f"    - {st}: measured on {b.get('axes_measured')} "
+                         f"(metrics: {b.get('metrics')})")
+    else:
+        lines.append("- no subtype converges >=2 measured axes on the SAME id this run")
+    assoc = sf.get("associated_subtypes") or []
+    if assoc:
+        lines.append("- ASSOCIATED strata (different strata, each measured on its own axis, linked "
+                     "by a subtype-registry association — RELATED, not the same stratum):")
+        for a in assoc:
+            bridge = " [CROSS-COHORT bridge: DepMap↔TCGA — interpret cautiously]" if a.get("cohort_bridge") else ""
+            lines.append(f"    - {a['from']} {a['relationship']} {a['to']} "
+                         f"({a['from_axes_measured']} ↔ {a['to_axes_measured']}){bridge}")
+    lines.append("  NOTE: subtype convergence/association defines a PATIENT-SELECTION population + may "
+                 "raise confidence; it must NEVER by itself justify a `nominate`. An ASSOCIATED pair "
+                 "is a WEAK, registry-bridged link (e.g. MSI_H-dependency ↔ CMS1-expression) — the two "
+                 "strata are biologically related, NOT identical; a cohort_bridge crosses DepMap↔TCGA. "
+                 "subtype_axis_unavailable = no subtype shard for this indication (a P2 coverage gap), "
+                 "not a measured negative.")
+    return lines
+
+
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -668,126 +806,11 @@ def _build_user_prompt(
     if ordinal_matrix is not None:
         lines.extend(_render_matrix_slice_for_prompt(ordinal_matrix))
     if presence_facet is not None:
-        pf = presence_facet
-        lines.append("")
-        lines.append("### Presence cross-modal reconciliation facet (deterministic; a FACET, not a gate)")
-        lines.append("Per-(measurement, sample_context) presence sub-verdicts — the decomposition "
-                     "BEHIND the one-word presence verdict. Read the DISAGREEMENTS across rows: an "
-                     "RNA-high / protein-absent split, or a tumor-present / normal-tissue-present "
-                     "split, is the decision-relevant tension (modality choice; therapeutic window).")
-        pvm = pf.get("presence_verdict_by_modality") or {}
-        if pvm:
-            lines.append("| measurement / context | sub-verdict | evidence |")
-            lines.append("|---|---|---|")
-            for key, b in pvm.items():
-                if not isinstance(b, dict):
-                    continue
-                lines.append(f"| {key} | `{b.get('verdict')}` | {b.get('evidence_state')} |")
-        # TYPED presence_state — the honest structured read; prefer it over parsing the collapsed word
-        # (which can read `strongly_upregulated_in_tumor` for a contamination artifact or
-        # `tumor_broadly_expressed` for a stromal-only signal). present/abundance/elevation/malignant + a
-        # named protein↔RNA conflict.
-        ps = pf.get("presence_state") or {}
-        if isinstance(ps, dict) and ps.get("present"):
-            lines.append(
-                f"- TYPED presence_state (read THIS, not the one word): present=`{ps.get('present')}` "
-                f"abundance=`{ps.get('abundance_level')}` elevated_vs_normal=`{ps.get('elevated_vs_normal')}` "
-                f"malignant_intrinsic=`{ps.get('malignant_intrinsic')}` breadth=`{ps.get('breadth')}`"
-                + ("  ⚠ protein↔RNA CONFLICT" if ps.get("conflict") else ""))
-        lines.append(f"- collapsed presence verdict (compressed label): `{pf.get('presence_verdict')}` "
-                     f"(headline lens: {pf.get('headline_lens')})")
-        if pf.get("cell_line_vs_tumor_discordant"):
-            lines.append(f"- ⚠ cell-line-vs-tumor DISCORDANT: {pf.get('presence_interpretation_note')}")
-        # RNA-as-protein-proxy quality (both arms, side-by-side) — qualifies an RNA-only presence claim.
-        lines.append(f"- RNA→protein proxy quality: `{pf.get('bulk_rna_proxy_quality')}` "
-                     f"(source: {pf.get('bulk_rna_proxy_quality_source')}; cell-line arm "
-                     f"{pf.get('rna_as_biomarker')} r={pf.get('rna_protein_r')}, tumor arm "
-                     f"{pf.get('rna_as_biomarker_tumor')} r={pf.get('rna_protein_r_tumor')}). "
-                     f"A poor/partial proxy means RNA presence needs protein confirmation before a "
-                     f"biologics read.")
-        # NORMAL-TISSUE comparators — window FRAMING (safety verdict owned by on-target-safety-liability).
-        lines.append(f"- normal-tissue comparators (WINDOW framing, NOT the safety verdict): "
-                     f"HPA-IHC breadth `{pf.get('normal_tissue_ihc_breadth_class')}` "
-                     f"(essential-tissue flag: {pf.get('normal_tissue_ihc_essential_flag')}); "
-                     f"scRNA-normal `{pf.get('sc_normal_expression_class')}` "
-                     f"(max in {pf.get('sc_normal_max_det_cell_type')} @ "
-                     f"{pf.get('sc_normal_max_det_fraction')}).")
-        # Hierarchy-derived sub-group + per-question signal decomposition (the narrator-input contract's
-        # structural signals, read from the SAME facet keys the single-lens presence narrator uses). Flows
-        # STRUCTURALLY off presence_facet — no fields hand-picked here. VERDICT-INERT. Empty → skipped.
-        _sig_summary = render_signal_summary(pf)
-        if _sig_summary:
-            lines.append("")
-            lines.append("Presence signal decomposition (deterministic; hierarchy-derived sub-group "
-                         "signals + per-question read behind the collapsed presence verdict — read it to "
-                         "see WHICH sub-group/question carries or contradicts the presence call):")
-            lines.append(_sig_summary)
-        lines.append("  NOTE: presence is VERDICT-INERT to the nomination gate — this facet does NOT "
-                     "move the recommendation. Its role is to surface cross-modal tension the "
-                     "one-word presence verdict hides, and to frame tumor presence AGAINST the "
-                     "normal-tissue window (the therapeutic-window verdict is owned by "
-                     "on-target-safety-liability / tumor-selectivity, weighed via their sub-verdicts).")
+        lines.extend(_render_presence_facet_block(presence_facet))
     if biomarker_facet is not None:
-        bf = biomarker_facet
-        lines.append("")
-        lines.append("### Biomarker convergence facet (deterministic; a FACET, not a gate)")
-        lines.append(f"- facet verdict: `{bf.get('verdict')}`  |  preferred assay: "
-                     f"`{bf.get('preferred_assay')}`")
-        corr = {k: v for k, v in (bf.get("corroboration_role") or {}).items() if v is not None}
-        strat = {k: v for k, v in (bf.get("stratification_role") or {}).items() if v is not None}
-        lines.append(f"- corroboration (→ confidence in biology verdicts): "
-                     f"{corr if corr else 'none reachable'}")
-        lines.append(f"- stratification (→ patient selection): {strat if strat else 'none reachable'}")
-        # surface the QUANTITATIVE strengths behind the classes (from the `quantitative` block)
-        # so the narration reports HOW STRONG each biomarker signal is, not just its bucket. Each stat
-        # is glossed in plain language for a non-computational reader (publication-register discipline).
-        quant = {k: v for k, v in (bf.get("quantitative") or {}).items() if v}
-        if quant:
-            lines.append(f"- quantitative strength (raw statistics behind the classes above): {quant}")
-            lines.append("  METRIC GLOSS (interpret in plain language; report with scale + direction): "
-                         "hotspot_mannwhitney_q = FDR-adjusted p that mutant vs WT Chronos differ (lower "
-                         "= more separated); hotspot_effect_size = rank-biserial (0-1, higher = cleaner "
-                         "mutant-vs-WT dependency split); delta_chronos_* = mutant-minus-WT median "
-                         "Chronos (more negative = mutant lines more dependent); pearson_r/spearman = "
-                         "expression↔dependency correlation (negative = higher expression, more "
-                         "dependent); fraction_agree = CRISPR/RNAi concordance rate; rna_protein_r = "
-                         "how well RNA proxies protein (higher = RNA is an adequate assay); logrank_p = "
-                         "expression↔survival separation. These quantify the STRATIFICATION / "
-                         "CORROBORATION strength; they predict DEPENDENCY, not proven drug response.")
-        lines.append("  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
-                     "patient-selection population (stratification); it must NEVER by itself justify "
-                     "a `nominate` — the deterministic gate owns the recommendation.")
+        lines.extend(_render_biomarker_facet_block(biomarker_facet))
     if subtype_facet is not None:
-        sf = subtype_facet
-        lines.append("")
-        lines.append("### Subtype convergence facet (deterministic; a FACET, not a gate)")
-        lines.append(f"- facet verdict: `{sf.get('verdict')}`  |  axes available: "
-                     f"{sf.get('axes_available') or 'none'}  |  subtypes evaluated: "
-                     f"{sf.get('n_subtypes_evaluated')}")
-        conv = sf.get("convergent_subtypes") or []
-        if conv:
-            lines.append(f"- CONVERGENT subtypes (>=2 measured axes → cross-axis patient-selection "
-                         f"strata): {conv}")
-            for st in conv:
-                b = (sf.get("per_subtype") or {}).get(st, {})
-                lines.append(f"    - {st}: measured on {b.get('axes_measured')} "
-                             f"(metrics: {b.get('metrics')})")
-        else:
-            lines.append("- no subtype converges >=2 measured axes on the SAME id this run")
-        assoc = sf.get("associated_subtypes") or []
-        if assoc:
-            lines.append("- ASSOCIATED strata (different strata, each measured on its own axis, linked "
-                         "by a subtype-registry association — RELATED, not the same stratum):")
-            for a in assoc:
-                bridge = " [CROSS-COHORT bridge: DepMap↔TCGA — interpret cautiously]" if a.get("cohort_bridge") else ""
-                lines.append(f"    - {a['from']} {a['relationship']} {a['to']} "
-                             f"({a['from_axes_measured']} ↔ {a['to_axes_measured']}){bridge}")
-        lines.append("  NOTE: subtype convergence/association defines a PATIENT-SELECTION population + may "
-                     "raise confidence; it must NEVER by itself justify a `nominate`. An ASSOCIATED pair "
-                     "is a WEAK, registry-bridged link (e.g. MSI_H-dependency ↔ CMS1-expression) — the two "
-                     "strata are biologically related, NOT identical; a cohort_bridge crosses DepMap↔TCGA. "
-                     "subtype_axis_unavailable = no subtype shard for this indication (a P2 coverage gap), "
-                     "not a measured negative.")
+        lines.extend(_render_subtype_facet_block(subtype_facet))
     lines.append("### Card summaries (raw, per-card)")
     for short, r in sub_results.items():
         lines.append(f"\n#### {short} ({r['skill_dir']})")
