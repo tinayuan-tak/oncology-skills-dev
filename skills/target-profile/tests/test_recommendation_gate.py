@@ -273,6 +273,31 @@ def test_opposing_measured_verdict_blocks_strong():
     assert tier != "strong"
 
 
+def test_selectivity_clamp_kill_blocks_strong():
+    """gate v1.10.0: a POST-RESOLVER selectivity clamp KILL (selective_but_broadly_normal — a broadly-
+    normal / no-window target like GAPDH) is now a positive_contradiction, so it blocks `strong` in a
+    composed profile even alongside dominant positives on other axes — closing the advisory→silent-
+    degradation gap where a selectivity KILL used to contribute nothing to the spine.
+
+    _positive_tier reads positive_contradictions from the gate vocab dynamically, so this asserts the
+    contracts-first gate-v1.10.0 change is live; skip until it has landed (lockstep window)."""
+    _, contra_set, _, _ = tp._load_positive_signals()
+    if ("selectivity", "selective_but_broadly_normal") not in contra_set:
+        pytest.skip("gate vocab predates the selectivity clamp-KILL contradictions (land contracts-first)")
+    subs = _merge(_dominant_positives(),
+                  {"selectivity": {"verdict": ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto")}})
+    tier, _ = tp._positive_tier(subs)
+    assert tier != "strong"
+    # the INT-axis clamp KILL is equally a contradiction
+    subs2 = _merge(_dominant_positives(),
+                   {"selectivity": {"verdict": ("selective_but_stromal_confound", "tvn-stromal-confound-veto")}})
+    assert tp._positive_tier(subs2)[0] != "strong"
+    # but the PRESERVING liability verdict is NOT a contradiction → strong still reachable
+    subs3 = _merge(_dominant_positives(),
+                   {"selectivity": {"verdict": ("selective_with_normal_liability", "tvn-sc-normal-critical-organ-veto")}})
+    assert tp._positive_tier(subs3)[0] == "strong"
+
+
 def test_insufficient_is_not_a_contradiction():
     """insufficient/data_unavailable are absence-of-measurement, NOT opposition —
     they must not block a tier (measured-vs-null discipline)."""

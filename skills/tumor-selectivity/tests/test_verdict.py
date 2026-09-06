@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -319,12 +321,63 @@ def test_composed_path_composes_all_veto_cards():
         if isinstance(k, ast.Constant) and k.value == "tumor-selectivity":
             sel_cards = [e.value for e in v.elts if isinstance(e, ast.Constant)]
     assert sel_cards is not None
-    # Every card backing a normal-breadth veto arm must be composed into the selectivity lens.
-    for veto_card in ("modality-therapeutic-window", "sc-normal-celltype-expression"):
+    # EVERY card backing a veto arm must be composed into the selectivity lens — all four:
+    # the two normal-breadth arms (window, sc-normal), the normal-PROTEIN arm (tphp), and the
+    # INT-axis stromal-confound arm — else that arm's veto silently cannot fire in target-profile.
+    for veto_card in ("modality-therapeutic-window", "sc-normal-celltype-expression",
+                      "normal-tissue-protein-abundance-tphp", "tumor-scrna-celltype-expression"):
         assert veto_card in sel_cards, (
             f"regression: veto card {veto_card!r} is not composed into the selectivity "
-            f"lens → its normal-breadth veto arm cannot fire in target-profile (housekeeping FP "
+            f"lens → its veto arm cannot fire in target-profile (housekeeping/stromal FP "
             f"resurrected for that arm).")
+
+
+# --- resolver-vs-clamp enum reconciliation (the 8-vs-11 legibility gap) -------------------------
+
+def _contracts_yaml(rel):
+    from _skills_common.paths import target_contracts_root
+    p = target_contracts_root() / rel
+    return None if not p.exists() else __import__("yaml").safe_load(p.read_text())
+
+
+def test_emitted_verdict_enum_equals_resolver_rungs_plus_declared_clamp():
+    """tumor-selectivity emits 11 verdicts: 8 from the resolver (7 rungs + default) + 3 minted by the
+    POST-RESOLVER Python clamp (selectivity_veto.py). Pin that _SELECTIVITY_VERDICT_PHRASE ==
+    resolver(resolve[].verdict ∪ default) ∪ selectivity.resolver.yaml `clamp_verdicts`, and that the
+    resolver's declared clamp_verdicts == selectivity_veto._VETO_OUTCOMES — so the dead constant is now
+    load-bearing and a reviewer reading the resolver sees the COMPLETE emitted enum. (Skips until the
+    contracts-first clamp_verdicts block has landed.)"""
+    from _skills_common.selectivity_veto import _VETO_OUTCOMES
+    spec = _contracts_yaml("resolvers/selectivity.resolver.yaml")
+    if spec is None:
+        pytest.skip("target-contracts checkout absent")
+    clamp = set(spec.get("clamp_verdicts") or [])
+    if not clamp:
+        pytest.skip("contracts predates selectivity.resolver.yaml clamp_verdicts (land contracts-first)")
+    assert clamp == set(_VETO_OUTCOMES), f"resolver clamp_verdicts {clamp} != _VETO_OUTCOMES {set(_VETO_OUTCOMES)}"
+    resolver_enum = {r["verdict"] for r in spec["resolve"]} | {spec["default"]}
+    assert set(ts._SELECTIVITY_VERDICT_PHRASE) == resolver_enum | clamp, (
+        f"emitted enum drift: phrase={set(ts._SELECTIVITY_VERDICT_PHRASE)} vs "
+        f"resolver∪clamp={resolver_enum | clamp}")
+
+
+def test_clamp_kills_are_declared_contradictions_in_the_nomination_gate():
+    """The two clamp KILLs must be in the nomination gate vocab (kill_capable_verdicts.selectivity +
+    positive_contradictions) so a COMPOSED selectivity KILL blocks `strong` (the advisory→silent-
+    degradation fix). selective_with_normal_liability is selectivity-PRESERVING → deliberately NOT a
+    contradiction. (Skips until the contracts-first gate-vocab change has landed.)"""
+    g = _contracts_yaml("vocabularies/nomination_verdict_gate.yaml")
+    if g is None:
+        pytest.skip("target-contracts checkout absent")
+    contra = {(c["sub_skill"], c["verdict"]) for c in g.get("positive_contradictions", [])}
+    kcv = {(sk, e["verdict"]) for sk, es in (g.get("kill_capable_verdicts") or {}).items() for e in es}
+    if ("selectivity", "selective_but_broadly_normal") not in contra:
+        pytest.skip("contracts predates the selectivity clamp-KILL gate entries (land contracts-first)")
+    for kill in ("selective_but_broadly_normal", "selective_but_stromal_confound"):
+        assert ("selectivity", kill) in contra, f"{kill} missing from positive_contradictions"
+        assert ("selectivity", kill) in kcv, f"{kill} missing from kill_capable_verdicts.selectivity"
+    # the preserving verdict must NOT be a contradiction
+    assert ("selectivity", "selective_with_normal_liability") not in contra
 
 
 # --- The absolute surface-density facet is VERDICT-INERT (a display facet, NOT a veto).

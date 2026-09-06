@@ -198,6 +198,8 @@ _FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
     ("subtype_fit", "subtype_specific_non_dependence"): "gated",
     ("selectivity", "not_selective"): "contradiction",
     ("selectivity", "discordant_across_comparators"): "contradiction",
+    ("selectivity", "selective_but_broadly_normal"): "contradiction",    # post-resolver clamp KILL (gate v1.10.0)
+    ("selectivity", "selective_but_stromal_confound"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
     ("surface_modality", "neither_viable"): "excluded_modality_scoped",
     ("surface_modality", "adc_preferred_tce_unsafe"): "excluded_modality_scoped",
     ("surface_modality", "tce_unsafe_normal_liability"): "excluded_modality_scoped",
