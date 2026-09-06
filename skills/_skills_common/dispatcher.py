@@ -385,6 +385,133 @@ def _emit_card_figures(card_outputs: list[dict], out_dir, target: str, indicatio
     return n
 
 
+def _build_run_parser() -> argparse.ArgumentParser:
+    """Construct the standard run_wired_skill CLI parser (extracted from run_wired_skill for
+    readability — byte-identical to the inline construction). Every wired skill shares this exact
+    flag surface: --target/--indication/--out + the modality/synthesize/literature/subtype(s)/
+    verdict-only/emit-envelope/data-mode/release-pin/figures options."""
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--target", required=True, help="HGNC gene symbol")
+    # --indication is OPTIONAL (2026-08-05): TARGET-INTRINSIC skills (e.g. target-intrinsic) fan out
+    # over tier:target cards that take no indication, so they invoke with --target alone. When omitted,
+    # a pan-cancer sentinel is passed to resolve_cards — target-grain card readers ignore it, and an
+    # indication-scoped reader invoked without a real indication degrades to data_unavailable (its
+    # honest gap posture). BACKWARD-COMPATIBLE: every existing focused skill still passes --indication,
+    # so their behavior is unchanged.
+    ap.add_argument("--indication", required=False, default=None, help="OncoTree code (optional for target-intrinsic skills)")
+    ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--modality", default=None,
+                    help="OPTIONAL post-hoc modality lens.")
+    ap.add_argument("--synthesize", action="store_true",
+                    help="OPT-IN: attach an LLM narration of the deterministic verdict + "
+                         "contextualized axes under decision['llm_synthesis']. NEVER alters the "
+                         "verdict spine (the decision is byte-identical without this flag).")
+    ap.add_argument("--synthesis-model", default=None,
+                    help="Override the Bedrock synthesis model id (default: framework Opus).")
+    ap.add_argument("--literature", action="store_true",
+                    help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
+                         "per axis + agreement-vs-omics + omics-blind signals) under "
+                         "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
+                         "corroboration/contradiction lane. Requires the skill to supply a literature_fn; "
+                         "NEVER alters the verdict spine (byte-identical without this flag).")
+    ap.add_argument("--literature-model", default=None,
+                    help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
+    ap.add_argument("--subtype", default=None,
+                    help="OPTIONAL synthesis-grain selector: name a molecular subtype (e.g. MSI_H) to "
+                         "have the narration FOREGROUND that stratum's position, in addition to the "
+                         "across-subtype omnibus. Emphasis-only — no spine change; if the subtype is "
+                         "not among the computed strata, synthesis says so honestly.")
+    ap.add_argument("--subtypes", default=None,
+                    help="OPTIONAL comma-separated molecular subtype/stratum ids (e.g. 'MSI_H,MSS'). "
+                         "When set AND the skill supplies a subtype_panorama_fn, resolves a DESCRIPTIVE "
+                         "per-stratum panorama across those strata (e.g. dependency by MSI status) and "
+                         "appends it to the package + headline. Does NOT affect the verdict (byte-stable "
+                         "regardless). Distinct from --subtype (singular), which only steers synthesis "
+                         "emphasis over already-computed strata.")
+    ap.add_argument("--verdict-only", action="store_true",
+                    help="FAST/lean mode: read ONLY the verdict-relevant cards (the resolver's "
+                         "referenced cards, passed by the skill as verdict_cards) and skip the "
+                         "verdict-inert enrichment reads + any --synthesize narration. The verdict "
+                         "spine (verdict + driving_rule_id) is byte-identical to a full run. No-op "
+                         "for a skill that declares no verdict_cards subset (reads all cards).")
+    ap.add_argument("--emit-envelope", action="store_true",
+                    help="OPT-IN (default OFF ⇒ complete no-op): ALSO write a governance-grade "
+                         "evidence_package.json envelope (beside decision.json) around THIS "
+                         "subskill's resolver verdict, via the shared _skills_common.envelope "
+                         "writer. PURELY ADDITIVE — decision.json is byte-identical whether or not "
+                         "this flag is set. The synthesis slot carries the verdict as its headline.")
+    ap.add_argument("--data-mode", default="live",
+                    help="Data-provenance posture, carried into the emitted envelope's "
+                         "input_context/governance ONLY (mapped to the governance data_mode enum; "
+                         "a subskill envelope is exploratory-grade). D1b does NOT implement manifest "
+                         "pinning / resolve_release — that is a data-catalog follow-on. Inert unless "
+                         "--emit-envelope is set.")
+    ap.add_argument("--release-pin", default=None,
+                    help="Optional catalog release pin, carried into the envelope governance block "
+                         "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.")
+    ap.add_argument("--figures", action="store_true",
+                    help="OPT-IN (default OFF ⇒ no figures): emit per-card SVG (+ interactive plotly) "
+                         "figures via the shared _skills_common figure-emitter registry (rehomed from "
+                         "the retired compose-dashboard) into "
+                         "<out>/figures/cards/<card_id>/. PURELY ADDITIVE — decision.json is "
+                         "byte-identical whether or not this flag is set. Best-effort per card: a card "
+                         "with no registered emitter or a failed data load contributes no figure and "
+                         "never breaks the run. NB: emitters re-read method data from S3, so a --figures "
+                         "run is materially slower than the deterministic spine.")
+    return ap
+
+
+def _attach_literature_lane(decision: dict, args, literature_fn) -> None:
+    """OPT-IN --literature lane (extracted from run_wired_skill; byte-identical). Attaches the verdict-INERT decision['literature_synthesis'] AFTER the spine; honest-skip when no literature_fn is declared; a Bedrock/network fault degrades to a note and never breaks the deterministic run."""
+    if getattr(args, "literature", False):
+        if literature_fn is None:
+            decision["literature_synthesis"] = {
+                "_literature_skipped": "no_literature_lens_declared",
+                "_note": ("This skill declares no literature lens, so --literature is a no-op. The "
+                          "deterministic decision above is complete."),
+            }
+        else:
+            try:
+                decision["literature_synthesis"] = literature_fn(
+                    decision, getattr(args, "literature_model", None))
+            except Exception as e:  # noqa: BLE001 — the literature lane is optional; never break the spine
+                decision["literature_synthesis"] = {
+                    "_literature_error": f"{type(e).__name__}: {e}",
+                    "_note": "LLM literature synthesis unavailable; the deterministic verdict above is unaffected.",
+                }
+
+
+def _attach_synthesis_lane(decision: dict, args, synthesize_fn) -> None:
+    """OPT-IN --synthesize lane (extracted from run_wired_skill; byte-identical). Attaches the sibling decision['llm_synthesis'] AFTER the spine (structurally cannot move the verdict); honest-skip when no synthesize_fn is declared (NEVER falls back to another lens); a fault degrades to a note."""
+    if args.synthesize:
+        # Each skill narrates through its OWN synthesizer (its tool schema + prompt match its
+        # evidence), passed as synthesize_fn by the skill's run.py — INCLUDING tumor-presence, which
+        # now passes synthesize_presence explicitly. When a skill declares NO narrator, --synthesize is
+        # an honest no-op: we NEVER fall back to another lens's narrator. The former fallback ran the
+        # PRESENCE narrator for any verdict-bearing skill without its own synthesize_fn, mis-lensing a
+        # safety / mechanism / differentiation verdict through a presence prompt — the exact bug the
+        # per-skill synthesize_fn was introduced to fix. There is no lens-appropriate narration for a
+        # skill that declares none, so skip honestly and leave the deterministic decision intact.
+        _synth = synthesize_fn
+        if _synth is None:
+            decision["llm_synthesis"] = {
+                "_synthesis_skipped": "no_narrator_declared",
+                "_note": ("This skill declares no synthesis narrator, so --synthesize is a no-op — "
+                          "there is no lens-appropriate narration for this grain, and the framework "
+                          "will not narrate it through another skill's lens. The deterministic "
+                          "decision above is complete."),
+            }
+        else:
+            try:
+                decision["llm_synthesis"] = _synth(
+                    decision, args.synthesis_model, args.subtype)
+            except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
+                decision["llm_synthesis"] = {
+                    "_synthesis_error": f"{type(e).__name__}: {e}",
+                    "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
+                }
+
+
 def run_wired_skill(
     *,
     skill_name: str,
@@ -478,74 +605,7 @@ def run_wired_skill(
     # unexpectedly. _read_cards_process still forks ONLY from a single-threaded main thread and degrades
     # to threads otherwise, so this is safe even here; escape hatch: SKILLS_READ_POOL=thread.
     os.environ.setdefault("SKILLS_READ_POOL", "process")
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--target", required=True, help="HGNC gene symbol")
-    # --indication is OPTIONAL (2026-08-05): TARGET-INTRINSIC skills (e.g. target-intrinsic) fan out
-    # over tier:target cards that take no indication, so they invoke with --target alone. When omitted,
-    # a pan-cancer sentinel is passed to resolve_cards — target-grain card readers ignore it, and an
-    # indication-scoped reader invoked without a real indication degrades to data_unavailable (its
-    # honest gap posture). BACKWARD-COMPATIBLE: every existing focused skill still passes --indication,
-    # so their behavior is unchanged.
-    ap.add_argument("--indication", required=False, default=None, help="OncoTree code (optional for target-intrinsic skills)")
-    ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--modality", default=None,
-                    help="OPTIONAL post-hoc modality lens.")
-    ap.add_argument("--synthesize", action="store_true",
-                    help="OPT-IN: attach an LLM narration of the deterministic verdict + "
-                         "contextualized axes under decision['llm_synthesis']. NEVER alters the "
-                         "verdict spine (the decision is byte-identical without this flag).")
-    ap.add_argument("--synthesis-model", default=None,
-                    help="Override the Bedrock synthesis model id (default: framework Opus).")
-    ap.add_argument("--literature", action="store_true",
-                    help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
-                         "per axis + agreement-vs-omics + omics-blind signals) under "
-                         "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
-                         "corroboration/contradiction lane. Requires the skill to supply a literature_fn; "
-                         "NEVER alters the verdict spine (byte-identical without this flag).")
-    ap.add_argument("--literature-model", default=None,
-                    help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
-    ap.add_argument("--subtype", default=None,
-                    help="OPTIONAL synthesis-grain selector: name a molecular subtype (e.g. MSI_H) to "
-                         "have the narration FOREGROUND that stratum's position, in addition to the "
-                         "across-subtype omnibus. Emphasis-only — no spine change; if the subtype is "
-                         "not among the computed strata, synthesis says so honestly.")
-    ap.add_argument("--subtypes", default=None,
-                    help="OPTIONAL comma-separated molecular subtype/stratum ids (e.g. 'MSI_H,MSS'). "
-                         "When set AND the skill supplies a subtype_panorama_fn, resolves a DESCRIPTIVE "
-                         "per-stratum panorama across those strata (e.g. dependency by MSI status) and "
-                         "appends it to the package + headline. Does NOT affect the verdict (byte-stable "
-                         "regardless). Distinct from --subtype (singular), which only steers synthesis "
-                         "emphasis over already-computed strata.")
-    ap.add_argument("--verdict-only", action="store_true",
-                    help="FAST/lean mode: read ONLY the verdict-relevant cards (the resolver's "
-                         "referenced cards, passed by the skill as verdict_cards) and skip the "
-                         "verdict-inert enrichment reads + any --synthesize narration. The verdict "
-                         "spine (verdict + driving_rule_id) is byte-identical to a full run. No-op "
-                         "for a skill that declares no verdict_cards subset (reads all cards).")
-    ap.add_argument("--emit-envelope", action="store_true",
-                    help="OPT-IN (default OFF ⇒ complete no-op): ALSO write a governance-grade "
-                         "evidence_package.json envelope (beside decision.json) around THIS "
-                         "subskill's resolver verdict, via the shared _skills_common.envelope "
-                         "writer. PURELY ADDITIVE — decision.json is byte-identical whether or not "
-                         "this flag is set. The synthesis slot carries the verdict as its headline.")
-    ap.add_argument("--data-mode", default="live",
-                    help="Data-provenance posture, carried into the emitted envelope's "
-                         "input_context/governance ONLY (mapped to the governance data_mode enum; "
-                         "a subskill envelope is exploratory-grade). D1b does NOT implement manifest "
-                         "pinning / resolve_release — that is a data-catalog follow-on. Inert unless "
-                         "--emit-envelope is set.")
-    ap.add_argument("--release-pin", default=None,
-                    help="Optional catalog release pin, carried into the envelope governance block "
-                         "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.")
-    ap.add_argument("--figures", action="store_true",
-                    help="OPT-IN (default OFF ⇒ no figures): emit per-card SVG (+ interactive plotly) "
-                         "figures via the shared _skills_common figure-emitter registry (rehomed from "
-                         "the retired compose-dashboard) into "
-                         "<out>/figures/cards/<card_id>/. PURELY ADDITIVE — decision.json is "
-                         "byte-identical whether or not this flag is set. Best-effort per card: a card "
-                         "with no registered emitter or a failed data load contributes no figure and "
-                         "never breaks the run. NB: emitters re-read method data from S3, so a --figures "
-                         "run is materially slower than the deterministic spine.")
+    ap = _build_run_parser()
     args = ap.parse_args(argv)
 
     # Persist a timestamped run log alongside the artifacts (development + provenance). Installed as
@@ -857,55 +917,14 @@ def run_wired_skill(
     # make_literature_fn(<LENS>)); when --literature is passed but none is declared, honest-skip. A
     # failure degrades to a note — the deterministic run must never break because a network/Bedrock
     # layer is unavailable. Structurally cannot move the verdict (attached after the spine).
-    if getattr(args, "literature", False):
-        if literature_fn is None:
-            decision["literature_synthesis"] = {
-                "_literature_skipped": "no_literature_lens_declared",
-                "_note": ("This skill declares no literature lens, so --literature is a no-op. The "
-                          "deterministic decision above is complete."),
-            }
-        else:
-            try:
-                decision["literature_synthesis"] = literature_fn(
-                    decision, getattr(args, "literature_model", None))
-            except Exception as e:  # noqa: BLE001 — the literature lane is optional; never break the spine
-                decision["literature_synthesis"] = {
-                    "_literature_error": f"{type(e).__name__}: {e}",
-                    "_note": "LLM literature synthesis unavailable; the deterministic verdict above is unaffected.",
-                }
+    _attach_literature_lane(decision, args, literature_fn)
 
     # 8b. OPT-IN LLM synthesis (two-slot design). Attaches a provenance-tagged narration
     # as a SIBLING key decision['llm_synthesis'] AFTER the deterministic decision is composed,
     # so it is structurally impossible for the LLM to alter the verdict spine. Never runs
     # without --synthesize; a synthesis failure degrades to a note (the deterministic run must
     # never break because the narration layer is unavailable — Bedrock auth, network, etc.).
-    if args.synthesize:
-        # Each skill narrates through its OWN synthesizer (its tool schema + prompt match its
-        # evidence), passed as synthesize_fn by the skill's run.py — INCLUDING tumor-presence, which
-        # now passes synthesize_presence explicitly. When a skill declares NO narrator, --synthesize is
-        # an honest no-op: we NEVER fall back to another lens's narrator. The former fallback ran the
-        # PRESENCE narrator for any verdict-bearing skill without its own synthesize_fn, mis-lensing a
-        # safety / mechanism / differentiation verdict through a presence prompt — the exact bug the
-        # per-skill synthesize_fn was introduced to fix. There is no lens-appropriate narration for a
-        # skill that declares none, so skip honestly and leave the deterministic decision intact.
-        _synth = synthesize_fn
-        if _synth is None:
-            decision["llm_synthesis"] = {
-                "_synthesis_skipped": "no_narrator_declared",
-                "_note": ("This skill declares no synthesis narrator, so --synthesize is a no-op — "
-                          "there is no lens-appropriate narration for this grain, and the framework "
-                          "will not narrate it through another skill's lens. The deterministic "
-                          "decision above is complete."),
-            }
-        else:
-            try:
-                decision["llm_synthesis"] = _synth(
-                    decision, args.synthesis_model, args.subtype)
-            except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
-                decision["llm_synthesis"] = {
-                    "_synthesis_error": f"{type(e).__name__}: {e}",
-                    "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
-                }
+    _attach_synthesis_lane(decision, args, synthesize_fn)
 
     # 8c. OPT-IN per-card figures (--figures). Emitted BEFORE write_package so the package's
     # figures/ collection (now recursive) picks them up. PURELY ADDITIVE — decision.json is
