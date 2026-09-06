@@ -1,72 +1,44 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-02T12:17:10.879424+00:00",
+  "generated_at": "2026-09-06T16:22:09.629788+00:00",
   "roots": {
-    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-regen-framework-health",
+    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-regen-dashboard-feeds",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "4044429",
-    "skills": "4585f2e",
-    "methods": "0e8d5a8",
+    "contracts": "e3b8ad1",
+    "skills": "48da31b",
+    "methods": "d204279",
     "products": "5c4a0ea",
-    "catalog": "2f4b7f0"
+    "catalog": "8dfc698"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-02T12:15:54.694541+00:00",
-    "n_skills": 27,
+    "prior_generated_at": "2026-09-02T12:17:10.879424+00:00",
+    "n_skills": 0,
     "n_cards": 1,
-    "n_drift_flags": 23,
+    "n_drift_flags": 1,
     "n_error_drift": 0,
-    "verdict_tally": {
-      "partial": 20,
-      "production_ready": 7
-    },
+    "verdict_tally": {},
     "card_health_tally": {
-      "broken": -135,
-      "live": 101,
-      "placeholder": -2,
-      "self_produced": 1,
-      "wired": 36
+      "wired": 1
     },
     "skills_added": [
-      "bispecific-pair-scan",
-      "catalog-query",
-      "cis-feature-coherence",
-      "combination-and-vulnerability",
-      "combinatorial-dependency",
-      "combo-and-resistance",
-      "cross-evidence-hypothesis",
-      "differentiation-landscape",
-      "example-gallery",
-      "functional-requirement",
-      "genomic-alteration-profile",
-      "immune-context",
-      "literature-risk-assessment",
-      "mechanism-and-pharmacology",
-      "on-target-safety-liability",
-      "query-target-evidence",
-      "render-evidence-package",
-      "surface-modality-fit",
-      "surfaceome-cohort-ranking",
-      "synthetic-lethal-partners",
-      "target-archetype",
-      "target-intrinsic",
-      "target-profile",
-      "tractability-small-molecule",
-      "translational-readiness",
-      "tumor-presence",
-      "tumor-selectivity"
+      "literature-context"
     ],
-    "skills_removed": [],
+    "skills_removed": [
+      "combo-and-resistance"
+    ],
     "cards_added": [
-      "bispecific-pair-scan"
+      "cited-literature-evidence",
+      "splice-exon-skip-landscape"
     ],
-    "cards_removed": []
+    "cards_removed": [
+      "tumor-splice-expression"
+    ]
   },
   "summary": {
     "n_skills": 27,
@@ -75,40 +47,40 @@
       "production_ready": 7
     },
     "runs_clean_tally": {
-      "unknown": 15,
-      "clean": 11,
+      "unknown": 13,
+      "clean": 13,
       "clean_uninstrumented": 1
     },
-    "n_runs_clean": 11,
+    "n_runs_clean": 13,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 23,
+    "n_drift_flags": 24,
     "n_error_drift": 0,
     "n_unregistered_skills": 0,
-    "n_live_reader_cards": 61,
+    "n_live_reader_cards": 62,
     "n_cards_firing_in_real_packages": 101,
     "n_cards_firing_in_any_run": 101,
-    "n_cards": 148,
+    "n_cards": 149,
     "card_health_tally": {
       "live": 101,
       "placeholder": 10,
       "self_produced": 1,
-      "wired": 36
+      "wired": 37
     },
     "modality_routing_tally": {
       "not_required": 69,
-      "declared": 78,
+      "declared": 79,
       "not_applicable": 1
     },
-    "n_p4_required_cards": 78,
-    "n_p4_declared_cards": 78,
+    "n_p4_required_cards": 79,
+    "n_p4_declared_cards": 79,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
     "n_orphan_cards": 0,
     "n_staged_orphan_cards": 9,
-    "n_cards_consumed_but_no_spec": 101,
-    "n_datasets": 515,
-    "n_datasets_in_catalog": 509,
-    "n_orphan_datasets": 337,
+    "n_cards_consumed_but_no_spec": 102,
+    "n_datasets": 516,
+    "n_datasets_in_catalog": 510,
+    "n_orphan_datasets": 333,
     "n_broken_dataset_refs": 0,
     "n_pending_placeholder_refs": 6,
     "n_datasets_high_access_cost": 2,
@@ -116,7 +88,7 @@
     "access_cost_tally": {
       "low": 190,
       "moderate_unused": 22,
-      "unknown": 288,
+      "unknown": 289,
       "high_unused": 7,
       "moderate": 6,
       "high": 2
@@ -130,13 +102,13 @@
       "cis-feature-coherence",
       "combination-and-vulnerability",
       "combinatorial-dependency",
-      "combo-and-resistance",
       "cross-evidence-hypothesis",
       "differentiation-landscape",
       "example-gallery",
       "functional-requirement",
       "genomic-alteration-profile",
       "immune-context",
+      "literature-context",
       "literature-risk-assessment",
       "mechanism-and-pharmacology",
       "on-target-safety-liability",
@@ -159,13 +131,13 @@
       "cis-feature-coherence",
       "combination-and-vulnerability",
       "combinatorial-dependency",
-      "combo-and-resistance",
       "cross-evidence-hypothesis",
       "differentiation-landscape",
       "example-gallery",
       "functional-requirement",
       "genomic-alteration-profile",
       "immune-context",
+      "literature-context",
       "literature-risk-assessment",
       "mechanism-and-pharmacology",
       "on-target-safety-liability",
@@ -213,7 +185,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 1
+        "test_count": 2
       },
       "cards": [
         {
@@ -343,7 +315,7 @@
           "cellline-isoform-dominance",
           "cellline-isoform-expression"
         ],
-        "test_count": 4
+        "test_count": 8
       },
       "cards": [
         {
@@ -671,15 +643,25 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 9,
+        "n_cards_resolved": 9,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.055,
+        "compute_secs": 0.1288,
+        "total_secs": 0.1838
+      }
     },
     {
       "name": "combination-and-vulnerability",
       "declared": {
         "status": "partial",
         "phase": [
-          "C"
+          "C",
+          "I"
         ],
         "cards_used": [
           "synthetic-lethal-partners",
@@ -717,7 +699,7 @@
           "combo-chemical-synergy",
           "resistance-emergence-signature"
         ],
-        "test_count": 3
+        "test_count": 7
       },
       "cards": [
         {
@@ -896,8 +878,17 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 5,
+        "n_cards_resolved": 5,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.03,
+        "compute_secs": 0.0977,
+        "total_secs": 0.1277
+      }
     },
     {
       "name": "combinatorial-dependency",
@@ -929,7 +920,7 @@
         "cards_in_runpy": [
           "combinatorial-dependency"
         ],
-        "test_count": 1
+        "test_count": 3
       },
       "cards": [
         {
@@ -987,130 +978,6 @@
       "run_health": null
     },
     {
-      "name": "combo-and-resistance",
-      "declared": {
-        "status": "deprecated",
-        "phase": [
-          "I"
-        ],
-        "cards_used": [
-          "combo-crispr-screen",
-          "resistance-emergence-signature"
-        ],
-        "rules_scope": [
-          "combo-crispr-screen",
-          "resistance-emergence-signature"
-        ],
-        "prose_markers": [
-          "graduated",
-          "partial",
-          "placeholder"
-        ],
-        "skill_md_exists": true,
-        "skill_md_parse_error": null
-      },
-      "derived": {
-        "has_entrypoint": true,
-        "entrypoint": "run.py",
-        "kind": "FOCUSED",
-        "resolver_gate": null,
-        "resolver_bound": false,
-        "fans_out": false,
-        "is_placeholder": false,
-        "cards_in_runpy": [
-          "combo-crispr-screen",
-          "resistance-emergence-signature"
-        ],
-        "test_count": 2
-      },
-      "cards": [
-        {
-          "card_id": "combo-crispr-screen",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "drug_anchored_combination",
-          "has_live_reader": true,
-          "method_call": "combo-drug-anchor",
-          "dispatch_module": "combo_drug_anchor.read",
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": true,
-          "fires_in_any_run": true,
-          "datasets": [
-            {
-              "product_id": "depmap-drug-anchor-combination-per-target-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "depmap-drug-anchor-combination-per-target-v1"
-            }
-          ],
-          "modality_relevance": [
-            "small_molecule",
-            "degrader"
-          ],
-          "modality_routing": "declared",
-          "card_health": "live",
-          "health_reason": "card-live-fired",
-          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
-        },
-        {
-          "card_id": "resistance-emergence-signature",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "drug_anchored_resistance",
-          "has_live_reader": true,
-          "method_call": "resistance-emergence",
-          "dispatch_module": "resistance_emergence.read",
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": true,
-          "fires_in_any_run": true,
-          "datasets": [
-            {
-              "product_id": "depmap-drug-anchor-resistance-per-target-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "depmap-drug-anchor-resistance-per-target-v1"
-            }
-          ],
-          "modality_relevance": [
-            "small_molecule",
-            "degrader"
-          ],
-          "modality_routing": "declared",
-          "card_health": "live",
-          "health_reason": "card-live-fired",
-          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
-        }
-      ],
-      "n_core_cards": 2,
-      "n_cards": 2,
-      "n_cards_live": 2,
-      "n_p4_required": 2,
-      "n_p4_declared": 2,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combo-crispr-screen, resistance-emergence-signature"
-        }
-      ],
-      "health_verdict": "production_ready",
-      "health_reason": "skill-production-ready",
-      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
-    },
-    {
       "name": "cross-evidence-hypothesis",
       "declared": {
         "status": "partial",
@@ -1132,7 +999,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 10
+        "test_count": 12
       },
       "cards": [],
       "n_core_cards": 0,
@@ -1200,7 +1067,7 @@
           "clinical-precedent",
           "competitor-landscape"
         ],
-        "test_count": 8
+        "test_count": 12
       },
       "cards": [
         {
@@ -1540,13 +1407,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 2,
-        "n_cards_resolved": 2,
+        "n_cards_consumed": 9,
+        "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1687,
-        "total_secs": 0.1687
+        "read_secs": 0.0485,
+        "compute_secs": 0.1465,
+        "total_secs": 0.195
       }
     },
     {
@@ -1655,7 +1522,7 @@
           "coessential-module",
           "subgroup-stratified-dependency"
         ],
-        "test_count": 18
+        "test_count": 23
       },
       "cards": [
         {
@@ -2216,13 +2083,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 10,
-        "n_cards_resolved": 10,
+        "n_cards_consumed": 15,
+        "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1699,
-        "total_secs": 0.17
+        "read_secs": 0.1067,
+        "compute_secs": 0.2096,
+        "total_secs": 0.3163
       }
     },
     {
@@ -2235,7 +2102,6 @@
         ],
         "cards_used": [
           "tumor-splice-dysregulation",
-          "tumor-splice-expression",
           "mutation-type-counts",
           "mutation-stratified-dependency",
           "copy-number-distribution",
@@ -2244,6 +2110,7 @@
           "amp-expr-stratified-dependency",
           "alteration-role",
           "fusion-rearrangement-landscape",
+          "splice-exon-skip-landscape",
           "mutation-drug-response",
           "mutation-hotspot-frequency",
           "variant-level-interpretation",
@@ -2270,6 +2137,7 @@
           "amp-expr-stratified-dependency",
           "alteration-role",
           "fusion-rearrangement-landscape",
+          "splice-exon-skip-landscape",
           "mutation-drug-response",
           "mutation-hotspot-frequency"
         ],
@@ -2282,7 +2150,7 @@
       "derived": {
         "has_entrypoint": true,
         "entrypoint": "run.py",
-        "kind": "OTHER",
+        "kind": "FOCUSED",
         "resolver_gate": null,
         "resolver_bound": false,
         "fans_out": false,
@@ -2296,6 +2164,7 @@
           "amp-expr-stratified-dependency",
           "fusion-stratified-dependency",
           "fusion-rearrangement-landscape",
+          "splice-exon-skip-landscape",
           "mutation-drug-response",
           "alteration-role",
           "functional-gene-state",
@@ -2310,12 +2179,11 @@
           "cross-consortium-dependency",
           "dependency-predictability",
           "tumor-splice-dysregulation",
-          "tumor-splice-expression",
           "subgroup-stratified-mutation-frequency",
           "subgroup-stratified-copy-number",
           "subgroup-stratified-fusion"
         ],
-        "test_count": 14
+        "test_count": 18
       },
       "cards": [
         {
@@ -2957,6 +2825,38 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
+          "card_id": "splice-exon-skip-landscape",
+          "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "splice_exon_skip",
+          "has_live_reader": true,
+          "method_call": "exon-skip-landscape",
+          "dispatch_module": "exon_skip_carrier",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "fires_in_any_run": false,
+          "datasets": [
+            {
+              "product_id": "depmap-somatic-splice-variants-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-somatic-splice-variants-v1"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "wired",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a bespoke live reader but has not fired passed/warned in any real package yet \u2014 WIRED, awaiting its first governed firing (NOT a defect)"
+        },
+        {
           "card_id": "subgroup-stratified-copy-number",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
@@ -3126,35 +3026,6 @@
           "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
         },
         {
-          "card_id": "tumor-splice-expression",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "tumor_splice_expression",
-          "has_live_reader": false,
-          "method_call": "tcga-spliceseq-psi",
-          "dispatch_module": null,
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "fires_in_any_run": false,
-          "datasets": [
-            {
-              "product_id": "tcga-spliceseq-psi-per-gene-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "tcga-spliceseq-psi-per-gene-v1"
-            }
-          ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
-          "card_health": "wired",
-          "health_reason": "card-generic-dispatch-never-fires",
-          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
-        },
-        {
           "card_id": "variant-effect-mave-mavedb",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
@@ -3213,21 +3084,26 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         }
       ],
-      "n_core_cards": 10,
+      "n_core_cards": 11,
       "n_cards": 26,
       "n_cards_live": 20,
-      "n_p4_required": 12,
-      "n_p4_declared": 12,
+      "n_p4_required": 13,
+      "n_p4_declared": 13,
       "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: splice-exon-skip-landscape"
+        },
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, cross-consortium-dependency, ddr-deficiency-context, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, mutation-drug-response, mutational-signature-context, oncogenic-pathway-alteration, subgroup-stratified-copy-number, subgroup-stratified-fusion, target-clonality, tumor-splice-dysregulation, tumor-splice-expression, variant-effect-mave-mavedb, variant-level-interpretation"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, cross-consortium-dependency, ddr-deficiency-context, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, mutation-drug-response, mutational-signature-context, oncogenic-pathway-alteration, splice-exon-skip-landscape, subgroup-stratified-copy-number, subgroup-stratified-fusion, target-clonality, tumor-splice-dysregulation, variant-effect-mave-mavedb, variant-level-interpretation"
         }
       ],
-      "health_verdict": "partial",
-      "health_reason": "skill-default",
-      "reason_text": "no skill rule matched (fallback)",
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
@@ -3274,7 +3150,7 @@
           "ici-response-imvigor210",
           "tcga-til-fraction-saltz"
         ],
-        "test_count": 3
+        "test_count": 9
       },
       "cards": [
         {
@@ -3484,14 +3360,108 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 1,
-        "n_cards_resolved": 1,
+        "n_cards_consumed": 6,
+        "n_cards_resolved": 6,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.0679,
-        "total_secs": 0.0679
+        "read_secs": 0.0289,
+        "compute_secs": 0.0857,
+        "total_secs": 0.1146
       }
+    },
+    {
+      "name": "literature-context",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "C",
+          "D",
+          "F",
+          "G",
+          "J"
+        ],
+        "cards_used": [
+          "cited-literature-evidence"
+        ],
+        "rules_scope": [
+          "none"
+        ],
+        "prose_markers": [
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "cited-literature-evidence"
+        ],
+        "test_count": 2
+      },
+      "cards": [
+        {
+          "card_id": "cited-literature-evidence",
+          "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "cited_literature_evidence",
+          "has_live_reader": false,
+          "method_call": "cited-literature-evidence",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "fires_in_any_run": false,
+          "datasets": [
+            {
+              "product_id": "opentargets-europepmc-evidence-per-target-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "opentargets-europepmc-evidence-per-target-v1"
+            },
+            {
+              "product_id": "pubtator3-gene-disease-relations-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "pubtator3-gene-disease-relations-per-gene-v1"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "wired",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 1,
+      "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
+      "drift_flags": [
+        {
+          "code": "card_consumed_but_no_spec",
+          "severity": "info",
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cited-literature-evidence"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "literature-risk-assessment",
@@ -3577,7 +3547,7 @@
           "pathway-activity-context",
           "dependency-predictability"
         ],
-        "test_count": 8
+        "test_count": 12
       },
       "cards": [
         {
@@ -3750,13 +3720,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 2,
-        "n_cards_resolved": 2,
+        "n_cards_consumed": 5,
+        "n_cards_resolved": 5,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1823,
-        "total_secs": 0.1824
+        "read_secs": 0.0334,
+        "compute_secs": 0.2503,
+        "total_secs": 0.2837
       }
     },
     {
@@ -3828,7 +3798,7 @@
           "drug-warning-safety",
           "onsides-adverse-event-safety"
         ],
-        "test_count": 8
+        "test_count": 10
       },
       "cards": [
         {
@@ -4361,13 +4331,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 8,
-        "n_cards_resolved": 8,
+        "n_cards_consumed": 15,
+        "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1678,
-        "total_secs": 0.1678
+        "read_secs": 0.0884,
+        "compute_secs": 0.3517,
+        "total_secs": 0.4401
       }
     },
     {
@@ -4522,7 +4492,7 @@
           "surface-bulk-pair-selectivity",
           "pmhc-epitope-evidence-iedb"
         ],
-        "test_count": 14
+        "test_count": 18
       },
       "cards": [
         {
@@ -5085,6 +5055,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "sc-cite-surface-normal-immune-v1"
+            },
+            {
+              "product_id": "sc-cite-surface-normal-bonemarrow-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sc-cite-surface-normal-bonemarrow-v1"
             }
           ],
           "modality_relevance": [
@@ -5295,10 +5271,10 @@
               "resolved_id": "sc-samecell-coexpr-crc-coadread-v1"
             },
             {
-              "product_id": "sc-samecell-coexpr-nsclc-v1",
+              "product_id": "sc-samecell-coexpr-luca-nsclc-v1",
               "in_catalog": true,
               "matched_by": "exact",
-              "resolved_id": "sc-samecell-coexpr-nsclc-v1"
+              "resolved_id": "sc-samecell-coexpr-luca-nsclc-v1"
             },
             {
               "product_id": "sc-samecell-coexpr-lusc-v1",
@@ -5335,6 +5311,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "sc-samecell-coexpr-stad-golim-v1"
+            },
+            {
+              "product_id": "sc-samecell-coexpr-brca-wu-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sc-samecell-coexpr-brca-wu-v1"
             },
             {
               "product_id": "sc-samecell-coexpr-normal-v1",
@@ -5555,13 +5537,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 13,
-        "n_cards_resolved": 13,
+        "n_cards_consumed": 24,
+        "n_cards_resolved": 24,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.085,
-        "total_secs": 0.085
+        "read_secs": 0.1637,
+        "compute_secs": 0.3764,
+        "total_secs": 0.5402
       }
     },
     {
@@ -5592,7 +5574,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 0
+        "test_count": 1
       },
       "cards": [
         {
@@ -5677,7 +5659,7 @@
         "cards_in_runpy": [
           "synthetic-lethal-partners"
         ],
-        "test_count": 4
+        "test_count": 6
       },
       "cards": [
         {
@@ -5728,17 +5710,8 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "clean",
-      "run_health": {
-        "status": "ok",
-        "n_cards_consumed": 1,
-        "n_cards_resolved": 1,
-        "n_cards_fired": 0,
-        "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1704,
-        "total_secs": 0.1705
-      }
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "target-archetype",
@@ -5764,7 +5737,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 3
+        "test_count": 6
       },
       "cards": [],
       "n_core_cards": 0,
@@ -5851,7 +5824,7 @@
           "paralog-buffering",
           "normal-tissue-liability"
         ],
-        "test_count": 4
+        "test_count": 8
       },
       "cards": [
         {
@@ -6530,13 +6503,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 17,
-        "n_cards_resolved": 17,
+        "n_cards_consumed": 20,
+        "n_cards_resolved": 20,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1639,
-        "total_secs": 0.1639
+        "read_secs": 0.1135,
+        "compute_secs": 0.3148,
+        "total_secs": 0.4284
       }
     },
     {
@@ -6611,7 +6584,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 63
+        "test_count": 61
       },
       "cards": [
         {
@@ -7939,7 +7912,7 @@
           "degradation-feasibility",
           "gdsc-drug-activity"
         ],
-        "test_count": 9
+        "test_count": 13
       },
       "cards": [
         {
@@ -8230,13 +8203,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 4,
-        "n_cards_resolved": 4,
+        "n_cards_consumed": 8,
+        "n_cards_resolved": 8,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1674,
-        "total_secs": 0.1674
+        "read_secs": 0.0649,
+        "compute_secs": 0.1461,
+        "total_secs": 0.211
       }
     },
     {
@@ -8277,7 +8250,7 @@
           "target-pdx-drug-response",
           "organoid-crispr-dependency"
         ],
-        "test_count": 0
+        "test_count": 3
       },
       "cards": [
         {
@@ -8424,8 +8397,17 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 4,
+        "n_cards_resolved": 4,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0213,
+        "compute_secs": 0.0868,
+        "total_secs": 0.1081
+      }
     },
     {
       "name": "tumor-presence",
@@ -8495,7 +8477,7 @@
           "normal-tissue-liability",
           "sc-normal-celltype-expression"
         ],
-        "test_count": 24
+        "test_count": 30
       },
       "cards": [
         {
@@ -9294,13 +9276,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 11,
-        "n_cards_resolved": 11,
+        "n_cards_consumed": 17,
+        "n_cards_resolved": 17,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.161,
-        "total_secs": 0.161
+        "read_secs": 0.1426,
+        "compute_secs": 0.3027,
+        "total_secs": 0.4453
       }
     },
     {
@@ -9364,7 +9346,7 @@
           "spatial-surface-protein-abundance",
           "tumor-vs-normal-percentile-crossing-by-subtype"
         ],
-        "test_count": 6
+        "test_count": 10
       },
       "cards": [
         {
@@ -10135,13 +10117,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 2,
-        "n_cards_resolved": 2,
+        "n_cards_consumed": 13,
+        "n_cards_resolved": 13,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0,
-        "compute_secs": 0.1638,
-        "total_secs": 0.1638
+        "read_secs": 0.108,
+        "compute_secs": 0.2622,
+        "total_secs": 0.3703
       }
     }
   ],
@@ -11031,6 +11013,50 @@
       "consumed_but_no_spec": true
     },
     {
+      "card_id": "cited-literature-evidence",
+      "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "cited_literature_evidence",
+      "has_live_reader": false,
+      "method_call": "cited-literature-evidence",
+      "dispatch_module": null,
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "fires_in_any_run": false,
+      "datasets": [
+        {
+          "product_id": "opentargets-europepmc-evidence-per-target-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "opentargets-europepmc-evidence-per-target-v1"
+        },
+        {
+          "product_id": "pubtator3-gene-disease-relations-per-gene-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "pubtator3-gene-disease-relations-per-gene-v1"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "wired",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)",
+      "consumers": [
+        "literature-context"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_staged_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "clingen-dosage",
       "card_yaml_exists": true,
       "is_self_produced_skill_card": false,
@@ -11351,10 +11377,9 @@
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
-        "combination-and-vulnerability",
-        "combo-and-resistance"
+        "combination-and-vulnerability"
       ],
-      "n_consumers": 2,
+      "n_consumers": 1,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -14286,10 +14311,9 @@
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
-        "combination-and-vulnerability",
-        "combo-and-resistance"
+        "combination-and-vulnerability"
       ],
-      "n_consumers": 2,
+      "n_consumers": 1,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -14554,6 +14578,12 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "sc-cite-surface-normal-immune-v1"
+        },
+        {
+          "product_id": "sc-cite-surface-normal-bonemarrow-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sc-cite-surface-normal-bonemarrow-v1"
         }
       ],
       "modality_relevance": [
@@ -14997,6 +15027,47 @@
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_staged_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
+      "card_id": "splice-exon-skip-landscape",
+      "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "splice_exon_skip",
+      "has_live_reader": true,
+      "method_call": "exon-skip-landscape",
+      "dispatch_module": "exon_skip_carrier",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "fires_in_any_run": false,
+      "datasets": [
+        {
+          "product_id": "depmap-somatic-splice-variants-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-somatic-splice-variants-v1"
+        }
+      ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
+      "card_health": "wired",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a bespoke live reader but has not fired passed/warned in any real package yet \u2014 WIRED, awaiting its first governed firing (NOT a defect)",
+      "consumers": [
+        "genomic-alteration-profile"
       ],
       "n_consumers": 1,
       "is_orphan": false,
@@ -15484,10 +15555,10 @@
           "resolved_id": "sc-samecell-coexpr-crc-coadread-v1"
         },
         {
-          "product_id": "sc-samecell-coexpr-nsclc-v1",
+          "product_id": "sc-samecell-coexpr-luca-nsclc-v1",
           "in_catalog": true,
           "matched_by": "exact",
-          "resolved_id": "sc-samecell-coexpr-nsclc-v1"
+          "resolved_id": "sc-samecell-coexpr-luca-nsclc-v1"
         },
         {
           "product_id": "sc-samecell-coexpr-lusc-v1",
@@ -15524,6 +15595,12 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "sc-samecell-coexpr-stad-golim-v1"
+        },
+        {
+          "product_id": "sc-samecell-coexpr-brca-wu-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sc-samecell-coexpr-brca-wu-v1"
         },
         {
           "product_id": "sc-samecell-coexpr-normal-v1",
@@ -16508,44 +16585,6 @@
       "is_placeholder": false,
       "placeholder_reason": null,
       "measurement_type": "tumor_splice_dysregulation",
-      "has_live_reader": false,
-      "method_call": "tcga-spliceseq-psi",
-      "dispatch_module": null,
-      "method_dir_exists": true,
-      "method_has_read": true,
-      "stale_method_label": false,
-      "fires_in_real_package": false,
-      "fires_in_any_run": false,
-      "datasets": [
-        {
-          "product_id": "tcga-spliceseq-psi-per-gene-v1",
-          "in_catalog": true,
-          "matched_by": "exact",
-          "resolved_id": "tcga-spliceseq-psi-per-gene-v1"
-        }
-      ],
-      "modality_relevance": null,
-      "modality_routing": "not_required",
-      "card_health": "wired",
-      "health_reason": "card-generic-dispatch-never-fires",
-      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)",
-      "consumers": [
-        "genomic-alteration-profile"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
-      "is_staged_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
-    },
-    {
-      "card_id": "tumor-splice-expression",
-      "card_yaml_exists": true,
-      "is_self_produced_skill_card": false,
-      "is_placeholder": false,
-      "placeholder_reason": null,
-      "measurement_type": "tumor_splice_expression",
       "has_live_reader": false,
       "method_call": "tcga-spliceseq-psi",
       "dispatch_module": null,
@@ -19646,6 +19685,28 @@
         "prism-crispr-concordance"
       ],
       "n_consumers": 2,
+      "is_orphan": false,
+      "all_consumers_placeholder": false,
+      "has_sort_key": true,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "depmap-somatic-splice-variants-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "splice-exon-skip-landscape"
+      ],
+      "n_consumers": 1,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -22876,9 +22937,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cited-literature-evidence"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -23749,9 +23812,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cited-literature-evidence"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -23995,9 +24060,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "sc-surface-normal-safety"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25327,9 +25394,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "surface-colocalization-avidity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25409,9 +25478,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "surface-colocalization-avidity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25473,11 +25544,9 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [
-        "surface-colocalization-avidity"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -26748,10 +26817,9 @@
       "n_derived_from": 1,
       "consumed_by_cards": [
         "tumor-rna-distribution",
-        "tumor-splice-dysregulation",
-        "tumor-splice-expression"
+        "tumor-splice-dysregulation"
       ],
-      "n_consumers": 3,
+      "n_consumers": 2,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -27631,14 +27699,6 @@
         "risk_category": null
       },
       {
-        "id": "skill:combo-and-resistance",
-        "layer": "skill",
-        "label": "combo-and-resistance",
-        "health": "production_ready",
-        "kind": "FOCUSED",
-        "risk_category": null
-      },
-      {
         "id": "skill:cross-evidence-hypothesis",
         "layer": "skill",
         "label": "cross-evidence-hypothesis",
@@ -27674,14 +27734,22 @@
         "id": "skill:genomic-alteration-profile",
         "layer": "skill",
         "label": "genomic-alteration-profile",
-        "health": "partial",
-        "kind": "OTHER",
+        "health": "production_ready",
+        "kind": "FOCUSED",
         "risk_category": null
       },
       {
         "id": "skill:immune-context",
         "layer": "skill",
         "label": "immune-context",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": null
+      },
+      {
+        "id": "skill:literature-context",
+        "layer": "skill",
+        "label": "literature-context",
         "health": "partial",
         "kind": "FOCUSED",
         "risk_category": null
@@ -27973,6 +28041,14 @@
         "health": "wired",
         "is_orphan": false,
         "measurement_type": "cis_protein_dosage_coupling"
+      },
+      {
+        "id": "card:cited-literature-evidence",
+        "layer": "card",
+        "label": "cited-literature-evidence",
+        "health": "wired",
+        "is_orphan": false,
+        "measurement_type": "cited_literature_evidence"
       },
       {
         "id": "card:clingen-dosage",
@@ -28671,6 +28747,14 @@
         "measurement_type": "spatial_colocalization"
       },
       {
+        "id": "card:splice-exon-skip-landscape",
+        "layer": "card",
+        "label": "splice-exon-skip-landscape",
+        "health": "wired",
+        "is_orphan": false,
+        "measurement_type": "splice_exon_skip"
+      },
+      {
         "id": "card:stemness-context",
         "layer": "card",
         "label": "stemness-context",
@@ -28935,14 +29019,6 @@
         "measurement_type": "tumor_splice_dysregulation"
       },
       {
-        "id": "card:tumor-splice-expression",
-        "layer": "card",
-        "label": "tumor-splice-expression",
-        "health": "wired",
-        "is_orphan": false,
-        "measurement_type": "tumor_splice_expression"
-      },
-      {
         "id": "card:tumor-vs-normal-percentile-crossing",
         "layer": "card",
         "label": "tumor-vs-normal-percentile-crossing",
@@ -29072,6 +29148,12 @@
         "id": "method:driver_role_overlay",
         "layer": "method",
         "label": "driver_role_overlay",
+        "health": "live"
+      },
+      {
+        "id": "method:exon_skip_carrier",
+        "layer": "method",
+        "label": "exon_skip_carrier",
         "health": "live"
       },
       {
@@ -29521,6 +29603,11 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:splice-exon-skip-landscape",
+        "dst": "method:exon_skip_carrier",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:structure-features-static",
         "dst": "method:structure_features_static",
         "rel": "backed_by"
@@ -29688,16 +29775,6 @@
       {
         "src": "skill:combinatorial-dependency",
         "dst": "card:combinatorial-dependency",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:combo-and-resistance",
-        "dst": "card:combo-crispr-screen",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:combo-and-resistance",
-        "dst": "card:resistance-emergence-signature",
         "rel": "consumes"
       },
       {
@@ -29917,6 +29994,11 @@
       },
       {
         "src": "skill:genomic-alteration-profile",
+        "dst": "card:splice-exon-skip-landscape",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
         "dst": "card:subgroup-stratified-copy-number",
         "rel": "consumes"
       },
@@ -29938,11 +30020,6 @@
       {
         "src": "skill:genomic-alteration-profile",
         "dst": "card:tumor-splice-dysregulation",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:genomic-alteration-profile",
-        "dst": "card:tumor-splice-expression",
         "rel": "consumes"
       },
       {
@@ -29983,6 +30060,11 @@
       {
         "src": "skill:immune-context",
         "dst": "card:tcga-til-fraction-saltz",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:literature-context",
+        "dst": "card:cited-literature-evidence",
         "rel": "consumes"
       },
       {
@@ -30719,10 +30801,10 @@
     "layer_counts": {
       "skill": 27,
       "resolver": 0,
-      "card": 148,
-      "method": 53
+      "card": 149,
+      "method": 54
     },
-    "n_nodes": 228,
+    "n_nodes": 230,
     "n_edges": 281
   },
   "drift_index": [
@@ -30745,12 +30827,6 @@
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency"
     },
     {
-      "skill": "combo-and-resistance",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combo-crispr-screen, resistance-emergence-signature"
-    },
-    {
       "skill": "differentiation-landscape",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
@@ -30764,9 +30840,15 @@
     },
     {
       "skill": "genomic-alteration-profile",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: splice-exon-skip-landscape"
+    },
+    {
+      "skill": "genomic-alteration-profile",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, cross-consortium-dependency, ddr-deficiency-context, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, mutation-drug-response, mutational-signature-context, oncogenic-pathway-alteration, subgroup-stratified-copy-number, subgroup-stratified-fusion, target-clonality, tumor-splice-dysregulation, tumor-splice-expression, variant-effect-mave-mavedb, variant-level-interpretation"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, cross-consortium-dependency, ddr-deficiency-context, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, mutation-drug-response, mutational-signature-context, oncogenic-pathway-alteration, splice-exon-skip-landscape, subgroup-stratified-copy-number, subgroup-stratified-fusion, target-clonality, tumor-splice-dysregulation, variant-effect-mave-mavedb, variant-level-interpretation"
     },
     {
       "skill": "immune-context",
@@ -30779,6 +30861,12 @@
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, tcga-til-fraction-saltz"
+    },
+    {
+      "skill": "literature-context",
+      "code": "card_consumed_but_no_spec",
+      "severity": "info",
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cited-literature-evidence"
     },
     {
       "skill": "mechanism-and-pharmacology",
