@@ -21,6 +21,8 @@ from __future__ import annotations
 from itertools import combinations
 from pathlib import Path
 
+import pytest
+
 from _test_support import load_run_py
 
 tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_ladder")
@@ -117,3 +119,41 @@ def test_protein_absence_is_a_measured_negative():
     must NOT still carry that unreachable token."""
     assert "protein_broadly_low" in tp._MEASURED_NEGATIVE_VERDICTS
     assert "protein_not_detected" not in tp._MEASURED_NEGATIVE_VERDICTS
+
+
+def _live_intracellular_rule_ids():
+    """The rule_ids DEFINED in the shared intracellular-intrinsic interpretation-rules (target-contracts).
+    Returns None when the sibling contracts checkout is absent (checkout-only CI) so callers can skip."""
+    import yaml
+
+    from _skills_common.paths import target_contracts_root
+
+    path = target_contracts_root() / "interpretation-rules" / "intracellular-intrinsic.rules.yaml"
+    if not path.exists():
+        return None
+    spec = yaml.safe_load(path.read_text()) or {}
+    return {r["rule_id"] for r in (spec.get("rules") or [])
+            if isinstance(r, dict) and r.get("rule_id")}
+
+
+def test_protein_absence_rids_non_empty():
+    """The `present_rna_only_protein_absent` caveat (run.py `_verdict`) — the ONLY verdict word that warns
+    an RNA-present target is protein-ABSENT — fires only when a rule in `_PROTEIN_ABSENCE_RIDS` is among
+    the fired set. An empty set silently disables that entire demotion pathway with no other test catching
+    it, so pin it non-empty."""
+    assert tp._PROTEIN_ABSENCE_RIDS, \
+        "_PROTEIN_ABSENCE_RIDS is empty — the protein-absence demotion is silently unreachable"
+
+
+def test_protein_absence_rids_resolve_to_live_contract_rules():
+    """Cross-repo staleness guard: every rid in `_PROTEIN_ABSENCE_RIDS` must resolve to a LIVE rule in the
+    shared intracellular-intrinsic interpretation-rules. The whole `present_rna_only_protein_absent`
+    demotion hinges on a single cell-line `protein-abundance-broadly-low-degrader-killer` rung; if
+    target-contracts renamed or retired it, the caveat would go silently unreachable with no failure here.
+    Skips when the sibling contracts checkout is absent (checkout-only CI)."""
+    live = _live_intracellular_rule_ids()
+    if live is None:
+        pytest.skip("target-contracts checkout absent — cross-repo rule-id guard not applicable")
+    missing = sorted(set(tp._PROTEIN_ABSENCE_RIDS) - live)
+    assert not missing, \
+        f"_PROTEIN_ABSENCE_RIDS reference rules not defined in intracellular-intrinsic.rules.yaml: {missing}"

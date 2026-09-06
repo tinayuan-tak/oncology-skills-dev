@@ -5,7 +5,7 @@ description: |
   and how does it distribute across cancer cell lines vs. tumor samples, at RNA,
   protein, and single-cell level?"
 
-  Consumes 15 cards across three measurement layers (bulk RNA, bulk protein MS,
+  Consumes 17 cards across three measurement layers (bulk RNA, bulk protein MS,
   single-cell RNA), grouped by role:
 
     VERDICT-BEARING (7) — feed the rank-ordered presence ladders:
@@ -17,7 +17,7 @@ description: |
       - tumor-elevation-breadth          pan-cancer K-of-N tumor-elevation (target-grain)
       - tumor-scrna-celltype-expression  single-cell per-compartment tumor presence
 
-    DISPLAY-ONLY facets (6) — additive context, feed NO ladder (verdict byte-stable):
+    DISPLAY-ONLY facets (8) — additive context, feed NO ladder (verdict byte-stable):
       - cellline-protein-abundance-procan   cell-line protein 2nd platform (ProCan-DepMapSanger
                                             DIA/SWATH MaxLFQ, CC-BY, 949 lines) — orthogonal
                                             corroboration of the Gygi TMT card; verdict-inert
@@ -26,9 +26,14 @@ description: |
                                             driver-mutation strata EGFR/KRAS/ALK/HER2/BRAF; else
                                             subtype_axis_available:false)
       - cellline-rna-distribution-by-subtype  cell-line RNA by DepMap driver/molecular subtype (COADREAD proof)
+      - tumor-protein-distribution-by-subtype  per-molecular-subtype tumor PROTEIN panorama (CPTAC
+                                            MSI_H/MSS, COADREAD); verdict-inert
       - expression-purity-confound          tumor-intrinsic vs stromal/immune signal
       - cellline-rna-protein-concordance    is RNA an adequate protein proxy? (cell-line arm)
       - rna-protein-concordance-tumor       is RNA an adequate protein proxy? (patient-tumor CPTAC arm)
+      - hpa-pathology-cancer-ihc            MS-INDEPENDENT antibody IHC protein-in-tumor (HPA Pathology,
+                                            20 cancer types; protein_ihc/tumor bucket) — fills protein
+                                            presence where CPTAC TMT-MS is data_unavailable; verdict-inert
 
     NORMAL-TISSUE SAFETY COMPARATORS (2) — verdict-inert; they FRAME the presence
     read, but the safety VERDICT itself is owned by on-target-safety-liability:
@@ -57,14 +62,14 @@ composition:
   data_mode: derived_read
   phase: [A]
   cards_used:
-    # VERDICT-BEARING (7) — feed the presence ladders
+    # VERDICT-BEARING (7) — feed the presence ladders (6 bulk here + tumor-scrna below)
     - cellline-rna-distribution
     - tumor-rna-vs-adjacent
     - tumor-protein-abundance-cptac
     - cellline-protein-abundance
     - tumor-elevation-breadth
     - tumor-rna-distribution
-    # DISPLAY-ONLY facets (7) — additive context, feed no ladder (verdict byte-stable)
+    # DISPLAY-ONLY facets (8) — additive context, feed no ladder (verdict byte-stable)
     - tumor-rna-distribution-by-subtype
     - cellline-rna-distribution-by-subtype
     - tumor-protein-distribution-by-subtype   # CPTAC-protein subtype panorama (MSI_H/MSS, COADREAD); DISPLAY-ONLY / verdict-inert
@@ -127,12 +132,12 @@ composition:
 
 ## What this skill does
 
-- Fetches the 14 cards via the compose-dashboard live-reader dispatchers — the exact same
+- Fetches the 17 cards via the live-reader dispatchers — the exact same
   read path the composed engines use, so there is no computation drift.
 - Fires each card's rules on the `intracellular_intrinsic` axis across THREE measurement ladders
   (`_EXPRESSION_RANK` / `_PROTEIN_RANK` / `_SC_RNA_RANK`, keyed by the card's `measurement`), then
   emits BOTH a collapsed `presence_verdict` AND one sub-verdict per `(measurement, sample_context)`
-  bucket (`presence_verdict_by_modality`). The 4 display-only facets + 2 normal comparators feed no
+  bucket (`presence_verdict_by_modality`). The 8 display-only facets + 2 normal comparators feed no
   ladder (verdict byte-stable).
 - Emits a data-package output tree with:
   - `decision.json` — `presence_verdict` + `presence_verdict_by_modality` + fired rules + provenance
