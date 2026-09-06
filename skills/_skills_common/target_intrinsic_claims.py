@@ -2,7 +2,7 @@
 of the indication-INDEPENDENT target dossier into orthogonal (signal × corroboration) claims with
 citable atoms.
 
-The TENTH concrete over claim_vector_core. target-intrinsic is a mostly-descriptive `tier: target`
+A concrete claim_vector_core instance. target-intrinsic is a mostly-descriptive `tier: target`
 dossier whose safety/structure/mechanism facts are HOME'd (and claim-decomposed) under their owning
 subskills. Only the two fields UNIQUE to target-intrinsic that carry a defensible ordinal/routing
 signal are projected here — the two most relevant to HYPOTHESIS + MODALITY FIT:

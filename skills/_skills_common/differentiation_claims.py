@@ -1,7 +1,7 @@
 """differentiation_claims — differentiation-landscape's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT
 projection of the differentiation / patient-selection cards into (signal × corroboration) per claim.
 
-The SEVENTH concrete over claim_vector_core. Four DESCRIPTIVE axes (signal = strength of a
+A concrete claim_vector_core instance. Four DESCRIPTIVE axes (signal = strength of a
 differentiation-relevant pattern; DIRECTION lives in the atom, not the tier):
 
   COMUT     co-mutation / mutual-exclusivity — Fisher co-occurrence landscape (patient-selection).

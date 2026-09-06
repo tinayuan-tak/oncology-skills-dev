@@ -1,8 +1,7 @@
 """selectivity_claims — tumor-selectivity's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT projection of
 the selectivity cards into (signal × corroboration) per orthogonal claim.
 
-The THIRD concrete instance of the shared claim_vector_core contract (presence + dependency are the
-first two). Declares tumor-selectivity's four axes as a ClaimSpec list:
+A concrete instance of the shared claim_vector_core contract. Declares tumor-selectivity's four axes as a ClaimSpec list:
 
   WIN  tumor-vs-normal window   — the core selectivity signal (tumor-vs-origin DESeq2 class + effect
                                   size); corroboration = fraction of normal comparators agreeing.

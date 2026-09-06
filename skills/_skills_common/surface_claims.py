@@ -1,8 +1,7 @@
 """surface_claims — surface-modality-fit's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT projection of the
 surface / ADC-TCE cards into (signal × corroboration) per orthogonal claim.
 
-The EIGHTH concrete over claim_vector_core (dependency / genomic / selectivity / presence / safety /
-tractability / differentiation are the first seven). Five surface axes as a ClaimSpec list:
+A concrete claim_vector_core instance. Five surface axes as a ClaimSpec list:
 
   FIT       ADC/TCE modality fit    — the composed surface-modality call (adc-tce-modality-fit).
   TOPOLOGY  surface topology / ECD  — extracellular-domain engineerability (surface-topology-and-ptm).

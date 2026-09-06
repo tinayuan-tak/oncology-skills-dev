@@ -2,7 +2,7 @@
 decomposition of the locus→expression→dependency coherence cross-tab into orthogonal (signal ×
 corroboration) claims with citable atoms.
 
-The TWELFTH concrete over claim_vector_core. The cis_coherence VERDICT is a 2×2 INTERACTION (cross-tab
+A concrete claim_vector_core instance. The cis_coherence VERDICT is a 2×2 INTERACTION (cross-tab
 of separable legs), so the claim_vector is the LEG DECOMPOSITION — NOT a verdict echo. Four axes:
 
   CIS_DOSAGE   leg-1 GoF: CN → own-expression cis-dosage       (cis-feature-expression-coherence)

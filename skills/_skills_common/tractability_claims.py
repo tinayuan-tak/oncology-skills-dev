@@ -1,8 +1,7 @@
 """tractability_claims — tractability-small-molecule's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT
 projection of the small-molecule druggability cards into (signal × corroboration) per orthogonal claim.
 
-The SIXTH concrete over claim_vector_core (dependency / genomic / selectivity / presence / safety are
-1–5). Five POSITIVE-valence axes (strong = strong druggability evidence):
+A concrete claim_vector_core instance. Five POSITIVE-valence axes (strong = strong druggability evidence):
 
   POTENCY   measured binding      — ChEMBL/BindingDB measured potency (pChEMBL / neglog M).
   ACTIVITY  functional compound   — PRISM cell-kill activity + clinical phase.

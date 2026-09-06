@@ -1,8 +1,7 @@
 """safety_claims — on-target-safety-liability's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT projection
 of the human-genetics safety cards into (signal × corroboration) per orthogonal claim.
 
-The FIFTH concrete instance of the shared claim_vector_core contract (dependency / genomic / selectivity
-/ presence are the first four). Declares EIGHT safety axes as a ClaimSpec list (five human-genetics + two
+A concrete instance of the shared claim_vector_core contract. Declares EIGHT safety axes as a ClaimSpec list (five human-genetics + two
 added in the 2026-08-21 data-utilization expansion + one verdict-INERT clinical-context axis added in the
 2026-09-04 signal-surfacing):
 

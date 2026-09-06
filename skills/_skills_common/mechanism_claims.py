@@ -2,7 +2,7 @@
 projection of the mechanism / pharmacology cards into orthogonal (signal × corroboration) claims with
 citable atoms.
 
-The ELEVENTH concrete over claim_vector_core. Five mechanism axes:
+A concrete claim_vector_core instance. Five mechanism axes:
 
   NETWORK        signaling-network topology + MoA hooks  (signaling-network-mechanism)
   PHOSPHO        phospho-ACTIVITY beyond abundance        (phospho-pathway-activity)   [the real signal]

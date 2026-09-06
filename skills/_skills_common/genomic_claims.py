@@ -1,8 +1,7 @@
 """genomic_claims — genomic-alteration-profile's CLAIM VECTOR + KEY SIGNALS: a verdict-INERT projection
 of the alteration cards into (signal × corroboration) per orthogonal claim.
 
-The FOURTH concrete instance of the shared claim_vector_core contract (presence, dependency,
-selectivity are the first three). Genomic-alteration is inherently MULTI-CLASS — its whole point is
+A concrete instance of the shared claim_vector_core contract. Genomic-alteration is inherently MULTI-CLASS — its whole point is
 "which alteration class drives" — so the claim decomposition is by alteration class:
 
   SNV recurrent SNV/indel driver — driver-recurrence (pooled TCGA-MC3 + GENIE + MSK) + mutation

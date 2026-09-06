@@ -1,7 +1,7 @@
 """dependency_claims — functional-requirement's CLAIM VECTOR + KEY SIGNALS: a modality-blind,
 verdict-INERT projection of the dependency cards into (signal × corroboration) per orthogonal claim.
 
-The SECOND concrete instance of the shared claim_vector_core contract (presence_claims is the first).
+A concrete instance of the shared claim_vector_core contract.
 Declares functional-requirement's four axes as a ClaimSpec list:
 
   DEP  genetic dependency          — CRISPR distribution (dependency_class), RNAi as an orthogonal-LoF
