@@ -16,7 +16,7 @@ power set of a gate's rule_ids. Most power-set combos are CARD-CO-EMISSION-IMPOS
 card field holds one value, so rules keying on different values of that field are mutually
 exclusive and can never co-fire (the trap behind the T1.1 dead-`discordant` finding). The table now
 enumerates only the fired-sets that are genuinely co-emission-reachable, derived from the
-interpretation-rules' (card_id, field) bindings (see _skills_common/coemission.py). This:
+interpretation-rules' (card_id, field) bindings (see _skills_common/tests/coemission.py). This:
   - SHRINKS the file (~105k -> ~4k rows across 9 gates; 41.5 MB -> <1 MB) so EVERY gate freezes
     its FULL rule set (retiring tractability's core-16 subset + the separate 2**18 100 MB-workaround
     oracle — the power set couldn't be stored past ~17 rungs under GitHub's 100 MB limit), and
@@ -50,7 +50,7 @@ CONTRACTS = Path(os.environ.get(
 SNAPSHOT = Path(__file__).resolve().parent / "resolver_golden_snapshots.json"
 
 _resolver = load_module(SKILLS / "_skills_common" / "resolver.py", "resolver_snap_ut")
-_coemit = load_module(SKILLS / "_skills_common" / "coemission.py", "coemission_snap_ut")
+_coemit = load_module(SKILLS / "_skills_common" / "tests" / "coemission.py", "coemission_snap_ut")
 _GOLDEN = json.loads(SNAPSHOT.read_text())
 _RULE_INDEX = _coemit.load_rule_index(CONTRACTS)
 

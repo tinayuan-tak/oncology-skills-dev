@@ -3,7 +3,7 @@
 Deliberate, reviewed act (a verdict-contract change): run this ONLY when a resolver precedence
 edit intentionally changes verdicts, then commit the new JSON alongside the resolver change and
 re-baseline. It replaces the old full-power-set generation (2**n per gate) with co-emission-aware
-enumeration (see _skills_common/coemission.py): only fired-sets that are actually card-co-emission-
+enumeration (see _skills_common/tests/coemission.py): only fired-sets that are actually card-co-emission-
 reachable are frozen. This both shrinks the file (~105k -> ~5k rows across the 9 gates, well under
 GitHub's 100 MB limit for the full rule set of EVERY gate — retiring tractability's core-16 subset +
 separate 100 MB-workaround oracle) and makes every frozen combo a physically-possible one.
@@ -51,7 +51,7 @@ def _load(mod_name: str, path: Path):
 
 
 _resolver = _load("resolver_regen", SKILLS / "_skills_common" / "resolver.py")
-_coemit = _load("coemission_regen", SKILLS / "_skills_common" / "coemission.py")
+_coemit = _load("coemission_regen", SKILLS / "_skills_common" / "tests" / "coemission.py")
 
 
 def build_gate_table(gate: str, rule_ids: list[str], rule_index: dict) -> dict:

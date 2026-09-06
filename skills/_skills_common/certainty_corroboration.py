@@ -6,6 +6,11 @@ corroboration-source cards per gate (CERTAINTY_MODEL). A sub-skill's certainty e
 can't DRIVE the extractor — but the extractor can DECLARE which card(s) it reads for corroboration and
 cross-check them against this manifest, so the two can't silently drift (the check the disjointness
 validator, which only compares the manifest to the resolvers, cannot make).
+
+Consumers: `corroboration_cards()` is exercised ONLY by the per-skill
+`test_certainty_corroboration_matches_manifest.py` suites (the manifest<->source drift guard) — no
+production path calls it. It lives here (not under tests/) so those 5 skill suites can import it by
+package path; relocating it would fan out across all 5 skill test dirs for marginal package-hygiene gain.
 """
 from __future__ import annotations
 

@@ -16,7 +16,7 @@ from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]
 
-CO = load_module(SKILLS / "_skills_common" / "coemission.py", "coemission_ut")
+CO = load_module(SKILLS / "_skills_common" / "tests" / "coemission.py", "coemission_ut")
 
 
 def _idx(**rules):
