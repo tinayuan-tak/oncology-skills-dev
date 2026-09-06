@@ -200,7 +200,10 @@ def _synthesize_or_degrade(system_prompt: str, user_prompt: str, tool_schema: di
         return out
 
 
-def main() -> int:
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Construct the target-profile CLI parser (extracted from main() for readability — byte-identical
+    to the inline construction). Covers --target/--indication/--out + the subtypes/emit/ground/
+    synthesize/offline/fast/machine/report-render/verdict-only flag surface."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
@@ -376,6 +379,11 @@ def main() -> int:
                          "legs (the hypothesis, if on, then has no --risk input).")
     ap.add_argument("--no-hypothesis", action="store_true",
                     help="Granular opt-out: skip the cross-evidence-hypothesis [3B] leg.")
+    return ap
+
+
+def main() -> int:
+    ap = _build_arg_parser()
     args = ap.parse_args()
 
     # Normalize --modality to a canonical modality.enum.yaml token. The gate's veto-suppression +
