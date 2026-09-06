@@ -1,11 +1,14 @@
-"""measurement_types PULL resolver + framework-wide pull-consistency (DATA_TO_SKILL_CONTRACT step 5).
+"""Framework-wide measurement_types PULL-consistency (DATA_TO_SKILL_CONTRACT step 5 / Rule 3).
 
-Two things:
-  1. the resolver classifies a pulled type as live_provider / registered_no_live_provider /
-     unregistered against the registry;
-  2. EVERY gate-view's composition.measurement_types_pulled resolves to a REGISTERED type — the
-     framework-wide guard that a gate can't pull a claim no provider could satisfy (a typo or a type
-     someone forgot to register). This is the pull half of the pull/push decoupling made honest.
+Every gate-view's composition.measurement_types_pulled must resolve to a REGISTERED measurement_type,
+and every card it USES whose type is registered must be one the gate declares it pulls — the two halves
+of the "a gate can't pull a claim no provider could satisfy, and can't silently pull a claim it never
+declared" guard. This is the framework-wide net that also covers gate-views WITHOUT their own per-skill
+parity test (tumor-presence / tumor-selectivity / functional-requirement / tractability-small-molecule).
+
+The read-side PULL resolver these checks once wrapped (resolve_pull / PullResolution / STATUS_* — the
+DATA_TO_SKILL_CONTRACT "resolver matches on type" affordance) was aspirational scaffolding never wired
+into any production path; it was retired 2026-09-06 and these guards now read the registry directly.
 
 Cross-repo: reads target-contracts. Graceful-skips the registry-dependent assertions when
 target-contracts isn't checked out alongside (isolated CI), mirroring the other cross-repo checks.
@@ -16,72 +19,23 @@ from pathlib import Path
 
 import pytest
 
-# NOTE: imported as a normal package module (not via _test_support.load_module) because
-# measurement_types.py defines a @dataclass under `from __future__ import annotations`, whose field
-# introspection needs the module registered in sys.modules during exec — which load_module deliberately
-# does not do. conftest puts skills/ on sys.path, so the worktree's copy resolves.
+# conftest puts skills/ on sys.path, so the worktree's copy of _skills_common resolves. We reuse the
+# retained registry loader (_load_registry) rather than reimplementing path resolution.
 from _skills_common import measurement_types as mt
 
 yaml = pytest.importorskip("yaml")
 
 COMMON = Path(__file__).resolve().parent.parent
 SKILLS_DIR = COMMON.parent
-_REGISTRY_REACHABLE = mt.registered_types() is not None
 
 
-# ---------- resolver classification ----------
-
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_live_type_resolves_to_providers():
-    r = mt.resolve_pull("surface_confirmation")
-    assert r.status == mt.STATUS_LIVE
-    assert r.provider_sources                       # non-empty
-    assert "cspa-bausch-fluck-2015" in r.provider_sources   # the resolved orphan
+def _registered_types() -> "set[str] | None":
+    """The set of registered measurement_type keys, or None if the registry is unreachable."""
+    doc = mt._load_registry()
+    return set(doc["measurement_types"]) if doc else None
 
 
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_placeholder_only_type_is_registered_but_not_live(monkeypatch):
-    """The NO_LIVE classification path: a type that IS registered but whose every provider is a
-    {source: placeholder} resolves to registered_no_live_provider. Anchored on a SYNTHETIC provider
-    set (not a live registry type) so it stays valid as types graduate placeholder→live — every
-    registered type is now live (fusion_rearrangement graduated to tcga-fusion-consensus-v1, see
-    test_placeholder_graduation_is_live below), so there is no longer a real placeholder type to
-    point at. This guards the classification LOGIC, which is still load-bearing for the next
-    not-yet-wired type someone registers."""
-    monkeypatch.setattr(mt, "registered_types", lambda: {"synthetic_placeholder_type"})
-    monkeypatch.setattr(mt, "_providers",
-                        lambda t: [{"kind": "dataset", "source": "placeholder"}]
-                        if t == "synthetic_placeholder_type" else [])
-    r = mt.resolve_pull("synthetic_placeholder_type")
-    assert r.status == mt.STATUS_NO_LIVE
-    assert r.is_registered
-
-
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_placeholder_graduation_is_live():
-    """REGRESSION (2026-08-09): fusion_rearrangement was the framework's canonical placeholder-only
-    type; it has since graduated to a live dataset provider (tcga-fusion-consensus-v1, EML4-ALK
-    verified). Pin that it now resolves live_provider off that dataset, so a future edit that reverts
-    the provider to a placeholder fails loudly. (This replaced the stale assertion that fusion was
-    registered_no_live_provider.)"""
-    r = mt.resolve_pull("fusion_rearrangement")
-    assert r.status == mt.STATUS_LIVE
-    assert r.is_registered
-    assert "tcga-fusion-consensus-v1" in r.provider_sources
-
-
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_unregistered_type_is_flagged():
-    r = mt.resolve_pull("definitely_not_a_real_type")
-    assert r.status == mt.STATUS_UNREGISTERED
-    assert not r.is_registered
-
-
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_derived_type_live_iff_inputs_live():
-    # adc_tce_modality_fit derives from surface_topology + surfaceome_family + structure_druggability,
-    # all of which are live dataset providers → the derived type is live.
-    assert mt.resolve_pull("adc_tce_modality_fit").status == mt.STATUS_LIVE
+_REGISTRY_REACHABLE = _registered_types() is not None
 
 
 # ---------- framework-wide pull consistency ----------
@@ -117,45 +71,13 @@ def test_at_least_the_wired_gates_declare_pulls():
 @pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
 def test_every_pulled_type_is_registered():
     """The framework-wide invariant: no gate pulls a claim that isn't a registered measurement_type."""
-    registered = mt.registered_types()
+    registered = _registered_types()
     offenders = {}
     for skill, pulled in _gate_pulls().items():
         bad = [t for t in pulled if t not in registered]
         if bad:
             offenders[skill] = bad
     assert not offenders, f"gate-views pulling unregistered types: {offenders}"
-
-
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_registered_no_live_provider_is_a_surfaceable_state(monkeypatch):
-    """A registered_no_live_provider pull is a legitimate VISIBLE-GAP state — the resolver must
-    surface it (not hide it or crash), so a renderer can show the gap honestly. Historically anchored
-    on fusion_rearrangement / surface_confirmation while they were placeholders; both have since
-    graduated to live datasets, and NO registered type is placeholder-only today (the framework fully
-    wired its pull-intents). So we drive the visible-gap path through a synthetic placeholder rather
-    than a live type, keeping the guarantee under test independent of registry graduation."""
-    monkeypatch.setattr(mt, "registered_types", lambda: {"gap_type", "live_type"})
-    monkeypatch.setattr(mt, "_providers", lambda t: {
-        "gap_type": [{"kind": "dataset", "source": "placeholder"}],
-        "live_type": [{"kind": "dataset", "source": "some-real-product-v1"}],
-    }.get(t, []))
-    res = mt.resolve_pulled_types(["gap_type", "live_type"])
-    by_type = {r.measurement_type: r for r in res}
-    # the gap is surfaced (classified, registered, not dropped) alongside the live one — both visible
-    assert by_type["gap_type"].status == mt.STATUS_NO_LIVE
-    assert by_type["gap_type"].is_registered
-    assert by_type["live_type"].status == mt.STATUS_LIVE
-
-
-@pytest.mark.skipif(not _REGISTRY_REACHABLE, reason="measurement_types.yaml not reachable")
-def test_no_gate_pulls_an_unregistered_type_via_resolutions():
-    """Live-registry companion to the synthetic gap test: every type any wired gate actually pulls
-    resolves to a REGISTERED status (live_provider or registered_no_live_provider — never unregistered).
-    Complements test_every_pulled_type_is_registered by exercising the resolver end-to-end."""
-    pulls = _gate_pulls()
-    unregistered = {t for pulled in pulls.values() for t in pulled
-                    if not mt.resolve_pull(t).is_registered}
-    assert not unregistered, f"wired gates pull unregistered types: {sorted(unregistered)}"
 
 
 # ---------- framework-wide ANTI-DRIFT parity (cards_used → measurement_types_pulled) ----------
@@ -165,9 +87,6 @@ def test_no_gate_pulls_an_unregistered_type_via_resolutions():
 # to cards_used but its measurement_type was never added to measurement_types_pulled — so the gate
 # silently pulled a claim it never declared. Each got a per-skill parity test; THIS is the framework-wide
 # net that also covers the gate-views WITHOUT their own parity test, so the drift can't reappear anywhere.
-
-_TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-_VOCAB = _TARGET_CONTRACTS / "vocabularies" / "measurement_types.yaml"
 
 # Documented, intentional (skill_dir, type) exceptions where a used card's type is deliberately NOT
 # declared. Add an entry ONLY with a rationale. Mirrors the composer waivers.
@@ -199,7 +118,7 @@ def _gate_cards_used() -> dict:
 
 def _card_to_registered_type() -> dict:
     """Reverse index card_id -> measurement_type from the registry's per-type `cards:` lists."""
-    vocab = (yaml.safe_load(_VOCAB.read_text()) or {}).get("measurement_types") or {}
+    vocab = (mt._load_registry() or {}).get("measurement_types") or {}
     c2t = {}
     for mtype, spec in vocab.items():
         for cid in (spec or {}).get("cards") or []:
@@ -214,8 +133,6 @@ def test_every_used_card_type_is_declared_framework_wide():
     resolves must map to a type the gate DECLARES it pulls. Catches the exact drift the sweep kept finding
     — a card added without declaring its type — across ALL skills, including ones with no per-skill test.
     Gate-views that declare NO pulls (utility/placeholder skills) are out of scope for Rule 3 and skipped."""
-    if not _VOCAB.exists():
-        pytest.skip("target-contracts measurement_types.yaml not reachable")
     c2t = _card_to_registered_type()
     pulls = _gate_pulls()
     cards_used = _gate_cards_used()

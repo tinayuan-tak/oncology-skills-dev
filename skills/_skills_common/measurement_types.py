@@ -1,27 +1,21 @@
-"""measurement_types — the read-side PULL resolver over the governed measurement-type registry.
+"""measurement_types — read-side evidence-substrate resolution over the governed registry.
 
-DATA_TO_SKILL_CONTRACT.md (2026-07-21) inverts data→skill wiring to PULL: a gate declares the
-`measurement_type` CLAIMS it needs (`composition.measurement_types_pulled` in its SKILL.md); the
-registry (target-contracts/vocabularies/measurement_types.yaml) declares which PROVIDERS supply each
-type. This module is the resolver that MATCHES the two — the "resolver matches on type" of the doc's
-migration step 5.
+The registry (target-contracts/vocabularies/measurement_types.yaml) declares, per measurement_type,
+which cards are a view of it (`cards:` back-refs) and an OPTIONAL `evidence_substrate: <slug>` naming
+the underlying data product. This module is the read-side companion of that registry: it resolves a
+card_id → its measurement_type → the type's evidence_substrate, so an emitting skill can stamp each
+evidence_package card entry with (measurement_type, evidence_substrate). A cross-evidence integrator
+then uses those stamps to detect which cards share an underlying data product and NOT double-count
+correlated evidence toward certainty (the HTR1D expression<->selectivity trap; cross-evidence roadmap
+invariant 8).
 
-SCOPE (deliberate, migration-safe): this is a READ-SIDE resolver + consistency layer. It does NOT
-replace the card_id/dispatcher wiring that actually runs methods (that stays the live path during
-migration, per the doc — "resolver matches on type, falling back to product_id/card_id"). What it
-adds is: (1) resolve a pulled type → its registered providers, (2) classify each pull's status
-(live_provider | registered_no_live_provider | unregistered), so a gate's pull-intent is queryable
-and machine-checkable against the registry. This is how `surface_confirmation` being "pulled but
-data-blocked" becomes a first-class visible state rather than a silent gap.
-
-Cross-repo: reads target-contracts. Graceful — raises a clear error only when explicitly asked to
-resolve and the registry is unreachable; the consistency helpers return an empty/None sentinel so a
+Cross-repo: reads target-contracts. Graceful — all helpers are best-effort and return None/empty when
+the registry is unreachable (a skills-only checkout) or a card/type is untagged; they never raise, so a
 skills-only checkout never hard-fails.
 """
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -32,15 +26,10 @@ _REGISTRY_DEFAULT_RELATIVE = (
     "vocabularies/measurement_types.yaml"
 )
 
-# Pull-status vocabulary — the classification of a single (gate pulls type X) edge.
-STATUS_LIVE = "live_provider"                       # >=1 registered provider (a dataset or derived) exists
-STATUS_NO_LIVE = "registered_no_live_provider"      # type registered but every provider is a placeholder
-STATUS_UNREGISTERED = "unregistered"                # the pulled type is not in the registry at all (a defect)
-
 
 def _resolve_registry_path() -> Optional[Path]:
     """Find measurement_types.yaml. Priority: env var → cwd/$HOME/relative → walk up from here.
-    Returns None (not raise) if unfound, so consistency helpers can graceful-skip."""
+    Returns None (not raise) if unfound, so the substrate helpers can graceful-skip."""
     env = os.environ.get(_REGISTRY_ENV_VAR)
     if env:
         return Path(env)
@@ -73,73 +62,6 @@ def _load_registry() -> Optional[dict]:
     if not isinstance(doc.get("measurement_types"), dict):
         return None
     return doc
-
-
-def registered_types() -> Optional[set[str]]:
-    """The set of registered measurement_type keys, or None if the registry is unreachable."""
-    doc = _load_registry()
-    return set(doc["measurement_types"]) if doc else None
-
-
-def _providers(type_key: str) -> list[dict]:
-    doc = _load_registry()
-    if not doc:
-        return []
-    return (doc["measurement_types"].get(type_key) or {}).get("providers") or []
-
-
-def _has_live_provider(type_key: str) -> bool:
-    """A type has a live provider if any provider isn't a placeholder source. `derived_from`
-    providers are live iff their inputs are (checked transitively, one level — the registry validator
-    guarantees acyclicity, and deep chains here are rare)."""
-    for p in _providers(type_key):
-        if p.get("kind") == "dataset":
-            if str(p.get("source", "")).strip().lower() not in ("placeholder", ""):
-                return True
-        elif p.get("kind") == "derived_from":
-            inputs = p.get("inputs") or []
-            if inputs and all(_has_live_provider(i) for i in inputs):
-                return True
-    return False
-
-
-@dataclass(frozen=True)
-class PullResolution:
-    """The resolution of one (gate → measurement_type) pull edge."""
-    measurement_type: str
-    status: str                       # STATUS_LIVE | STATUS_NO_LIVE | STATUS_UNREGISTERED
-    provider_sources: tuple           # the source names (or derived input-lists) backing this type
-
-    @property
-    def is_registered(self) -> bool:
-        return self.status != STATUS_UNREGISTERED
-
-
-def resolve_pull(type_key: str) -> PullResolution:
-    """Resolve one pulled measurement_type against the registry.
-
-    Raises FileNotFoundError only if the registry is genuinely unreachable — callers that want a
-    graceful path should gate on `registered_types() is not None` first."""
-    reg = registered_types()
-    if reg is None:
-        raise FileNotFoundError(
-            "measurement_types.yaml not reachable; set MEASUREMENT_TYPES_YAML or check out "
-            "target-contracts alongside the skills repo.")
-    if type_key not in reg:
-        return PullResolution(type_key, STATUS_UNREGISTERED, ())
-    sources = []
-    for p in _providers(type_key):
-        if p.get("kind") == "dataset":
-            sources.append(p.get("source"))
-        elif p.get("kind") == "derived_from":
-            sources.append("derived:" + "+".join(p.get("inputs") or []))
-    status = STATUS_LIVE if _has_live_provider(type_key) else STATUS_NO_LIVE
-    return PullResolution(type_key, status, tuple(sources))
-
-
-def resolve_pulled_types(pulled: list[str]) -> list[PullResolution]:
-    """Resolve a gate's full `measurement_types_pulled` list. Order-preserving."""
-    return [resolve_pull(t) for t in pulled]
 
 
 # --- evidence-substrate resolution (cross-evidence roadmap invariant 8) -----------------------
