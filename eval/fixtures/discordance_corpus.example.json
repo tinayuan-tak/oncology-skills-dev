@@ -1,0 +1,77 @@
+[
+  {
+    "target": "KRAS",
+    "indication": "COADREAD",
+    "skill": "functional-requirement",
+    "sub_verdict": {
+      "gate": "dependency",
+      "verdict": "lineage_selective",
+      "driving_rule_id": "lineage-selective-supportive",
+      "fired_rule_ids": ["strongly-selective-supportive", "lineage-selective-supportive"]
+    },
+    "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}},
+    "literature_synthesis": {
+      "overall_consistency": "partially_concordant",
+      "key_divergence": "Literature emphasizes broad KRAS dependence in KRAS-mutant CRC; panel reads lineage-selective.",
+      "axes": [
+        {
+          "axis_key": "A",
+          "literature_read": "supports",
+          "assertion": "KRAS is a genetic dependency in KRAS-mutant colorectal models.",
+          "agreement_vs_omics": "agree",
+          "confidence": "high",
+          "citations": [{"label": "Singh 2009, Cell", "pmid": "19477428", "verified": true}]
+        },
+        {
+          "axis_key": "B",
+          "literature_read": "mixed",
+          "assertion": "Adaptive feedback reactivation blunts single-agent KRAS-pathway inhibition.",
+          "agreement_vs_omics": "omics_blind",
+          "confidence": "moderate",
+          "citations": [{"label": "Misale 2019, Clin Cancer Res", "verified": false}]
+        }
+      ],
+      "blind_spots": [
+        {
+          "signal": "acquired-resistance kinetics under KRAS-G12C inhibition",
+          "why_omics_blind": "cross-sectional DepMap cannot observe on-treatment adaptation",
+          "citations": [{"label": "Awad 2021, NEJM", "pmid": "34161704", "verified": true}]
+        }
+      ],
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "example-hash-0001"
+    }
+  },
+  {
+    "target": "MET",
+    "indication": "LUAD",
+    "skill": "genomic-alteration-profile",
+    "sub_verdict": {
+      "gate": "genomic_alteration",
+      "verdict": "passenger_or_absent",
+      "driving_rule_id": "no-recurrent-driver-neutral",
+      "fired_rule_ids": ["no-recurrent-driver-neutral"]
+    },
+    "claim_vector": {"SPL": {"signal": "absent", "corroboration": "unmeasured"}},
+    "literature_synthesis": {
+      "overall_consistency": "discordant",
+      "key_divergence": "Literature establishes METex14 splice-skipping as an actionable oncogenic driver; the omics call is passenger/absent.",
+      "axes": [
+        {
+          "axis_key": "A",
+          "literature_read": "strongly_supports",
+          "assertion": "MET exon-14 skipping is a validated oncogenic driver with approved MET inhibitors in NSCLC.",
+          "agreement_vs_omics": "contradicts",
+          "confidence": "high",
+          "citations": [
+            {"label": "Paik 2020, NEJM (tepotinib)", "pmid": "32469185", "verified": true},
+            {"label": "Wolf 2020, NEJM (capmatinib)", "pmid": "32877583", "verified": true}
+          ]
+        }
+      ],
+      "blind_spots": [],
+      "_model_id": "us.anthropic.claude-opus-4-8",
+      "_prompt_hash": "example-hash-0002"
+    }
+  }
+]

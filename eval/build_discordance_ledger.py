@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""build_discordance_ledger — READ-ONLY aggregator over the verdict-INERT --literature lane.
+
+PURPOSE. Every fan-out skill can attach a `decision['literature_synthesis']` block (the
+opt-in `--literature` lane): per-axis `literature_read` + `agreement_vs_omics`
+(agree/extends/contradicts/omics_blind/omics_unavailable) + `overall_consistency` +
+`key_divergence` + `blind_spots[]`, each with citations. Nothing deterministic consumes it —
+it only decorates the narrator / evidence-graph / report. This module HARVESTS that latent
+signal into a ranked CANDIDATE-GAP ledger for review, joining each lane read against the
+skill's deterministic sub-verdict.
+
+GOVERNANCE / SAFETY CONTRACT (mirrors literature-risk-assessment/risk_rollup.py):
+  * ESCALATE-ONLY + ANNOTATION-ONLY. The ledger is a REVIEW QUEUE. It NEVER lowers a concern,
+    NEVER moves a verdict, NEVER writes into any decision/package. Literature stays
+    `citable_in_nominations: false` (target-contracts RISK_ASSESSMENT_INTEGRATION.md, 2026-07-17).
+  * CONTAINMENT GUARD. A `contradicts`/`discordant` read is only treated as a candidate REAL
+    gap if it carries >=1 VERIFIED citation; otherwise it is classed confabulation/unverified
+    (cheap to dismiss) — because the lane is an LLM read of abstracts and NOT bit-reproducible.
+
+INPUT is a NORMALIZED HARVEST RECORD (decoupled from how the harvest is produced — a standalone
+`--literature` run or an extraction from a target-profile package):
+  {"target","indication","skill",
+   "sub_verdict": {"gate","verdict","driving_rule_id","fired_rule_ids":[...]},
+   "claim_vector": {AXIS: {"signal","corroboration",...}, ...}   # optional
+   "literature_synthesis": {<lane output>},
+   "_provenance": {"model_id","prompt_hash",...}}                # optional
+A corpus is a JSON list of records, or a directory of per-record JSON files, or a single
+record. See `load_corpus`.
+
+OUTPUT `eval/discordance_ledger.json`: ranked rows + a per-class / per-skill summary.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import hashlib
+import json
+from pathlib import Path
+from typing import Any, Iterable
+
+# --- Gap taxonomy (see the plan §Component 1). Higher weight = higher review priority. -------
+GAP_CALIBRATION = "calibration_gap"          # contradicts on a ground-truth target -> false-negative candidate
+GAP_VERDICT_RULE = "verdict_rule_gap"        # verified contradicts -> resolver/card/method fix candidate
+GAP_BLIND_SPOT = "blind_spot_gap"            # omics cannot measure the signal -> data/axis need
+GAP_STALENESS = "staleness_gap"             # axis the atlas has no anchor for -> atlas session
+GAP_CONFABULATION = "confabulation_or_unverified"  # unverified/non-reproducible -> discard
+
+_SEVERITY = {
+    GAP_CALIBRATION: 5,
+    GAP_VERDICT_RULE: 4,
+    GAP_BLIND_SPOT: 3,
+    GAP_STALENESS: 2,
+    GAP_CONFABULATION: 1,
+}
+
+# Axes the frozen target-archetype atlas has no anchor for (sourced from the atlas-rebuild
+# exclusion allowlist: literature_context / translational_readiness / genomic SPL /
+# safety PHARMACOVIGILANCE). A blind-spot on one of these routes to the atlas session, not a
+# card/rule fix here. Matched against the skill id and the lane assertion text (best-effort).
+_ATLAS_EXCLUDED_SKILLS = {"literature-context", "translational-readiness"}
+_ATLAS_EXCLUDED_HINTS = ("pharmacovig", "splice", "exon skip", "exon-skip")
+
+_BLIND_AGREEMENTS = {"omics_blind", "omics_unavailable"}
+_DISCORDANT_CONSISTENCY = {"discordant", "partially_concordant"}
+
+
+def load_corpus(path: str | Path) -> list[dict]:
+    """A corpus is a JSON list, a directory of per-record .json files, or a single record."""
+    p = Path(path)
+    if p.is_dir():
+        out: list[dict] = []
+        for f in sorted(p.glob("*.json")):
+            doc = json.loads(f.read_text())
+            out.extend(doc if isinstance(doc, list) else [doc])
+        return out
+    doc = json.loads(p.read_text())
+    return doc if isinstance(doc, list) else [doc]
+
+
+def _citation_support(citations: Iterable[dict]) -> tuple[int, int]:
+    """(n_verified, n_total). A citation counts as support only when verified is truthy — the
+    containment guard: an LLM may emit an unverified/fabricated PMID."""
+    cits = list(citations or [])
+    n_ver = sum(1 for c in cits if isinstance(c, dict) and c.get("verified"))
+    return n_ver, len(cits)
+
+
+def _is_atlas_excluded(skill: str, text: str) -> bool:
+    if skill in _ATLAS_EXCLUDED_SKILLS:
+        return True
+    low = (text or "").lower()
+    return any(h in low for h in _ATLAS_EXCLUDED_HINTS)
+
+
+def _classify(agreement: str, n_verified: int, is_blind: bool,
+              atlas_excluded: bool, in_calibration: bool) -> tuple[str, str]:
+    """Deterministic gap-class assignment. Returns (gap_class, why)."""
+    if is_blind:
+        if atlas_excluded:
+            return GAP_STALENESS, "literature signal on an axis the frozen atlas has no anchor for (route to atlas session)"
+        return GAP_BLIND_SPOT, "literature reports a signal the omics in this package cannot measure (data/axis need)"
+    if agreement == "contradicts":
+        if n_verified < 1:
+            return GAP_CONFABULATION, "contradicts with no VERIFIED citation — non-reproducible LLM read; discard unless a source is confirmed"
+        if in_calibration:
+            return GAP_CALIBRATION, "verified literature contradicts the verdict on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion"
+        return GAP_VERDICT_RULE, "verified literature contradicts the deterministic verdict — candidate rule/card/method gap"
+    # agree / extends and not blind -> not a gap (concordant); surfaced only in summary counts.
+    return "", ""
+
+
+def build_rows(record: dict, calibration_targets: set[str] | None = None) -> list[dict]:
+    """Project one harvest record into zero-or-more candidate-gap rows. Concordant axes yield
+    no row. Never mutates `record`."""
+    calibration_targets = calibration_targets or set()
+    lit = record.get("literature_synthesis") or {}
+    if not isinstance(lit, dict) or lit.get("_literature_skipped") or lit.get("_literature_error"):
+        return []
+    target = record.get("target")
+    indication = record.get("indication")
+    skill = record.get("skill") or record.get("skill_dir") or "?"
+    sv = record.get("sub_verdict") or {}
+    verdict = sv.get("verdict")
+    driving = sv.get("driving_rule_id")
+    overall = lit.get("overall_consistency")
+    key_div = lit.get("key_divergence")
+    prov = record.get("_provenance") or {}
+    in_calibration = (target or "").upper() in {t.upper() for t in calibration_targets}
+
+    rows: list[dict] = []
+
+    def _emit(axis_key, agreement, lit_read, assertion, confidence, citations, is_blind):
+        n_ver, n_tot = _citation_support(citations)
+        atlas_excluded = _is_atlas_excluded(skill, f"{assertion} {axis_key}")
+        gap_class, why = _classify(agreement, n_ver, is_blind, atlas_excluded, in_calibration)
+        if not gap_class:
+            return
+        rows.append({
+            "target": target, "indication": indication, "skill": skill,
+            "axis_key": axis_key,
+            "gap_class": gap_class, "severity": _SEVERITY[gap_class], "why": why,
+            "agreement_vs_omics": agreement, "literature_read": lit_read,
+            "assertion": assertion, "confidence": confidence,
+            "overall_consistency": overall, "key_divergence": key_div,
+            "sub_verdict": verdict, "driving_rule_id": driving,
+            "n_verified_citations": n_ver, "n_citations": n_tot,
+            "confabulation_risk": (agreement == "contradicts" and n_ver < 1),
+            "citations": list(citations or []),
+            "in_calibration_set": in_calibration,
+            "provenance": {"model_id": prov.get("model_id") or lit.get("_model_id"),
+                           "prompt_hash": prov.get("prompt_hash") or lit.get("_prompt_hash")},
+        })
+
+    for ax in lit.get("axes") or []:
+        if not isinstance(ax, dict):
+            continue
+        agreement = ax.get("agreement_vs_omics")
+        _emit(ax.get("axis_key"), agreement, ax.get("literature_read"),
+              ax.get("assertion"), ax.get("confidence"), ax.get("citations"),
+              is_blind=agreement in _BLIND_AGREEMENTS)
+
+    # blind_spots[] are literature-only signals the omics CANNOT measure by construction.
+    for bs in lit.get("blind_spots") or []:
+        if not isinstance(bs, dict):
+            continue
+        _emit("blind_spot", "omics_blind", "not_addressed",
+              f"{bs.get('signal', '')}: {bs.get('why_omics_blind', '')}".strip(": "),
+              None, bs.get("citations"), is_blind=True)
+
+    return rows
+
+
+def _corpus_fingerprint(path: str | Path) -> str:
+    p = Path(path)
+    h = hashlib.sha256()
+    files = sorted(p.glob("*.json")) if p.is_dir() else [p]
+    for f in files:
+        h.update(f.read_bytes())
+    return h.hexdigest()[:16]
+
+
+def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None = None) -> dict:
+    records = load_corpus(corpus_path)
+    rows: list[dict] = []
+    for rec in records:
+        rows.extend(build_rows(rec, calibration_targets))
+    # Rank: severity desc, then verified-citation count desc, then (skill, target) for stability.
+    rows.sort(key=lambda r: (-r["severity"], -r["n_verified_citations"],
+                             str(r["skill"]), str(r["target"]), str(r["axis_key"])))
+    by_class: dict[str, int] = {}
+    by_skill: dict[str, int] = {}
+    for r in rows:
+        by_class[r["gap_class"]] = by_class.get(r["gap_class"], 0) + 1
+        by_skill[r["skill"]] = by_skill.get(r["skill"], 0) + 1
+    actionable = [r for r in rows if r["gap_class"] in (GAP_CALIBRATION, GAP_VERDICT_RULE, GAP_BLIND_SPOT)]
+    return {
+        "schema": "discordance_ledger/v1",
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+        "corpus": str(corpus_path),
+        "corpus_fingerprint": _corpus_fingerprint(corpus_path),
+        "n_records": len(records),
+        "n_rows": len(rows),
+        "n_actionable": len(actionable),
+        "summary": {"by_gap_class": by_class, "by_skill": by_skill},
+        "governance": "escalate-only; annotation-only; literature not citable in nominations "
+                      "(RISK_ASSESSMENT_INTEGRATION.md). This ledger is a review queue.",
+        "rows": rows,
+    }
+
+
+def _load_calibration_targets(path: str | Path | None) -> set[str]:
+    """Optional: pull target symbols from known_target_calibration_set.yaml's reference_profiles.
+    Best-effort + dependency-light (PyYAML if present, else a tolerant line scan)."""
+    if not path:
+        return set()
+    p = Path(path)
+    if not p.exists():
+        return set()
+    try:
+        import yaml  # type: ignore
+        doc = yaml.safe_load(p.read_text()) or {}
+        out: set[str] = set()
+        profiles = doc.get("reference_profiles") or doc.get("targets") or []
+        if isinstance(profiles, dict):
+            profiles = list(profiles.values())
+        for entry in profiles:
+            if isinstance(entry, dict):
+                t = entry.get("target") or entry.get("gene") or entry.get("symbol")
+                if t:
+                    out.add(str(t))
+        return out
+    except Exception:  # noqa: BLE001 — never let ground-truth loading break the ledger
+        return set()
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--corpus", required=True, help="JSON list, directory of records, or single record")
+    ap.add_argument("--calibration-set", default=None,
+                    help="optional known_target_calibration_set.yaml to tag calibration_gap rows")
+    ap.add_argument("--out", default=None, help="write ledger JSON here (default: stdout only)")
+    a = ap.parse_args(argv)
+    ledger = build_ledger(a.corpus, _load_calibration_targets(a.calibration_set))
+    text = json.dumps(ledger, indent=2)
+    if a.out:
+        Path(a.out).write_text(text)
+    print(text)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
