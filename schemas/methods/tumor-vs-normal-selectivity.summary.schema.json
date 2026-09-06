@@ -99,6 +99,7 @@
         "modest_tumor_selective",
         "selective_but_broadly_normal",
         "selective_with_normal_liability",
+        "selective_but_stromal_confound",
         "field_effect_tumor_selective",
         "discordant_across_comparators",
         "not_selective",
@@ -153,60 +154,49 @@
         "null"
       ]
     },
-    "tumor_median_tpm": {
+    "per_subgroup_metrics": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "tumor_p25_tpm": {
+    "subgroup_axis": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "tumor_p75_tpm": {
+    "n_subgroups_with_data": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "max_normal_tissue_tpm": {
+    "max_subgroup_log2fc": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "selectivity_score": {
+    "min_subgroup_log2fc": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "log2_fc_vs_max_normal": {
+    "cross_subgroup_delta_log2fc": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "log2_fc_vs_paired_adjacent": {
+    "selectivity_class_by_subgroup": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
-    "log2_fc_vs_gtex_pooled": {
+    "cross_subgroup_selectivity_divergence": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
+      ]
+    },
+    "any_subgroup_strong_selective": {
+      "type": [
+        "null"
       ]
     }
   }

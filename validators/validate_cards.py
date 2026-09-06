@@ -1093,6 +1093,37 @@ def validate_derived_from_refs(cards_dir: Path) -> list[str]:
     return problems
 
 
+def validate_verdict_card_summary_schema_coverage(cards_dir: Path) -> list[str]:
+    """RATCHET (TC1, 2026-09-06): every resolver-consumed (verdict-bearing) card MUST have a committed
+    per-card summary output schema at schemas/methods/<card>.summary.schema.json — the method->card
+    shape contract. A verdict-bearing card with no shape contract is the drift gap the framework review
+    flagged: a method renaming/dropping a summary field the card's rules key on can go undetected and
+    silently dead the interpretation rule + resolver rung. The verdict-bearing set is the authoritative
+    coverage/card_resolver_consumption.yaml snapshot. Non-verdict-bearing cards remain opt-in. Generate
+    a missing schema with: python validators/gen_summary_schemas.py --only <card>. No-op if the snapshot
+    is absent (graceful, mirrors the other sibling/cross-ref checks)."""
+    cards_dir = Path(cards_dir)
+    snapshot = cards_dir.parent / 'coverage' / 'card_resolver_consumption.yaml'
+    methods_dir = cards_dir.parent / 'schemas' / 'methods'
+    if not snapshot.is_file():
+        return []
+    try:
+        verdict_cards = (yaml.safe_load(snapshot.read_text()) or {}).get('resolver_consumed_cards') or []
+    except yaml.YAMLError:
+        return []
+    existing = {p.name[:-len('.card.yaml')] for p in cards_dir.glob('*.card.yaml')}
+    problems: list[str] = []
+    for c in sorted(verdict_cards):
+        if c not in existing:
+            continue  # a snapshot entry with no card file is the resolver-consumption validator's concern
+        if not (methods_dir / f'{c}.summary.schema.json').is_file():
+            problems.append(
+                f"[ERROR] SUMMARY_SCHEMA_MISSING: verdict-bearing card '{c}' has no "
+                f"schemas/methods/{c}.summary.schema.json (the method->card summary shape contract). "
+                f"Generate it: python validators/gen_summary_schemas.py --only {c}")
+    return problems
+
+
 def validate_dashboard_required_cards(cards_dir: Path) -> list[str]:
     """Cross-check (2026-08-12): every dashboard_spec `required_cards` entry must reference a card whose
     `status` is `wired` (or OMITTED, which defaults to wired). A non-wired card
@@ -1225,7 +1256,8 @@ def main(argv: list[str] | None = None) -> int:
     # is an error (belongs in placeholder_cards). Runs only for a directory target (needs the card set).
     dashboard_problems = (validate_dashboard_required_cards(target)
                           + validate_modality_module_card_refs(target)
-                          + validate_derived_from_refs(target)) if target.is_dir() else []
+                          + validate_derived_from_refs(target)
+                          + validate_verdict_card_summary_schema_coverage(target)) if target.is_dir() else []
     dash_errors = [p for p in dashboard_problems if p.startswith('[ERROR]')]
     dash_warnings = [p for p in dashboard_problems if p.startswith('[WARNING]')]
     if dashboard_problems:

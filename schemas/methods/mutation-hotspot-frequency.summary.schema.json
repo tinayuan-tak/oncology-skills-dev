@@ -9,23 +9,17 @@
   "properties": {
     "overall_mutation_frequency": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
     "n_samples_in_indication": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
     "n_samples_mutated": {
       "type": [
-        "integer",
-        "null",
-        "number"
+        "null"
       ]
     },
     "driver_recurrence_percentile": {
@@ -81,21 +75,62 @@
         "null"
       ]
     },
+    "pooled_driver_recurrence_class": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "top_1pct",
+        "top_decile",
+        "mid",
+        "bottom_decile",
+        "data_unavailable",
+        null
+      ]
+    },
+    "pooled_driver_recurrence_percentile": {
+      "type": [
+        "null"
+      ]
+    },
+    "pooled_mutation_frequency": {
+      "type": [
+        "null"
+      ]
+    },
+    "n_covered_pooled": {
+      "type": [
+        "null"
+      ]
+    },
+    "n_mutated_pooled": {
+      "type": [
+        "null"
+      ]
+    },
+    "cohorts_contributing": {
+      "type": [
+        "null"
+      ]
+    },
+    "pooled_recurrence_context": {
+      "type": [
+        "null"
+      ]
+    },
     "hotspot_frequencies": {
       "type": [
-        "array",
         "null"
       ]
     },
     "top_cooccurring_genes": {
       "type": [
-        "array",
         "null"
       ]
     },
     "top_mutually_exclusive_genes": {
       "type": [
-        "array",
         "null"
       ]
     }

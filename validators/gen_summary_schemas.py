@@ -112,7 +112,12 @@ def _map_declared_type(decl: str) -> str:
 
 def build_schema(card_id: str, card_spec: dict, observed: dict[str, set]) -> dict:
     outputs = card_spec.get("outputs", {}) or {}
-    fields = list(outputs.get("summary_fields", []) or [])
+    # summary_fields entries are usually plain strings, but a card may use the richer dict form
+    # {name, lens_conditional_on, description, ...} (e.g. adc-tce-modality-fit's modality-conditional
+    # grade fields). Normalize either form to the field NAME (vocab/record_schemas are name-keyed).
+    fields = [f["name"] if isinstance(f, dict) else f
+              for f in (outputs.get("summary_fields", []) or [])]
+    fields = [f for f in fields if isinstance(f, str)]
     vocab = outputs.get("summary_fields_vocabulary", {}) or {}
     records = outputs.get("summary_fields_record_schemas", {}) or {}
 
